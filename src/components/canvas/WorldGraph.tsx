@@ -328,6 +328,8 @@ export default function WorldGraph() {
   const handleCharacterClickRef = useRef<(id: string) => void>(() => {});
   const handleLocationClickRef = useRef<(id: string) => void>(() => {});
 
+  const [showEdgeLabels, setShowEdgeLabels] = useState(false);
+
   const narrative = state.activeNarrative;
   const inspectorContext = state.inspectorContext;
   const selectedKnowledgeEntity = state.selectedKnowledgeEntity;
@@ -631,6 +633,7 @@ export default function WorldGraph() {
     const linkLabelSelection = g
       .append('g')
       .attr('class', 'link-labels')
+      .style('display', showEdgeLabels ? '' : 'none')
       .selectAll<SVGTextElement, GraphLink>('text')
       .data(relLinks)
       .join('text')
@@ -820,6 +823,13 @@ export default function WorldGraph() {
         return d.directedLabels[selectedNodeId] ?? d.label ?? '';
       });
   }, [selectedNodeId]);
+
+  // ── Toggle edge label visibility ──
+  useEffect(() => {
+    const g = gRef.current;
+    if (!g) return;
+    g.select('g.link-labels').style('display', showEdgeLabels ? '' : 'none');
+  }, [showEdgeLabels]);
 
   // ── Lightweight: toggle knowledge subgraph without full rebuild ──
   useEffect(() => {
@@ -1147,7 +1157,17 @@ export default function WorldGraph() {
 
   return (
     <div className="relative h-full w-full overflow-hidden">
-      {/* Graph view mode toggle */}
+      {/* Edge labels toggle (top-left) */}
+      <label className="absolute top-2 left-2 z-10 flex items-center gap-1.5 px-2 py-1.5 rounded bg-bg-surface text-[11px] leading-none text-text-dim hover:text-text-default cursor-pointer select-none">
+        <input
+          type="checkbox"
+          checked={showEdgeLabels}
+          onChange={() => setShowEdgeLabels((v) => !v)}
+          className="accent-accent-cta w-3 h-3"
+        />
+        Labels
+      </label>
+      {/* Graph view mode toggle (top-right) */}
       <div className="absolute top-2 right-2 z-10 flex items-center rounded bg-bg-surface text-[11px] leading-none">
         <button
           className={`px-2 py-1.5 rounded-l transition-colors ${
