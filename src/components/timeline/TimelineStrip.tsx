@@ -2,28 +2,15 @@
 
 import { useRef, useEffect, useMemo, useCallback } from 'react';
 import { useStore } from '@/lib/store';
-import type { Scene, Arc, ThreadMutation } from '@/types/narrative';
+import type { Arc } from '@/types/narrative';
+import { resolveEntry } from '@/types/narrative';
 
 const NODE_RADIUS = 8;
 const NODE_SPACING = 50;
 const PADDING_LEFT = 32;
 const PADDING_TOP = 28;
-const DIAMOND_SIZE = 4;
 const BAND_Y = 4;
 const BAND_HEIGHT = 56;
-
-function getDiamondColor(mutations: ThreadMutation[]): string | null {
-  for (const m of mutations) {
-    if (m.to === 'escalating' || m.to === 'threatened') return '#F59E0B';
-  }
-  for (const m of mutations) {
-    if (m.to === 'done') return '#FFFFFF';
-  }
-  for (const m of mutations) {
-    if (m.to === 'surfacing') return '#666666';
-  }
-  return null;
-}
 
 const ARC_TINTS = [
   'rgba(255,255,255,0.03)',
@@ -38,13 +25,10 @@ export default function TimelineStrip() {
   const scrollRef = useRef<HTMLDivElement>(null);
   const narrative = state.activeNarrative;
 
-  const sceneKeys = useMemo(
-    () => (narrative ? Object.keys(narrative.scenes) : []),
-    [narrative],
-  );
+  const sceneKeys = state.resolvedSceneKeys;
 
   const scenes = useMemo(
-    () => (narrative ? sceneKeys.map((k) => narrative.scenes[k]) : []),
+    () => (narrative ? sceneKeys.map((k) => resolveEntry(narrative, k)).filter((e): e is NonNullable<typeof e> => e != null) : []),
     [narrative, sceneKeys],
   );
 
@@ -91,9 +75,23 @@ export default function TimelineStrip() {
     container.scrollTo({ left: Math.max(0, left), behavior: 'smooth' });
   }, [state.currentSceneIndex, sceneKeys.length, xOf]);
 
+  const branchList = useMemo(
+    () => (narrative ? Object.values(narrative.branches) : []),
+    [narrative],
+  );
+  const activeBranch = narrative && state.activeBranchId
+    ? narrative.branches[state.activeBranchId]
+    : null;
+
+  // Find fork point index in resolved keys for visual indicator
+  const forkPointIdx = useMemo(() => {
+    if (!activeBranch?.forkEntryId) return -1;
+    return sceneKeys.indexOf(activeBranch.forkEntryId);
+  }, [activeBranch, sceneKeys]);
+
   if (!narrative) {
     return (
-      <div className="flex items-center justify-center h-[72px] bg-bg-panel border-t border-border">
+      <div className="flex items-center justify-center h-18 bg-bg-panel border-t border-border">
         <span className="text-text-dim text-xs tracking-widest uppercase">
           No narrative loaded
         </span>
@@ -102,10 +100,31 @@ export default function TimelineStrip() {
   }
 
   return (
-    <div
-      ref={scrollRef}
-      className="h-[72px] bg-bg-panel border-t border-border overflow-x-auto overflow-y-hidden"
-    >
+    <div className="relative h-18 bg-bg-panel border-t border-border flex">
+      {/* Branch selector */}
+      {branchList.length > 1 && (
+        <div className="flex items-center px-2 border-r border-border shrink-0">
+          <select
+            value={state.activeBranchId ?? ''}
+            onChange={(e) => dispatch({ type: 'SWITCH_BRANCH', branchId: e.target.value })}
+            className="bg-transparent text-[10px] text-text-secondary uppercase tracking-wider cursor-pointer outline-none appearance-none pr-3"
+            style={{ backgroundImage: 'none' }}
+          >
+            {branchList.map((b) => (
+              <option key={b.id} value={b.id} className="bg-bg-panel text-text-primary">
+                {b.name}
+              </option>
+            ))}
+          </select>
+          <svg width="8" height="5" viewBox="0 0 8 5" className="-ml-2 pointer-events-none">
+            <path d="M0 0L4 5L8 0" fill="currentColor" className="text-text-dim" />
+          </svg>
+        </div>
+      )}
+      <div
+        ref={scrollRef}
+        className="flex-1 overflow-x-auto overflow-y-hidden"
+      >
       <svg
         width={svgWidth}
         height={72}
@@ -117,7 +136,16 @@ export default function TimelineStrip() {
           const x1 = xOf(band.startIdx) - NODE_RADIUS - 8;
           const x2 = xOf(band.endIdx) + NODE_RADIUS + 8;
           return (
-            <g key={band.arc.id}>
+            <g
+              key={band.arc.id}
+              className="cursor-pointer"
+              onClick={() =>
+                dispatch({
+                  type: 'SET_INSPECTOR',
+                  context: { type: 'arc', arcId: band.arc.id },
+                })
+              }
+            >
               <rect
                 x={x1}
                 y={BAND_Y}
@@ -125,6 +153,7 @@ export default function TimelineStrip() {
                 height={BAND_HEIGHT}
                 rx={4}
                 fill={ARC_TINTS[band.tintIdx]}
+                className="transition-all hover:brightness-150"
               />
               <text
                 x={x1 + 4}
@@ -143,9 +172,35 @@ export default function TimelineStrip() {
           );
         })}
 
+        {/* Fork point indicator */}
+        {forkPointIdx >= 0 && (
+          <g>
+            <line
+              x1={xOf(forkPointIdx)}
+              y1={PADDING_TOP + 8 - NODE_RADIUS - 6}
+              x2={xOf(forkPointIdx)}
+              y2={PADDING_TOP + 8 + NODE_RADIUS + 6}
+              stroke="#F59E0B"
+              strokeWidth={1.5}
+              strokeDasharray="2 2"
+            />
+            <text
+              x={xOf(forkPointIdx)}
+              y={PADDING_TOP + 8 + NODE_RADIUS + 16}
+              textAnchor="middle"
+              fontSize={7}
+              fill="#F59E0B"
+              style={{ textTransform: 'uppercase', letterSpacing: '0.05em' }}
+            >
+              fork
+            </text>
+          </g>
+        )}
+
         {/* Connecting lines between scene nodes */}
         {scenes.map((_, i) => {
           if (i === 0) return null;
+          const isForkBoundary = forkPointIdx >= 0 && i === forkPointIdx + 1;
           return (
             <line
               key={`line-${i}`}
@@ -153,8 +208,9 @@ export default function TimelineStrip() {
               y1={PADDING_TOP + 8}
               x2={xOf(i)}
               y2={PADDING_TOP + 8}
-              stroke="#333333"
-              strokeWidth={1}
+              stroke={isForkBoundary ? '#F59E0B' : '#333333'}
+              strokeWidth={isForkBoundary ? 1.5 : 1}
+              strokeDasharray={isForkBoundary ? '3 3' : undefined}
             />
           );
         })}
@@ -164,7 +220,7 @@ export default function TimelineStrip() {
           const x = xOf(i);
           const y = PADDING_TOP + 8;
           const isSelected = i === state.currentSceneIndex;
-          const diamondColor = getDiamondColor(scene.threadMutations);
+          const isExpansion = scene.kind === 'world_build';
 
           return (
             <g
@@ -179,7 +235,7 @@ export default function TimelineStrip() {
               }}
             >
               {/* Selected ring */}
-              {isSelected && (
+              {isSelected && !isExpansion && (
                 <circle
                   cx={x}
                   cy={y}
@@ -189,28 +245,61 @@ export default function TimelineStrip() {
                   strokeWidth={2}
                 />
               )}
-              {/* Node circle */}
-              <circle
-                cx={x}
-                cy={y}
-                r={NODE_RADIUS}
-                fill={isSelected ? '#E8E8E8' : '#444444'}
-              />
-              {/* Thread event diamond marker */}
-              {diamondColor && (
+              {isSelected && isExpansion && (
                 <rect
-                  x={x - DIAMOND_SIZE / 2}
-                  y={y + NODE_RADIUS + 8 - DIAMOND_SIZE / 2}
-                  width={DIAMOND_SIZE}
-                  height={DIAMOND_SIZE}
-                  fill={diamondColor}
-                  transform={`rotate(45, ${x}, ${y + NODE_RADIUS + 8})`}
+                  x={x - NODE_RADIUS - 3}
+                  y={y - NODE_RADIUS - 3}
+                  width={(NODE_RADIUS + 3) * 2}
+                  height={(NODE_RADIUS + 3) * 2}
+                  rx={2}
+                  fill="none"
+                  stroke="#F59E0B"
+                  strokeWidth={2}
+                  transform={`rotate(45 ${x} ${y})`}
+                />
+              )}
+              {/* Node shape — diamond for expansion, circle for normal */}
+              {isExpansion ? (
+                <rect
+                  x={x - NODE_RADIUS + 1}
+                  y={y - NODE_RADIUS + 1}
+                  width={(NODE_RADIUS - 1) * 2}
+                  height={(NODE_RADIUS - 1) * 2}
+                  rx={2}
+                  fill={isSelected ? '#F59E0B' : '#92600A'}
+                  transform={`rotate(45 ${x} ${y})`}
+                />
+              ) : (
+                <circle
+                  cx={x}
+                  cy={y}
+                  r={NODE_RADIUS}
+                  fill={isSelected ? '#E8E8E8' : '#444444'}
                 />
               )}
             </g>
           );
         })}
       </svg>
+      </div>
+
+      {/* Fork button */}
+      <div className="flex items-center px-2 border-l border-border shrink-0">
+        <button
+          type="button"
+          title="Fork branch from current scene"
+          onClick={() => window.dispatchEvent(new CustomEvent('open-fork-panel'))}
+          className="w-7 h-7 flex items-center justify-center text-text-dim hover:text-text-primary hover:bg-white/6 rounded-md transition-colors"
+        >
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <circle cx="12" cy="18" r="3" />
+            <circle cx="6" cy="6" r="3" />
+            <circle cx="18" cy="6" r="3" />
+            <path d="M18 9v2c0 .6-.4 1-1 1H7c-.6 0-1-.4-1-1V9" />
+            <path d="M12 12v3" />
+          </svg>
+        </button>
+      </div>
     </div>
   );
 }

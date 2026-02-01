@@ -7,24 +7,6 @@ import { WorldGenStep } from './WorldGenStep';
 import { ThreadSelectionStep } from './ThreadSelectionStep';
 import { ConfirmStep } from './ConfirmStep';
 
-const STEPS: WizardStep[] = ['premise', 'world-gen', 'thread-selection', 'confirm'];
-
-function StepDots({ current }: { current: WizardStep }) {
-  const currentIndex = STEPS.indexOf(current);
-  return (
-    <div className="flex items-center justify-center gap-2 mb-6">
-      {STEPS.map((step, i) => (
-        <div
-          key={step}
-          className={`w-2 h-2 rounded-full ${
-            i <= currentIndex ? 'bg-white' : 'bg-white/20'
-          }`}
-        />
-      ))}
-    </div>
-  );
-}
-
 function StepContent({ step }: { step: WizardStep }) {
   switch (step) {
     case 'premise':
@@ -52,7 +34,6 @@ export function CreationWizard() {
         >
           &times;
         </button>
-        <StepDots current={state.wizardStep} />
         <StepContent step={state.wizardStep} />
       </div>
     </div>

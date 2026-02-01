@@ -2,21 +2,12 @@
 
 import { useStore } from '@/lib/store';
 
-function formatTimer(seconds: number): string {
-  const mins = Math.floor(seconds / 60);
-  const secs = seconds % 60;
-  return `${mins}:${secs.toString().padStart(2, '0')}`;
-}
-
 export default function FloatingPalette() {
   const { state, dispatch } = useStore();
   const narrative = state.activeNarrative;
   const isActive = narrative !== null;
-  const isAuto = state.controlMode === 'auto';
 
-  const totalScenes = narrative
-    ? Object.keys(narrative.scenes).length
-    : 0;
+  const totalScenes = state.resolvedSceneKeys.length;
 
   const wrapperClasses = isActive ? '' : 'opacity-30 pointer-events-none';
 
@@ -46,32 +37,35 @@ export default function FloatingPalette() {
         {/* Divider */}
         <div className="w-px h-4 bg-white/[0.12] mx-1" />
 
-        {/* Timer (auto mode only) */}
-        {isAuto && (
-          <>
-            <span className="font-mono text-xs text-text-secondary">
-              {formatTimer(state.autoTimer)}
-            </span>
-            <div className="w-px h-4 bg-white/[0.12] mx-1" />
-          </>
-        )}
-
-        {/* Play / Stop */}
-        <button
-          type="button"
-          className="text-xs font-semibold text-text-primary bg-white/[0.08] px-2 py-1 rounded-md hover:bg-white/[0.12] transition-colors"
-          onClick={() => dispatch({ type: 'TOGGLE_PLAY' })}
-        >
-          {state.isPlaying ? '\u25A0 Stop' : '\u25B6 Play'}
-        </button>
-
-        {/* Divider */}
-        <div className="w-px h-4 bg-white/[0.12] mx-1" />
-
         {/* Scene counter */}
         <span className="text-text-dim text-[10px] whitespace-nowrap">
           Scene {state.currentSceneIndex + 1} / {totalScenes}
         </span>
+
+        {/* Divider */}
+        <div className="w-px h-4 bg-white/[0.12] mx-1" />
+
+        {/* Generate */}
+        <button
+          type="button"
+          className="text-xs font-semibold text-text-primary bg-white/[0.08] px-2 py-1 rounded-md hover:bg-white/[0.12] transition-colors uppercase tracking-wider"
+          onClick={() => {
+            window.dispatchEvent(new CustomEvent('open-generate-panel'));
+          }}
+        >
+          Generate
+        </button>
+
+        {/* Auto */}
+        <button
+          type="button"
+          className="text-xs font-semibold text-text-secondary bg-white/[0.08] px-2 py-1 rounded-md hover:bg-white/[0.12] hover:text-text-primary transition-colors uppercase tracking-wider"
+          onClick={() => {
+            window.dispatchEvent(new CustomEvent('open-auto-settings'));
+          }}
+        >
+          Auto
+        </button>
       </div>
     </div>
   );

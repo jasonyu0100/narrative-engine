@@ -10,6 +10,7 @@ import type {
   CharacterRole,
   Arc,
   Scene,
+  WorldBuildCommit,
 } from '@/types/narrative';
 
 // ── Graph node / link types ─────────────────────────────────────────────────
@@ -28,6 +29,8 @@ interface GraphNode extends d3.SimulationNodeDatum {
   knowledgeType?: string;
   /** Parent character id for knowledge nodes */
   parentCharacterId?: string;
+  /** Usage count for overview mode */
+  usageCount?: number;
 }
 
 interface GraphLink extends d3.SimulationLinkDatum<GraphNode> {
@@ -36,6 +39,8 @@ interface GraphLink extends d3.SimulationLinkDatum<GraphNode> {
   label?: string;
   valence?: number;
   knowledgeEdgeType?: string;
+  /** Curve offset for bidirectional relationship edges: +1 or -1 */
+  curveOffset?: number;
 }
 
 // ── Constants ───────────────────────────────────────────────────────────────
@@ -80,16 +85,16 @@ function computeCharacterPositions(
   arc: Arc,
   scenes: Record<string, Scene>,
   currentSceneIndex: number,
+  resolvedSceneKeys: string[],
 ): Record<string, string> {
   const positions = { ...arc.initialCharacterLocations };
   const arcScenes = arc.sceneIds.map((sid) => scenes[sid]).filter(Boolean);
-  // Find the offset of this arc's first scene within the global scene order
-  const allSceneKeys = Object.keys(scenes);
-  const arcStartGlobal = allSceneKeys.indexOf(arc.sceneIds[0]);
+  // Find the offset of this arc's first scene within the resolved scene order
+  const arcStartGlobal = resolvedSceneKeys.indexOf(arc.sceneIds[0]);
 
   for (let i = 0; i < arcScenes.length; i++) {
     const globalIdx = arcStartGlobal + i;
-    if (globalIdx > currentSceneIndex) break;
+    if (globalIdx < 0 || globalIdx > currentSceneIndex) break;
     const scene = arcScenes[i];
     if (scene.characterMovements) {
       for (const [charId, locId] of Object.entries(scene.characterMovements)) {
@@ -104,7 +109,6 @@ function buildGraphData(
   characters: Record<string, Character>,
   locations: Record<string, Location>,
   relationships: RelationshipEdge[],
-  selectedKnowledgeEntity: string | null,
   characterPositions: Record<string, string>,
 ): { nodes: GraphNode[]; links: GraphLink[] } {
   const nodes: GraphNode[] = [];
@@ -168,39 +172,100 @@ function buildGraphData(
     }
   }
 
-  // Knowledge subgraph for selected entity (character or location)
-  if (selectedKnowledgeEntity) {
-    const entity = characters[selectedKnowledgeEntity] ?? locations[selectedKnowledgeEntity];
-    if (entity) {
-      const kg = entity.knowledge;
-      const eid = entity.id;
+  return { nodes, links };
+}
 
-      for (const kn of kg.nodes) {
-        nodes.push({
-          id: `k-${eid}-${kn.id}`,
-          kind: 'knowledge',
-          label: kn.content,
-          knowledgeType: kn.type,
-          parentCharacterId: eid,
-        });
+// ── Overview graph: aggregated usage across all scenes up to currentSceneIndex ──
 
-        links.push({
-          id: `klink-${eid}-${kn.id}`,
-          source: eid,
-          target: `k-${eid}-${kn.id}`,
-          linkKind: 'knowledge',
-        });
+function buildOverviewGraphData(
+  characters: Record<string, Character>,
+  locations: Record<string, Location>,
+  relationships: RelationshipEdge[],
+  scenes: Record<string, Scene>,
+  worldBuilds: Record<string, WorldBuildCommit>,
+  resolvedSceneKeys: string[],
+  currentSceneIndex: number,
+): { nodes: GraphNode[]; links: GraphLink[] } {
+  const nodes: GraphNode[] = [];
+  const links: GraphLink[] = [];
+
+  // Count usage up to current scene index
+  const charUsage: Record<string, number> = {};
+  const locUsage: Record<string, number> = {};
+
+  for (let i = 0; i <= currentSceneIndex && i < resolvedSceneKeys.length; i++) {
+    const key = resolvedSceneKeys[i];
+    const wb = worldBuilds[key];
+    if (wb) {
+      // World builds introduce elements — count manifest IDs so they appear in overview
+      for (const cid of wb.expansionManifest.characterIds) {
+        charUsage[cid] = (charUsage[cid] ?? 0) + 1;
       }
-
-      for (const ke of kg.edges) {
-        links.push({
-          id: `kedge-${eid}-${ke.from}-${ke.to}`,
-          source: `k-${eid}-${ke.from}`,
-          target: `k-${eid}-${ke.to}`,
-          linkKind: 'knowledge',
-          knowledgeEdgeType: ke.type,
-        });
+      for (const lid of wb.expansionManifest.locationIds) {
+        locUsage[lid] = (locUsage[lid] ?? 0) + 1;
       }
+    } else {
+      const scene = scenes[key];
+      if (!scene) continue;
+      for (const pid of scene.participantIds) {
+        charUsage[pid] = (charUsage[pid] ?? 0) + 1;
+      }
+      if (scene.locationId) {
+        locUsage[scene.locationId] = (locUsage[scene.locationId] ?? 0) + 1;
+      }
+    }
+  }
+
+  // Only include entities that appear at least once
+  const activeCharIds = new Set(Object.keys(charUsage));
+  const activeLocIds = new Set(Object.keys(locUsage));
+
+  for (const char of Object.values(characters)) {
+    if (!activeCharIds.has(char.id)) continue;
+    nodes.push({
+      id: char.id,
+      kind: 'character',
+      label: char.name,
+      role: char.role,
+      threadCount: char.threadIds.length,
+      usageCount: charUsage[char.id],
+    });
+  }
+
+  for (const loc of Object.values(locations)) {
+    if (!activeLocIds.has(loc.id)) continue;
+    nodes.push({
+      id: loc.id,
+      kind: 'location',
+      label: loc.name,
+      threadCount: loc.threadIds.length,
+      usageCount: locUsage[loc.id],
+    });
+  }
+
+  // Relationships between active characters
+  for (const rel of relationships) {
+    if (activeCharIds.has(rel.from) && activeCharIds.has(rel.to)) {
+      links.push({
+        id: `rel-${rel.from}-${rel.to}-${rel.type}`,
+        source: rel.from,
+        target: rel.to,
+        linkKind: 'relationship',
+        label: rel.type,
+        valence: rel.valence,
+      });
+    }
+  }
+
+  // Spatial edges for active locations
+  for (const loc of Object.values(locations)) {
+    if (activeLocIds.has(loc.id) && loc.parentId && activeLocIds.has(loc.parentId)) {
+      links.push({
+        id: `spatial-${loc.id}-${loc.parentId}`,
+        source: loc.id,
+        target: loc.parentId,
+        linkKind: 'spatial',
+      });
     }
   }
 
@@ -221,15 +286,17 @@ export default function WorldGraph() {
   const narrative = state.activeNarrative;
   const inspectorContext = state.inspectorContext;
   const selectedKnowledgeEntity = state.selectedKnowledgeEntity;
+  const graphViewMode = state.graphViewMode;
+
+  const resolvedSceneKeys = state.resolvedSceneKeys;
 
   // Derive active arc ID — this is what triggers a full re-render
   const activeArcId = useMemo(() => {
     if (!narrative) return null;
-    const sceneKeys = Object.keys(narrative.scenes);
-    const currentKey = sceneKeys[state.currentSceneIndex];
+    const currentKey = resolvedSceneKeys[state.currentSceneIndex];
     if (!currentKey) return null;
     return Object.values(narrative.arcs).find((a) => a.sceneIds.includes(currentKey))?.id ?? null;
-  }, [narrative, state.currentSceneIndex]);
+  }, [narrative, state.currentSceneIndex, resolvedSceneKeys]);
 
   // Determine which node is selected for highlight
   const selectedNodeId = useMemo(() => {
@@ -274,6 +341,14 @@ export default function WorldGraph() {
   );
   handleLocationClickRef.current = handleLocationClick;
 
+
+  // Track the current world build ID (or null) — triggers full rebuild when navigating between world builds
+  const currentWorldBuildId = useMemo(() => {
+    if (!narrative) return null;
+    const key = resolvedSceneKeys[state.currentSceneIndex];
+    return key && narrative.worldBuilds[key] ? key : null;
+  }, [narrative, resolvedSceneKeys, state.currentSceneIndex]);
+
   // ── Full rebuild: only on arc change or knowledge entity selection ────
   useEffect(() => {
     if (!svgRef.current || !narrative) return;
@@ -285,46 +360,94 @@ export default function WorldGraph() {
     // Clear previous
     svg.selectAll('*').remove();
 
-    const activeArc = activeArcId
-      ? narrative.arcs[activeArcId]
-      : undefined;
+    let nodes: GraphNode[];
+    let links: GraphLink[];
 
-    // Filter characters, locations, and relationships to the active arc
-    let filteredCharacters: Record<string, Character>;
-    let filteredLocations: Record<string, Location>;
-    let filteredRelationships: RelationshipEdge[];
-
-    if (activeArc) {
-      const activeCharIds = new Set(activeArc.activeCharacterIds);
-      const activeLocIds = new Set(activeArc.locationIds);
-
-      filteredCharacters = Object.fromEntries(
-        Object.entries(narrative.characters).filter(([id]) => activeCharIds.has(id)),
+    if (graphViewMode === 'overview') {
+      // Overview mode: all characters/locations sized by usage
+      const result = buildOverviewGraphData(
+        narrative.characters,
+        narrative.locations,
+        narrative.relationships,
+        narrative.scenes,
+        narrative.worldBuilds,
+        resolvedSceneKeys,
+        resolvedSceneKeys.length - 1,
       );
-      filteredLocations = Object.fromEntries(
-        Object.entries(narrative.locations).filter(([id]) => activeLocIds.has(id)),
-      );
-      filteredRelationships = narrative.relationships.filter(
-        (r) => activeCharIds.has(r.from) && activeCharIds.has(r.to),
-      );
+      nodes = result.nodes;
+      links = result.links;
     } else {
-      filteredCharacters = narrative.characters;
-      filteredLocations = narrative.locations;
-      filteredRelationships = narrative.relationships;
+      // Check if current scene is a world expansion
+      const currentKey = resolvedSceneKeys[state.currentSceneIndex];
+      const currentWorldBuild = currentKey ? narrative.worldBuilds[currentKey] : null;
+
+      if (currentWorldBuild) {
+        // Expansion mode: show only elements from this expansion
+        const manifest = currentWorldBuild.expansionManifest;
+        const expandedCharIds = new Set(manifest.characterIds);
+        const expandedLocIds = new Set(manifest.locationIds);
+
+        const filteredChars = Object.fromEntries(
+          Object.entries(narrative.characters).filter(([id]) => expandedCharIds.has(id)),
+        );
+        const filteredLocs = Object.fromEntries(
+          Object.entries(narrative.locations).filter(([id]) => expandedLocIds.has(id)),
+        );
+        const filteredRels = narrative.relationships.filter(
+          (r) => expandedCharIds.has(r.from) && expandedCharIds.has(r.to),
+        );
+
+        const result = buildGraphData(
+          filteredChars,
+          filteredLocs,
+          filteredRels,
+          {},
+        );
+        nodes = result.nodes;
+        links = result.links;
+      } else {
+        // Scene mode: scoped to active arc
+        const activeArc = activeArcId
+          ? narrative.arcs[activeArcId]
+          : undefined;
+
+        let filteredCharacters: Record<string, Character>;
+        let filteredLocations: Record<string, Location>;
+        let filteredRelationships: RelationshipEdge[];
+
+        if (activeArc) {
+          const activeCharIds = new Set(activeArc.activeCharacterIds);
+          const activeLocIds = new Set(activeArc.locationIds);
+
+          filteredCharacters = Object.fromEntries(
+            Object.entries(narrative.characters).filter(([id]) => activeCharIds.has(id)),
+          );
+          filteredLocations = Object.fromEntries(
+            Object.entries(narrative.locations).filter(([id]) => activeLocIds.has(id)),
+          );
+          filteredRelationships = narrative.relationships.filter(
+            (r) => activeCharIds.has(r.from) && activeCharIds.has(r.to),
+          );
+        } else {
+          filteredCharacters = narrative.characters;
+          filteredLocations = narrative.locations;
+          filteredRelationships = narrative.relationships;
+        }
+
+        const characterPositions = activeArc
+          ? computeCharacterPositions(activeArc, narrative.scenes, state.currentSceneIndex, resolvedSceneKeys)
+          : {};
+
+        const result = buildGraphData(
+          filteredCharacters,
+          filteredLocations,
+          filteredRelationships,
+          characterPositions,
+        );
+        nodes = result.nodes;
+        links = result.links;
+      }
     }
-
-    // Compute character positions from arc initial + scene deltas
-    const characterPositions = activeArc
-      ? computeCharacterPositions(activeArc, narrative.scenes, state.currentSceneIndex)
-      : {};
-
-    const { nodes, links } = buildGraphData(
-      filteredCharacters,
-      filteredLocations,
-      filteredRelationships,
-      selectedKnowledgeEntity,
-      characterPositions,
-    );
 
     // Store nodes ref for intra-arc updates
     nodesRef.current = nodes;
@@ -355,8 +478,7 @@ export default function WorldGraph() {
     svg.on('click', (event: MouseEvent) => {
       // Only fire when clicking the SVG background, not a node
       if (event.target === svgRef.current) {
-        const sceneKeys = Object.keys(narrative.scenes);
-        const currentKey = sceneKeys[state.currentSceneIndex];
+        const currentKey = resolvedSceneKeys[state.currentSceneIndex];
         if (currentKey) {
           dispatch({ type: 'SET_INSPECTOR', context: { type: 'scene', sceneId: currentKey } });
           dispatch({ type: 'SELECT_KNOWLEDGE_ENTITY', entityId: null });
@@ -469,23 +591,43 @@ export default function WorldGraph() {
           }),
       );
 
-    // Character circles
+    // Character circles — scale by usage in overview mode
+    const maxUsage = graphViewMode === 'overview'
+      ? Math.max(1, ...nodes.filter((n) => n.kind === 'character').map((n) => n.usageCount ?? 1))
+      : 1;
+    const maxLocUsage = graphViewMode === 'overview'
+      ? Math.max(1, ...nodes.filter((n) => n.kind === 'location').map((n) => n.usageCount ?? 1))
+      : 1;
+
     nodeGroup
       .filter((d) => d.kind === 'character')
       .append('circle')
-      .attr('r', (d) => ROLE_RADIUS[d.role ?? 'recurring'])
+      .attr('r', (d) => {
+        if (graphViewMode === 'overview') {
+          const base = 12;
+          const scale = 18;
+          return base + scale * ((d.usageCount ?? 1) / maxUsage);
+        }
+        return ROLE_RADIUS[d.role ?? 'recurring'];
+      })
       .attr('fill', (d) => ROLE_FILL[d.role ?? 'recurring']);
 
-    // Location rounded rects
+    // Location rounded rects — scale by usage in overview mode
     nodeGroup
       .filter((d) => d.kind === 'location')
-      .append('rect')
-      .attr('x', -LOCATION_SIZE / 2)
-      .attr('y', -LOCATION_SIZE / 2)
-      .attr('width', LOCATION_SIZE)
-      .attr('height', LOCATION_SIZE)
-      .attr('rx', LOCATION_RX)
-      .attr('fill', LOCATION_FILL);
+      .each(function (d) {
+        const sel = d3.select(this);
+        const size = graphViewMode === 'overview'
+          ? LOCATION_SIZE * (0.7 + 0.6 * ((d.usageCount ?? 1) / maxLocUsage))
+          : LOCATION_SIZE;
+        sel.append('rect')
+          .attr('x', -size / 2)
+          .attr('y', -size / 2)
+          .attr('width', size)
+          .attr('height', size)
+          .attr('rx', LOCATION_RX)
+          .attr('fill', LOCATION_FILL);
+      });
 
     // Knowledge nodes
     nodeGroup
@@ -494,38 +636,6 @@ export default function WorldGraph() {
       .attr('r', 8)
       .attr('fill', (d) => KNOWLEDGE_FILL[d.knowledgeType ?? 'knows'] ?? DEFAULT_KNOWLEDGE_FILL)
       .attr('opacity', (d) => KNOWLEDGE_OPACITY[d.knowledgeType ?? 'knows'] ?? DEFAULT_KNOWLEDGE_OPACITY);
-
-    // Thread count badges
-    const badgeGroup = nodeGroup
-      .filter((d) => (d.threadCount ?? 0) > 0)
-      .append('g')
-      .attr('class', 'thread-badge');
-
-    badgeGroup
-      .append('circle')
-      .attr('r', 7)
-      .attr('cy', (d) => {
-        if (d.kind === 'character') return -(ROLE_RADIUS[d.role ?? 'recurring'] + 8);
-        return -(LOCATION_SIZE / 2 + 8);
-      })
-      .attr('cx', 0)
-      .attr('fill', '#3B82F6')
-      .attr('stroke', '#111111')
-      .attr('stroke-width', 1.5);
-
-    badgeGroup
-      .append('text')
-      .attr('text-anchor', 'middle')
-      .attr('dominant-baseline', 'central')
-      .attr('cy', 0)
-      .attr('y', (d) => {
-        if (d.kind === 'character') return -(ROLE_RADIUS[d.role ?? 'recurring'] + 8);
-        return -(LOCATION_SIZE / 2 + 8);
-      })
-      .style('font-size', '8px')
-      .style('fill', '#FFFFFF')
-      .style('pointer-events', 'none')
-      .text((d) => d.threadCount ?? 0);
 
     // Character / location labels
     nodeGroup
@@ -537,7 +647,12 @@ export default function WorldGraph() {
         if (d.kind === 'character') return ROLE_RADIUS[d.role ?? 'recurring'] + 14;
         return LOCATION_SIZE / 2 + 14;
       })
-      .text((d) => d.label);
+      .text((d) => {
+        if (graphViewMode === 'overview' && d.usageCount != null) {
+          return `${d.label} (${d.usageCount})`;
+        }
+        return d.label;
+      });
 
     // Knowledge node labels (tiny)
     nodeGroup
@@ -582,7 +697,7 @@ export default function WorldGraph() {
       gRef.current = null;
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [narrative, activeArcId, selectedKnowledgeEntity]);
+  }, [narrative, activeArcId, graphViewMode, currentWorldBuildId]);
 
   // ── Lightweight: update selected node highlight ──
   useEffect(() => {
@@ -593,6 +708,184 @@ export default function WorldGraph() {
       .classed('node-selected', (d) => d.id === selectedNodeId);
   }, [selectedNodeId]);
 
+  // ── Lightweight: toggle knowledge subgraph without full rebuild ──
+  useEffect(() => {
+    const g = gRef.current;
+    const simulation = simulationRef.current;
+    if (!g || !simulation || !narrative) return;
+
+    // Remove previous knowledge nodes, links, and hull
+    g.select('g.nodes').selectAll<SVGGElement, GraphNode>('g')
+      .filter((d) => d.kind === 'knowledge')
+      .remove();
+    g.select('g.links').selectAll<SVGLineElement, GraphLink>('line')
+      .filter((d) => d.linkKind === 'knowledge')
+      .remove();
+    g.select('g.link-labels').selectAll<SVGTextElement, GraphLink>('text')
+      .filter((d) => d.linkKind === 'knowledge')
+      .remove();
+    g.select('.knowledge-hull').remove();
+
+    // Remove knowledge nodes/links from simulation
+    const baseNodes = nodesRef.current.filter((n) => n.kind !== 'knowledge');
+    const currentLinks = (simulation.force('link') as d3.ForceLink<GraphNode, GraphLink>).links();
+    const baseLinks = currentLinks.filter((l) => (l as GraphLink).linkKind !== 'knowledge');
+
+    if (!selectedKnowledgeEntity) {
+      nodesRef.current = baseNodes;
+      simulation.nodes(baseNodes);
+      (simulation.force('link') as d3.ForceLink<GraphNode, GraphLink>).links(baseLinks);
+      simulation.alpha(0.1).restart();
+      return;
+    }
+
+    const entity = narrative.characters[selectedKnowledgeEntity] ?? narrative.locations[selectedKnowledgeEntity];
+    if (!entity) return;
+
+    const kg = entity.knowledge;
+    const eid = entity.id;
+    const parentNode = baseNodes.find((n) => n.id === eid);
+    if (!parentNode) return;
+
+    // Create knowledge nodes
+    const knowledgeNodes: GraphNode[] = kg.nodes.map((kn) => ({
+      id: `k-${eid}-${kn.id}`,
+      kind: 'knowledge' as NodeKind,
+      label: kn.content,
+      knowledgeType: kn.type,
+      parentCharacterId: eid,
+      x: (parentNode.x ?? 0) + (Math.random() - 0.5) * 60,
+      y: (parentNode.y ?? 0) + (Math.random() - 0.5) * 60,
+    }));
+
+    const allNodes = [...baseNodes, ...knowledgeNodes];
+    nodesRef.current = allNodes;
+
+    // Create knowledge links
+    const knowledgeNodeMap = new Map(knowledgeNodes.map((n) => [n.id, n]));
+    const knowledgeLinks: GraphLink[] = [];
+
+    for (const kn of kg.nodes) {
+      const target = knowledgeNodeMap.get(`k-${eid}-${kn.id}`);
+      if (target) {
+        knowledgeLinks.push({
+          id: `klink-${eid}-${kn.id}`,
+          source: parentNode,
+          target,
+          linkKind: 'knowledge',
+        });
+      }
+    }
+
+    for (const ke of kg.edges) {
+      const src = knowledgeNodeMap.get(`k-${eid}-${ke.from}`);
+      const tgt = knowledgeNodeMap.get(`k-${eid}-${ke.to}`);
+      if (src && tgt) {
+        knowledgeLinks.push({
+          id: `kedge-${eid}-${ke.from}-${ke.to}`,
+          source: src,
+          target: tgt,
+          linkKind: 'knowledge',
+          knowledgeEdgeType: ke.type,
+        });
+      }
+    }
+
+    // Add knowledge link elements
+    const linksGroup = g.select<SVGGElement>('g.links');
+    const knowledgeLinkEls = linksGroup
+      .selectAll<SVGLineElement, GraphLink>('line.knowledge')
+      .data(knowledgeLinks, (d) => d.id)
+      .join('line')
+      .attr('class', 'graph-edge knowledge')
+      .attr('stroke', 'rgba(255, 255, 255, 0.35)')
+      .attr('stroke-opacity', 0.5)
+      .attr('stroke-width', 1);
+
+    // Add knowledge node elements
+    const nodesGroup = g.select<SVGGElement>('g.nodes');
+    const knowledgeNodeEls = nodesGroup
+      .selectAll<SVGGElement, GraphNode>('g.knowledge-node')
+      .data(knowledgeNodes, (d) => d.id)
+      .join('g')
+      .attr('class', 'graph-node knowledge-node');
+
+    knowledgeNodeEls
+      .append('circle')
+      .attr('r', 8)
+      .attr('fill', (d) => KNOWLEDGE_FILL[d.knowledgeType ?? 'knows'] ?? DEFAULT_KNOWLEDGE_FILL)
+      .attr('opacity', (d) => KNOWLEDGE_OPACITY[d.knowledgeType ?? 'knows'] ?? DEFAULT_KNOWLEDGE_OPACITY);
+
+    knowledgeNodeEls
+      .append('text')
+      .attr('class', 'graph-label')
+      .attr('text-anchor', 'middle')
+      .attr('dy', 18)
+      .style('font-size', '8px')
+      .style('fill', '#666666')
+      .text((d) => {
+        const maxLen = 20;
+        return d.label.length > maxLen ? d.label.slice(0, maxLen) + '...' : d.label;
+      });
+
+    // Add curved convex hull "net" behind knowledge subgraph
+    const hullPadding = 30;
+    const hullAllNodes = [parentNode, ...knowledgeNodes];
+    const hullPath = g.insert('path', 'g.links')
+      .attr('class', 'knowledge-hull')
+      .attr('fill', 'rgba(245, 158, 11, 0.04)')
+      .attr('stroke', 'rgba(245, 158, 11, 0.25)')
+      .attr('stroke-width', 1.5)
+      .attr('stroke-dasharray', '6 4');
+
+    const hullLine = d3.line<[number, number]>()
+      .x((d) => d[0])
+      .y((d) => d[1])
+      .curve(d3.curveCatmullRomClosed.alpha(0.7));
+
+    function updateHull() {
+      const points: [number, number][] = hullAllNodes.map((n) => [n.x ?? 0, n.y ?? 0]);
+      if (points.length < 3) {
+        // For 1-2 points, draw a circle around them
+        const cx = points.reduce((s, p) => s + p[0], 0) / points.length;
+        const cy = points.reduce((s, p) => s + p[1], 0) / points.length;
+        const r = Math.max(40, ...points.map((p) => Math.hypot(p[0] - cx, p[1] - cy))) + hullPadding;
+        hullPath.attr('d', `M ${cx - r},${cy} A ${r},${r} 0 1,0 ${cx + r},${cy} A ${r},${r} 0 1,0 ${cx - r},${cy} Z`);
+        return;
+      }
+      const hull = d3.polygonHull(points);
+      if (!hull) return;
+      // Expand hull outward by padding
+      const centroid = d3.polygonCentroid(hull);
+      const expanded = hull.map(([x, y]): [number, number] => {
+        const dx = x - centroid[0];
+        const dy = y - centroid[1];
+        const dist = Math.hypot(dx, dy) || 1;
+        return [x + (dx / dist) * hullPadding, y + (dy / dist) * hullPadding];
+      });
+      hullPath.attr('d', hullLine(expanded));
+    }
+
+    // Update simulation
+    simulation.nodes(allNodes);
+    (simulation.force('link') as d3.ForceLink<GraphNode, GraphLink>)
+      .links([...baseLinks, ...knowledgeLinks]);
+    simulation.alpha(0.3).restart();
+
+    // Tick handler for knowledge elements
+    simulation.on('tick.knowledge', () => {
+      knowledgeLinkEls
+        .attr('x1', (d) => ((d.source as GraphNode).x ?? 0))
+        .attr('y1', (d) => ((d.source as GraphNode).y ?? 0))
+        .attr('x2', (d) => ((d.target as GraphNode).x ?? 0))
+        .attr('y2', (d) => ((d.target as GraphNode).y ?? 0));
+
+      knowledgeNodeEls.attr('transform', (d) => `translate(${d.x ?? 0},${d.y ?? 0})`);
+
+      updateHull();
+    });
+  }, [selectedKnowledgeEntity, narrative]);
+
   // ── Lightweight intra-arc update: character-location links on scene change ──
   useEffect(() => {
     const g = gRef.current;
@@ -602,8 +895,7 @@ export default function WorldGraph() {
     const activeArc = narrative.arcs[activeArcId];
     if (!activeArc) return;
 
-    const positions = computeCharacterPositions(activeArc, narrative.scenes, state.currentSceneIndex);
-    const locationIds = new Set(Object.keys(narrative.locations));
+    const positions = computeCharacterPositions(activeArc, narrative.scenes, state.currentSceneIndex, resolvedSceneKeys);
 
     // Resolve new links against existing simulation nodes
     const nodeMap = new Map(nodesRef.current.map((n) => [n.id, n]));
@@ -672,6 +964,26 @@ export default function WorldGraph() {
 
   return (
     <div className="relative h-full w-full overflow-hidden">
+      {/* Graph view mode toggle */}
+      <div className="absolute top-2 right-2 z-10 flex items-center rounded border border-border-default bg-bg-surface text-[11px] leading-none">
+        <button
+          className={`px-2 py-1.5 rounded-l transition-colors ${
+            graphViewMode === 'scene' ? 'text-accent-cta' : 'text-text-dim hover:text-text-default'
+          }`}
+          onClick={() => dispatch({ type: 'SET_GRAPH_VIEW_MODE', mode: 'scene' })}
+        >
+          Scene
+        </button>
+        <div className="w-px h-3.5 bg-border-default" />
+        <button
+          className={`px-2 py-1.5 rounded-r transition-colors ${
+            graphViewMode === 'overview' ? 'text-accent-cta' : 'text-text-dim hover:text-text-default'
+          }`}
+          onClick={() => dispatch({ type: 'SET_GRAPH_VIEW_MODE', mode: 'overview' })}
+        >
+          World
+        </button>
+      </div>
       <svg
         ref={svgRef}
         className="h-full w-full"

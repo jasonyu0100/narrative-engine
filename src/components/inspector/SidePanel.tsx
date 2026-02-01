@@ -6,6 +6,7 @@ import SceneDetail from './SceneDetail';
 import CharacterDetail from './CharacterDetail';
 import LocationDetail from './LocationDetail';
 import ThreadDetail from './ThreadDetail';
+import ArcDetail from './ArcDetail';
 
 export default function SidePanel() {
   const { state } = useStore();
@@ -23,13 +24,15 @@ export default function SidePanel() {
         return <LocationDetail locationId={ctx.locationId} />;
       case 'thread':
         return <ThreadDetail threadId={ctx.threadId} />;
+      case 'arc':
+        return <ArcDetail arcId={ctx.arcId} />;
       default:
         return <EmptyState />;
     }
   }
 
   return (
-    <aside className="h-full w-[300px] overflow-y-auto border-l border-border bg-bg-panel p-4">
+    <aside className="h-full overflow-y-auto border-l border-border bg-bg-panel p-4">
       {renderContent()}
     </aside>
   );

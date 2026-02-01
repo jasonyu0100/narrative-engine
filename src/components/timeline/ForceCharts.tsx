@@ -2,6 +2,7 @@
 
 import { useMemo } from 'react';
 import { useStore } from '@/lib/store';
+import { resolveEntry, isScene } from '@/types/narrative';
 import ForceLineChart from './ForceLineChart';
 
 const FORCE_CONFIG = [
@@ -14,17 +15,28 @@ export default function ForceCharts() {
   const { state } = useStore();
   const narrative = state.activeNarrative;
 
+  const resolvedSceneKeys = state.resolvedSceneKeys;
+
   const forceData = useMemo(() => {
     if (!narrative) {
       return { pressure: [], momentum: [], flux: [] };
     }
-    const scenes = Object.values(narrative.scenes);
-    return {
-      pressure: scenes.map((s) => s.forceSnapshot.pressure),
-      momentum: scenes.map((s) => s.forceSnapshot.momentum),
-      flux: scenes.map((s) => s.forceSnapshot.flux),
-    };
-  }, [narrative]);
+    const pressure: number[] = [];
+    const momentum: number[] = [];
+    const flux: number[] = [];
+    let lastForce = { pressure: 0.5, momentum: 0.5, flux: 0.5 };
+    for (const k of resolvedSceneKeys) {
+      const entry = resolveEntry(narrative, k);
+      if (entry && isScene(entry)) {
+        lastForce = entry.forceSnapshot;
+      }
+      // World builds carry forward the last scene's forces
+      pressure.push(lastForce.pressure);
+      momentum.push(lastForce.momentum);
+      flux.push(lastForce.flux);
+    }
+    return { pressure, momentum, flux };
+  }, [narrative, resolvedSceneKeys]);
 
   if (!narrative) {
     return (

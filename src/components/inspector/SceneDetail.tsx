@@ -1,6 +1,8 @@
 'use client';
 
+import { useState } from 'react';
 import { useStore } from '@/lib/store';
+import { resolveEntry } from '@/types/narrative';
 
 type Props = {
   sceneId: string;
@@ -9,11 +11,100 @@ type Props = {
 export default function SceneDetail({ sceneId }: Props) {
   const { state, dispatch } = useStore();
   const narrative = state.activeNarrative;
+  const [editing, setEditing] = useState(false);
+  const [editSummary, setEditSummary] = useState('');
+
   if (!narrative) return null;
 
-  const scene = narrative.scenes[sceneId];
-  if (!scene) return null;
+  const entry = resolveEntry(narrative, sceneId);
+  if (!entry) return null;
 
+  // ── World Build Commit view ─────────────────────────────────────────────
+  if (entry.kind === 'world_build') {
+    const m = entry.expansionManifest;
+    return (
+      <div className="flex flex-col gap-4">
+        <div className="flex items-baseline gap-2">
+          <h2 className="font-mono text-xs text-text-dim">{entry.id}</h2>
+          <span className="text-[10px] font-semibold uppercase tracking-wider text-amber-400 bg-amber-400/10 px-2 py-0.5 rounded">
+            World Build
+          </span>
+        </div>
+
+        <p className="text-xs text-text-secondary leading-relaxed">{entry.summary}</p>
+
+        <div className="flex flex-col gap-1.5">
+          {m.characterIds.length > 0 && (
+            <div className="flex flex-col gap-1">
+              <h3 className="text-[10px] uppercase tracking-widest text-text-dim">Characters</h3>
+              <div className="flex flex-wrap gap-1.5">
+                {m.characterIds.map((cid) => {
+                  const char = narrative.characters[cid];
+                  return (
+                    <button
+                      key={cid}
+                      type="button"
+                      onClick={() => dispatch({ type: 'SET_INSPECTOR', context: { type: 'character', characterId: cid } })}
+                      className="rounded-full bg-white/6 px-2 py-0.5 text-[10px] text-text-primary transition-colors hover:bg-white/12"
+                    >
+                      {char?.name ?? cid}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+          {m.locationIds.length > 0 && (
+            <div className="flex flex-col gap-1">
+              <h3 className="text-[10px] uppercase tracking-widest text-text-dim">Locations</h3>
+              <div className="flex flex-wrap gap-1.5">
+                {m.locationIds.map((lid) => {
+                  const loc = narrative.locations[lid];
+                  return (
+                    <button
+                      key={lid}
+                      type="button"
+                      onClick={() => dispatch({ type: 'SET_INSPECTOR', context: { type: 'location', locationId: lid } })}
+                      className="rounded-full bg-white/6 px-2 py-0.5 text-[10px] text-text-primary transition-colors hover:bg-white/12"
+                    >
+                      {loc?.name ?? lid}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+          {m.threadIds.length > 0 && (
+            <div className="flex flex-col gap-1">
+              <h3 className="text-[10px] uppercase tracking-widest text-text-dim">Threads</h3>
+              <div className="flex flex-wrap gap-1.5">
+                {m.threadIds.map((tid) => (
+                  <button
+                    key={tid}
+                    type="button"
+                    onClick={() => dispatch({ type: 'SET_INSPECTOR', context: { type: 'thread', threadId: tid } })}
+                    className="rounded bg-white/6 px-1.5 py-0.5 font-mono text-[10px] text-text-primary transition-colors hover:bg-white/12"
+                  >
+                    {narrative.threads[tid]?.description ?? tid}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+          {m.relationshipCount > 0 && (
+            <div className="text-xs text-text-secondary">
+              <span className="text-text-dim uppercase text-[10px] tracking-wider mr-2">Relationships</span>
+              {m.relationshipCount} new
+            </div>
+          )}
+        </div>
+
+      </div>
+    );
+  }
+
+  // ── Scene Commit view ───────────────────────────────────────────────────
+  const scene = entry;
   const location = narrative.locations[scene.locationId];
   const { pressure, momentum, flux } = scene.forceSnapshot;
 
@@ -21,15 +112,29 @@ export default function SceneDetail({ sceneId }: Props) {
     a.sceneIds.includes(sceneId)
   );
 
+  function startEdit() {
+    setEditSummary(scene.summary);
+    setEditing(true);
+  }
+
+  function saveEdit() {
+    dispatch({ type: 'UPDATE_SCENE', sceneId, updates: { summary: editSummary } });
+    setEditing(false);
+  }
+
   return (
     <div className="flex flex-col gap-4">
       {/* Scene ID + Arc */}
       <div className="flex items-baseline gap-2">
         <h2 className="font-mono text-xs text-text-dim">{scene.id}</h2>
         {arc && (
-          <span className="text-[10px] text-text-dim uppercase tracking-wider">
+          <button
+            type="button"
+            onClick={() => dispatch({ type: 'SET_INSPECTOR', context: { type: 'arc', arcId: arc.id } })}
+            className="text-[10px] text-text-dim uppercase tracking-wider hover:text-text-secondary transition-colors"
+          >
             {arc.name}
-          </span>
+          </button>
         )}
       </div>
 
@@ -46,6 +151,29 @@ export default function SceneDetail({ sceneId }: Props) {
           className="text-left text-xs text-text-secondary transition-colors hover:text-text-primary"
         >
           {location.name}
+        </button>
+      )}
+
+      {/* Summary — editable */}
+      {editing ? (
+        <div className="flex flex-col gap-2">
+          <textarea
+            value={editSummary}
+            onChange={(e) => setEditSummary(e.target.value)}
+            className="bg-bg-elevated border border-border rounded px-2 py-1.5 text-xs text-text-primary w-full h-24 resize-none outline-none"
+          />
+          <div className="flex gap-2">
+            <button onClick={saveEdit} className="text-[10px] text-momentum hover:underline">Save</button>
+            <button onClick={() => setEditing(false)} className="text-[10px] text-text-dim hover:underline">Cancel</button>
+          </div>
+        </div>
+      ) : (
+        <button
+          type="button"
+          onClick={startEdit}
+          className="text-left text-xs text-text-secondary leading-relaxed hover:text-text-primary transition-colors"
+        >
+          {scene.summary || 'Click to add summary...'}
         </button>
       )}
 
@@ -182,7 +310,7 @@ export default function SceneDetail({ sceneId }: Props) {
                     {charName}
                   </button>
                   <span className={km.action === 'added' ? 'text-momentum' : 'text-pressure'}>
-                    {km.action === 'added' ? '+' : '−'}
+                    {km.action === 'added' ? '+' : '\u2212'}
                   </span>
                   <span className="font-mono text-[10px] text-text-dim">{km.nodeId}</span>
                 </div>
@@ -256,6 +384,7 @@ export default function SceneDetail({ sceneId }: Props) {
           </ul>
         </div>
       )}
+
     </div>
   );
 }

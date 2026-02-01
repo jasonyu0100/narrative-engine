@@ -6,7 +6,9 @@ import type {
   Arc,
   Scene,
   Commit,
+  Branch,
   RelationshipEdge,
+  WorldBuildCommit,
 } from '@/types/narrative';
 
 // ── Characters ───────────────────────────────────────────────────────────────
@@ -386,6 +388,7 @@ const scenes: Record<string, Scene> = {
   // ── Arc 1: The Awakening ────────────────────────────────────────────────
   'S-001': {
     id: 'S-001',
+    kind: 'scene',
     arcId: 'SC-01',
     locationId: 'L-03',
     participantIds: ['C-01', 'C-02', 'C-05'],
@@ -399,6 +402,7 @@ const scenes: Record<string, Scene> = {
   },
   'S-002': {
     id: 'S-002',
+    kind: 'scene',
     arcId: 'SC-01',
     locationId: 'L-04',
     participantIds: ['C-01', 'C-03', 'C-06'],
@@ -413,6 +417,7 @@ const scenes: Record<string, Scene> = {
   },
   'S-003': {
     id: 'S-003',
+    kind: 'scene',
     arcId: 'SC-01',
     locationId: 'L-03',
     participantIds: ['C-01', 'C-02', 'C-03', 'C-05'],
@@ -434,6 +439,7 @@ const scenes: Record<string, Scene> = {
   },
   'S-004': {
     id: 'S-004',
+    kind: 'scene',
     arcId: 'SC-01',
     locationId: 'L-02',
     participantIds: ['C-01', 'C-02'],
@@ -448,6 +454,7 @@ const scenes: Record<string, Scene> = {
   },
   'S-005': {
     id: 'S-005',
+    kind: 'scene',
     arcId: 'SC-01',
     locationId: 'L-05',
     participantIds: ['C-01'],
@@ -466,6 +473,7 @@ const scenes: Record<string, Scene> = {
   // ── Arc 2: Undercurrents ────────────────────────────────────────────────
   'S-006': {
     id: 'S-006',
+    kind: 'scene',
     arcId: 'SC-02',
     locationId: 'L-05',
     participantIds: ['C-01'],
@@ -481,6 +489,7 @@ const scenes: Record<string, Scene> = {
   },
   'S-007': {
     id: 'S-007',
+    kind: 'scene',
     arcId: 'SC-02',
     locationId: 'L-04',
     participantIds: ['C-03', 'C-06'],
@@ -499,6 +508,7 @@ const scenes: Record<string, Scene> = {
   },
   'S-008': {
     id: 'S-008',
+    kind: 'scene',
     arcId: 'SC-02',
     locationId: 'L-07',
     participantIds: ['C-01', 'C-07'],
@@ -515,6 +525,7 @@ const scenes: Record<string, Scene> = {
   },
   'S-009': {
     id: 'S-009',
+    kind: 'scene',
     arcId: 'SC-02',
     locationId: 'L-02',
     participantIds: ['C-02'],
@@ -530,6 +541,7 @@ const scenes: Record<string, Scene> = {
   },
   'S-010': {
     id: 'S-010',
+    kind: 'scene',
     arcId: 'SC-02',
     locationId: 'L-07',
     participantIds: ['C-01', 'C-07'],
@@ -548,6 +560,7 @@ const scenes: Record<string, Scene> = {
   // ── Arc 3: The Cracking Ice ─────────────────────────────────────────────
   'S-011': {
     id: 'S-011',
+    kind: 'scene',
     arcId: 'SC-03',
     locationId: 'L-06',
     participantIds: ['C-04'],
@@ -563,6 +576,7 @@ const scenes: Record<string, Scene> = {
   },
   'S-012': {
     id: 'S-012',
+    kind: 'scene',
     arcId: 'SC-03',
     locationId: 'L-07',
     participantIds: ['C-01', 'C-07'],
@@ -576,6 +590,7 @@ const scenes: Record<string, Scene> = {
   },
   'S-013': {
     id: 'S-013',
+    kind: 'scene',
     arcId: 'SC-03',
     locationId: 'L-08',
     participantIds: ['C-01', 'C-07'],
@@ -592,6 +607,7 @@ const scenes: Record<string, Scene> = {
   },
   'S-014': {
     id: 'S-014',
+    kind: 'scene',
     arcId: 'SC-03',
     locationId: 'L-08',
     participantIds: ['C-01', 'C-04', 'C-07'],
@@ -613,6 +629,7 @@ const scenes: Record<string, Scene> = {
   },
   'S-015': {
     id: 'S-015',
+    kind: 'scene',
     arcId: 'SC-03',
     locationId: 'L-07',
     participantIds: ['C-02', 'C-08'],
@@ -671,6 +688,162 @@ const commits: Commit[] = sceneList.map((scene, i) => ({
   createdAt: Date.now() - (15 - i) * 3600000,
 }));
 
+// ── Alternate Branch: "The Brother's Revelation" ────────────────────────────
+// Diverges after S-010 — Fang Zheng follows Fang Yuan into the wilderness
+// and witnesses his true nature, fundamentally changing the story.
+
+const altArc: Arc = {
+  id: 'SC-03-ALT',
+  name: "The Brother's Revelation",
+  sceneIds: ['S-ALT-011', 'S-ALT-012', 'S-ALT-013', 'S-ALT-014', 'S-ALT-015'],
+  develops: ['T-03', 'T-06'],
+  locationIds: ['L-01', 'L-02', 'L-07', 'L-08'],
+  activeCharacterIds: ['C-01', 'C-02', 'C-07'],
+  initialCharacterLocations: {
+    'C-01': 'L-07',
+    'C-02': 'L-02',
+    'C-07': 'L-07',
+  },
+};
+
+const altScenes: Record<string, Scene> = {
+  'S-ALT-011': {
+    id: 'S-ALT-011',
+    kind: 'scene',
+    arcId: 'SC-03-ALT',
+    locationId: 'L-02',
+    participantIds: ['C-02'],
+    events: ['fang_zheng_decides_to_follow', 'midnight_departure'],
+    threadMutations: [{ threadId: 'T-03', from: 'surfacing', to: 'escalating' }],
+    knowledgeMutations: [
+      { characterId: 'C-02', nodeId: 'K-17', action: 'added', content: 'Resolved to follow Fang Yuan the next time he disappears at night' },
+    ],
+    relationshipMutations: [],
+    forceSnapshot: { pressure: 0.60, momentum: 0.40, flux: 0.40 },
+    prose: '',
+    summary: 'Fang Zheng lies awake. Three nights now his brother has vanished. Tonight he does not wait — he follows. Through silent village streets, past sleeping guards, into the darkness beyond the walls. His brother moves like a different person in the dark: precise, predatory, nothing like the dull boy the clan pities.',
+  },
+  'S-ALT-012': {
+    id: 'S-ALT-012',
+    kind: 'scene',
+    arcId: 'SC-03-ALT',
+    locationId: 'L-07',
+    participantIds: ['C-01', 'C-02', 'C-07'],
+    characterMovements: { 'C-02': 'L-07' },
+    events: ['fang_zheng_witnesses_meeting', 'chi_shan_manipulation', 'truth_begins'],
+    threadMutations: [{ threadId: 'T-06', from: 'surfacing', to: 'escalating' }],
+    knowledgeMutations: [
+      { characterId: 'C-02', nodeId: 'K-18', action: 'added', content: 'Witnessed Fang Yuan speaking to Chi Shan as an equal — using cultivation terminology far beyond C-grade' },
+    ],
+    relationshipMutations: [
+      { from: 'C-02', to: 'C-01', type: 'Horror dawns — his brother has been lying about everything', valenceDelta: -0.3 },
+    ],
+    forceSnapshot: { pressure: 0.70, momentum: 0.55, flux: 0.50 },
+    prose: '',
+    summary: 'Mountain Wilderness. Hidden behind rocks, Fang Zheng watches his brother meet Chi Shan. Fang Yuan speaks with authority that makes the older Gu Master defer. He discusses formations, Gu refinement paths, strategic positioning — knowledge that would take decades to acquire. Fang Zheng\'s hands tremble. This is not his brother. This has never been his brother.',
+  },
+  'S-ALT-013': {
+    id: 'S-ALT-013',
+    kind: 'scene',
+    arcId: 'SC-03-ALT',
+    locationId: 'L-08',
+    participantIds: ['C-01', 'C-07'],
+    characterMovements: { 'C-01': 'L-08', 'C-07': 'L-08' },
+    events: ['inheritance_entered_alt', 'chi_shan_betrayed', 'fang_zheng_hidden_witness'],
+    threadMutations: [],
+    knowledgeMutations: [
+      { characterId: 'C-02', nodeId: 'K-19', action: 'added', content: 'Watched Fang Yuan kill Chi Shan without hesitation — his brother is a murderer' },
+    ],
+    relationshipMutations: [
+      { from: 'C-02', to: 'C-01', type: 'Complete shattering of the brotherly bond — Fang Yuan is a monster', valenceDelta: -0.4 },
+    ],
+    forceSnapshot: { pressure: 0.80, momentum: 0.70, flux: 0.55 },
+    prose: '',
+    summary: 'Flower Wine Monk\'s Inheritance Ground. Fang Zheng follows them inside, staying in the shadows. He watches his brother navigate ancient traps like walking through his own home. When Chi Shan reaches for the inheritance, Fang Yuan kills him — one strike, no warning, no emotion. Fang Zheng bites through his lip to keep from screaming. Blood runs down his chin in the dark.',
+  },
+  'S-ALT-014': {
+    id: 'S-ALT-014',
+    kind: 'scene',
+    arcId: 'SC-03-ALT',
+    locationId: 'L-08',
+    participantIds: ['C-01', 'C-02'],
+    events: ['confrontation', 'fang_yuan_revealed', 'impossible_choice'],
+    threadMutations: [
+      { threadId: 'T-03', from: 'escalating', to: 'threatened' },
+      { threadId: 'T-01', from: 'surfacing', to: 'threatened' },
+    ],
+    knowledgeMutations: [
+      { characterId: 'C-01', nodeId: 'K-10C', action: 'added', content: 'Fang Zheng has seen me kill — the mask is broken with one person who matters least and most' },
+      { characterId: 'C-02', nodeId: 'K-20A', action: 'added', content: 'Fang Yuan admitted he is not who he appears to be — something about 500 years and rebirth' },
+    ],
+    relationshipMutations: [
+      { from: 'C-01', to: 'C-02', type: 'Calculates whether his brother must die — concludes not yet', valenceDelta: -0.3 },
+      { from: 'C-02', to: 'C-01', type: 'Grief and terror in equal measure — wants to save a brother who may not exist', valenceDelta: -0.2 },
+    ],
+    forceSnapshot: { pressure: 0.90, momentum: 0.80, flux: 0.65 },
+    prose: '',
+    summary: 'Fang Zheng steps from the shadows. "Brother." The word echoes in the inheritance chamber. Fang Yuan turns — for the first time in this life, genuinely surprised. A long silence. Then Fang Yuan smiles, and it is the most terrifying thing Fang Zheng has ever seen, because it is real. "You should not have come." What follows is not a fight but a conversation that rewrites everything Fang Zheng believed about family, morality, and the brother he thought he knew.',
+  },
+  'S-ALT-015': {
+    id: 'S-ALT-015',
+    kind: 'scene',
+    arcId: 'SC-03-ALT',
+    locationId: 'L-07',
+    participantIds: ['C-01', 'C-02'],
+    characterMovements: { 'C-01': 'L-07', 'C-02': 'L-07' },
+    events: ['uneasy_pact', 'fang_zheng_changed', 'new_dynamic'],
+    threadMutations: [{ threadId: 'T-03', from: 'threatened', to: 'escalating' }],
+    knowledgeMutations: [
+      { characterId: 'C-02', nodeId: 'K-20B', action: 'added', content: 'Agreed to keep Fang Yuan\'s secret — but swore to stop him if he harms innocents' },
+    ],
+    relationshipMutations: [
+      { from: 'C-01', to: 'C-02', type: 'A new variable — brother becomes both liability and unexpected asset', valenceDelta: 0.1 },
+      { from: 'C-02', to: 'C-01', type: 'Bound by blood and terrible knowledge — cannot abandon him, cannot trust him', valenceDelta: 0.05 },
+    ],
+    forceSnapshot: { pressure: 0.85, momentum: 0.85, flux: 0.60 },
+    prose: '',
+    summary: 'Dawn breaks over the mountain. The brothers walk back in silence — a silence that contains an entire collapsed worldview. Fang Zheng has agreed to keep the secret. Fang Yuan has agreed to... nothing, really. But something has shifted. For the first time in 500 years, someone knows what Fang Yuan is and has not tried to kill him or run. The story fractures here: in the original timeline, Fang Yuan operated alone. In this one, he has a witness. Whether that witness becomes an ally or an enemy will define everything that follows.',
+  },
+};
+
+// Merge alt scenes and arc into the main records
+// ── Initial World Building Commit ────────────────────────────────────────────
+const wxInitCommit: WorldBuildCommit = {
+  kind: 'world_build',
+  id: 'WX-init',
+  summary: 'World created: 8 characters (Fang Yuan, Fang Zheng, Gu Yue Bo, Bai Ning Bing, Shen Cui, Mo Bei Liu, Chi Shan, Tie Ruo Nan), 8 locations (Qing Mao Mountain, Gu Yue Village, Academy, Clan Hall, Secret Tunnels, Bai Clan Territory, Mountain Wilderness, Flower Wine Monk\'s Inheritance Ground), 7 threads, 8 relationships',
+  expansionManifest: {
+    characterIds: Object.keys(characters),
+    locationIds: Object.keys(locations),
+    threadIds: Object.keys(threads),
+    relationshipCount: relationships.length,
+  },
+};
+
+const allScenes: Record<string, Scene> = { ...scenes, ...altScenes };
+const allWorldBuilds: Record<string, WorldBuildCommit> = { 'WX-init': wxInitCommit };
+const allArcs: Record<string, Arc> = { ...arcs, [altArc.id]: altArc };
+
+// ── Branches ────────────────────────────────────────────────────────────────
+const branches: Record<string, Branch> = {
+  'B-MAIN': {
+    id: 'B-MAIN',
+    name: 'Canon Timeline',
+    parentBranchId: null,
+    forkEntryId: null,
+    entryIds: ['WX-init', ...Object.keys(scenes)],
+    createdAt: Date.now() - 86400000,
+  },
+  'B-REVELATION': {
+    id: 'B-REVELATION',
+    name: "The Brother's Revelation",
+    parentBranchId: 'B-MAIN',
+    forkEntryId: 'S-010',
+    entryIds: Object.keys(altScenes),
+    createdAt: Date.now() - 43200000,
+  },
+};
+
 // ── Assembled Narrative ──────────────────────────────────────────────────────
 export const seedNarrative: NarrativeState = {
   id: 'N-001',
@@ -679,8 +852,10 @@ export const seedNarrative: NarrativeState = {
   characters,
   locations,
   threads,
-  arcs,
-  scenes,
+  arcs: allArcs,
+  scenes: allScenes,
+  worldBuilds: allWorldBuilds,
+  branches,
   commits,
   relationships,
   worldSummary: 'Qing Mao Mountain is home to three rival Gu Master clans living in uneasy balance. Gu — living organisms that grant supernatural powers — are cultivated, refined, and fought over. Fang Yuan has been reborn 500 years into his past using the legendary Spring Autumn Cicada. He now inhabits his 15-year-old body within the Gu Yue clan, armed with complete knowledge of the future. His goal is absolute: attain eternal life. Everyone else — brother, clan, rivals — is either a tool or an obstacle. The mountain does not know what walks among it.',
