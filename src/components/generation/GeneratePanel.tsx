@@ -105,13 +105,11 @@ export function GeneratePanel({ onClose }: { onClose: () => void }) {
     setError('');
     try {
       const existingArc = !newArc ? currentArc ?? undefined : undefined;
-      const name = existingArc?.name ?? (arcName.trim() || 'Generated Arc');
       const { scenes, arc } = await generateScenes(
         narrative,
         state.resolvedSceneKeys,
         headIndex,
         count,
-        name,
         direction,
         existingArc,
         cubeGoal ?? undefined,

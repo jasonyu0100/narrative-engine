@@ -9,18 +9,37 @@ export type WorldExpansion = {
   relationships: RelationshipEdge[];
 };
 
-async function callGenerate(prompt: string, systemPrompt: string, maxTokens?: number): Promise<string> {
-  const res = await fetch('/api/generate', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ prompt, systemPrompt, ...(maxTokens ? { maxTokens } : {}) }),
-  });
-  if (!res.ok) {
-    const err = await res.json();
-    throw new Error(err.error || 'Generation failed');
+async function callGenerate(prompt: string, systemPrompt: string, maxTokens?: number, caller = 'callGenerate'): Promise<string> {
+  const { logApiCall, updateApiLog } = await import('@/lib/api-logger');
+  const logId = logApiCall(caller, prompt.length + (systemPrompt?.length ?? 0), prompt);
+  const start = performance.now();
+
+  try {
+    const res = await fetch('/api/generate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ prompt, systemPrompt, ...(maxTokens ? { maxTokens } : {}) }),
+    });
+    if (!res.ok) {
+      const err = await res.json();
+      const message = err.error || 'Generation failed';
+      updateApiLog(logId, { status: 'error', error: message, durationMs: Math.round(performance.now() - start) });
+      throw new Error(message);
+    }
+    const data = await res.json();
+    const content = data.content;
+    updateApiLog(logId, {
+      status: 'success',
+      durationMs: Math.round(performance.now() - start),
+      responseLength: content.length,
+      responsePreview: content,
+    });
+    return content;
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    updateApiLog(logId, { status: 'error', error: message, durationMs: Math.round(performance.now() - start) });
+    throw err;
   }
-  const data = await res.json();
-  return data.content;
 }
 
 /**
@@ -197,7 +216,7 @@ Return JSON with this exact structure:
 
 suggestedSceneCount must be between 1 and 8.`;
 
-  const raw = await callGenerate(prompt, SYSTEM_PROMPT);
+  const raw = await callGenerate(prompt, SYSTEM_PROMPT, undefined, 'suggestDirection');
   const parsed = parseJson(raw, 'suggestDirection') as {
     arcName?: string; direction?: string; sceneSuggestion?: string; suggestedSceneCount?: number;
   };
@@ -209,38 +228,12 @@ suggestedSceneCount must be between 1 and 8.`;
   };
 }
 
-export async function generateArcName(
-  narrative: NarrativeState,
-  resolvedKeys: string[],
-  currentIndex: number,
-  direction: string,
-): Promise<string> {
-  const ctx = branchContext(narrative, resolvedKeys, currentIndex);
-
-  const prompt = `${ctx}
-
-Based on the narrative context and this direction for the next arc:
-"${direction}"
-
-Generate a short, evocative arc name (2-4 words) that captures the essence of what this arc is about.
-It should read like a chapter title — specific to the story, not generic.
-
-Bad examples: "Continuation", "Escalation", "Resolution", "New Beginnings"
-Good examples: "The Siege of Ashenmoor", "Fractured Oaths", "Blood Price", "A Hollow Crown"
-
-Return JSON: {"arcName": "your arc name"}`;
-
-  const raw = await callGenerate(prompt, SYSTEM_PROMPT);
-  const parsed = parseJson(raw, 'generateArcName') as { arcName?: string };
-  return parsed.arcName ?? 'Untitled Arc';
-}
 
 export async function generateScenes(
   narrative: NarrativeState,
   resolvedKeys: string[],
   currentIndex: number,
   count: number,
-  arcName: string,
   direction: string,
   existingArc?: Arc,
   cubeGoal?: CubeCornerKey,
@@ -249,7 +242,7 @@ export async function generateScenes(
   const arcId = existingArc?.id ?? nextId('ARC', Object.keys(narrative.arcs));
   const arcInstruction = existingArc
     ? `CONTINUE the existing arc "${existingArc.name}" (${arcId}) which already has ${existingArc.sceneIds.length} scenes. Add exactly ${count} new scenes that naturally extend this arc.`
-    : `Generate a NEW ARC called "${arcName}" with exactly ${count} scenes.`;
+    : `Generate a NEW ARC with exactly ${count} scenes. Give the arc a short, evocative name (2-4 words) that reads like a chapter title — specific to the story, not generic.`;
   const prompt = `${ctx}
 
 ${arcInstruction}
@@ -264,6 +257,7 @@ Shape the events, pacing, thread mutations, and scene rhythm to produce this nar
 
 Return JSON with this exact structure:
 {
+  "arcName": "A short, evocative arc name (2-4 words) like a chapter title. Bad: 'Continuation', 'New Beginnings'. Good: 'The Siege of Ashenmoor', 'Fractured Oaths'.",
   "scenes": [
     {
       "id": "S-GEN-001",
@@ -274,7 +268,6 @@ Return JSON with this exact structure:
       "threadMutations": [{"threadId": "T-XX", "from": "current_status", "to": "new_status"}],
       "knowledgeMutations": [{"characterId": "C-XX", "nodeId": "K-GEN-001", "action": "added", "content": "what they learned", "nodeType": "a descriptive type for this knowledge"}],
       "relationshipMutations": [{"from": "C-XX", "to": "C-YY", "type": "description", "valenceDelta": 0.1}],
-      "prose": "",
       "summary": "REQUIRED: 2-4 sentence narrative summary written in vivid, character-driven prose. Describe what happens, who is involved, and the emotional stakes."
     }
   ]
@@ -305,9 +298,10 @@ You MUST use ONLY these exact IDs. Do NOT invent new character, location, or thr
   Location IDs: ${Object.keys(narrative.locations).join(', ')}
   Thread IDs: ${Object.keys(narrative.threads).join(', ')}`;
 
-  const raw = await callGenerate(prompt, SYSTEM_PROMPT);
+  const raw = await callGenerate(prompt, SYSTEM_PROMPT, undefined, 'generateScenes');
 
-  const parsed = parseJson(raw, 'generateScenes') as { scenes: Scene[] };
+  const parsed = parseJson(raw, 'generateScenes') as { arcName?: string; scenes: Scene[] };
+  const arcName = existingArc?.name ?? parsed.arcName ?? 'Untitled Arc';
 
   const sceneIds = nextIds('S', Object.keys(narrative.scenes), parsed.scenes.length, 3);
   const scenes: Scene[] = parsed.scenes.map((s: Scene, i: number) => ({
@@ -468,7 +462,7 @@ Return JSON with this exact structure:
   "suggestion": "2-4 sentence description of what should be added to the world and why"
 }`;
 
-  const raw = await callGenerate(prompt, SYSTEM_PROMPT);
+  const raw = await callGenerate(prompt, SYSTEM_PROMPT, undefined, 'suggestWorldExpansion');
   const parsed = parseJson(raw, 'suggestWorldExpansion') as { suggestion: string };
   return parsed.suggestion;
 }
@@ -563,7 +557,7 @@ Rules:
 - Anchors in threads can reference existing characters/locations
 - Generate at least 1 of each type, but only as many as the directive demands`;
 
-  const raw = await callGenerate(prompt, SYSTEM_PROMPT);
+  const raw = await callGenerate(prompt, SYSTEM_PROMPT, undefined, 'expandWorld');
   const parsed = parseJson(raw, 'expandWorld') as WorldExpansion;
 
   // Force all world-build threads to dormant — they're seeds, not active storylines
@@ -610,7 +604,6 @@ Return JSON with this exact structure:
       "threadMutations": [{"threadId": "T-01", "from": "dormant", "to": "surfacing"}],
       "knowledgeMutations": [],
       "relationshipMutations": [],
-      "prose": "",
       "summary": "REQUIRED: 2-4 sentence vivid narrative summary of the scene"
     }
   ],
@@ -637,7 +630,7 @@ PACING IS CRITICAL:
 
 Knowledge types must be SPECIFIC and CONTEXTUAL to the world — not generic labels like "knows" or "secret". Use types that describe exactly what kind of knowledge or lore this is (e.g. "cultivation_technique", "blood_debt", "prophecy_fragment", "territorial_claim", "hidden_identity"). Knowledge edge types should also be contextual: "enables", "contradicts", "unlocks", "corrupts", "conceals", "depends_on", etc.`;
 
-  const raw = await callGenerate(prompt, SYSTEM_PROMPT, 60000);
+  const raw = await callGenerate(prompt, SYSTEM_PROMPT, 60000, 'generateNarrative');
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const parsed = parseJson(raw, 'generateNarrative') as any;
   console.log('[generateNarrative] parsed keys:', Object.keys(parsed));
