@@ -51,7 +51,7 @@ export default function ArcDetail({ arcId }: Props) {
               autoFocus
               onKeyDown={(e) => e.key === 'Enter' && saveEdit()}
             />
-            <button onClick={saveEdit} className="text-[10px] text-momentum">Save</button>
+            <button onClick={saveEdit} className="text-[10px] text-pacing">Save</button>
             <button onClick={() => setEditing(false)} className="text-[10px] text-text-dim">Cancel</button>
           </div>
         ) : (

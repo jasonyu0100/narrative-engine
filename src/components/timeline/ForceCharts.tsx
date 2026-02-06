@@ -2,14 +2,14 @@
 
 import { useMemo } from 'react';
 import { useStore } from '@/lib/store';
-import { resolveEntry, isScene } from '@/types/narrative';
-import { detectCubeCorner } from '@/lib/narrative-utils';
+import { resolveEntry, isScene, type Scene } from '@/types/narrative';
+import { detectCubeCorner, computeForceSnapshots } from '@/lib/narrative-utils';
 import ForceLineChart from './ForceLineChart';
 
 const FORCE_CONFIG = [
-  { key: 'pressure' as const, label: 'Pressure', color: 'var(--color-pressure)' },
-  { key: 'momentum' as const, label: 'Momentum', color: 'var(--color-momentum)' },
-  { key: 'flux' as const, label: 'Flux', color: 'var(--color-flux)' },
+  { key: 'stakes' as const, label: 'Stakes', color: 'var(--color-stakes)' },
+  { key: 'pacing' as const, label: 'Pacing', color: 'var(--color-pacing)' },
+  { key: 'variety' as const, label: 'Variety', color: 'var(--color-variety)' },
 ] as const;
 
 export default function ForceCharts() {
@@ -20,31 +20,35 @@ export default function ForceCharts() {
 
   const forceData = useMemo(() => {
     if (!narrative) {
-      return { pressure: [], momentum: [], flux: [] };
+      return { stakes: [], pacing: [], variety: [] };
     }
-    const pressure: number[] = [];
-    const momentum: number[] = [];
-    const flux: number[] = [];
-    let lastForce = { pressure: 0, momentum: 0, flux: 0 };
+    const stakes: number[] = [];
+    const pacing: number[] = [];
+    const variety: number[] = [];
+    const allScenes = resolvedSceneKeys
+      .map((k) => resolveEntry(narrative, k))
+      .filter((e): e is Scene => !!e && isScene(e));
+    const forceMap = computeForceSnapshots(allScenes);
+    let lastForce = { stakes: 0, pacing: 0, variety: 0 };
     for (const k of resolvedSceneKeys) {
       const entry = resolveEntry(narrative, k);
       if (entry && isScene(entry)) {
-        lastForce = entry.forceSnapshot;
+        lastForce = forceMap[entry.id] ?? lastForce;
       }
-      pressure.push(lastForce.pressure);
-      momentum.push(lastForce.momentum);
-      flux.push(lastForce.flux);
+      stakes.push(lastForce.stakes);
+      pacing.push(lastForce.pacing);
+      variety.push(lastForce.variety);
     }
-    return { pressure, momentum, flux };
+    return { stakes, pacing, variety };
   }, [narrative, resolvedSceneKeys]);
 
   const currentForces = useMemo(() => {
     const idx = state.currentSceneIndex;
-    if (forceData.pressure.length === 0 || idx < 0 || idx >= forceData.pressure.length) return null;
+    if (forceData.stakes.length === 0 || idx < 0 || idx >= forceData.stakes.length) return null;
     return {
-      pressure: forceData.pressure[idx],
-      momentum: forceData.momentum[idx],
-      flux: forceData.flux[idx],
+      stakes: forceData.stakes[idx],
+      pacing: forceData.pacing[idx],
+      variety: forceData.variety[idx],
     };
   }, [forceData, state.currentSceneIndex]);
 
@@ -70,7 +74,7 @@ export default function ForceCharts() {
         <div className="flex flex-col justify-center px-3 border-r border-border shrink-0 w-36">
           <span className="text-[9px] uppercase tracking-widest text-text-dim">
             {cubeCorner.key.split('').map((c: string, i: number) => {
-              const labels = ['P', 'M', 'F'];
+              const labels = ['S', 'P', 'V'];
               return `${labels[i]}:${c === 'H' ? 'Hi' : 'Lo'}`;
             }).join(' · ')}
           </span>

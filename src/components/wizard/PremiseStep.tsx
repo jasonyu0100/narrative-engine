@@ -154,7 +154,7 @@ export function PremiseStep() {
           disabled={loading}
         />
         {isDuplicate && (
-          <p className="text-[11px] text-pressure mt-1">A series with this name already exists.</p>
+          <p className="text-[11px] text-stakes mt-1">A series with this name already exists.</p>
         )}
       </div>
 
@@ -234,9 +234,9 @@ export function PremiseStep() {
       </div>
 
       {error && (
-        <div className="bg-pressure/10 border border-pressure/30 rounded-lg px-3 py-2">
-          <p className="text-sm text-pressure font-medium">Generation failed</p>
-          <p className="text-xs text-pressure/80 mt-1">{error}</p>
+        <div className="bg-stakes/10 border border-stakes/30 rounded-lg px-3 py-2">
+          <p className="text-sm text-stakes font-medium">Generation failed</p>
+          <p className="text-xs text-stakes/80 mt-1">{error}</p>
         </div>
       )}
 

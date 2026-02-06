@@ -1,6 +1,6 @@
-import type { NarrativeState, Scene, Arc, Character, Location, Thread, RelationshipEdge, ForceSnapshot, CubeCornerKey } from '@/types/narrative';
+import type { NarrativeState, Scene, Arc, Character, Location, Thread, RelationshipEdge, CubeCornerKey } from '@/types/narrative';
 import { resolveEntry, NARRATIVE_CUBE } from '@/types/narrative';
-import { nextId, nextIds, computeForceSnapshot, computeBaselineMutations, computeThreadStatuses, detectCubeCorner } from '@/lib/narrative-utils';
+import { nextId, nextIds, computeForceSnapshots, detectCubeCorner } from '@/lib/narrative-utils';
 
 export type WorldExpansion = {
   characters: Character[];
@@ -109,12 +109,15 @@ function branchContext(
     .join('\n');
 
   // Force trajectory — compact time series showing pacing rhythm
-  const forceTrajectory = keysUpToCurrent.map((k, i) => {
-    const entry = resolveEntry(n, k);
-    if (!entry || entry.kind !== 'scene') return null;
-    const f = entry.forceSnapshot;
+  const allScenes = keysUpToCurrent
+    .map((k) => resolveEntry(n, k))
+    .filter((e): e is Scene => e?.kind === 'scene');
+  const forceMap = computeForceSnapshots(allScenes);
+  const forceTrajectory = allScenes.map((s, i) => {
+    const f = forceMap[s.id];
+    if (!f) return null;
     const corner = detectCubeCorner(f);
-    return `[${i + 1}] P:${f.pressure >= 0 ? '+' : ''}${f.pressure.toFixed(1)} M:${f.momentum >= 0 ? '+' : ''}${f.momentum.toFixed(1)} F:${f.flux >= 0 ? '+' : ''}${f.flux.toFixed(1)} (${corner.name})`;
+    return `[${i + 1}] S:${f.stakes >= 0 ? '+' : ''}${f.stakes.toFixed(1)} P:${f.pacing >= 0 ? '+' : ''}${f.pacing.toFixed(1)} V:${f.variety >= 0 ? '+' : ''}${f.variety.toFixed(1)} (${corner.name})`;
   }).filter(Boolean).join('\n');
 
   // Compact ID lookup — placed last so it's closest to the generation prompt
@@ -274,12 +277,14 @@ Return JSON with this exact structure:
       "threadMutations": [{"threadId": "T-XX", "from": "current_status", "to": "new_status"}],
       "knowledgeMutations": [{"characterId": "C-XX", "nodeId": "K-GEN-001", "action": "added", "content": "what they learned", "nodeType": "a descriptive type for this knowledge"}],
       "relationshipMutations": [{"from": "C-XX", "to": "C-YY", "type": "description", "valenceDelta": 0.1}],
+      "stakes": 50,
       "summary": "REQUIRED: 2-4 sentence narrative summary written in vivid, character-driven prose. Describe what happens, who is involved, and the emotional stakes."
     }
   ]
 }
 
 Rules:
+- "stakes" is a number from 0 to 100 indicating how much is at risk in this scene. 0 = nothing at stake, casual/safe. 50 = moderate consequences. 100 = existential, life-or-death, irreversible.
 - EVERY scene MUST have a non-empty "summary" field. This is critical — scenes without summaries are broken. Write 2-4 vivid sentences describing the scene's events, characters, and emotional stakes.
 - Use ONLY existing character IDs and location IDs from the narrative context above
 - Thread statuses follow a lifecycle. Active statuses: "dormant", "surfacing", "escalating", "fractured", "converging", "critical", "threatened". Terminal/closed statuses: "resolved" (thread concluded satisfactorily), "done" (thread ran its course naturally), "subverted" (thread was upended or inverted), "closed" (thread was shut down externally), "abandoned" (thread faded without resolution).
@@ -377,35 +382,6 @@ You MUST use ONLY these exact IDs. Do NOT invent new character, location, or thr
   for (const scene of scenes) {
     for (const km of scene.knowledgeMutations) {
       km.nodeId = kIds[kIdx++];
-    }
-  }
-
-  // ── Compute forces deterministically from structural data ──────────────
-  {
-    // Gather existing scenes for baseline computation
-    const existingScenes = resolvedKeys
-      .slice(0, currentIndex + 1)
-      .map((k) => narrative.scenes[k])
-      .filter(Boolean);
-    const allScenesForBaseline = [...existingScenes, ...scenes];
-    const baseline = computeBaselineMutations(allScenesForBaseline);
-
-    // Get thread statuses up to the current point
-    let threadStatuses = computeThreadStatuses(narrative, currentIndex, resolvedKeys);
-
-    // Get previous force from last existing scene
-    const lastExistingScene = existingScenes[existingScenes.length - 1];
-    let prevForce: ForceSnapshot | null = lastExistingScene?.forceSnapshot ?? null;
-
-    for (let si = 0; si < scenes.length; si++) {
-      const scene = scenes[si];
-      const globalIndex = existingScenes.length + si;
-      // Apply this scene's thread mutations to get current statuses
-      for (const tm of scene.threadMutations) {
-        threadStatuses = { ...threadStatuses, [tm.threadId]: tm.to };
-      }
-      scene.forceSnapshot = computeForceSnapshot(scene, threadStatuses, prevForce, baseline, globalIndex);
-      prevForce = scene.forceSnapshot;
     }
   }
 
@@ -610,6 +586,7 @@ Return JSON with this exact structure:
       "threadMutations": [{"threadId": "T-01", "from": "dormant", "to": "surfacing"}],
       "knowledgeMutations": [{"characterId": "C-XX", "nodeId": "K-GEN-001", "action": "added", "content": "what they learned", "nodeType": "a descriptive type for this knowledge"}],
       "relationshipMutations": [],
+      "stakes": 50,
       "summary": "REQUIRED: 2-4 sentence vivid narrative summary of the scene"
     }
   ],
@@ -617,6 +594,8 @@ Return JSON with this exact structure:
     {"id": "ARC-01", "name": "string", "sceneIds": ["S-001"], "develops": ["T-01"], "locationIds": ["L-01"], "activeCharacterIds": ["C-01"], "initialCharacterLocations": {"C-01": "L-01"}}
   ]
 }
+
+- "stakes" is a number from 0 to 100 indicating how much is at risk in this scene. 0 = nothing at stake, casual/safe. 50 = moderate consequences. 100 = existential, life-or-death, irreversible.
 
 Generate a world with enough CRITICAL MASS to sustain a long-running story:
 - 6-10 characters: at least 3 anchors, 3-4 recurring, 1-2 transient. Each with 4-8 knowledge nodes and 3-6 edges. Characters should have secrets, goals, beliefs, and tactical knowledge — not just surface-level facts.
@@ -675,26 +654,7 @@ Scene knowledgeMutations track what characters LEARN during a scene. Each mutati
     },
   };
 
-  // ── Compute forces deterministically for all scenes ──────────────────
   const sceneList = Object.values(scenes);
-  {
-    const baseline = computeBaselineMutations(sceneList);
-    // Build thread statuses from thread definitions
-    let threadStatuses: Record<string, string> = {};
-    for (const [tid, thread] of Object.entries(threads)) {
-      threadStatuses[tid] = thread.status;
-    }
-    let prevForce: ForceSnapshot | null = null;
-    for (let si = 0; si < sceneList.length; si++) {
-      const scene = sceneList[si];
-      // Apply this scene's thread mutations
-      for (const tm of scene.threadMutations) {
-        threadStatuses = { ...threadStatuses, [tm.threadId]: tm.to };
-      }
-      scene.forceSnapshot = computeForceSnapshot(scene, threadStatuses, prevForce, baseline, si);
-      prevForce = scene.forceSnapshot;
-    }
-  }
 
   const commits = sceneList.map((scene, i) => ({
     id: `CM-${String(i + 1).padStart(3, '0')}`,
@@ -705,16 +665,9 @@ Scene knowledgeMutations track what characters LEARN during a scene. Each mutati
     threadMutations: scene.threadMutations,
     knowledgeMutations: scene.knowledgeMutations,
     relationshipMutations: scene.relationshipMutations,
-    forceDeltas: {
-      pressure: i === 0 ? 0 : +(scene.forceSnapshot.pressure - sceneList[i - 1].forceSnapshot.pressure).toFixed(2),
-      momentum: i === 0 ? 0 : +(scene.forceSnapshot.momentum - sceneList[i - 1].forceSnapshot.momentum).toFixed(2),
-      flux: i === 0 ? 0 : +(scene.forceSnapshot.flux - sceneList[i - 1].forceSnapshot.flux).toFixed(2),
-    },
     authorOverride: null,
     createdAt: now - (sceneList.length - i) * 3600000,
   }));
-
-  const lastScene = sceneList[sceneList.length - 1];
 
   return {
     id,
@@ -731,7 +684,7 @@ Scene knowledgeMutations track what characters LEARN during a scene. Each mutati
     relationships: parsed.relationships ?? [],
     worldSummary: parsed.worldSummary ?? premise,
     controlMode: 'auto',
-    activeForces: lastScene?.forceSnapshot ?? { pressure: 0, momentum: 0, flux: 0 },
+    activeForces: { stakes: 0, pacing: 0, variety: 0 },
     createdAt: now,
     updatedAt: now,
   };

@@ -105,9 +105,9 @@ export function computeThreadStatuses(
 /** Euclidean distance between two force snapshots */
 function forceDistance(a: ForceSnapshot, b: ForceSnapshot): number {
   return Math.sqrt(
-    (a.pressure - b.pressure) ** 2 +
-    (a.momentum - b.momentum) ** 2 +
-    (a.flux - b.flux) ** 2,
+    (a.stakes - b.stakes) ** 2 +
+    (a.pacing - b.pacing) ** 2 +
+    (a.variety - b.variety) ** 2,
   );
 }
 
@@ -132,161 +132,91 @@ export function cubeCornerProximity(forces: ForceSnapshot, cornerKey: CubeCorner
   return 1 - d / maxDist;
 }
 
-// ── Deterministic Force Computation ─────────────────────────────────────────
-
-// Thread status categories for force computation
-const THREATENING_STATUSES = new Set(['escalating', 'critical', 'threatened', 'fractured']);
-const STABILIZING_STATUSES = new Set(['resolved', 'done', 'closed', 'abandoned', 'subverted']);
-const UNSTABLE_STATUSES = new Set(['surfacing', 'fractured', 'converging']);
-const RESOLVING_STATUSES = new Set(['resolved', 'done', 'closed', 'subverted']);
+// ── Force Computation ────────────────────────────────────────────────────────
 
 /**
- * Compute a ForceSnapshot deterministically from a scene's structural data.
- *
- * The narrative is modeled as a point traveling inside the force cube [-1,+1]³.
- * Forces respond to the structural reality of the scene:
- *
- * - **Pressure** (stakes): low when threads are dormant/resolved, rises with threats
- * - **Momentum** (pace): low in establishing scenes, rises with mutation density
- * - **Flux** (instability): high in early scenes (new world), decays as things stabilize,
- *   spikes on disruptions and new knowledge
- *
- * A new story naturally starts near (-1, -1, +1) — low stakes, low pace, high uncertainty —
- * and the path through the cube traces the story's emotional shape.
- *
- * @param scene - The scene to compute forces for
- * @param threadStatuses - Map of threadId → current status (after applying this scene's mutations)
- * @param prevForce - Previous scene's force snapshot (for smoothing). Null for the first scene.
- * @param baselineMutations - Median mutation count across scenes so far (for momentum scaling)
- * @param sceneIndex - Zero-based index of this scene in the timeline (used for age-aware dynamics)
+ * Min-max normalize an array of numbers to [-1, +1].
+ * If all values are equal, returns all zeros.
  */
-export function computeForceSnapshot(
-  scene: Scene,
-  threadStatuses: Record<string, ThreadStatus>,
-  prevForce: ForceSnapshot | null,
-  baselineMutations: number,
-  sceneIndex: number = 0,
-): ForceSnapshot {
-  const allStatuses = Object.values(threadStatuses);
-  const totalThreads = allStatuses.length || 1;
-
-  // Categorize threads
-  let threatening = 0;
-  let stabilizing = 0;
-  let dormant = 0;
-  let mid = 0;
-  for (const status of allStatuses) {
-    const s = status.toLowerCase();
-    if (THREATENING_STATUSES.has(s)) threatening++;
-    else if (STABILIZING_STATUSES.has(s)) stabilizing++;
-    else if (s === 'dormant') dormant++;
-    else mid++; // surfacing, converging, etc.
-  }
-
-  // ── Pressure: stakes/urgency ──────────────────────────────────────────
-  // Base: ratio of threatening vs non-threatening threads
-  // Dormant threads actively pull pressure negative (no stakes established)
-  // Stabilizing threads also pull negative (resolved = safe)
-  let pressureRaw = (threatening * 1.0 - dormant * 0.4 - stabilizing * 0.6 + mid * 0.15) / totalThreads;
-
-  // Negative relationship mutations add pressure
-  const negRelMutations = scene.relationshipMutations.filter((r) => r.valenceDelta < -0.1);
-  pressureRaw += negRelMutations.length * 0.12;
-
-  // This scene's thread mutations create spikes/dips
-  for (const tm of scene.threadMutations) {
-    if (THREATENING_STATUSES.has(tm.to.toLowerCase())) pressureRaw += 0.12;
-    if (STABILIZING_STATUSES.has(tm.to.toLowerCase())) pressureRaw -= 0.15;
-    // Dormant→surfacing is a subtle pressure increase
-    if (tm.from.toLowerCase() === 'dormant' && !STABILIZING_STATUSES.has(tm.to.toLowerCase())) {
-      pressureRaw += 0.05;
-    }
-  }
-
-  // ── Momentum: pace of change ──────────────────────────────────────────
-  const mutationCount = scene.threadMutations.length + scene.knowledgeMutations.length + scene.relationshipMutations.length;
-  const baseline = Math.max(baselineMutations, 1);
-
-  // Raw momentum from mutation density: 0 → -1, baseline → 0, 2x → +1
-  let momentumRaw = (mutationCount - baseline) / baseline;
-
-  // Early scenes have inherently low momentum (establishing the world)
-  // This decays as the story picks up — after ~8 scenes the penalty is negligible
-  const earlyPenalty = Math.max(0, 0.5 * Math.exp(-sceneIndex / 4));
-  momentumRaw -= earlyPenalty;
-
-  // Scenes with no thread mutations at all are very static
-  if (scene.threadMutations.length === 0) {
-    momentumRaw -= 0.2;
-  }
-
-  // ── Flux: instability/unpredictability ────────────────────────────────
-  let fluxRaw = 0;
-
-  // Early story = high flux (everything is new and unfamiliar)
-  // Decays exponentially: strong for first ~6 scenes, fades by ~15
-  const noveltyFlux = 0.7 * Math.exp(-sceneIndex / 5);
-  fluxRaw += noveltyFlux;
-
-  // Threads moving to unstable states increase flux
-  for (const tm of scene.threadMutations) {
-    if (UNSTABLE_STATUSES.has(tm.to.toLowerCase())) fluxRaw += 0.2;
-    if (RESOLVING_STATUSES.has(tm.to.toLowerCase())) fluxRaw -= 0.3;
-  }
-
-  // New knowledge = new information disrupting the status quo
-  const knowledgeAdded = scene.knowledgeMutations.filter((k) => k.action === 'added').length;
-  fluxRaw += knowledgeAdded * 0.08;
-
-  // Large relationship swings are destabilizing
-  for (const rm of scene.relationshipMutations) {
-    if (Math.abs(rm.valenceDelta) > 0.3) fluxRaw += 0.12;
-  }
-
-  // Background instability from thread states
-  const unstableThreads = allStatuses.filter((s) => UNSTABLE_STATUSES.has(s.toLowerCase())).length;
-  const resolvedRatio = stabilizing / totalThreads;
-  fluxRaw += (unstableThreads * 0.2) / totalThreads;
-  // Many resolved threads = stable world → pulls flux negative
-  fluxRaw -= resolvedRatio * 0.4;
-
-  // ── Clamp raw values to [-1, +1] ──
-  const clamp = (v: number) => Math.max(-1, Math.min(1, v));
-  const rawForce: ForceSnapshot = {
-    pressure: clamp(pressureRaw),
-    momentum: clamp(momentumRaw),
-    flux: clamp(fluxRaw),
-  };
-
-  // ── Smooth with previous force (exponential smoothing) ──
-  // Higher smoothing = more gradual curves. Lower = more responsive.
-  const alpha = 0.55; // responsiveness to new values
-  if (prevForce) {
-    return {
-      pressure: clamp(+(alpha * rawForce.pressure + (1 - alpha) * prevForce.pressure).toFixed(2)),
-      momentum: clamp(+(alpha * rawForce.momentum + (1 - alpha) * prevForce.momentum).toFixed(2)),
-      flux: clamp(+(alpha * rawForce.flux + (1 - alpha) * prevForce.flux).toFixed(2)),
-    };
-  }
-
-  return {
-    pressure: +rawForce.pressure.toFixed(2),
-    momentum: +rawForce.momentum.toFixed(2),
-    flux: +rawForce.flux.toFixed(2),
-  };
+function minMaxNormalize(values: number[]): number[] {
+  const min = Math.min(...values);
+  const max = Math.max(...values);
+  if (max === min) return values.map(() => 0);
+  return values.map((v) => +((((v - min) / (max - min)) * 2) - 1).toFixed(2));
 }
 
 /**
- * Compute the median mutation count across a list of scenes.
- * Used as the baseline for momentum calculation.
+ * Compute raw pacing for a scene: total number of mutations (more = faster pace).
  */
-export function computeBaselineMutations(scenes: Scene[]): number {
-  if (scenes.length === 0) return 2; // sensible default
-  const counts = scenes.map((s) =>
-    s.threadMutations.length + s.knowledgeMutations.length + s.relationshipMutations.length,
-  ).sort((a, b) => a - b);
-  const mid = Math.floor(counts.length / 2);
-  return counts.length % 2 === 0
-    ? (counts[mid - 1] + counts[mid]) / 2
-    : counts[mid];
+function rawPacing(scene: Scene): number {
+  return scene.threadMutations.length
+    + scene.knowledgeMutations.length
+    + scene.relationshipMutations.length;
+}
+
+/**
+ * Compute raw variety for a scene given cumulative usage counts.
+ * Lower total usage of participants + location = higher variety (newer elements).
+ * Returns a value where higher = more variety (inverted from usage).
+ */
+function rawVariety(scene: Scene, charUsage: Record<string, number>, locUsage: Record<string, number>): number {
+  const participantUsage = scene.participantIds.reduce((sum, id) => sum + (charUsage[id] ?? 0), 0);
+  const avgParticipantUsage = scene.participantIds.length > 0 ? participantUsage / scene.participantIds.length : 0;
+  const locationUsage = locUsage[scene.locationId] ?? 0;
+  // Invert: less usage = more variety
+  return -1 * (avgParticipantUsage + locationUsage);
+}
+
+/**
+ * Compute ForceSnapshots for a batch of scenes using min-max normalization.
+ *
+ * - **Stakes**: AI-provided per scene (0-100 raw), normalized to [-1, +1]
+ * - **Pacing**: total mutation count per scene, normalized to [-1, +1]
+ * - **Variety**: inversely proportional to character/location usage frequency, normalized to [-1, +1]
+ *
+ * @param scenes - Ordered list of scenes to compute forces for
+ * @param priorScenes - Scenes before this batch (for usage tracking). Empty for initial generation.
+ */
+export function computeForceSnapshots(
+  scenes: Scene[],
+  priorScenes: Scene[] = [],
+): Record<string, ForceSnapshot> {
+  const result: Record<string, ForceSnapshot> = {};
+  if (scenes.length === 0) return result;
+
+  // Build cumulative usage counts from prior scenes
+  const charUsage: Record<string, number> = {};
+  const locUsage: Record<string, number> = {};
+  for (const s of priorScenes) {
+    for (const pid of s.participantIds) charUsage[pid] = (charUsage[pid] ?? 0) + 1;
+    locUsage[s.locationId] = (locUsage[s.locationId] ?? 0) + 1;
+  }
+
+  // Compute raw values, updating usage counts as we go
+  const rawStakes: number[] = [];
+  const rawPacings: number[] = [];
+  const rawVarieties: number[] = [];
+
+  for (const scene of scenes) {
+    rawStakes.push(scene.stakes ?? 50);
+    rawPacings.push(rawPacing(scene));
+    rawVarieties.push(rawVariety(scene, charUsage, locUsage));
+    // Update usage for subsequent scenes
+    for (const pid of scene.participantIds) charUsage[pid] = (charUsage[pid] ?? 0) + 1;
+    locUsage[scene.locationId] = (locUsage[scene.locationId] ?? 0) + 1;
+  }
+
+  // Min-max normalize each dimension to [-1, +1]
+  const normStakes = minMaxNormalize(rawStakes);
+  const normPacings = minMaxNormalize(rawPacings);
+  const normVarieties = minMaxNormalize(rawVarieties);
+
+  for (let i = 0; i < scenes.length; i++) {
+    result[scenes[i].id] = {
+      stakes: normStakes[i],
+      pacing: normPacings[i],
+      variety: normVarieties[i],
+    };
+  }
+  return result;
 }

@@ -22,6 +22,7 @@ function narrativeToEntry(n: NarrativeState): NarrativeEntry {
     updatedAt: n.updatedAt,
     sceneCount: Object.keys(n.scenes).length,
     coverThread: threadValues[0]?.description ?? '',
+    coverImageUrl: n.coverImageUrl,
   };
 }
 
@@ -230,7 +231,8 @@ type Action =
   // API Logs
   | { type: 'LOG_API_CALL'; entry: import('@/types/narrative').ApiLogEntry }
   | { type: 'UPDATE_API_LOG'; id: string; updates: Partial<import('@/types/narrative').ApiLogEntry> }
-  | { type: 'CLEAR_API_LOGS' };
+  | { type: 'CLEAR_API_LOGS' }
+  | { type: 'SET_COVER_IMAGE'; narrativeId: string; imageUrl: string };
 
 function reducer(state: AppState, action: Action): AppState {
   switch (action.type) {
@@ -725,6 +727,26 @@ function reducer(state: AppState, action: Action): AppState {
     case 'CLEAR_API_LOGS':
       return { ...state, apiLogs: [] };
 
+    case 'SET_COVER_IMAGE': {
+      // Update the narrative entry in the list
+      const updatedNarratives = state.narratives.map((e) =>
+        e.id === action.narrativeId ? { ...e, coverImageUrl: action.imageUrl } : e,
+      );
+      // If this is the active narrative, update it too
+      let updatedActive = state.activeNarrative;
+      if (updatedActive && updatedActive.id === action.narrativeId) {
+        updatedActive = { ...updatedActive, coverImageUrl: action.imageUrl };
+        saveNarrative(updatedActive);
+      } else {
+        // Update in persistence even if not active
+        const stored = loadNarrative(action.narrativeId);
+        if (stored) {
+          saveNarrative({ ...stored, coverImageUrl: action.imageUrl });
+        }
+      }
+      return { ...state, narratives: updatedNarratives, activeNarrative: updatedActive };
+    }
+
     default:
       return state;
   }
@@ -752,14 +774,12 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   // Hydrate persisted narratives from localStorage on mount
   useEffect(() => {
     const persisted = loadNarratives();
-    const entries = persisted.map(narrativeToEntry);
-    // Prepend any missing seeds
-    for (const seed of [...ALL_SEEDS].reverse()) {
-      if (!entries.find((e) => e.id === seed.id)) {
-        entries.unshift(narrativeToEntry(seed));
-      }
-    }
-    dispatch({ type: 'HYDRATE_NARRATIVES', entries });
+    // Filter out any persisted seeds — always use fresh static seed data
+    const userEntries = persisted
+      .filter((n) => !SEED_IDS.has(n.id))
+      .map(narrativeToEntry);
+    const seedEntries = ALL_SEEDS.map(narrativeToEntry);
+    dispatch({ type: 'HYDRATE_NARRATIVES', entries: [...seedEntries, ...userEntries] });
   }, []);
 
   // Keyboard shortcuts

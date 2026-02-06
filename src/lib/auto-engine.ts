@@ -9,7 +9,7 @@ import type {
   CubeCornerKey,
 } from '@/types/narrative';
 import { isScene, NARRATIVE_CUBE } from '@/types/narrative';
-import { detectCubeCorner } from '@/lib/narrative-utils';
+import { detectCubeCorner, computeForceSnapshots } from '@/lib/narrative-utils';
 
 // ── Terminal thread statuses ────────────────────────────────────────────────
 const TERMINAL_STATUSES = new Set(['resolved', 'done', 'subverted', 'closed', 'abandoned']);
@@ -25,8 +25,8 @@ function isActive(status: string): boolean {
 
 // ── Objective multipliers for cube corners ──────────────────────────────────
 // Bias action selection toward the high-level goal.
-// High-pressure corners (H__) tend toward resolution/climax.
-// Low-pressure corners (L__) tend toward exploration/open-endedness.
+// High-stakes corners (H__) tend toward resolution/climax.
+// Low-stakes corners (L__) tend toward exploration/open-endedness.
 const OBJECTIVE_MULTIPLIERS: Record<string, Record<CubeCornerKey, number>> = {
   resolve_threads: {
     HHH: 1.4, HHL: 1.6, HLH: 1.0, HLL: 1.2,
@@ -44,15 +44,15 @@ const OBJECTIVE_MULTIPLIERS: Record<string, Record<CubeCornerKey, number>> = {
 
 // ── Composite tension from force snapshot ───────────────────────────────────
 function compositeTension(f: ForceSnapshot): number {
-  return f.pressure * 0.4 + f.momentum * 0.3 + f.flux * 0.3;
+  return f.stakes * 0.4 + f.pacing * 0.3 + f.variety * 0.3;
 }
 
 // ── Euclidean distance between two force snapshots ──────────────────────────
 function forceDistance(a: ForceSnapshot, b: ForceSnapshot): number {
-  const dp = a.pressure - b.pressure;
-  const dm = a.momentum - b.momentum;
-  const df = a.flux - b.flux;
-  return Math.sqrt(dp * dp + dm * dm + df * df);
+  const ds = a.stakes - b.stakes;
+  const dp = a.pacing - b.pacing;
+  const dv = a.variety - b.variety;
+  return Math.sqrt(ds * ds + dp * dp + dv * dv);
 }
 
 // ── Check end conditions ────────────────────────────────────────────────────
@@ -120,8 +120,9 @@ export function evaluateNarrativeState(
   const objectiveMult = OBJECTIVE_MULTIPLIERS[config.objective] ?? OBJECTIVE_MULTIPLIERS.explore_and_resolve;
 
   // ── Current force state ─────────────────────────────────────────────────
+  const forceMap = computeForceSnapshots(scenes);
   const lastScene = scenes[scenes.length - 1];
-  const currentForce = lastScene?.forceSnapshot ?? { pressure: 0, momentum: 0, flux: 0 };
+  const currentForce = (lastScene ? forceMap[lastScene.id] : null) ?? { stakes: 0, pacing: 0, variety: 0 };
   const currentCorner = detectCubeCorner(currentForce);
 
   // ── Thread analysis ─────────────────────────────────────────────────────
@@ -143,12 +144,12 @@ export function evaluateNarrativeState(
   // ── Tension curve analysis ──────────────────────────────────────────────
   const recentWindow = scenes.slice(-5);
   const avgTension = recentWindow.length > 0
-    ? recentWindow.reduce((sum, s) => sum + compositeTension(s.forceSnapshot), 0) / recentWindow.length
+    ? recentWindow.reduce((sum, s) => sum + compositeTension(forceMap[s.id] ?? { stakes: 0, pacing: 0, variety: 0 }), 0) / recentWindow.length
     : 0;
 
   const tensionTrend = recentWindow.length >= 3
-    ? compositeTension(recentWindow[recentWindow.length - 1].forceSnapshot) -
-      compositeTension(recentWindow[0].forceSnapshot)
+    ? compositeTension(forceMap[recentWindow[recentWindow.length - 1].id] ?? { stakes: 0, pacing: 0, variety: 0 }) -
+      compositeTension(forceMap[recentWindow[0].id] ?? { stakes: 0, pacing: 0, variety: 0 })
     : 0;
 
   // ── Character coverage ──────────────────────────────────────────────────
@@ -163,10 +164,10 @@ export function evaluateNarrativeState(
   const driftWindow = scenes.slice(-4);
   let upwardDriftCount = 0;
   if (driftWindow.length >= 3) {
-    for (const key of ['pressure', 'momentum', 'flux'] as const) {
+    for (const key of ['stakes', 'pacing', 'variety'] as const) {
       let rising = true;
       for (let i = 1; i < driftWindow.length; i++) {
-        if (driftWindow[i].forceSnapshot[key] < driftWindow[i - 1].forceSnapshot[key]) {
+        if ((forceMap[driftWindow[i].id]?.[key] ?? 0) < (forceMap[driftWindow[i - 1].id]?.[key] ?? 0)) {
           rising = false;
           break;
         }
@@ -177,12 +178,12 @@ export function evaluateNarrativeState(
   const hasForceDrift = upwardDriftCount >= 2;
 
   // ── High-force saturation detection ────────────────────────────────────
-  const forceAvg = (currentForce.pressure + currentForce.momentum + currentForce.flux) / 3;
+  const forceAvg = (currentForce.stakes + currentForce.pacing + currentForce.variety) / 3;
   const forcesHigh = forceAvg > 0.7;
 
   // ── Post-climax detection ─────────────────────────────────────────────
   const isPostClimax = recentWindow.length >= 3 &&
-    compositeTension(recentWindow[0].forceSnapshot) > 0.75 &&
+    compositeTension(forceMap[recentWindow[0].id] ?? { stakes: 0, pacing: 0, variety: 0 }) > 0.75 &&
     tensionTrend < -0.15;
 
   // ── Score each cube corner ────────────────────────────────────────────
@@ -211,48 +212,48 @@ export function evaluateNarrativeState(
     }
 
     // ── 3. Thread-driven signals ──────────────────────────────────────
-    const isHighPressure = corner.forces.pressure > 0;
-    const isLowPressure = corner.forces.pressure < 0;
-    const isHighMomentum = corner.forces.momentum > 0;
-    const isLowMomentum = corner.forces.momentum < 0;
-    const isHighFlux = corner.forces.flux > 0;
-    const isLowFlux = corner.forces.flux < 0;
+    const isHighStakes = corner.forces.stakes > 0;
+    const isLowStakes = corner.forces.stakes < 0;
+    const isHighPacing = corner.forces.pacing > 0;
+    const isLowPacing = corner.forces.pacing < 0;
+    const isHighVariety = corner.forces.variety > 0;
+    const isLowVariety = corner.forces.variety < 0;
 
-    // Too many active threads → favor high-pressure corners that force resolution
-    if (activeThreads.length > config.maxActiveThreads && isHighPressure) {
+    // Too many active threads → favor high-stakes corners that force resolution
+    if (activeThreads.length > config.maxActiveThreads && isHighStakes) {
       score += 0.2;
-      reasons.push(`${activeThreads.length} active threads need pressure`);
+      reasons.push(`${activeThreads.length} active threads need stakes`);
     }
 
-    // Stagnant threads → favor high-momentum corners to shake things up
-    if (stagnantThreads.length > 0 && isHighMomentum) {
+    // Stagnant threads → favor high-pacing corners to shake things up
+    if (stagnantThreads.length > 0 && isHighPacing) {
       score += 0.15;
-      reasons.push(`${stagnantThreads.length} stagnant threads need momentum`);
+      reasons.push(`${stagnantThreads.length} stagnant threads need pacing`);
     }
 
-    // Dormant threads → high-flux corners can surface them
-    if (dormantThreads.length > 2 && isHighFlux) {
+    // Dormant threads → high-variety corners can surface them
+    if (dormantThreads.length > 2 && isHighVariety) {
       score += 0.1;
-      reasons.push(`${dormantThreads.length} dormant threads — flux can surface them`);
+      reasons.push(`${dormantThreads.length} dormant threads — variety can surface them`);
     }
 
     // ── 4. Tension management ─────────────────────────────────────────
-    if (avgTension > 0.65 && isLowPressure && isLowMomentum) {
+    if (avgTension > 0.65 && isLowStakes && isLowPacing) {
       score += 0.3;
       reasons.push(`tension high (${avgTension.toFixed(2)}) — needs relief`);
     }
 
-    if (avgTension < 0.25 && isHighPressure) {
+    if (avgTension < 0.25 && isHighStakes) {
       score += 0.25;
       reasons.push(`tension low (${avgTension.toFixed(2)}) — needs stakes`);
     }
 
     // ── 5. Force drift correction ─────────────────────────────────────
-    if (hasForceDrift && isLowPressure && isLowMomentum) {
+    if (hasForceDrift && isLowStakes && isLowPacing) {
       score += 0.3;
       reasons.push('force drift — suppressing with low-energy corner');
     }
-    if (forcesHigh && isHighPressure && isHighMomentum) {
+    if (forcesHigh && isHighStakes && isHighPacing) {
       score *= 0.4;
       reasons.push('forces already saturated');
     }
@@ -262,14 +263,14 @@ export function evaluateNarrativeState(
       if (key === 'LLL' || key === 'LLH' || key === 'LHL') {
         score += 0.4;
         reasons.push('post-climax recovery');
-      } else if (isHighPressure && isHighMomentum) {
+      } else if (isHighStakes && isHighPacing) {
         score *= 0.2;
         reasons.push('suppressed post-climax');
       }
     }
 
-    // ── 7. Neglected characters → favor low-momentum introspective corners
-    if (neglectedAnchors.length > 0 && isLowMomentum && isLowFlux) {
+    // ── 7. Neglected characters → favor low-pacing introspective corners
+    if (neglectedAnchors.length > 0 && isLowPacing && isLowVariety) {
       score += 0.1;
       reasons.push(`${neglectedAnchors.length} neglected anchors — good for character focus`);
     }
@@ -292,13 +293,13 @@ export function pickArcLength(config: AutoConfig, action: AutoAction): number {
   const corner = NARRATIVE_CUBE[action];
   const f = corner.forces;
 
-  // High momentum → longer arcs (more scenes to carry the pace)
-  // Low momentum → shorter arcs (brief, contemplative)
-  // High pressure → medium-long (need scenes to build/release stakes)
-  if (f.momentum > 0 && f.pressure > 0) {
+  // High pacing → longer arcs (more scenes to carry the pace)
+  // Low pacing → shorter arcs (brief, contemplative)
+  // High stakes → medium-long (need scenes to build/release stakes)
+  if (f.pacing > 0 && f.stakes > 0) {
     // High energy corners (HHH, HHL) — full arcs
     return config.maxArcLength;
-  } else if (f.momentum < 0 && f.pressure < 0) {
+  } else if (f.pacing < 0 && f.stakes < 0) {
     // Low energy corners (LLL, LLH) — brief interludes
     return config.minArcLength;
   } else {
@@ -361,8 +362,8 @@ export function buildActionDirective(
   const cornerDirectives: Record<CubeCornerKey, string> = {
     HHH: `PEAK CRISIS — ${corner.description} Push all forces to maximum. Multiple threads should collide simultaneously. This is the most intense, chaotic moment of the narrative.${threadContext}`,
     HHL: `CLIMAX — ${corner.description} Drive toward a decisive payoff. High stakes and rapid pace, but the situation is clear and focused. This is the moment of maximum reader investment.${threadContext}`,
-    HLH: `SLOW BURN — ${corner.description} Maintain high pressure but withhold action. Let tension simmer through ambiguity and restraint. Characters face mounting stakes in uncertain territory.${threadContext}`,
-    HLL: `LOCKED IN — ${corner.description} Everything is loaded but static. Characters endure, suppress, or wait under immense pressure. Build pre-climactic tension through constraint and inevitability.${threadContext}`,
+    HLH: `SLOW BURN — ${corner.description} Maintain high stakes but withhold action. Let tension simmer through ambiguity and restraint. Characters face mounting stakes in uncertain territory.${threadContext}`,
+    HLL: `LOCKED IN — ${corner.description} Everything is loaded but static. Characters endure, suppress, or wait under immense stakes. Build pre-climactic tension through constraint and inevitability.${threadContext}`,
     LHH: `EXPLORATION — ${corner.description} Fast-paced discovery through unstable new territory. Low stakes but high energy and surprise. World-building arcs, early adventure, open possibility space.`,
     LHL: `CRUISE — ${corner.description} Efficient narrative throughput. Move the story forward at a steady clip among known elements. Training, travel, episodic sequences.`,
     LLH: `LIMINAL — ${corner.description} Contemplative and transitional. Characters in unfamiliar conditions without clear direction. Plant seeds, explore the unknown quietly.`,

@@ -85,19 +85,19 @@ export type RelationshipMutation = {
   valenceDelta: number;
 };
 
-/** Force values range from -1 to +1.
- *  - pressure: -1 = safety/no stakes → +1 = existential threat/maximum urgency
- *  - momentum: -1 = frozen/stagnant → +1 = rapid escalation/breakneck pace
- *  - flux:     -1 = locked/predictable → +1 = total chaos/unpredictability
+/** Force values are min-max normalized to [-1, +1] across all scenes.
+ *  - stakes:  how much is at risk — AI-provided per scene (0-100 raw), normalized
+ *  - pacing:  how much changes — computed from total mutation count, normalized
+ *  - variety: how novel the cast/setting is — computed from character/location usage frequency, normalized
  */
 export type ForceSnapshot = {
-  pressure: number;
-  momentum: number;
-  flux: number;
+  stakes: number;
+  pacing: number;
+  variety: number;
 };
 
-// ── Narrative Cube (§3.2 The Eight Narrative Extremes) ──────────────────────
-// The three forces (P·M·F) define a cube. Each corner is a recognisable state.
+// ── Narrative Cube (Stakes · Pacing · Variety) ──────────────────────────────
+// The three forces (S·P·V) define a cube. Each corner is a recognisable state.
 export type CubeCornerKey =
   | 'HHH' | 'HHL' | 'HLH' | 'HLL'
   | 'LHH' | 'LHL' | 'LLH' | 'LLL';
@@ -112,51 +112,51 @@ export type CubeCorner = {
 export const NARRATIVE_CUBE: Record<CubeCornerKey, CubeCorner> = {
   HHH: {
     key: 'HHH',
-    name: 'Peak Crisis',
-    description: 'All forces at maximum. High stakes discharging at full pace in unstable conditions. Climactic sequences in unfamiliar territory.',
-    forces: { pressure: 1, momentum: 1, flux: 1 },
+    name: 'Peak',
+    description: 'High stakes, rapid events, unfamiliar cast/setting. Climactic sequences in new territory with everything on the line.',
+    forces: { stakes: 1, pacing: 1, variety: 1 },
   },
   HHL: {
     key: 'HHL',
     name: 'Climax',
-    description: 'High stakes and high pace on stable, familiar ground. The archetypal payoff scene — maximum reader investment with clear orientation.',
-    forces: { pressure: 1, momentum: 1, flux: -1 },
+    description: 'High stakes and rapid events with the familiar cast. The archetypal payoff — maximum investment with known characters.',
+    forces: { stakes: 1, pacing: 1, variety: -1 },
   },
   HLH: {
     key: 'HLH',
     name: 'Slow Burn',
-    description: 'High pressure with low pace in uncertain conditions. Stakes are present but action is withheld — tension through restraint and ambiguity.',
-    forces: { pressure: 1, momentum: -1, flux: 1 },
+    description: 'High stakes but little changes, with new faces or places. Tension through restraint — the calm before the storm in unfamiliar territory.',
+    forces: { stakes: 1, pacing: -1, variety: 1 },
   },
   HLL: {
     key: 'HLL',
-    name: 'Locked In',
-    description: 'High pressure, low pace, stable world. Everything is loaded but static — characters endure, suppress, or wait. Pre-climactic tension.',
-    forces: { pressure: 1, momentum: -1, flux: -1 },
+    name: 'Standoff',
+    description: 'High stakes, little changes, familiar ground. Everything is loaded but static — characters endure, suppress, or wait.',
+    forces: { stakes: 1, pacing: -1, variety: -1 },
   },
   LHH: {
     key: 'LHH',
     name: 'Exploration',
-    description: 'Fast pace through unstable new territory with low stakes. Discovery-driven sequences — world-building arcs, early adventure, open possibility space.',
-    forces: { pressure: -1, momentum: 1, flux: 1 },
+    description: 'Low stakes, rapid events, new cast/setting. Discovery-driven sequences — world-building, early adventure, open possibility space.',
+    forces: { stakes: -1, pacing: 1, variety: 1 },
   },
   LHL: {
     key: 'LHL',
-    name: 'Cruise',
-    description: 'High pace, low stakes, stable ground. Routine action among known elements — training, travel, episodic sequences. Efficient narrative throughput.',
-    forces: { pressure: -1, momentum: 1, flux: -1 },
+    name: 'Sprint',
+    description: 'Low stakes, rapid events, familiar cast. Routine action among known elements — training, travel, episodic sequences.',
+    forces: { stakes: -1, pacing: 1, variety: -1 },
   },
   LLH: {
     key: 'LLH',
-    name: 'Liminal',
-    description: 'Low pace and low stakes in unfamiliar conditions. Contemplative or transitional — characters in new environments without clear direction.',
-    forces: { pressure: -1, momentum: -1, flux: 1 },
+    name: 'Wandering',
+    description: 'Low stakes, little changes, new faces/places. Contemplative or transitional — characters in new environments without clear direction.',
+    forces: { stakes: -1, pacing: -1, variety: 1 },
   },
   LLL: {
     key: 'LLL',
-    name: 'Rest',
-    description: 'All forces at minimum. Familiar world, no pressure, no urgency. Recovery and seed-planting — necessary breathing room after high-intensity sequences.',
-    forces: { pressure: -1, momentum: -1, flux: -1 },
+    name: 'Quiet',
+    description: 'All forces at minimum. Familiar world, no risk, no urgency. Recovery and seed-planting — breathing room after high-intensity sequences.',
+    forces: { stakes: -1, pacing: -1, variety: -1 },
   },
 };
 
@@ -179,7 +179,8 @@ export type Scene = {
   threadMutations: ThreadMutation[];
   knowledgeMutations: KnowledgeMutation[];
   relationshipMutations: RelationshipMutation[];
-  forceSnapshot: ForceSnapshot;
+  /** AI-provided stakes value (0-100), used by computeForceSnapshots */
+  stakes?: number;
   prose: string;
   summary: string;
 };
@@ -237,7 +238,6 @@ export type Commit = {
   threadMutations: ThreadMutation[];
   knowledgeMutations: KnowledgeMutation[];
   relationshipMutations: RelationshipMutation[];
-  forceDeltas: ForceSnapshot;
   authorOverride: string | null;
   createdAt: number;
 };
@@ -261,6 +261,7 @@ export type NarrativeState = {
   worldSummary: string;
   controlMode: ControlMode;
   activeForces: ForceSnapshot;
+  coverImageUrl?: string;
   createdAt: number;
   updatedAt: number;
 };
@@ -278,6 +279,7 @@ export type NarrativeEntry = {
   updatedAt: number;
   sceneCount: number;
   coverThread: string;
+  coverImageUrl?: string;
 };
 
 // ── Auto Mode ───────────────────────────────────────────────────────────────

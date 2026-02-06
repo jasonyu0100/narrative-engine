@@ -2,8 +2,8 @@
 
 import { useRef, useEffect, useMemo, useState, useCallback } from 'react';
 import { useStore } from '@/lib/store';
-import { resolveEntry, isScene, NARRATIVE_CUBE, type CubeCornerKey } from '@/types/narrative';
-import { detectCubeCorner } from '@/lib/narrative-utils';
+import { resolveEntry, isScene, NARRATIVE_CUBE, type CubeCornerKey, type Scene } from '@/types/narrative';
+import { detectCubeCorner, computeForceSnapshots } from '@/lib/narrative-utils';
 
 // ── 3D math helpers ──────────────────────────────────────────────────────────
 
@@ -27,8 +27,8 @@ function project(p: Vec3, w: number, h: number, fov: number): [number, number] {
 }
 
 // Map force values (-1 to +1) directly to cube coordinates
-function forcesToCubePos(p: number, m: number, f: number): Vec3 {
-  return [p, m, f];
+function forcesToCubePos(s: number, p: number, v: number): Vec3 {
+  return [s, p, v];
 }
 
 // ── Cube corner positions ────────────────────────────────────────────────────
@@ -42,7 +42,7 @@ const CUBE_EDGES: [number, number][] = [
 const CORNER_KEYS: CubeCornerKey[] = ['LLL', 'HLL', 'LHL', 'HHL', 'LLH', 'HLH', 'LHH', 'HHH'];
 const CORNER_POSITIONS: Vec3[] = CORNER_KEYS.map((k) => {
   const c = NARRATIVE_CUBE[k].forces;
-  return forcesToCubePos(c.pressure, c.momentum, c.flux);
+  return forcesToCubePos(c.stakes, c.pacing, c.variety);
 });
 
 // ── Component ────────────────────────────────────────────────────────────────
@@ -62,15 +62,19 @@ export function NarrativeCubeViewer({ onClose }: { onClose: () => void }) {
   // Build force trajectory from all scenes
   const trajectory = useMemo(() => {
     if (!narrative) return [];
+    const allScenes = resolvedKeys
+      .map((k) => resolveEntry(narrative, k))
+      .filter((e): e is Scene => !!e && isScene(e));
+    const forceMap = computeForceSnapshots(allScenes);
     const pts: { pos: Vec3; index: number }[] = [];
-    let lastForce = { pressure: 0, momentum: 0, flux: 0 };
+    let lastForce = { stakes: 0, pacing: 0, variety: 0 };
     for (let i = 0; i < resolvedKeys.length; i++) {
       const entry = resolveEntry(narrative, resolvedKeys[i]);
       if (entry && isScene(entry)) {
-        lastForce = entry.forceSnapshot;
+        lastForce = forceMap[entry.id] ?? lastForce;
       }
       pts.push({
-        pos: forcesToCubePos(lastForce.pressure, lastForce.momentum, lastForce.flux),
+        pos: forcesToCubePos(lastForce.stakes, lastForce.pacing, lastForce.variety),
         index: i,
       });
     }
@@ -83,9 +87,9 @@ export function NarrativeCubeViewer({ onClose }: { onClose: () => void }) {
     if (!narrative || trajectory.length === 0 || currentIdx < 0 || currentIdx >= trajectory.length) return null;
     const pos = trajectory[currentIdx].pos;
     return detectCubeCorner({
-      pressure: pos[0],
-      momentum: pos[1],
-      flux: pos[2],
+      stakes: pos[0],
+      pacing: pos[1],
+      variety: pos[2],
     });
   }, [narrative, trajectory, currentIdx]);
 
@@ -147,9 +151,9 @@ export function NarrativeCubeViewer({ onClose }: { onClose: () => void }) {
       if (!v.startsWith('var(')) return v;
       return style.getPropertyValue(v.slice(4, -1)).trim() || '#888';
     }
-    const pressureColor = resolveCssColor('var(--color-pressure)');
-    const momentumColor = resolveCssColor('var(--color-momentum)');
-    const fluxColor = resolveCssColor('var(--color-flux)');
+    const stakesColor = resolveCssColor('var(--color-stakes)');
+    const pacingColor = resolveCssColor('var(--color-pacing)');
+    const varietyColor = resolveCssColor('var(--color-variety)');
 
     // ── Draw cube edges ────────────────────────────────────────────────
     // Color edges by which axis they run along
@@ -166,11 +170,11 @@ export function NarrativeCubeViewer({ onClose }: { onClose: () => void }) {
       let edgeColor: string;
       let edgeAlpha: number;
       if (dx > dy && dx > dz) {
-        edgeColor = pressureColor; edgeAlpha = 0.25;
+        edgeColor = stakesColor; edgeAlpha = 0.25;
       } else if (dy > dz) {
-        edgeColor = momentumColor; edgeAlpha = 0.25;
+        edgeColor = pacingColor; edgeAlpha = 0.25;
       } else {
-        edgeColor = fluxColor; edgeAlpha = 0.25;
+        edgeColor = varietyColor; edgeAlpha = 0.25;
       }
 
       ctx.strokeStyle = edgeColor;
@@ -185,9 +189,9 @@ export function NarrativeCubeViewer({ onClose }: { onClose: () => void }) {
 
     // ── Draw axis lines + labels ────────────────────────────────────────
     const axes: { label: string; lo: Vec3; hi: Vec3; color: string }[] = [
-      { label: 'Pressure', lo: [-1.35, -1, -1], hi: [1.35, -1, -1], color: pressureColor },
-      { label: 'Momentum', lo: [-1, -1.35, -1], hi: [-1, 1.35, -1], color: momentumColor },
-      { label: 'Flux',     lo: [-1, -1, -1.35], hi: [-1, -1, 1.35], color: fluxColor },
+      { label: 'Stakes',  lo: [-1.35, -1, -1], hi: [1.35, -1, -1], color: stakesColor },
+      { label: 'Pacing',  lo: [-1, -1.35, -1], hi: [-1, 1.35, -1], color: pacingColor },
+      { label: 'Variety', lo: [-1, -1, -1.35], hi: [-1, -1, 1.35], color: varietyColor },
     ];
 
     for (const ax of axes) {

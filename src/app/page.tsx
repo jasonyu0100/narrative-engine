@@ -68,9 +68,16 @@ function SeedCard({ entry, index }: { entry: NarrativeEntry; index: number }) {
       className="group relative shrink-0 w-52 cursor-pointer animate-fade-up"
       style={{ animationDelay: `${0.5 + index * 0.1}s` }}
     >
-      <div className="relative h-80 rounded-lg overflow-hidden border border-white/6 bg-transparent transition-all duration-300 group-hover:border-white/15 group-hover:-translate-y-0.5">
+      <div className="relative h-80 rounded-lg overflow-hidden border border-white/6 bg-transparent transition-all duration-300 group-hover:border-white/15 group-hover:-translate-y-1 group-hover:shadow-[0_8px_30px_-10px_rgba(80,200,160,0.15)]">
+        {/* Cover image background */}
+        {entry.coverImageUrl && (
+          <div className="absolute inset-0">
+            <img src={entry.coverImageUrl} alt="" className="w-full h-full object-cover" />
+            <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/50 to-black/20" />
+          </div>
+        )}
         {/* Content */}
-        <div className="h-full flex flex-col p-4 pt-5">
+        <div className="relative h-full flex flex-col p-4 pt-5">
           <p className="text-[9px] font-mono uppercase tracking-[0.15em] text-white/30">
             {entry.sceneCount} scenes
           </p>
@@ -158,8 +165,8 @@ function SeedCarousel({ seeds }: { seeds: NarrativeEntry[] }) {
   );
 }
 
-/* ── User series card ────────────────────────────────────────────────────── */
-function UserSeriesCard({ entry }: { entry: NarrativeEntry }) {
+/* ── User series card — same style as SeedCard ─────────────────────────── */
+function UserSeriesCard({ entry, index }: { entry: NarrativeEntry; index: number }) {
   const router = useRouter();
   const { dispatch } = useStore();
   const [mounted, setMounted] = useState(false);
@@ -168,24 +175,47 @@ function UserSeriesCard({ entry }: { entry: NarrativeEntry }) {
   return (
     <div
       onClick={() => router.push(`/series/${entry.id}`)}
-      className="group relative rounded-lg p-4 border border-white/6 cursor-pointer transition-all duration-200 hover:border-white/15"
+      className="group relative shrink-0 w-52 cursor-pointer animate-fade-up"
+      style={{ animationDelay: `${index * 0.1}s` }}
     >
-      <button
-        onClick={(e) => {
-          e.stopPropagation();
-          dispatch({ type: 'DELETE_NARRATIVE', id: entry.id });
-        }}
-        className="absolute top-3 right-3 text-white/20 hover:text-white/60 text-sm leading-none opacity-0 group-hover:opacity-100 transition"
-      >
-        &times;
-      </button>
+      <div className="relative h-80 rounded-lg overflow-hidden border border-white/6 bg-transparent transition-all duration-300 group-hover:border-white/15 group-hover:-translate-y-1 group-hover:shadow-[0_8px_30px_-10px_rgba(80,200,160,0.15)]">
+        {/* Cover image background */}
+        {entry.coverImageUrl && (
+          <div className="absolute inset-0">
+            <img src={entry.coverImageUrl} alt="" className="w-full h-full object-cover" />
+            <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/50 to-black/20" />
+          </div>
+        )}
+        {/* Content */}
+        <div className="relative h-full flex flex-col p-4 pt-5">
+          <p className="text-[9px] font-mono uppercase tracking-[0.15em] text-white/30">
+            {entry.sceneCount} scenes
+          </p>
 
-      <h3 className="text-sm font-medium text-white/90">{entry.title}</h3>
-      <p className="text-xs text-white/40 mt-1 line-clamp-2">{entry.description}</p>
+          <div className="mt-auto">
+            <h3 className="text-[15px] font-semibold leading-snug mb-2 text-white/90 group-hover:text-white transition-colors">
+              {entry.title}
+            </h3>
+            <p className="text-[11px] text-white/40 leading-relaxed line-clamp-4">
+              {entry.coverThread || entry.description}
+            </p>
+          </div>
 
-      <div className="flex items-center gap-3 text-[10px] text-white/25 mt-3 font-mono" suppressHydrationWarning>
-        <span suppressHydrationWarning>{entry.sceneCount} scenes</span>
-        <span suppressHydrationWarning>{mounted ? timeAgo(entry.updatedAt) : ''}</span>
+          <div className="mt-4 pt-3 border-t border-white/6 flex items-center justify-between">
+            <span className="text-[9px] text-white/25 font-mono" suppressHydrationWarning>
+              {mounted ? timeAgo(entry.updatedAt) : ''}
+            </span>
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                dispatch({ type: 'DELETE_NARRATIVE', id: entry.id });
+              }}
+              className="text-[10px] text-white/20 hover:text-white/60 opacity-0 group-hover:opacity-100 transition"
+            >
+              &times;
+            </button>
+          </div>
+        </div>
       </div>
     </div>
   );
@@ -211,8 +241,19 @@ export default function HomePage() {
       const res = await fetch('/api/random-idea', { method: 'POST' });
       const data = await res.json();
       if (data.idea) {
-        setPrompt(data.idea);
         inputRef.current?.focus();
+        // Typewriter effect
+        setPrompt('');
+        const text = data.idea as string;
+        let i = 0;
+        const type = () => {
+          if (i < text.length) {
+            setPrompt(text.slice(0, i + 1));
+            i++;
+            setTimeout(type, 18 + Math.random() * 22);
+          }
+        };
+        type();
       }
     } catch {
       // silently fail
@@ -262,8 +303,19 @@ export default function HomePage() {
             reshape themselves — one scene at a time.
           </p>
 
+          <div className="animate-fade-up-delay-3 flex items-center gap-2 mt-5">
+            {['Branching plots', 'Living characters', 'Knowledge graphs'].map((label) => (
+              <span
+                key={label}
+                className="text-[10px] font-mono text-white/30 border border-white/8 rounded-full px-2.5 py-1 tracking-wide"
+              >
+                {label}
+              </span>
+            ))}
+          </div>
+
           {/* ── Input ────────────────────────────────────────────────────── */}
-          <div className="animate-fade-up-delay-3 mt-12 w-full max-w-lg">
+          <div className="animate-fade-up-delay-3 mt-10 w-full max-w-xl">
             <div className="prompt-glow relative rounded-xl border border-white/8 focus-within:border-white/15 transition-colors duration-200">
               <textarea
                 ref={inputRef}
@@ -275,7 +327,7 @@ export default function HomePage() {
                     handleSubmit();
                   }
                 }}
-                rows={2}
+                rows={3}
                 className="w-full bg-transparent text-white text-sm px-4 pt-4 pb-2 resize-none focus:outline-none placeholder:text-white/25"
                 placeholder="A dying empire where three siblings each claim the throne..."
               />
@@ -288,13 +340,20 @@ export default function HomePage() {
                   <span className={rolling ? 'animate-spin inline-block' : ''}>&#127922;</span>
                   {rolling ? 'thinking...' : 'surprise me'}
                 </button>
-                <button
-                  onClick={handleSubmit}
-                  disabled={!prompt.trim()}
-                  className="text-white/70 hover:text-white border border-white/10 hover:border-white/20 disabled:opacity-20 text-xs font-medium px-4 py-1.5 rounded-md transition"
-                >
-                  Create
-                </button>
+                <div className="flex items-center gap-2">
+                  {prompt.trim() && (
+                    <span className="text-[10px] text-white/20 font-mono">
+                      ↵ enter
+                    </span>
+                  )}
+                  <button
+                    onClick={handleSubmit}
+                    disabled={!prompt.trim()}
+                    className="text-white/70 hover:text-white border border-white/10 hover:border-white/20 disabled:opacity-20 text-xs font-medium px-4 py-1.5 rounded-md transition"
+                  >
+                    Create
+                  </button>
+                </div>
               </div>
             </div>
 
@@ -326,23 +385,33 @@ export default function HomePage() {
         )}
 
         {/* ── User series ──────────────────────────────────────────────── */}
-        {userSeries.length > 0 && (
-          <div className="relative flex-1 px-4 pb-16">
-            <div className="max-w-160 mx-auto">
-              <div className="flex items-center gap-3 mb-4">
-                <h2 className="text-[10px] uppercase tracking-[0.2em] text-text-dim font-mono">
-                  Your Stories
-                </h2>
-                <div className="flex-1 h-px bg-white/6" />
-              </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                {userSeries.map((entry) => (
-                  <UserSeriesCard key={entry.id} entry={entry} />
+        <div className="relative flex-1 px-4 sm:px-8 pb-16">
+          <div className="max-w-240 mx-auto">
+            <div className="flex items-center gap-3 mb-4">
+              <h2 className="text-[10px] uppercase tracking-[0.2em] text-text-dim font-mono">
+                Your Stories
+              </h2>
+              <div className="flex-1 h-px bg-white/6" />
+            </div>
+            {userSeries.length > 0 ? (
+              <div className="flex gap-3 flex-wrap">
+                {userSeries.map((entry, i) => (
+                  <UserSeriesCard key={entry.id} entry={entry} index={i} />
                 ))}
               </div>
-            </div>
+            ) : (
+              <div className="text-center py-12 border border-dashed border-white/8 rounded-lg">
+                <p className="text-white/25 text-sm">No stories yet</p>
+                <button
+                  onClick={() => dispatch({ type: 'OPEN_WIZARD' })}
+                  className="mt-3 text-xs text-white/40 hover:text-white/70 underline underline-offset-2 transition"
+                >
+                  Create your first narrative
+                </button>
+              </div>
+            )}
           </div>
-        )}
+        </div>
       </div>
 
       {state.wizardOpen && <CreationWizard />}

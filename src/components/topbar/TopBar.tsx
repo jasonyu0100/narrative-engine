@@ -140,7 +140,7 @@ export default function TopBar() {
                               setDeletingId(isDeleting ? null : entry.id);
                               setDeleteConfirm('');
                             }}
-                            className="px-2.5 py-1 mr-1.5 text-text-dim hover:text-pressure text-xs rounded transition-colors shrink-0 hover:bg-white/5"
+                            className="px-2.5 py-1 mr-1.5 text-text-dim hover:text-stakes text-xs rounded transition-colors shrink-0 hover:bg-white/5"
                             title="Delete narrative"
                           >
                             &times;
@@ -169,7 +169,7 @@ export default function TopBar() {
                                 }
                               }}
                               disabled={deleteConfirm !== entry.title}
-                              className="w-full text-xs font-medium py-1.5 rounded-md transition-colors bg-pressure/20 text-pressure hover:bg-pressure/30 disabled:opacity-30 disabled:pointer-events-none"
+                              className="w-full text-xs font-medium py-1.5 rounded-md transition-colors bg-stakes/20 text-stakes hover:bg-stakes/30 disabled:opacity-30 disabled:pointer-events-none"
                             >
                               Delete permanently
                             </button>

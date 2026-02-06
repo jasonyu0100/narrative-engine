@@ -13,8 +13,8 @@ const statusClasses: Record<ThreadStatus, string> = {
   dormant: 'text-text-dim',
   surfacing: 'text-text-secondary',
   escalating: 'text-escalate',
-  threatened: 'text-pressure',
-  done: 'text-momentum',
+  threatened: 'text-stakes',
+  done: 'text-pacing',
   subverted: 'text-text-dim',
 };
 

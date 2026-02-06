@@ -1,8 +1,9 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useStore } from '@/lib/store';
-import { resolveEntry } from '@/types/narrative';
+import { resolveEntry, isScene, type Scene } from '@/types/narrative';
+import { computeForceSnapshots } from '@/lib/narrative-utils';
 
 type Props = {
   sceneId: string;
@@ -13,6 +14,15 @@ export default function SceneDetail({ sceneId }: Props) {
   const narrative = state.activeNarrative;
   const [editing, setEditing] = useState(false);
   const [editSummary, setEditSummary] = useState('');
+
+  const forceSnapshot = useMemo(() => {
+    if (!narrative) return { stakes: 0, pacing: 0, variety: 0 };
+    const allScenes = state.resolvedSceneKeys
+      .map((k) => resolveEntry(narrative, k))
+      .filter((e): e is Scene => !!e && isScene(e));
+    const forceMap = computeForceSnapshots(allScenes);
+    return forceMap[sceneId] ?? { stakes: 0, pacing: 0, variety: 0 };
+  }, [narrative, state.resolvedSceneKeys, sceneId]);
 
   if (!narrative) return null;
 
@@ -106,7 +116,8 @@ export default function SceneDetail({ sceneId }: Props) {
   // ── Scene Commit view ───────────────────────────────────────────────────
   const scene = entry;
   const location = narrative.locations[scene.locationId];
-  const { pressure, momentum, flux } = scene.forceSnapshot;
+
+  const { stakes, pacing, variety } = forceSnapshot;
 
   const arc = Object.values(narrative.arcs).find((a) =>
     a.sceneIds.includes(sceneId)
@@ -163,7 +174,7 @@ export default function SceneDetail({ sceneId }: Props) {
             className="bg-bg-elevated border border-border rounded px-2 py-1.5 text-xs text-text-primary w-full h-24 resize-none outline-none"
           />
           <div className="flex gap-2">
-            <button onClick={saveEdit} className="text-[10px] text-momentum hover:underline">Save</button>
+            <button onClick={saveEdit} className="text-[10px] text-pacing hover:underline">Save</button>
             <button onClick={() => setEditing(false)} className="text-[10px] text-text-dim hover:underline">Cancel</button>
           </div>
         </div>
@@ -210,9 +221,9 @@ export default function SceneDetail({ sceneId }: Props) {
       {/* Force Snapshot */}
       <div>
         <div className="flex gap-3">
-          <ForceBar label="Pressure" value={pressure} color="#EF4444" />
-          <ForceBar label="Momentum" value={momentum} color="#22C55E" />
-          <ForceBar label="Flux" value={flux} color="#3B82F6" />
+          <ForceBar label="Stakes" value={stakes} color="#EF4444" />
+          <ForceBar label="Pacing" value={pacing} color="#22C55E" />
+          <ForceBar label="Variety" value={variety} color="#3B82F6" />
         </div>
       </div>
 
@@ -309,7 +320,7 @@ export default function SceneDetail({ sceneId }: Props) {
                   >
                     {charName}
                   </button>
-                  <span className={km.action === 'added' ? 'text-momentum' : 'text-pressure'}>
+                  <span className={km.action === 'added' ? 'text-pacing' : 'text-stakes'}>
                     {km.action === 'added' ? '+' : '\u2212'}
                   </span>
                   <span className="font-mono text-[10px] text-text-dim">{km.nodeId}</span>
@@ -358,7 +369,7 @@ export default function SceneDetail({ sceneId }: Props) {
                   >
                     {toName}
                   </button>
-                  <span className={rm.valenceDelta >= 0 ? 'text-momentum' : 'text-pressure'}>
+                  <span className={rm.valenceDelta >= 0 ? 'text-pacing' : 'text-stakes'}>
                     {rm.valenceDelta > 0 ? '+' : ''}{rm.valenceDelta}
                   </span>
                 </div>
