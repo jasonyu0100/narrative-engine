@@ -38,6 +38,15 @@ export default function LocationDetail({ locationId }: Props) {
 
   return (
     <div className="flex flex-col gap-4">
+      {/* Establishing shot */}
+      {location.imageUrl && (
+        <img
+          src={location.imageUrl}
+          alt={location.name}
+          className="w-full aspect-video object-cover rounded-lg border border-border"
+        />
+      )}
+
       {/* Name + ID */}
       <div className="flex flex-col gap-0.5">
         <h2 className="text-sm font-semibold text-text-primary">{location.name}</h2>

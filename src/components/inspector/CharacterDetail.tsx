@@ -50,6 +50,15 @@ export default function CharacterDetail({ characterId }: Props) {
 
   return (
     <div className="flex flex-col gap-4">
+      {/* Portrait */}
+      {character.imageUrl && (
+        <img
+          src={character.imageUrl}
+          alt={character.name}
+          className="w-full aspect-3/4 object-cover rounded-lg border border-border"
+        />
+      )}
+
       {/* Name + ID */}
       <div className="flex flex-col gap-0.5">
         <h2 className="text-sm font-semibold text-text-primary">{character.name}</h2>

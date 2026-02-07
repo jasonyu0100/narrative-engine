@@ -135,6 +135,15 @@ export default function SceneDetail({ sceneId }: Props) {
 
   return (
     <div className="flex flex-col gap-4">
+      {/* Scene still */}
+      {scene.imageUrl && (
+        <img
+          src={scene.imageUrl}
+          alt={scene.summary}
+          className="w-full aspect-video object-cover rounded-lg border border-border"
+        />
+      )}
+
       {/* Scene ID + Arc */}
       <div className="flex items-baseline gap-2">
         <h2 className="font-mono text-xs text-text-dim">{scene.id}</h2>
