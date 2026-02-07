@@ -20,10 +20,22 @@ import { NarrativeCubeViewer } from '@/components/timeline/NarrativeCubeViewer';
 import { useAutoPlay } from '@/hooks/useAutoPlay';
 import { OnboardingGuide } from '@/components/onboarding/OnboardingGuide';
 
+function useIsMobile(breakpoint = 768) {
+  const [isMobile, setIsMobile] = useState(false);
+  useEffect(() => {
+    const check = () => setIsMobile(window.innerWidth < breakpoint);
+    check();
+    window.addEventListener('resize', check);
+    return () => window.removeEventListener('resize', check);
+  }, [breakpoint]);
+  return isMobile;
+}
+
 export default function SeriesPage() {
   const params = useParams();
   const router = useRouter();
   const { state, dispatch } = useStore();
+  const isMobile = useIsMobile();
   const [generateOpen, setGenerateOpen] = useState(false);
   const [forkOpen, setForkOpen] = useState(false);
   const [autoSettingsOpen, setAutoSettingsOpen] = useState(false);
@@ -114,6 +126,20 @@ export default function SeriesPage() {
         <NarrativeCubeViewer onClose={() => setCubeViewerOpen(false)} />
       )}
       <OnboardingGuide narrativeId={id} />
+      {isMobile && (
+        <div className="fixed inset-0 z-9999 bg-black/80 backdrop-blur-sm flex flex-col items-center justify-center px-6 text-center">
+          <p className="text-white/90 text-lg font-semibold mb-2">Desktop Only</p>
+          <p className="text-white/40 text-sm leading-relaxed max-w-xs mb-6">
+            Narrative Engine is designed for desktop browsers. Please visit on a larger screen.
+          </p>
+          <button
+            onClick={() => router.push('/')}
+            className="text-xs text-white/50 hover:text-white/80 underline underline-offset-2 transition"
+          >
+            Back to home
+          </button>
+        </div>
+      )}
     </>
   );
 }
