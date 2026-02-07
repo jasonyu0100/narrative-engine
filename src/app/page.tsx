@@ -17,6 +17,77 @@ function timeAgo(timestamp: number): string {
   return `${days}d ago`;
 }
 
+/* ── Morph text — letters shift through similar glyphs ────────────────────── */
+const MORPH_GLYPHS: Record<string, string[]> = {
+  e: ['ë', 'ē', 'ę', 'ė', 'ě', 'è', 'é'],
+  v: ['ν', 'ʋ', 'ᵥ', 'ṽ'],
+  o: ['ö', 'ø', 'ō', 'ő', 'ȯ', 'ò', 'ó'],
+  l: ['ł', 'ĺ', 'ḷ', 'ℓ', 'ḻ'],
+};
+
+function MorphText({ text }: { text: string }) {
+  const [chars, setChars] = useState(() => text.split(''));
+
+  useEffect(() => {
+    const original = text.split('');
+    const timeouts: ReturnType<typeof setTimeout>[] = [];
+
+    // Each morphable letter runs its own independent loop
+    original.forEach((ch, i) => {
+      const glyphs = MORPH_GLYPHS[ch.toLowerCase()];
+      if (!glyphs) return;
+
+      function loop() {
+        // Rapid burst: cycle through 2-4 glyphs before settling
+        const burstLen = 2 + Math.floor(Math.random() * 3);
+        let step = 0;
+
+        function tick() {
+          if (step < burstLen) {
+            const g = glyphs[Math.floor(Math.random() * glyphs.length)];
+            setChars((prev) => { const next = [...prev]; next[i] = g; return next; });
+            step++;
+            timeouts.push(setTimeout(tick, 60 + Math.random() * 40));
+          } else {
+            // Settle back to original
+            setChars((prev) => { const next = [...prev]; next[i] = original[i]; return next; });
+            // Wait before next burst — staggered per letter
+            timeouts.push(setTimeout(loop, 1200 + Math.random() * 3000));
+          }
+        }
+
+        // Staggered start per letter
+        timeouts.push(setTimeout(tick, 1500 + i * 400 + Math.random() * 1000));
+      }
+
+      loop();
+    });
+
+    return () => timeouts.forEach(clearTimeout);
+  }, [text]);
+
+  return (
+    <>
+      {chars.map((ch, i) => {
+        const isOriginal = ch === text[i];
+        return (
+          <span
+            key={i}
+            className="inline-block"
+            style={{
+              transition: 'opacity 80ms, filter 80ms',
+              opacity: isOriginal ? 1 : 0.6,
+              filter: isOriginal ? 'none' : 'blur(0.6px)',
+            }}
+          >
+            {ch}
+          </span>
+        );
+      })}
+    </>
+  );
+}
+
 /* ── Animated thread SVG that draws on mount ─────────────────────────────── */
 function ThreadLine() {
   const pathRef = useRef<SVGPathElement>(null);
@@ -295,7 +366,7 @@ export default function HomePage() {
 
           <h1 className="animate-fade-up-delay-1 text-5xl sm:text-7xl font-bold tracking-[-0.03em] text-center leading-[1.05] max-w-160">
             <span className="text-white">Stories that </span>
-            <span className="text-white italic">evolve.</span>
+            <span className="glitch-wrapper text-white italic" data-text="evolve."><MorphText text="evolve" />.</span>
           </h1>
 
           <p className="animate-fade-up-delay-2 text-[15px] text-white/40 mt-6 max-w-md text-center leading-relaxed">

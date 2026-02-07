@@ -326,3 +326,49 @@ button, [role="button"] {
   65%      { opacity: 0.35; }
   85%      { opacity: 0.6; }
 }
+
+/* ── Glitch effect for "evolve" ──────────────────────────────────────────── */
+.glitch-wrapper {
+  position: relative;
+  display: inline-block;
+}
+
+.glitch-wrapper::before,
+.glitch-wrapper::after {
+  content: attr(data-text);
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  font-style: italic;
+}
+
+.glitch-wrapper::before {
+  color: rgba(239, 68, 68, 0.4);
+  animation: glitch-shift-1 3s infinite;
+  clip-path: inset(0 0 65% 0);
+}
+
+.glitch-wrapper::after {
+  color: rgba(59, 130, 246, 0.4);
+  animation: glitch-shift-2 3s infinite;
+  clip-path: inset(60% 0 0 0);
+}
+
+@keyframes glitch-shift-1 {
+  0%, 74%  { transform: translate(0); opacity: 0; }
+  75%      { transform: translate(-2px, -1px); opacity: 1; }
+  77%      { transform: translate(3px, 1px); opacity: 1; }
+  79%      { transform: translate(-1px, 0); opacity: 1; }
+  81%, 100% { transform: translate(0); opacity: 0; }
+}
+
+@keyframes glitch-shift-2 {
+  0%, 74%  { transform: translate(0); opacity: 0; }
+  76%      { transform: translate(2px, 1px); opacity: 1; }
+  78%      { transform: translate(-3px, -1px); opacity: 1; }
+  80%      { transform: translate(1px, 0); opacity: 1; }
+  82%, 100% { transform: translate(0); opacity: 0; }
+}
