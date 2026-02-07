@@ -20,7 +20,7 @@ export function useAutoPlay() {
     if (!activeNarrative || !activeBranchId || !autoRunState) return;
 
     // Check end conditions
-    const endMet = checkEndConditions(activeNarrative, resolvedSceneKeys, autoConfig);
+    const endMet = checkEndConditions(activeNarrative, resolvedSceneKeys, autoConfig, autoRunState.startingSceneCount, autoRunState.startingArcCount);
     if (endMet) {
       dispatch({
         type: 'LOG_AUTO_CYCLE',

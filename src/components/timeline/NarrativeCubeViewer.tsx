@@ -2,8 +2,9 @@
 
 import { useRef, useEffect, useMemo, useState, useCallback } from 'react';
 import { useStore } from '@/lib/store';
-import { resolveEntry, isScene, NARRATIVE_CUBE, type CubeCornerKey, type Scene } from '@/types/narrative';
+import { resolveEntry, isScene, NARRATIVE_CUBE, type CubeCorner, type CubeCornerKey, type Scene } from '@/types/narrative';
 import { detectCubeCorner, computeForceSnapshots } from '@/lib/narrative-utils';
+import { analyzeForceTrajectory } from '@/lib/ai';
 
 // ── 3D math helpers ──────────────────────────────────────────────────────────
 
@@ -45,6 +46,17 @@ const CORNER_POSITIONS: Vec3[] = CORNER_KEYS.map((k) => {
   return forcesToCubePos(c.stakes, c.pacing, c.variety);
 });
 
+// ── Force data type for AI analysis ──────────────────────────────────────────
+
+type SceneForceEntry = {
+  sceneId: string;
+  arcId: string;
+  arcName: string;
+  corner: CubeCorner;
+  cornerKey: CubeCornerKey;
+  forces: { stakes: number; pacing: number; variety: number };
+};
+
 // ── Component ────────────────────────────────────────────────────────────────
 
 export function NarrativeCubeViewer({ onClose }: { onClose: () => void }) {
@@ -58,6 +70,12 @@ export function NarrativeCubeViewer({ onClose }: { onClose: () => void }) {
   const [rotX, setRotX] = useState(0.4);
   const dragging = useRef(false);
   const lastMouse = useRef({ x: 0, y: 0 });
+
+  // AI analysis state
+  const [analysisText, setAnalysisText] = useState<string | null>(null);
+  const [analysisLoading, setAnalysisLoading] = useState(false);
+  const [analysisError, setAnalysisError] = useState<string | null>(null);
+  const [showAnalysis, setShowAnalysis] = useState(false);
 
   // Build force trajectory from all scenes
   const trajectory = useMemo(() => {
@@ -92,6 +110,86 @@ export function NarrativeCubeViewer({ onClose }: { onClose: () => void }) {
       variety: pos[2],
     });
   }, [narrative, trajectory, currentIdx]);
+
+  // Build per-scene force entries for AI analysis
+  const forceEntries = useMemo((): SceneForceEntry[] => {
+    if (!narrative) return [];
+    const allScenes = resolvedKeys
+      .map((k) => resolveEntry(narrative, k))
+      .filter((e): e is Scene => !!e && isScene(e));
+    const forceMap = computeForceSnapshots(allScenes);
+
+    const entries: SceneForceEntry[] = [];
+    for (let i = 0; i < resolvedKeys.length; i++) {
+      const entry = resolveEntry(narrative, resolvedKeys[i]);
+      if (entry && isScene(entry)) {
+        const f = forceMap[entry.id];
+        if (f) {
+          const arc = narrative.arcs[entry.arcId];
+          const corner = detectCubeCorner(f);
+          entries.push({
+            sceneId: entry.id,
+            arcId: entry.arcId,
+            arcName: arc?.name ?? entry.arcId,
+            corner,
+            cornerKey: corner.key,
+            forces: f,
+          });
+        }
+      }
+    }
+    return entries;
+  }, [narrative, resolvedKeys]);
+
+  // Compact trajectory stats for the header
+  const trajectoryStats = useMemo(() => {
+    if (forceEntries.length === 0) return null;
+    const first = forceEntries[0];
+    const last = forceEntries[forceEntries.length - 1];
+    const cornerCounts: Record<string, number> = {};
+    for (const e of forceEntries) cornerCounts[e.corner.name] = (cornerCounts[e.corner.name] ?? 0) + 1;
+    const dominant = Object.entries(cornerCounts).sort((a, b) => b[1] - a[1])[0];
+    const uniqueCorners = Object.keys(cornerCounts).length;
+    let transitions = 0;
+    for (let i = 1; i < forceEntries.length; i++) {
+      if (forceEntries[i].cornerKey !== forceEntries[i - 1].cornerKey) transitions++;
+    }
+    return {
+      first: first.corner.name,
+      last: last.corner.name,
+      sceneCount: forceEntries.length,
+      dominant: dominant[0],
+      dominantCount: dominant[1],
+      uniqueCorners,
+      transitions,
+    };
+  }, [forceEntries]);
+
+  // Run AI analysis
+  const runAnalysis = useCallback(async () => {
+    if (!narrative || forceEntries.length === 0) return;
+    setAnalysisLoading(true);
+    setAnalysisError(null);
+    setShowAnalysis(true);
+    try {
+      const result = await analyzeForceTrajectory(
+        narrative,
+        forceEntries.map(e => ({
+          sceneId: e.sceneId,
+          arcId: e.arcId,
+          arcName: e.arcName,
+          forces: e.forces,
+          corner: e.corner.name,
+          cornerKey: e.cornerKey,
+        })),
+      );
+      setAnalysisText(result);
+    } catch (err) {
+      setAnalysisError(err instanceof Error ? err.message : 'Analysis failed');
+    } finally {
+      setAnalysisLoading(false);
+    }
+  }, [narrative, forceEntries]);
 
   // Mouse drag handlers
   const onMouseDown = useCallback((e: React.MouseEvent) => {
@@ -156,29 +254,26 @@ export function NarrativeCubeViewer({ onClose }: { onClose: () => void }) {
     const varietyColor = resolveCssColor('var(--color-variety)');
 
     // ── Draw cube edges ────────────────────────────────────────────────
-    // Color edges by which axis they run along
     for (const [a, b] of CUBE_EDGES) {
       const ca = CORNER_POSITIONS[a];
       const cb = CORNER_POSITIONS[b];
       const pa = transform(ca);
       const pb = transform(cb);
 
-      // Determine which axis this edge runs along
       const dx = Math.abs(ca[0] - cb[0]);
       const dy = Math.abs(ca[1] - cb[1]);
       const dz = Math.abs(ca[2] - cb[2]);
       let edgeColor: string;
-      let edgeAlpha: number;
       if (dx > dy && dx > dz) {
-        edgeColor = stakesColor; edgeAlpha = 0.25;
+        edgeColor = stakesColor;
       } else if (dy > dz) {
-        edgeColor = pacingColor; edgeAlpha = 0.25;
+        edgeColor = pacingColor;
       } else {
-        edgeColor = varietyColor; edgeAlpha = 0.25;
+        edgeColor = varietyColor;
       }
 
       ctx.strokeStyle = edgeColor;
-      ctx.globalAlpha = edgeAlpha;
+      ctx.globalAlpha = 0.25;
       ctx.lineWidth = 1;
       ctx.beginPath();
       ctx.moveTo(pa[0], pa[1]);
@@ -198,7 +293,6 @@ export function NarrativeCubeViewer({ onClose }: { onClose: () => void }) {
       const pLo = transform(ax.lo);
       const pHi = transform(ax.hi);
 
-      // Axis line
       ctx.strokeStyle = ax.color;
       ctx.globalAlpha = 0.4;
       ctx.lineWidth = 1.5;
@@ -210,14 +304,12 @@ export function NarrativeCubeViewer({ onClose }: { onClose: () => void }) {
       ctx.setLineDash([]);
       ctx.globalAlpha = 1;
 
-      // "Lo" label
       ctx.font = '9px system-ui, sans-serif';
       ctx.fillStyle = ax.color;
       ctx.globalAlpha = 0.45;
       ctx.textAlign = 'center';
       ctx.fillText('Lo', pLo[0], pLo[1] + 12);
 
-      // "Hi" label + axis name
       ctx.font = 'bold 10px system-ui, sans-serif';
       ctx.globalAlpha = 0.85;
       ctx.fillText(`${ax.label} Hi`, pHi[0], pHi[1] - 6);
@@ -225,7 +317,6 @@ export function NarrativeCubeViewer({ onClose }: { onClose: () => void }) {
     }
 
     // ── Draw corner labels ─────────────────────────────────────────────
-    // Sort by depth so back labels draw first
     const cornerData = CORNER_KEYS.map((key, i) => ({
       key,
       name: NARRATIVE_CUBE[key].name,
@@ -239,15 +330,11 @@ export function NarrativeCubeViewer({ onClose }: { onClose: () => void }) {
       const opacity = isNearest ? 1 : 0.4;
       const radius = isNearest ? 5 : 3;
 
-      // Corner dot
       ctx.beginPath();
       ctx.arc(cd.screenPos[0], cd.screenPos[1], radius, 0, Math.PI * 2);
-      ctx.fillStyle = isNearest
-        ? `rgba(255, 255, 255, ${opacity})`
-        : `rgba(255, 255, 255, ${opacity})`;
+      ctx.fillStyle = `rgba(255, 255, 255, ${opacity})`;
       ctx.fill();
 
-      // Corner name
       ctx.font = isNearest ? 'bold 10px system-ui, sans-serif' : '9px system-ui, sans-serif';
       ctx.fillStyle = `rgba(255, 255, 255, ${isNearest ? 0.95 : 0.35})`;
       ctx.textAlign = 'center';
@@ -295,41 +382,185 @@ export function NarrativeCubeViewer({ onClose }: { onClose: () => void }) {
     }
   }, [rotX, rotY, trajectory, currentIdx, currentCorner]);
 
-  return (
-    <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center">
-      <div className="glass rounded-2xl p-5 relative" style={{ width: 560, height: 480 }}>
-        <button
-          onClick={onClose}
-          className="absolute top-4 right-4 text-text-dim hover:text-text-primary text-lg leading-none z-10"
-        >
-          &times;
-        </button>
+  // Parse AI analysis into sections for rendering
+  const analysisSections = useMemo(() => {
+    if (!analysisText) return [];
+    const sections: { title: string; body: string }[] = [];
+    const sectionNames = ['Trajectory Overview', 'Arc-by-Arc Dynamics', 'Tension Architecture', 'Pacing Rhythm', 'Compositional Observations'];
 
-        <div className="flex items-baseline justify-between mb-3">
-          <h2 className="text-sm font-semibold text-text-primary">
-            Narrative Cube
-          </h2>
-          {currentCorner && (
-            <span className="text-[11px] text-text-secondary">
-              Current: <span className="text-text-primary font-medium">{currentCorner.name}</span>
-              <span className="text-text-dim font-mono ml-1.5 text-[9px]">{currentCorner.key}</span>
-            </span>
+    // Try to split by section headers
+    let remaining = analysisText.trim();
+    for (let i = 0; i < sectionNames.length; i++) {
+      const name = sectionNames[i];
+      const idx = remaining.indexOf(name);
+      if (idx === -1) continue;
+
+      const nextIdx = i < sectionNames.length - 1
+        ? sectionNames.slice(i + 1).reduce((best, n) => {
+            const found = remaining.indexOf(n, idx + name.length);
+            return found !== -1 && (best === -1 || found < best) ? found : best;
+          }, -1)
+        : -1;
+
+      const body = nextIdx !== -1
+        ? remaining.slice(idx + name.length, nextIdx).trim()
+        : remaining.slice(idx + name.length).trim();
+
+      sections.push({ title: name, body });
+      if (nextIdx !== -1) remaining = remaining.slice(nextIdx);
+      else break;
+    }
+
+    // Fallback: if no sections found, treat as single block
+    if (sections.length === 0 && analysisText.trim()) {
+      sections.push({ title: 'Analysis', body: analysisText.trim() });
+    }
+
+    return sections;
+  }, [analysisText]);
+
+  return (
+    <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4">
+      <div
+        className="glass rounded-2xl relative flex flex-col overflow-hidden"
+        style={{ width: showAnalysis ? 780 : 520, maxHeight: '92vh', transition: 'width 0.3s ease' }}
+      >
+        {/* Header */}
+        <div className="px-5 pt-5 pb-3 border-b border-white/5">
+          <div className="flex items-baseline justify-between">
+            <div className="flex items-baseline gap-3">
+              <h2 className="text-sm font-semibold text-text-primary">Narrative Cube</h2>
+              {currentCorner && (
+                <span className="text-[11px] text-text-secondary">
+                  <span className="text-text-primary font-medium">{currentCorner.name}</span>
+                  <span className="text-text-dim font-mono ml-1.5 text-[9px]">{currentCorner.key}</span>
+                </span>
+              )}
+            </div>
+            <button
+              onClick={onClose}
+              className="text-text-dim hover:text-text-primary text-lg leading-none"
+            >
+              &times;
+            </button>
+          </div>
+
+          {/* Compact stats bar */}
+          {trajectoryStats && (
+            <div className="flex items-center gap-4 mt-2 text-[10px] text-text-dim">
+              <span>{trajectoryStats.sceneCount} scenes</span>
+              <span className="text-text-dim/40">|</span>
+              <span>{trajectoryStats.first} &rarr; {trajectoryStats.last}</span>
+              <span className="text-text-dim/40">|</span>
+              <span>{trajectoryStats.uniqueCorners}/8 corners</span>
+              <span className="text-text-dim/40">|</span>
+              <span>{trajectoryStats.transitions} transitions</span>
+              <span className="text-text-dim/40">|</span>
+              <span>dominant: <span className="text-text-secondary">{trajectoryStats.dominant}</span></span>
+            </div>
           )}
         </div>
 
-        <p className="text-[10px] text-text-dim mb-2">
-          Drag to rotate. The path shows your story&apos;s journey through the force space.
-        </p>
+        {/* Main content */}
+        <div className="flex-1 overflow-hidden flex flex-col">
+          <div className={`flex min-h-0 ${showAnalysis ? 'flex-1' : ''}`}>
+            {/* Cube canvas */}
+            <div className={`p-4 ${showAnalysis ? 'w-[340px] shrink-0' : 'w-full'}`} style={{ transition: 'width 0.3s ease' }}>
+              <p className="text-[10px] text-text-dim mb-2">
+                Drag to rotate. Path shows the story&apos;s journey through force space.
+              </p>
+              <canvas
+                ref={canvasRef}
+                className="w-full rounded-lg cursor-grab active:cursor-grabbing"
+                style={{ height: showAnalysis ? 320 : 380 }}
+                onMouseDown={onMouseDown}
+                onMouseMove={onMouseMove}
+                onMouseUp={onMouseUp}
+                onMouseLeave={onMouseUp}
+              />
+            </div>
 
-        <canvas
-          ref={canvasRef}
-          className="w-full rounded-lg cursor-grab active:cursor-grabbing"
-          style={{ height: 380 }}
-          onMouseDown={onMouseDown}
-          onMouseMove={onMouseMove}
-          onMouseUp={onMouseUp}
-          onMouseLeave={onMouseUp}
-        />
+            {/* Analysis panel */}
+            {showAnalysis && (
+              <div className="flex-1 border-l border-white/5 overflow-y-auto" style={{ maxHeight: 'calc(92vh - 140px)' }}>
+                {analysisLoading && (
+                  <div className="flex flex-col items-center justify-center h-full py-16 gap-3">
+                    <div className="w-5 h-5 border-2 border-white/20 border-t-white/60 rounded-full animate-spin" />
+                    <p className="text-[11px] text-text-dim">Analyzing force trajectory...</p>
+                  </div>
+                )}
+
+                {analysisError && (
+                  <div className="p-5">
+                    <p className="text-[11px] text-red-400/80">{analysisError}</p>
+                    <button
+                      onClick={runAnalysis}
+                      className="mt-2 text-[10px] px-3 py-1 rounded-full border border-white/10 text-text-dim hover:text-text-secondary transition"
+                    >
+                      Retry
+                    </button>
+                  </div>
+                )}
+
+                {!analysisLoading && !analysisError && analysisSections.length > 0 && (
+                  <div className="p-5 space-y-4">
+                    {analysisSections.map((section, i) => (
+                      <div key={i}>
+                        <h3 className="text-[10px] uppercase tracking-wider text-text-dim font-mono mb-1.5">
+                          {section.title}
+                        </h3>
+                        <p className="text-[11px] text-text-secondary leading-[1.6]">
+                          {section.body}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {!analysisLoading && !analysisError && analysisSections.length === 0 && (
+                  <div className="flex flex-col items-center justify-center h-full py-16 gap-2">
+                    <p className="text-[11px] text-text-dim">No analysis yet.</p>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Footer */}
+        <div className="px-5 py-3 border-t border-white/5 flex items-center justify-between">
+          <div className="text-[9px] text-text-dim/50">
+            Stakes &middot; Pacing &middot; Variety
+          </div>
+          <div className="flex items-center gap-2">
+            {showAnalysis && analysisText && (
+              <button
+                onClick={runAnalysis}
+                disabled={analysisLoading}
+                className="text-[10px] px-3 py-1 rounded-full border border-white/8 text-text-dim hover:text-text-secondary hover:border-white/12 transition disabled:opacity-40"
+              >
+                Re-analyze
+              </button>
+            )}
+            <button
+              onClick={() => {
+                if (!showAnalysis && !analysisText) {
+                  runAnalysis();
+                } else {
+                  setShowAnalysis((v) => !v);
+                }
+              }}
+              disabled={analysisLoading || forceEntries.length === 0}
+              className={`text-[10px] px-3.5 py-1.5 rounded-full border transition disabled:opacity-40 ${
+                showAnalysis
+                  ? 'bg-white/10 border-white/20 text-text-primary'
+                  : 'bg-transparent border-border text-text-dim hover:text-text-secondary hover:border-white/12'
+              }`}
+            >
+              {analysisLoading ? 'Analyzing...' : showAnalysis ? 'Hide Analysis' : 'Analyze Trajectory'}
+            </button>
+          </div>
+        </div>
       </div>
     </div>
   );

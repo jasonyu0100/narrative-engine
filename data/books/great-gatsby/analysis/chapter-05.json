@@ -1,0 +1,760 @@
+{
+  "chapterSummary": "Gatsby's long-awaited reunion with Daisy is fraught with awkwardness and intense emotion, revealing the depth of his obsession and the fragility of his carefully constructed world. Nick observes the profound impact Daisy has on Gatsby, as well as the subtle signs that Gatsby's idealized vision may be unsustainable.",
+  "characters": [
+    {
+      "name": "Nick Carraway",
+      "role": "anchor",
+      "description": "Observes Gatsby's nervous anticipation and the emotional intensity of his reunion with Daisy, acting as a reluctant facilitator and a moral compass.",
+      "firstAppearance": false,
+      "knowledge": [
+        {
+          "type": "romantic_obsession_observation",
+          "content": "Gatsby's profound nervousness and meticulous preparations for Daisy's arrival, revealing the depth of his romantic obsession."
+        },
+        {
+          "type": "strategic_deception_observation",
+          "content": "Gatsby's attempt to offer him a business opportunity, likely illicit, as compensation for facilitating the reunion."
+        },
+        {
+          "type": "social_observation",
+          "content": "The subtle shift in Gatsby's demeanor and the radiating well-being after his initial awkward reunion with Daisy."
+        },
+        {
+          "type": "hidden_wealth_source_revelation",
+          "content": "Gatsby's claim that it took him three years to earn the money to buy his mansion, contradicting his earlier assertion of inherited wealth."
+        },
+        {
+          "type": "personal_history_revelation",
+          "content": "Gatsby's past involvement in the 'drug business' and 'oil business,' hinting at the illicit sources of his wealth."
+        },
+        {
+          "type": "social_observation",
+          "content": "The presence of Klipspringer, the 'boarder,' who seems to live permanently at Gatsby's mansion."
+        },
+        {
+          "type": "past_relationship_revelation",
+          "content": "Gatsby's past friendship with Dan Cody, an elderly man in a yachting costume, who was his 'best friend years ago.'"
+        },
+        {
+          "type": "disillusionment_observation",
+          "content": "Gatsby's green light across the bay, once a symbol of his colossal significance, has diminished to 'again a green light on a dock' after Daisy's presence."
+        },
+        {
+          "type": "romantic_obsession_observation",
+          "content": "The realization that Daisy, despite her charm, cannot live up to the 'colossal vitality of his illusion' that Gatsby has built around her."
+        }
+      ]
+    },
+    {
+      "name": "Jay Gatsby",
+      "role": "recurring",
+      "description": "Overwhelmed by nervous anticipation and then profound joy during his reunion with Daisy, revealing the singular focus of his life's ambition.",
+      "firstAppearance": false,
+      "knowledge": [
+        {
+          "type": "romantic_longing",
+          "content": "His intense nervousness and meticulous preparations for Daisy's arrival, indicating the depth of his longing for her."
+        },
+        {
+          "type": "strategic_deception",
+          "content": "His attempt to offer Nick an illicit business opportunity as a reward for facilitating the reunion, revealing his pragmatic and possibly corrupt methods."
+        },
+        {
+          "type": "personal_history_revelation",
+          "content": "His claim that it took him three years to earn the money for his mansion, contradicting his earlier story of inherited wealth."
+        },
+        {
+          "type": "hidden_wealth_source_revelation",
+          "content": "His vague admissions of being in the 'drug business' and 'oil business,' hinting at the illicit nature of his fortune."
+        },
+        {
+          "type": "past_relationship_revelation",
+          "content": "His past friendship with Dan Cody, whom he describes as his 'best friend years ago.'"
+        },
+        {
+          "type": "romantic_disillusionment",
+          "content": "The diminishing significance of the green light across the bay, now that Daisy is physically present, suggesting the collapse of a long-held illusion."
+        },
+        {
+          "type": "romantic_obsession",
+          "content": "His profound, almost childlike joy and wonder at Daisy's presence, which momentarily eclipses his carefully constructed persona."
+        }
+      ]
+    },
+    {
+      "name": "Daisy Buchanan",
+      "role": "recurring",
+      "description": "Initially playful and then tearfully overwhelmed by Gatsby's wealth and devotion, she embodies both charm and a certain emotional fragility.",
+      "firstAppearance": false,
+      "knowledge": [
+        {
+          "type": "social_observation",
+          "content": "Gatsby's immense wealth and the extravagant nature of his mansion and possessions."
+        },
+        {
+          "type": "romantic_longing_observation",
+          "content": "Gatsby's profound devotion and the depth of his feelings for her, evidenced by his preparations and emotional state."
+        },
+        {
+          "type": "emotional_overwhelm",
+          "content": "The overwhelming emotional impact of Gatsby's 'beautiful shirts,' leading her to tears."
+        },
+        {
+          "type": "romantic_longing",
+          "content": "Her renewed attraction and emotional connection to Gatsby, expressed through her tears and intimate gestures."
+        }
+      ]
+    },
+    {
+      "name": "Finn",
+      "role": "transient",
+      "description": "Nick's housekeeper, who is briefly mentioned.",
+      "firstAppearance": true,
+      "knowledge": []
+    },
+    {
+      "name": "Lawn-mower Man",
+      "role": "transient",
+      "description": "A man sent by Gatsby to cut Nick's grass.",
+      "firstAppearance": true,
+      "knowledge": []
+    },
+    {
+      "name": "Gatsby's Gardener",
+      "role": "transient",
+      "description": "The person responsible for maintaining Gatsby's immaculate lawn.",
+      "firstAppearance": true,
+      "knowledge": []
+    },
+    {
+      "name": "Gatsby's Chauffeur",
+      "role": "transient",
+      "description": "The driver of Gatsby's car, who is sent to pick up Daisy.",
+      "firstAppearance": true,
+      "knowledge": []
+    },
+    {
+      "name": "Ferdie",
+      "role": "transient",
+      "description": "Daisy's chauffeur, who she dismisses for an hour.",
+      "firstAppearance": true,
+      "knowledge": []
+    },
+    {
+      "name": "Klipspringer",
+      "role": "recurring",
+      "description": "A disheveled 'boarder' at Gatsby's mansion, who is reluctantly coerced into playing the piano.",
+      "firstAppearance": false,
+      "knowledge": [
+        {
+          "type": "personal_history_revelation",
+          "content": "He is a permanent resident, or 'boarder,' at Gatsby's mansion, and is often found exercising or sleeping."
+        }
+      ]
+    },
+    {
+      "name": "Dan Cody",
+      "role": "transient",
+      "description": "An elderly man in a yachting costume, Gatsby's former best friend and mentor.",
+      "firstAppearance": true,
+      "knowledge": []
+    },
+    {
+      "name": "Ewing",
+      "role": "transient",
+      "description": "Klipspringer's first name, revealed by Gatsby.",
+      "firstAppearance": true,
+      "knowledge": []
+    }
+  ],
+  "locations": [
+    {
+      "name": "Nick's House",
+      "parentName": "West Egg",
+      "description": "A small, weather-beaten bungalow, now meticulously prepared for Daisy's visit.",
+      "lore": [
+        "Its ragged lawn is contrasted with Gatsby's well-kept expanse, symbolizing the social divide.",
+        "Temporarily transformed by Gatsby's efforts for Daisy's visit."
+      ]
+    },
+    {
+      "name": "Gatsby's Mansion",
+      "parentName": "West Egg",
+      "description": "Blazing with light, a colossal and opulent structure that serves as a backdrop for Gatsby's elaborate romantic gesture.",
+      "lore": [
+        "Lit from tower to cellar, it appears like the 'World's Fair,' symbolizing Gatsby's desire to impress.",
+        "Contains Marie Antoinette music-rooms, Restoration Salons, and a 'Merton College Library,' reflecting Gatsby's eclectic and perhaps superficial taste for grandeur."
+      ]
+    },
+    {
+      "name": "West Egg Village",
+      "parentName": "West Egg",
+      "description": "A small village with soggy whitewashed alleys, where Nick searches for his Finn.",
+      "lore": []
+    },
+    {
+      "name": "Pantry (Nick's House)",
+      "parentName": "Nick's House",
+      "description": "Where Nick and Gatsby scrutinize lemon cakes and Gatsby looks reproachfully at the Finn.",
+      "lore": []
+    },
+    {
+      "name": "Living-room (Nick's House)",
+      "parentName": "Nick's House",
+      "description": "The setting for the awkward and then emotionally charged reunion between Gatsby and Daisy.",
+      "lore": [
+        "Features a defunct mantelpiece clock, which Gatsby nearly topples, symbolizing the precariousness of his attempt to reclaim lost time."
+      ]
+    },
+    {
+      "name": "Kitchen (Nick's House)",
+      "parentName": "Nick's House",
+      "description": "Where Nick retreats and Gatsby follows him for a private, anxious conversation.",
+      "lore": []
+    },
+    {
+      "name": "Gatsby's Library",
+      "parentName": "Gatsby's Mansion",
+      "description": "Referred to as 'the Merton College Library,' it's where Nick imagines the owl-eyed man's ghostly laughter.",
+      "lore": []
+    },
+    {
+      "name": "Gatsby's Apartment (Gatsby's Mansion)",
+      "parentName": "Gatsby's Mansion",
+      "description": "Gatsby's private living quarters, including a bedroom, bath, and Adam's study, where he keeps his Chartreuse.",
+      "lore": [
+        "His bedroom is the 'simplest room of all,' except for a dull gold toilet set, highlighting a contrast between his public extravagance and private simplicity."
+      ]
+    },
+    {
+      "name": "Gatsby's Bedroom (Gatsby's Mansion)",
+      "parentName": "Gatsby's Mansion",
+      "description": "The room where Gatsby keeps his vast collection of shirts, which overwhelm Daisy.",
+      "lore": []
+    },
+    {
+      "name": "Gatsby's Desk (Gatsby's Mansion)",
+      "parentName": "Gatsby's Mansion",
+      "description": "Where a photograph of Dan Cody hangs and Gatsby keeps clippings about Daisy.",
+      "lore": []
+    },
+    {
+      "name": "Music-room (Gatsby's Mansion)",
+      "parentName": "Gatsby's Mansion",
+      "description": "Where Klipspringer reluctantly plays the piano for Gatsby and Daisy.",
+      "lore": []
+    }
+  ],
+  "threads": [
+    {
+      "description": "Nick's disillusionment with the East and its moral landscape",
+      "anchorNames": [
+        "Nick Carraway",
+        "East Egg",
+        "West Egg"
+      ],
+      "statusAtStart": "escalating",
+      "statusAtEnd": "escalating",
+      "development": "Nick continues to observe the moral ambiguities and superficiality of the wealthy, particularly Gatsby's willingness to engage in illicit business and his obsessive pursuit of Daisy."
+    },
+    {
+      "description": "The mystery surrounding Jay Gatsby and his true nature",
+      "anchorNames": [
+        "Jay Gatsby",
+        "Nick Carraway"
+      ],
+      "statusAtStart": "escalating",
+      "statusAtEnd": "escalating",
+      "development": "Gatsby's nervous, almost childlike behavior during the reunion, his contradictory stories about his wealth, and the revelation of his past with Dan Cody deepen the mystery of his true identity and the source of his fortune."
+    },
+    {
+      "description": "The crumbling marriage and moral decay of Tom and Daisy Buchanan",
+      "anchorNames": [
+        "Tom Buchanan",
+        "Daisy Buchanan"
+      ],
+      "statusAtStart": "escalating",
+      "statusAtEnd": "escalating",
+      "development": "Daisy's emotional vulnerability and her renewed connection with Gatsby highlight the deep cracks in her marriage to Tom, even in his absence."
+    },
+    {
+      "description": "The social and moral contrast between East Egg and West Egg",
+      "anchorNames": [
+        "East Egg",
+        "West Egg",
+        "Nick Carraway"
+      ],
+      "statusAtStart": "escalating",
+      "statusAtEnd": "escalating",
+      "development": "Gatsby's extravagant display of wealth for Daisy, and his attempt to offer Nick an illicit business deal, further illustrate the moral flexibility and ambition characteristic of West Egg's new money."
+    },
+    {
+      "description": "The destructive nature of Tom Buchanan's affair with Myrtle Wilson",
+      "anchorNames": [
+        "Tom Buchanan",
+        "Myrtle Wilson",
+        "George B. Wilson"
+      ],
+      "statusAtStart": "escalating",
+      "statusAtEnd": "escalating",
+      "development": "This thread remains in the background, as Daisy's emotional state and Gatsby's actions take center stage, but the contrast with Tom's infidelity is implicitly present."
+    },
+    {
+      "description": "Nick's evolving relationship and moral judgment of Jordan Baker",
+      "anchorNames": [
+        "Nick Carraway",
+        "Jordan Baker"
+      ],
+      "statusAtStart": "escalating",
+      "statusAtEnd": "escalating",
+      "development": "Jordan is not present, so this thread is static, but Nick's moral observations continue to inform his perspective on the events."
+    },
+    {
+      "description": "Gatsby's singular romantic obsession with Daisy Buchanan",
+      "anchorNames": [
+        "Jay Gatsby",
+        "Daisy Buchanan",
+        "Nick Carraway"
+      ],
+      "statusAtStart": "critical",
+      "statusAtEnd": "critical",
+      "development": "The reunion is the culmination of Gatsby's long-held obsession, revealing its intensity and the profound emotional impact Daisy has on him. However, Nick's observation that Daisy cannot live up to Gatsby's illusion hints at the inherent fragility of this obsession."
+    }
+  ],
+  "scenes": [
+    {
+      "locationName": "Nick's House",
+      "participantNames": [
+        "Nick Carraway",
+        "Jay Gatsby",
+        "Lawn-mower Man",
+        "Finn"
+      ],
+      "events": [
+        "Gatsby's nervous preparations",
+        "Illicit business offer",
+        "Daisy's invitation"
+      ],
+      "stakes": 60,
+      "summary": "Late at night, Nick returns home to find Gatsby's mansion ablaze with lights, only to discover Gatsby pacing nervously. Gatsby, consumed by anticipation for his reunion with Daisy, attempts to offer Nick an illicit business opportunity as a reward for arranging the tea. The next morning, Gatsby sends a man to cut Nick's grass and a greenhouse full of flowers, revealing the depth of his meticulous and anxious preparations.",
+      "threadMutations": [
+        {
+          "threadDescription": "The mystery surrounding Jay Gatsby and his true nature",
+          "from": "escalating",
+          "to": "escalating"
+        },
+        {
+          "threadDescription": "Gatsby's singular romantic obsession with Daisy Buchanan",
+          "from": "critical",
+          "to": "critical"
+        }
+      ],
+      "knowledgeMutations": [
+        {
+          "characterName": "Nick Carraway",
+          "action": "added",
+          "content": "Gatsby's profound nervousness and meticulous preparations for Daisy's arrival, revealing the depth of his romantic obsession.",
+          "type": "romantic_obsession_observation"
+        },
+        {
+          "characterName": "Nick Carraway",
+          "action": "added",
+          "content": "Gatsby's attempt to offer him a business opportunity, likely illicit, as compensation for facilitating the reunion.",
+          "type": "strategic_deception_observation"
+        },
+        {
+          "characterName": "Jay Gatsby",
+          "action": "added",
+          "content": "His intense nervousness and meticulous preparations for Daisy's arrival, indicating the depth of his longing for her.",
+          "type": "romantic_longing"
+        },
+        {
+          "characterName": "Jay Gatsby",
+          "action": "added",
+          "content": "His attempt to offer Nick an illicit business opportunity as a reward for facilitating the reunion, revealing his pragmatic and possibly corrupt methods.",
+          "type": "strategic_deception"
+        }
+      ],
+      "relationshipMutations": [
+        {
+          "from": "Nick Carraway",
+          "to": "Jay Gatsby",
+          "type": "Increased awareness of Gatsby's desperation and willingness to use illicit means.",
+          "valenceDelta": -0.1
+        }
+      ]
+    },
+    {
+      "locationName": "Living-room (Nick's House)",
+      "participantNames": [
+        "Nick Carraway",
+        "Jay Gatsby",
+        "Daisy Buchanan",
+        "Ferdie",
+        "Finn"
+      ],
+      "events": [
+        "Awkward reunion",
+        "Gatsby's panic",
+        "Daisy's arrival"
+      ],
+      "stakes": 80,
+      "summary": "Daisy arrives in a large open car, her voice a 'wild tonic' in the rain, playfully asking Nick if he's in love with her. Inside, Gatsby, pale as death, has disappeared, only to reappear at the front door, glaring tragically at Nick. The initial reunion is excruciatingly awkward, with Gatsby nearly toppling a mantelpiece clock. Nick retreats to the kitchen, where Gatsby confesses his overwhelming embarrassment, but Nick urges him to return to Daisy.",
+      "threadMutations": [
+        {
+          "threadDescription": "Gatsby's singular romantic obsession with Daisy Buchanan",
+          "from": "critical",
+          "to": "critical"
+        }
+      ],
+      "knowledgeMutations": [
+        {
+          "characterName": "Nick Carraway",
+          "action": "added",
+          "content": "The subtle shift in Gatsby's demeanor and the radiating well-being after his initial awkward reunion with Daisy.",
+          "type": "social_observation"
+        },
+        {
+          "characterName": "Jay Gatsby",
+          "action": "added",
+          "content": "His profound, almost childlike joy and wonder at Daisy's presence, which momentarily eclipses his carefully constructed persona.",
+          "type": "romantic_obsession"
+        }
+      ],
+      "relationshipMutations": [
+        {
+          "from": "Nick Carraway",
+          "to": "Jay Gatsby",
+          "type": "Increased empathy for Gatsby's vulnerability and emotional intensity.",
+          "valenceDelta": 0.1
+        },
+        {
+          "from": "Nick Carraway",
+          "to": "Daisy Buchanan",
+          "type": "Amused by her playful flirtation, but also observing her emotional impact on Gatsby.",
+          "valenceDelta": 0.1
+        },
+        {
+          "from": "Jay Gatsby",
+          "to": "Daisy Buchanan",
+          "type": "Overwhelmed by her presence, shifting from intense nervousness to profound, almost childlike joy.",
+          "valenceDelta": 0.2
+        },
+        {
+          "from": "Daisy Buchanan",
+          "to": "Jay Gatsby",
+          "type": "Initially playful and then deeply moved by his emotional state.",
+          "valenceDelta": 0.1
+        }
+      ]
+    },
+    {
+      "locationName": "Gatsby's Mansion",
+      "participantNames": [
+        "Nick Carraway",
+        "Jay Gatsby",
+        "Daisy Buchanan",
+        "Klipspringer",
+        "Dan Cody",
+        "Gatsby's Gardener",
+        "Gatsby's Chauffeur"
+      ],
+      "events": [
+        "Tour of the mansion",
+        "Daisy's emotional reaction to shirts",
+        "Gatsby's past revealed",
+        "Klipspringer plays piano"
+      ],
+      "stakes": 75,
+      "summary": "After the rain stops, Gatsby, Daisy, and Nick tour Gatsby's opulent mansion. Gatsby, glowing with happiness, reveals that it took him three years to earn his fortune, vaguely mentioning past ventures in 'drug' and 'oil' businesses. Daisy is overwhelmed by his wealth, particularly his vast collection of shirts, which brings her to tears. Gatsby then shows them a photograph of Dan Cody, his former mentor. As the evening progresses, Klipspringer is coerced into playing the piano, and Nick observes Gatsby's profound, yet potentially unsustainable, illusion of Daisy.",
+      "threadMutations": [
+        {
+          "threadDescription": "The mystery surrounding Jay Gatsby and his true nature",
+          "from": "escalating",
+          "to": "escalating"
+        },
+        {
+          "threadDescription": "Gatsby's singular romantic obsession with Daisy Buchanan",
+          "from": "critical",
+          "to": "critical"
+        }
+      ],
+      "knowledgeMutations": [
+        {
+          "characterName": "Nick Carraway",
+          "action": "added",
+          "content": "Gatsby's claim that it took him three years to earn the money to buy his mansion, contradicting his earlier assertion of inherited wealth.",
+          "type": "hidden_wealth_source_revelation"
+        },
+        {
+          "characterName": "Nick Carraway",
+          "action": "added",
+          "content": "Gatsby's past involvement in the 'drug business' and 'oil business,' hinting at the illicit sources of his wealth.",
+          "type": "personal_history_revelation"
+        },
+        {
+          "characterName": "Nick Carraway",
+          "action": "added",
+          "content": "The presence of Klipspringer, the 'boarder,' who seems to live permanently at Gatsby's mansion.",
+          "type": "social_observation"
+        },
+        {
+          "characterName": "Nick Carraway",
+          "action": "added",
+          "content": "Gatsby's past friendship with Dan Cody, an elderly man in a yachting costume, who was his 'best friend years ago.'",
+          "type": "past_relationship_revelation"
+        },
+        {
+          "characterName": "Nick Carraway",
+          "action": "added",
+          "content": "Gatsby's green light across the bay, once a symbol of his colossal significance, has diminished to 'again a green light on a dock' after Daisy's presence.",
+          "type": "disillusionment_observation"
+        },
+        {
+          "characterName": "Nick Carraway",
+          "action": "added",
+          "content": "The realization that Daisy, despite her charm, cannot live up to the 'colossal vitality of his illusion' that Gatsby has built around her.",
+          "type": "romantic_obsession_observation"
+        },
+        {
+          "characterName": "Jay Gatsby",
+          "action": "added",
+          "content": "His claim that it took him three years to earn the money for his mansion, contradicting his earlier story of inherited wealth.",
+          "type": "personal_history_revelation"
+        },
+        {
+          "characterName": "Jay Gatsby",
+          "action": "added",
+          "content": "His vague admissions of being in the 'drug business' and 'oil business,' hinting at the illicit nature of his fortune.",
+          "type": "hidden_wealth_source_revelation"
+        },
+        {
+          "characterName": "Jay Gatsby",
+          "action": "added",
+          "content": "His past friendship with Dan Cody, whom he describes as his 'best friend years ago.'",
+          "type": "past_relationship_revelation"
+        },
+        {
+          "characterName": "Jay Gatsby",
+          "action": "added",
+          "content": "The diminishing significance of the green light across the bay, now that Daisy is physically present, suggesting the collapse of a long-held illusion.",
+          "type": "romantic_disillusionment"
+        },
+        {
+          "characterName": "Daisy Buchanan",
+          "action": "added",
+          "content": "Gatsby's immense wealth and the extravagant nature of his mansion and possessions.",
+          "type": "social_observation"
+        },
+        {
+          "characterName": "Daisy Buchanan",
+          "action": "added",
+          "content": "Gatsby's profound devotion and the depth of his feelings for her, evidenced by his preparations and emotional state.",
+          "type": "romantic_longing_observation"
+        },
+        {
+          "characterName": "Daisy Buchanan",
+          "action": "added",
+          "content": "The overwhelming emotional impact of Gatsby's 'beautiful shirts,' leading her to tears.",
+          "type": "emotional_overwhelm"
+        },
+        {
+          "characterName": "Daisy Buchanan",
+          "action": "added",
+          "content": "Her renewed attraction and emotional connection to Gatsby, expressed through her tears and intimate gestures.",
+          "type": "romantic_longing"
+        },
+        {
+          "characterName": "Klipspringer",
+          "action": "added",
+          "content": "He is a permanent resident, or 'boarder,' at Gatsby's mansion, and is often found exercising or sleeping.",
+          "type": "personal_history_revelation"
+        }
+      ],
+      "relationshipMutations": [
+        {
+          "from": "Nick Carraway",
+          "to": "Jay Gatsby",
+          "type": "A deeper understanding of Gatsby's past and the source of his wealth, mixed with a growing sense of his romantic idealism and its potential for disillusionment.",
+          "valenceDelta": 0.1
+        },
+        {
+          "from": "Nick Carraway",
+          "to": "Daisy Buchanan",
+          "type": "Observing her emotional vulnerability and her capacity to be overwhelmed by Gatsby's devotion.",
+          "valenceDelta": 0.1
+        },
+        {
+          "from": "Jay Gatsby",
+          "to": "Daisy Buchanan",
+          "type": "His singular obsession reaches a peak, as he revels in her presence and attempts to impress her with his wealth, but also experiences a subtle disillusionment regarding his long-held symbol.",
+          "valenceDelta": 0.2
+        },
+        {
+          "from": "Daisy Buchanan",
+          "to": "Jay Gatsby",
+          "type": "Overwhelmed by his wealth and devotion, she expresses deep emotion and renewed romantic connection.",
+          "valenceDelta": 0.2
+        }
+      ]
+    }
+  ],
+  "relationships": [
+    {
+      "from": "Nick Carraway",
+      "to": "Nick's Father",
+      "type": "Respectful and reflective of his advice",
+      "valence": 0.8
+    },
+    {
+      "from": "Nick Carraway",
+      "to": "Jay Gatsby",
+      "type": "A shift from suspicion to a deeper understanding of his profound, singular romantic motivation, though still unsettling, and a growing sense of his romantic idealism and its potential for disillusionment.",
+      "valence": 0.8
+    },
+    {
+      "from": "Nick Carraway",
+      "to": "Tom Buchanan",
+      "type": "Profundly disgusted by his arrogance, moral failings, and violence",
+      "valence": -0.9
+    },
+    {
+      "from": "Nick Carraway",
+      "to": "Daisy Buchanan",
+      "type": "Increased pity and understanding of her past unhappiness and current situation, now observing her emotional vulnerability and her capacity to be overwhelmed by Gatsby's devotion.",
+      "valence": 0.5
+    },
+    {
+      "from": "Nick Carraway",
+      "to": "Jordan Baker",
+      "type": "Growing romantic and intellectual intimacy, despite his moral reservations about her cynicism.",
+      "valence": 0.7
+    },
+    {
+      "from": "Tom Buchanan",
+      "to": "Daisy Buchanan",
+      "type": "Controlling and dismissive, with underlying tension",
+      "valence": -0.2
+    },
+    {
+      "from": "Daisy Buchanan",
+      "to": "Tom Buchanan",
+      "type": "Resigned and resentful, but bound by circumstance",
+      "valence": -0.2
+    },
+    {
+      "from": "Daisy Buchanan",
+      "to": "Jordan Baker",
+      "type": "Familiar and casually affectionate",
+      "valence": 0.6
+    },
+    {
+      "from": "Jordan Baker",
+      "to": "Daisy Buchanan",
+      "type": "Familiar and casually tolerant",
+      "valence": 0.5
+    },
+    {
+      "from": "Tom Buchanan",
+      "to": "Jordan Baker",
+      "type": "Casual acquaintance, slightly dismissive",
+      "valence": 0.1
+    },
+    {
+      "from": "Nick Carraway",
+      "to": "Myrtle Wilson",
+      "type": "Observational, shifting from discomfort to pity and repulsion",
+      "valence": 0
+    },
+    {
+      "from": "Tom Buchanan",
+      "to": "Myrtle Wilson",
+      "type": "Possessive, controlling, and ultimately violent",
+      "valence": -0.3
+    },
+    {
+      "from": "Myrtle Wilson",
+      "to": "Tom Buchanan",
+      "type": "Desperate for attention and status, defiant, but ultimately submissive to his violence",
+      "valence": 0
+    },
+    {
+      "from": "Tom Buchanan",
+      "to": "George B. Wilson",
+      "type": "Condescending and exploitative, viewing him as a fool",
+      "valence": -0.1
+    },
+    {
+      "from": "Myrtle Wilson",
+      "to": "George B. Wilson",
+      "type": "Dismissive, resentful, and contemptuous",
+      "valence": -0.2
+    },
+    {
+      "from": "Nick Carraway",
+      "to": "Catherine",
+      "type": "Amused by her gossip but wary of her unreliability",
+      "valence": 0.1
+    },
+    {
+      "from": "Nick Carraway",
+      "to": "Mr. McKee",
+      "type": "Mildly curious but ultimately dismissive of his artistic pretensions",
+      "valence": 0
+    },
+    {
+      "from": "Nick Carraway",
+      "to": "Mrs. McKee",
+      "type": "Slightly annoyed by her shrillness and vanity",
+      "valence": -0.1
+    },
+    {
+      "from": "Nick Carraway",
+      "to": "Owl Eyes",
+      "type": "Amused and bewildered by his drunken observations and recklessness",
+      "valence": 0.1
+    },
+    {
+      "from": "Nick Carraway",
+      "to": "Girls in Yellow Dresses (Lucille and unnamed friend)",
+      "type": "Observational and slightly amused by their gossip and superficiality",
+      "valence": 0.1
+    },
+    {
+      "from": "Nick Carraway",
+      "to": "Girl from Jersey City",
+      "type": "Casual and fleeting romantic interest, now ended",
+      "valence": 0
+    },
+    {
+      "from": "Nick Carraway",
+      "to": "Meyer Wolfshiem",
+      "type": "Repulsed and astonished by his criminal past and macabre affectations.",
+      "valence": -0.5
+    },
+    {
+      "from": "Jay Gatsby",
+      "to": "Meyer Wolfshiem",
+      "type": "Tolerant and somewhat protective, despite Wolfshiem's unsettling nature.",
+      "valence": 0.1
+    },
+    {
+      "from": "Tom Buchanan",
+      "to": "Jay Gatsby",
+      "type": "Brief, strained, and unfamiliar, marked by Gatsby's embarrassment.",
+      "valence": 0
+    },
+    {
+      "from": "Daisy Buchanan",
+      "to": "Jay Gatsby",
+      "type": "Past romantic interest, now a source of intense longing and the object of his singular obsession, overwhelmed by his wealth and devotion, expressing deep emotion and renewed romantic connection.",
+      "valence": 1
+    },
+    {
+      "from": "Jay Gatsby",
+      "to": "Daisy Buchanan",
+      "type": "Profound, singular, and all-consuming romantic obsession, driving his life's purpose, now reaching its culmination with intense joy and subtle disillusionment.",
+      "valence": 1
+    }
+  ]
+}

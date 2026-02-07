@@ -336,6 +336,8 @@ export type AutoRunState = {
   currentCycle: number;
   totalScenesGenerated: number;
   totalWorldExpansions: number;
+  startingSceneCount: number;
+  startingArcCount: number;
   log: AutoRunLog[];
 };
 
@@ -364,7 +366,30 @@ export type InspectorContext =
   | { type: 'thread'; threadId: string }
   | { type: 'arc'; arcId: string };
 
-export type WizardStep = 'premise' | 'world-gen' | 'thread-selection' | 'confirm';
+export type WizardStep = 'premise' | 'world' | 'generate';
+
+export type CharacterSketch = {
+  name: string;
+  role: 'anchor' | 'recurring' | 'transient';
+  description: string;
+};
+
+export type LocationSketch = {
+  name: string;
+  description: string;
+};
+
+export type WizardData = {
+  title: string;
+  premise: string;
+  genres: string[];
+  tone: string;
+  setting: string;
+  scale: string;
+  characters: CharacterSketch[];
+  locations: LocationSketch[];
+  storyDirection: string;
+};
 
 export type GraphViewMode = 'scene' | 'overview';
 
@@ -382,6 +407,7 @@ export type AppState = {
   wizardOpen: boolean;
   wizardStep: WizardStep;
   wizardPrefill: string;
+  wizardData: WizardData;
   selectedKnowledgeEntity: string | null;
   autoTimer: number;
   graphViewMode: GraphViewMode;

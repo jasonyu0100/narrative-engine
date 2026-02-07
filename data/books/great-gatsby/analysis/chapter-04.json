@@ -1,0 +1,1383 @@
+{
+  "chapterSummary": "Nick recounts the endless parade of guests at Gatsby's parties, then Gatsby takes him on a bewildering drive to New York, revealing a fabricated past before producing proof of his war heroism and Oxford attendance. Gatsby then introduces Nick to Meyer Wolfshiem, a notorious gambler who fixed the 1919 World Series, further deepening the mystery of Gatsby's wealth. Later, Jordan Baker reveals Gatsby's true motive: he bought his mansion solely to be near Daisy and wants Nick to arrange a reunion, exposing the profound romantic longing beneath Gatsby's extravagant facade.",
+  "characters": [
+    {
+      "name": "Chester Becker",
+      "role": "transient",
+      "description": "An East Egg guest at Gatsby's parties.",
+      "firstAppearance": true,
+      "knowledge": []
+    },
+    {
+      "name": "Leeches",
+      "role": "transient",
+      "description": "East Egg guests at Gatsby's parties.",
+      "firstAppearance": true,
+      "knowledge": []
+    },
+    {
+      "name": "Bunsen",
+      "role": "transient",
+      "description": "An East Egg guest at Gatsby's parties, known by Nick from Yale.",
+      "firstAppearance": true,
+      "knowledge": []
+    },
+    {
+      "name": "Doctor Webster Civet",
+      "role": "transient",
+      "description": "An East Egg guest at Gatsby's parties, who drowned the previous summer.",
+      "firstAppearance": true,
+      "knowledge": []
+    },
+    {
+      "name": "Hornbeams",
+      "role": "transient",
+      "description": "East Egg guests at Gatsby's parties.",
+      "firstAppearance": true,
+      "knowledge": []
+    },
+    {
+      "name": "Willie Voltaires",
+      "role": "transient",
+      "description": "East Egg guests at Gatsby's parties.",
+      "firstAppearance": true,
+      "knowledge": []
+    },
+    {
+      "name": "Blackbuck",
+      "role": "transient",
+      "description": "A clan of East Egg guests at Gatsby's parties, known for their snobbery.",
+      "firstAppearance": true,
+      "knowledge": []
+    },
+    {
+      "name": "Ismays",
+      "role": "transient",
+      "description": "East Egg guests at Gatsby's parties.",
+      "firstAppearance": true,
+      "knowledge": []
+    },
+    {
+      "name": "Chrysties",
+      "role": "transient",
+      "description": "East Egg guests at Gatsby's parties, specifically Hubert Auerbach and Mr. Chrystie’s wife.",
+      "firstAppearance": true,
+      "knowledge": []
+    },
+    {
+      "name": "Hubert Auerbach",
+      "role": "transient",
+      "description": "An East Egg guest at Gatsby's parties, associated with the Chrysties.",
+      "firstAppearance": true,
+      "knowledge": []
+    },
+    {
+      "name": "Edgar Beaver",
+      "role": "transient",
+      "description": "An East Egg guest at Gatsby's parties, whose hair turned white for no reason.",
+      "firstAppearance": true,
+      "knowledge": []
+    },
+    {
+      "name": "Clarence Endive",
+      "role": "transient",
+      "description": "An East Egg guest at Gatsby's parties, who once had a fight in the garden.",
+      "firstAppearance": true,
+      "knowledge": []
+    },
+    {
+      "name": "Etty",
+      "role": "transient",
+      "description": "A 'bum' who had a fight with Clarence Endive at Gatsby's party.",
+      "firstAppearance": true,
+      "knowledge": []
+    },
+    {
+      "name": "Cheadles",
+      "role": "transient",
+      "description": "Guests from farther out on the Island at Gatsby's parties.",
+      "firstAppearance": true,
+      "knowledge": []
+    },
+    {
+      "name": "O. R. P. Schraeders",
+      "role": "transient",
+      "description": "Guests from farther out on the Island at Gatsby's parties.",
+      "firstAppearance": true,
+      "knowledge": []
+    },
+    {
+      "name": "Stonewall Jackson Abrams",
+      "role": "transient",
+      "description": "A guest from Georgia at Gatsby's parties.",
+      "firstAppearance": true,
+      "knowledge": []
+    },
+    {
+      "name": "Fishguards",
+      "role": "transient",
+      "description": "Guests from farther out on the Island at Gatsby's parties.",
+      "firstAppearance": true,
+      "knowledge": []
+    },
+    {
+      "name": "Ripley Snells",
+      "role": "transient",
+      "description": "A guest at Gatsby's parties who went to the penitentiary.",
+      "firstAppearance": true,
+      "knowledge": []
+    },
+    {
+      "name": "Mrs. Ulysses Swett",
+      "role": "transient",
+      "description": "Her automobile ran over Ripley Snell's hand.",
+      "firstAppearance": true,
+      "knowledge": []
+    },
+    {
+      "name": "Dancies",
+      "role": "transient",
+      "description": "Guests at Gatsby's parties.",
+      "firstAppearance": true,
+      "knowledge": []
+    },
+    {
+      "name": "S. B. Whitebait",
+      "role": "transient",
+      "description": "An older guest at Gatsby's parties.",
+      "firstAppearance": true,
+      "knowledge": []
+    },
+    {
+      "name": "Maurice A. Flink",
+      "role": "transient",
+      "description": "A guest at Gatsby's parties.",
+      "firstAppearance": true,
+      "knowledge": []
+    },
+    {
+      "name": "Hammerheads",
+      "role": "transient",
+      "description": "Guests at Gatsby's parties.",
+      "firstAppearance": true,
+      "knowledge": []
+    },
+    {
+      "name": "Beluga",
+      "role": "transient",
+      "description": "A tobacco importer and guest at Gatsby's parties.",
+      "firstAppearance": true,
+      "knowledge": []
+    },
+    {
+      "name": "Beluga's girls",
+      "role": "transient",
+      "description": "Companions of Beluga at Gatsby's parties.",
+      "firstAppearance": true,
+      "knowledge": []
+    },
+    {
+      "name": "Poles",
+      "role": "transient",
+      "description": "West Egg guests at Gatsby's parties.",
+      "firstAppearance": true,
+      "knowledge": []
+    },
+    {
+      "name": "Mulreadys",
+      "role": "transient",
+      "description": "West Egg guests at Gatsby's parties.",
+      "firstAppearance": true,
+      "knowledge": []
+    },
+    {
+      "name": "Cecil Roebuck",
+      "role": "transient",
+      "description": "A West Egg guest at Gatsby's parties, connected to the movies.",
+      "firstAppearance": true,
+      "knowledge": []
+    },
+    {
+      "name": "Cecil Schoen",
+      "role": "transient",
+      "description": "A West Egg guest at Gatsby's parties, connected to the movies.",
+      "firstAppearance": true,
+      "knowledge": []
+    },
+    {
+      "name": "Gulick",
+      "role": "transient",
+      "description": "A State senator and West Egg guest at Gatsby's parties.",
+      "firstAppearance": true,
+      "knowledge": []
+    },
+    {
+      "name": "Newton Orchid",
+      "role": "transient",
+      "description": "A West Egg guest at Gatsby's parties, who controlled Films Par Excellence.",
+      "firstAppearance": true,
+      "knowledge": []
+    },
+    {
+      "name": "Eckhaust",
+      "role": "transient",
+      "description": "A West Egg guest at Gatsby's parties, connected to the movies.",
+      "firstAppearance": true,
+      "knowledge": []
+    },
+    {
+      "name": "Clyde Cohen",
+      "role": "transient",
+      "description": "A West Egg guest at Gatsby's parties, connected to the movies.",
+      "firstAppearance": true,
+      "knowledge": []
+    },
+    {
+      "name": "Don S. Schwartz (the son)",
+      "role": "transient",
+      "description": "A West Egg guest at Gatsby's parties, connected to the movies.",
+      "firstAppearance": true,
+      "knowledge": []
+    },
+    {
+      "name": "Arthur McCarty",
+      "role": "transient",
+      "description": "A West Egg guest at Gatsby's parties, connected to the movies.",
+      "firstAppearance": true,
+      "knowledge": []
+    },
+    {
+      "name": "Catlips",
+      "role": "transient",
+      "description": "West Egg guests at Gatsby's parties.",
+      "firstAppearance": true,
+      "knowledge": []
+    },
+    {
+      "name": "Bembergs",
+      "role": "transient",
+      "description": "West Egg guests at Gatsby's parties.",
+      "firstAppearance": true,
+      "knowledge": []
+    },
+    {
+      "name": "G. Earl Muldoon",
+      "role": "transient",
+      "description": "A West Egg guest at Gatsby's parties, brother to a man who strangled his wife.",
+      "firstAppearance": true,
+      "knowledge": []
+    },
+    {
+      "name": "Muldoon (brother)",
+      "role": "transient",
+      "description": "Brother to G. Earl Muldoon, who strangled his wife.",
+      "firstAppearance": true,
+      "knowledge": []
+    },
+    {
+      "name": "Da Fontano",
+      "role": "transient",
+      "description": "A promoter and West Egg guest at Gatsby's parties.",
+      "firstAppearance": true,
+      "knowledge": []
+    },
+    {
+      "name": "Ed Legros",
+      "role": "transient",
+      "description": "A West Egg guest at Gatsby's parties.",
+      "firstAppearance": true,
+      "knowledge": []
+    },
+    {
+      "name": "James B. (“Rot-Gut”) Ferret",
+      "role": "transient",
+      "description": "A West Egg guest at Gatsby's parties, known for gambling.",
+      "firstAppearance": true,
+      "knowledge": []
+    },
+    {
+      "name": "De Jongs",
+      "role": "transient",
+      "description": "West Egg guests at Gatsby's parties.",
+      "firstAppearance": true,
+      "knowledge": []
+    },
+    {
+      "name": "Ernest Lilly",
+      "role": "transient",
+      "description": "A West Egg guest at Gatsby's parties, who came to gamble.",
+      "firstAppearance": true,
+      "knowledge": []
+    },
+    {
+      "name": "Klipspringer",
+      "role": "recurring",
+      "description": "A frequent guest at Gatsby's, known as 'the boarder'.",
+      "firstAppearance": true,
+      "knowledge": []
+    },
+    {
+      "name": "Gus Waize",
+      "role": "transient",
+      "description": "A theatrical person and guest at Gatsby's parties.",
+      "firstAppearance": true,
+      "knowledge": []
+    },
+    {
+      "name": "Horace O’Donavan",
+      "role": "transient",
+      "description": "A theatrical person and guest at Gatsby's parties.",
+      "firstAppearance": true,
+      "knowledge": []
+    },
+    {
+      "name": "Lester Myer",
+      "role": "transient",
+      "description": "A theatrical person and guest at Gatsby's parties.",
+      "firstAppearance": true,
+      "knowledge": []
+    },
+    {
+      "name": "George Duckweed",
+      "role": "transient",
+      "description": "A theatrical person and guest at Gatsby's parties.",
+      "firstAppearance": true,
+      "knowledge": []
+    },
+    {
+      "name": "Francis Bull",
+      "role": "transient",
+      "description": "A theatrical person and guest at Gatsby's parties.",
+      "firstAppearance": true,
+      "knowledge": []
+    },
+    {
+      "name": "Chromes",
+      "role": "transient",
+      "description": "Guests from New York at Gatsby's parties.",
+      "firstAppearance": true,
+      "knowledge": []
+    },
+    {
+      "name": "Backhyssons",
+      "role": "transient",
+      "description": "Guests from New York at Gatsby's parties.",
+      "firstAppearance": true,
+      "knowledge": []
+    },
+    {
+      "name": "Dennickers",
+      "role": "transient",
+      "description": "Guests from New York at Gatsby's parties.",
+      "firstAppearance": true,
+      "knowledge": []
+    },
+    {
+      "name": "Russel Betty",
+      "role": "transient",
+      "description": "A guest from New York at Gatsby's parties.",
+      "firstAppearance": true,
+      "knowledge": []
+    },
+    {
+      "name": "Corrigans",
+      "role": "transient",
+      "description": "Guests from New York at Gatsby's parties.",
+      "firstAppearance": true,
+      "knowledge": []
+    },
+    {
+      "name": "Kellehers",
+      "role": "transient",
+      "description": "Guests from New York at Gatsby's parties.",
+      "firstAppearance": true,
+      "knowledge": []
+    },
+    {
+      "name": "Dewars",
+      "role": "transient",
+      "description": "Guests from New York at Gatsby's parties.",
+      "firstAppearance": true,
+      "knowledge": []
+    },
+    {
+      "name": "Scullys",
+      "role": "transient",
+      "description": "Guests from New York at Gatsby's parties.",
+      "firstAppearance": true,
+      "knowledge": []
+    },
+    {
+      "name": "S. W. Belcher",
+      "role": "transient",
+      "description": "A guest from New York at Gatsby's parties.",
+      "firstAppearance": true,
+      "knowledge": []
+    },
+    {
+      "name": "Smirkes",
+      "role": "transient",
+      "description": "Guests from New York at Gatsby's parties.",
+      "firstAppearance": true,
+      "knowledge": []
+    },
+    {
+      "name": "young Quinns",
+      "role": "transient",
+      "description": "Divorced guests from New York at Gatsby's parties.",
+      "firstAppearance": true,
+      "knowledge": []
+    },
+    {
+      "name": "Henry L. Palmetto",
+      "role": "transient",
+      "description": "A guest from New York at Gatsby's parties, who committed suicide.",
+      "firstAppearance": true,
+      "knowledge": []
+    },
+    {
+      "name": "Benny McClenahan",
+      "role": "transient",
+      "description": "A guest who always arrived with four identical girls.",
+      "firstAppearance": true,
+      "knowledge": []
+    },
+    {
+      "name": "Faustina O’Brien",
+      "role": "transient",
+      "description": "A guest who came to Gatsby's at least once.",
+      "firstAppearance": true,
+      "knowledge": []
+    },
+    {
+      "name": "Baedeker girls",
+      "role": "transient",
+      "description": "Guests at Gatsby's parties.",
+      "firstAppearance": true,
+      "knowledge": []
+    },
+    {
+      "name": "young Brewer",
+      "role": "transient",
+      "description": "A guest at Gatsby's parties who had his nose shot off in the war.",
+      "firstAppearance": true,
+      "knowledge": []
+    },
+    {
+      "name": "Mr. Albrucksburger",
+      "role": "transient",
+      "description": "A guest at Gatsby's parties, accompanied by his fiancée.",
+      "firstAppearance": true,
+      "knowledge": []
+    },
+    {
+      "name": "Miss Haag",
+      "role": "transient",
+      "description": "Mr. Albrucksburger's fiancée and guest at Gatsby's parties.",
+      "firstAppearance": true,
+      "knowledge": []
+    },
+    {
+      "name": "Ardita Fitz-Peters",
+      "role": "transient",
+      "description": "A guest at Gatsby's parties.",
+      "firstAppearance": true,
+      "knowledge": []
+    },
+    {
+      "name": "Mr. P. Jewett",
+      "role": "transient",
+      "description": "A guest at Gatsby's parties, once head of the American Legion.",
+      "firstAppearance": true,
+      "knowledge": []
+    },
+    {
+      "name": "Miss Claudia Hip",
+      "role": "transient",
+      "description": "A guest at Gatsby's parties, with a man reputed to be her chauffeur.",
+      "firstAppearance": true,
+      "knowledge": []
+    },
+    {
+      "name": "Duke",
+      "role": "transient",
+      "description": "A prince of something, a guest at Gatsby's parties.",
+      "firstAppearance": true,
+      "knowledge": []
+    },
+    {
+      "name": "Policeman",
+      "role": "transient",
+      "description": "A traffic officer who stops Gatsby for speeding.",
+      "firstAppearance": true,
+      "knowledge": []
+    },
+    {
+      "name": "Commissioner",
+      "role": "transient",
+      "description": "A figure of authority to whom Gatsby once did a favor.",
+      "firstAppearance": true,
+      "knowledge": []
+    },
+    {
+      "name": "Meyer Wolfshiem",
+      "role": "recurring",
+      "description": "A small, flat-nosed gambler and associate of Gatsby, notorious for fixing the 1919 World Series.",
+      "firstAppearance": true,
+      "knowledge": [
+        {
+          "type": "criminal_history_revelation",
+          "content": "His involvement in fixing the 1919 World Series."
+        },
+        {
+          "type": "social_observation",
+          "content": "Gatsby is a 'fine fellow' and an 'Oggsford man'."
+        },
+        {
+          "type": "social_observation",
+          "content": "Gatsby is 'very careful about women' and would 'never so much as look at a friend’s wife'."
+        }
+      ]
+    },
+    {
+      "name": "Katspaugh",
+      "role": "transient",
+      "description": "A person mentioned by Wolfshiem in a story about silencing someone.",
+      "firstAppearance": true,
+      "knowledge": []
+    },
+    {
+      "name": "Head Waiter",
+      "role": "transient",
+      "description": "The waiter at the Forty-second Street cellar restaurant.",
+      "firstAppearance": true,
+      "knowledge": []
+    },
+    {
+      "name": "Rosy Rosenthal",
+      "role": "transient",
+      "description": "A man who was shot at the old Metropole, as recounted by Wolfshiem.",
+      "firstAppearance": true,
+      "knowledge": []
+    },
+    {
+      "name": "Becker",
+      "role": "transient",
+      "description": "One of the men electrocuted for Rosy Rosenthal's murder.",
+      "firstAppearance": true,
+      "knowledge": []
+    },
+    {
+      "name": "Daisy Fay",
+      "role": "recurring",
+      "description": "Daisy Buchanan's maiden name, revealed in Jordan's flashback.",
+      "firstAppearance": false,
+      "knowledge": [
+        {
+          "type": "past_romantic_involvement",
+          "content": "Her past romantic relationship with Jay Gatsby in Louisville before the war."
+        },
+        {
+          "type": "marital_disillusionment",
+          "content": "Her drunken despair on the eve of her wedding to Tom Buchanan, almost calling off the marriage."
+        },
+        {
+          "type": "social_observation",
+          "content": "Her awareness of Gatsby's name resurfacing and her immediate recognition of him as the man she once knew."
+        }
+      ]
+    },
+    {
+      "name": "Lieutenant (Daisy's)",
+      "role": "transient",
+      "description": "An officer Daisy was with in her car in Louisville, later revealed to be Gatsby.",
+      "firstAppearance": true,
+      "knowledge": []
+    },
+    {
+      "name": "Daisy's Mother",
+      "role": "transient",
+      "description": "Prevented Daisy from going to New York to see a soldier.",
+      "firstAppearance": true,
+      "knowledge": []
+    },
+    {
+      "name": "Daisy's Mother's Maid",
+      "role": "transient",
+      "description": "Helped Jordan sober up Daisy before her wedding.",
+      "firstAppearance": true,
+      "knowledge": []
+    },
+    {
+      "name": "Chambermaid (Santa Barbara)",
+      "role": "transient",
+      "description": "The woman injured in a car accident with Tom Buchanan in Santa Barbara.",
+      "firstAppearance": true,
+      "knowledge": []
+    }
+  ],
+  "locations": [
+    {
+      "name": "Gatsby's Car",
+      "parentName": null,
+      "description": "A gorgeous, cream-colored car with nickel accents and a labyrinth of windshields, a symbol of Gatsby's extravagant wealth.",
+      "lore": [
+        "Its 'monstrous length' and 'triumphant hatboxes and supper-boxes and toolboxes' suggest a blend of luxury and practicality, or perhaps a show of wealth.",
+        "The 'green leather conservatory' interior hints at a contained, perhaps artificial, environment."
+      ]
+    },
+    {
+      "name": "Port Roosevelt",
+      "parentName": null,
+      "description": "A glimpse of a port with red-belted oceangoing ships.",
+      "lore": []
+    },
+    {
+      "name": "Cobbled Slum",
+      "parentName": null,
+      "description": "A street lined with dark, undeserted saloons from the early 1900s.",
+      "lore": []
+    },
+    {
+      "name": "Astoria",
+      "parentName": "New York City",
+      "description": "A neighborhood in Queens, New York.",
+      "lore": []
+    },
+    {
+      "name": "Queensboro Bridge",
+      "parentName": "New York City",
+      "description": "A bridge connecting Manhattan and Queens, offering a view of the city.",
+      "lore": [
+        "Symbolizes a transition into the 'first wild promise' of New York's mystery and beauty."
+      ]
+    },
+    {
+      "name": "Blackwell's Island",
+      "parentName": "New York City",
+      "description": "An island in the East River (now Roosevelt Island), passed under the Queensboro Bridge.",
+      "lore": []
+    },
+    {
+      "name": "Forty-second Street Cellar",
+      "parentName": "New York City",
+      "description": "A well-fanned, subterranean restaurant in New York City.",
+      "lore": []
+    },
+    {
+      "name": "Old Metropole",
+      "parentName": "New York City",
+      "description": "A restaurant across the street from the Forty-second Street cellar, filled with 'memories' and a dark past.",
+      "lore": [
+        "The site of Rosy Rosenthal's murder, a notorious event in New York's criminal underworld."
+      ]
+    },
+    {
+      "name": "Plaza Hotel Tea-garden",
+      "parentName": "New York City",
+      "description": "An elegant outdoor setting at the Plaza Hotel.",
+      "lore": []
+    },
+    {
+      "name": "Louisville",
+      "parentName": null,
+      "description": "Daisy's hometown, where she and Gatsby first met.",
+      "lore": []
+    },
+    {
+      "name": "Camp Taylor",
+      "parentName": "Louisville",
+      "description": "A military camp near Louisville, where young officers were stationed.",
+      "lore": []
+    },
+    {
+      "name": "Daisy Fay's House",
+      "parentName": "Louisville",
+      "description": "A house with a large lawn and patriotic banners, where Daisy lived as a young woman.",
+      "lore": []
+    },
+    {
+      "name": "Muhlbach Hotel",
+      "parentName": "Chicago",
+      "description": "A hotel where Tom Buchanan rented an entire floor for his wedding to Daisy.",
+      "lore": []
+    },
+    {
+      "name": "Santa Barbara",
+      "parentName": null,
+      "description": "A location where Tom and Daisy stayed after their wedding.",
+      "lore": []
+    },
+    {
+      "name": "Ventura Road",
+      "parentName": "Santa Barbara",
+      "description": "The road where Tom Buchanan had a car accident with another woman.",
+      "lore": []
+    },
+    {
+      "name": "France",
+      "parentName": null,
+      "description": "Where Tom and Daisy lived for a year after their daughter was born.",
+      "lore": []
+    },
+    {
+      "name": "Cannes",
+      "parentName": "France",
+      "description": "A city in France where Jordan saw Tom and Daisy.",
+      "lore": []
+    },
+    {
+      "name": "Deauville",
+      "parentName": "France",
+      "description": "A city in France where Jordan saw Tom and Daisy.",
+      "lore": []
+    },
+    {
+      "name": "Chicago",
+      "parentName": null,
+      "description": "Where Tom and Daisy settled after their time in France.",
+      "lore": []
+    },
+    {
+      "name": "Central Park",
+      "parentName": "New York City",
+      "description": "A large urban park in Manhattan.",
+      "lore": []
+    },
+    {
+      "name": "West Fifties",
+      "parentName": "New York City",
+      "description": "An area in Manhattan with tall apartments.",
+      "lore": []
+    },
+    {
+      "name": "Fifty-Ninth Street",
+      "parentName": "New York City",
+      "description": "A street in Manhattan, described as a 'block of delicate pale light'.",
+      "lore": []
+    }
+  ],
+  "threads": [
+    {
+      "description": "Nick's disillusionment with the East and its moral landscape",
+      "anchorNames": [
+        "Nick Carraway",
+        "East Egg",
+        "West Egg"
+      ],
+      "statusAtStart": "escalating",
+      "statusAtEnd": "escalating",
+      "development": "Nick's observations of Gatsby's fabricated past, Wolfshiem's criminal connections, and the superficiality of the social scene deepen his sense of unease and moral ambiguity in the East. However, the revelation of Gatsby's profound romantic motivation offers a momentary, albeit unsettling, counterpoint to the pervasive cynicism."
+    },
+    {
+      "description": "The mystery surrounding Jay Gatsby and his true nature",
+      "anchorNames": [
+        "Jay Gatsby",
+        "Nick Carraway"
+      ],
+      "statusAtStart": "escalating",
+      "statusAtEnd": "escalating",
+      "development": "Gatsby attempts to clarify his past with a fabricated story, then provides evidence of his war heroism and Oxford attendance, only to be further complicated by his association with Meyer Wolfshiem, a notorious criminal. The ultimate revelation of his singular, long-held romantic goal for Daisy finally provides a core motivation, but also raises new questions about his methods and the depth of his obsession."
+    },
+    {
+      "description": "The crumbling marriage and moral decay of Tom and Daisy Buchanan",
+      "anchorNames": [
+        "Tom Buchanan",
+        "Daisy Buchanan"
+      ],
+      "statusAtStart": "escalating",
+      "statusAtEnd": "escalating",
+      "development": "Jordan's flashback reveals Daisy's profound unhappiness and near-rejection of Tom on their wedding day, and Tom's continued infidelity is highlighted by a past car accident with another woman. This reinforces the long-standing decay of their marriage, rooted in Daisy's initial despair and Tom's consistent moral failings."
+    },
+    {
+      "description": "The social and moral contrast between East Egg and West Egg",
+      "anchorNames": [
+        "East Egg",
+        "West Egg",
+        "Nick Carraway"
+      ],
+      "statusAtStart": "escalating",
+      "statusAtEnd": "escalating",
+      "development": "The chapter opens with a detailed list of guests from both East and West Egg, highlighting their varied, often dubious, backgrounds and the superficiality of their interactions at Gatsby's parties. This reinforces the contrast between old money's established decadence and new money's striving, often criminal, origins, both contributing to the moral landscape of the East."
+    },
+    {
+      "description": "The destructive nature of Tom Buchanan's affair with Myrtle Wilson",
+      "anchorNames": [
+        "Tom Buchanan",
+        "Myrtle Wilson",
+        "George B. Wilson"
+      ],
+      "statusAtStart": "escalating",
+      "statusAtEnd": "escalating",
+      "development": "Nick briefly glimpses Myrtle Wilson at the garage, reminding him of Tom's ongoing affair and its sordid reality, reinforcing the destructive nature of the relationship."
+    },
+    {
+      "description": "Nick's evolving relationship and moral judgment of Jordan Baker",
+      "anchorNames": [
+        "Nick Carraway",
+        "Jordan Baker"
+      ],
+      "statusAtStart": "surfacing",
+      "statusAtEnd": "escalating",
+      "development": "Nick's 'tender curiosity' for Jordan deepens as she confides in him, revealing Gatsby's secret and her own past with Daisy. His physical intimacy with her in the car suggests a growing romantic connection, but her cynical worldview and her role in Gatsby's deception complicate his moral judgment."
+    },
+    {
+      "description": "Gatsby's singular romantic obsession with Daisy Buchanan",
+      "anchorNames": [
+        "Jay Gatsby",
+        "Daisy Buchanan",
+        "Nick Carraway"
+      ],
+      "statusAtStart": "dormant",
+      "statusAtEnd": "critical",
+      "development": "The chapter reveals Gatsby's entire life, including his mansion and parties, is a calculated effort to reunite with Daisy, culminating in his request for Nick to arrange a meeting. This transforms his previously observed 'romantic longing' into a concrete, all-consuming obsession that now directly involves Nick."
+    }
+  ],
+  "scenes": [
+    {
+      "locationName": "Gatsby's Mansion",
+      "participantNames": [
+        "Nick Carraway",
+        "Chester Becker",
+        "Leeches",
+        "Bunsen",
+        "Doctor Webster Civet",
+        "Hornbeams",
+        "Willie Voltaires",
+        "Blackbuck",
+        "Ismays",
+        "Chrysties",
+        "Hubert Auerbach",
+        "Edgar Beaver",
+        "Clarence Endive",
+        "Etty",
+        "Cheadles",
+        "O. R. P. Schraeders",
+        "Stonewall Jackson Abrams",
+        "Fishguards",
+        "Ripley Snells",
+        "Mrs. Ulysses Swett",
+        "Dancies",
+        "S. B. Whitebait",
+        "Maurice A. Flink",
+        "Hammerheads",
+        "Beluga",
+        "Beluga's girls",
+        "Poles",
+        "Mulreadys",
+        "Cecil Roebuck",
+        "Cecil Schoen",
+        "Gulick",
+        "Newton Orchid",
+        "Eckhaust",
+        "Clyde Cohen",
+        "Don S. Schwartz (the son)",
+        "Arthur McCarty",
+        "Catlips",
+        "Bembergs",
+        "G. Earl Muldoon",
+        "Muldoon (brother)",
+        "Da Fontano",
+        "Ed Legros",
+        "James B. (“Rot-Gut”) Ferret",
+        "De Jongs",
+        "Ernest Lilly",
+        "Klipspringer",
+        "Gus Waize",
+        "Horace O’Donavan",
+        "Lester Myer",
+        "George Duckweed",
+        "Francis Bull",
+        "Chromes",
+        "Backhyssons",
+        "Dennickers",
+        "Russel Betty",
+        "Corrigans",
+        "Kellehers",
+        "Dewars",
+        "Scullys",
+        "S. W. Belcher",
+        "Smirkes",
+        "young Quinns",
+        "Henry L. Palmetto",
+        "Benny McClenahan",
+        "Faustina O’Brien",
+        "Baedeker girls",
+        "young Brewer",
+        "Mr. Albrucksburger",
+        "Miss Haag",
+        "Ardita Fitz-Peters",
+        "Mr. P. Jewett",
+        "Miss Claudia Hip",
+        "Duke"
+      ],
+      "events": [
+        "social_observation",
+        "gossip_recounted",
+        "list_of_guests"
+      ],
+      "stakes": 30,
+      "summary": "On Sunday mornings, Gatsby's lawn becomes a vibrant, chaotic spectacle as the world and its mistress descend upon his mansion. Nick, reflecting on a disintegrating timetable, lists the names of the countless, often dubious, guests from both East and West Egg who frequented Gatsby's parties that summer. These names, ranging from socialites and movie figures to gamblers and criminals, paint a vivid picture of the superficiality and moral ambiguity of Gatsby's social circle, where rumors about his past, like being a bootlegger or a murderer, circulate freely.",
+      "threadMutations": [
+        {
+          "threadDescription": "The social and moral contrast between East Egg and West Egg",
+          "from": "escalating",
+          "to": "escalating"
+        },
+        {
+          "threadDescription": "The mystery surrounding Jay Gatsby and his true nature",
+          "from": "escalating",
+          "to": "escalating"
+        }
+      ],
+      "knowledgeMutations": [
+        {
+          "characterName": "Nick Carraway",
+          "action": "added",
+          "content": "The specific names and backgrounds of many of Gatsby's guests, highlighting their diverse and often questionable social standing.",
+          "type": "social_observation"
+        }
+      ],
+      "relationshipMutations": []
+    },
+    {
+      "locationName": "Gatsby's Car",
+      "participantNames": [
+        "Nick Carraway",
+        "Jay Gatsby",
+        "Myrtle Wilson",
+        "Policeman"
+      ],
+      "events": [
+        "car_ride",
+        "fabricated_story",
+        "proof_presented",
+        "speeding_incident",
+        "social_observation"
+      ],
+      "stakes": 60,
+      "summary": "One July morning, Gatsby's opulent car pulls up to Nick's door, and Gatsby, with a restless energy, invites Nick to lunch. During the drive to New York, Gatsby attempts to reveal his past, claiming to be from wealthy Midwesterners, educated at Oxford, and a war hero. Nick's skepticism is momentarily overcome when Gatsby produces a war medal from Montenegro and an Oxford photograph. As they pass through the Valley of Ashes, Nick glimpses Myrtle Wilson, and Gatsby uses a white card to evade a speeding ticket, hinting at his powerful connections.",
+      "threadMutations": [
+        {
+          "threadDescription": "The mystery surrounding Jay Gatsby and his true nature",
+          "from": "escalating",
+          "to": "escalating"
+        },
+        {
+          "threadDescription": "Nick's disillusionment with the East and its moral landscape",
+          "from": "escalating",
+          "to": "escalating"
+        },
+        {
+          "threadDescription": "The destructive nature of Tom Buchanan's affair with Myrtle Wilson",
+          "from": "escalating",
+          "to": "escalating"
+        }
+      ],
+      "knowledgeMutations": [
+        {
+          "characterName": "Nick Carraway",
+          "action": "added",
+          "content": "Gatsby's fabricated personal history, including his claims of being from wealthy Midwesterners, educated at Oxford, and a European traveler.",
+          "type": "strategic_deception"
+        },
+        {
+          "characterName": "Nick Carraway",
+          "action": "added",
+          "content": "Gatsby's war medal from Montenegro and an Oxford photograph as evidence of his claims, momentarily convincing Nick of their authenticity.",
+          "type": "personal_history_revelation"
+        },
+        {
+          "characterName": "Nick Carraway",
+          "action": "added",
+          "content": "Gatsby's ability to evade a speeding ticket using a white card, indicating powerful connections.",
+          "type": "hidden_influence_revelation"
+        },
+        {
+          "characterName": "Jay Gatsby",
+          "action": "added",
+          "content": "His fabricated personal history, including his claims of being from wealthy Midwesterners, educated at Oxford, and a European traveler.",
+          "type": "strategic_deception"
+        },
+        {
+          "characterName": "Jay Gatsby",
+          "action": "added",
+          "content": "His war medal from Montenegro and an Oxford photograph as evidence of his claims.",
+          "type": "personal_history_revelation"
+        },
+        {
+          "characterName": "Jay Gatsby",
+          "action": "added",
+          "content": "His ability to evade a speeding ticket using a white card, indicating powerful connections.",
+          "type": "hidden_influence_revelation"
+        }
+      ],
+      "relationshipMutations": [
+        {
+          "from": "Nick Carraway",
+          "to": "Jay Gatsby",
+          "type": "Confused and intrigued by Gatsby's contradictory revelations, a mix of suspicion and fascination.",
+          "valenceDelta": 0.1
+        }
+      ]
+    },
+    {
+      "locationName": "Forty-second Street Cellar",
+      "participantNames": [
+        "Nick Carraway",
+        "Jay Gatsby",
+        "Meyer Wolfshiem",
+        "Head Waiter",
+        "Tom Buchanan"
+      ],
+      "events": [
+        "lunch_meeting",
+        "criminal_revelation",
+        "awkward_encounter",
+        "mysterious_request"
+      ],
+      "stakes": 75,
+      "summary": "At a Forty-second Street cellar, Gatsby introduces Nick to Meyer Wolfshiem, a shadowy figure with cuff buttons made of human molars. Wolfshiem, a notorious gambler, casually reveals he fixed the 1919 World Series, further unsettling Nick and deepening the mystery of Gatsby's connections. Gatsby then abruptly leaves to make a phone call, but not before Nick expresses his frustration about Gatsby's indirect request through Jordan. The scene culminates in an awkward encounter with Tom Buchanan, who appears unexpectedly, and Gatsby, visibly uncomfortable, disappears.",
+      "threadMutations": [
+        {
+          "threadDescription": "The mystery surrounding Jay Gatsby and his true nature",
+          "from": "escalating",
+          "to": "escalating"
+        },
+        {
+          "threadDescription": "Nick's disillusionment with the East and its moral landscape",
+          "from": "escalating",
+          "to": "escalating"
+        }
+      ],
+      "knowledgeMutations": [
+        {
+          "characterName": "Nick Carraway",
+          "action": "added",
+          "content": "Meyer Wolfshiem is a notorious gambler who fixed the 1919 World Series.",
+          "type": "criminal_history_revelation"
+        },
+        {
+          "characterName": "Nick Carraway",
+          "action": "added",
+          "content": "Gatsby has a mysterious 'request' that he wants Jordan Baker to convey.",
+          "type": "strategic_deception_observation"
+        },
+        {
+          "characterName": "Jay Gatsby",
+          "action": "added",
+          "content": "Tom Buchanan is a friend of Nick's, which causes him to become uncomfortable.",
+          "type": "social_observation"
+        }
+      ],
+      "relationshipMutations": [
+        {
+          "from": "Nick Carraway",
+          "to": "Jay Gatsby",
+          "type": "Deeply unsettled and suspicious of Gatsby's criminal connections and indirect methods.",
+          "valenceDelta": -0.2
+        },
+        {
+          "from": "Nick Carraway",
+          "to": "Meyer Wolfshiem",
+          "type": "Repulsed and astonished by his criminal past and macabre affectations.",
+          "valenceDelta": -0.5
+        },
+        {
+          "from": "Jay Gatsby",
+          "to": "Meyer Wolfshiem",
+          "type": "Tolerant and somewhat protective, despite Wolfshiem's unsettling nature.",
+          "valenceDelta": 0.1
+        },
+        {
+          "from": "Tom Buchanan",
+          "to": "Jay Gatsby",
+          "type": "Brief, strained, and unfamiliar, marked by Gatsby's embarrassment.",
+          "valenceDelta": 0
+        }
+      ]
+    },
+    {
+      "locationName": "Central Park",
+      "participantNames": [
+        "Nick Carraway",
+        "Jordan Baker",
+        "Daisy Fay",
+        "Lieutenant (Daisy's)",
+        "Daisy's Mother",
+        "Daisy's Mother's Maid",
+        "Chambermaid (Santa Barbara)"
+      ],
+      "events": [
+        "revelation_of_past",
+        "romantic_obsession_revealed",
+        "request_made",
+        "physical_intimacy"
+      ],
+      "stakes": 85,
+      "summary": "In the tea-garden of the Plaza Hotel, and later driving through Central Park, Jordan Baker recounts Daisy's past: her youthful popularity in Louisville, her romance with a young officer named Jay Gatsby before the war, and her drunken despair on the eve of her wedding to Tom Buchanan. Jordan reveals that Gatsby bought his mansion specifically to be across the bay from Daisy, and his elaborate parties were an attempt to draw her in. Gatsby now wants Nick to invite Daisy to his house for tea, so Gatsby can 'come over.' Nick, overwhelmed by the depth of Gatsby's obsession, pulls Jordan closer, finding solace in her cynical realism amidst the unfolding romantic drama.",
+      "threadMutations": [
+        {
+          "threadDescription": "The mystery surrounding Jay Gatsby and his true nature",
+          "from": "escalating",
+          "to": "escalating"
+        },
+        {
+          "threadDescription": "The crumbling marriage and moral decay of Tom and Daisy Buchanan",
+          "from": "escalating",
+          "to": "escalating"
+        },
+        {
+          "threadDescription": "Nick's evolving relationship and moral judgment of Jordan Baker",
+          "from": "surfacing",
+          "to": "escalating"
+        },
+        {
+          "threadDescription": "Gatsby's singular romantic obsession with Daisy Buchanan",
+          "from": "dormant",
+          "to": "critical"
+        }
+      ],
+      "knowledgeMutations": [
+        {
+          "characterName": "Jordan Baker",
+          "action": "added",
+          "content": "Daisy's past romantic relationship with Jay Gatsby in Louisville before the war.",
+          "type": "past_romantic_involvement"
+        },
+        {
+          "characterName": "Jordan Baker",
+          "action": "added",
+          "content": "Daisy's profound unhappiness and near-rejection of Tom on their wedding day.",
+          "type": "marital_disillusionment"
+        },
+        {
+          "characterName": "Jordan Baker",
+          "action": "added",
+          "content": "Tom Buchanan's past infidelity, evidenced by a car accident with another woman in Santa Barbara.",
+          "type": "past_betrayal"
+        },
+        {
+          "characterName": "Jordan Baker",
+          "action": "added",
+          "content": "Gatsby's true motive for buying his mansion: to be near Daisy and to facilitate a reunion.",
+          "type": "romantic_obsession_revelation"
+        },
+        {
+          "characterName": "Jordan Baker",
+          "action": "added",
+          "content": "Gatsby's specific request for Nick to invite Daisy to his house for tea so he can 'come over'.",
+          "type": "strategic_request"
+        },
+        {
+          "characterName": "Nick Carraway",
+          "action": "added",
+          "content": "Daisy's past romantic relationship with Jay Gatsby in Louisville before the war.",
+          "type": "past_romantic_involvement"
+        },
+        {
+          "characterName": "Nick Carraway",
+          "action": "added",
+          "content": "Daisy's profound unhappiness and near-rejection of Tom on their wedding day.",
+          "type": "marital_disillusionment"
+        },
+        {
+          "characterName": "Nick Carraway",
+          "action": "added",
+          "content": "Tom Buchanan's past infidelity, evidenced by a car accident with another woman in Santa Barbara.",
+          "type": "past_betrayal"
+        },
+        {
+          "characterName": "Nick Carraway",
+          "action": "added",
+          "content": "Gatsby's true motive for buying his mansion: to be near Daisy and to facilitate a reunion.",
+          "type": "romantic_obsession_revelation"
+        },
+        {
+          "characterName": "Nick Carraway",
+          "action": "added",
+          "content": "Gatsby's specific request for Nick to invite Daisy to his house for tea so he can 'come over'.",
+          "type": "strategic_request"
+        }
+      ],
+      "relationshipMutations": [
+        {
+          "from": "Nick Carraway",
+          "to": "Jordan Baker",
+          "type": "Growing romantic and intellectual intimacy, despite his moral reservations about her cynicism.",
+          "valenceDelta": 0.2
+        },
+        {
+          "from": "Nick Carraway",
+          "to": "Jay Gatsby",
+          "type": "A shift from suspicion to a deeper understanding of his profound, singular romantic motivation, though still unsettling.",
+          "valenceDelta": 0.3
+        },
+        {
+          "from": "Nick Carraway",
+          "to": "Daisy Buchanan",
+          "type": "Increased pity and understanding of her past unhappiness and current situation.",
+          "valenceDelta": 0.2
+        }
+      ]
+    }
+  ],
+  "relationships": [
+    {
+      "from": "Nick Carraway",
+      "to": "Nick's Father",
+      "type": "Respectful and reflective of his advice",
+      "valence": 0.8
+    },
+    {
+      "from": "Nick Carraway",
+      "to": "Jay Gatsby",
+      "type": "A shift from suspicion to a deeper understanding of his profound, singular romantic motivation, though still unsettling.",
+      "valence": 0.7
+    },
+    {
+      "from": "Nick Carraway",
+      "to": "Tom Buchanan",
+      "type": "Profundly disgusted by his arrogance, moral failings, and violence",
+      "valence": -0.9
+    },
+    {
+      "from": "Nick Carraway",
+      "to": "Daisy Buchanan",
+      "type": "Increased pity and understanding of her past unhappiness and current situation.",
+      "valence": 0.3
+    },
+    {
+      "from": "Nick Carraway",
+      "to": "Jordan Baker",
+      "type": "Growing romantic and intellectual intimacy, despite his moral reservations about her cynicism.",
+      "valence": 0.7
+    },
+    {
+      "from": "Tom Buchanan",
+      "to": "Daisy Buchanan",
+      "type": "Controlling and dismissive, with underlying tension",
+      "valence": -0.2
+    },
+    {
+      "from": "Daisy Buchanan",
+      "to": "Tom Buchanan",
+      "type": "Resigned and resentful, but bound by circumstance",
+      "valence": -0.2
+    },
+    {
+      "from": "Daisy Buchanan",
+      "to": "Jordan Baker",
+      "type": "Familiar and casually affectionate",
+      "valence": 0.6
+    },
+    {
+      "from": "Jordan Baker",
+      "to": "Daisy Buchanan",
+      "type": "Familiar and casually tolerant",
+      "valence": 0.5
+    },
+    {
+      "from": "Tom Buchanan",
+      "to": "Jordan Baker",
+      "type": "Casual acquaintance, slightly dismissive",
+      "valence": 0.1
+    },
+    {
+      "from": "Nick Carraway",
+      "to": "Myrtle Wilson",
+      "type": "Observational, shifting from discomfort to pity and repulsion",
+      "valence": 0
+    },
+    {
+      "from": "Tom Buchanan",
+      "to": "Myrtle Wilson",
+      "type": "Possessive, controlling, and ultimately violent",
+      "valence": -0.3
+    },
+    {
+      "from": "Myrtle Wilson",
+      "to": "Tom Buchanan",
+      "type": "Desperate for attention and status, defiant, but ultimately submissive to his violence",
+      "valence": 0
+    },
+    {
+      "from": "Tom Buchanan",
+      "to": "George B. Wilson",
+      "type": "Condescending and exploitative, viewing him as a fool",
+      "valence": -0.1
+    },
+    {
+      "from": "Myrtle Wilson",
+      "to": "George B. Wilson",
+      "type": "Dismissive, resentful, and contemptuous",
+      "valence": -0.2
+    },
+    {
+      "from": "Nick Carraway",
+      "to": "Catherine",
+      "type": "Amused by her gossip but wary of her unreliability",
+      "valence": 0.1
+    },
+    {
+      "from": "Nick Carraway",
+      "to": "Mr. McKee",
+      "type": "Mildly curious but ultimately dismissive of his artistic pretensions",
+      "valence": 0
+    },
+    {
+      "from": "Nick Carraway",
+      "to": "Mrs. McKee",
+      "type": "Slightly annoyed by her shrillness and vanity",
+      "valence": -0.1
+    },
+    {
+      "from": "Nick Carraway",
+      "to": "Owl Eyes",
+      "type": "Amused and bewildered by his drunken observations and recklessness",
+      "valence": 0.1
+    },
+    {
+      "from": "Nick Carraway",
+      "to": "Girls in Yellow Dresses (Lucille and unnamed friend)",
+      "type": "Observational and slightly amused by their gossip and superficiality",
+      "valence": 0.1
+    },
+    {
+      "from": "Nick Carraway",
+      "to": "Girl from Jersey City",
+      "type": "Casual and fleeting romantic interest, now ended",
+      "valence": 0
+    },
+    {
+      "from": "Nick Carraway",
+      "to": "Meyer Wolfshiem",
+      "type": "Repulsed and astonished by his criminal past and macabre affectations.",
+      "valence": -0.5
+    },
+    {
+      "from": "Jay Gatsby",
+      "to": "Meyer Wolfshiem",
+      "type": "Tolerant and somewhat protective, despite Wolfshiem's unsettling nature.",
+      "valence": 0.1
+    },
+    {
+      "from": "Tom Buchanan",
+      "to": "Jay Gatsby",
+      "type": "Brief, strained, and unfamiliar, marked by Gatsby's embarrassment.",
+      "valence": 0
+    },
+    {
+      "from": "Daisy Buchanan",
+      "to": "Jay Gatsby",
+      "type": "Past romantic interest, now a source of intense longing and the object of his singular obsession.",
+      "valence": 0.8
+    },
+    {
+      "from": "Jay Gatsby",
+      "to": "Daisy Buchanan",
+      "type": "Profound, singular, and all-consuming romantic obsession, driving his life's purpose.",
+      "valence": 1
+    }
+  ]
+}

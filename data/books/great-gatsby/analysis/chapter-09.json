@@ -1,0 +1,1045 @@
+{
+  "chapterSummary": "Following Gatsby's murder, Nick Carraway struggles to arrange a funeral, facing the indifference and betrayal of Gatsby's former associates and Daisy. Only Gatsby's estranged father and Owl Eyes attend, highlighting the superficiality of Gatsby's social world. Nick, disillusioned with the East, confronts Tom Buchanan, who reveals his role in Gatsby's death, before Nick ultimately decides to return to the Midwest, reflecting on Gatsby's unattainable dream and the moral decay of the wealthy.",
+  "characters": [
+    {
+      "name": "Nick Carraway",
+      "role": "anchor",
+      "description": "The narrator, deeply affected by Gatsby's death, attempting to arrange a funeral and grappling with the moral decay of the East.",
+      "firstAppearance": false,
+      "knowledge": [
+        {
+          "type": "social_observation",
+          "content": "The grotesque, circumstantial, and largely untrue nature of the newspaper reports about Gatsby's death."
+        },
+        {
+          "type": "strategic_deception_observation",
+          "content": "Catherine's deliberate lies at the inquest to protect Myrtle's reputation and simplify the case, portraying Wilson as 'deranged by grief'."
+        },
+        {
+          "type": "personal_responsibility",
+          "content": "His feeling of responsibility for Gatsby's funeral arrangements due to the indifference of others."
+        },
+        {
+          "type": "social_betrayal",
+          "content": "Daisy and Tom's immediate departure after Gatsby's death, leaving no forwarding address."
+        },
+        {
+          "type": "social_betrayal",
+          "content": "Meyer Wolfshiem's refusal to attend Gatsby's funeral, citing 'important business' and a desire not to get 'mixed up in it'."
+        },
+        {
+          "type": "criminal_activity_revelation",
+          "content": "The phone call from Slagle, revealing Gatsby's continued involvement in illicit bond dealings, and the arrest of 'Young Parke'."
+        },
+        {
+          "type": "personal_history_revelation",
+          "content": "The arrival of Henry C. Gatz, Gatsby's father, and his simple, proud perspective on his son's life."
+        },
+        {
+          "type": "social_betrayal",
+          "content": "Klipspringer's refusal to attend the funeral, prioritizing a picnic over Gatsby's burial, and his request for tennis shoes."
+        },
+        {
+          "type": "social_betrayal",
+          "content": "The general indifference and scorn of Gatsby's former acquaintances towards his death and funeral."
+        },
+        {
+          "type": "social_betrayal",
+          "content": "Meyer Wolfshiem's detailed account of his first meeting with Gatsby and his role in 'making' him, but his continued refusal to attend the funeral."
+        },
+        {
+          "type": "personal_history_revelation",
+          "content": "The existence of Gatsby's childhood 'schedule' and 'General Resolves' in a copy of Hopalong Cassidy, revealing his early ambition and self-discipline."
+        },
+        {
+          "type": "disillusionment",
+          "content": "His final, profound disillusionment with the East, seeing it as 'haunted' and 'distorted' after Gatsby's death."
+        },
+        {
+          "type": "moral_judgment",
+          "content": "His realization that Tom and Daisy are 'careless people' who 'smashed up things and creatures' and retreated behind their money."
+        },
+        {
+          "type": "romantic_disillusionment",
+          "content": "His final understanding of Gatsby's dream, the green light, and its unattainable nature, symbolizing the 'orgiastic future that year by year recedes before us'."
+        }
+      ]
+    },
+    {
+      "name": "Catherine",
+      "role": "recurring",
+      "description": "Myrtle's sister, who provides false testimony at the inquest to protect her sister's reputation.",
+      "firstAppearance": false,
+      "knowledge": [
+        {
+          "type": "strategic_deception",
+          "content": "Her deliberate lies at the inquest, swearing Myrtle had never seen Gatsby and was happy with her husband, to simplify the case."
+        }
+      ]
+    },
+    {
+      "name": "Daisy Buchanan",
+      "role": "recurring",
+      "description": "Gatsby's object of affection, who flees with Tom immediately after Gatsby's death.",
+      "firstAppearance": false,
+      "knowledge": []
+    },
+    {
+      "name": "Tom Buchanan",
+      "role": "recurring",
+      "description": "Daisy's husband, who flees with her and later reveals his role in directing Wilson to Gatsby.",
+      "firstAppearance": false,
+      "knowledge": [
+        {
+          "type": "strategic_deception_revelation",
+          "content": "His admission to Nick that he told George Wilson that Gatsby owned the yellow car, leading to Gatsby's murder."
+        },
+        {
+          "type": "moral_justification",
+          "content": "His belief that Gatsby 'had it coming to him' and that he was justified in telling Wilson, due to Gatsby's perceived recklessness with Myrtle."
+        },
+        {
+          "type": "personal_suffering",
+          "content": "His claim of suffering over Myrtle's death, evidenced by his crying over a box of dog biscuits."
+        }
+      ]
+    },
+    {
+      "name": "Meyer Wolfshiem",
+      "role": "recurring",
+      "description": "Gatsby's business associate, who refuses to attend the funeral, citing business and a desire to avoid trouble.",
+      "firstAppearance": false,
+      "knowledge": [
+        {
+          "type": "social_betrayal",
+          "content": "His refusal to attend Gatsby's funeral, citing 'important business' and a desire not to get 'mixed up in this thing now'."
+        },
+        {
+          "type": "personal_history_revelation",
+          "content": "His detailed account of meeting Gatsby as a young, impoverished major and his role in 'making' Gatsby's career."
+        }
+      ]
+    },
+    {
+      "name": "Slagle",
+      "role": "transient",
+      "description": "A man from Chicago who calls Gatsby's house, revealing Gatsby's continued involvement in illicit bond dealings.",
+      "firstAppearance": true,
+      "knowledge": [
+        {
+          "type": "criminal_activity_revelation",
+          "content": "Gatsby's continued involvement in illicit bond dealings, and the arrest of 'Young Parke'."
+        }
+      ]
+    },
+    {
+      "name": "Henry C. Gatz",
+      "role": "recurring",
+      "description": "Gatsby's estranged father, a simple, proud man who arrives for the funeral and shares insights into his son's early ambition.",
+      "firstAppearance": true,
+      "knowledge": [
+        {
+          "type": "personal_history_revelation",
+          "content": "His son's true name, James Gatz, and his early life in the Midwest."
+        },
+        {
+          "type": "personal_pride",
+          "content": "His immense pride in Gatsby's success and possessions, despite the tragic circumstances."
+        },
+        {
+          "type": "personal_history_revelation",
+          "content": "The existence of Gatsby's childhood 'schedule' and 'General Resolves' in a copy of Hopalong Cassidy, revealing his early ambition and self-discipline."
+        },
+        {
+          "type": "social_observation",
+          "content": "His observation that 'Jimmy always liked it better down East' and 'rose up to his position in the East'."
+        }
+      ]
+    },
+    {
+      "name": "Klipspringer",
+      "role": "recurring",
+      "description": "A former 'boarder' at Gatsby's mansion, who refuses to attend the funeral, prioritizing a picnic.",
+      "firstAppearance": false,
+      "knowledge": [
+        {
+          "type": "social_betrayal",
+          "content": "His refusal to attend Gatsby's funeral, prioritizing a picnic over Gatsby's burial, and his request for tennis shoes."
+        }
+      ]
+    },
+    {
+      "name": "Young Parke",
+      "role": "transient",
+      "description": "An associate of Gatsby's, arrested for illicit bond dealings.",
+      "firstAppearance": true,
+      "knowledge": []
+    },
+    {
+      "name": "Edgar",
+      "role": "transient",
+      "description": "Meyer Wolfshiem's messenger.",
+      "firstAppearance": true,
+      "knowledge": []
+    },
+    {
+      "name": "Stella",
+      "role": "transient",
+      "description": "Meyer Wolfshiem's secretary, who attempts to deflect Nick.",
+      "firstAppearance": true,
+      "knowledge": []
+    },
+    {
+      "name": "Owl Eyes",
+      "role": "recurring",
+      "description": "The only other guest from Gatsby's parties to attend the funeral, expressing a poignant observation.",
+      "firstAppearance": false,
+      "knowledge": [
+        {
+          "type": "social_observation",
+          "content": "The stark contrast between the hundreds who attended Gatsby's parties and the few who attended his funeral."
+        }
+      ]
+    },
+    {
+      "name": "Jordan Baker",
+      "role": "recurring",
+      "description": "Nick's former romantic interest, who confronts him about their relationship before moving on.",
+      "firstAppearance": false,
+      "knowledge": [
+        {
+          "type": "personal_realization",
+          "content": "Her realization that Nick 'threw her over' and her feeling of dizziness from the experience."
+        },
+        {
+          "type": "moral_judgment",
+          "content": "Her accusation that Nick, despite his self-proclaimed honesty, was also a 'bad driver' in their relationship."
+        }
+      ]
+    },
+    {
+      "name": "Lutheran Minister",
+      "role": "transient",
+      "description": "The minister who conducts Gatsby's funeral.",
+      "firstAppearance": true,
+      "knowledge": []
+    },
+    {
+      "name": "Gatsby's Servants",
+      "role": "transient",
+      "description": "The new staff at Gatsby's mansion, who attend the funeral.",
+      "firstAppearance": true,
+      "knowledge": []
+    },
+    {
+      "name": "Postman from West Egg",
+      "role": "transient",
+      "description": "The local postman, who attends Gatsby's funeral.",
+      "firstAppearance": true,
+      "knowledge": []
+    },
+    {
+      "name": "Taxi Driver",
+      "role": "transient",
+      "description": "A local taxi driver who may have driven Daisy and Gatsby on the night of the accident.",
+      "firstAppearance": true,
+      "knowledge": []
+    },
+    {
+      "name": "Grocer",
+      "role": "transient",
+      "description": "The person to whom Nick sells his car before leaving the East.",
+      "firstAppearance": true,
+      "knowledge": []
+    }
+  ],
+  "locations": [
+    {
+      "name": "Gatsby's Mansion",
+      "parentName": "West Egg",
+      "description": "The site of Gatsby's death and subsequent police investigation, now empty and neglected.",
+      "lore": [
+        "Becomes a symbol of Gatsby's failed dream and the superficiality of his social world."
+      ]
+    },
+    {
+      "name": "Nick's House",
+      "parentName": "West Egg",
+      "description": "Nick's modest bungalow, now a temporary refuge for Gatsby's father.",
+      "lore": []
+    },
+    {
+      "name": "West Egg Village",
+      "parentName": "West Egg",
+      "description": "The local community, where rumors about Gatsby's death circulate.",
+      "lore": []
+    },
+    {
+      "name": "Broadway",
+      "parentName": "New York City",
+      "description": "The location of Meyer Wolfshiem's office.",
+      "lore": []
+    },
+    {
+      "name": "Meyer Wolfshiem's Office",
+      "parentName": "Broadway",
+      "description": "A shadowy office marked 'The Swastika Holding Company,' where Nick confronts Wolfshiem.",
+      "lore": []
+    },
+    {
+      "name": "Greenwich",
+      "parentName": null,
+      "description": "A wealthy town where Klipspringer is staying, prioritizing a picnic over Gatsby's funeral.",
+      "lore": []
+    },
+    {
+      "name": "Forty-third Street",
+      "parentName": "New York City",
+      "description": "The location of Winebrenner's poolroom, where Wolfshiem first met Gatsby.",
+      "lore": []
+    },
+    {
+      "name": "Winebrenner's Poolroom",
+      "parentName": "Forty-third Street",
+      "description": "The place where Meyer Wolfshiem first encountered a young, impoverished Gatsby.",
+      "lore": []
+    },
+    {
+      "name": "Albany",
+      "parentName": null,
+      "description": "A location where Gatsby did some early work for Wolfshiem.",
+      "lore": []
+    },
+    {
+      "name": "Cemetery",
+      "parentName": null,
+      "description": "The final resting place for Gatsby, attended by only a few.",
+      "lore": []
+    },
+    {
+      "name": "Fifth Avenue",
+      "parentName": "New York City",
+      "description": "A prominent street where Nick encounters Tom Buchanan.",
+      "lore": []
+    },
+    {
+      "name": "Jewellery Store",
+      "parentName": "Fifth Avenue",
+      "description": "A store where Tom Buchanan stops to look at items, symbolizing his continued materialism.",
+      "lore": []
+    },
+    {
+      "name": "Union Station",
+      "parentName": "Chicago",
+      "description": "A nostalgic memory for Nick, symbolizing the connection to the Midwest.",
+      "lore": []
+    },
+    {
+      "name": "Wisconsin Stations",
+      "parentName": null,
+      "description": "Small towns passed by on Nick's train journeys, evoking a sense of home.",
+      "lore": []
+    }
+  ],
+  "threads": [
+    {
+      "description": "Nick's disillusionment with the East and its moral landscape",
+      "anchorNames": [
+        "Nick Carraway",
+        "East Egg",
+        "West Egg"
+      ],
+      "statusAtStart": "escalating",
+      "statusAtEnd": "critical",
+      "development": "Nick's disillusionment reaches a critical point as he witnesses the indifference of Gatsby's former associates and the moral carelessness of Tom and Daisy, leading him to decide to return West."
+    },
+    {
+      "description": "The mystery surrounding Jay Gatsby and his true nature",
+      "anchorNames": [
+        "Jay Gatsby",
+        "Nick Carraway"
+      ],
+      "statusAtStart": "resolved",
+      "statusAtEnd": "done",
+      "development": "Gatsby's true nature is fully revealed through his father's memories and his childhood schedule, and his story concludes with his death and sparsely attended funeral."
+    },
+    {
+      "description": "The crumbling marriage and moral decay of Tom and Daisy Buchanan",
+      "anchorNames": [
+        "Tom Buchanan",
+        "Daisy Buchanan"
+      ],
+      "statusAtStart": "escalating",
+      "statusAtEnd": "critical",
+      "development": "Tom and Daisy's moral decay is highlighted by their immediate flight after Gatsby's death and Tom's unapologetic confession of directing Wilson to Gatsby, solidifying their 'careless' nature."
+    },
+    {
+      "description": "The social and moral contrast between East Egg and West Egg",
+      "anchorNames": [
+        "East Egg",
+        "West Egg",
+        "Nick Carraway"
+      ],
+      "statusAtStart": "escalating",
+      "statusAtEnd": "critical",
+      "development": "The stark contrast is emphasized by the lack of attendees at Gatsby's funeral from his lavish parties, and Nick's final judgment of the East as distorted and morally bankrupt."
+    },
+    {
+      "description": "The destructive nature of Tom Buchanan's affair with Myrtle Wilson",
+      "anchorNames": [
+        "Tom Buchanan",
+        "Myrtle Wilson",
+        "George B. Wilson"
+      ],
+      "statusAtStart": "converging",
+      "statusAtEnd": "done",
+      "development": "The thread concludes with Tom's confession of directing Wilson to Gatsby, directly linking the affair's fallout to Gatsby's death, and Catherine's false testimony to protect Myrtle's reputation."
+    },
+    {
+      "description": "Nick's evolving relationship and moral judgment of Jordan Baker",
+      "anchorNames": [
+        "Nick Carraway",
+        "Jordan Baker"
+      ],
+      "statusAtStart": "fractured",
+      "statusAtEnd": "closed",
+      "development": "Nick and Jordan's relationship officially ends with a final, tense conversation where Jordan accuses Nick of being a 'bad driver,' and Nick acknowledges his own moral complexities before leaving the East."
+    },
+    {
+      "description": "Gatsby's singular romantic obsession with Daisy Buchanan",
+      "anchorNames": [
+        "Jay Gatsby",
+        "Daisy Buchanan",
+        "Nick Carraway"
+      ],
+      "statusAtStart": "done",
+      "statusAtEnd": "done",
+      "development": "This thread is confirmed as done with Gatsby's death and Daisy's immediate abandonment, leaving Nick to reflect on the tragic, unattainable nature of Gatsby's dream."
+    },
+    {
+      "description": "The tragic consequences of reckless behavior and moral irresponsibility",
+      "anchorNames": [
+        "Jay Gatsby",
+        "Daisy Buchanan",
+        "Tom Buchanan",
+        "Myrtle Wilson"
+      ],
+      "statusAtStart": "critical",
+      "statusAtEnd": "critical",
+      "development": "The consequences escalate as Gatsby is murdered due to Tom's reckless accusation, and Tom and Daisy escape accountability, leaving Nick to bear the burden of their irresponsibility."
+    },
+    {
+      "description": "George Wilson's vengeful pursuit of Myrtle's killer",
+      "anchorNames": [
+        "George B. Wilson",
+        "Jay Gatsby",
+        "Tom Buchanan"
+      ],
+      "statusAtStart": "resolved",
+      "statusAtEnd": "done",
+      "development": "This thread is confirmed as done with Wilson's successful, albeit misguided, vengeance against Gatsby and his subsequent suicide."
+    }
+  ],
+  "scenes": [
+    {
+      "locationName": "Gatsby's Mansion",
+      "participantNames": [
+        "Nick Carraway",
+        "Catherine",
+        "Michaelis",
+        "Policeman",
+        "Photographers",
+        "Newspaper Men",
+        "Little Boys"
+      ],
+      "events": [
+        "police_investigation",
+        "media_frenzy",
+        "inquest_testimony",
+        "social_betrayal"
+      ],
+      "stakes": 70,
+      "summary": "In the aftermath of Gatsby's murder, his mansion is swarmed by police, photographers, and newspaper reporters, turning the tragedy into a public spectacle. Nick, feeling a profound sense of responsibility, observes the grotesque media coverage and Catherine's calculated lies at the inquest, which simplify the case by portraying Wilson as 'deranged by grief.' He attempts to contact Daisy and Tom, only to discover they have fled without a trace, leaving him alone to manage the fallout.",
+      "threadMutations": [
+        {
+          "threadDescription": "Nick's disillusionment with the East and its moral landscape",
+          "from": "escalating",
+          "to": "escalating"
+        },
+        {
+          "threadDescription": "The destructive nature of Tom Buchanan's affair with Myrtle Wilson",
+          "from": "converging",
+          "to": "converging"
+        }
+      ],
+      "knowledgeMutations": [
+        {
+          "characterName": "Nick Carraway",
+          "action": "added",
+          "content": "The grotesque, circumstantial, and largely untrue nature of the newspaper reports about Gatsby's death.",
+          "type": "social_observation"
+        },
+        {
+          "characterName": "Nick Carraway",
+          "action": "added",
+          "content": "Catherine's deliberate lies at the inquest to protect Myrtle's reputation and simplify the case, portraying Wilson as 'deranged by grief'.",
+          "type": "strategic_deception_observation"
+        },
+        {
+          "characterName": "Nick Carraway",
+          "action": "added",
+          "content": "His feeling of responsibility for Gatsby's funeral arrangements due to the indifference of others.",
+          "type": "personal_responsibility"
+        },
+        {
+          "characterName": "Nick Carraway",
+          "action": "added",
+          "content": "Daisy and Tom's immediate departure after Gatsby's death, leaving no forwarding address.",
+          "type": "social_betrayal"
+        },
+        {
+          "characterName": "Catherine",
+          "action": "added",
+          "content": "Her deliberate lies at the inquest, swearing Myrtle had never seen Gatsby and was happy with her husband, to simplify the case.",
+          "type": "strategic_deception"
+        }
+      ],
+      "relationshipMutations": [
+        {
+          "from": "Nick Carraway",
+          "to": "Daisy Buchanan",
+          "type": "Profound disappointment and sense of abandonment due to her immediate flight.",
+          "valenceDelta": -0.2
+        },
+        {
+          "from": "Nick Carraway",
+          "to": "Tom Buchanan",
+          "type": "Profound disappointment and sense of abandonment due to his immediate flight.",
+          "valenceDelta": -0.2
+        }
+      ]
+    },
+    {
+      "locationName": "Gatsby's Mansion",
+      "participantNames": [
+        "Nick Carraway",
+        "Meyer Wolfshiem",
+        "Slagle",
+        "Henry C. Gatz",
+        "Klipspringer",
+        "Gatsby's Butler",
+        "Stella"
+      ],
+      "events": [
+        "funeral_arrangements",
+        "social_betrayal",
+        "revelation_of_past",
+        "criminal_connections"
+      ],
+      "stakes": 80,
+      "summary": "Nick desperately tries to contact Gatsby's associates for the funeral, but Meyer Wolfshiem sends a dismissive letter, refusing to get 'mixed up in it.' A mysterious call from 'Slagle' reveals Gatsby's continued involvement in illicit bond dealings, further tarnishing his image. Gatsby's estranged father, Henry C. Gatz, arrives, a simple man filled with bewildered pride, while Klipspringer, the 'boarder,' calls only to retrieve his tennis shoes, epitomizing the superficiality of Gatsby's connections.",
+      "threadMutations": [
+        {
+          "threadDescription": "The mystery surrounding Jay Gatsby and his true nature",
+          "from": "resolved",
+          "to": "done"
+        },
+        {
+          "threadDescription": "Nick's disillusionment with the East and its moral landscape",
+          "from": "escalating",
+          "to": "escalating"
+        }
+      ],
+      "knowledgeMutations": [
+        {
+          "characterName": "Nick Carraway",
+          "action": "added",
+          "content": "Meyer Wolfshiem's refusal to attend Gatsby's funeral, citing 'important business' and a desire not to get 'mixed up in it'.",
+          "type": "social_betrayal"
+        },
+        {
+          "characterName": "Nick Carraway",
+          "action": "added",
+          "content": "The phone call from Slagle, revealing Gatsby's continued involvement in illicit bond dealings, and the arrest of 'Young Parke'.",
+          "type": "criminal_activity_revelation"
+        },
+        {
+          "characterName": "Nick Carraway",
+          "action": "added",
+          "content": "The arrival of Henry C. Gatz, Gatsby's father, and his simple, proud perspective on his son's life.",
+          "type": "personal_history_revelation"
+        },
+        {
+          "characterName": "Nick Carraway",
+          "action": "added",
+          "content": "Klipspringer's refusal to attend the funeral, prioritizing a picnic over Gatsby's burial, and his request for tennis shoes.",
+          "type": "social_betrayal"
+        },
+        {
+          "characterName": "Meyer Wolfshiem",
+          "action": "added",
+          "content": "His refusal to attend Gatsby's funeral, citing 'important business' and a desire not to get 'mixed up in this thing now'.",
+          "type": "social_betrayal"
+        },
+        {
+          "characterName": "Slagle",
+          "action": "added",
+          "content": "Gatsby's continued involvement in illicit bond dealings, and the arrest of 'Young Parke'.",
+          "type": "criminal_activity_revelation"
+        },
+        {
+          "characterName": "Henry C. Gatz",
+          "action": "added",
+          "content": "His son's true name, James Gatz, and his early life in the Midwest.",
+          "type": "personal_history_revelation"
+        },
+        {
+          "characterName": "Henry C. Gatz",
+          "action": "added",
+          "content": "His immense pride in Gatsby's success and possessions, despite the tragic circumstances.",
+          "type": "personal_pride"
+        },
+        {
+          "characterName": "Klipspringer",
+          "action": "added",
+          "content": "His refusal to attend Gatsby's funeral, prioritizing a picnic over Gatsby's burial, and his request for tennis shoes.",
+          "type": "social_betrayal"
+        }
+      ],
+      "relationshipMutations": [
+        {
+          "from": "Nick Carraway",
+          "to": "Meyer Wolfshiem",
+          "type": "Increased disgust and scorn for his hypocrisy and abandonment.",
+          "valenceDelta": -0.3
+        },
+        {
+          "from": "Nick Carraway",
+          "to": "Klipspringer",
+          "type": "Profound contempt for his selfishness and lack of loyalty.",
+          "valenceDelta": -0.5
+        }
+      ]
+    },
+    {
+      "locationName": "Meyer Wolfshiem's Office",
+      "participantNames": [
+        "Nick Carraway",
+        "Meyer Wolfshiem",
+        "Stella"
+      ],
+      "events": [
+        "confrontation",
+        "revelation_of_past",
+        "social_betrayal"
+      ],
+      "stakes": 60,
+      "summary": "Nick travels to New York to confront Meyer Wolfshiem, who initially tries to avoid him. Wolfshiem, after being cornered, offers a sentimental but ultimately self-serving account of how he 'made' Gatsby, emphasizing his early poverty and ambition. Despite his claims of friendship, Wolfshiem steadfastly refuses to attend the funeral, reiterating his policy of avoiding trouble when a man gets killed, solidifying Nick's scornful solidarity with Gatsby.",
+      "threadMutations": [
+        {
+          "threadDescription": "Nick's disillusionment with the East and its moral landscape",
+          "from": "escalating",
+          "to": "escalating"
+        }
+      ],
+      "knowledgeMutations": [
+        {
+          "characterName": "Nick Carraway",
+          "action": "added",
+          "content": "The general indifference and scorn of Gatsby's former acquaintances towards his death and funeral.",
+          "type": "social_betrayal"
+        },
+        {
+          "characterName": "Nick Carraway",
+          "action": "added",
+          "content": "Meyer Wolfshiem's detailed account of his first meeting with Gatsby and his role in 'making' him, but his continued refusal to attend the funeral.",
+          "type": "social_betrayal"
+        },
+        {
+          "characterName": "Meyer Wolfshiem",
+          "action": "added",
+          "content": "His detailed account of meeting Gatsby as a young, impoverished major and his role in 'making' Gatsby's career.",
+          "type": "personal_history_revelation"
+        }
+      ],
+      "relationshipMutations": [
+        {
+          "from": "Nick Carraway",
+          "to": "Meyer Wolfshiem",
+          "type": "Confirmed disgust for his hypocrisy and self-preservation.",
+          "valenceDelta": -0.2
+        }
+      ]
+    },
+    {
+      "locationName": "Cemetery",
+      "participantNames": [
+        "Nick Carraway",
+        "Henry C. Gatz",
+        "Owl Eyes",
+        "Lutheran Minister",
+        "Gatsby's Servants",
+        "Postman from West Egg"
+      ],
+      "events": [
+        "funeral",
+        "poignant_reflection",
+        "social_indifference"
+      ],
+      "stakes": 50,
+      "summary": "The funeral for Jay Gatsby is a somber, sparsely attended affair, with only Nick, Henry C. Gatz, Owl Eyes, the minister, and a few servants present. The rain falls steadily as Nick reflects on Daisy's complete absence and the profound indifference of Gatsby's former 'friends.' Owl Eyes, the only other attendee from Gatsby's parties, expresses a poignant observation about the hundreds who once flocked to Gatsby's house, highlighting the tragic emptiness of his social world.",
+      "threadMutations": [
+        {
+          "threadDescription": "Nick's disillusionment with the East and its moral landscape",
+          "from": "escalating",
+          "to": "escalating"
+        },
+        {
+          "threadDescription": "The social and moral contrast between East Egg and West Egg",
+          "from": "escalating",
+          "to": "critical"
+        }
+      ],
+      "knowledgeMutations": [
+        {
+          "characterName": "Nick Carraway",
+          "action": "added",
+          "content": "The existence of Gatsby's childhood 'schedule' and 'General Resolves' in a copy of Hopalong Cassidy, revealing his early ambition and self-discipline.",
+          "type": "personal_history_revelation"
+        },
+        {
+          "characterName": "Henry C. Gatz",
+          "action": "added",
+          "content": "The existence of Gatsby's childhood 'schedule' and 'General Resolves' in a copy of Hopalong Cassidy, revealing his early ambition and self-discipline.",
+          "type": "personal_history_revelation"
+        },
+        {
+          "characterName": "Henry C. Gatz",
+          "action": "added",
+          "content": "His observation that 'Jimmy always liked it better down East' and 'rose up to his position in the East'.",
+          "type": "social_observation"
+        },
+        {
+          "characterName": "Owl Eyes",
+          "action": "added",
+          "content": "The stark contrast between the hundreds who attended Gatsby's parties and the few who attended his funeral.",
+          "type": "social_observation"
+        }
+      ],
+      "relationshipMutations": [
+        {
+          "from": "Nick Carraway",
+          "to": "Henry C. Gatz",
+          "type": "Growing empathy and respect for his simple, bewildered pride in his son.",
+          "valenceDelta": 0.2
+        },
+        {
+          "from": "Nick Carraway",
+          "to": "Owl Eyes",
+          "type": "A shared, somber understanding of Gatsby's tragic fate and the superficiality of his world.",
+          "valenceDelta": 0.1
+        }
+      ]
+    },
+    {
+      "locationName": "Fifth Avenue",
+      "participantNames": [
+        "Nick Carraway",
+        "Tom Buchanan",
+        "Jordan Baker"
+      ],
+      "events": [
+        "final_confrontation",
+        "moral_reckoning",
+        "personal_reflection",
+        "departure"
+      ],
+      "stakes": 90,
+      "summary": "Months later, Nick encounters Tom Buchanan on Fifth Avenue, leading to a final, tense confrontation. Tom defiantly admits to telling Wilson that Gatsby owned the yellow car, justifying his actions by claiming Gatsby 'had it coming to him' and expressing his own 'suffering' over Myrtle's death. Nick, unable to forgive or like him, recognizes Tom and Daisy as 'careless people' who destroy lives and retreat into their wealth. He then has a final, strained conversation with Jordan Baker, where she accuses him of being a 'bad driver' in their relationship, before Nick, profoundly disillusioned, decides to return to the Midwest, reflecting on Gatsby's unattainable dream and the corrupting influence of the East.",
+      "threadMutations": [
+        {
+          "threadDescription": "Nick's disillusionment with the East and its moral landscape",
+          "from": "escalating",
+          "to": "critical"
+        },
+        {
+          "threadDescription": "The crumbling marriage and moral decay of Tom and Daisy Buchanan",
+          "from": "escalating",
+          "to": "critical"
+        },
+        {
+          "threadDescription": "The social and moral contrast between East Egg and West Egg",
+          "from": "critical",
+          "to": "critical"
+        },
+        {
+          "threadDescription": "The destructive nature of Tom Buchanan's affair with Myrtle Wilson",
+          "from": "converging",
+          "to": "done"
+        },
+        {
+          "threadDescription": "Nick's evolving relationship and moral judgment of Jordan Baker",
+          "from": "fractured",
+          "to": "closed"
+        },
+        {
+          "threadDescription": "The tragic consequences of reckless behavior and moral irresponsibility",
+          "from": "critical",
+          "to": "critical"
+        }
+      ],
+      "knowledgeMutations": [
+        {
+          "characterName": "Nick Carraway",
+          "action": "added",
+          "content": "His final, profound disillusionment with the East, seeing it as 'haunted' and 'distorted' after Gatsby's death.",
+          "type": "disillusionment"
+        },
+        {
+          "characterName": "Nick Carraway",
+          "action": "added",
+          "content": "His realization that Tom and Daisy are 'careless people' who 'smashed up things and creatures' and retreated behind their money.",
+          "type": "moral_judgment"
+        },
+        {
+          "characterName": "Nick Carraway",
+          "action": "added",
+          "content": "His final understanding of Gatsby's dream, the green light, and its unattainable nature, symbolizing the 'orgiastic future that year by year recedes before us'.",
+          "type": "romantic_disillusionment"
+        },
+        {
+          "characterName": "Tom Buchanan",
+          "action": "added",
+          "content": "His admission to Nick that he told George Wilson that Gatsby owned the yellow car, leading to Gatsby's murder.",
+          "type": "strategic_deception_revelation"
+        },
+        {
+          "characterName": "Tom Buchanan",
+          "action": "added",
+          "content": "His belief that Gatsby 'had it coming to him' and that he was justified in telling Wilson, due to Gatsby's perceived recklessness with Myrtle.",
+          "type": "moral_justification"
+        },
+        {
+          "characterName": "Tom Buchanan",
+          "action": "added",
+          "content": "His claim of suffering over Myrtle's death, evidenced by his crying over a box of dog biscuits.",
+          "type": "personal_suffering"
+        },
+        {
+          "characterName": "Jordan Baker",
+          "action": "added",
+          "content": "Her realization that Nick 'threw her over' and her feeling of dizziness from the experience.",
+          "type": "personal_realization"
+        },
+        {
+          "characterName": "Jordan Baker",
+          "action": "added",
+          "content": "Her accusation that Nick, despite his self-proclaimed honesty, was also a 'bad driver' in their relationship.",
+          "type": "moral_judgment"
+        }
+      ],
+      "relationshipMutations": [
+        {
+          "from": "Nick Carraway",
+          "to": "Tom Buchanan",
+          "type": "Profound and unshakeable moral condemnation, seeing him as a 'careless person' responsible for destruction.",
+          "valenceDelta": -0.5
+        },
+        {
+          "from": "Nick Carraway",
+          "to": "Daisy Buchanan",
+          "type": "Final moral condemnation, seeing her as a 'careless person' responsible for destruction.",
+          "valenceDelta": -0.3
+        },
+        {
+          "from": "Nick Carraway",
+          "to": "Jordan Baker",
+          "type": "A final, definitive break, acknowledging the end of their relationship and his own moral complexities.",
+          "valenceDelta": -0.2
+        }
+      ]
+    }
+  ],
+  "relationships": [
+    {
+      "from": "Nick Carraway",
+      "to": "Nick's Father",
+      "type": "Respectful and reflective of his advice",
+      "valence": 0.8
+    },
+    {
+      "from": "Nick Carraway",
+      "to": "Jay Gatsby",
+      "type": "A complex mix of admiration for his dream and pity for his doomed hope, despite moral disapproval.",
+      "valence": 1
+    },
+    {
+      "from": "Nick Carraway",
+      "to": "Tom Buchanan",
+      "type": "Profound and unshakeable moral condemnation, seeing him as a 'careless person' responsible for destruction.",
+      "valence": -2
+    },
+    {
+      "from": "Nick Carraway",
+      "to": "Daisy Buchanan",
+      "type": "Final moral condemnation, seeing her as a 'careless person' responsible for destruction.",
+      "valence": 0
+    },
+    {
+      "from": "Nick Carraway",
+      "to": "Jordan Baker",
+      "type": "A final, definitive break, acknowledging the end of their relationship and his own moral complexities.",
+      "valence": -0.3
+    },
+    {
+      "from": "Tom Buchanan",
+      "to": "Daisy Buchanan",
+      "type": "Controlling and dismissive, with underlying tension, but now shocked by her affair, then manipulative and conspiratorial.",
+      "valence": -0.3
+    },
+    {
+      "from": "Daisy Buchanan",
+      "to": "Tom Buchanan",
+      "type": "Resigned and resentful, but bound by circumstance, now conflicted by her affair, then conspiratorial.",
+      "valence": -0.1
+    },
+    {
+      "from": "Daisy Buchanan",
+      "to": "Jordan Baker",
+      "type": "Familiar and casually affectionate",
+      "valence": 0.6
+    },
+    {
+      "from": "Jordan Baker",
+      "to": "Daisy Buchanan",
+      "type": "Familiar and casually tolerant",
+      "valence": 0.5
+    },
+    {
+      "from": "Tom Buchanan",
+      "to": "Jordan Baker",
+      "type": "Casual acquaintance, slightly dismissive",
+      "valence": 0.1
+    },
+    {
+      "from": "Nick Carraway",
+      "to": "Myrtle Wilson",
+      "type": "Observational, shifting from discomfort to pity and repulsion",
+      "valence": 0
+    },
+    {
+      "from": "Tom Buchanan",
+      "to": "Myrtle Wilson",
+      "type": "Possessive, controlling, and ultimately violent, now ending in her death.",
+      "valence": -0.3
+    },
+    {
+      "from": "Myrtle Wilson",
+      "to": "Tom Buchanan",
+      "type": "Desperate for attention and status, defiant, but ultimately submissive to his violence, now ending in her death.",
+      "valence": 0
+    },
+    {
+      "from": "Tom Buchanan",
+      "to": "George B. Wilson",
+      "type": "Condescending and exploitative, viewing him as a fool, now manipulative and deceptive.",
+      "valence": -0.4
+    },
+    {
+      "from": "Myrtle Wilson",
+      "to": "George B. Wilson",
+      "type": "Dismissive, resentful, and contemptuous, now ending in her death.",
+      "valence": -0.2
+    },
+    {
+      "from": "Nick Carraway",
+      "to": "Catherine",
+      "type": "Amused by her gossip but wary of her unreliability",
+      "valence": 0.1
+    },
+    {
+      "from": "Nick Carraway",
+      "to": "Mr. McKee",
+      "type": "Mildly curious but ultimately dismissive of his artistic pretensions",
+      "valence": 0
+    },
+    {
+      "from": "Nick Carraway",
+      "to": "Mrs. McKee",
+      "type": "Slightly annoyed by her shrillness and vanity",
+      "valence": -0.1
+    },
+    {
+      "from": "Nick Carraway",
+      "to": "Owl Eyes",
+      "type": "A shared, somber understanding of Gatsby's tragic fate and the superficiality of his world.",
+      "valence": 0.2
+    },
+    {
+      "from": "Nick Carraway",
+      "to": "Girls in Yellow Dresses (Lucille and unnamed friend)",
+      "type": "Observational and slightly amused by their gossip and superficiality",
+      "valence": 0.1
+    },
+    {
+      "from": "Nick Carraway",
+      "to": "Girl from Jersey City",
+      "type": "Casual and fleeting romantic interest, now ended",
+      "valence": 0
+    },
+    {
+      "from": "Nick Carraway",
+      "to": "Meyer Wolfshiem",
+      "type": "Confirmed disgust for his hypocrisy and self-preservation.",
+      "valence": -1
+    },
+    {
+      "from": "Jay Gatsby",
+      "to": "Meyer Wolfshiem",
+      "type": "Tolerant and somewhat protective, despite Wolfshiem's unsettling nature.",
+      "valence": 0.1
+    },
+    {
+      "from": "Tom Buchanan",
+      "to": "Jay Gatsby",
+      "type": "His vengeful pursuit culminates in Gatsby's murder, believing him to be his wife's killer.",
+      "valence": -2.1
+    },
+    {
+      "from": "Daisy Buchanan",
+      "to": "Jay Gatsby",
+      "type": "Openly in love, but conflicted and terrified.",
+      "valence": 1
+    },
+    {
+      "from": "Jay Gatsby",
+      "to": "Daisy Buchanan",
+      "type": "Profound, singular, and all-consuming romantic obsession, driving his life's purpose, now reaching its culmination with intense joy and subtle disillusionment. Now desperate to force her commitment and protect her at all costs.",
+      "valence": 1
+    },
+    {
+      "from": "George B. Wilson",
+      "to": "Myrtle Wilson",
+      "type": "His grief and love for her are now twisted into a vengeful obsession to avenge her perceived murder.",
+      "valence": 0.2
+    },
+    {
+      "from": "George B. Wilson",
+      "to": "Jay Gatsby",
+      "type": "His vengeful pursuit culminates in Gatsby's murder, believing him to be his wife's killer.",
+      "valence": -1
+    },
+    {
+      "from": "Nick Carraway",
+      "to": "Henry C. Gatz",
+      "type": "Growing empathy and respect for his simple, bewildered pride in his son.",
+      "valence": 0.2
+    },
+    {
+      "from": "Nick Carraway",
+      "to": "Klipspringer",
+      "type": "Profound contempt for his selfishness and lack of loyalty.",
+      "valence": -0.5
+    }
+  ]
+}

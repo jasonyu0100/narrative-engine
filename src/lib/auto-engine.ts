@@ -60,20 +60,26 @@ export function checkEndConditions(
   narrative: NarrativeState,
   resolvedKeys: string[],
   config: AutoConfig,
+  startingSceneCount = 0,
+  startingArcCount = 0,
 ): AutoEndCondition | null {
   for (const cond of config.endConditions) {
     switch (cond.type) {
-      case 'scene_count':
-        if (resolvedKeys.length >= cond.target) return cond;
+      case 'scene_count': {
+        const scenesThisRun = resolvedKeys.length - startingSceneCount;
+        if (scenesThisRun >= cond.target) return cond;
         break;
+      }
       case 'all_threads_resolved': {
         const threads = Object.values(narrative.threads);
         if (threads.length > 0 && threads.every((t) => isTerminal(t.status))) return cond;
         break;
       }
-      case 'arc_count':
-        if (Object.keys(narrative.arcs).length >= cond.target) return cond;
+      case 'arc_count': {
+        const arcsThisRun = Object.keys(narrative.arcs).length - startingArcCount;
+        if (arcsThisRun >= cond.target) return cond;
         break;
+      }
       case 'manual_stop':
         break; // only triggered by user
     }

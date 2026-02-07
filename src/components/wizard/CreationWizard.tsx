@@ -3,20 +3,58 @@
 import { useStore } from '@/lib/store';
 import type { WizardStep } from '@/types/narrative';
 import { PremiseStep } from './PremiseStep';
-import { WorldGenStep } from './WorldGenStep';
-import { ThreadSelectionStep } from './ThreadSelectionStep';
-import { ConfirmStep } from './ConfirmStep';
+import { WorldStep } from './WorldStep';
+import { GenerateStep } from './GenerateStep';
+
+const STEPS: { key: WizardStep; label: string }[] = [
+  { key: 'premise', label: 'Premise' },
+  { key: 'world', label: 'World' },
+  { key: 'generate', label: 'Generate' },
+];
+
+function Stepper({ current }: { current: WizardStep }) {
+  const currentIdx = STEPS.findIndex((s) => s.key === current);
+  return (
+    <div className="flex items-center gap-1 mb-5">
+      {STEPS.map((step, i) => {
+        const isActive = i === currentIdx;
+        const isDone = i < currentIdx;
+        return (
+          <div key={step.key} className="flex items-center gap-1">
+            {i > 0 && (
+              <div className={`w-8 h-px ${isDone ? 'bg-white/30' : 'bg-white/8'}`} />
+            )}
+            <div className="flex items-center gap-1.5">
+              <div className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-mono transition ${
+                isActive
+                  ? 'bg-white/15 text-text-primary border border-white/25'
+                  : isDone
+                    ? 'bg-white/10 text-text-secondary'
+                    : 'bg-white/[0.04] text-text-dim'
+              }`}>
+                {isDone ? '✓' : i + 1}
+              </div>
+              <span className={`text-[10px] uppercase tracking-wider ${
+                isActive ? 'text-text-primary' : 'text-text-dim'
+              }`}>
+                {step.label}
+              </span>
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
 
 function StepContent({ step }: { step: WizardStep }) {
   switch (step) {
     case 'premise':
       return <PremiseStep />;
-    case 'world-gen':
-      return <WorldGenStep />;
-    case 'thread-selection':
-      return <ThreadSelectionStep />;
-    case 'confirm':
-      return <ConfirmStep />;
+    case 'world':
+      return <WorldStep />;
+    case 'generate':
+      return <GenerateStep />;
   }
 }
 
@@ -34,6 +72,7 @@ export function CreationWizard() {
         >
           &times;
         </button>
+        <Stepper current={state.wizardStep} />
         <StepContent step={state.wizardStep} />
       </div>
     </div>

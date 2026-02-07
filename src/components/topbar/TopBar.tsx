@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useStore } from '@/lib/store';
 import type { NarrativeState } from '@/types/narrative';
 import { ApiLogsModal } from '@/components/debug/ApiLogsModal';
+import { resolveEntry, isScene, type Scene } from '@/types/narrative';
 
 function exportNarrative(narrative: NarrativeState) {
   const json = JSON.stringify(narrative, null, 2);
@@ -25,6 +26,7 @@ export default function TopBar() {
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState('');
   const [logsOpen, setLogsOpen] = useState(false);
+  const [storyOpen, setStoryOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -233,8 +235,19 @@ export default function TopBar() {
         )}
       </div>
 
-      {/* Right: API logs */}
+      {/* Right: Story + API logs */}
       <div className="flex items-center gap-1">
+        <button
+          onClick={() => setStoryOpen(true)}
+          className="px-2 py-1 rounded hover:bg-bg-elevated transition-colors text-text-dim hover:text-text-primary flex items-center gap-1.5"
+          title="View full story"
+        >
+          <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
+            <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" />
+          </svg>
+          <span className="text-[11px]">Story</span>
+        </button>
         <button
           onClick={() => setLogsOpen(true)}
           className="relative px-2 py-1 rounded hover:bg-bg-elevated transition-colors text-text-dim hover:text-text-primary flex items-center gap-1.5"
@@ -256,6 +269,87 @@ export default function TopBar() {
         </button>
       </div>
       {logsOpen && <ApiLogsModal onClose={() => setLogsOpen(false)} />}
+      {storyOpen && narrative && (
+        <StoryModal
+          narrative={narrative}
+          resolvedKeys={state.resolvedSceneKeys}
+          onClose={() => setStoryOpen(false)}
+        />
+      )}
+    </div>
+  );
+}
+
+function StoryModal({
+  narrative,
+  resolvedKeys,
+  onClose,
+}: {
+  narrative: NarrativeState;
+  resolvedKeys: string[];
+  onClose: () => void;
+}) {
+  const [copied, setCopied] = useState(false);
+
+  const scenes = resolvedKeys
+    .map((k) => resolveEntry(narrative, k))
+    .filter((e): e is Scene => !!e && isScene(e));
+
+  const storyText = scenes
+    .map((s, i) => `Scene ${i + 1}: ${s.summary}`)
+    .join('\n\n');
+
+  function handleCopy() {
+    navigator.clipboard.writeText(storyText).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    });
+  }
+
+  return (
+    <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4" onClick={onClose}>
+      <div
+        className="glass max-w-2xl w-full rounded-2xl p-6 relative max-h-[80vh] flex flex-col"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-sm font-semibold text-text-primary">{narrative.title}</h2>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={handleCopy}
+              className="text-[11px] text-text-dim hover:text-text-secondary border border-border hover:border-white/12 rounded-full px-3 py-1 transition flex items-center gap-1.5"
+            >
+              <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
+                <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+              </svg>
+              {copied ? 'Copied!' : 'Copy'}
+            </button>
+            <button onClick={onClose} className="text-text-dim hover:text-text-primary text-lg leading-none">&times;</button>
+          </div>
+        </div>
+        <div className="overflow-y-auto flex-1 pr-1">
+          <div className="flex flex-col gap-4">
+            {scenes.map((scene, i) => {
+              const arc = Object.values(narrative.arcs).find((a) => a.sceneIds.includes(scene.id));
+              const location = narrative.locations[scene.locationId];
+              return (
+                <div key={scene.id} className="flex flex-col gap-1">
+                  <div className="flex items-baseline gap-2">
+                    <span className="text-[10px] font-mono text-text-dim">Scene {i + 1}</span>
+                    {arc && <span className="text-[10px] text-text-dim uppercase tracking-wider">{arc.name}</span>}
+                    {location && <span className="text-[10px] text-text-dim">{location.name}</span>}
+                  </div>
+                  <p className="text-xs text-text-secondary leading-relaxed">{scene.summary}</p>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+        <div className="mt-4 pt-3 border-t border-border text-[10px] text-text-dim">
+          {scenes.length} scenes
+        </div>
+      </div>
     </div>
   );
 }

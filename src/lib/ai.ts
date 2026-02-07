@@ -553,6 +553,103 @@ Rules:
   };
 }
 
+/**
+ * Analyze the force trajectory of a narrative using AI.
+ * Builds a compact context with force data per scene/arc and cube corner definitions,
+ * then asks the LLM for a literary meta-analysis of the narrative's dynamic shape.
+ */
+export async function analyzeForceTrajectory(
+  narrative: NarrativeState,
+  forceData: { sceneId: string; arcId: string; arcName: string; forces: { stakes: number; pacing: number; variety: number }; corner: string; cornerKey: CubeCornerKey }[],
+): Promise<string> {
+  // Build compact narrative context (lighter than full branchContext)
+  const threadSummary = Object.values(narrative.threads)
+    .map((t) => `- "${t.description}" [${t.status}]`)
+    .join('\n');
+
+  const arcSummary = Object.values(narrative.arcs)
+    .map((a) => `- ${a.id}: "${a.name}" (${a.sceneIds.length} scenes, develops: ${a.develops.map(d => narrative.threads[d]?.description ?? d).join(', ')})`)
+    .join('\n');
+
+  const relationshipSummary = narrative.relationships
+    .map((r) => `- ${narrative.characters[r.from]?.name ?? r.from} → ${narrative.characters[r.to]?.name ?? r.to}: ${r.type} (${r.valence >= 0 ? '+' : ''}${r.valence.toFixed(1)})`)
+    .join('\n');
+
+  // Build per-scene force trajectory
+  const trajectoryLines = forceData.map((d, i) => {
+    const scene = narrative.scenes[d.sceneId];
+    const loc = scene ? (narrative.locations[scene.locationId]?.name ?? scene.locationId) : '?';
+    const participants = scene ? scene.participantIds.map(pid => narrative.characters[pid]?.name ?? pid).join(', ') : '?';
+    const threadChanges = scene?.threadMutations.map(tm => `${narrative.threads[tm.threadId]?.description?.slice(0, 40) ?? tm.threadId}: ${tm.from}→${tm.to}`).join('; ') || '';
+    return `[${i + 1}] ${d.arcName} | ${d.corner} (${d.cornerKey}) | S:${d.forces.stakes >= 0 ? '+' : ''}${d.forces.stakes.toFixed(2)} P:${d.forces.pacing >= 0 ? '+' : ''}${d.forces.pacing.toFixed(2)} V:${d.forces.variety >= 0 ? '+' : ''}${d.forces.variety.toFixed(2)} | @${loc} | ${participants}${threadChanges ? ` | ${threadChanges}` : ''}`;
+  }).join('\n');
+
+  // Build per-arc force summary
+  const arcGroups: Record<string, typeof forceData> = {};
+  const arcOrder: string[] = [];
+  for (const d of forceData) {
+    if (!arcGroups[d.arcId]) { arcGroups[d.arcId] = []; arcOrder.push(d.arcId); }
+    arcGroups[d.arcId].push(d);
+  }
+
+  const arcForceLines = arcOrder.map(arcId => {
+    const group = arcGroups[arcId];
+    const avgS = group.reduce((s, e) => s + e.forces.stakes, 0) / group.length;
+    const avgP = group.reduce((s, e) => s + e.forces.pacing, 0) / group.length;
+    const avgV = group.reduce((s, e) => s + e.forces.variety, 0) / group.length;
+    const corners = group.map(e => e.corner);
+    const uniqueCorners = [...new Set(corners)];
+    return `${group[0].arcName} (${group.length} scenes): avg S:${avgS.toFixed(2)} P:${avgP.toFixed(2)} V:${avgV.toFixed(2)} | corners: ${uniqueCorners.join(' → ')}`;
+  }).join('\n');
+
+  // Cube corner definitions for reference
+  const cornerDefs = Object.values(NARRATIVE_CUBE)
+    .map(c => `${c.name} (${c.key}): ${c.description}`)
+    .join('\n');
+
+  const systemPrompt = `You are a narrative analyst producing professional, insightful commentary on story structure. You write in a precise, literary-analytical voice — like a skilled editor reviewing a manuscript's pacing and dramatic architecture. Your analysis should feel like reading professional story notes, not a technical report. Be specific, reference actual arc names, character dynamics, and scene moments. Use the force data to support observations about rhythm, tension, and compositional choices.`;
+
+  const prompt = `Analyze the force trajectory of this narrative.
+
+NARRATIVE: "${narrative.title}"
+WORLD: ${narrative.worldSummary}
+CHARACTERS: ${Object.values(narrative.characters).length} (anchors: ${Object.values(narrative.characters).filter(c => c.role === 'anchor').map(c => c.name).join(', ')})
+
+THREADS:
+${threadSummary}
+
+ARCS:
+${arcSummary}
+
+KEY RELATIONSHIPS:
+${relationshipSummary}
+
+CUBE CORNER DEFINITIONS (Stakes · Pacing · Variety mapped to [-1,+1]):
+${cornerDefs}
+
+ARC-LEVEL FORCE AVERAGES:
+${arcForceLines}
+
+SCENE-BY-SCENE FORCE TRAJECTORY (${forceData.length} scenes):
+${trajectoryLines}
+
+Write a meta-analysis of this narrative's force trajectory. Structure your response with these sections:
+
+**Trajectory Overview** — The overall shape and character of the story's path through force-space. What kind of narrative is this? Where does it begin and end dynamically?
+
+**Arc-by-Arc Dynamics** — How each arc contributes to the overall rhythm. What is its dominant mode? How does it transition into the next arc? Note any sharp shifts or sustained states.
+
+**Tension Architecture** — How stakes are managed across the narrative. Where are the peaks and valleys? Is the escalation earned or rushed? How does the story use restraint?
+
+**Pacing Rhythm** — The mutation density pattern. Where does the story accelerate and decelerate? Are there effective breathing rooms between intense sequences?
+
+**Compositional Observations** — What makes this trajectory distinctive? What corners are over/under-visited? Where does the narrative surprise or follow convention? Any structural strengths or weaknesses?
+
+Write 3-5 sentences per section. Be specific — reference arc names, character names, and scene moments. Use the force values to ground your observations. Do not use bullet points — write in flowing prose paragraphs. Do not include the section headers with ** markers, just use the section names as plain headers followed by a newline.`;
+
+  return await callGenerate(prompt, systemPrompt, 4000, 'analyzeForceTrajectory');
+}
+
 export async function generateNarrative(
   title: string,
   premise: string,

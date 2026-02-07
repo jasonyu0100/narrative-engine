@@ -1,7 +1,7 @@
 'use client';
 
 import React, { createContext, useContext, useReducer, useEffect, type ReactNode } from 'react';
-import type { AppState, ControlMode, InspectorContext, NarrativeState, NarrativeEntry, WizardStep, Scene, Arc, Branch, Character, Location, Thread, RelationshipEdge, GraphViewMode, AutoConfig, AutoRunState, AutoRunLog, WorldBuildCommit } from '@/types/narrative';
+import type { AppState, ControlMode, InspectorContext, NarrativeState, NarrativeEntry, WizardStep, WizardData, Scene, Arc, Branch, Character, Location, Thread, RelationshipEdge, GraphViewMode, AutoConfig, AutoRunState, AutoRunLog, WorldBuildCommit } from '@/types/narrative';
 import { seedNarrative } from '@/data/seed-ri';
 import { seedGOT } from '@/data/seed-got';
 import { seedLOTR } from '@/data/seed-lotr';
@@ -154,6 +154,7 @@ const initialState: AppState = {
   wizardOpen: false,
   wizardStep: 'premise',
   wizardPrefill: '',
+  wizardData: { title: '', premise: '', genres: [], tone: '', setting: '', scale: '', characters: [], locations: [], storyDirection: '' },
   selectedKnowledgeEntity: null,
   autoTimer: 30,
   graphViewMode: 'scene',
@@ -191,6 +192,7 @@ type Action =
   | { type: 'OPEN_WIZARD'; prefill?: string }
   | { type: 'CLOSE_WIZARD' }
   | { type: 'SET_WIZARD_STEP'; step: WizardStep }
+  | { type: 'UPDATE_WIZARD_DATA'; data: Partial<WizardData> }
   | { type: 'ADD_NARRATIVE'; narrative: NarrativeState }
   | { type: 'DELETE_NARRATIVE'; id: string }
   | { type: 'SELECT_KNOWLEDGE_ENTITY'; entityId: string | null }
@@ -286,11 +288,13 @@ function reducer(state: AppState, action: Action): AppState {
     case 'SET_INSPECTOR':
       return { ...state, inspectorContext: action.context };
     case 'OPEN_WIZARD':
-      return { ...state, wizardOpen: true, wizardStep: 'premise', wizardPrefill: action.prefill ?? '' };
+      return { ...state, wizardOpen: true, wizardStep: 'premise', wizardPrefill: action.prefill ?? '', wizardData: { title: '', premise: action.prefill ?? '', genres: [], tone: '', setting: '', scale: '', characters: [], locations: [], storyDirection: '' } };
     case 'CLOSE_WIZARD':
       return { ...state, wizardOpen: false };
     case 'SET_WIZARD_STEP':
       return { ...state, wizardStep: action.step };
+    case 'UPDATE_WIZARD_DATA':
+      return { ...state, wizardData: { ...state.wizardData, ...action.data } };
     case 'ADD_NARRATIVE': {
       // Inject an initial world-building commit as the first timeline entry
       const n = { ...action.narrative, worldBuilds: { ...action.narrative.worldBuilds }, branches: { ...action.narrative.branches } };
@@ -682,6 +686,8 @@ function reducer(state: AppState, action: Action): AppState {
           currentCycle: 0,
           totalScenesGenerated: 0,
           totalWorldExpansions: 0,
+          startingSceneCount: state.resolvedSceneKeys.length,
+          startingArcCount: state.activeNarrative ? Object.keys(state.activeNarrative.arcs).length : 0,
           log: [],
         },
       };

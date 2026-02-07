@@ -1,0 +1,594 @@
+{
+  "chapterSummary": "Nick is unwillingly drawn into Tom Buchanan's sordid affair when he is forced to accompany Tom and his mistress, Myrtle Wilson, to a raucous party in a New York apartment. Amidst the drunken revelry and superficiality, Nick observes the crude dynamics of their relationship and the moral decay of the city, culminating in Tom violently assaulting Myrtle.",
+  "characters": [
+    {
+      "name": "Myrtle Wilson",
+      "role": "recurring",
+      "description": "Tom Buchanan's mistress, a sensuous and vital woman who transforms her personality with her clothes.",
+      "firstAppearance": true,
+      "knowledge": [
+        {
+          "type": "romantic_attraction",
+          "content": "Her initial attraction to Tom Buchanan, based on his dress suit and patent leather shoes."
+        },
+        {
+          "type": "marital_disillusionment",
+          "content": "Her deep regret over marrying George Wilson, whom she now considers beneath her."
+        },
+        {
+          "type": "social_aspiration",
+          "content": "Her desire for a more luxurious and sophisticated life, evidenced by her purchases and behavior in the apartment."
+        }
+      ]
+    },
+    {
+      "name": "George B. Wilson",
+      "role": "recurring",
+      "description": "Myrtle Wilson's spiritless, anemic husband, proprietor of a garage in the valley of ashes.",
+      "firstAppearance": true,
+      "knowledge": [
+        {
+          "type": "strategic_deception_victim",
+          "content": "His ignorance of his wife's affair, believing she visits her sister in New York."
+        },
+        {
+          "type": "financial_struggle",
+          "content": "His unprosperous business and dependence on Tom for a car sale."
+        }
+      ]
+    },
+    {
+      "name": "Doctor T. J. Eckleburg",
+      "role": "transient",
+      "description": "A pair of gigantic, brooding eyes on a billboard overlooking the valley of ashes, symbolizing a lost or forgotten divine presence.",
+      "firstAppearance": true,
+      "knowledge": []
+    },
+    {
+      "name": "Catherine",
+      "role": "recurring",
+      "description": "Myrtle Wilson's sister, a worldly and gossipy woman who lives in a hotel.",
+      "firstAppearance": true,
+      "knowledge": [
+        {
+          "type": "social_observation",
+          "content": "Her belief that Gatsby is a nephew or cousin of Kaiser Wilhelm and that's where his money comes from."
+        },
+        {
+          "type": "social_observation",
+          "content": "Her awareness of Tom and Myrtle's mutual disdain for their spouses and her suggestion they should divorce and marry each other."
+        },
+        {
+          "type": "strategic_deception",
+          "content": "Her false claim that Daisy is Catholic and doesn't believe in divorce, as the reason Tom and Myrtle can't marry."
+        }
+      ]
+    },
+    {
+      "name": "Mr. McKee",
+      "role": "recurring",
+      "description": "A pale, feminine photographer who lives downstairs from Myrtle's apartment.",
+      "firstAppearance": true,
+      "knowledge": [
+        {
+          "type": "professional_ambition",
+          "content": "His desire to do more photographic work on Long Island and his artistic aspirations."
+        }
+      ]
+    },
+    {
+      "name": "Mrs. McKee",
+      "role": "recurring",
+      "description": "Mr. McKee's shrill, languid, and somewhat vain wife.",
+      "firstAppearance": true,
+      "knowledge": [
+        {
+          "type": "social_observation",
+          "content": "Her pride in her husband's photography, specifically of her."
+        },
+        {
+          "type": "personal_history",
+          "content": "Her past almost-marriage to a 'little kike' whom she considered beneath her."
+        }
+      ]
+    },
+    {
+      "name": "Elevator Boy",
+      "role": "transient",
+      "description": "A reluctant and somewhat impertinent elevator operator.",
+      "firstAppearance": true,
+      "knowledge": []
+    },
+    {
+      "name": "Janitor",
+      "role": "transient",
+      "description": "The building janitor, summoned for sandwiches.",
+      "firstAppearance": true,
+      "knowledge": []
+    },
+    {
+      "name": "Puppy Seller",
+      "role": "transient",
+      "description": "An old man selling puppies from a basket.",
+      "firstAppearance": true,
+      "knowledge": []
+    }
+  ],
+  "locations": [
+    {
+      "name": "Valley of Ashes",
+      "parentName": null,
+      "description": "A desolate, ash-grey industrial wasteland between West Egg and New York, symbolizing the moral and social decay beneath the glittering surface of wealth.",
+      "lore": [
+        "A 'fantastic farm' where ashes grow like wheat, inhabited by 'ash-grey men'.",
+        "Overlooked by the brooding eyes of Doctor T. J. Eckleburg."
+      ]
+    },
+    {
+      "name": "George B. Wilson's Garage",
+      "parentName": "Valley of Ashes",
+      "description": "An unprosperous and bare garage, the only building in sight in the valley of ashes, serving as a front for Tom's affair.",
+      "lore": [
+        "The site where Nick first meets Myrtle Wilson and George B. Wilson."
+      ]
+    },
+    {
+      "name": "New York City",
+      "parentName": null,
+      "description": "The bustling metropolis, a place of opportunity and moral ambiguity, where Tom conducts his affair.",
+      "lore": [
+        "A place where social rules are more relaxed, allowing for illicit relationships."
+      ]
+    },
+    {
+      "name": "Apartment (158th Street)",
+      "parentName": "New York City",
+      "description": "Myrtle and Tom's small, overcrowded love nest on the top floor of an apartment building, filled with oversized, gaudy furniture.",
+      "lore": [
+        "A space where Myrtle attempts to project an image of sophistication and wealth, despite its cramped nature.",
+        "The setting for a wild, drunken party that ends in violence."
+      ]
+    },
+    {
+      "name": "Pennsylvania Station",
+      "parentName": "New York City",
+      "description": "A major train station in New York City, a place of transit and anonymity.",
+      "lore": [
+        "Where Nick waits for his train after the party, reflecting on the night's events."
+      ]
+    }
+  ],
+  "threads": [
+    {
+      "description": "Nick's disillusionment with the East and its moral landscape",
+      "anchorNames": [
+        "Nick Carraway",
+        "East Egg",
+        "West Egg"
+      ],
+      "statusAtStart": "surfacing",
+      "statusAtEnd": "escalating",
+      "development": "Nick is forced to witness the vulgarity and violence of Tom's affair, deepening his disgust with the moral emptiness of the wealthy East."
+    },
+    {
+      "description": "The mystery surrounding Jay Gatsby and his true nature",
+      "anchorNames": [
+        "Jay Gatsby",
+        "Nick Carraway"
+      ],
+      "statusAtStart": "surfacing",
+      "statusAtEnd": "surfacing",
+      "development": "Catherine offers a speculative, untrue origin story for Gatsby's wealth, adding to the rumors and mystery surrounding him."
+    },
+    {
+      "description": "The crumbling marriage and moral decay of Tom and Daisy Buchanan",
+      "anchorNames": [
+        "Tom Buchanan",
+        "Daisy Buchanan"
+      ],
+      "statusAtStart": "escalating",
+      "statusAtEnd": "escalating",
+      "development": "Tom's affair with Myrtle is explicitly detailed, revealing his abusive nature and the extent of his disregard for Daisy. Catherine's lie about Daisy being Catholic highlights the desperation to justify the affair."
+    },
+    {
+      "description": "The social and moral contrast between East Egg and West Egg",
+      "anchorNames": [
+        "East Egg",
+        "West Egg",
+        "Nick Carraway"
+      ],
+      "statusAtStart": "surfacing",
+      "statusAtEnd": "escalating",
+      "development": "The introduction of the Valley of Ashes and the crude, violent party in New York starkly contrasts with the superficial elegance of East Egg, revealing a broader moral decay across different social strata."
+    },
+    {
+      "description": "The destructive nature of Tom Buchanan's affair with Myrtle Wilson",
+      "anchorNames": [
+        "Tom Buchanan",
+        "Myrtle Wilson",
+        "George B. Wilson"
+      ],
+      "statusAtStart": "dormant",
+      "statusAtEnd": "escalating",
+      "development": "The affair is fully revealed, showcasing Tom's controlling and violent tendencies and Myrtle's desperate aspirations, culminating in physical abuse."
+    }
+  ],
+  "scenes": [
+    {
+      "locationName": "Valley of Ashes",
+      "participantNames": [
+        "Nick Carraway",
+        "Tom Buchanan",
+        "Myrtle Wilson",
+        "George B. Wilson",
+        "Doctor T. J. Eckleburg"
+      ],
+      "events": [
+        "forced introduction",
+        "social observation",
+        "coercion"
+      ],
+      "stakes": 50,
+      "summary": "Nick is forcibly pulled by Tom Buchanan from a train into the desolate Valley of Ashes, a grim industrial wasteland. Here, he is introduced to George B. Wilson, a spiritless garage owner, and his vital, sensuous wife, Myrtle, who is Tom's mistress. Tom's aggressive demeanor and Myrtle's immediate, bold presence set an uncomfortable tone for Nick, who is an unwilling participant in this illicit encounter.",
+      "threadMutations": [
+        {
+          "threadDescription": "Nick's disillusionment with the East and its moral landscape",
+          "from": "surfacing",
+          "to": "escalating"
+        },
+        {
+          "threadDescription": "The crumbling marriage and moral decay of Tom and Daisy Buchanan",
+          "from": "escalating",
+          "to": "escalating"
+        },
+        {
+          "threadDescription": "The social and moral contrast between East Egg and West Egg",
+          "from": "surfacing",
+          "to": "escalating"
+        },
+        {
+          "threadDescription": "The destructive nature of Tom Buchanan's affair with Myrtle Wilson",
+          "from": "dormant",
+          "to": "surfacing"
+        }
+      ],
+      "knowledgeMutations": [
+        {
+          "characterName": "Nick Carraway",
+          "action": "added",
+          "content": "The existence and nature of the Valley of Ashes, and its symbolic significance.",
+          "type": "environmental_observation"
+        },
+        {
+          "characterName": "Nick Carraway",
+          "action": "added",
+          "content": "Tom Buchanan's mistress is Myrtle Wilson, and her husband, George, is oblivious to the affair.",
+          "type": "strategic_deception_revelation"
+        },
+        {
+          "characterName": "Myrtle Wilson",
+          "action": "added",
+          "content": "Her immediate, bold vitality and her disregard for her husband.",
+          "type": "social_observation"
+        },
+        {
+          "characterName": "George B. Wilson",
+          "action": "added",
+          "content": "His anemic, spiritless nature and his financial dependence on Tom.",
+          "type": "social_observation"
+        }
+      ],
+      "relationshipMutations": [
+        {
+          "from": "Nick Carraway",
+          "to": "Tom Buchanan",
+          "type": "Increased disgust and discomfort due to Tom's coercive and morally bankrupt behavior.",
+          "valenceDelta": -0.2
+        },
+        {
+          "from": "Tom Buchanan",
+          "to": "Myrtle Wilson",
+          "type": "Controlling and possessive, with a hint of disdain.",
+          "valenceDelta": 0.1
+        },
+        {
+          "from": "Myrtle Wilson",
+          "to": "Tom Buchanan",
+          "type": "Bold and flirtatious, seeking attention and validation.",
+          "valenceDelta": 0.1
+        },
+        {
+          "from": "Tom Buchanan",
+          "to": "George B. Wilson",
+          "type": "Condescending and exploitative.",
+          "valenceDelta": -0.1
+        },
+        {
+          "from": "Myrtle Wilson",
+          "to": "George B. Wilson",
+          "type": "Dismissive and disrespectful.",
+          "valenceDelta": -0.2
+        }
+      ]
+    },
+    {
+      "locationName": "New York City",
+      "participantNames": [
+        "Nick Carraway",
+        "Tom Buchanan",
+        "Myrtle Wilson",
+        "Puppy Seller"
+      ],
+      "events": [
+        "shopping",
+        "social observation",
+        "forced companionship"
+      ],
+      "stakes": 30,
+      "summary": "Tom, Myrtle, and a reluctant Nick travel to New York City, with Myrtle discreetly in a separate train car. Myrtle undergoes a transformation, changing her dress and making various purchases, including a puppy, as she attempts to embody a more sophisticated persona. Nick observes her eager, almost childlike desire for luxury and status, further highlighting the superficiality of their illicit relationship.",
+      "threadMutations": [
+        {
+          "threadDescription": "The destructive nature of Tom Buchanan's affair with Myrtle Wilson",
+          "from": "surfacing",
+          "to": "surfacing"
+        }
+      ],
+      "knowledgeMutations": [
+        {
+          "characterName": "Nick Carraway",
+          "action": "added",
+          "content": "Myrtle Wilson's aspirations for social climbing and her desire to project an image of wealth.",
+          "type": "social_observation"
+        },
+        {
+          "characterName": "Myrtle Wilson",
+          "action": "added",
+          "content": "Her immediate and enthusiastic desire for a dog, reflecting a yearning for domesticity or status.",
+          "type": "personal_desire"
+        }
+      ],
+      "relationshipMutations": [
+        {
+          "from": "Nick Carraway",
+          "to": "Myrtle Wilson",
+          "type": "Observational curiosity mixed with discomfort.",
+          "valenceDelta": 0.1
+        }
+      ]
+    },
+    {
+      "locationName": "Apartment (158th Street)",
+      "participantNames": [
+        "Nick Carraway",
+        "Tom Buchanan",
+        "Myrtle Wilson",
+        "Catherine",
+        "Mr. McKee",
+        "Mrs. McKee",
+        "Elevator Boy",
+        "Janitor"
+      ],
+      "events": [
+        "drunken party",
+        "social gossip",
+        "domestic violence",
+        "disillusionment"
+      ],
+      "stakes": 80,
+      "summary": "At Tom and Myrtle's small, gaudily furnished apartment, a drunken party unfolds, attended by Myrtle's sister Catherine and the McKees. Myrtle's personality becomes increasingly affected and haughty as she drinks, while Catherine spreads rumors about Gatsby and gossips about Tom and Myrtle's affair. The evening culminates in a violent outburst when Tom, enraged by Myrtle's repeated mention of Daisy's name, breaks her nose. Nick, deeply disturbed, retreats from the chaotic scene.",
+      "threadMutations": [
+        {
+          "threadDescription": "Nick's disillusionment with the East and its moral landscape",
+          "from": "escalating",
+          "to": "escalating"
+        },
+        {
+          "threadDescription": "The mystery surrounding Jay Gatsby and his true nature",
+          "from": "surfacing",
+          "to": "surfacing"
+        },
+        {
+          "threadDescription": "The crumbling marriage and moral decay of Tom and Daisy Buchanan",
+          "from": "escalating",
+          "to": "escalating"
+        },
+        {
+          "threadDescription": "The social and moral contrast between East Egg and West Egg",
+          "from": "escalating",
+          "to": "escalating"
+        },
+        {
+          "threadDescription": "The destructive nature of Tom Buchanan's affair with Myrtle Wilson",
+          "from": "surfacing",
+          "to": "escalating"
+        }
+      ],
+      "knowledgeMutations": [
+        {
+          "characterName": "Nick Carraway",
+          "action": "added",
+          "content": "The vulgarity and violence inherent in Tom and Myrtle's relationship.",
+          "type": "moral_judgment"
+        },
+        {
+          "characterName": "Nick Carraway",
+          "action": "added",
+          "content": "Catherine's false claim that Daisy is Catholic and doesn't believe in divorce, highlighting the elaborate deceptions surrounding the affair.",
+          "type": "strategic_deception"
+        },
+        {
+          "characterName": "Nick Carraway",
+          "action": "added",
+          "content": "Myrtle's personal history, including her regret over marrying George Wilson and her initial attraction to Tom.",
+          "type": "past_relationship"
+        },
+        {
+          "characterName": "Catherine",
+          "action": "added",
+          "content": "Her belief that Gatsby is Kaiser Wilhelm's relative and the source of his wealth.",
+          "type": "social_gossip"
+        },
+        {
+          "characterName": "Myrtle Wilson",
+          "action": "added",
+          "content": "Her deep resentment and disdain for her husband, George.",
+          "type": "marital_unhappiness"
+        }
+      ],
+      "relationshipMutations": [
+        {
+          "from": "Nick Carraway",
+          "to": "Tom Buchanan",
+          "type": "Profound disgust and moral condemnation due to Tom's violence.",
+          "valenceDelta": -0.4
+        },
+        {
+          "from": "Nick Carraway",
+          "to": "Myrtle Wilson",
+          "type": "Pity mixed with repulsion after witnessing her abuse and affected behavior.",
+          "valenceDelta": -0.1
+        },
+        {
+          "from": "Tom Buchanan",
+          "to": "Myrtle Wilson",
+          "type": "Violent and abusive, asserting dominance.",
+          "valenceDelta": -0.5
+        },
+        {
+          "from": "Myrtle Wilson",
+          "to": "Tom Buchanan",
+          "type": "Defiant and provocative, despite the risk of violence.",
+          "valenceDelta": -0.1
+        },
+        {
+          "from": "Nick Carraway",
+          "to": "Catherine",
+          "type": "Amused by her gossip but also wary of her unreliability.",
+          "valenceDelta": 0.1
+        },
+        {
+          "from": "Nick Carraway",
+          "to": "Mr. McKee",
+          "type": "Mildly curious but ultimately dismissive of his artistic pretensions.",
+          "valenceDelta": 0
+        },
+        {
+          "from": "Nick Carraway",
+          "to": "Mrs. McKee",
+          "type": "Slightly annoyed by her shrillness and vanity.",
+          "valenceDelta": -0.1
+        }
+      ]
+    }
+  ],
+  "relationships": [
+    {
+      "from": "Nick Carraway",
+      "to": "Nick's Father",
+      "type": "Respectful and reflective of his advice",
+      "valence": 0.8
+    },
+    {
+      "from": "Nick Carraway",
+      "to": "Jay Gatsby",
+      "type": "Curious and intrigued by his mystery",
+      "valence": 0.3
+    },
+    {
+      "from": "Nick Carraway",
+      "to": "Tom Buchanan",
+      "type": "Profoundly disgusted by his arrogance, moral failings, and violence",
+      "valence": -0.9
+    },
+    {
+      "from": "Nick Carraway",
+      "to": "Daisy Buchanan",
+      "type": "Pitying and somewhat disturbed by her unhappiness",
+      "valence": 0.1
+    },
+    {
+      "from": "Nick Carraway",
+      "to": "Jordan Baker",
+      "type": "Intrigued by her self-possession and social awareness",
+      "valence": 0.2
+    },
+    {
+      "from": "Tom Buchanan",
+      "to": "Daisy Buchanan",
+      "type": "Controlling and dismissive, with underlying tension",
+      "valence": -0.2
+    },
+    {
+      "from": "Daisy Buchanan",
+      "to": "Tom Buchanan",
+      "type": "Resigned and resentful, but bound by circumstance",
+      "valence": -0.2
+    },
+    {
+      "from": "Daisy Buchanan",
+      "to": "Jordan Baker",
+      "type": "Familiar and casually affectionate",
+      "valence": 0.6
+    },
+    {
+      "from": "Jordan Baker",
+      "to": "Daisy Buchanan",
+      "type": "Familiar and casually tolerant",
+      "valence": 0.5
+    },
+    {
+      "from": "Tom Buchanan",
+      "to": "Jordan Baker",
+      "type": "Casual acquaintance, slightly dismissive",
+      "valence": 0.1
+    },
+    {
+      "from": "Nick Carraway",
+      "to": "Myrtle Wilson",
+      "type": "Observational, shifting from discomfort to pity and repulsion",
+      "valence": 0
+    },
+    {
+      "from": "Tom Buchanan",
+      "to": "Myrtle Wilson",
+      "type": "Possessive, controlling, and ultimately violent",
+      "valence": -0.3
+    },
+    {
+      "from": "Myrtle Wilson",
+      "to": "Tom Buchanan",
+      "type": "Desperate for attention and status, defiant, but ultimately submissive to his violence",
+      "valence": 0
+    },
+    {
+      "from": "Tom Buchanan",
+      "to": "George B. Wilson",
+      "type": "Condescending and exploitative, viewing him as a fool",
+      "valence": -0.1
+    },
+    {
+      "from": "Myrtle Wilson",
+      "to": "George B. Wilson",
+      "type": "Dismissive, resentful, and contemptuous",
+      "valence": -0.2
+    },
+    {
+      "from": "Nick Carraway",
+      "to": "Catherine",
+      "type": "Amused by her gossip but wary of her unreliability",
+      "valence": 0.1
+    },
+    {
+      "from": "Nick Carraway",
+      "to": "Mr. McKee",
+      "type": "Mildly curious but ultimately dismissive of his artistic pretensions",
+      "valence": 0
+    },
+    {
+      "from": "Nick Carraway",
+      "to": "Mrs. McKee",
+      "type": "Slightly annoyed by her shrillness and vanity",
+      "valence": -0.1
+    }
+  ]
+}

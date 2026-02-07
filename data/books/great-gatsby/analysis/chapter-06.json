@@ -1,0 +1,911 @@
+{
+  "chapterSummary": "This chapter delves into Gatsby's true origins as James Gatz, revealing his self-invention and his formative years with Dan Cody, which shaped his ambition and wealth. Later, Tom and Daisy Buchanan attend one of Gatsby's parties, where Daisy is unimpressed by the West Egg crowd, leading to Gatsby's profound disappointment and his desperate desire to recreate the past.",
+  "characters": [
+    {
+      "name": "Nick Carraway",
+      "role": "anchor",
+      "description": "Observes Gatsby's past and present, and reflects on the social dynamics of West Egg.",
+      "firstAppearance": false,
+      "knowledge": [
+        {
+          "type": "personal_history_revelation",
+          "content": "Gatsby's true name is James Gatz, and he invented the persona of Jay Gatsby at age seventeen."
+        },
+        {
+          "type": "class_awareness",
+          "content": "Gatsby's parents were 'shiftless and unsuccessful farm people,' a background he rejected."
+        },
+        {
+          "type": "formative_experience_revelation",
+          "content": "Gatsby's early life as a clam-digger and salmon-fisher, and his brief, dismaying time at St. Olaf's College."
+        },
+        {
+          "type": "past_relationship_revelation",
+          "content": "The full story of Gatsby's five-year mentorship with Dan Cody, including Cody's background, their travels, and Cody's death."
+        },
+        {
+          "type": "hidden_wealth_source_revelation",
+          "content": "Gatsby was supposed to inherit $25,000 from Cody, but it was legally diverted to Ella Kaye."
+        },
+        {
+          "type": "social_observation",
+          "content": "Tom Buchanan's suspicion that Gatsby is a bootlegger."
+        },
+        {
+          "type": "social_observation",
+          "content": "Daisy's discomfort and disapproval of the West Egg party guests, despite her initial excitement."
+        },
+        {
+          "type": "romantic_obsession_observation",
+          "content": "Gatsby's profound disappointment that Daisy didn't enjoy his party and his desperate desire to recreate the past with her."
+        },
+        {
+          "type": "romantic_obsession_revelation",
+          "content": "Gatsby's belief that Daisy should tell Tom she never loved him, and his plan to marry her from her Louisville home as if five years hadn't passed."
+        },
+        {
+          "type": "moral_philosophy",
+          "content": "His own belief that 'you can't repeat the past,' which Gatsby vehemently denies."
+        },
+        {
+          "type": "romantic_obsession_revelation",
+          "content": "Gatsby's memory of kissing Daisy five years prior, and the profound, almost spiritual significance of that moment for him."
+        }
+      ]
+    },
+    {
+      "name": "Jay Gatsby",
+      "role": "recurring",
+      "description": "His true origins as James Gatz are revealed, and he struggles with Daisy's reaction to his party and his desire to reclaim the past.",
+      "firstAppearance": false,
+      "knowledge": [
+        {
+          "type": "social_observation",
+          "content": "Tom Buchanan's presence at his house makes him uneasy."
+        },
+        {
+          "type": "social_observation",
+          "content": "Tom Buchanan does not remember him from their previous brief encounter."
+        },
+        {
+          "type": "social_observation",
+          "content": "The woman in the brown riding-habit (Mr. Sloane's companion) is interested in him."
+        },
+        {
+          "type": "social_observation",
+          "content": "Tom Buchanan is perturbed by Daisy's presence at his party."
+        },
+        {
+          "type": "romantic_disappointment",
+          "content": "Daisy did not enjoy his party and felt offended by the West Egg crowd."
+        },
+        {
+          "type": "romantic_obsession",
+          "content": "His desperate desire for Daisy to tell Tom she never loved him and to return to Louisville to marry him as if no time had passed."
+        },
+        {
+          "type": "moral_philosophy",
+          "content": "His belief that 'of course you can' repeat the past."
+        }
+      ]
+    },
+    {
+      "name": "Dan Cody",
+      "role": "recurring",
+      "description": "A pioneer debauchee and Gatsby's mentor, whose wealth and lifestyle profoundly influenced young James Gatz.",
+      "firstAppearance": false,
+      "knowledge": []
+    },
+    {
+      "name": "Ella Kaye",
+      "role": "transient",
+      "description": "A newspaper woman who became Dan Cody's mistress and inherited his fortune.",
+      "firstAppearance": true,
+      "knowledge": []
+    },
+    {
+      "name": "Reporter",
+      "role": "transient",
+      "description": "An ambitious young reporter from New York seeking a statement from Gatsby.",
+      "firstAppearance": true,
+      "knowledge": [
+        {
+          "type": "social_gossip",
+          "content": "He heard Gatsby's name in connection with something newsworthy, though he doesn't fully understand it."
+        }
+      ]
+    },
+    {
+      "name": "James Gatz",
+      "role": "transient",
+      "description": "Gatsby's original identity before he reinvented himself.",
+      "firstAppearance": true,
+      "knowledge": []
+    },
+    {
+      "name": "Gatz's Parents",
+      "role": "transient",
+      "description": "Shiftless and unsuccessful farm people, rejected by their son's imagination.",
+      "firstAppearance": true,
+      "knowledge": []
+    },
+    {
+      "name": "Mr. Sloane",
+      "role": "transient",
+      "description": "An acquaintance of Tom Buchanan, haughty and dismissive.",
+      "firstAppearance": true,
+      "knowledge": [
+        {
+          "type": "social_observation",
+          "content": "Gatsby is trying to impress him and his companion."
+        }
+      ]
+    },
+    {
+      "name": "Woman in Brown Riding-Habit",
+      "role": "transient",
+      "description": "A pretty woman accompanying Tom and Mr. Sloane, initially reserved but later cordial and flirtatious.",
+      "firstAppearance": true,
+      "knowledge": [
+        {
+          "type": "social_observation",
+          "content": "Gatsby is interested in her."
+        }
+      ]
+    },
+    {
+      "name": "Tom Buchanan",
+      "role": "recurring",
+      "description": "Attends Gatsby's party with Daisy, expressing suspicion and disapproval of Gatsby and his guests.",
+      "firstAppearance": false,
+      "knowledge": [
+        {
+          "type": "social_observation",
+          "content": "Gatsby is trying to impress him."
+        },
+        {
+          "type": "social_observation",
+          "content": "He does not remember Gatsby from their previous encounter."
+        },
+        {
+          "type": "social_observation",
+          "content": "He is perturbed by Daisy 'running around alone' and her presence at Gatsby's party."
+        },
+        {
+          "type": "moral_judgment",
+          "content": "His belief that 'women run around too much these days' and meet 'all kinds of crazy fish'."
+        },
+        {
+          "type": "social_observation",
+          "content": "He doesn't know anyone at Gatsby's party and finds the crowd uninteresting."
+        },
+        {
+          "type": "social_observation",
+          "content": "He is suspicious that Gatsby is a bootlegger."
+        },
+        {
+          "type": "strategic_intent",
+          "content": "His intention to find out who Gatsby really is and what he does."
+        }
+      ]
+    },
+    {
+      "name": "Daisy Buchanan",
+      "role": "recurring",
+      "description": "Initially excited by Gatsby's party, but ultimately offended by the West Egg crowd, leading to Gatsby's disappointment.",
+      "firstAppearance": false,
+      "knowledge": [
+        {
+          "type": "social_observation",
+          "content": "She finds the atmosphere of Gatsby's parties exciting and flirtatious."
+        },
+        {
+          "type": "social_observation",
+          "content": "She recognizes a 'gorgeous, scarcely human orchid of a woman' (a movie celebrity) at the party."
+        },
+        {
+          "type": "social_observation",
+          "content": "She likes the 'man with the sort of blue nose' (a small producer)."
+        },
+        {
+          "type": "social_observation",
+          "content": "She finds the West Egg party guests 'common but pretty' and is offended by their 'raw vigour'."
+        },
+        {
+          "type": "social_observation",
+          "content": "She believes many guests are uninvited and Gatsby is too polite to object."
+        },
+        {
+          "type": "strategic_deception",
+          "content": "She claims Gatsby owned 'drugstores, a lot of drugstores' to deflect Tom's suspicion."
+        }
+      ]
+    },
+    {
+      "name": "Movie Star",
+      "role": "transient",
+      "description": "A celebrity at Gatsby's party, described as a 'gorgeous, scarcely human orchid of a woman'.",
+      "firstAppearance": true,
+      "knowledge": []
+    },
+    {
+      "name": "Movie Director",
+      "role": "transient",
+      "description": "The director of the Movie Star, seen bending over her at Gatsby's party.",
+      "firstAppearance": true,
+      "knowledge": []
+    },
+    {
+      "name": "Small Producer",
+      "role": "transient",
+      "description": "A man with a 'blue nose' whom Daisy liked at Gatsby's party.",
+      "firstAppearance": true,
+      "knowledge": []
+    },
+    {
+      "name": "Miss Baedeker",
+      "role": "transient",
+      "description": "A tipsy guest at Gatsby's party who gets her head stuck in a pool.",
+      "firstAppearance": true,
+      "knowledge": []
+    },
+    {
+      "name": "Doctor Civet",
+      "role": "transient",
+      "description": "A guest at Gatsby's party with shaky hands, who suggests Miss Baedeker leave liquor alone.",
+      "firstAppearance": true,
+      "knowledge": []
+    },
+    {
+      "name": "Massive and Lethargic Woman",
+      "role": "transient",
+      "description": "A guest at Gatsby's party who defends Miss Baedeker and urges Daisy to play golf.",
+      "firstAppearance": true,
+      "knowledge": []
+    }
+  ],
+  "locations": [
+    {
+      "name": "Gatsby's Mansion",
+      "parentName": "West Egg",
+      "description": "The site of Gatsby's extravagant parties, now also a place where his past is revealed and his present hopes are tested.",
+      "lore": [
+        "A place where contemporary legends about Gatsby, such as an 'underground pipeline to Canada' or living in a boat, circulate.",
+        "The setting for Gatsby's parties, which Daisy finds both exciting and offensive due to the 'raw vigour' of the West Egg crowd."
+      ]
+    },
+    {
+      "name": "Lake Superior",
+      "parentName": null,
+      "description": "A large freshwater lake in North America, where James Gatz first encountered Dan Cody.",
+      "lore": [
+        "The location where James Gatz, a clam-digger and salmon-fisher, reinvented himself as Jay Gatsby upon meeting Dan Cody."
+      ]
+    },
+    {
+      "name": "Tuolomee",
+      "parentName": "Lake Superior",
+      "description": "Dan Cody's yacht, a symbol of wealth and glamour to young James Gatz.",
+      "lore": [
+        "The vessel on which Gatsby spent five years as Cody's steward, mate, skipper, secretary, and jailor, traveling around the Continent."
+      ]
+    },
+    {
+      "name": "St. Olaf's College",
+      "parentName": "Minnesota",
+      "description": "A small Lutheran college in southern Minnesota, where Gatsby briefly attended.",
+      "lore": [
+        "Gatsby stayed for two weeks, dismayed by its 'ferocious indifference to the drums of his destiny'."
+      ]
+    },
+    {
+      "name": "Little Girl Bay",
+      "parentName": "Lake Superior",
+      "description": "The specific location on Lake Superior where Dan Cody's yacht dropped anchor and he met James Gatz.",
+      "lore": []
+    },
+    {
+      "name": "Duluth",
+      "parentName": "Minnesota",
+      "description": "A city in Minnesota where Dan Cody took young Gatsby to buy him clothes.",
+      "lore": []
+    },
+    {
+      "name": "Boston",
+      "parentName": null,
+      "description": "A city where Ella Kaye came aboard Dan Cody's yacht, shortly before his death.",
+      "lore": []
+    },
+    {
+      "name": "Nick's House",
+      "parentName": "West Egg",
+      "description": "A small bungalow, serving as a brief refuge for Gatsby and Daisy during the party.",
+      "lore": []
+    }
+  ],
+  "threads": [
+    {
+      "description": "Nick's disillusionment with the East and its moral landscape",
+      "anchorNames": [
+        "Nick Carraway",
+        "East Egg",
+        "West Egg"
+      ],
+      "statusAtStart": "escalating",
+      "statusAtEnd": "escalating",
+      "development": "Nick's disillusionment deepens as he observes the superficiality and moral emptiness of Gatsby's party through Daisy's eyes, and reflects on the 'raw vigour' of West Egg."
+    },
+    {
+      "description": "The mystery surrounding Jay Gatsby and his true nature",
+      "anchorNames": [
+        "Jay Gatsby",
+        "Nick Carraway"
+      ],
+      "statusAtStart": "escalating",
+      "statusAtEnd": "converging",
+      "development": "Gatsby's true origins as James Gatz and his formative years with Dan Cody are revealed, clarifying the source of his ambition and wealth, and explaining his self-invention. However, his desperate desire to repeat the past introduces a new layer of complexity to his character."
+    },
+    {
+      "description": "The crumbling marriage and moral decay of Tom and Daisy Buchanan",
+      "anchorNames": [
+        "Tom Buchanan",
+        "Daisy Buchanan"
+      ],
+      "statusAtStart": "escalating",
+      "statusAtEnd": "escalating",
+      "development": "Tom's suspicion and disapproval of Gatsby and his guests, coupled with Daisy's flirtatious behavior and her eventual offense at the West Egg crowd, highlight the ongoing tensions and moral decay within their marriage."
+    },
+    {
+      "description": "The social and moral contrast between East Egg and West Egg",
+      "anchorNames": [
+        "East Egg",
+        "West Egg",
+        "Nick Carraway"
+      ],
+      "statusAtStart": "escalating",
+      "statusAtEnd": "escalating",
+      "development": "The contrast is sharply drawn as Daisy, an East Egg resident, is offended by the 'raw vigour' and lack of social grace among the West Egg partygoers, reinforcing the perceived moral and social divide."
+    },
+    {
+      "description": "The destructive nature of Tom Buchanan's affair with Myrtle Wilson",
+      "anchorNames": [
+        "Tom Buchanan",
+        "Myrtle Wilson",
+        "George B. Wilson"
+      ],
+      "statusAtStart": "escalating",
+      "statusAtEnd": "escalating",
+      "development": "This thread is dormant in this chapter, but Tom's general suspicion of 'newly rich people' and his possessiveness over Daisy hint at his underlying character flaws that drive his affair."
+    },
+    {
+      "description": "Nick's evolving relationship and moral judgment of Jordan Baker",
+      "anchorNames": [
+        "Nick Carraway",
+        "Jordan Baker"
+      ],
+      "statusAtStart": "escalating",
+      "statusAtEnd": "escalating",
+      "development": "Nick's association with Jordan is mentioned as he tries to 'ingratiate himself with her senile aunt,' indicating a continued, if background, development of their relationship."
+    },
+    {
+      "description": "Gatsby's singular romantic obsession with Daisy Buchanan",
+      "anchorNames": [
+        "Jay Gatsby",
+        "Daisy Buchanan",
+        "Nick Carraway"
+      ],
+      "statusAtStart": "critical",
+      "statusAtEnd": "critical",
+      "development": "Gatsby's profound disappointment over Daisy's reaction to his party and his desperate, almost delusional, desire to recreate the past with her intensifies this obsession, revealing its all-consuming and potentially destructive nature."
+    }
+  ],
+  "scenes": [
+    {
+      "locationName": "Gatsby's Mansion",
+      "participantNames": [
+        "Nick Carraway",
+        "Jay Gatsby",
+        "Reporter"
+      ],
+      "events": [
+        "reporter_visits",
+        "gossip_circulation",
+        "gatz_identity_revealed"
+      ],
+      "stakes": 40,
+      "summary": "A reporter from New York arrives at Gatsby's door, seeking a statement about the rumors surrounding him. Gatsby politely deflects, and Nick reflects on the myriad legends that have attached themselves to Gatsby. This encounter prompts Nick to reveal Gatsby's true origins as James Gatz, a farm boy from North Dakota who reinvented himself.",
+      "threadMutations": [
+        {
+          "threadDescription": "The mystery surrounding Jay Gatsby and his true nature",
+          "from": "escalating",
+          "to": "converging"
+        }
+      ],
+      "knowledgeMutations": [
+        {
+          "characterName": "Reporter",
+          "action": "added",
+          "content": "He heard Gatsby's name in connection with something newsworthy, though he doesn't fully understand it.",
+          "type": "social_gossip"
+        },
+        {
+          "characterName": "Nick Carraway",
+          "action": "added",
+          "content": "Gatsby's true name is James Gatz, and he invented the persona of Jay Gatsby at age seventeen.",
+          "type": "personal_history_revelation"
+        },
+        {
+          "characterName": "Nick Carraway",
+          "action": "added",
+          "content": "Gatsby's parents were 'shiftless and unsuccessful farm people,' a background he rejected.",
+          "type": "class_awareness"
+        },
+        {
+          "characterName": "Nick Carraway",
+          "action": "added",
+          "content": "Gatsby's early life as a clam-digger and salmon-fisher, and his brief, dismaying time at St. Olaf's College.",
+          "type": "formative_experience_revelation"
+        },
+        {
+          "characterName": "Nick Carraway",
+          "action": "added",
+          "content": "The full story of Gatsby's five-year mentorship with Dan Cody, including Cody's background, their travels, and Cody's death.",
+          "type": "past_relationship_revelation"
+        },
+        {
+          "characterName": "Nick Carraway",
+          "action": "added",
+          "content": "Gatsby was supposed to inherit $25,000 from Cody, but it was legally diverted to Ella Kaye.",
+          "type": "hidden_wealth_source_revelation"
+        }
+      ],
+      "relationshipMutations": []
+    },
+    {
+      "locationName": "Gatsby's Mansion",
+      "participantNames": [
+        "Nick Carraway",
+        "Jay Gatsby",
+        "Tom Buchanan",
+        "Mr. Sloane",
+        "Woman in Brown Riding-Habit"
+      ],
+      "events": [
+        "unexpected_visit",
+        "social_awkwardness",
+        "invitation_extended_and_rejected"
+      ],
+      "stakes": 55,
+      "summary": "Nick visits Gatsby, only for Tom Buchanan, Mr. Sloane, and a woman in a brown riding-habit to arrive on horseback. Gatsby, visibly uneasy, tries to be hospitable and engage Tom, who barely remembers him. The woman flirts with Gatsby and invites him to supper, but Mr. Sloane pointedly prevents her from extending the invitation to Nick, and they leave abruptly, leaving Gatsby disappointed.",
+      "threadMutations": [
+        {
+          "threadDescription": "The crumbling marriage and moral decay of Tom and Daisy Buchanan",
+          "from": "escalating",
+          "to": "escalating"
+        }
+      ],
+      "knowledgeMutations": [
+        {
+          "characterName": "Jay Gatsby",
+          "action": "added",
+          "content": "Tom Buchanan's presence at his house makes him uneasy.",
+          "type": "social_observation"
+        },
+        {
+          "characterName": "Jay Gatsby",
+          "action": "added",
+          "content": "Tom Buchanan does not remember him from their previous brief encounter.",
+          "type": "social_observation"
+        },
+        {
+          "characterName": "Jay Gatsby",
+          "action": "added",
+          "content": "The woman in the brown riding-habit (Mr. Sloane's companion) is interested in him.",
+          "type": "social_observation"
+        },
+        {
+          "characterName": "Tom Buchanan",
+          "action": "added",
+          "content": "Gatsby is trying to impress him.",
+          "type": "social_observation"
+        },
+        {
+          "characterName": "Tom Buchanan",
+          "action": "added",
+          "content": "He does not remember Gatsby from their previous encounter.",
+          "type": "social_observation"
+        },
+        {
+          "characterName": "Mr. Sloane",
+          "action": "added",
+          "content": "Gatsby is trying to impress him and his companion.",
+          "type": "social_observation"
+        },
+        {
+          "characterName": "Woman in Brown Riding-Habit",
+          "action": "added",
+          "content": "Gatsby is interested in her.",
+          "type": "social_observation"
+        }
+      ],
+      "relationshipMutations": [
+        {
+          "from": "Jay Gatsby",
+          "to": "Tom Buchanan",
+          "type": "Strained and awkward, with Gatsby trying to impress and Tom being dismissive.",
+          "valenceDelta": -0.1
+        }
+      ]
+    },
+    {
+      "locationName": "Gatsby's Mansion",
+      "participantNames": [
+        "Nick Carraway",
+        "Jay Gatsby",
+        "Daisy Buchanan",
+        "Tom Buchanan",
+        "Movie Star",
+        "Movie Director",
+        "Small Producer",
+        "Miss Baedeker",
+        "Doctor Civet",
+        "Massive and Lethargic Woman"
+      ],
+      "events": [
+        "party_attendance",
+        "social_observation",
+        "daisy_discomfort",
+        "tom_suspicion"
+      ],
+      "stakes": 70,
+      "summary": "Tom and Daisy attend Gatsby's party, which Nick observes through Daisy's eyes, noting her initial excitement but eventual discomfort with the West Egg crowd. Tom, meanwhile, is openly suspicious of Gatsby and his guests, believing them to be bootleggers. Daisy attempts to deflect Tom's inquiries, but the evening leaves Gatsby deeply disappointed by Daisy's reaction.",
+      "threadMutations": [
+        {
+          "threadDescription": "Nick's disillusionment with the East and its moral landscape",
+          "from": "escalating",
+          "to": "escalating"
+        },
+        {
+          "threadDescription": "The crumbling marriage and moral decay of Tom and Daisy Buchanan",
+          "from": "escalating",
+          "to": "escalating"
+        },
+        {
+          "threadDescription": "The social and moral contrast between East Egg and West Egg",
+          "from": "escalating",
+          "to": "escalating"
+        },
+        {
+          "threadDescription": "Gatsby's singular romantic obsession with Daisy Buchanan",
+          "from": "critical",
+          "to": "critical"
+        }
+      ],
+      "knowledgeMutations": [
+        {
+          "characterName": "Jay Gatsby",
+          "action": "added",
+          "content": "Tom Buchanan is perturbed by Daisy's presence at his party.",
+          "type": "social_observation"
+        },
+        {
+          "characterName": "Jay Gatsby",
+          "action": "added",
+          "content": "Daisy did not enjoy his party and felt offended by the West Egg crowd.",
+          "type": "romantic_disappointment"
+        },
+        {
+          "characterName": "Tom Buchanan",
+          "action": "added",
+          "content": "He is perturbed by Daisy 'running around alone' and her presence at Gatsby's party.",
+          "type": "social_observation"
+        },
+        {
+          "characterName": "Tom Buchanan",
+          "action": "added",
+          "content": "His belief that 'women run around too much these days' and meet 'all kinds of crazy fish'.",
+          "type": "moral_judgment"
+        },
+        {
+          "characterName": "Tom Buchanan",
+          "action": "added",
+          "content": "He doesn't know anyone at Gatsby's party and finds the crowd uninteresting.",
+          "type": "social_observation"
+        },
+        {
+          "characterName": "Tom Buchanan",
+          "action": "added",
+          "content": "He is suspicious that Gatsby is a bootlegger.",
+          "type": "social_observation"
+        },
+        {
+          "characterName": "Tom Buchanan",
+          "action": "added",
+          "content": "His intention to find out who Gatsby really is and what he does.",
+          "type": "strategic_intent"
+        },
+        {
+          "characterName": "Daisy Buchanan",
+          "action": "added",
+          "content": "She finds the atmosphere of Gatsby's parties exciting and flirtatious.",
+          "type": "social_observation"
+        },
+        {
+          "characterName": "Daisy Buchanan",
+          "action": "added",
+          "content": "She recognizes a 'gorgeous, scarcely human orchid of a woman' (a movie celebrity) at the party.",
+          "type": "social_observation"
+        },
+        {
+          "characterName": "Daisy Buchanan",
+          "action": "added",
+          "content": "She likes the 'man with the sort of blue nose' (a small producer).",
+          "type": "social_observation"
+        },
+        {
+          "characterName": "Daisy Buchanan",
+          "action": "added",
+          "content": "She finds the West Egg party guests 'common but pretty' and is offended by their 'raw vigour'.",
+          "type": "social_observation"
+        },
+        {
+          "characterName": "Daisy Buchanan",
+          "action": "added",
+          "content": "She believes many guests are uninvited and Gatsby is too polite to object.",
+          "type": "social_observation"
+        },
+        {
+          "characterName": "Daisy Buchanan",
+          "action": "added",
+          "content": "She claims Gatsby owned 'drugstores, a lot of drugstores' to deflect Tom's suspicion.",
+          "type": "strategic_deception"
+        },
+        {
+          "characterName": "Nick Carraway",
+          "action": "added",
+          "content": "Tom Buchanan's suspicion that Gatsby is a bootlegger.",
+          "type": "social_observation"
+        },
+        {
+          "characterName": "Nick Carraway",
+          "action": "added",
+          "content": "Daisy's discomfort and disapproval of the West Egg party guests, despite her initial excitement.",
+          "type": "social_observation"
+        }
+      ],
+      "relationshipMutations": [
+        {
+          "from": "Tom Buchanan",
+          "to": "Jay Gatsby",
+          "type": "Suspicious and disapproving, viewing him as 'newly rich' and potentially criminal.",
+          "valenceDelta": -0.2
+        },
+        {
+          "from": "Daisy Buchanan",
+          "to": "Jay Gatsby",
+          "type": "Initially excited and flirtatious, but ultimately disappointed and offended by his social circle.",
+          "valenceDelta": -0.1
+        }
+      ]
+    },
+    {
+      "locationName": "Gatsby's Mansion",
+      "participantNames": [
+        "Nick Carraway",
+        "Jay Gatsby"
+      ],
+      "events": [
+        "gatsbys_disappointment",
+        "recreating_the_past",
+        "nick_reflection"
+      ],
+      "stakes": 85,
+      "summary": "After the party, Gatsby confesses to Nick his profound disappointment that Daisy didn't enjoy herself. He reveals his desperate desire for Daisy to tell Tom she never loved him, and his plan to return to Louisville to marry her as if five years hadn't passed. Nick cautions him that 'you can't repeat the past,' but Gatsby vehemently denies it, clinging to his vision of recreating their shared history.",
+      "threadMutations": [
+        {
+          "threadDescription": "Gatsby's singular romantic obsession with Daisy Buchanan",
+          "from": "critical",
+          "to": "critical"
+        }
+      ],
+      "knowledgeMutations": [
+        {
+          "characterName": "Jay Gatsby",
+          "action": "added",
+          "content": "His desperate desire for Daisy to tell Tom she never loved him and to return to Louisville to marry him as if no time had passed.",
+          "type": "romantic_obsession"
+        },
+        {
+          "characterName": "Jay Gatsby",
+          "action": "added",
+          "content": "His belief that 'of course you can' repeat the past.",
+          "type": "moral_philosophy"
+        },
+        {
+          "characterName": "Nick Carraway",
+          "action": "added",
+          "content": "Gatsby's profound disappointment that Daisy didn't enjoy his party and his desperate desire to recreate the past with her.",
+          "type": "romantic_obsession_observation"
+        },
+        {
+          "characterName": "Nick Carraway",
+          "action": "added",
+          "content": "Gatsby's belief that Daisy should tell Tom she never loved him, and his plan to marry her from her Louisville home as if five years hadn't passed.",
+          "type": "romantic_obsession_revelation"
+        },
+        {
+          "characterName": "Nick Carraway",
+          "action": "added",
+          "content": "His own belief that 'you can't repeat the past,' which Gatsby vehemently denies.",
+          "type": "moral_philosophy"
+        },
+        {
+          "characterName": "Nick Carraway",
+          "action": "added",
+          "content": "Gatsby's memory of kissing Daisy five years prior, and the profound, almost spiritual significance of that moment for him.",
+          "type": "romantic_obsession_revelation"
+        }
+      ],
+      "relationshipMutations": [
+        {
+          "from": "Nick Carraway",
+          "to": "Jay Gatsby",
+          "type": "A deeper understanding of Gatsby's profound, almost delusional, romantic idealism and his inability to accept the finality of the past.",
+          "valenceDelta": -0.1
+        }
+      ]
+    }
+  ],
+  "relationships": [
+    {
+      "from": "Nick Carraway",
+      "to": "Nick's Father",
+      "type": "Respectful and reflective of his advice",
+      "valence": 0.8
+    },
+    {
+      "from": "Nick Carraway",
+      "to": "Jay Gatsby",
+      "type": "A shift from suspicion to a deeper understanding of his profound, singular romantic motivation, though still unsettling, and a growing sense of his romantic idealism and its potential for disillusionment.",
+      "valence": 0.7
+    },
+    {
+      "from": "Nick Carraway",
+      "to": "Tom Buchanan",
+      "type": "Profundly disgusted by his arrogance, moral failings, and violence",
+      "valence": -0.9
+    },
+    {
+      "from": "Nick Carraway",
+      "to": "Daisy Buchanan",
+      "type": "Increased pity and understanding of her past unhappiness and current situation, now observing her emotional vulnerability and her capacity to be overwhelmed by Gatsby's devotion.",
+      "valence": 0.5
+    },
+    {
+      "from": "Nick Carraway",
+      "to": "Jordan Baker",
+      "type": "Growing romantic and intellectual intimacy, despite his moral reservations about her cynicism.",
+      "valence": 0.7
+    },
+    {
+      "from": "Tom Buchanan",
+      "to": "Daisy Buchanan",
+      "type": "Controlling and dismissive, with underlying tension",
+      "valence": -0.2
+    },
+    {
+      "from": "Daisy Buchanan",
+      "to": "Tom Buchanan",
+      "type": "Resigned and resentful, but bound by circumstance",
+      "valence": -0.2
+    },
+    {
+      "from": "Daisy Buchanan",
+      "to": "Jordan Baker",
+      "type": "Familiar and casually affectionate",
+      "valence": 0.6
+    },
+    {
+      "from": "Jordan Baker",
+      "to": "Daisy Buchanan",
+      "type": "Familiar and casually tolerant",
+      "valence": 0.5
+    },
+    {
+      "from": "Tom Buchanan",
+      "to": "Jordan Baker",
+      "type": "Casual acquaintance, slightly dismissive",
+      "valence": 0.1
+    },
+    {
+      "from": "Nick Carraway",
+      "to": "Myrtle Wilson",
+      "type": "Observational, shifting from discomfort to pity and repulsion",
+      "valence": 0
+    },
+    {
+      "from": "Tom Buchanan",
+      "to": "Myrtle Wilson",
+      "type": "Possessive, controlling, and ultimately violent",
+      "valence": -0.3
+    },
+    {
+      "from": "Myrtle Wilson",
+      "to": "Tom Buchanan",
+      "type": "Desperate for attention and status, defiant, but ultimately submissive to his violence",
+      "valence": 0
+    },
+    {
+      "from": "Tom Buchanan",
+      "to": "George B. Wilson",
+      "type": "Condescending and exploitative, viewing him as a fool",
+      "valence": -0.1
+    },
+    {
+      "from": "Myrtle Wilson",
+      "to": "George B. Wilson",
+      "type": "Dismissive, resentful, and contemptuous",
+      "valence": -0.2
+    },
+    {
+      "from": "Nick Carraway",
+      "to": "Catherine",
+      "type": "Amused by her gossip but wary of her unreliability",
+      "valence": 0.1
+    },
+    {
+      "from": "Nick Carraway",
+      "to": "Mr. McKee",
+      "type": "Mildly curious but ultimately dismissive of his artistic pretensions",
+      "valence": 0
+    },
+    {
+      "from": "Nick Carraway",
+      "to": "Mrs. McKee",
+      "type": "Slightly annoyed by her shrillness and vanity",
+      "valence": -0.1
+    },
+    {
+      "from": "Nick Carraway",
+      "to": "Owl Eyes",
+      "type": "Amused and bewildered by his drunken observations and recklessness",
+      "valence": 0.1
+    },
+    {
+      "from": "Nick Carraway",
+      "to": "Girls in Yellow Dresses (Lucille and unnamed friend)",
+      "type": "Observational and slightly amused by their gossip and superficiality",
+      "valence": 0.1
+    },
+    {
+      "from": "Nick Carraway",
+      "to": "Girl from Jersey City",
+      "type": "Casual and fleeting romantic interest, now ended",
+      "valence": 0
+    },
+    {
+      "from": "Nick Carraway",
+      "to": "Meyer Wolfshiem",
+      "type": "Repulsed and astonished by his criminal past and macabre affectations.",
+      "valence": -0.5
+    },
+    {
+      "from": "Jay Gatsby",
+      "to": "Meyer Wolfshiem",
+      "type": "Tolerant and somewhat protective, despite Wolfshiem's unsettling nature.",
+      "valence": 0.1
+    },
+    {
+      "from": "Tom Buchanan",
+      "to": "Jay Gatsby",
+      "type": "Suspicious and disapproving, viewing him as 'newly rich' and potentially criminal.",
+      "valence": -0.3
+    },
+    {
+      "from": "Daisy Buchanan",
+      "to": "Jay Gatsby",
+      "type": "Initially excited and flirtatious, but ultimately disappointed and offended by his social circle.",
+      "valence": 1
+    }
+  ]
+}

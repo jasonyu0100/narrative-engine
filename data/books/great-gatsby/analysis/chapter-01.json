@@ -1,0 +1,438 @@
+{
+  "chapterSummary": "Nick Carraway moves to West Egg, Long Island, to pursue a career in bonds, settling next to the mysterious Jay Gatsby. He visits his cousin Daisy and her husband Tom Buchanan in East Egg, where he is introduced to Jordan Baker and quickly becomes aware of the underlying tensions and moral decay within their opulent lives, including Tom's infidelity and Daisy's profound unhappiness.",
+  "characters": [
+    {
+      "name": "Nick Carraway",
+      "role": "anchor",
+      "description": "A young, observant man from the Midwest, newly arrived in West Egg, who reserves judgment but is increasingly disillusioned by the East's moral landscape.",
+      "firstAppearance": true,
+      "knowledge": [
+        {
+          "type": "moral_philosophy",
+          "content": "His father's advice to reserve all judgments, which he generally adheres to but admits has limits."
+        },
+        {
+          "type": "personal_history",
+          "content": "His family's history in the Middle West, his graduation from New Haven in 1915, and his participation in the Great War."
+        },
+        {
+          "type": "career_ambition",
+          "content": "His intention to learn the bond business in the East."
+        },
+        {
+          "type": "social_observation",
+          "content": "The stark contrast between West Egg (new money) and East Egg (old money)."
+        },
+        {
+          "type": "social_observation",
+          "content": "Tom Buchanan's aggressive and prejudiced worldview, and his infidelity."
+        },
+        {
+          "type": "social_observation",
+          "content": "Daisy Buchanan's deep unhappiness and cynicism beneath her charming facade."
+        },
+        {
+          "type": "social_observation",
+          "content": "Jordan Baker's self-sufficient and somewhat detached nature, and her knowledge of Tom's affair."
+        },
+        {
+          "type": "hidden_identity",
+          "content": "That his neighbor is the mysterious Jay Gatsby."
+        },
+        {
+          "type": "romantic_longing_observation",
+          "content": "Gatsby's extraordinary gift for hope and romantic readiness, and his mysterious gesture towards a green light across the bay."
+        }
+      ]
+    },
+    {
+      "name": "Jay Gatsby",
+      "role": "recurring",
+      "description": "Nick's mysterious, wealthy neighbor in West Egg, known for his lavish mansion and an extraordinary capacity for hope.",
+      "firstAppearance": true,
+      "knowledge": [
+        {
+          "type": "romantic_longing",
+          "content": "His profound, almost trembling, longing suggested by his outstretched arms towards a distant green light."
+        }
+      ]
+    },
+    {
+      "name": "Tom Buchanan",
+      "role": "recurring",
+      "description": "Daisy's immensely wealthy, physically imposing, and aggressively prejudiced husband, a former Yale football star.",
+      "firstAppearance": true,
+      "knowledge": [
+        {
+          "type": "racial_prejudice",
+          "content": "His belief in the superiority of the 'Nordic' race and his fear of other races 'submerging' the white race."
+        },
+        {
+          "type": "strategic_deception",
+          "content": "His ongoing affair with a woman in New York, which he attempts to conceal."
+        }
+      ]
+    },
+    {
+      "name": "Daisy Buchanan",
+      "role": "recurring",
+      "description": "Nick's beautiful, charming, and deeply cynical cousin, married to Tom Buchanan, living a life of opulent unhappiness.",
+      "firstAppearance": true,
+      "knowledge": [
+        {
+          "type": "marital_unhappiness",
+          "content": "Her profound disillusionment with her marriage and life, expressed through her wish for her daughter to be a 'beautiful little fool'."
+        },
+        {
+          "type": "social_observation",
+          "content": "Tom's affair, which causes her distress and prompts her to make veiled comments."
+        }
+      ]
+    },
+    {
+      "name": "Jordan Baker",
+      "role": "recurring",
+      "description": "A professional golfer, friend of Daisy, with a self-sufficient and somewhat detached demeanor.",
+      "firstAppearance": true,
+      "knowledge": [
+        {
+          "type": "social_observation",
+          "content": "Tom Buchanan's affair with a woman in New York."
+        },
+        {
+          "type": "social_observation",
+          "content": "Nick Carraway lives in West Egg and is Gatsby's neighbor."
+        }
+      ]
+    },
+    {
+      "name": "Nick's Father",
+      "role": "transient",
+      "description": "A wise, reserved man from the Middle West who imparted a significant moral lesson to Nick.",
+      "firstAppearance": true,
+      "knowledge": []
+    },
+    {
+      "name": "Butler (Buchanan's)",
+      "role": "transient",
+      "description": "The Buchanan's butler, whose past as a silver polisher is a subject of Daisy's whispered 'secret'.",
+      "firstAppearance": true,
+      "knowledge": []
+    },
+    {
+      "name": "Pammy Buchanan",
+      "role": "transient",
+      "description": "Daisy and Tom's three-year-old daughter, mentioned briefly by Daisy.",
+      "firstAppearance": true,
+      "knowledge": []
+    }
+  ],
+  "locations": [
+    {
+      "name": "Middle West",
+      "parentName": null,
+      "description": "Nick's ancestral home, characterized by traditional values and a sense of rootedness, now feeling like the 'ragged edge of the universe' to a restless Nick.",
+      "lore": [
+        "Home of the Carraway clan for three generations, associated with the wholesale hardware business."
+      ]
+    },
+    {
+      "name": "East Egg",
+      "parentName": "Long Island",
+      "description": "The more fashionable and established of the two 'eggs,' home to old money and white palaces.",
+      "lore": [
+        "Symbolizes inherited wealth, social conservatism, and a certain moral decay."
+      ]
+    },
+    {
+      "name": "West Egg",
+      "parentName": "Long Island",
+      "description": "The less fashionable but riotous of the two 'eggs,' home to new money and Gatsby's mansion.",
+      "lore": [
+        "Symbolizes newly acquired wealth, ambition, and a certain social striving."
+      ]
+    },
+    {
+      "name": "Long Island Sound",
+      "parentName": "Long Island",
+      "description": "The body of water separating West Egg and East Egg, a 'domesticated' yet significant geographical feature.",
+      "lore": [
+        "The 'courtesy bay' that divides the two 'eggs', symbolizing the social and economic chasm between them."
+      ]
+    },
+    {
+      "name": "Buchanan Mansion",
+      "parentName": "East Egg",
+      "description": "An elaborate, cheerful red-and-white Georgian Colonial mansion overlooking the bay, filled with opulent furnishings and a sense of restless luxury.",
+      "lore": [
+        "Its grandeur belies the underlying unhappiness and moral emptiness of its inhabitants."
+      ]
+    },
+    {
+      "name": "Nick's House",
+      "parentName": "West Egg",
+      "description": "A small, weather-beaten cardboard bungalow, an 'eyesore' squeezed between two huge, expensive places.",
+      "lore": [
+        "Its modest nature highlights Nick's initial outsider status and his proximity to immense wealth."
+      ]
+    },
+    {
+      "name": "Gatsby's Mansion",
+      "parentName": "West Egg",
+      "description": "A colossal, imitation Hôtel de Ville in Normandy, with a tower, marble swimming pool, and forty acres of lawn and garden.",
+      "lore": [
+        "Its extravagant architecture reflects Gatsby's immense wealth and possibly his desire to impress someone."
+      ]
+    },
+    {
+      "name": "New York City",
+      "parentName": null,
+      "description": "The bustling metropolis where Nick intends to work and where Tom Buchanan has a mistress.",
+      "lore": [
+        "A place of opportunity and moral ambiguity."
+      ]
+    }
+  ],
+  "threads": [
+    {
+      "description": "Nick's disillusionment with the East and its moral landscape",
+      "anchorNames": [
+        "Nick Carraway",
+        "East Egg",
+        "West Egg"
+      ],
+      "statusAtStart": "dormant",
+      "statusAtEnd": "surfacing",
+      "development": "Nick arrives in the East with optimism but quickly encounters the moral decay and superficiality of the wealthy, particularly through the Buchanans, leading to initial disgust and confusion."
+    },
+    {
+      "description": "The mystery surrounding Jay Gatsby and his true nature",
+      "anchorNames": [
+        "Jay Gatsby",
+        "Nick Carraway"
+      ],
+      "statusAtStart": "dormant",
+      "statusAtEnd": "surfacing",
+      "development": "Gatsby is introduced as a wealthy, mysterious neighbor, and his enigmatic final gesture towards the green light hints at a profound, unfulfilled longing."
+    },
+    {
+      "description": "The crumbling marriage and moral decay of Tom and Daisy Buchanan",
+      "anchorNames": [
+        "Tom Buchanan",
+        "Daisy Buchanan"
+      ],
+      "statusAtStart": "dormant",
+      "statusAtEnd": "escalating",
+      "development": "The chapter reveals Tom's aggressive nature, his blatant infidelity, and Daisy's deep unhappiness and cynicism, exposing the rot beneath their opulent lifestyle."
+    },
+    {
+      "description": "The social and moral contrast between East Egg and West Egg",
+      "anchorNames": [
+        "East Egg",
+        "West Egg",
+        "Nick Carraway"
+      ],
+      "statusAtStart": "dormant",
+      "statusAtEnd": "surfacing",
+      "development": "Nick observes the distinct social characteristics of the two 'eggs,' with East Egg representing old money and established decay, and West Egg representing new money and a different kind of ambition."
+    }
+  ],
+  "scenes": [
+    {
+      "locationName": "Nick's House",
+      "participantNames": [
+        "Nick Carraway",
+        "Jay Gatsby"
+      ],
+      "events": [
+        "arrival_and_settling",
+        "philosophical_reflection",
+        "first_glimpse_of_gatsby"
+      ],
+      "stakes": 20,
+      "summary": "Nick Carraway arrives in West Egg, reflecting on his past and his father's advice as he settles into his modest bungalow. He observes the stark contrast between his new home and the lavish mansions surrounding him, including Gatsby's. Later, he sees Gatsby for the first time, a mysterious figure stretching his arms towards a distant green light, hinting at a profound, unknown longing.",
+      "threadMutations": [
+        {
+          "threadDescription": "Nick's disillusionment with the East and its moral landscape",
+          "from": "dormant",
+          "to": "surfacing"
+        },
+        {
+          "threadDescription": "The mystery surrounding Jay Gatsby and his true nature",
+          "from": "dormant",
+          "to": "surfacing"
+        },
+        {
+          "threadDescription": "The social and moral contrast between East Egg and West Egg",
+          "from": "dormant",
+          "to": "surfacing"
+        }
+      ],
+      "knowledgeMutations": [
+        {
+          "characterName": "Nick Carraway",
+          "action": "added",
+          "content": "The contrast between West Egg and East Egg, and the nature of his neighbor, Gatsby.",
+          "type": "social_observation"
+        },
+        {
+          "characterName": "Nick Carraway",
+          "action": "added",
+          "content": "Gatsby's mysterious, hopeful gesture towards a green light.",
+          "type": "romantic_longing_observation"
+        }
+      ],
+      "relationshipMutations": []
+    },
+    {
+      "locationName": "Buchanan Mansion",
+      "participantNames": [
+        "Nick Carraway",
+        "Tom Buchanan",
+        "Daisy Buchanan",
+        "Jordan Baker",
+        "Butler (Buchanan's)"
+      ],
+      "events": [
+        "dinner_party",
+        "social_observation",
+        "marital_tension",
+        "revelation_of_affair"
+      ],
+      "stakes": 60,
+      "summary": "Nick arrives at the opulent Buchanan mansion in East Egg, where he is introduced to the imposing Tom and the charming but melancholic Daisy, along with the detached Jordan Baker. The evening is quickly overshadowed by Tom's aggressive, prejudiced remarks and the thinly veiled tension between him and Daisy, culminating in the revelation of Tom's affair, which leaves Nick feeling confused and disgusted.",
+      "threadMutations": [
+        {
+          "threadDescription": "Nick's disillusionment with the East and its moral landscape",
+          "from": "surfacing",
+          "to": "escalating"
+        },
+        {
+          "threadDescription": "The crumbling marriage and moral decay of Tom and Daisy Buchanan",
+          "from": "dormant",
+          "to": "escalating"
+        }
+      ],
+      "knowledgeMutations": [
+        {
+          "characterName": "Nick Carraway",
+          "action": "added",
+          "content": "Tom Buchanan's aggressive and prejudiced worldview.",
+          "type": "moral_judgment"
+        },
+        {
+          "characterName": "Nick Carraway",
+          "action": "added",
+          "content": "Tom Buchanan's affair with a woman in New York.",
+          "type": "strategic_deception_observation"
+        },
+        {
+          "characterName": "Nick Carraway",
+          "action": "added",
+          "content": "Daisy Buchanan's profound unhappiness and cynicism.",
+          "type": "marital_unhappiness_observation"
+        },
+        {
+          "characterName": "Jordan Baker",
+          "action": "added",
+          "content": "Nick Carraway lives in West Egg and is Gatsby's neighbor.",
+          "type": "social_observation"
+        }
+      ],
+      "relationshipMutations": [
+        {
+          "from": "Nick Carraway",
+          "to": "Tom Buchanan",
+          "type": "Growing disgust and moral disapproval",
+          "valenceDelta": -0.3
+        },
+        {
+          "from": "Nick Carraway",
+          "to": "Daisy Buchanan",
+          "type": "Pity and concern mixed with discomfort",
+          "valenceDelta": -0.1
+        },
+        {
+          "from": "Nick Carraway",
+          "to": "Jordan Baker",
+          "type": "Intrigued by her detachment and knowledge",
+          "valenceDelta": 0.1
+        },
+        {
+          "from": "Tom Buchanan",
+          "to": "Daisy Buchanan",
+          "type": "Underlying tension and contempt",
+          "valenceDelta": -0.2
+        },
+        {
+          "from": "Daisy Buchanan",
+          "to": "Tom Buchanan",
+          "type": "Resignation and resentment",
+          "valenceDelta": -0.2
+        }
+      ]
+    }
+  ],
+  "relationships": [
+    {
+      "from": "Nick Carraway",
+      "to": "Nick's Father",
+      "type": "Respectful and reflective of his advice",
+      "valence": 0.8
+    },
+    {
+      "from": "Nick Carraway",
+      "to": "Jay Gatsby",
+      "type": "Curious and intrigued by his mystery",
+      "valence": 0.3
+    },
+    {
+      "from": "Nick Carraway",
+      "to": "Tom Buchanan",
+      "type": "Disgusted by his arrogance and moral failings",
+      "valence": -0.3
+    },
+    {
+      "from": "Nick Carraway",
+      "to": "Daisy Buchanan",
+      "type": "Pitying and somewhat disturbed by her unhappiness",
+      "valence": 0.1
+    },
+    {
+      "from": "Nick Carraway",
+      "to": "Jordan Baker",
+      "type": "Intrigued by her self-possession and social awareness",
+      "valence": 0.2
+    },
+    {
+      "from": "Tom Buchanan",
+      "to": "Daisy Buchanan",
+      "type": "Controlling and dismissive, with underlying tension",
+      "valence": -0.2
+    },
+    {
+      "from": "Daisy Buchanan",
+      "to": "Tom Buchanan",
+      "type": "Resigned and resentful, but bound by circumstance",
+      "valence": -0.2
+    },
+    {
+      "from": "Daisy Buchanan",
+      "to": "Jordan Baker",
+      "type": "Familiar and casually affectionate",
+      "valence": 0.6
+    },
+    {
+      "from": "Jordan Baker",
+      "to": "Daisy Buchanan",
+      "type": "Familiar and casually tolerant",
+      "valence": 0.5
+    },
+    {
+      "from": "Tom Buchanan",
+      "to": "Jordan Baker",
+      "type": "Casual acquaintance, slightly dismissive",
+      "valence": 0.1
+    }
+  ]
+}
