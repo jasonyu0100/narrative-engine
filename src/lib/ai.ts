@@ -9,7 +9,7 @@ const THREAD_LIFECYCLE_DOC = (() => {
   ).join(', ');
   return `Active statuses: ${activeList}. Terminal/closed statuses: ${terminalList}.`;
 })();
-import { nextId, nextIds, computeForceSnapshots, detectCubeCorner } from '@/lib/narrative-utils';
+import { nextId, nextIds, computeForceSnapshots, computeSwingMagnitudes, detectCubeCorner } from '@/lib/narrative-utils';
 import { apiHeaders } from '@/lib/api-headers';
 
 export type WorldExpansion = {
@@ -138,16 +138,18 @@ export function branchContext(
     .map((a) => `- ${a.id}: "${a.name}" (${a.sceneIds.length} scenes, develops: ${a.develops.join(', ')})`)
     .join('\n');
 
-  // Force trajectory — compact time series showing change rhythm
+  // Force trajectory — compact time series showing change rhythm and swing
   const allScenes = keysUpToCurrent
     .map((k) => resolveEntry(n, k))
     .filter((e): e is Scene => e?.kind === 'scene');
   const forceMap = computeForceSnapshots(allScenes);
+  const forceSnapshots = allScenes.map((s) => forceMap[s.id] ?? { payoff: 0, change: 0, variety: 0 });
+  const swings = computeSwingMagnitudes(forceSnapshots);
   const forceTrajectory = allScenes.map((s, i) => {
     const f = forceMap[s.id];
     if (!f) return null;
     const corner = detectCubeCorner(f);
-    return `[${i + 1}] P:${f.payoff >= 0 ? '+' : ''}${f.payoff.toFixed(1)} C:${f.change >= 0 ? '+' : ''}${f.change.toFixed(1)} V:${f.variety >= 0 ? '+' : ''}${f.variety.toFixed(1)} (${corner.name})`;
+    return `[${i + 1}] P:${f.payoff >= 0 ? '+' : ''}${f.payoff.toFixed(1)} C:${f.change >= 0 ? '+' : ''}${f.change.toFixed(1)} V:${f.variety >= 0 ? '+' : ''}${f.variety.toFixed(1)} Sw:${swings[i].toFixed(1)} (${corner.name})`;
   }).filter(Boolean).join('\n');
 
   // Compact ID lookup — placed last so it's closest to the generation prompt
@@ -191,9 +193,12 @@ VALID IDs (you MUST use ONLY these exact IDs — do NOT invent new ones):
 
 const SYSTEM_PROMPT = `You are a narrative simulation engine that generates structured scene data for interactive storytelling.
 You must ALWAYS respond with valid JSON only — no markdown, no explanation, no code fences.
-Follow the exact schema requested in each prompt.
 
-CRITICAL: When given a FORCE BALANCE CORRECTION or STORY TRAJECTORY, these override the patterns in the scene history. Do NOT continue escalating conflict just because previous scenes were intense. Great stories breathe — they alternate intensity with quiet. If the directive says to write calm, low-consequence scenes, do it.`;
+CORE PRINCIPLES:
+1. FORCE TARGETS and DIRECTION override scene history. Do NOT continue patterns just because previous scenes established them. If the directive says calm, write calm.
+2. High swing is the north star of compelling narrative. Consecutive scenes should feel dynamically different — alternate intensity with quiet, action with reflection, familiar with surprising.
+3. Threads evolve gradually. Most scenes advance 0-1 threads. A dormant thread surfaces slowly over many scenes, not in one jump.
+4. Use ONLY the character, location, and thread IDs provided. Never invent new ones.`;
 
 /** Clean common LLM JSON quirks: code fences, trailing commas, single-quoted keys */
 function cleanJson(raw: string): string {
@@ -367,10 +372,9 @@ Rules:
 - knowledgeMutations track what characters learn. Include them when a character gains or loses information — secrets revealed, lies uncovered, skills observed, intel gathered.
 
 PACING:
-- Not every scene should be a major plot event. Include quieter scenes: character moments, travel, reflection, relationship building, exploring the world.
-- Only 1 in 3 scenes should be a significant plot beat. Others should build atmosphere, deepen character, or set up future payoffs.
-- Vary the scene rhythm: a tense scene should be followed by a breather, not another tense scene.
-- Threads should evolve gradually — don't rush thread mutations. A dormant thread surfaces slowly, not in one jump to escalating.
+- Not every scene should be a major plot event. Include quieter scenes: character moments, travel, reflection, relationship building.
+- Only 1 in 3 scenes should be a significant plot beat. Others build atmosphere, deepen character, or plant seeds.
+- Threads evolve gradually — a dormant thread surfaces slowly over many scenes, not in one jump.
 - When a thread's storyline has concluded (conflict resolved, mystery answered, goal achieved or failed), transition it to a terminal status: ${THREAD_TERMINAL_STATUSES.map((s) => `"${s}"`).join(', ')}. Choose the terminal status that best fits HOW the thread ended.
 
 CRITICAL ID CONSTRAINT (re-stated for emphasis):
@@ -641,7 +645,7 @@ Rules:
  */
 export async function analyzeForceTrajectory(
   narrative: NarrativeState,
-  forceData: { sceneId: string; arcId: string; arcName: string; forces: { payoff: number; change: number; variety: number }; corner: string; cornerKey: CubeCornerKey }[],
+  forceData: { sceneId: string; arcId: string; arcName: string; forces: { payoff: number; change: number; variety: number }; swing: number; corner: string; cornerKey: CubeCornerKey }[],
 ): Promise<string> {
   // Build compact narrative context (lighter than full branchContext)
   const threadSummary = Object.values(narrative.threads)
@@ -662,7 +666,7 @@ export async function analyzeForceTrajectory(
     const loc = scene ? (narrative.locations[scene.locationId]?.name ?? scene.locationId) : '?';
     const participants = scene ? scene.participantIds.map(pid => narrative.characters[pid]?.name ?? pid).join(', ') : '?';
     const threadChanges = scene?.threadMutations.map(tm => `${narrative.threads[tm.threadId]?.description?.slice(0, 40) ?? tm.threadId}: ${tm.from}→${tm.to}`).join('; ') || '';
-    return `[${i + 1}] ${d.arcName} | ${d.corner} (${d.cornerKey}) | P:${d.forces.payoff >= 0 ? '+' : ''}${d.forces.payoff.toFixed(2)} C:${d.forces.change >= 0 ? '+' : ''}${d.forces.change.toFixed(2)} V:${d.forces.variety >= 0 ? '+' : ''}${d.forces.variety.toFixed(2)} | @${loc} | ${participants}${threadChanges ? ` | ${threadChanges}` : ''}`;
+    return `[${i + 1}] ${d.arcName} | ${d.corner} (${d.cornerKey}) | P:${d.forces.payoff >= 0 ? '+' : ''}${d.forces.payoff.toFixed(2)} C:${d.forces.change >= 0 ? '+' : ''}${d.forces.change.toFixed(2)} V:${d.forces.variety >= 0 ? '+' : ''}${d.forces.variety.toFixed(2)} Sw:${d.swing.toFixed(2)} | @${loc} | ${participants}${threadChanges ? ` | ${threadChanges}` : ''}`;
   }).join('\n');
 
   // Build per-arc force summary
@@ -675,12 +679,13 @@ export async function analyzeForceTrajectory(
 
   const arcForceLines = arcOrder.map(arcId => {
     const group = arcGroups[arcId];
-    const avgS = group.reduce((s, e) => s + e.forces.payoff, 0) / group.length;
-    const avgP = group.reduce((s, e) => s + e.forces.change, 0) / group.length;
+    const avgP = group.reduce((s, e) => s + e.forces.payoff, 0) / group.length;
+    const avgC = group.reduce((s, e) => s + e.forces.change, 0) / group.length;
     const avgV = group.reduce((s, e) => s + e.forces.variety, 0) / group.length;
+    const avgSw = group.reduce((s, e) => s + e.swing, 0) / group.length;
     const corners = group.map(e => e.corner);
     const uniqueCorners = [...new Set(corners)];
-    return `${group[0].arcName} (${group.length} scenes): avg P:${avgS.toFixed(2)} C:${avgP.toFixed(2)} V:${avgV.toFixed(2)} | corners: ${uniqueCorners.join(' → ')}`;
+    return `${group[0].arcName} (${group.length} scenes): avg P:${avgP.toFixed(2)} C:${avgC.toFixed(2)} V:${avgV.toFixed(2)} Sw:${avgSw.toFixed(2)} | corners: ${uniqueCorners.join(' → ')}`;
   }).join('\n');
 
   // Cube corner definitions for reference
@@ -723,6 +728,8 @@ Write a meta-analysis of this narrative's force trajectory. Structure your respo
 **Tension Architecture** — How payoff is managed across the narrative. Where are the peaks and valleys? Is the escalation earned or rushed? How does the story use restraint?
 
 **Change Rhythm** — The mutation density pattern. Where does the story accelerate and decelerate? Are there effective breathing rooms between intense sequences?
+
+**Swing Dynamics** — Analyze the swing magnitude pattern (Sw values — Euclidean distance between consecutive 3D force positions). High swing indicates the story is constantly shifting between slow and fast moments, creating a vibrant, dynamic reading experience. Low swing means the story is settling into a groove. Where are the biggest swings? Are there sustained high-swing sequences that create excitement, or does the story plateau?
 
 **Compositional Observations** — What makes this trajectory distinctive? What corners are over/under-visited? Where does the narrative surprise or follow convention? Any structural strengths or weaknesses?
 

@@ -3,6 +3,12 @@
 import { useRef, useEffect, useState } from 'react';
 import * as d3 from 'd3';
 
+export type ChartStyle = {
+  showArea: boolean;
+  showWindow: boolean;
+  curve: 'smooth' | 'linear' | 'step';
+};
+
 type ForceLineChartProps = {
   data: number[];
   color: string;
@@ -11,6 +17,15 @@ type ForceLineChartProps = {
   /** Inclusive data-index range for the active normalization window */
   windowStart?: number;
   windowEnd?: number;
+  /** If true, domain starts at 0 (for always-positive values like swing magnitude) */
+  positive?: boolean;
+  style?: ChartStyle;
+};
+
+const CURVE_FNS = {
+  smooth: d3.curveMonotoneX,
+  linear: d3.curveLinear,
+  step: d3.curveStepAfter,
 };
 
 export default function ForceLineChart({
@@ -20,10 +35,16 @@ export default function ForceLineChart({
   currentIndex,
   windowStart,
   windowEnd,
+  positive,
+  style,
 }: ForceLineChartProps) {
   const svgRef = useRef<SVGSVGElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const [dims, setDims] = useState({ width: 200, height: 60 });
+
+  const showArea = style?.showArea ?? true;
+  const showWindow = style?.showWindow ?? true;
+  const curveFn = CURVE_FNS[style?.curve ?? 'smooth'];
 
   // Observe container size
   useEffect(() => {
@@ -59,11 +80,10 @@ export default function ForceLineChart({
       .domain([0, Math.max(data.length - 1, 1)])
       .range([0, width]);
 
-    // Symmetric domain that expands to fit z-score values beyond ±1
     const maxAbs = data.reduce((m, v) => Math.max(m, Math.abs(v)), 1);
     const yScale = d3
       .scaleLinear()
-      .domain([-maxAbs, maxAbs])
+      .domain(positive ? [0, maxAbs * 1.1] : [-maxAbs, maxAbs])
       .range([chartHeight, chartTop]);
 
     // Zero line at y=0
@@ -79,7 +99,7 @@ export default function ForceLineChart({
       .attr('opacity', 0.12);
 
     // Window highlight region
-    if (windowStart != null && windowEnd != null && data.length > 1) {
+    if (showWindow && windowStart != null && windowEnd != null && data.length > 1) {
       const wx1 = xScale(windowStart);
       const wx2 = xScale(windowEnd);
       svg
@@ -103,26 +123,28 @@ export default function ForceLineChart({
     }
 
     // Area (filled from zero line)
-    const area = d3
-      .area<number>()
-      .x((_, i) => xScale(i))
-      .y0(zeroY)
-      .y1((d) => yScale(d))
-      .curve(d3.curveMonotoneX);
+    if (showArea) {
+      const area = d3
+        .area<number>()
+        .x((_, i) => xScale(i))
+        .y0(zeroY)
+        .y1((d) => yScale(d))
+        .curve(curveFn);
 
-    svg
-      .append('path')
-      .datum(data)
-      .attr('d', area)
-      .attr('fill', color)
-      .attr('opacity', 0.1);
+      svg
+        .append('path')
+        .datum(data)
+        .attr('d', area)
+        .attr('fill', color)
+        .attr('opacity', 0.1);
+    }
 
     // Line
     const line = d3
       .line<number>()
       .x((_, i) => xScale(i))
       .y((d) => yScale(d))
-      .curve(d3.curveMonotoneX);
+      .curve(curveFn);
 
     svg
       .append('path')
@@ -146,7 +168,7 @@ export default function ForceLineChart({
         .attr('stroke-width', 1)
         .attr('opacity', 0.2);
     }
-  }, [data, color, currentIndex, dims, windowStart, windowEnd]);
+  }, [data, color, currentIndex, dims, windowStart, windowEnd, positive, showArea, showWindow, curveFn]);
 
   const currentValue =
     currentIndex >= 0 && currentIndex < data.length
@@ -154,14 +176,14 @@ export default function ForceLineChart({
       : undefined;
 
   return (
-    <div className="flex-1 flex flex-col px-3 py-2 min-w-0 overflow-hidden">
+    <div className="flex-1 flex flex-col px-2 py-1.5 min-w-0 overflow-hidden">
       {/* Header */}
-      <div className="flex items-baseline justify-between mb-1">
-        <span className="text-[10px] uppercase tracking-widest text-text-dim">
+      <div className="flex items-baseline justify-between mb-0.5">
+        <span className="text-[9px] uppercase tracking-wider text-text-dim">
           {label}
         </span>
         {currentValue !== undefined && (
-          <span className="text-[10px] font-medium" style={{ color }}>
+          <span className="text-[9px] font-medium" style={{ color }}>
             {currentValue.toFixed(2)}
           </span>
         )}

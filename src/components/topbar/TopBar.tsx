@@ -7,6 +7,7 @@ import type { NarrativeState } from '@/types/narrative';
 import { ApiLogsModal } from '@/components/debug/ApiLogsModal';
 import { StoryReader } from '@/components/story/StoryReader';
 
+
 function exportNarrative(narrative: NarrativeState) {
   const json = JSON.stringify(narrative, null, 2);
   const blob = new Blob([json], { type: 'application/json' });
@@ -64,9 +65,12 @@ export default function TopBar() {
           alert('Invalid narrative file');
           return;
         }
-        dispatch({ type: 'REPLACE_NARRATIVE', narrative: imported });
+        // Always create a new series with a fresh ID
+        const newId = crypto.randomUUID();
+        const newNarrative = { ...imported, id: newId };
+        dispatch({ type: 'ADD_NARRATIVE', narrative: newNarrative });
         setSelectorOpen(false);
-        router.push(`/series/${imported.id}`);
+        router.push(`/series/${newId}`);
       } catch {
         alert('Failed to parse narrative file');
       }
@@ -235,7 +239,7 @@ export default function TopBar() {
         )}
       </div>
 
-      {/* Right: Keys + Story + API logs */}
+      {/* Right: action buttons */}
       <div className="flex items-center gap-1">
         {process.env.NEXT_PUBLIC_USER_API_KEYS === 'true' && (
           <button
@@ -273,6 +277,18 @@ export default function TopBar() {
             <polyline points="4,16 8,8 12,12 16,4 20,10" />
           </svg>
           <span className="text-[11px]">Analysis</span>
+        </button>
+        <button
+          onClick={() => window.dispatchEvent(new CustomEvent('open-cube-viewer'))}
+          className="px-2 py-1 rounded hover:bg-bg-elevated transition-colors text-text-dim hover:text-text-primary flex items-center gap-1.5"
+          title="Narrative Cube — 3D force trajectory"
+        >
+          <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M12 2L2 7l10 5 10-5-10-5z" />
+            <path d="M2 17l10 5 10-5" />
+            <path d="M2 12l10 5 10-5" />
+          </svg>
+          <span className="text-[11px]">Cube</span>
         </button>
         <button
           onClick={() => setStoryOpen(true)}

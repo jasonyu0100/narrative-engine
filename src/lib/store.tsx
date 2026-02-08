@@ -312,9 +312,10 @@ function reducer(state: AppState, action: Action): AppState {
       const allLocs = Object.values(n.locations);
       const allThreads = Object.values(n.threads);
 
-      // Use a stable ID based on narrative id to be idempotent under strict mode
+      // Only inject a world-build commit if the narrative doesn't already have one
+      const hasExistingWx = Object.keys(n.worldBuilds).length > 0;
       const wxId = nextId('WX', Object.keys(n.worldBuilds), 3);
-      if (rootBranch && !n.worldBuilds[wxId] && (allChars.length > 0 || allLocs.length > 0 || allThreads.length > 0)) {
+      if (rootBranch && !hasExistingWx && (allChars.length > 0 || allLocs.length > 0 || allThreads.length > 0)) {
         const parts: string[] = [];
         if (allChars.length > 0) parts.push(`${allChars.length} character${allChars.length > 1 ? 's' : ''} (${allChars.map((c) => c.name).join(', ')})`);
         if (allLocs.length > 0) parts.push(`${allLocs.length} location${allLocs.length > 1 ? 's' : ''} (${allLocs.map((l) => l.name).join(', ')})`);

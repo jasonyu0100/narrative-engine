@@ -132,6 +132,27 @@ export function cubeCornerProximity(forces: ForceSnapshot, cornerKey: CubeCorner
   return Math.exp(-d / 2);
 }
 
+/** Compute swing magnitude (Euclidean distance) between consecutive force snapshots.
+ *  Returns an array of the same length; the first element is always 0. */
+export function computeSwingMagnitudes(forceSnapshots: ForceSnapshot[]): number[] {
+  const swings: number[] = [0];
+  for (let i = 1; i < forceSnapshots.length; i++) {
+    const dp = forceSnapshots[i].payoff - forceSnapshots[i - 1].payoff;
+    const dc = forceSnapshots[i].change - forceSnapshots[i - 1].change;
+    const dv = forceSnapshots[i].variety - forceSnapshots[i - 1].variety;
+    swings.push(Math.sqrt(dp * dp + dc * dc + dv * dv));
+  }
+  return swings;
+}
+
+/** Compute the average swing over a trailing window of force snapshots */
+export function averageSwing(forceSnapshots: ForceSnapshot[], windowSize = FORCE_WINDOW_SIZE): number {
+  if (forceSnapshots.length < 2) return 0;
+  const swings = computeSwingMagnitudes(forceSnapshots);
+  const window = swings.slice(-windowSize);
+  return window.reduce((s, v) => s + v, 0) / window.length;
+}
+
 // ── Force Computation ────────────────────────────────────────────────────────
 
 /**

@@ -57,6 +57,7 @@ type SceneForceEntry = {
   corner: CubeCorner;
   cornerKey: CubeCornerKey;
   forces: { payoff: number; change: number; variety: number };
+  swing: number;
 };
 
 // ── Component ────────────────────────────────────────────────────────────────
@@ -136,6 +137,7 @@ export function NarrativeCubeViewer({ onClose }: { onClose: () => void }) {
   const forceEntries = useMemo((): SceneForceEntry[] => {
     if (!narrative) return [];
     const entries: SceneForceEntry[] = [];
+    let prevForce: ForceSnapshot | null = null;
     for (let i = 0; i < resolvedKeys.length; i++) {
       const entry = resolveEntry(narrative, resolvedKeys[i]);
       if (entry && isScene(entry)) {
@@ -143,6 +145,13 @@ export function NarrativeCubeViewer({ onClose }: { onClose: () => void }) {
         if (f) {
           const arc = narrative.arcs[entry.arcId];
           const corner = detectCubeCorner(f);
+          let swing = 0;
+          if (prevForce) {
+            const dp = f.payoff - prevForce.payoff;
+            const dc = f.change - prevForce.change;
+            const dv = f.variety - prevForce.variety;
+            swing = Math.sqrt(dp * dp + dc * dc + dv * dv);
+          }
           entries.push({
             sceneId: entry.id,
             arcId: entry.arcId,
@@ -150,7 +159,9 @@ export function NarrativeCubeViewer({ onClose }: { onClose: () => void }) {
             corner,
             cornerKey: corner.key,
             forces: f,
+            swing,
           });
+          prevForce = f;
         }
       }
     }
@@ -321,6 +332,7 @@ export function NarrativeCubeViewer({ onClose }: { onClose: () => void }) {
           arcId: e.arcId,
           arcName: e.arcName,
           forces: e.forces,
+          swing: e.swing,
           corner: e.corner.name,
           cornerKey: e.cornerKey,
         })),

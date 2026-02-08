@@ -25,6 +25,24 @@ export default function SceneDetail({ sceneId }: Props) {
     return forceMap[sceneId] ?? { payoff: 0, change: 0, variety: 0 };
   }, [narrative, state.resolvedSceneKeys, sceneId]);
 
+  const sceneKeyIndex = state.resolvedSceneKeys.indexOf(sceneId);
+
+  const handleGenerateProse = useCallback(async () => {
+    if (proseLoading || !narrative) return;
+    const entry = resolveEntry(narrative, sceneId);
+    if (!entry || !isScene(entry)) return;
+    setProseLoading(true);
+    setProseError('');
+    try {
+      const prose = await generateSceneProse(narrative, entry, sceneKeyIndex, state.resolvedSceneKeys);
+      dispatch({ type: 'UPDATE_SCENE', sceneId, updates: { prose } });
+    } catch (err) {
+      setProseError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setProseLoading(false);
+    }
+  }, [proseLoading, narrative, sceneId, sceneKeyIndex, state.resolvedSceneKeys, dispatch]);
+
   if (!narrative) return null;
 
   const entry = resolveEntry(narrative, sceneId);
@@ -125,22 +143,6 @@ export default function SceneDetail({ sceneId }: Props) {
   const arc = Object.values(narrative.arcs).find((a) =>
     a.sceneIds.includes(sceneId)
   );
-
-  const sceneKeyIndex = state.resolvedSceneKeys.indexOf(sceneId);
-
-  const handleGenerateProse = useCallback(async () => {
-    if (proseLoading || !narrative) return;
-    setProseLoading(true);
-    setProseError('');
-    try {
-      const prose = await generateSceneProse(narrative, scene, sceneKeyIndex, state.resolvedSceneKeys);
-      dispatch({ type: 'UPDATE_SCENE', sceneId, updates: { prose } });
-    } catch (err) {
-      setProseError(err instanceof Error ? err.message : String(err));
-    } finally {
-      setProseLoading(false);
-    }
-  }, [proseLoading, narrative, scene, sceneKeyIndex, state.resolvedSceneKeys, dispatch, sceneId]);
 
   return (
     <div className="flex flex-col gap-4">

@@ -1,10 +1,10 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useRef, useEffect } from 'react';
 import { useStore } from '@/lib/store';
 import { resolveEntry, isScene, type Scene } from '@/types/narrative';
-import { detectCubeCorner, computeForceSnapshots, computeWindowedForces } from '@/lib/narrative-utils';
-import ForceLineChart from './ForceLineChart';
+import { computeForceSnapshots, computeWindowedForces } from '@/lib/narrative-utils';
+import ForceLineChart, { type ChartStyle } from './ForceLineChart';
 
 const FORCE_CONFIG = [
   { key: 'payoff' as const, label: 'Payoff', color: 'var(--color-stakes)' },
@@ -12,14 +12,45 @@ const FORCE_CONFIG = [
   { key: 'variety' as const, label: 'Variety', color: 'var(--color-variety)' },
 ] as const;
 
-type ViewMode = 'local' | 'global';
+/** Compute swing magnitude: √(ΔP² + ΔC² + ΔV²) between consecutive force snapshots */
+function computeSwings(payoff: number[], change: number[], variety: number[]): number[] {
+  const swings: number[] = [0];
+  for (let i = 1; i < payoff.length; i++) {
+    const dp = payoff[i] - payoff[i - 1];
+    const dc = change[i] - change[i - 1];
+    const dv = variety[i] - variety[i - 1];
+    swings.push(Math.sqrt(dp * dp + dc * dc + dv * dv));
+  }
+  return swings;
+}
+
+type Scope = 'global' | 'local';
 
 export default function ForceCharts() {
   const { state } = useStore();
   const narrative = state.activeNarrative;
   const resolvedSceneKeys = state.resolvedSceneKeys;
-  const [viewMode, setViewMode] = useState<ViewMode>('global');
-  const [cubeMode, setCubeMode] = useState<ViewMode>('local');
+
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [scope, setScope] = useState<Scope>('global');
+  const [chartStyle, setChartStyle] = useState<ChartStyle>({
+    showArea: true,
+    showWindow: true,
+    curve: 'smooth',
+  });
+  const popRef = useRef<HTMLDivElement>(null);
+
+  // Close popover on outside click
+  useEffect(() => {
+    if (!settingsOpen) return;
+    const handler = (e: MouseEvent) => {
+      if (popRef.current && !popRef.current.contains(e.target as Node)) {
+        setSettingsOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [settingsOpen]);
 
   // All scenes in timeline order
   const allScenes = useMemo(() => {
@@ -39,15 +70,15 @@ export default function ForceCharts() {
     );
   }, [allScenes, state.currentSceneIndex, resolvedSceneKeys, narrative]);
 
-  // Windowed forces — always computed for cube position
+  // Windowed forces
   const windowed = useMemo(() => {
     if (currentSceneIdx < 0) return null;
     return computeWindowedForces(allScenes, currentSceneIdx);
   }, [allScenes, currentSceneIdx]);
 
-  // Full-history forces for global graph display
+  // Full-history forces
   const globalForceData = useMemo(() => {
-    if (!narrative) return { payoff: [], change: [], variety: [] };
+    if (!narrative) return { payoff: [] as number[], change: [] as number[], variety: [] as number[], swing: [] as number[] };
     const payoff: number[] = [];
     const change: number[] = [];
     const variety: number[] = [];
@@ -62,12 +93,12 @@ export default function ForceCharts() {
       change.push(lastForce.change);
       variety.push(lastForce.variety);
     }
-    return { payoff, change, variety };
+    return { payoff, change, variety, swing: computeSwings(payoff, change, variety) };
   }, [narrative, allScenes, resolvedSceneKeys]);
 
-  // Window-only forces for local view
+  // Window-only forces for local scope
   const localForceData = useMemo(() => {
-    if (!windowed || !narrative) return { payoff: [], change: [], variety: [] };
+    if (!windowed || !narrative) return { payoff: [] as number[], change: [] as number[], variety: [] as number[], swing: [] as number[] };
     const payoff: number[] = [];
     const change: number[] = [];
     const variety: number[] = [];
@@ -79,10 +110,10 @@ export default function ForceCharts() {
       change.push(lastForce.change);
       variety.push(lastForce.variety);
     }
-    return { payoff, change, variety };
+    return { payoff, change, variety, swing: computeSwings(payoff, change, variety) };
   }, [windowed, allScenes, narrative]);
 
-  // Map window scene-indices back to timeline indices for global chart highlight
+  // Map window scene-indices back to timeline indices for chart highlight
   const windowTimelineRange = useMemo(() => {
     if (!windowed || !narrative) return undefined;
     const windowStartId = allScenes[windowed.windowStart]?.id;
@@ -98,54 +129,10 @@ export default function ForceCharts() {
     return { start: tlStart, end: tlEnd };
   }, [windowed, allScenes, resolvedSceneKeys, narrative]);
 
-  // Windowed forces for local cube corner
-  const windowedForces = useMemo(() => {
-    if (!windowed) return null;
-    const lastScene = allScenes[windowed.windowEnd];
-    return lastScene ? windowed.forceMap[lastScene.id] ?? null : null;
-  }, [windowed, allScenes]);
-
-  // Global forces for history cube corner
-  const globalForces = useMemo(() => {
-    const idx = state.currentSceneIndex;
-    if (globalForceData.payoff.length === 0 || idx < 0 || idx >= globalForceData.payoff.length) return null;
-    return {
-      payoff: globalForceData.payoff[idx],
-      change: globalForceData.change[idx],
-      variety: globalForceData.variety[idx],
-    };
-  }, [globalForceData, state.currentSceneIndex]);
-
-  const cubeCorner = useMemo(() => {
-    const forces = cubeMode === 'local' ? windowedForces : globalForces;
-    if (!forces) return null;
-    return detectCubeCorner(forces);
-  }, [cubeMode, windowedForces, globalForces]);
-
-  // Previous scene's cube corner for transition display
-  const prevCorner = useMemo(() => {
-    if (currentSceneIdx < 1) return null;
-    if (cubeMode === 'local') {
-      const prev = computeWindowedForces(allScenes, currentSceneIdx - 1);
-      const prevScene = allScenes[prev.windowEnd];
-      const f = prevScene ? prev.forceMap[prevScene.id] : null;
-      return f ? detectCubeCorner(f) : null;
-    }
-    // Global: use previous index from globalForceData
-    const prevIdx = state.currentSceneIndex - 1;
-    if (prevIdx < 0 || prevIdx >= globalForceData.payoff.length) return null;
-    return detectCubeCorner({
-      payoff: globalForceData.payoff[prevIdx],
-      change: globalForceData.change[prevIdx],
-      variety: globalForceData.variety[prevIdx],
-    });
-  }, [cubeMode, currentSceneIdx, allScenes, state.currentSceneIndex, globalForceData]);
-
-  // Select data and indices based on view mode
-  const isLocal = viewMode === 'local';
+  const isLocal = scope === 'local';
   const chartData = isLocal ? localForceData : globalForceData;
   const chartCurrentIndex = isLocal
-    ? (localForceData.payoff.length - 1)  // always last in local view
+    ? (localForceData.payoff.length - 1)
     : state.currentSceneIndex;
 
   if (!narrative) {
@@ -160,120 +147,142 @@ export default function ForceCharts() {
 
   return (
     <div className="flex h-25 shrink-0 glass-panel border-t border-border">
-      {/* Cube state label + view toggle — left */}
-      <div className="flex flex-col justify-center px-3 border-r border-border shrink-0 w-36">
-        {cubeCorner && (
-          <>
-            <span className="text-[9px] uppercase tracking-widest text-text-dim">
-              {cubeCorner.key.split('').map((c: string, i: number) => {
-                const labels = ['P', 'C', 'V'];
-                return `${labels[i]}:${c === 'H' ? 'Hi' : 'Lo'}`;
-              }).join(' · ')}
+      {/* Settings gear */}
+      <div className="relative flex items-center px-1.5 border-r border-border shrink-0" ref={popRef}>
+        <button
+          type="button"
+          onClick={() => setSettingsOpen((o) => !o)}
+          className={`w-6 h-6 flex items-center justify-center rounded-md transition-colors ${
+            settingsOpen ? 'text-text-primary bg-white/8' : 'text-text-dim hover:text-text-primary hover:bg-white/6'
+          }`}
+          title="Force graph settings"
+        >
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <circle cx="12" cy="12" r="3" />
+            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
+          </svg>
+        </button>
+
+        {settingsOpen && (
+          <div
+            className="absolute bottom-full left-0 mb-2 w-48 rounded-lg border border-white/10 py-2 px-2.5 z-50"
+            style={{ background: '#1a1a1a', boxShadow: '0 8px 32px rgba(0,0,0,0.5)' }}
+          >
+            <span className="text-[9px] uppercase tracking-widest text-text-dim block mb-2">
+              Graph Settings
             </span>
-            <span className="text-[11px] font-semibold text-text-primary leading-tight mt-0.5">
-              {prevCorner && prevCorner.key !== cubeCorner.key ? (
-                <>
-                  <span className="text-text-dim font-normal">{prevCorner.name}</span>
-                  <span className="text-text-dim font-normal mx-0.5">&rarr;</span>
-                  {cubeCorner.name}
-                </>
-              ) : (
-                cubeCorner.name
-              )}
-            </span>
-          </>
+
+            {/* Scope toggle */}
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-[11px] text-text-secondary">Scope</span>
+              <div className="flex rounded-md overflow-hidden border border-white/10">
+                {(['global', 'local'] as const).map((s) => (
+                  <button
+                    key={s}
+                    type="button"
+                    onClick={() => setScope(s)}
+                    className={`px-2 py-0.5 text-[10px] capitalize transition-colors ${
+                      scope === s
+                        ? 'bg-white/12 text-text-primary'
+                        : 'text-text-dim hover:text-text-secondary'
+                    }`}
+                  >
+                    {s}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Curve style */}
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-[11px] text-text-secondary">Curve</span>
+              <div className="flex rounded-md overflow-hidden border border-white/10">
+                {(['smooth', 'linear', 'step'] as const).map((c) => (
+                  <button
+                    key={c}
+                    type="button"
+                    onClick={() => setChartStyle((prev) => ({ ...prev, curve: c }))}
+                    className={`px-2 py-0.5 text-[10px] capitalize transition-colors ${
+                      chartStyle.curve === c
+                        ? 'bg-white/12 text-text-primary'
+                        : 'text-text-dim hover:text-text-secondary'
+                    }`}
+                  >
+                    {c}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Show area fill */}
+            <label className="flex items-center justify-between mb-1.5 cursor-pointer">
+              <span className="text-[11px] text-text-secondary">Area fill</span>
+              <button
+                type="button"
+                role="switch"
+                aria-checked={chartStyle.showArea}
+                onClick={() => setChartStyle((prev) => ({ ...prev, showArea: !prev.showArea }))}
+                className={`w-7 h-4 rounded-full transition-colors relative ${
+                  chartStyle.showArea ? 'bg-white/25' : 'bg-white/8'
+                }`}
+              >
+                <span className={`absolute top-0.5 w-3 h-3 rounded-full bg-white transition-all ${
+                  chartStyle.showArea ? 'left-3.5' : 'left-0.5'
+                }`} />
+              </button>
+            </label>
+
+            {/* Show window highlight */}
+            <label className="flex items-center justify-between cursor-pointer">
+              <span className="text-[11px] text-text-secondary">Window highlight</span>
+              <button
+                type="button"
+                role="switch"
+                aria-checked={chartStyle.showWindow}
+                onClick={() => setChartStyle((prev) => ({ ...prev, showWindow: !prev.showWindow }))}
+                className={`w-7 h-4 rounded-full transition-colors relative ${
+                  chartStyle.showWindow ? 'bg-white/25' : 'bg-white/8'
+                }`}
+              >
+                <span className={`absolute top-0.5 w-3 h-3 rounded-full bg-white transition-all ${
+                  chartStyle.showWindow ? 'left-3.5' : 'left-0.5'
+                }`} />
+              </button>
+            </label>
+          </div>
         )}
-        <div className="flex items-center gap-1.5 mt-1">
-          {/* Cube calculation toggle: crosshair (local) / globe (global) */}
-          <button
-            type="button"
-            onClick={() => setCubeMode((m) => m === 'local' ? 'global' : 'local')}
-            className="flex items-center gap-0.5 text-[9px] uppercase tracking-widest text-text-dim hover:text-text-primary transition-colors"
-            title={cubeMode === 'local' ? 'Cube uses windowed forces' : 'Cube uses full-history forces'}
-          >
-            <svg width="10" height="10" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
-              {cubeMode === 'local' ? (
-                /* Crosshair — local/windowed */
-                <>
-                  <circle cx="8" cy="8" r="5" />
-                  <line x1="8" y1="1" x2="8" y2="4" />
-                  <line x1="8" y1="12" x2="8" y2="15" />
-                  <line x1="1" y1="8" x2="4" y2="8" />
-                  <line x1="12" y1="8" x2="15" y2="8" />
-                </>
-              ) : (
-                /* Globe — global/full-history */
-                <>
-                  <circle cx="8" cy="8" r="6" />
-                  <ellipse cx="8" cy="8" rx="3" ry="6" />
-                  <line x1="2" y1="8" x2="14" y2="8" />
-                </>
-              )}
-            </svg>
-            {cubeMode === 'local' ? 'local' : 'global'}
-          </button>
-          <span className="text-[9px] text-text-dim opacity-20">|</span>
-          {/* Chart view toggle: window (zoom) / history (timeline) */}
-          <button
-            type="button"
-            onClick={() => setViewMode((m) => m === 'local' ? 'global' : 'local')}
-            className="flex items-center gap-0.5 text-[9px] uppercase tracking-widest text-text-dim hover:text-text-primary transition-colors"
-            title={isLocal ? 'Chart shows window only' : 'Chart shows full history'}
-          >
-            <svg width="10" height="10" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-              {isLocal ? (
-                /* Zoom/magnify — window view */
-                <>
-                  <circle cx="7" cy="7" r="4.5" />
-                  <line x1="10.2" y1="10.2" x2="14" y2="14" />
-                </>
-              ) : (
-                /* Timeline — full history */
-                <>
-                  <line x1="1" y1="13" x2="15" y2="13" />
-                  <polyline points="1,10 4,5 7,8 10,3 13,6 15,2" />
-                </>
-              )}
-            </svg>
-            {isLocal ? 'window' : 'history'}
-          </button>
-        </div>
       </div>
 
-      {/* Force line charts — center */}
-      {FORCE_CONFIG.map((cfg, i) => (
+      {/* Force line charts */}
+      {FORCE_CONFIG.map((cfg) => (
         <div
           key={cfg.key}
-          className={`flex-1 ${i < FORCE_CONFIG.length - 1 ? 'border-r border-border' : ''}`}
+          className="flex-1 min-w-0 border-r border-border"
         >
           <ForceLineChart
             data={chartData[cfg.key]}
             color={cfg.color}
             label={cfg.label}
             currentIndex={chartCurrentIndex}
-            windowStart={cubeMode === 'local' && !isLocal ? windowTimelineRange?.start : undefined}
-            windowEnd={cubeMode === 'local' && !isLocal ? windowTimelineRange?.end : undefined}
+            windowStart={!isLocal ? windowTimelineRange?.start : undefined}
+            windowEnd={!isLocal ? windowTimelineRange?.end : undefined}
+            style={chartStyle}
           />
         </div>
       ))}
 
-      {/* Cube viewer button — right */}
-      <div className="flex items-center px-2 border-l border-border shrink-0">
-        <button
-          type="button"
-          title="Narrative cube — 3D force trajectory"
-          onClick={() => window.dispatchEvent(new CustomEvent('open-cube-viewer'))}
-          className="w-7 h-7 flex items-center justify-center text-text-dim hover:text-text-primary hover:bg-white/6 rounded-md transition-colors"
-        >
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M12 2L2 7l10 5 10-5-10-5z" />
-            <path d="M2 17l10 5 10-5" />
-            <path d="M2 12l10 5 10-5" />
-            <path d="M12 12v10" />
-            <path d="M2 7v10" />
-            <path d="M22 7v10" />
-          </svg>
-        </button>
+      {/* Swing magnitude chart */}
+      <div className="flex-1 min-w-0">
+        <ForceLineChart
+          data={chartData.swing}
+          color="#facc15"
+          label="Swing"
+          currentIndex={chartCurrentIndex}
+          windowStart={!isLocal ? windowTimelineRange?.start : undefined}
+          windowEnd={!isLocal ? windowTimelineRange?.end : undefined}
+          positive
+          style={chartStyle}
+        />
       </div>
     </div>
   );

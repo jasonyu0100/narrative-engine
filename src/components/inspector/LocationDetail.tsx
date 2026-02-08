@@ -25,8 +25,9 @@ export default function LocationDetail({ locationId }: Props) {
   const parent = location.parentId ? narrative.locations[location.parentId] : null;
 
   // Lifecycle: scenes set at this location, with relevant mutations
-  const lifecycle = Object.values(narrative.scenes)
-    .filter((s) => s.locationId === locationId)
+  const lifecycle = state.resolvedSceneKeys
+    .map((k) => narrative.scenes[k])
+    .filter((s) => s && s.locationId === locationId)
     .map((s) => ({
       sceneId: s.id,
       threadMuts: s.threadMutations,

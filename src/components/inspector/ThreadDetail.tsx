@@ -41,9 +41,10 @@ export default function ThreadDetail({ threadId }: Props) {
         : narrative.locations[a.id]?.name ?? a.id,
   }));
 
-  // Find scenes where this thread was mutated
-  const lifecycle = Object.values(narrative.scenes)
-    .filter((s) => s.threadMutations.some((tm) => tm.threadId === threadId))
+  // Find scenes on the current branch where this thread was mutated
+  const lifecycle = state.resolvedSceneKeys
+    .map((k) => narrative.scenes[k])
+    .filter((s) => s && s.threadMutations.some((tm) => tm.threadId === threadId))
     .map((s) => ({
       sceneId: s.id,
       mutations: s.threadMutations.filter((tm) => tm.threadId === threadId),

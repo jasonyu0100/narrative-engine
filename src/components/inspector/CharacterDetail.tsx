@@ -33,8 +33,9 @@ export default function CharacterDetail({ characterId }: Props) {
   );
 
   // Lifecycle: scenes where this character is involved, with their relevant mutations
-  const lifecycle = Object.values(narrative.scenes)
-    .filter((s) => s.participantIds.includes(characterId))
+  const lifecycle = state.resolvedSceneKeys
+    .map((k) => narrative.scenes[k])
+    .filter((s) => s && s.participantIds.includes(characterId))
     .map((s) => ({
       sceneId: s.id,
       knowledgeMuts: s.knowledgeMutations.filter((km) => km.characterId === characterId),

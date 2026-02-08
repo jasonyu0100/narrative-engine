@@ -3,12 +3,10 @@
 import { useMemo, useState, useRef, useEffect, useCallback } from 'react';
 import * as d3 from 'd3';
 import { useStore } from '@/lib/store';
-import { useFeatureAccess } from '@/hooks/useFeatureAccess';
 import { resolveEntry, isScene, type Scene, type ForceSnapshot, type CubeCornerKey } from '@/types/narrative';
 import { computeForceSnapshots, detectCubeCorner } from '@/lib/narrative-utils';
-import { generateChartAnnotations, type ChartAnnotation } from '@/lib/ai';
 
-type ForceKey = 'payoff' | 'change' | 'variety';
+type ForceKey = 'payoff' | 'change' | 'variety' | 'swing';
 
 type SceneDataPoint = {
   index: number;
@@ -19,6 +17,7 @@ type SceneDataPoint = {
   location: string;
   participants: string[];
   forces: ForceSnapshot;
+  swing: number;
   corner: string;
   cornerKey: CubeCornerKey;
   threadChanges: string[];
@@ -31,27 +30,16 @@ type ArcRegion = {
   endIndex: number;
 };
 
+type DrawLine = { points: [number, number][] };
+
 const FORCE_CONFIG: { key: ForceKey; label: string; color: string }[] = [
   { key: 'payoff', label: 'PAYOFF', color: '#EF4444' },
   { key: 'change', label: 'CHANGE', color: '#22C55E' },
   { key: 'variety', label: 'VARIETY', color: '#3B82F6' },
+  { key: 'swing', label: 'SWING', color: '#facc15' },
 ];
 
 const MARGIN = { top: 36, right: 16, bottom: 4, left: 48 };
-const MIN_ANNOTATION_GAP = 60;
-
-/** Filter annotations to avoid pixel overlap, keeping earlier ones */
-function filterOverlapping(annotations: ChartAnnotation[], data: SceneDataPoint[], forceKey: ForceKey, xScale: d3.ScaleLinear<number, number>): ChartAnnotation[] {
-  const forAnnotations = annotations.filter((a) => a.force === forceKey);
-  const filtered: ChartAnnotation[] = [];
-  for (const a of forAnnotations) {
-    if (a.sceneIndex < 0 || a.sceneIndex >= data.length) continue;
-    const cx = xScale(a.sceneIndex);
-    const tooClose = filtered.some((f) => Math.abs(xScale(f.sceneIndex) - cx) < MIN_ANNOTATION_GAP);
-    if (!tooClose) filtered.push(a);
-  }
-  return filtered;
-}
 
 function ForceChart({
   data,
@@ -59,22 +47,30 @@ function ForceChart({
   label,
   color,
   arcRegions,
-  annotations,
   hoverIndex,
   onHover,
   height,
   width,
+  drawing,
+  drawLines,
+  onDrawStart,
+  onDrawMove,
+  onDrawEnd,
 }: {
   data: SceneDataPoint[];
   forceKey: ForceKey;
   label: string;
   color: string;
   arcRegions: ArcRegion[];
-  annotations: ChartAnnotation[];
   hoverIndex: number | null;
   onHover: (index: number | null) => void;
   height: number;
   width: number;
+  drawing: boolean;
+  drawLines: DrawLine[];
+  onDrawStart: (forceKey: ForceKey, x: number, y: number) => void;
+  onDrawMove: (x: number, y: number) => void;
+  onDrawEnd: () => void;
 }) {
   const svgRef = useRef<SVGSVGElement>(null);
 
@@ -88,10 +84,24 @@ function ForceChart({
 
     const g = svg.append('g').attr('transform', `translate(${MARGIN.left},${MARGIN.top})`);
 
-    const xScale = d3.scaleLinear().domain([0, Math.max(data.length - 1, 1)]).range([0, chartWidth]);
-    const yScale = d3.scaleLinear().domain([-1, 1]).range([chartHeight, 0]);
+    // Clip path so chart content stays within bounds
+    g.append('clipPath')
+      .attr('id', `clip-${forceKey}`)
+      .append('rect')
+      .attr('x', 0).attr('y', 0)
+      .attr('width', chartWidth).attr('height', chartHeight);
 
-    // Arc boundary lines (no background fills)
+    const xScale = d3.scaleLinear().domain([0, Math.max(data.length - 1, 1)]).range([0, chartWidth]);
+
+    // Dynamic symmetric y-domain based on data
+    const values = data.map((d) => forceKey === 'swing' ? d.swing : d.forces[forceKey]);
+    const isSwing = forceKey === 'swing';
+    const maxAbs = Math.max(d3.max(values.map(Math.abs)) ?? 1, 1);
+    const yScale = d3.scaleLinear()
+      .domain(isSwing ? [0, maxAbs * 1.1] : [-maxAbs, maxAbs])
+      .range([chartHeight, 0]);
+
+    // Arc boundary lines
     arcRegions.forEach((arc, i) => {
       if (i > 0) {
         const x1 = xScale(arc.startIndex);
@@ -104,8 +114,14 @@ function ForceChart({
       }
     });
 
-    // Gridlines
-    [-1, -0.5, 0, 0.5, 1].forEach((v) => {
+    // Gridlines — dynamic based on maxAbs
+    const gridValues = [0];
+    const step = maxAbs <= 2 ? 0.5 : maxAbs <= 5 ? 1 : Math.ceil(maxAbs / 4);
+    for (let v = step; v <= maxAbs; v += step) {
+      gridValues.push(v, -v);
+    }
+
+    gridValues.forEach((v) => {
       const y = yScale(v);
       g.append('line')
         .attr('x1', 0).attr('x2', chartWidth)
@@ -121,7 +137,7 @@ function ForceChart({
         .attr('fill', 'rgba(255,255,255,0.25)')
         .attr('font-size', '9px')
         .attr('font-family', 'monospace')
-        .text(v.toFixed(1));
+        .text(Number.isInteger(v) ? v.toString() : v.toFixed(1));
     });
 
     // Force label
@@ -134,7 +150,8 @@ function ForceChart({
       .attr('letter-spacing', '0.1em')
       .text(label);
 
-    const values = data.map((d) => d.forces[forceKey]);
+    // Clipped chart group
+    const clipped = g.append('g').attr('clip-path', `url(#clip-${forceKey})`);
 
     // Area fill
     const area = d3.area<number>()
@@ -143,7 +160,7 @@ function ForceChart({
       .y1((d) => yScale(d))
       .curve(d3.curveMonotoneX);
 
-    g.append('path')
+    clipped.append('path')
       .datum(values)
       .attr('d', area)
       .attr('fill', color)
@@ -155,7 +172,7 @@ function ForceChart({
       .y((d) => yScale(d))
       .curve(d3.curveMonotoneX);
 
-    g.append('path')
+    clipped.append('path')
       .datum(values)
       .attr('d', line)
       .attr('fill', 'none')
@@ -163,46 +180,21 @@ function ForceChart({
       .attr('stroke-width', 2)
       .attr('opacity', 0.9);
 
-    // LLM annotations
-    const filtered = filterOverlapping(annotations, data, forceKey, xScale);
-    for (const ann of filtered) {
-      const idx = ann.sceneIndex;
-      const val = values[idx];
-      if (val === undefined) continue;
+    // Draw lines overlay
+    for (const dl of drawLines) {
+      if (dl.points.length < 2) continue;
+      const drawPath = d3.line<[number, number]>()
+        .x((d) => d[0])
+        .y((d) => d[1]);
 
-      const cx = xScale(idx);
-      const cy = yScale(val);
-      const isPeak = val >= 0;
-
-      // Dot
-      g.append('circle')
-        .attr('cx', cx)
-        .attr('cy', cy)
-        .attr('r', 3)
-        .attr('fill', color)
-        .attr('stroke', '#111')
-        .attr('stroke-width', 1.5);
-
-      // Connector
-      const connectorLen = 16;
-      const endY = isPeak ? cy - connectorLen : cy + connectorLen;
-      g.append('line')
-        .attr('x1', cx).attr('x2', cx)
-        .attr('y1', cy + (isPeak ? -4 : 4))
-        .attr('y2', endY)
-        .attr('stroke', 'rgba(255,255,255,0.2)')
-        .attr('stroke-width', 0.5);
-
-      // Label
-      const labelText = ann.label.length > 30 ? ann.label.slice(0, 28) + '...' : ann.label;
-      g.append('text')
-        .attr('x', cx)
-        .attr('y', isPeak ? endY - 3 : endY + 10)
-        .attr('text-anchor', 'middle')
-        .attr('fill', 'rgba(255,255,255,0.55)')
-        .attr('font-size', '8px')
-        .attr('font-family', 'system-ui, sans-serif')
-        .text(labelText);
+      g.append('path')
+        .datum(dl.points)
+        .attr('d', drawPath)
+        .attr('fill', 'none')
+        .attr('stroke', 'rgba(255, 255, 255, 0.7)')
+        .attr('stroke-width', 1.5)
+        .attr('stroke-linecap', 'round')
+        .attr('stroke-linejoin', 'round');
     }
 
     // Hover crosshair
@@ -224,7 +216,7 @@ function ForceChart({
         .attr('stroke-dasharray', '3,3')
         .attr('opacity', 0.5);
 
-      g.append('circle')
+      clipped.append('circle')
         .attr('cx', cx)
         .attr('cy', cy)
         .attr('r', 4)
@@ -243,21 +235,37 @@ function ForceChart({
         .text(values[hoverIndex].toFixed(2));
     }
 
-    // Hover overlay
+    // Interaction overlay
     g.append('rect')
       .attr('x', 0).attr('y', 0)
       .attr('width', chartWidth).attr('height', chartHeight)
       .attr('fill', 'transparent')
+      .style('cursor', drawing ? 'crosshair' : 'default')
       .on('mousemove', (event: MouseEvent) => {
+        if (drawing) return;
         const [mx] = d3.pointer(event);
         const idx = Math.round(xScale.invert(mx));
         if (idx >= 0 && idx < data.length) onHover(idx);
       })
-      .on('mouseleave', () => onHover(null));
-  }, [data, forceKey, label, color, arcRegions, annotations, hoverIndex, onHover, height, width]);
+      .on('mouseleave', () => { if (!drawing) onHover(null); })
+      .on('mousedown', (event: MouseEvent) => {
+        if (!drawing) return;
+        event.preventDefault();
+        const [mx, my] = d3.pointer(event);
+        onDrawStart(forceKey, mx, my);
+      })
+      .on('mousemove.draw', (event: MouseEvent) => {
+        if (!drawing) return;
+        const [mx, my] = d3.pointer(event);
+        onDrawMove(mx, my);
+      })
+      .on('mouseup', () => {
+        if (drawing) onDrawEnd();
+      });
+  }, [data, forceKey, label, color, arcRegions, hoverIndex, onHover, height, width, drawing, drawLines, onDrawStart, onDrawMove, onDrawEnd]);
 
   return (
-    <svg ref={svgRef} width={width} height={height} className="block" style={{ overflow: 'visible' }} />
+    <svg ref={svgRef} width={width} height={height} className="block" />
   );
 }
 
@@ -297,14 +305,53 @@ function ArcLabelsBar({
 
 export function ForceTracker({ onClose }: { onClose: () => void }) {
   const { state } = useStore();
-  const access = useFeatureAccess();
   const narrative = state.activeNarrative;
   const containerRef = useRef<HTMLDivElement>(null);
   const [dims, setDims] = useState({ width: 800, height: 600 });
   const [hoverIndex, setHoverIndex] = useState<number | null>(null);
-  const [annotations, setAnnotations] = useState<ChartAnnotation[]>([]);
-  const [annotating, setAnnotating] = useState(false);
-  const [annotateError, setAnnotateError] = useState<string | null>(null);
+
+  // Drawing state
+  const [drawing, setDrawing] = useState(false);
+  const [drawLines, setDrawLines] = useState<Record<ForceKey, DrawLine[]>>({
+    payoff: [], change: [], variety: [], swing: [],
+  });
+  const [activeDrawKey, setActiveDrawKey] = useState<ForceKey | null>(null);
+  const activeLineRef = useRef<[number, number][]>([]);
+
+  const onDrawStart = useCallback((forceKey: ForceKey, x: number, y: number) => {
+    setActiveDrawKey(forceKey);
+    activeLineRef.current = [[x, y]];
+  }, []);
+
+  const onDrawMove = useCallback((x: number, y: number) => {
+    if (!activeDrawKey) return;
+    activeLineRef.current.push([x, y]);
+    setDrawLines((prev) => {
+      const existing = prev[activeDrawKey];
+      // Replace the in-progress line (last entry) with the updated points
+      const base = existing.length > 0 && activeLineRef.current.length > 1
+        ? existing.slice(0, -1)
+        : existing;
+      return { ...prev, [activeDrawKey]: [...base, { points: [...activeLineRef.current] }] };
+    });
+  }, [activeDrawKey]);
+
+  const onDrawEnd = useCallback(() => {
+    if (!activeDrawKey || activeLineRef.current.length < 2) {
+      setActiveDrawKey(null);
+      return;
+    }
+    setDrawLines((prev) => ({
+      ...prev,
+      [activeDrawKey]: [...prev[activeDrawKey], { points: [...activeLineRef.current] }],
+    }));
+    activeLineRef.current = [];
+    setActiveDrawKey(null);
+  }, [activeDrawKey]);
+
+  const clearDrawings = useCallback(() => {
+    setDrawLines({ payoff: [], change: [], variety: [], swing: [] });
+  }, []);
 
   // Resize observer
   useEffect(() => {
@@ -335,7 +382,7 @@ export function ForceTracker({ onClose }: { onClose: () => void }) {
 
   const dataPoints = useMemo((): SceneDataPoint[] => {
     if (!narrative || allScenes.length === 0) return [];
-    return allScenes.map((scene, i) => {
+    const points = allScenes.map((scene, i) => {
       const forces = forceMap[scene.id] ?? { payoff: 0, change: 0, variety: 0 };
       const corner = detectCubeCorner(forces);
       const arc = Object.values(narrative.arcs).find((a) => a.sceneIds.includes(scene.id));
@@ -349,6 +396,7 @@ export function ForceTracker({ onClose }: { onClose: () => void }) {
         location: location?.name ?? scene.locationId,
         participants: scene.participantIds.map((pid) => narrative.characters[pid]?.name ?? pid),
         forces,
+        swing: 0,
         corner: corner.name,
         cornerKey: corner.key as CubeCornerKey,
         threadChanges: scene.threadMutations.map(
@@ -356,6 +404,16 @@ export function ForceTracker({ onClose }: { onClose: () => void }) {
         ),
       };
     });
+    // Compute swing magnitudes
+    for (let i = 1; i < points.length; i++) {
+      const prev = points[i - 1].forces;
+      const curr = points[i].forces;
+      const dp = curr.payoff - prev.payoff;
+      const dc = curr.change - prev.change;
+      const dv = curr.variety - prev.variety;
+      points[i].swing = Math.sqrt(dp * dp + dc * dc + dv * dv);
+    }
+    return points;
   }, [narrative, allScenes, forceMap]);
 
   const arcRegions = useMemo((): ArcRegion[] => {
@@ -396,44 +454,14 @@ export function ForceTracker({ onClose }: { onClose: () => void }) {
     ? dataPoints[hoverIndex]
     : null;
 
-  // LLM annotation generation
-  const runAnnotate = useCallback(async () => {
-    if (!narrative || dataPoints.length === 0) return;
-    if (access.userApiKeys && !access.hasOpenRouterKey) {
-      window.dispatchEvent(new Event('open-api-keys'));
-      return;
-    }
-    setAnnotating(true);
-    setAnnotateError(null);
-    try {
-      const result = await generateChartAnnotations(
-        narrative,
-        dataPoints.map((d) => ({
-          sceneIndex: d.index,
-          sceneId: d.sceneId,
-          arcName: d.arcName,
-          forces: d.forces,
-          corner: d.corner,
-          summary: d.summary,
-          threadChanges: d.threadChanges,
-          location: d.location,
-          participants: d.participants,
-        })),
-      );
-      setAnnotations(result);
-    } catch (e) {
-      setAnnotateError(e instanceof Error ? e.message : 'Annotation failed');
-    } finally {
-      setAnnotating(false);
-    }
-  }, [narrative, dataPoints, access]);
-
   // Chart sizing
   const headerHeight = 48;
   const hoverBarHeight = hoveredScene ? 64 : 0;
   const arcLabelHeight = 28;
   const availableChartHeight = dims.height - headerHeight - hoverBarHeight - arcLabelHeight;
-  const chartHeight = Math.max(Math.floor(availableChartHeight / 3), 100);
+  const chartHeight = Math.max(Math.floor(availableChartHeight / 4), 80);
+
+  const hasDrawings = Object.values(drawLines).some((lines) => lines.length > 0);
 
   return (
     <div className="fixed inset-0 bg-bg-base z-50 flex flex-col">
@@ -459,38 +487,28 @@ export function ForceTracker({ onClose }: { onClose: () => void }) {
           )}
         </div>
         <div className="flex items-center gap-2">
-          {annotateError && (
-            <span className="text-[10px] text-stakes mr-2">{annotateError}</span>
-          )}
           <button
-            onClick={runAnnotate}
-            disabled={annotating || dataPoints.length === 0}
-            className={`text-[11px] px-3.5 py-1.5 rounded-full border transition disabled:opacity-40 flex items-center gap-1.5 ${
-              annotations.length > 0
+            onClick={() => setDrawing((d) => !d)}
+            className={`text-[11px] px-3.5 py-1.5 rounded-full border transition flex items-center gap-1.5 ${
+              drawing
                 ? 'bg-white/10 border-white/20 text-text-primary'
                 : 'bg-transparent border-border text-text-dim hover:text-text-secondary hover:border-white/12'
             }`}
           >
-            {annotating ? (
-              <>
-                <svg className="w-3 h-3 animate-spin" viewBox="0 0 16 16" fill="none">
-                  <circle cx="8" cy="8" r="6" stroke="currentColor" strokeWidth="2" strokeOpacity="0.25" />
-                  <path d="M14 8a6 6 0 0 0-6-6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-                </svg>
-                Annotating...
-              </>
-            ) : annotations.length > 0 ? (
-              <>Re-annotate ({annotations.length})</>
-            ) : (
-              <>
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-                  <path d="M12 20h9" />
-                  <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
-                </svg>
-                Annotate
-              </>
-            )}
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+              <path d="M12 20h9" />
+              <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
+            </svg>
+            {drawing ? 'Drawing' : 'Draw'}
           </button>
+          {hasDrawings && (
+            <button
+              onClick={clearDrawings}
+              className="text-[11px] px-3 py-1.5 rounded-full border border-border text-text-dim hover:text-text-secondary hover:border-white/12 transition"
+            >
+              Clear
+            </button>
+          )}
           <button
             onClick={onClose}
             className="text-text-dim hover:text-text-primary text-lg leading-none px-2 py-1 rounded hover:bg-white/5 transition-colors"
@@ -516,11 +534,15 @@ export function ForceTracker({ onClose }: { onClose: () => void }) {
                 label={cfg.label}
                 color={cfg.color}
                 arcRegions={arcRegions}
-                annotations={annotations}
                 hoverIndex={hoverIndex}
                 onHover={setHoverIndex}
                 height={chartHeight}
                 width={dims.width}
+                drawing={drawing}
+                drawLines={drawLines[cfg.key]}
+                onDrawStart={onDrawStart}
+                onDrawMove={onDrawMove}
+                onDrawEnd={onDrawEnd}
               />
             ))}
             <ArcLabelsBar
@@ -542,6 +564,7 @@ export function ForceTracker({ onClose }: { onClose: () => void }) {
                   <span className="text-[10px] font-mono" style={{ color: '#EF4444' }}>P:{hoveredScene.forces.payoff >= 0 ? '+' : ''}{hoveredScene.forces.payoff.toFixed(2)}</span>
                   <span className="text-[10px] font-mono" style={{ color: '#22C55E' }}>C:{hoveredScene.forces.change >= 0 ? '+' : ''}{hoveredScene.forces.change.toFixed(2)}</span>
                   <span className="text-[10px] font-mono" style={{ color: '#3B82F6' }}>V:{hoveredScene.forces.variety >= 0 ? '+' : ''}{hoveredScene.forces.variety.toFixed(2)}</span>
+                  <span className="text-[10px] font-mono" style={{ color: '#facc15' }}>S:{hoveredScene.swing.toFixed(2)}</span>
                 </div>
               </div>
             )}

@@ -11,7 +11,7 @@ import type {
   CubeCornerKey,
 } from '@/types/narrative';
 import { isScene, NARRATIVE_CUBE, THREAD_ACTIVE_STATUSES, THREAD_TERMINAL_STATUSES, THREAD_PRIMED_STATUSES } from '@/types/narrative';
-import { detectCubeCorner, computeWindowedForces } from '@/lib/narrative-utils';
+import { detectCubeCorner, computeWindowedForces, averageSwing, FORCE_WINDOW_SIZE } from '@/lib/narrative-utils';
 
 // ── Thread status helpers (derived from canonical lists in narrative.ts) ─────
 const TERMINAL_SET = new Set<string>(THREAD_TERMINAL_STATUSES);
@@ -85,8 +85,8 @@ function computeThreadMaturity(
     // Status progression bonus
     const statusBonus = PRIMED_SET.has(thread.status.toLowerCase()) ? 0.25 : 0;
 
-    // Anchor involvement in recent scenes (last 5)
-    const recentScenes = scenes.slice(-5);
+    // Anchor involvement in recent scenes
+    const recentScenes = scenes.slice(-FORCE_WINDOW_SIZE);
     const anchorIds = new Set(thread.anchors.map((a) => a.id));
     const anchorAppearances = recentScenes.filter((s) =>
       s.participantIds.some((pid) => anchorIds.has(pid)),
@@ -406,7 +406,7 @@ function detectForceSaturation(
     change: { saturated: false, direction: 0 },
     variety: { saturated: false, direction: 0 },
   };
-  const window = scenes.slice(-6);
+  const window = scenes.slice(-FORCE_WINDOW_SIZE);
   if (window.length < 4) return result;
 
   for (const key of FORCE_KEYS) {
@@ -435,7 +435,7 @@ function detectCornerRepetition(
   forceMap: Record<string, ForceSnapshot>,
 ): Record<CubeCornerKey, number> {
   const recentCorners: CubeCornerKey[] = [];
-  const recentScenes = scenes.slice(-20);
+  const recentScenes = scenes.slice(-FORCE_WINDOW_SIZE * 2);
 
   // Infer corners from force snapshots of arc-ending scenes
   const arcLastScene = new Map<string, Scene>();
@@ -449,7 +449,7 @@ function detectCornerRepetition(
 
   // Count occurrences of each corner in the last N arcs
   const counts: Record<string, number> = {};
-  for (const c of recentCorners.slice(-6)) {
+  for (const c of recentCorners.slice(-FORCE_WINDOW_SIZE)) {
     counts[c] = (counts[c] ?? 0) + 1;
   }
   return counts as Record<CubeCornerKey, number>;
@@ -485,6 +485,10 @@ export function evaluateNarrativeState(
   const currentForce = (lastScene ? forceMap[lastScene.id] : null) ?? { payoff: 0, change: 0, variety: 0 };
   const currentCorner = detectCubeCorner(currentForce);
 
+  // ── Swing analysis ────────────────────────────────────────────────────────
+  const recentForceSnapshots = scenes.slice(-FORCE_WINDOW_SIZE).map((s) => forceMap[s.id] ?? { payoff: 0, change: 0, variety: 0 });
+  const recentSwing = averageSwing(recentForceSnapshots, FORCE_WINDOW_SIZE);
+
   // ── Thread analysis ─────────────────────────────────────────────────────
   const activeThreads = threads.filter((t) => isActive(t.status));
   const dormantThreads = threads.filter((t) => t.status.toLowerCase() === THREAD_ACTIVE_STATUSES[0]);
@@ -510,7 +514,7 @@ export function evaluateNarrativeState(
     : [];
 
   // ── Post-climax detection ─────────────────────────────────────────────
-  const recentWindow = scenes.slice(-5);
+  const recentWindow = scenes.slice(-FORCE_WINDOW_SIZE);
   const recentForces = recentWindow.map((s) => forceMap[s.id] ?? { payoff: 0, change: 0, variety: 0 });
   const isPostClimax = recentForces.length >= 3 &&
     compositeTension(recentForces[0]) > 0.75 &&
@@ -691,7 +695,18 @@ export function evaluateNarrativeState(
       reasons.push(`${storyPhase.name} phase (${Math.round(storyProgress * 100)}%)`);
     }
 
-    // ── 8. Apply objective multiplier ───────────────────────────────────
+    // ── 8. Swing vibrancy ─────────────────────────────────────────────
+    // Low swing means the story has been flat — boost corners that contrast
+    // the current state to create dynamic scene-to-scene shifts
+    if (recentSwing < 0.3 && dist > 1.0) {
+      score += 0.2;
+      reasons.push('low swing — favoring high-contrast corner for vibrancy');
+    } else if (recentSwing < 0.5 && dist > 0.8) {
+      score += 0.1;
+      reasons.push('moderate swing — slight contrast boost');
+    }
+
+    // ── 9. Apply objective multiplier ───────────────────────────────────
     // Dampened when saturation is active — objective shouldn't override balance
     const dampening = saturatedForces.length > 0 ? 0.5 : 1.0;
     const mult = 1 + (objectiveMult[key] - 1) * dampening;
@@ -712,6 +727,7 @@ export function evaluateNarrativeState(
       primedThreads,
       knowledgeOpportunities,
       forceSaturation,
+      recentSwing,
       storyProgress,
       storyPhase,
     },
@@ -757,6 +773,7 @@ export type DirectiveContext = {
   primedThreads: ThreadMaturity[];
   knowledgeOpportunities: KnowledgeOpportunity[];
   forceSaturation: Record<'payoff' | 'change' | 'variety', ForceSaturation>;
+  recentSwing: number;
   storyProgress: number;
   storyPhase: { name: StoryPhase; description: string };
 };
@@ -802,6 +819,9 @@ export function buildActionDirective(
   // Force balance clause — uses pre-computed saturation
   const balanceClause = buildForceBalanceClause(ctx.forceSaturation);
 
+  // Swing vibrancy clause
+  const swingClause = buildSwingClause(ctx.recentSwing);
+
   // Story trajectory clause
   const trajectoryClause = `\nSTORY TRAJECTORY: You are at ${Math.round(ctx.storyProgress * 100)}% of the story — phase: ${ctx.storyPhase.name.toUpperCase()}. ${ctx.storyPhase.description}`;
 
@@ -817,7 +837,7 @@ export function buildActionDirective(
     LLL: `REST — ${corner.description} Breathing room after intensity. Focus on recovery, character relationships, and subtle foreshadowing. Plant seeds for future conflict.`,
   };
 
-  return `${cornerDirectives[action]}${trajectoryClause}${balanceClause}${maturityClause}${asymmetryClause}${worldBuildSeed}${objectiveClause}${toneClause}${constraintClause}${directionClause}`;
+  return `${cornerDirectives[action]}${trajectoryClause}${swingClause}${balanceClause}${maturityClause}${asymmetryClause}${worldBuildSeed}${objectiveClause}${toneClause}${constraintClause}${directionClause}`;
 }
 
 /** Build LLM correction text from pre-computed saturation results */
@@ -844,6 +864,20 @@ function buildForceBalanceClause(
 
   if (corrections.length === 0) return '';
   return `\nFORCE BALANCE CORRECTION — the narrative has become unbalanced. You MUST address these issues in the scenes you generate:\n${corrections.map((c) => `- ${c}`).join('\n')}`;
+}
+
+/** Build a clause about swing vibrancy — high swing = vibrant story, low swing = flat */
+function buildSwingClause(recentSwing: number): string {
+  if (recentSwing < 0.3) {
+    return '\nSWING VIBRANCY — WARNING: The story has become flat. Recent scenes feel samey in energy. You MUST create dramatic contrast between scenes — alternate between high-intensity and quiet moments. Each scene should feel dynamically different from the one before. A vibrant narrative never stays at the same energy level.';
+  }
+  if (recentSwing < 0.6) {
+    return '\nSWING VIBRANCY — The story could use more dynamic range. Vary the energy between scenes — follow an intense scene with a contemplative one, or a quiet buildup with a sudden escalation. Readers thrive on contrast.';
+  }
+  if (recentSwing > 1.5) {
+    return '\nSWING VIBRANCY — Excellent dynamic range. The story feels alive with constant shifts between high and low energy. Maintain this rhythm — keep alternating between different force levels to sustain the vibrant, unpredictable feel.';
+  }
+  return '';
 }
 
 /** Build a clause listing threads that are mature and primed for resolution */
