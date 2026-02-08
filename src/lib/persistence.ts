@@ -1,67 +1,112 @@
 import type { NarrativeState } from '@/types/narrative';
+import { idbGet, idbPut, idbDelete, idbGetAll, idbDeleteByPrefix, IMAGES_STORE, NARRATIVES_STORE, META_STORE } from '@/lib/image-store';
 
-const STORAGE_KEY = 'narrative-engine:narratives';
-const ACTIVE_KEY = 'narrative-engine:activeNarrativeId';
+const ACTIVE_KEY = 'activeNarrativeId';
+const LS_STORAGE_KEY = 'narrative-engine:narratives';
 
-export function loadNarratives(): NarrativeState[] {
+// ── Narratives ───────────────────────────────────────────────────────────────
+
+export async function loadNarratives(): Promise<NarrativeState[]> {
   if (typeof window === 'undefined') return [];
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return [];
-    return JSON.parse(raw) as NarrativeState[];
-  } catch {
-    return [];
+    return await idbGetAll<NarrativeState>(NARRATIVES_STORE);
+  } catch (err) {
+    console.error('[persistence] Failed to load narratives from IndexedDB:', err);
+    throw new Error(`Failed to load narratives: ${err instanceof Error ? err.message : String(err)}`);
   }
 }
 
-export function saveNarratives(narratives: NarrativeState[]) {
-  if (typeof window === 'undefined') return;
+export async function saveNarrative(narrative: NarrativeState): Promise<void> {
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(narratives));
-  } catch {
-    // localStorage full or unavailable
+    await idbPut(NARRATIVES_STORE, narrative.id, narrative);
+  } catch (err) {
+    console.error('[persistence] Failed to save narrative:', narrative.id, err);
+    throw new Error(`Failed to save narrative "${narrative.id}": ${err instanceof Error ? err.message : String(err)}`);
   }
 }
 
-export function saveNarrative(narrative: NarrativeState) {
-  const all = loadNarratives();
-  const idx = all.findIndex((n) => n.id === narrative.id);
-  if (idx >= 0) {
-    all[idx] = narrative;
-  } else {
-    all.push(narrative);
+export async function deleteNarrative(id: string): Promise<void> {
+  try {
+    await Promise.all([
+      idbDelete(NARRATIVES_STORE, id),
+      idbDeleteByPrefix(IMAGES_STORE, id),
+    ]);
+  } catch (err) {
+    console.error('[persistence] Failed to delete narrative:', id, err);
   }
-  saveNarratives(all);
 }
 
-export function deleteNarrative(id: string) {
-  const all = loadNarratives();
-  saveNarratives(all.filter((n) => n.id !== id));
+export async function loadNarrative(id: string): Promise<NarrativeState | null> {
+  try {
+    const n = await idbGet<NarrativeState>(NARRATIVES_STORE, id);
+    return n ?? null;
+  } catch (err) {
+    console.error('[persistence] Failed to load narrative:', id, err);
+    return null;
+  }
 }
 
-export function loadNarrative(id: string): NarrativeState | null {
-  const all = loadNarratives();
-  return all.find((n) => n.id === id) ?? null;
-}
+// ── Active narrative ID ──────────────────────────────────────────────────────
 
-export function saveActiveNarrativeId(id: string | null) {
+export async function saveActiveNarrativeId(id: string | null): Promise<void> {
   if (typeof window === 'undefined') return;
   try {
     if (id) {
-      localStorage.setItem(ACTIVE_KEY, id);
+      await idbPut(META_STORE, ACTIVE_KEY, id);
     } else {
-      localStorage.removeItem(ACTIVE_KEY);
+      await idbDelete(META_STORE, ACTIVE_KEY);
     }
-  } catch {
-    // localStorage unavailable
+  } catch (err) {
+    console.error('[persistence] Failed to save active narrative ID:', err);
   }
 }
 
-export function loadActiveNarrativeId(): string | null {
+export async function loadActiveNarrativeId(): Promise<string | null> {
   if (typeof window === 'undefined') return null;
   try {
-    return localStorage.getItem(ACTIVE_KEY);
-  } catch {
+    const id = await idbGet<string>(META_STORE, ACTIVE_KEY);
+    return id ?? null;
+  } catch (err) {
+    console.error('[persistence] Failed to load active narrative ID:', err);
     return null;
+  }
+}
+
+// ── Migration: localStorage → IndexedDB ──────────────────────────────────────
+
+/**
+ * One-time migration: move narratives from localStorage to IndexedDB.
+ * After migration, clears the old localStorage key.
+ */
+export async function migrateFromLocalStorage(): Promise<void> {
+  if (typeof window === 'undefined') return;
+
+  const raw = localStorage.getItem(LS_STORAGE_KEY);
+  if (!raw) return;
+
+  try {
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed) || parsed.length === 0) {
+      localStorage.removeItem(LS_STORAGE_KEY);
+      return;
+    }
+
+    console.log(`[persistence] Migrating ${parsed.length} narrative(s) from localStorage to IndexedDB...`);
+
+    for (const narrative of parsed as NarrativeState[]) {
+      await idbPut(NARRATIVES_STORE, narrative.id, narrative);
+    }
+
+    // Migrate active narrative ID
+    const activeId = localStorage.getItem('narrative-engine:activeNarrativeId');
+    if (activeId) {
+      await idbPut(META_STORE, ACTIVE_KEY, activeId);
+      localStorage.removeItem('narrative-engine:activeNarrativeId');
+    }
+
+    localStorage.removeItem(LS_STORAGE_KEY);
+    console.log('[persistence] Migration complete — localStorage cleared');
+  } catch (err) {
+    console.error('[persistence] Migration failed — localStorage data preserved:', err);
   }
 }

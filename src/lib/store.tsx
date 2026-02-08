@@ -1,6 +1,6 @@
 'use client';
 
-import React, { createContext, useContext, useReducer, useEffect, type ReactNode } from 'react';
+import React, { createContext, useContext, useReducer, useEffect, useRef, type ReactNode } from 'react';
 import type { AppState, ControlMode, InspectorContext, NarrativeState, NarrativeEntry, WizardStep, WizardData, Scene, Arc, Branch, Character, Location, Thread, RelationshipEdge, GraphViewMode, AutoConfig, AutoRunState, AutoRunLog, WorldBuildCommit } from '@/types/narrative';
 import { seedNarrative } from '@/data/seed-ri';
 import { seedGOT } from '@/data/seed-got';
@@ -8,7 +8,7 @@ import { seedLOTR } from '@/data/seed-lotr';
 import { seedHP } from '@/data/seed-hp';
 import { seedSW } from '@/data/seed-sw';
 import { resolveSceneSequence, nextId } from '@/lib/narrative-utils';
-import { loadNarratives, saveNarrative, deleteNarrative as deletePersisted, loadNarrative, saveActiveNarrativeId, loadActiveNarrativeId } from '@/lib/persistence';
+import { loadNarratives, saveNarrative as persistNarrative, deleteNarrative as deletePersisted, loadNarrative, saveActiveNarrativeId, loadActiveNarrativeId, migrateFromLocalStorage } from '@/lib/persistence';
 
 const ALL_SEEDS: NarrativeState[] = [seedGOT, seedLOTR, seedHP, seedSW, seedNarrative];
 
@@ -38,25 +38,14 @@ function getResolvedKeys(n: NarrativeState, branchId: string | null): string[] {
 
 const SEED_IDS = new Set(ALL_SEEDS.map((s) => s.id));
 
-function loadNarrativeById(id: string): NarrativeState | null {
-  // Prefer persisted version (includes user edits to seeds)
-  const persisted = loadNarrative(id);
-  if (persisted) return persisted;
-  // Fall back to static seed data
-  const seed = ALL_SEEDS.find((s) => s.id === id);
-  if (seed) return seed;
-  return null;
-}
-
-// Helper to update the active narrative in state and persist
-function withNarrativeUpdate(
+// Pure state updater — no persistence side effects
+function updateNarrative(
   state: AppState,
   updater: (n: NarrativeState) => NarrativeState,
 ): AppState {
   if (!state.activeNarrative) return state;
   const updated = updater(state.activeNarrative);
   updated.updatedAt = Date.now();
-  saveNarrative(updated);
   return {
     ...state,
     activeNarrative: updated,
@@ -142,18 +131,16 @@ function applySceneMutations(n: NarrativeState, scenes: Scene[]): NarrativeState
 
 export const SEED_NARRATIVE_IDS = SEED_IDS;
 
-const seedRootBranchId = getRootBranchId(seedNarrative);
-const seedResolvedKeys = getResolvedKeys(seedNarrative, seedRootBranchId);
 
 const initialState: AppState = {
   narratives: ALL_SEEDS.map(narrativeToEntry),
-  activeNarrativeId: seedNarrative.id,
-  activeNarrative: seedNarrative,
+  activeNarrativeId: null,
+  activeNarrative: null,
   controlMode: 'auto',
   isPlaying: false,
-  currentSceneIndex: Math.max(0, seedResolvedKeys.length - 1),
-  activeBranchId: seedRootBranchId,
-  resolvedSceneKeys: seedResolvedKeys,
+  currentSceneIndex: 0,
+  activeBranchId: null,
+  resolvedSceneKeys: [],
   inspectorContext: null,
   wizardOpen: false,
   wizardStep: 'premise',
@@ -186,6 +173,7 @@ const initialState: AppState = {
 type Action =
   | { type: 'HYDRATE_NARRATIVES'; entries: NarrativeEntry[] }
   | { type: 'SET_ACTIVE_NARRATIVE'; id: string }
+  | { type: 'LOADED_NARRATIVE'; narrative: NarrativeState }
   | { type: 'CLEAR_ACTIVE_NARRATIVE' }
   | { type: 'SET_CONTROL_MODE'; mode: ControlMode }
   | { type: 'TOGGLE_PLAY' }
@@ -251,23 +239,33 @@ function reducer(state: AppState, action: Action): AppState {
       return { ...state, narratives: action.entries };
     }
     case 'SET_ACTIVE_NARRATIVE': {
-      const narrative = loadNarrativeById(action.id);
-      const branchId = narrative ? getRootBranchId(narrative) : null;
-      const resolved = narrative ? getResolvedKeys(narrative, branchId) : [];
-      saveActiveNarrativeId(action.id);
+      // Just set the ID — the async loading effect will populate the narrative
+      if (state.activeNarrativeId === action.id && state.activeNarrative) return state;
       return {
         ...state,
         activeNarrativeId: action.id,
-        activeNarrative: narrative,
-        activeBranchId: branchId,
-        resolvedSceneKeys: resolved,
-        currentSceneIndex: resolved.length - 1,
+        activeNarrative: null, // cleared until async load completes
+        activeBranchId: null,
+        resolvedSceneKeys: [],
+        currentSceneIndex: 0,
         inspectorContext: null,
         selectedKnowledgeEntity: null,
       };
     }
+    case 'LOADED_NARRATIVE': {
+      // Async load completed — populate state
+      if (state.activeNarrativeId !== action.narrative.id) return state; // stale
+      const branchId = getRootBranchId(action.narrative);
+      const resolved = getResolvedKeys(action.narrative, branchId);
+      return {
+        ...state,
+        activeNarrative: action.narrative,
+        activeBranchId: branchId,
+        resolvedSceneKeys: resolved,
+        currentSceneIndex: resolved.length - 1,
+      };
+    }
     case 'CLEAR_ACTIVE_NARRATIVE':
-      saveActiveNarrativeId(null);
       return { ...state, activeNarrativeId: null, activeNarrative: null, inspectorContext: null, selectedKnowledgeEntity: null };
     case 'SET_CONTROL_MODE':
       return { ...state, controlMode: action.mode, isPlaying: false };
@@ -350,8 +348,7 @@ function reducer(state: AppState, action: Action): AppState {
       const entry = narrativeToEntry(mutated);
       const newBranchId = getRootBranchId(mutated);
       const newResolved = getResolvedKeys(mutated, newBranchId);
-      saveNarrative(mutated);
-      saveActiveNarrativeId(mutated.id);
+      // Persistence handled by effects watching activeNarrative
       return {
         ...state,
         narratives: [...state.narratives, entry],
@@ -364,9 +361,13 @@ function reducer(state: AppState, action: Action): AppState {
       };
     }
     case 'DELETE_NARRATIVE': {
-      deletePersisted(action.id);
       const isSeed = SEED_IDS.has(action.id);
       const isActive = state.activeNarrativeId === action.id;
+
+      // Fire-and-forget async delete
+      deletePersisted(action.id).catch((err) => {
+        console.error('[store] Failed to delete narrative:', err);
+      });
 
       if (isSeed) {
         // Reset seed to original static data instead of removing it
@@ -380,7 +381,6 @@ function reducer(state: AppState, action: Action): AppState {
         };
       }
 
-      if (isActive) saveActiveNarrativeId(null);
       return {
         ...state,
         narratives: state.narratives.filter(n => n.id !== action.id),
@@ -411,7 +411,7 @@ function reducer(state: AppState, action: Action): AppState {
 
     // ── CRUD: Narrative meta ──────────────────────────────────────────────
     case 'UPDATE_NARRATIVE_META':
-      return withNarrativeUpdate(state, (n) => ({
+      return updateNarrative(state, (n) => ({
         ...n,
         title: action.title ?? n.title,
         description: action.description ?? n.description,
@@ -420,14 +420,14 @@ function reducer(state: AppState, action: Action): AppState {
 
     // ── CRUD: Scenes ──────────────────────────────────────────────────────
     case 'UPDATE_SCENE':
-      return withNarrativeUpdate(state, (n) => {
+      return updateNarrative(state, (n) => {
         const scene = n.scenes[action.sceneId];
         if (!scene) return n;
         return { ...n, scenes: { ...n.scenes, [action.sceneId]: { ...scene, ...action.updates } } };
       });
 
     case 'CREATE_SCENE': {
-      const newState = withNarrativeUpdate(state, (n) => {
+      const newState = updateNarrative(state, (n) => {
         const branch = n.branches[action.branchId];
         if (!branch) return n;
         const arc = n.arcs[action.scene.arcId];
@@ -452,7 +452,7 @@ function reducer(state: AppState, action: Action): AppState {
     }
 
     case 'DELETE_SCENE': {
-      const newState = withNarrativeUpdate(state, (n) => {
+      const newState = updateNarrative(state, (n) => {
         const { [action.sceneId]: _, ...restScenes } = n.scenes;
         const { [action.sceneId]: __, ...restWorldBuilds } = n.worldBuilds;
         const branch = n.branches[action.branchId];
@@ -473,83 +473,83 @@ function reducer(state: AppState, action: Action): AppState {
 
     // ── CRUD: Arcs ────────────────────────────────────────────────────────
     case 'UPDATE_ARC':
-      return withNarrativeUpdate(state, (n) => {
+      return updateNarrative(state, (n) => {
         const arc = n.arcs[action.arcId];
         if (!arc) return n;
         return { ...n, arcs: { ...n.arcs, [action.arcId]: { ...arc, ...action.updates } } };
       });
 
     case 'CREATE_ARC':
-      return withNarrativeUpdate(state, (n) => ({
+      return updateNarrative(state, (n) => ({
         ...n, arcs: { ...n.arcs, [action.arc.id]: action.arc },
       }));
 
     case 'DELETE_ARC':
-      return withNarrativeUpdate(state, (n) => {
+      return updateNarrative(state, (n) => {
         const { [action.arcId]: _, ...restArcs } = n.arcs;
         return { ...n, arcs: restArcs };
       });
 
     // ── CRUD: Characters ──────────────────────────────────────────────────
     case 'UPDATE_CHARACTER':
-      return withNarrativeUpdate(state, (n) => {
+      return updateNarrative(state, (n) => {
         const char = n.characters[action.characterId];
         if (!char) return n;
         return { ...n, characters: { ...n.characters, [action.characterId]: { ...char, ...action.updates } } };
       });
 
     case 'CREATE_CHARACTER':
-      return withNarrativeUpdate(state, (n) => ({
+      return updateNarrative(state, (n) => ({
         ...n, characters: { ...n.characters, [action.character.id]: action.character },
       }));
 
     case 'DELETE_CHARACTER':
-      return withNarrativeUpdate(state, (n) => {
+      return updateNarrative(state, (n) => {
         const { [action.characterId]: _, ...rest } = n.characters;
         return { ...n, characters: rest };
       });
 
     // ── CRUD: Locations ───────────────────────────────────────────────────
     case 'UPDATE_LOCATION':
-      return withNarrativeUpdate(state, (n) => {
+      return updateNarrative(state, (n) => {
         const loc = n.locations[action.locationId];
         if (!loc) return n;
         return { ...n, locations: { ...n.locations, [action.locationId]: { ...loc, ...action.updates } } };
       });
 
     case 'CREATE_LOCATION':
-      return withNarrativeUpdate(state, (n) => ({
+      return updateNarrative(state, (n) => ({
         ...n, locations: { ...n.locations, [action.location.id]: action.location },
       }));
 
     case 'DELETE_LOCATION':
-      return withNarrativeUpdate(state, (n) => {
+      return updateNarrative(state, (n) => {
         const { [action.locationId]: _, ...rest } = n.locations;
         return { ...n, locations: rest };
       });
 
     // ── CRUD: Threads ─────────────────────────────────────────────────────
     case 'UPDATE_THREAD':
-      return withNarrativeUpdate(state, (n) => {
+      return updateNarrative(state, (n) => {
         const thread = n.threads[action.threadId];
         if (!thread) return n;
         return { ...n, threads: { ...n.threads, [action.threadId]: { ...thread, ...action.updates } } };
       });
 
     case 'CREATE_THREAD':
-      return withNarrativeUpdate(state, (n) => ({
+      return updateNarrative(state, (n) => ({
         ...n, threads: { ...n.threads, [action.thread.id]: action.thread },
       }));
 
     case 'DELETE_THREAD':
-      return withNarrativeUpdate(state, (n) => {
+      return updateNarrative(state, (n) => {
         const { [action.threadId]: _, ...rest } = n.threads;
         return { ...n, threads: rest };
       });
 
     // ── CRUD: Branches ────────────────────────────────────────────────────
     case 'CREATE_BRANCH': {
-      const newState = withNarrativeUpdate(state, (n) => ({
+      const newState = updateNarrative(state, (n) => ({
         ...n, branches: { ...n.branches, [action.branch.id]: action.branch },
       }));
       if (newState.activeNarrative) {
@@ -561,7 +561,7 @@ function reducer(state: AppState, action: Action): AppState {
 
     case 'DELETE_BRANCH': {
       if (action.branchId === state.activeBranchId) return state;
-      return withNarrativeUpdate(state, (n) => {
+      return updateNarrative(state, (n) => {
         const { [action.branchId]: _, ...rest } = n.branches;
         return { ...n, branches: rest };
       });
@@ -569,18 +569,18 @@ function reducer(state: AppState, action: Action): AppState {
 
     // ── CRUD: Relationships ───────────────────────────────────────────────
     case 'ADD_RELATIONSHIP':
-      return withNarrativeUpdate(state, (n) => ({
+      return updateNarrative(state, (n) => ({
         ...n, relationships: [...n.relationships, action.relationship],
       }));
 
     case 'REMOVE_RELATIONSHIP':
-      return withNarrativeUpdate(state, (n) => ({
+      return updateNarrative(state, (n) => ({
         ...n, relationships: n.relationships.filter((r) => !(r.from === action.from && r.to === action.to)),
       }));
 
     // ── Bulk: AI-generated scenes ─────────────────────────────────────────
     case 'BULK_ADD_SCENES': {
-      const newState = withNarrativeUpdate(state, (n) => {
+      const newState = updateNarrative(state, (n) => {
         const newScenes = { ...n.scenes };
         for (const scene of action.scenes) {
           newScenes[scene.id] = scene;
@@ -643,7 +643,7 @@ function reducer(state: AppState, action: Action): AppState {
         },
       };
 
-      const newState = withNarrativeUpdate(state, (n) => {
+      const newState = updateNarrative(state, (n) => {
         // Idempotent: skip if this world build was already applied
         if (n.worldBuilds[wxId]) return n;
 
@@ -684,8 +684,6 @@ function reducer(state: AppState, action: Action): AppState {
       const entry = narrativeToEntry(action.narrative);
       const branchId = getRootBranchId(action.narrative);
       const resolved = getResolvedKeys(action.narrative, branchId);
-      saveNarrative(action.narrative);
-      saveActiveNarrativeId(action.narrative.id);
       const existingIdx = state.narratives.findIndex((n) => n.id === action.narrative.id);
       const narratives = existingIdx >= 0
         ? state.narratives.map((n, i) => (i === existingIdx ? entry : n))
@@ -768,43 +766,40 @@ function reducer(state: AppState, action: Action): AppState {
         e.id === action.narrativeId ? { ...e, coverImageUrl: action.imageUrl } : e,
       );
       // If this is the active narrative, update it too
-      let updatedActive = state.activeNarrative;
-      if (updatedActive && updatedActive.id === action.narrativeId) {
-        updatedActive = { ...updatedActive, coverImageUrl: action.imageUrl };
-        saveNarrative(updatedActive);
-      } else {
-        // Update in persistence even if not active
-        const stored = loadNarrative(action.narrativeId);
-        if (stored) {
-          saveNarrative({ ...stored, coverImageUrl: action.imageUrl });
-        }
+      if (state.activeNarrative && state.activeNarrative.id === action.narrativeId) {
+        const updatedActive = { ...state.activeNarrative, coverImageUrl: action.imageUrl };
+        return { ...state, narratives: updatedNarratives, activeNarrative: updatedActive };
       }
-      return { ...state, narratives: updatedNarratives, activeNarrative: updatedActive };
+      // For non-active narratives, persist directly
+      loadNarrative(action.narrativeId).then((stored) => {
+        if (stored) persistNarrative({ ...stored, coverImageUrl: action.imageUrl });
+      }).catch((err) => console.error('[store] Failed to update cover image:', err));
+      return { ...state, narratives: updatedNarratives };
     }
 
     case 'SET_SCENE_IMAGE':
-      return withNarrativeUpdate(state, (n) => {
+      return updateNarrative(state, (n) => {
         const scene = n.scenes[action.sceneId];
         if (!scene) return n;
         return { ...n, scenes: { ...n.scenes, [action.sceneId]: { ...scene, imageUrl: action.imageUrl } } };
       });
 
     case 'SET_CHARACTER_IMAGE':
-      return withNarrativeUpdate(state, (n) => {
+      return updateNarrative(state, (n) => {
         const char = n.characters[action.characterId];
         if (!char) return n;
         return { ...n, characters: { ...n.characters, [action.characterId]: { ...char, imageUrl: action.imageUrl } } };
       });
 
     case 'SET_LOCATION_IMAGE':
-      return withNarrativeUpdate(state, (n) => {
+      return updateNarrative(state, (n) => {
         const loc = n.locations[action.locationId];
         if (!loc) return n;
         return { ...n, locations: { ...n.locations, [action.locationId]: { ...loc, imageUrl: action.imageUrl } } };
       });
 
     case 'SET_IMAGE_STYLE':
-      return withNarrativeUpdate(state, (n) => ({ ...n, imageStyle: action.style }));
+      return updateNarrative(state, (n) => ({ ...n, imageStyle: action.style }));
 
     default:
       return state;
@@ -821,6 +816,8 @@ const StoreContext = createContext<StoreContextType | null>(null);
 
 export function StoreProvider({ children }: { children: ReactNode }) {
   const [state, dispatch] = useReducer(reducer, initialState);
+  const prevNarrativeRef = useRef<NarrativeState | null>(null);
+  const prevActiveIdRef = useRef<string | null>(null);
 
   // Wire API logger to store
   useEffect(() => {
@@ -830,29 +827,82 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     });
   }, []);
 
-  // Hydrate persisted narratives from localStorage on mount
+  // Hydrate persisted narratives from IndexedDB on mount
   useEffect(() => {
-    const persisted = loadNarratives();
-    const persistedById = new Map(persisted.map((n) => [n.id, n]));
+    async function hydrate() {
+      // Migrate from localStorage if needed (one-time)
+      await migrateFromLocalStorage();
 
-    // For seeds, prefer persisted version if it exists (user made edits), otherwise use static
-    const seedEntries = ALL_SEEDS.map((seed) => {
-      const saved = persistedById.get(seed.id);
-      return narrativeToEntry(saved ?? seed);
-    });
+      let persisted: NarrativeState[] = [];
+      try {
+        persisted = await loadNarratives();
+      } catch (err) {
+        console.error('[store] Hydration failed:', err);
+      }
+      const persistedById = new Map(persisted.map((n) => [n.id, n]));
 
-    const userEntries = persisted
-      .filter((n) => !SEED_IDS.has(n.id))
-      .map(narrativeToEntry);
+      // For seeds, prefer persisted version if it exists (user made edits), otherwise use static
+      const seedEntries = ALL_SEEDS.map((seed) => {
+        const saved = persistedById.get(seed.id);
+        return narrativeToEntry(saved ?? seed);
+      });
 
-    dispatch({ type: 'HYDRATE_NARRATIVES', entries: [...seedEntries, ...userEntries] });
+      const userEntries = persisted
+        .filter((n) => !SEED_IDS.has(n.id))
+        .map(narrativeToEntry);
 
-    // Restore last active narrative
-    const savedActiveId = loadActiveNarrativeId();
-    if (savedActiveId) {
-      dispatch({ type: 'SET_ACTIVE_NARRATIVE', id: savedActiveId });
+      dispatch({ type: 'HYDRATE_NARRATIVES', entries: [...seedEntries, ...userEntries] });
+
+      // Restore last active narrative
+      const savedActiveId = await loadActiveNarrativeId();
+      if (savedActiveId) {
+        dispatch({ type: 'SET_ACTIVE_NARRATIVE', id: savedActiveId });
+      }
     }
+    hydrate();
   }, []);
+
+  // Load narrative from IndexedDB when activeNarrativeId changes
+  useEffect(() => {
+    const id = state.activeNarrativeId;
+    if (!id || id === prevActiveIdRef.current) return;
+    prevActiveIdRef.current = id;
+
+    let cancelled = false;
+    async function load() {
+      // Try IndexedDB first, then fall back to static seed data
+      let narrative = await loadNarrative(id!);
+      if (!narrative) {
+        const seed = ALL_SEEDS.find((s) => s.id === id);
+        if (seed) narrative = seed;
+      }
+      if (narrative && !cancelled) {
+        dispatch({ type: 'LOADED_NARRATIVE', narrative });
+      }
+    }
+    load().catch((err) => console.error('[store] Failed to load narrative:', err));
+    return () => { cancelled = true; };
+  }, [state.activeNarrativeId]);
+
+  // Persist active narrative to IndexedDB whenever it changes
+  useEffect(() => {
+    const narrative = state.activeNarrative;
+    if (!narrative) return;
+    // Skip if reference hasn't changed (avoids redundant writes)
+    if (narrative === prevNarrativeRef.current) return;
+    prevNarrativeRef.current = narrative;
+
+    persistNarrative(narrative).catch((err) => {
+      console.error('[store] Failed to persist narrative:', err);
+    });
+  }, [state.activeNarrative]);
+
+  // Persist active narrative ID whenever it changes
+  useEffect(() => {
+    saveActiveNarrativeId(state.activeNarrativeId).catch((err) => {
+      console.error('[store] Failed to persist active narrative ID:', err);
+    });
+  }, [state.activeNarrativeId]);
 
   // Keyboard shortcuts
   useEffect(() => {
