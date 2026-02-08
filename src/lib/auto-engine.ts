@@ -11,7 +11,7 @@ import type {
   CubeCornerKey,
 } from '@/types/narrative';
 import { isScene, NARRATIVE_CUBE, THREAD_ACTIVE_STATUSES, THREAD_TERMINAL_STATUSES, THREAD_PRIMED_STATUSES } from '@/types/narrative';
-import { detectCubeCorner, computeWindowedForces, averageSwing, FORCE_WINDOW_SIZE } from '@/lib/narrative-utils';
+import { detectCubeCorner, computeWindowedForces, averageBalance, FORCE_WINDOW_SIZE } from '@/lib/narrative-utils';
 
 // ── Thread status helpers (derived from canonical lists in narrative.ts) ─────
 const TERMINAL_SET = new Set<string>(THREAD_TERMINAL_STATUSES);
@@ -485,9 +485,9 @@ export function evaluateNarrativeState(
   const currentForce = (lastScene ? forceMap[lastScene.id] : null) ?? { payoff: 0, change: 0, variety: 0 };
   const currentCorner = detectCubeCorner(currentForce);
 
-  // ── Swing analysis ────────────────────────────────────────────────────────
+  // ── Balance analysis ────────────────────────────────────────────────────────
   const recentForceSnapshots = scenes.slice(-FORCE_WINDOW_SIZE).map((s) => forceMap[s.id] ?? { payoff: 0, change: 0, variety: 0 });
-  const recentSwing = averageSwing(recentForceSnapshots, FORCE_WINDOW_SIZE);
+  const recentBalance = averageBalance(recentForceSnapshots, FORCE_WINDOW_SIZE);
 
   // ── Thread analysis ─────────────────────────────────────────────────────
   const activeThreads = threads.filter((t) => isActive(t.status));
@@ -695,15 +695,15 @@ export function evaluateNarrativeState(
       reasons.push(`${storyPhase.name} phase (${Math.round(storyProgress * 100)}%)`);
     }
 
-    // ── 8. Swing vibrancy ─────────────────────────────────────────────
-    // Low swing means the story has been flat — boost corners that contrast
+    // ── 8. Balance vibrancy ─────────────────────────────────────────────
+    // Low balance means the story has been flat — boost corners that contrast
     // the current state to create dynamic scene-to-scene shifts
-    if (recentSwing < 0.3 && dist > 1.0) {
+    if (recentBalance < 0.3 && dist > 1.0) {
       score += 0.2;
-      reasons.push('low swing — favoring high-contrast corner for vibrancy');
-    } else if (recentSwing < 0.5 && dist > 0.8) {
+      reasons.push('low balance — favoring high-contrast corner for vibrancy');
+    } else if (recentBalance < 0.5 && dist > 0.8) {
       score += 0.1;
-      reasons.push('moderate swing — slight contrast boost');
+      reasons.push('moderate balance — slight contrast boost');
     }
 
     // ── 9. Apply objective multiplier ───────────────────────────────────
@@ -727,7 +727,7 @@ export function evaluateNarrativeState(
       primedThreads,
       knowledgeOpportunities,
       forceSaturation,
-      recentSwing,
+      recentBalance,
       storyProgress,
       storyPhase,
     },
@@ -773,7 +773,7 @@ export type DirectiveContext = {
   primedThreads: ThreadMaturity[];
   knowledgeOpportunities: KnowledgeOpportunity[];
   forceSaturation: Record<'payoff' | 'change' | 'variety', ForceSaturation>;
-  recentSwing: number;
+  recentBalance: number;
   storyProgress: number;
   storyPhase: { name: StoryPhase; description: string };
 };
@@ -819,8 +819,8 @@ export function buildActionDirective(
   // Force balance clause — uses pre-computed saturation
   const balanceClause = buildForceBalanceClause(ctx.forceSaturation);
 
-  // Swing vibrancy clause
-  const swingClause = buildSwingClause(ctx.recentSwing);
+  // Balance vibrancy clause
+  const vibrancyClause = buildBalanceClause(ctx.recentBalance);
 
   // Story trajectory clause
   const trajectoryClause = `\nSTORY TRAJECTORY: You are at ${Math.round(ctx.storyProgress * 100)}% of the story — phase: ${ctx.storyPhase.name.toUpperCase()}. ${ctx.storyPhase.description}`;
@@ -837,7 +837,7 @@ export function buildActionDirective(
     LLL: `REST — ${corner.description} Breathing room after intensity. Focus on recovery, character relationships, and subtle foreshadowing. Plant seeds for future conflict.`,
   };
 
-  return `${cornerDirectives[action]}${trajectoryClause}${swingClause}${balanceClause}${maturityClause}${asymmetryClause}${worldBuildSeed}${objectiveClause}${toneClause}${constraintClause}${directionClause}`;
+  return `${cornerDirectives[action]}${trajectoryClause}${vibrancyClause}${balanceClause}${maturityClause}${asymmetryClause}${worldBuildSeed}${objectiveClause}${toneClause}${constraintClause}${directionClause}`;
 }
 
 /** Build LLM correction text from pre-computed saturation results */
@@ -866,16 +866,16 @@ function buildForceBalanceClause(
   return `\nFORCE BALANCE CORRECTION — the narrative has become unbalanced. You MUST address these issues in the scenes you generate:\n${corrections.map((c) => `- ${c}`).join('\n')}`;
 }
 
-/** Build a clause about swing vibrancy — high swing = vibrant story, low swing = flat */
-function buildSwingClause(recentSwing: number): string {
-  if (recentSwing < 0.3) {
-    return '\nSWING VIBRANCY — WARNING: The story has become flat. Recent scenes feel samey in energy. You MUST create dramatic contrast between scenes — alternate between high-intensity and quiet moments. Each scene should feel dynamically different from the one before. A vibrant narrative never stays at the same energy level.';
+/** Build a clause about balance vibrancy — high balance = vibrant story, low balance = flat */
+function buildBalanceClause(recentBalance: number): string {
+  if (recentBalance < 0.3) {
+    return '\nBALANCE VIBRANCY — WARNING: The story has become flat. Recent scenes feel samey in energy. You MUST create dramatic contrast between scenes — alternate between high-intensity and quiet moments. Each scene should feel dynamically different from the one before. A vibrant narrative never stays at the same energy level.';
   }
-  if (recentSwing < 0.6) {
-    return '\nSWING VIBRANCY — The story could use more dynamic range. Vary the energy between scenes — follow an intense scene with a contemplative one, or a quiet buildup with a sudden escalation. Readers thrive on contrast.';
+  if (recentBalance < 0.6) {
+    return '\nBALANCE VIBRANCY — The story could use more dynamic range. Vary the energy between scenes — follow an intense scene with a contemplative one, or a quiet buildup with a sudden escalation. Readers thrive on contrast.';
   }
-  if (recentSwing > 1.5) {
-    return '\nSWING VIBRANCY — Excellent dynamic range. The story feels alive with constant shifts between high and low energy. Maintain this rhythm — keep alternating between different force levels to sustain the vibrant, unpredictable feel.';
+  if (recentBalance > 1.5) {
+    return '\nBALANCE VIBRANCY — Excellent dynamic range. The story feels alive with constant shifts between high and low energy. Maintain this rhythm — keep alternating between different force levels to sustain the vibrant, unpredictable feel.';
   }
   return '';
 }

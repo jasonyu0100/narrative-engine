@@ -3,7 +3,7 @@
 import { useMemo, useState, useRef, useEffect } from 'react';
 import { useStore } from '@/lib/store';
 import { resolveEntry, isScene, type Scene } from '@/types/narrative';
-import { computeForceSnapshots, computeWindowedForces } from '@/lib/narrative-utils';
+import { computeForceSnapshots, computeWindowedForces, movingAverage, FORCE_WINDOW_SIZE } from '@/lib/narrative-utils';
 import ForceLineChart, { type ChartStyle } from './ForceLineChart';
 
 const FORCE_CONFIG = [
@@ -12,16 +12,16 @@ const FORCE_CONFIG = [
   { key: 'variety' as const, label: 'Variety', color: 'var(--color-variety)' },
 ] as const;
 
-/** Compute swing magnitude: √(ΔP² + ΔC² + ΔV²) between consecutive force snapshots */
-function computeSwings(payoff: number[], change: number[], variety: number[]): number[] {
-  const swings: number[] = [0];
+/** Compute balance magnitude: √(ΔP² + ΔC² + ΔV²) between consecutive force snapshots */
+function computeBalances(payoff: number[], change: number[], variety: number[]): number[] {
+  const balances: number[] = [0];
   for (let i = 1; i < payoff.length; i++) {
     const dp = payoff[i] - payoff[i - 1];
     const dc = change[i] - change[i - 1];
     const dv = variety[i] - variety[i - 1];
-    swings.push(Math.sqrt(dp * dp + dc * dc + dv * dv));
+    balances.push(Math.sqrt(dp * dp + dc * dc + dv * dv));
   }
-  return swings;
+  return balances;
 }
 
 type Scope = 'global' | 'local';
@@ -36,6 +36,7 @@ export default function ForceCharts() {
   const [chartStyle, setChartStyle] = useState<ChartStyle>({
     showArea: true,
     showWindow: true,
+    showMovingAvg: true,
     curve: 'smooth',
   });
   const popRef = useRef<HTMLDivElement>(null);
@@ -78,7 +79,7 @@ export default function ForceCharts() {
 
   // Full-history forces
   const globalForceData = useMemo(() => {
-    if (!narrative) return { payoff: [] as number[], change: [] as number[], variety: [] as number[], swing: [] as number[] };
+    if (!narrative) return { payoff: [] as number[], change: [] as number[], variety: [] as number[], balance: [] as number[] };
     const payoff: number[] = [];
     const change: number[] = [];
     const variety: number[] = [];
@@ -93,12 +94,12 @@ export default function ForceCharts() {
       change.push(lastForce.change);
       variety.push(lastForce.variety);
     }
-    return { payoff, change, variety, swing: computeSwings(payoff, change, variety) };
+    return { payoff, change, variety, balance: computeBalances(payoff, change, variety) };
   }, [narrative, allScenes, resolvedSceneKeys]);
 
   // Window-only forces for local scope
   const localForceData = useMemo(() => {
-    if (!windowed || !narrative) return { payoff: [] as number[], change: [] as number[], variety: [] as number[], swing: [] as number[] };
+    if (!windowed || !narrative) return { payoff: [] as number[], change: [] as number[], variety: [] as number[], balance: [] as number[] };
     const payoff: number[] = [];
     const change: number[] = [];
     const variety: number[] = [];
@@ -110,7 +111,7 @@ export default function ForceCharts() {
       change.push(lastForce.change);
       variety.push(lastForce.variety);
     }
-    return { payoff, change, variety, swing: computeSwings(payoff, change, variety) };
+    return { payoff, change, variety, balance: computeBalances(payoff, change, variety) };
   }, [windowed, allScenes, narrative]);
 
   // Map window scene-indices back to timeline indices for chart highlight
@@ -131,6 +132,14 @@ export default function ForceCharts() {
 
   const isLocal = scope === 'local';
   const chartData = isLocal ? localForceData : globalForceData;
+
+  // Moving averages for each force + balance
+  const chartMA = useMemo(() => ({
+    payoff: movingAverage(chartData.payoff, FORCE_WINDOW_SIZE),
+    change: movingAverage(chartData.change, FORCE_WINDOW_SIZE),
+    variety: movingAverage(chartData.variety, FORCE_WINDOW_SIZE),
+    balance: movingAverage(chartData.balance, FORCE_WINDOW_SIZE),
+  }), [chartData]);
   const chartCurrentIndex = isLocal
     ? (localForceData.payoff.length - 1)
     : state.currentSceneIndex;
@@ -233,7 +242,7 @@ export default function ForceCharts() {
             </label>
 
             {/* Show window highlight */}
-            <label className="flex items-center justify-between cursor-pointer">
+            <label className="flex items-center justify-between mb-1.5 cursor-pointer">
               <span className="text-[11px] text-text-secondary">Window highlight</span>
               <button
                 type="button"
@@ -246,6 +255,24 @@ export default function ForceCharts() {
               >
                 <span className={`absolute top-0.5 w-3 h-3 rounded-full bg-white transition-all ${
                   chartStyle.showWindow ? 'left-3.5' : 'left-0.5'
+                }`} />
+              </button>
+            </label>
+
+            {/* Show moving average */}
+            <label className="flex items-center justify-between cursor-pointer">
+              <span className="text-[11px] text-text-secondary">Moving average</span>
+              <button
+                type="button"
+                role="switch"
+                aria-checked={chartStyle.showMovingAvg}
+                onClick={() => setChartStyle((prev) => ({ ...prev, showMovingAvg: !prev.showMovingAvg }))}
+                className={`w-7 h-4 rounded-full transition-colors relative ${
+                  chartStyle.showMovingAvg ? 'bg-white/25' : 'bg-white/8'
+                }`}
+              >
+                <span className={`absolute top-0.5 w-3 h-3 rounded-full bg-white transition-all ${
+                  chartStyle.showMovingAvg ? 'left-3.5' : 'left-0.5'
                 }`} />
               </button>
             </label>
@@ -267,21 +294,23 @@ export default function ForceCharts() {
             windowStart={!isLocal ? windowTimelineRange?.start : undefined}
             windowEnd={!isLocal ? windowTimelineRange?.end : undefined}
             style={chartStyle}
+            movingAvg={chartMA[cfg.key]}
           />
         </div>
       ))}
 
-      {/* Swing magnitude chart */}
+      {/* Balance magnitude chart */}
       <div className="flex-1 min-w-0">
         <ForceLineChart
-          data={chartData.swing}
+          data={chartData.balance}
           color="#facc15"
-          label="Swing"
+          label="Balance"
           currentIndex={chartCurrentIndex}
           windowStart={!isLocal ? windowTimelineRange?.start : undefined}
           windowEnd={!isLocal ? windowTimelineRange?.end : undefined}
           positive
           style={chartStyle}
+          movingAvg={chartMA.balance}
         />
       </div>
     </div>

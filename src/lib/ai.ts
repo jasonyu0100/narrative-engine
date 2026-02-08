@@ -9,7 +9,7 @@ const THREAD_LIFECYCLE_DOC = (() => {
   ).join(', ');
   return `Active statuses: ${activeList}. Terminal/closed statuses: ${terminalList}.`;
 })();
-import { nextId, nextIds, computeForceSnapshots, computeSwingMagnitudes, detectCubeCorner } from '@/lib/narrative-utils';
+import { nextId, nextIds, computeForceSnapshots, computeBalanceMagnitudes, detectCubeCorner, movingAverage, FORCE_WINDOW_SIZE } from '@/lib/narrative-utils';
 import { apiHeaders } from '@/lib/api-headers';
 
 export type WorldExpansion = {
@@ -138,18 +138,22 @@ export function branchContext(
     .map((a) => `- ${a.id}: "${a.name}" (${a.sceneIds.length} scenes, develops: ${a.develops.join(', ')})`)
     .join('\n');
 
-  // Force trajectory — compact time series showing change rhythm and swing
+  // Force trajectory — compact time series showing change rhythm and balance
   const allScenes = keysUpToCurrent
     .map((k) => resolveEntry(n, k))
     .filter((e): e is Scene => e?.kind === 'scene');
   const forceMap = computeForceSnapshots(allScenes);
   const forceSnapshots = allScenes.map((s) => forceMap[s.id] ?? { payoff: 0, change: 0, variety: 0 });
-  const swings = computeSwingMagnitudes(forceSnapshots);
+  const balances = computeBalanceMagnitudes(forceSnapshots);
+  const payoffMA = movingAverage(forceSnapshots.map(f => f.payoff), FORCE_WINDOW_SIZE);
+  const changeMA = movingAverage(forceSnapshots.map(f => f.change), FORCE_WINDOW_SIZE);
+  const varietyMA = movingAverage(forceSnapshots.map(f => f.variety), FORCE_WINDOW_SIZE);
+  const balanceMA = movingAverage(balances, FORCE_WINDOW_SIZE);
   const forceTrajectory = allScenes.map((s, i) => {
     const f = forceMap[s.id];
     if (!f) return null;
     const corner = detectCubeCorner(f);
-    return `[${i + 1}] P:${f.payoff >= 0 ? '+' : ''}${f.payoff.toFixed(1)} C:${f.change >= 0 ? '+' : ''}${f.change.toFixed(1)} V:${f.variety >= 0 ? '+' : ''}${f.variety.toFixed(1)} Sw:${swings[i].toFixed(1)} (${corner.name})`;
+    return `[${i + 1}] P:${f.payoff >= 0 ? '+' : ''}${f.payoff.toFixed(1)} C:${f.change >= 0 ? '+' : ''}${f.change.toFixed(1)} V:${f.variety >= 0 ? '+' : ''}${f.variety.toFixed(1)} Bl:${balances[i].toFixed(1)} MA(P:${payoffMA[i].toFixed(1)} C:${changeMA[i].toFixed(1)} V:${varietyMA[i].toFixed(1)} Bl:${balanceMA[i].toFixed(1)}) (${corner.name})`;
   }).filter(Boolean).join('\n');
 
   // Compact ID lookup — placed last so it's closest to the generation prompt
@@ -196,7 +200,7 @@ You must ALWAYS respond with valid JSON only — no markdown, no explanation, no
 
 CORE PRINCIPLES:
 1. FORCE TARGETS and DIRECTION override scene history. Do NOT continue patterns just because previous scenes established them. If the directive says calm, write calm.
-2. High swing is the north star of compelling narrative. Consecutive scenes should feel dynamically different — alternate intensity with quiet, action with reflection, familiar with surprising.
+2. High balance is the north star of compelling narrative. Consecutive scenes should feel dynamically different — alternate intensity with quiet, action with reflection, familiar with surprising.
 3. Threads evolve gradually. Most scenes advance 0-1 threads. A dormant thread surfaces slowly over many scenes, not in one jump.
 4. Use ONLY the character, location, and thread IDs provided. Never invent new ones.`;
 
@@ -645,7 +649,7 @@ Rules:
  */
 export async function analyzeForceTrajectory(
   narrative: NarrativeState,
-  forceData: { sceneId: string; arcId: string; arcName: string; forces: { payoff: number; change: number; variety: number }; swing: number; corner: string; cornerKey: CubeCornerKey }[],
+  forceData: { sceneId: string; arcId: string; arcName: string; forces: { payoff: number; change: number; variety: number }; balance: number; corner: string; cornerKey: CubeCornerKey }[],
 ): Promise<string> {
   // Build compact narrative context (lighter than full branchContext)
   const threadSummary = Object.values(narrative.threads)
@@ -660,13 +664,19 @@ export async function analyzeForceTrajectory(
     .map((r) => `- ${narrative.characters[r.from]?.name ?? r.from} → ${narrative.characters[r.to]?.name ?? r.to}: ${r.type} (${r.valence >= 0 ? '+' : ''}${r.valence.toFixed(1)})`)
     .join('\n');
 
-  // Build per-scene force trajectory
+  // Build per-scene force trajectory with moving averages
+  const balanceValues = forceData.map(d => d.balance);
+  const pMA = movingAverage(forceData.map(d => d.forces.payoff), FORCE_WINDOW_SIZE);
+  const cMA = movingAverage(forceData.map(d => d.forces.change), FORCE_WINDOW_SIZE);
+  const vMA = movingAverage(forceData.map(d => d.forces.variety), FORCE_WINDOW_SIZE);
+  const blMA = movingAverage(balanceValues, FORCE_WINDOW_SIZE);
+
   const trajectoryLines = forceData.map((d, i) => {
     const scene = narrative.scenes[d.sceneId];
     const loc = scene ? (narrative.locations[scene.locationId]?.name ?? scene.locationId) : '?';
     const participants = scene ? scene.participantIds.map(pid => narrative.characters[pid]?.name ?? pid).join(', ') : '?';
     const threadChanges = scene?.threadMutations.map(tm => `${narrative.threads[tm.threadId]?.description?.slice(0, 40) ?? tm.threadId}: ${tm.from}→${tm.to}`).join('; ') || '';
-    return `[${i + 1}] ${d.arcName} | ${d.corner} (${d.cornerKey}) | P:${d.forces.payoff >= 0 ? '+' : ''}${d.forces.payoff.toFixed(2)} C:${d.forces.change >= 0 ? '+' : ''}${d.forces.change.toFixed(2)} V:${d.forces.variety >= 0 ? '+' : ''}${d.forces.variety.toFixed(2)} Sw:${d.swing.toFixed(2)} | @${loc} | ${participants}${threadChanges ? ` | ${threadChanges}` : ''}`;
+    return `[${i + 1}] ${d.arcName} | ${d.corner} (${d.cornerKey}) | P:${d.forces.payoff >= 0 ? '+' : ''}${d.forces.payoff.toFixed(2)} C:${d.forces.change >= 0 ? '+' : ''}${d.forces.change.toFixed(2)} V:${d.forces.variety >= 0 ? '+' : ''}${d.forces.variety.toFixed(2)} Bl:${d.balance.toFixed(2)} MA(P:${pMA[i].toFixed(2)} C:${cMA[i].toFixed(2)} V:${vMA[i].toFixed(2)} Bl:${blMA[i].toFixed(2)}) | @${loc} | ${participants}${threadChanges ? ` | ${threadChanges}` : ''}`;
   }).join('\n');
 
   // Build per-arc force summary
@@ -682,10 +692,10 @@ export async function analyzeForceTrajectory(
     const avgP = group.reduce((s, e) => s + e.forces.payoff, 0) / group.length;
     const avgC = group.reduce((s, e) => s + e.forces.change, 0) / group.length;
     const avgV = group.reduce((s, e) => s + e.forces.variety, 0) / group.length;
-    const avgSw = group.reduce((s, e) => s + e.swing, 0) / group.length;
+    const avgBl = group.reduce((s, e) => s + e.balance, 0) / group.length;
     const corners = group.map(e => e.corner);
     const uniqueCorners = [...new Set(corners)];
-    return `${group[0].arcName} (${group.length} scenes): avg P:${avgP.toFixed(2)} C:${avgC.toFixed(2)} V:${avgV.toFixed(2)} Sw:${avgSw.toFixed(2)} | corners: ${uniqueCorners.join(' → ')}`;
+    return `${group[0].arcName} (${group.length} scenes): avg P:${avgP.toFixed(2)} C:${avgC.toFixed(2)} V:${avgV.toFixed(2)} Bl:${avgBl.toFixed(2)} | corners: ${uniqueCorners.join(' → ')}`;
   }).join('\n');
 
   // Cube corner definitions for reference
@@ -729,7 +739,7 @@ Write a meta-analysis of this narrative's force trajectory. Structure your respo
 
 **Change Rhythm** — The mutation density pattern. Where does the story accelerate and decelerate? Are there effective breathing rooms between intense sequences?
 
-**Swing Dynamics** — Analyze the swing magnitude pattern (Sw values — Euclidean distance between consecutive 3D force positions). High swing indicates the story is constantly shifting between slow and fast moments, creating a vibrant, dynamic reading experience. Low swing means the story is settling into a groove. Where are the biggest swings? Are there sustained high-swing sequences that create excitement, or does the story plateau?
+**Balance Dynamics** — Analyze the balance magnitude pattern (Bl values — Euclidean distance between consecutive 3D force positions) and its moving average (MA Bl — ${FORCE_WINDOW_SIZE}-point window). High balance indicates the story is constantly shifting between slow and fast moments, creating a vibrant, dynamic reading experience. Low balance means the story is settling into a groove. Compare raw balance to its moving average to identify whether shifts are sustained trends or isolated spikes. Where are the biggest shifts? Are there sustained high-balance sequences that create excitement, or does the story plateau?
 
 **Compositional Observations** — What makes this trajectory distinctive? What corners are over/under-visited? Where does the narrative surprise or follow convention? Any structural strengths or weaknesses?
 

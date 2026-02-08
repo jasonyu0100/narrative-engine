@@ -4,9 +4,9 @@ import { useMemo, useState, useRef, useEffect, useCallback } from 'react';
 import * as d3 from 'd3';
 import { useStore } from '@/lib/store';
 import { resolveEntry, isScene, type Scene, type ForceSnapshot, type CubeCornerKey } from '@/types/narrative';
-import { computeForceSnapshots, detectCubeCorner } from '@/lib/narrative-utils';
+import { computeForceSnapshots, detectCubeCorner, movingAverage, FORCE_WINDOW_SIZE } from '@/lib/narrative-utils';
 
-type ForceKey = 'payoff' | 'change' | 'variety' | 'swing';
+type ForceKey = 'payoff' | 'change' | 'variety' | 'balance';
 
 type SceneDataPoint = {
   index: number;
@@ -17,7 +17,7 @@ type SceneDataPoint = {
   location: string;
   participants: string[];
   forces: ForceSnapshot;
-  swing: number;
+  balance: number;
   corner: string;
   cornerKey: CubeCornerKey;
   threadChanges: string[];
@@ -36,7 +36,7 @@ const FORCE_CONFIG: { key: ForceKey; label: string; color: string }[] = [
   { key: 'payoff', label: 'PAYOFF', color: '#EF4444' },
   { key: 'change', label: 'CHANGE', color: '#22C55E' },
   { key: 'variety', label: 'VARIETY', color: '#3B82F6' },
-  { key: 'swing', label: 'SWING', color: '#facc15' },
+  { key: 'balance', label: 'BALANCE', color: '#facc15' },
 ];
 
 const MARGIN = { top: 36, right: 16, bottom: 4, left: 48 };
@@ -56,6 +56,7 @@ function ForceChart({
   onDrawStart,
   onDrawMove,
   onDrawEnd,
+  showMovingAvg,
 }: {
   data: SceneDataPoint[];
   forceKey: ForceKey;
@@ -71,6 +72,7 @@ function ForceChart({
   onDrawStart: (forceKey: ForceKey, x: number, y: number) => void;
   onDrawMove: (x: number, y: number) => void;
   onDrawEnd: () => void;
+  showMovingAvg: boolean;
 }) {
   const svgRef = useRef<SVGSVGElement>(null);
 
@@ -94,11 +96,11 @@ function ForceChart({
     const xScale = d3.scaleLinear().domain([0, Math.max(data.length - 1, 1)]).range([0, chartWidth]);
 
     // Dynamic symmetric y-domain based on data
-    const values = data.map((d) => forceKey === 'swing' ? d.swing : d.forces[forceKey]);
-    const isSwing = forceKey === 'swing';
+    const values = data.map((d) => forceKey === 'balance' ? d.balance : d.forces[forceKey]);
+    const isBalance = forceKey === 'balance';
     const maxAbs = Math.max(d3.max(values.map(Math.abs)) ?? 1, 1);
     const yScale = d3.scaleLinear()
-      .domain(isSwing ? [0, maxAbs * 1.1] : [-maxAbs, maxAbs])
+      .domain(isBalance ? [0, maxAbs * 1.1] : [-maxAbs, maxAbs])
       .range([chartHeight, 0]);
 
     // Arc boundary lines
@@ -179,6 +181,24 @@ function ForceChart({
       .attr('stroke', color)
       .attr('stroke-width', 2)
       .attr('opacity', 0.9);
+
+    // Moving average overlay
+    if (showMovingAvg) {
+      const maValues = movingAverage(values, FORCE_WINDOW_SIZE);
+      const maLine = d3.line<number>()
+        .x((_, i) => xScale(i))
+        .y((d) => yScale(d))
+        .curve(d3.curveMonotoneX);
+
+      clipped.append('path')
+        .datum(maValues)
+        .attr('d', maLine)
+        .attr('fill', 'none')
+        .attr('stroke', '#FFFFFF')
+        .attr('stroke-width', 1)
+        .attr('stroke-dasharray', '3,2')
+        .attr('opacity', 0.4);
+    }
 
     // Draw lines overlay
     for (const dl of drawLines) {
@@ -262,7 +282,7 @@ function ForceChart({
       .on('mouseup', () => {
         if (drawing) onDrawEnd();
       });
-  }, [data, forceKey, label, color, arcRegions, hoverIndex, onHover, height, width, drawing, drawLines, onDrawStart, onDrawMove, onDrawEnd]);
+  }, [data, forceKey, label, color, arcRegions, hoverIndex, onHover, height, width, drawing, drawLines, onDrawStart, onDrawMove, onDrawEnd, showMovingAvg]);
 
   return (
     <svg ref={svgRef} width={width} height={height} className="block" />
@@ -310,10 +330,13 @@ export function ForceTracker({ onClose }: { onClose: () => void }) {
   const [dims, setDims] = useState({ width: 800, height: 600 });
   const [hoverIndex, setHoverIndex] = useState<number | null>(null);
 
+  // Moving average toggle
+  const [showMovingAvg, setShowMovingAvg] = useState(true);
+
   // Drawing state
   const [drawing, setDrawing] = useState(false);
   const [drawLines, setDrawLines] = useState<Record<ForceKey, DrawLine[]>>({
-    payoff: [], change: [], variety: [], swing: [],
+    payoff: [], change: [], variety: [], balance: [],
   });
   const [activeDrawKey, setActiveDrawKey] = useState<ForceKey | null>(null);
   const activeLineRef = useRef<[number, number][]>([]);
@@ -350,7 +373,7 @@ export function ForceTracker({ onClose }: { onClose: () => void }) {
   }, [activeDrawKey]);
 
   const clearDrawings = useCallback(() => {
-    setDrawLines({ payoff: [], change: [], variety: [], swing: [] });
+    setDrawLines({ payoff: [], change: [], variety: [], balance: [] });
   }, []);
 
   // Resize observer
@@ -396,7 +419,7 @@ export function ForceTracker({ onClose }: { onClose: () => void }) {
         location: location?.name ?? scene.locationId,
         participants: scene.participantIds.map((pid) => narrative.characters[pid]?.name ?? pid),
         forces,
-        swing: 0,
+        balance: 0,
         corner: corner.name,
         cornerKey: corner.key as CubeCornerKey,
         threadChanges: scene.threadMutations.map(
@@ -404,14 +427,14 @@ export function ForceTracker({ onClose }: { onClose: () => void }) {
         ),
       };
     });
-    // Compute swing magnitudes
+    // Compute balance magnitudes
     for (let i = 1; i < points.length; i++) {
       const prev = points[i - 1].forces;
       const curr = points[i].forces;
       const dp = curr.payoff - prev.payoff;
       const dc = curr.change - prev.change;
       const dv = curr.variety - prev.variety;
-      points[i].swing = Math.sqrt(dp * dp + dc * dc + dv * dv);
+      points[i].balance = Math.sqrt(dp * dp + dc * dc + dv * dv);
     }
     return points;
   }, [narrative, allScenes, forceMap]);
@@ -488,6 +511,20 @@ export function ForceTracker({ onClose }: { onClose: () => void }) {
         </div>
         <div className="flex items-center gap-2">
           <button
+            onClick={() => setShowMovingAvg((v) => !v)}
+            className={`text-[11px] px-3.5 py-1.5 rounded-full border transition flex items-center gap-1.5 ${
+              showMovingAvg
+                ? 'bg-white/10 border-white/20 text-text-primary'
+                : 'bg-transparent border-border text-text-dim hover:text-text-secondary hover:border-white/12'
+            }`}
+            title="Toggle moving average overlay"
+          >
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
+            </svg>
+            MA
+          </button>
+          <button
             onClick={() => setDrawing((d) => !d)}
             className={`text-[11px] px-3.5 py-1.5 rounded-full border transition flex items-center gap-1.5 ${
               drawing
@@ -543,6 +580,7 @@ export function ForceTracker({ onClose }: { onClose: () => void }) {
                 onDrawStart={onDrawStart}
                 onDrawMove={onDrawMove}
                 onDrawEnd={onDrawEnd}
+                showMovingAvg={showMovingAvg}
               />
             ))}
             <ArcLabelsBar
@@ -564,7 +602,7 @@ export function ForceTracker({ onClose }: { onClose: () => void }) {
                   <span className="text-[10px] font-mono" style={{ color: '#EF4444' }}>P:{hoveredScene.forces.payoff >= 0 ? '+' : ''}{hoveredScene.forces.payoff.toFixed(2)}</span>
                   <span className="text-[10px] font-mono" style={{ color: '#22C55E' }}>C:{hoveredScene.forces.change >= 0 ? '+' : ''}{hoveredScene.forces.change.toFixed(2)}</span>
                   <span className="text-[10px] font-mono" style={{ color: '#3B82F6' }}>V:{hoveredScene.forces.variety >= 0 ? '+' : ''}{hoveredScene.forces.variety.toFixed(2)}</span>
-                  <span className="text-[10px] font-mono" style={{ color: '#facc15' }}>S:{hoveredScene.swing.toFixed(2)}</span>
+                  <span className="text-[10px] font-mono" style={{ color: '#facc15' }}>B:{hoveredScene.balance.toFixed(2)}</span>
                 </div>
               </div>
             )}

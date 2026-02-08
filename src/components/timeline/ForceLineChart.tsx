@@ -6,6 +6,7 @@ import * as d3 from 'd3';
 export type ChartStyle = {
   showArea: boolean;
   showWindow: boolean;
+  showMovingAvg: boolean;
   curve: 'smooth' | 'linear' | 'step';
 };
 
@@ -17,9 +18,11 @@ type ForceLineChartProps = {
   /** Inclusive data-index range for the active normalization window */
   windowStart?: number;
   windowEnd?: number;
-  /** If true, domain starts at 0 (for always-positive values like swing magnitude) */
+  /** If true, domain starts at 0 (for always-positive values like balance magnitude) */
   positive?: boolean;
   style?: ChartStyle;
+  /** Optional moving average overlay data (same length as data) */
+  movingAvg?: number[];
 };
 
 const CURVE_FNS = {
@@ -37,6 +40,7 @@ export default function ForceLineChart({
   windowEnd,
   positive,
   style,
+  movingAvg,
 }: ForceLineChartProps) {
   const svgRef = useRef<SVGSVGElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -44,6 +48,7 @@ export default function ForceLineChart({
 
   const showArea = style?.showArea ?? true;
   const showWindow = style?.showWindow ?? true;
+  const showMovingAvg = style?.showMovingAvg ?? true;
   const curveFn = CURVE_FNS[style?.curve ?? 'smooth'];
 
   // Observe container size
@@ -155,6 +160,25 @@ export default function ForceLineChart({
       .attr('stroke-width', 1.5)
       .attr('opacity', 0.8);
 
+    // Moving average overlay
+    if (showMovingAvg && movingAvg && movingAvg.length === data.length) {
+      const maLine = d3
+        .line<number>()
+        .x((_, i) => xScale(i))
+        .y((d) => yScale(d))
+        .curve(d3.curveMonotoneX);
+
+      svg
+        .append('path')
+        .datum(movingAvg)
+        .attr('d', maLine)
+        .attr('fill', 'none')
+        .attr('stroke', '#FFFFFF')
+        .attr('stroke-width', 1)
+        .attr('stroke-dasharray', '3,2')
+        .attr('opacity', 0.4);
+    }
+
     // Current scene cursor
     if (currentIndex >= 0 && currentIndex < data.length) {
       const cx = xScale(currentIndex);
@@ -168,7 +192,7 @@ export default function ForceLineChart({
         .attr('stroke-width', 1)
         .attr('opacity', 0.2);
     }
-  }, [data, color, currentIndex, dims, windowStart, windowEnd, positive, showArea, showWindow, curveFn]);
+  }, [data, color, currentIndex, dims, windowStart, windowEnd, positive, showArea, showWindow, showMovingAvg, curveFn, movingAvg]);
 
   const currentValue =
     currentIndex >= 0 && currentIndex < data.length

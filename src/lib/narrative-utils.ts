@@ -132,24 +132,24 @@ export function cubeCornerProximity(forces: ForceSnapshot, cornerKey: CubeCorner
   return Math.exp(-d / 2);
 }
 
-/** Compute swing magnitude (Euclidean distance) between consecutive force snapshots.
+/** Compute balance magnitude (Euclidean distance) between consecutive force snapshots.
  *  Returns an array of the same length; the first element is always 0. */
-export function computeSwingMagnitudes(forceSnapshots: ForceSnapshot[]): number[] {
-  const swings: number[] = [0];
+export function computeBalanceMagnitudes(forceSnapshots: ForceSnapshot[]): number[] {
+  const balances: number[] = [0];
   for (let i = 1; i < forceSnapshots.length; i++) {
     const dp = forceSnapshots[i].payoff - forceSnapshots[i - 1].payoff;
     const dc = forceSnapshots[i].change - forceSnapshots[i - 1].change;
     const dv = forceSnapshots[i].variety - forceSnapshots[i - 1].variety;
-    swings.push(Math.sqrt(dp * dp + dc * dc + dv * dv));
+    balances.push(Math.sqrt(dp * dp + dc * dc + dv * dv));
   }
-  return swings;
+  return balances;
 }
 
-/** Compute the average swing over a trailing window of force snapshots */
-export function averageSwing(forceSnapshots: ForceSnapshot[], windowSize = FORCE_WINDOW_SIZE): number {
+/** Compute the average balance over a trailing window of force snapshots */
+export function averageBalance(forceSnapshots: ForceSnapshot[], windowSize = FORCE_WINDOW_SIZE): number {
   if (forceSnapshots.length < 2) return 0;
-  const swings = computeSwingMagnitudes(forceSnapshots);
-  const window = swings.slice(-windowSize);
+  const balances = computeBalanceMagnitudes(forceSnapshots);
+  const window = balances.slice(-windowSize);
   return window.reduce((s, v) => s + v, 0) / window.length;
 }
 
@@ -338,6 +338,18 @@ export function computeForceSnapshots(
       change: normChanges[i],
       variety: normVarieties[i],
     };
+  }
+  return result;
+}
+
+/** Compute a simple moving average over a data series.
+ *  Returns an array of the same length; values before the window is full use a smaller window. */
+export function movingAverage(data: number[], windowSize: number): number[] {
+  const result: number[] = [];
+  for (let i = 0; i < data.length; i++) {
+    const start = Math.max(0, i - windowSize + 1);
+    const window = data.slice(start, i + 1);
+    result.push(window.reduce((s, v) => s + v, 0) / window.length);
   }
   return result;
 }
