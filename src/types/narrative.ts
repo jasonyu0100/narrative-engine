@@ -335,6 +335,8 @@ export type AutoConfig = {
   maxActiveThreads: number;
   threadStagnationThreshold: number;
   arcDirectionPrompt: string;
+  /** High-level story direction that guides auto mode across many arcs */
+  storyDirectionPrompt: string;
   toneGuidance: string;
   narrativeConstraints: string;
   characterRotationEnabled: boolean;

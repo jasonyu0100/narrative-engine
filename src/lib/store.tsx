@@ -171,6 +171,7 @@ const initialState: AppState = {
     maxActiveThreads: 6,
     threadStagnationThreshold: 5,
     arcDirectionPrompt: '',
+    storyDirectionPrompt: '',
     toneGuidance: '',
     narrativeConstraints: '',
     characterRotationEnabled: true,

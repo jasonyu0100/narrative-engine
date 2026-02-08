@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { useStore } from '@/lib/store';
+import { suggestStoryDirection } from '@/lib/ai';
 import type { AutoConfig, AutoEndCondition, AutoObjective } from '@/types/narrative';
 
 type Tab = 'end' | 'objective' | 'direction';
@@ -23,6 +24,7 @@ export function AutoSettingsPanel({ onClose, onStart }: { onClose: () => void; o
   const { state, dispatch } = useStore();
   const [tab, setTab] = useState<Tab>('end');
   const [config, setConfig] = useState<AutoConfig>({ ...state.autoConfig });
+  const [suggesting, setSuggesting] = useState(false);
 
   function update(partial: Partial<AutoConfig>) {
     setConfig((c) => ({ ...c, ...partial }));
@@ -261,12 +263,39 @@ export function AutoSettingsPanel({ onClose, onStart }: { onClose: () => void; o
                 The north star for your story. Auto mode will constantly steer the narrative toward this direction across every arc it generates.
               </p>
               <div>
-                <label className="text-[10px] uppercase tracking-widest text-text-dim block mb-1">
-                  Story Direction
-                </label>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="text-[10px] uppercase tracking-widest text-text-dim">
+                    Story Direction
+                  </label>
+                  {state.activeNarrative && Object.keys(state.activeNarrative.scenes).length > 0 && (
+                    <button
+                      type="button"
+                      disabled={suggesting}
+                      onClick={async () => {
+                        if (!state.activeNarrative) return;
+                        setSuggesting(true);
+                        try {
+                          const direction = await suggestStoryDirection(
+                            state.activeNarrative,
+                            state.resolvedSceneKeys,
+                            state.currentSceneIndex,
+                          );
+                          update({ storyDirectionPrompt: direction });
+                        } catch (err) {
+                          console.error('[auto-settings] suggest direction failed:', err);
+                        } finally {
+                          setSuggesting(false);
+                        }
+                      }}
+                      className="text-[10px] text-text-secondary hover:text-text-primary transition-colors disabled:opacity-30 uppercase tracking-wider"
+                    >
+                      {suggesting ? 'Thinking...' : 'Suggest Story'}
+                    </button>
+                  )}
+                </div>
                 <textarea
-                  value={config.arcDirectionPrompt}
-                  onChange={(e) => update({ arcDirectionPrompt: e.target.value })}
+                  value={config.storyDirectionPrompt}
+                  onChange={(e) => update({ storyDirectionPrompt: e.target.value })}
                   placeholder="e.g. The protagonist should slowly uncover the truth about their past while alliances shift around them. Build toward a betrayal that redefines the central conflict..."
                   className="bg-bg-elevated border border-border rounded-lg px-3 py-2 text-sm text-text-primary w-full h-32 resize-none outline-none placeholder:text-text-dim"
                 />

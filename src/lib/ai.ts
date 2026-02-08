@@ -268,6 +268,34 @@ suggestedSceneCount must be between 1 and 8.`;
 }
 
 
+export async function suggestStoryDirection(
+  narrative: NarrativeState,
+  resolvedKeys: string[],
+  currentIndex: number,
+): Promise<string> {
+  const ctx = branchContext(narrative, resolvedKeys, currentIndex);
+
+  const prompt = `${ctx}
+
+You are a showrunner planning the long-term trajectory of this story. Analyze the full narrative state — characters, threads, knowledge graphs, relationships, and scene history — and suggest a high-level STORY DIRECTION that should guide the next several arcs.
+
+Think big picture:
+- What is the central dramatic question the story is building toward?
+- Which character arcs have the most untapped potential?
+- What thematic tensions could be deepened or brought into conflict?
+- Where should alliances shift, secrets surface, or power dynamics change?
+- What is the most satisfying macro-trajectory from where the story stands now?
+
+Do NOT suggest a single scene or arc. Instead, describe the overarching direction the story should move in — the kind of guidance a showrunner gives a writers' room for the next season.
+
+Return JSON: { "direction": "2-4 sentences describing the big-picture story direction" }`;
+
+  const raw = await callGenerate(prompt, SYSTEM_PROMPT, undefined, 'suggestStoryDirection');
+  const parsed = parseJson(raw, 'suggestStoryDirection') as { direction?: string };
+  return parsed.direction ?? '';
+}
+
+
 export async function generateScenes(
   narrative: NarrativeState,
   resolvedKeys: string[],

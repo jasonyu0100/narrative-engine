@@ -269,7 +269,7 @@ export function GeneratePanel({ onClose }: { onClose: () => void }) {
                     disabled={suggesting || loading}
                     className="text-[10px] text-text-secondary hover:text-text-primary transition-colors disabled:opacity-30 uppercase tracking-wider"
                   >
-                    {suggesting ? 'Thinking...' : 'Suggest'}
+                    {suggesting ? 'Thinking...' : 'Suggest Arc'}
                   </button>
                 </div>
                 <textarea
