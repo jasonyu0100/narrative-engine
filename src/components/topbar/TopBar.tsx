@@ -250,6 +250,17 @@ export default function TopBar() {
           </button>
         )}
         <button
+          onClick={() => window.dispatchEvent(new Event('open-force-tracker'))}
+          className="px-2 py-1 rounded hover:bg-bg-elevated transition-colors text-text-dim hover:text-text-primary flex items-center gap-1.5"
+          title="Force Tracker — narrative analysis"
+        >
+          <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+            <path d="M2 20h20" />
+            <polyline points="4,16 8,8 12,12 16,4 20,10" />
+          </svg>
+          <span className="text-[11px]">Analysis</span>
+        </button>
+        <button
           onClick={() => setStoryOpen(true)}
           className="px-2 py-1 rounded hover:bg-bg-elevated transition-colors text-text-dim hover:text-text-primary flex items-center gap-1.5"
           title="View full story"

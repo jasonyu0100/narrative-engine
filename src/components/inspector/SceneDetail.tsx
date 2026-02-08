@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useMemo } from 'react';
 import { useStore } from '@/lib/store';
 import { resolveEntry, isScene, type Scene } from '@/types/narrative';
 import { computeForceSnapshots } from '@/lib/narrative-utils';
@@ -12,8 +12,6 @@ type Props = {
 export default function SceneDetail({ sceneId }: Props) {
   const { state, dispatch } = useStore();
   const narrative = state.activeNarrative;
-  const [editing, setEditing] = useState(false);
-  const [editSummary, setEditSummary] = useState('');
 
   const forceSnapshot = useMemo(() => {
     if (!narrative) return { stakes: 0, pacing: 0, variety: 0 };
@@ -123,15 +121,7 @@ export default function SceneDetail({ sceneId }: Props) {
     a.sceneIds.includes(sceneId)
   );
 
-  function startEdit() {
-    setEditSummary(scene.summary);
-    setEditing(true);
-  }
 
-  function saveEdit() {
-    dispatch({ type: 'UPDATE_SCENE', sceneId, updates: { summary: editSummary } });
-    setEditing(false);
-  }
 
   return (
     <div className="flex flex-col gap-4">
@@ -174,28 +164,10 @@ export default function SceneDetail({ sceneId }: Props) {
         </button>
       )}
 
-      {/* Summary — editable */}
-      {editing ? (
-        <div className="flex flex-col gap-2">
-          <textarea
-            value={editSummary}
-            onChange={(e) => setEditSummary(e.target.value)}
-            className="bg-bg-elevated border border-border rounded px-2 py-1.5 text-xs text-text-primary w-full h-24 resize-none outline-none"
-          />
-          <div className="flex gap-2">
-            <button onClick={saveEdit} className="text-[10px] text-pacing hover:underline">Save</button>
-            <button onClick={() => setEditing(false)} className="text-[10px] text-text-dim hover:underline">Cancel</button>
-          </div>
-        </div>
-      ) : (
-        <button
-          type="button"
-          onClick={startEdit}
-          className="text-left text-xs text-text-secondary leading-relaxed hover:text-text-primary transition-colors"
-        >
-          {scene.summary || 'Click to add summary...'}
-        </button>
-      )}
+      {/* Summary */}
+      <p className="text-xs text-text-secondary leading-relaxed">
+        {scene.summary || 'No summary available.'}
+      </p>
 
       {/* Participants */}
       {scene.participantIds.length > 0 && (

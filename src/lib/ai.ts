@@ -717,6 +717,68 @@ Write 3-5 sentences per section. Be specific — reference arc names, character 
   return await callGenerate(prompt, systemPrompt, 4000, 'analyzeForceTrajectory');
 }
 
+export type ChartAnnotation = {
+  sceneIndex: number;
+  force: 'stakes' | 'pacing' | 'variety';
+  label: string;
+};
+
+/**
+ * Generate chart annotations for the force tracker.
+ * The LLM analyzes the trajectory and returns specific scene-level annotations
+ * that should appear on the charts at notable peaks, valleys, and inflection points.
+ */
+export async function generateChartAnnotations(
+  narrative: NarrativeState,
+  forceData: { sceneIndex: number; sceneId: string; arcName: string; forces: { stakes: number; pacing: number; variety: number }; corner: string; summary: string; threadChanges: string[]; location: string; participants: string[] }[],
+): Promise<ChartAnnotation[]> {
+  const trajectoryLines = forceData.map((d) => {
+    const tc = d.threadChanges.length > 0 ? ` | ${d.threadChanges.join('; ')}` : '';
+    return `[${d.sceneIndex + 1}] ${d.arcName} | ${d.corner} | S:${d.forces.stakes.toFixed(2)} P:${d.forces.pacing.toFixed(2)} V:${d.forces.variety.toFixed(2)} | @${d.location} | ${d.participants.join(', ')} | "${d.summary.slice(0, 80)}"${tc}`;
+  }).join('\n');
+
+  const systemPrompt = `You are a narrative analyst annotating force trajectory charts. Return ONLY valid JSON — no markdown, no code fences, no commentary.`;
+
+  const prompt = `Analyze this narrative's force trajectory and generate annotations for notable moments.
+
+NARRATIVE: "${narrative.title}" (${forceData.length} scenes)
+
+SCENE-BY-SCENE DATA:
+${trajectoryLines}
+
+Annotate ONLY the peaks (local maxima) and troughs (local minima) of each force line. Look at the S/P/V values — find where each force hits its highest and lowest points, then label those.
+
+Rules:
+- ONLY peaks and troughs — nothing in between. If the value is rising or falling but hasn't reached an extremum, skip it.
+- Include annotations for ALL THREE forces — stakes, pacing, AND variety
+- ~4-6 annotations per force (the clearest peaks and troughs only)
+- Labels: 2-5 words, specific to the story. Use character names, places, events.
+- Never use generic labels like "high tension" or "calm period"
+- Stakes peaks: danger, threats, betrayals. Troughs: safety, resolution
+- Pacing peaks: action bursts, dense reveals. Troughs: breathing room, reflection
+- Variety peaks: new locations or characters (check @location and participants for first appearances). Troughs: same familiar cast/setting recurring
+
+Return a JSON array:
+[{"sceneIndex": 0, "force": "stakes", "label": "short annotation"}, ...]
+
+sceneIndex is 0-based. force is one of: "stakes", "pacing", "variety".`;
+
+  const raw = await callGenerate(prompt, systemPrompt, 4000, 'generateChartAnnotations');
+
+  // Parse JSON from response, handling potential markdown fences
+  const cleaned = raw.replace(/```json\s*/g, '').replace(/```\s*/g, '').trim();
+  const parsed = JSON.parse(cleaned);
+  if (!Array.isArray(parsed)) return [];
+  return parsed.filter(
+    (a: unknown): a is ChartAnnotation =>
+      typeof a === 'object' && a !== null &&
+      'sceneIndex' in a && 'force' in a && 'label' in a &&
+      typeof (a as ChartAnnotation).sceneIndex === 'number' &&
+      ['stakes', 'pacing', 'variety'].includes((a as ChartAnnotation).force) &&
+      typeof (a as ChartAnnotation).label === 'string'
+  );
+}
+
 export async function generateNarrative(
   title: string,
   premise: string,

@@ -3,8 +3,21 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { useStore, SEED_NARRATIVE_IDS } from '@/lib/store';
+import { useFeatureAccess } from '@/hooks/useFeatureAccess';
 import { CreationWizard } from '@/components/wizard/CreationWizard';
+import ApiKeyModal from '@/components/layout/ApiKeyModal';
 import type { NarrativeEntry } from '@/types/narrative';
+
+function useIsMobile(breakpoint = 768) {
+  const [isMobile, setIsMobile] = useState(false);
+  useEffect(() => {
+    const check = () => setIsMobile(window.innerWidth < breakpoint);
+    check();
+    window.addEventListener('resize', check);
+    return () => window.removeEventListener('resize', check);
+  }, [breakpoint]);
+  return isMobile;
+}
 
 function timeAgo(timestamp: number): string {
   const seconds = Math.floor((Date.now() - timestamp) / 1000);
@@ -300,12 +313,32 @@ function UserSeriesCard({ entry, index }: { entry: NarrativeEntry; index: number
 /* ── Home page ───────────────────────────────────────────────────────────── */
 export default function HomePage() {
   const { state, dispatch } = useStore();
+  const access = useFeatureAccess();
+  const { userApiKeys, hasOpenRouterKey } = access;
+  const isMobile = useIsMobile();
   const [prompt, setPrompt] = useState('');
   const [rolling, setRolling] = useState(false);
+  const [apiKeysOpen, setApiKeysOpen] = useState(false);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+
+  useEffect(() => {
+    const handleOpenApiKeys = () => setApiKeysOpen(true);
+    window.addEventListener('open-api-keys', handleOpenApiKeys);
+    return () => window.removeEventListener('open-api-keys', handleOpenApiKeys);
+  }, []);
+
+  const needsKeys = userApiKeys && !hasOpenRouterKey;
+
+  const openCreate = (prefill?: string) => {
+    if (needsKeys) { setApiKeysOpen(true); return; }
+    if (isMobile) return;
+    dispatch({ type: 'OPEN_WIZARD', prefill });
+  };
 
   const handleSubmit = () => {
     if (!prompt.trim()) return;
+    if (needsKeys) { setApiKeysOpen(true); return; }
+    if (isMobile) return;
     dispatch({ type: 'OPEN_WIZARD', prefill: prompt.trim() });
     setPrompt('');
   };
@@ -392,56 +425,64 @@ export default function HomePage() {
 
           {/* ── Input ────────────────────────────────────────────────────── */}
           <div className="animate-fade-up-delay-3 mt-10 w-full max-w-xl">
-            <div className="prompt-glow relative rounded-xl border border-white/8 focus-within:border-white/15 transition-colors duration-200">
-              <textarea
-                ref={inputRef}
-                value={prompt}
-                onChange={(e) => setPrompt(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' && !e.shiftKey) {
-                    e.preventDefault();
-                    handleSubmit();
-                  }
-                }}
-                rows={3}
-                className="w-full bg-transparent text-white text-sm px-4 pt-4 pb-2 resize-none focus:outline-none placeholder:text-white/25"
-                placeholder="A dying empire where three siblings each claim the throne..."
-              />
-              <div className="flex items-center justify-between px-3 pb-3">
-                <button
-                  onClick={handleRandomIdea}
-                  disabled={rolling}
-                  className="text-white/25 hover:text-white/50 transition disabled:opacity-40 text-[11px] font-mono flex items-center gap-1.5"
-                >
-                  <span className={rolling ? 'animate-spin inline-block' : ''}>&#127922;</span>
-                  {rolling ? 'thinking...' : 'surprise me'}
-                </button>
-                <div className="flex items-center gap-2">
-                  {prompt.trim() && (
-                    <span className="text-[10px] text-white/20 font-mono">
-                      ↵ enter
-                    </span>
-                  )}
-                  <button
-                    onClick={handleSubmit}
-                    disabled={!prompt.trim()}
-                    className="text-white/70 hover:text-white border border-white/10 hover:border-white/20 disabled:opacity-20 text-xs font-medium px-4 py-1.5 rounded-md transition"
-                  >
-                    Create
-                  </button>
-                </div>
+            {isMobile ? (
+              <div className="text-center py-8 border border-dashed border-white/8 rounded-xl">
+                <p className="text-white/30 text-sm">Series creation is available on desktop</p>
               </div>
-            </div>
+            ) : (
+              <>
+                <div className="prompt-glow relative rounded-xl border border-white/8 focus-within:border-white/15 transition-colors duration-200">
+                  <textarea
+                    ref={inputRef}
+                    value={prompt}
+                    onChange={(e) => setPrompt(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' && !e.shiftKey) {
+                        e.preventDefault();
+                        handleSubmit();
+                      }
+                    }}
+                    rows={3}
+                    className="w-full bg-transparent text-white text-sm px-4 pt-4 pb-2 resize-none focus:outline-none placeholder:text-white/25"
+                    placeholder="A dying empire where three siblings each claim the throne..."
+                  />
+                  <div className="flex items-center justify-between px-3 pb-3">
+                    <button
+                      onClick={handleRandomIdea}
+                      disabled={rolling}
+                      className="text-white/25 hover:text-white/50 transition disabled:opacity-40 text-[11px] font-mono flex items-center gap-1.5"
+                    >
+                      <span className={rolling ? 'animate-spin inline-block' : ''}>&#127922;</span>
+                      {rolling ? 'thinking...' : 'surprise me'}
+                    </button>
+                    <div className="flex items-center gap-2">
+                      {prompt.trim() && (
+                        <span className="text-[10px] text-white/20 font-mono">
+                          ↵ enter
+                        </span>
+                      )}
+                      <button
+                        onClick={handleSubmit}
+                        disabled={!prompt.trim()}
+                        className="text-white/70 hover:text-white border border-white/10 hover:border-white/20 disabled:opacity-20 text-xs font-medium px-4 py-1.5 rounded-md transition"
+                      >
+                        Create
+                      </button>
+                    </div>
+                  </div>
+                </div>
 
-            <p className="text-center text-[11px] text-white/25 mt-2.5">
-              or{' '}
-              <button
-                onClick={() => dispatch({ type: 'OPEN_WIZARD' })}
-                className="text-white/40 hover:text-white/70 underline underline-offset-2 transition"
-              >
-                open the wizard
-              </button>
-            </p>
+                <p className="text-center text-[11px] text-white/25 mt-2.5">
+                  or{' '}
+                  <button
+                    onClick={() => openCreate()}
+                    className="text-white/40 hover:text-white/70 underline underline-offset-2 transition"
+                  >
+                    open the wizard
+                  </button>
+                </p>
+              </>
+            )}
           </div>
         </div>
 
@@ -478,12 +519,14 @@ export default function HomePage() {
             ) : (
               <div className="text-center py-12 border border-dashed border-white/8 rounded-lg">
                 <p className="text-white/25 text-sm">No stories yet</p>
-                <button
-                  onClick={() => dispatch({ type: 'OPEN_WIZARD' })}
-                  className="mt-3 text-xs text-white/40 hover:text-white/70 underline underline-offset-2 transition"
-                >
-                  Create your first narrative
-                </button>
+                {!isMobile && (
+                  <button
+                    onClick={() => openCreate()}
+                    className="mt-3 text-xs text-white/40 hover:text-white/70 underline underline-offset-2 transition"
+                  >
+                    Create your first narrative
+                  </button>
+                )}
               </div>
             )}
           </div>
@@ -491,6 +534,7 @@ export default function HomePage() {
       </div>
 
       {state.wizardOpen && <CreationWizard />}
+      {apiKeysOpen && <ApiKeyModal access={access} onClose={() => setApiKeysOpen(false)} />}
     </>
   );
 }

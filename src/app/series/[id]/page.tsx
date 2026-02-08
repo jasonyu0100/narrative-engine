@@ -21,6 +21,7 @@ import { useAutoPlay } from '@/hooks/useAutoPlay';
 import { useFeatureAccess } from '@/hooks/useFeatureAccess';
 import ApiKeyModal from '@/components/layout/ApiKeyModal';
 import { OnboardingGuide } from '@/components/onboarding/OnboardingGuide';
+import { ForceTracker } from '@/components/analytics/ForceTracker';
 
 function useIsMobile(breakpoint = 768) {
   const [isMobile, setIsMobile] = useState(false);
@@ -43,6 +44,7 @@ export default function SeriesPage() {
   const [autoSettingsOpen, setAutoSettingsOpen] = useState(false);
   const [cubeViewerOpen, setCubeViewerOpen] = useState(false);
   const [apiKeysOpen, setApiKeysOpen] = useState(false);
+  const [forceTrackerOpen, setForceTrackerOpen] = useState(false);
   const autoPlay = useAutoPlay();
   const access = useFeatureAccess();
 
@@ -67,17 +69,20 @@ export default function SeriesPage() {
     function handleOpenAutoSettings() { setAutoSettingsOpen(true); }
     function handleOpenCubeViewer() { setCubeViewerOpen(true); }
     function handleOpenApiKeys() { setApiKeysOpen(true); }
+    function handleOpenForceTracker() { setForceTrackerOpen(true); }
     window.addEventListener('open-generate-panel', handleOpenGenerate);
     window.addEventListener('open-fork-panel', handleOpenFork);
     window.addEventListener('open-auto-settings', handleOpenAutoSettings);
     window.addEventListener('open-cube-viewer', handleOpenCubeViewer);
     window.addEventListener('open-api-keys', handleOpenApiKeys);
+    window.addEventListener('open-force-tracker', handleOpenForceTracker);
     return () => {
       window.removeEventListener('open-generate-panel', handleOpenGenerate);
       window.removeEventListener('open-fork-panel', handleOpenFork);
       window.removeEventListener('open-auto-settings', handleOpenAutoSettings);
       window.removeEventListener('open-cube-viewer', handleOpenCubeViewer);
       window.removeEventListener('open-api-keys', handleOpenApiKeys);
+      window.removeEventListener('open-force-tracker', handleOpenForceTracker);
     };
   }, []);
 
@@ -133,6 +138,7 @@ export default function SeriesPage() {
         <NarrativeCubeViewer onClose={() => setCubeViewerOpen(false)} />
       )}
       {apiKeysOpen && <ApiKeyModal access={access} onClose={() => setApiKeysOpen(false)} />}
+      {forceTrackerOpen && <ForceTracker onClose={() => setForceTrackerOpen(false)} />}
       <OnboardingGuide narrativeId={id} />
       {isMobile && (
         <div className="fixed inset-0 z-9999 bg-black/80 backdrop-blur-sm flex flex-col items-center justify-center px-6 text-center">
