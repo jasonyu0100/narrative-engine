@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useStore } from '@/lib/store';
 import type { NarrativeState } from '@/types/narrative';
 import { resolveEntry, isScene, type Scene } from '@/types/narrative';
-import { computeRawForcetotals, computeForceSnapshots, computeBalanceMagnitudes } from '@/lib/narrative-utils';
+import { computeRawForcetotals, computeBalanceMagnitudes } from '@/lib/narrative-utils';
 import { ApiLogsModal } from '@/components/debug/ApiLogsModal';
 import { StoryReader } from '@/components/story/StoryReader';
 
@@ -87,10 +87,21 @@ export default function TopBar() {
       const m = avg(arr);
       return Math.sqrt(arr.reduce((s, v) => s + (v - m) ** 2, 0) / arr.length);
     };
+    /** Average of top 10% values (at least 1) — rewards multiple peaks, not just one outlier */
+    const topAvg = (arr: number[]) => {
+      const sorted = [...arr].sort((a, b) => b - a);
+      const k = Math.max(1, Math.ceil(sorted.length * 0.1));
+      return avg(sorted.slice(0, k));
+    };
 
-    const forceMap = computeForceSnapshots(allScenes);
-    const zForces = allScenes.map((s) => forceMap[s.id] ?? { payoff: 0, change: 0, variety: 0 });
-    const balances = computeBalanceMagnitudes(zForces);
+    // Compute balance from raw forces (not z-scored) so absolute force magnitudes
+    // differentiate well-crafted narratives from bland AI text
+    const rawForces = raw.payoff.map((_, i) => ({
+      payoff: raw.payoff[i],
+      change: raw.change[i],
+      variety: raw.variety[i],
+    }));
+    const balances = computeBalanceMagnitudes(rawForces);
 
     const forceStats = (arr: number[]) => ({
       total: sum(arr),
@@ -114,7 +125,10 @@ export default function TopBar() {
     const payoffGrade = gradeForce(stats.payoff.avg, 3);   // avg ~3 → ~16, avg ~6 → ~22
     const changeGrade = gradeForce(stats.change.avg, 4);   // avg ~4 → ~16, avg ~8 → ~22
     const varietyGrade = gradeForce(stats.variety.avg, 3);  // avg ~3 → ~16, avg ~6 → ~22
-    const balanceGrade = gradeForce(stats.balance.avg, 1.5); // avg ~1.5 → ~16, avg ~3 → ~22
+    // Balance uses raw force deltas (not z-scored) with top-peaks weighting —
+    // avg of top 10% peaks rewards stories with multiple dramatic moments, not just one outlier
+    const balanceEffective = stats.balance.avg * 0.5 + topAvg(balances) * 0.5;
+    const balanceGrade = gradeForce(balanceEffective, 8);
 
     const overallGrade = Math.round(payoffGrade + changeGrade + varietyGrade + balanceGrade);
 
@@ -138,7 +152,8 @@ export default function TopBar() {
         const arcPayoffGrade = gradeForce(avg(arcPayoffs), 3);
         const arcChangeGrade = gradeForce(avg(arcChanges), 4);
         const arcVarietyGrade = gradeForce(avg(arcVarieties), 3);
-        const arcBalanceGrade = gradeForce(avg(arcBalanceVals), 1.5);
+        const arcBalanceEffective = avg(arcBalanceVals) * 0.5 + topAvg(arcBalanceVals) * 0.5;
+        const arcBalanceGrade = gradeForce(arcBalanceEffective, 8);
 
         return {
           name: arc.name,
@@ -435,7 +450,7 @@ export default function TopBar() {
                   { key: 'payoff' as const, label: 'Payoff', color: '#EF4444' },
                   { key: 'change' as const, label: 'Change', color: '#22C55E' },
                   { key: 'variety' as const, label: 'Variety', color: '#3B82F6' },
-                  { key: 'balance' as const, label: 'Balance', color: '#facc15' },
+                  { key: 'balance' as const, label: 'Swing', color: '#facc15' },
                 ]).map((row) => {
                   const s = scorecard[row.key];
                   const grade = scorecard.grades[row.key];
@@ -472,7 +487,7 @@ export default function TopBar() {
                   { key: 'payoff' as const, label: 'P', color: '#EF4444' },
                   { key: 'change' as const, label: 'C', color: '#22C55E' },
                   { key: 'variety' as const, label: 'V', color: '#3B82F6' },
-                  { key: 'balance' as const, label: 'B', color: '#facc15' },
+                  { key: 'balance' as const, label: 'S', color: '#facc15' },
                 ]).map((row) => (
                   <div key={row.key} className="flex items-center gap-1.5">
                     <span className="text-[9px] font-mono" style={{ color: row.color }}>{row.label}</span>
@@ -484,9 +499,10 @@ export default function TopBar() {
               {/* Per-arc score graph */}
               {scorecard.perArc.length > 1 && (() => {
                 const arcs = scorecard.perArc;
+                const dense = arcs.length >= 15;
                 const W = 420;
-                const H = 110;
-                const PAD = { top: 16, right: 12, bottom: 28, left: 28 };
+                const H = dense ? 80 : 110;
+                const PAD = { top: dense ? 8 : 16, right: 12, bottom: dense ? 8 : 28, left: dense ? 8 : 28 };
                 const cw = W - PAD.left - PAD.right;
                 const ch = H - PAD.top - PAD.bottom;
                 const maxScore = 100;
@@ -541,7 +557,7 @@ export default function TopBar() {
                         return (
                           <g key={v}>
                             <line x1={PAD.left} y1={y} x2={PAD.left + cw} y2={y} stroke="white" strokeOpacity="0.05" />
-                            <text x={PAD.left - 4} y={y + 3} textAnchor="end" fill="white" fillOpacity="0.2" fontSize="8" fontFamily="monospace">{v}</text>
+                            {!dense && <text x={PAD.left - 4} y={y + 3} textAnchor="end" fill="white" fillOpacity="0.2" fontSize="8" fontFamily="monospace">{v}</text>}
                           </g>
                         );
                       })}
@@ -565,13 +581,13 @@ export default function TopBar() {
                       {/* Dots + score labels */}
                       {points.map((p, i) => (
                         <g key={i}>
-                          <circle cx={p.x} cy={p.y} r="3.5" fill={scoreColor(p.score)} />
-                          <text x={p.x} y={p.y - 8} textAnchor="middle" fill={scoreColor(p.score)} fontSize="9" fontFamily="monospace" fontWeight="600">{p.score}</text>
+                          <circle cx={p.x} cy={p.y} r={dense ? 2 : 3.5} fill={scoreColor(p.score)} />
+                          {!dense && <text x={p.x} y={p.y - 8} textAnchor="middle" fill={scoreColor(p.score)} fontSize="9" fontFamily="monospace" fontWeight="600">{p.score}</text>}
                         </g>
                       ))}
 
                       {/* Arc number labels */}
-                      {points.map((p, i) => (
+                      {!dense && points.map((p, i) => (
                         <text key={i} x={p.x} y={H - 4} textAnchor="middle" fill="white" fillOpacity="0.3" fontSize="8" fontFamily="monospace">
                           {i + 1}
                         </text>

@@ -27,6 +27,7 @@ export function StoryReader({
   const contentRef = useRef<HTMLDivElement>(null);
   const [bulkState, setBulkState] = useState<{ running: boolean; completed: number; total: number; errors: number } | null>(null);
   const bulkCancelledRef = useRef(false);
+  const [copied, setCopied] = useState(false);
 
   const scene = scenes[currentIndex];
   const arc = scene ? Object.values(narrative.arcs).find((a) => a.sceneIds.includes(scene.id)) : null;
@@ -211,6 +212,51 @@ export function StoryReader({
               ) : null;
             })()
           )}
+
+          {/* Copy all prose */}
+          {(() => {
+            const allProse = scenes
+              .map((s) => proseCache[s.id]?.status === 'ready' ? proseCache[s.id].text : s.prose)
+              .filter(Boolean);
+            return allProse.length > 0 ? (
+              <button
+                onClick={() => {
+                  const text = scenes
+                    .map((s, i) => {
+                      const prose = proseCache[s.id]?.status === 'ready' ? proseCache[s.id].text : s.prose;
+                      if (!prose) return null;
+                      const sArc = Object.values(narrative.arcs).find((a) => a.sceneIds.includes(s.id));
+                      const header = sArc ? `Scene ${i + 1} — ${sArc.name}` : `Scene ${i + 1}`;
+                      return `${header}\n\n${prose}`;
+                    })
+                    .filter(Boolean)
+                    .join('\n\n---\n\n');
+                  navigator.clipboard.writeText(text);
+                  setCopied(true);
+                  setTimeout(() => setCopied(false), 2000);
+                }}
+                className="text-[10px] px-2.5 py-1 rounded-full border border-white/10 text-text-dim hover:text-text-secondary hover:border-white/15 transition flex items-center gap-1.5"
+                title={`Copy all prose (${allProse.length} scenes)`}
+              >
+                {copied ? (
+                  <>
+                    <svg className="w-3 h-3 text-emerald-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <polyline points="20 6 9 17 4 12" />
+                    </svg>
+                    <span className="text-emerald-400">Copied</span>
+                  </>
+                ) : (
+                  <>
+                    <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
+                      <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+                    </svg>
+                    Copy All ({allProse.length})
+                  </>
+                )}
+              </button>
+            ) : null;
+          })()}
 
           <span className="text-[10px] text-text-dim font-mono">
             {currentIndex + 1} / {scenes.length}

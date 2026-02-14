@@ -329,7 +329,7 @@ export default function ForceCharts() {
         <ForceLineChart
           data={chartData.balance}
           color="#facc15"
-          label="Balance"
+          label="Swing"
           currentIndex={chartCurrentIndex}
           windowStart={!isLocal ? windowTimelineRange?.start : undefined}
           windowEnd={!isLocal ? windowTimelineRange?.end : undefined}

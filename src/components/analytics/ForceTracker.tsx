@@ -36,10 +36,13 @@ const FORCE_CONFIG: { key: ForceKey; label: string; color: string }[] = [
   { key: 'payoff', label: 'PAYOFF', color: '#EF4444' },
   { key: 'change', label: 'CHANGE', color: '#22C55E' },
   { key: 'variety', label: 'VARIETY', color: '#3B82F6' },
-  { key: 'balance', label: 'BALANCE', color: '#facc15' },
+  { key: 'balance', label: 'SWING', color: '#facc15' },
 ];
 
 const MARGIN = { top: 36, right: 16, bottom: 4, left: 48 };
+const MARGIN_DENSE = { top: 36, right: 16, bottom: 4, left: 16 };
+/** Arc count threshold above which we hide axis labels for readability */
+const DENSE_ARC_THRESHOLD = 15;
 
 function ForceChart({
   data,
@@ -59,6 +62,7 @@ function ForceChart({
   onDrawStart,
   onDrawMove,
   onDrawEnd,
+  dense,
 }: {
   data: SceneDataPoint[];
   forceKey: ForceKey;
@@ -77,6 +81,7 @@ function ForceChart({
   onDrawStart: (forceKey: ForceKey, x: number, y: number) => void;
   onDrawMove: (x: number, y: number) => void;
   onDrawEnd: () => void;
+  dense: boolean;
 }) {
   const svgRef = useRef<SVGSVGElement>(null);
 
@@ -85,10 +90,11 @@ function ForceChart({
     svg.selectAll('*').remove();
     if (data.length === 0 || width <= 0) return;
 
-    const chartWidth = width - MARGIN.left - MARGIN.right;
-    const chartHeight = height - MARGIN.top - MARGIN.bottom;
+    const m = dense ? MARGIN_DENSE : MARGIN;
+    const chartWidth = width - m.left - m.right;
+    const chartHeight = height - m.top - m.bottom;
 
-    const g = svg.append('g').attr('transform', `translate(${MARGIN.left},${MARGIN.top})`);
+    const g = svg.append('g').attr('transform', `translate(${m.left},${m.top})`);
 
     // Clip path so chart content stays within bounds
     g.append('clipPath')
@@ -153,21 +159,23 @@ function ForceChart({
         .attr('stroke', v === 0 ? 'rgba(255,255,255,0.15)' : 'rgba(255,255,255,0.04)')
         .attr('stroke-width', v === 0 ? 1 : 0.5);
 
-      g.append('text')
-        .attr('x', -8)
-        .attr('y', y)
-        .attr('dy', '0.35em')
-        .attr('text-anchor', 'end')
-        .attr('fill', 'rgba(255,255,255,0.25)')
-        .attr('font-size', '9px')
-        .attr('font-family', 'monospace')
-        .text(Number.isInteger(v) ? v.toString() : v.toFixed(1));
+      if (!dense) {
+        g.append('text')
+          .attr('x', -8)
+          .attr('y', y)
+          .attr('dy', '0.35em')
+          .attr('text-anchor', 'end')
+          .attr('fill', 'rgba(255,255,255,0.25)')
+          .attr('font-size', '9px')
+          .attr('font-family', 'monospace')
+          .text(Number.isInteger(v) ? v.toString() : v.toFixed(1));
+      }
     });
 
     // Force label
     const labelText = g.append('text')
       .attr('x', 6)
-      .attr('y', -MARGIN.top + 14)
+      .attr('y', -m.top + 14)
       .attr('fill', color)
       .attr('font-size', '10px')
       .attr('font-weight', '600')
@@ -183,7 +191,7 @@ function ForceChart({
     // Window avg (brighter)
     g.append('text')
       .attr('x', 6 + labelWidth + 6)
-      .attr('y', -MARGIN.top + 14)
+      .attr('y', -m.top + 14)
       .attr('fill', color)
       .attr('font-size', '9px')
       .attr('font-weight', '600')
@@ -194,7 +202,7 @@ function ForceChart({
     // Full avg (dimmer)
     g.append('text')
       .attr('x', 6 + labelWidth + 58)
-      .attr('y', -MARGIN.top + 14)
+      .attr('y', -m.top + 14)
       .attr('fill', color)
       .attr('font-size', '9px')
       .attr('font-weight', '500')
@@ -285,7 +293,7 @@ function ForceChart({
 
       g.append('text')
         .attr('x', chartWidth - 4)
-        .attr('y', -MARGIN.top + 14)
+        .attr('y', -m.top + 14)
         .attr('text-anchor', 'end')
         .attr('fill', color)
         .attr('font-size', '11px')
@@ -349,7 +357,7 @@ function ForceChart({
       .on('mouseup', () => {
         if (drawing) onDrawEnd();
       });
-  }, [data, forceKey, label, color, arcRegions, hoverIndex, onHover, selectedIndex, onSelect, windowRange, height, width, drawing, drawLines, onDrawStart, onDrawMove, onDrawEnd]);
+  }, [data, forceKey, label, color, arcRegions, hoverIndex, onHover, selectedIndex, onSelect, windowRange, height, width, drawing, drawLines, onDrawStart, onDrawMove, onDrawEnd, dense]);
 
   return (
     <svg ref={svgRef} width={width} height={height} className="block" />
@@ -380,6 +388,7 @@ function ZoneBar({
   windowRange,
   width,
   height,
+  dense,
 }: {
   data: SceneDataPoint[];
   arcRegions: ArcRegion[];
@@ -391,6 +400,7 @@ function ZoneBar({
   windowRange: { start: number; end: number } | null;
   width: number;
   height: number;
+  dense: boolean;
 }) {
   const svgRef = useRef<SVGSVGElement>(null);
 
@@ -399,11 +409,20 @@ function ZoneBar({
     if (allScenes.length === 0 || arcRegions.length === 0) return [];
 
     const raw = computeRawForcetotals(allScenes);
-    const forceMap = computeForceSnapshots(allScenes);
-    const zForces = allScenes.map((s) => forceMap[s.id] ?? { payoff: 0, change: 0, variety: 0 });
-    const balances = computeBalanceMagnitudes(zForces);
+    // Use raw forces for balance so absolute magnitudes differentiate quality
+    const rawForces = raw.payoff.map((_, i) => ({
+      payoff: raw.payoff[i],
+      change: raw.change[i],
+      variety: raw.variety[i],
+    }));
+    const balances = computeBalanceMagnitudes(rawForces);
 
     const avg = (arr: number[]) => arr.length > 0 ? arr.reduce((s, v) => s + v, 0) / arr.length : 0;
+    const topAvg = (arr: number[]) => {
+      const sorted = [...arr].sort((a, b) => b - a);
+      const k = Math.max(1, Math.ceil(sorted.length * 0.1));
+      return avg(sorted.slice(0, k));
+    };
 
     return arcRegions.map((arc) => {
       const arcPayoff = raw.payoff.slice(arc.startIndex, arc.endIndex + 1);
@@ -411,11 +430,12 @@ function ZoneBar({
       const arcVariety = raw.variety.slice(arc.startIndex, arc.endIndex + 1);
       const arcBalance = balances.slice(arc.startIndex, arc.endIndex + 1);
 
+      const arcBalanceEffective = avg(arcBalance) * 0.5 + topAvg(arcBalance) * 0.5;
       const grade = Math.round(
         gradeForce(avg(arcPayoff), 3) +
         gradeForce(avg(arcChange), 4) +
         gradeForce(avg(arcVariety), 3) +
-        gradeForce(avg(arcBalance), 1.5)
+        gradeForce(arcBalanceEffective, 8)
       );
 
       return {
@@ -444,17 +464,18 @@ function ZoneBar({
     svg.selectAll('*').remove();
     if (data.length === 0 || width <= 0) return;
 
-    const chartWidth = width - MARGIN.left - MARGIN.right;
-    const chartHeight = height - MARGIN.top - MARGIN.bottom;
+    const m = dense ? MARGIN_DENSE : MARGIN;
+    const chartWidth = width - m.left - m.right;
+    const chartHeight = height - m.top - m.bottom;
 
-    const g = svg.append('g').attr('transform', `translate(${MARGIN.left},${MARGIN.top})`);
+    const g = svg.append('g').attr('transform', `translate(${m.left},${m.top})`);
 
     const xScale = d3.scaleLinear().domain([0, Math.max(data.length - 1, 1)]).range([0, chartWidth]);
 
     // Label
     g.append('text')
       .attr('x', 6)
-      .attr('y', -MARGIN.top + 14)
+      .attr('y', -m.top + 14)
       .attr('fill', 'rgba(255,255,255,0.5)')
       .attr('font-size', '10px')
       .attr('font-weight', '600')
@@ -491,8 +512,8 @@ function ZoneBar({
         .attr('height', chartHeight)
         .attr('fill', zoneColor);
 
-      // Grade label centered in zone
-      if (w > 24) {
+      // Grade label centered in zone (hide in dense mode)
+      if (!dense && w > 24) {
         const gradeColor = zone.grade >= 75 ? '#22C55E'
           : zone.grade >= 50 ? '#a3e635'
           : zone.grade >= 25 ? '#F97316'
@@ -520,7 +541,7 @@ function ZoneBar({
       const zoneColor = grade >= 75 ? '#22C55E' : grade >= 50 ? '#a3e635' : grade >= 25 ? '#F97316' : '#EF4444';
       g.append('text')
         .attr('x', chartWidth - 4)
-        .attr('y', -MARGIN.top + 14)
+        .attr('y', -m.top + 14)
         .attr('text-anchor', 'end')
         .attr('fill', zoneColor)
         .attr('font-size', '10px')
@@ -546,7 +567,7 @@ function ZoneBar({
         const idx = Math.round(xScale.invert(mx));
         if (idx >= 0 && idx < data.length) onSelect(idx);
       });
-  }, [data, arcRegions, arcZones, sceneGrades, hoverIndex, onHover, selectedIndex, onSelect, windowRange, width, height]);
+  }, [data, arcRegions, arcZones, sceneGrades, hoverIndex, onHover, selectedIndex, onSelect, windowRange, width, height, dense]);
 
   return (
     <svg ref={svgRef} width={width} height={height} className="block" />
@@ -900,6 +921,7 @@ export function ForceTracker({ onClose }: { onClose: () => void }) {
                 onDrawStart={onDrawStart}
                 onDrawMove={onDrawMove}
                 onDrawEnd={onDrawEnd}
+                dense={arcRegions.length >= DENSE_ARC_THRESHOLD}
               />
             ))}
             <ZoneBar
@@ -913,12 +935,15 @@ export function ForceTracker({ onClose }: { onClose: () => void }) {
               windowRange={windowRange}
               width={dims.width}
               height={zoneBarHeight + MARGIN.top}
+              dense={arcRegions.length >= DENSE_ARC_THRESHOLD}
             />
-            <ArcLabelsBar
-              arcRegions={arcRegions}
-              dataLength={activeDataPoints.length}
-              width={dims.width}
-            />
+            {arcRegions.length < DENSE_ARC_THRESHOLD && (
+              <ArcLabelsBar
+                arcRegions={arcRegions}
+                dataLength={activeDataPoints.length}
+                width={dims.width}
+              />
+            )}
             {/* Scene info bar */}
             {infoScene && (
               <div className="px-6 py-2 border-t border-white/5 flex items-center gap-6 shrink-0">
