@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { useStore } from '@/lib/store';
 import { generateScenes, suggestDirection, expandWorld, suggestWorldExpansion } from '@/lib/ai';
-import { resolveEntry, NARRATIVE_CUBE, type CubeCornerKey, type NarrativeState, type WorldBuildCommit } from '@/types/narrative';
+import { resolveEntry, type NarrativeState, type WorldBuildCommit } from '@/types/narrative';
 import { nextId } from '@/lib/narrative-utils';
 
 type Mode = 'continuation' | 'world';
@@ -52,9 +52,6 @@ export function GeneratePanel({ onClose }: { onClose: () => void }) {
   const [arcName, setArcName] = useState('');
   const [direction, setDirection] = useState('');
   const [count, setCount] = useState(3);
-
-  // Cube goal
-  const [cubeGoal, setCubeGoal] = useState<CubeCornerKey | null>(null);
 
   // World mode state
   const [worldDirective, setWorldDirective] = useState('');
@@ -112,7 +109,7 @@ export function GeneratePanel({ onClose }: { onClose: () => void }) {
         count,
         direction,
         existingArc,
-        cubeGoal ?? undefined,
+        undefined,
       );
       dispatch({
         type: 'BULK_ADD_SCENES',
@@ -309,50 +306,8 @@ export function GeneratePanel({ onClose }: { onClose: () => void }) {
                 <summary className="text-[10px] uppercase tracking-widest text-text-dim cursor-pointer select-none flex items-center gap-1.5 hover:text-text-secondary transition">
                   <span className="transition-transform group-open:rotate-90">&#9656;</span>
                   Advanced
-                  {cubeGoal && (
-                    <span className="text-[9px] text-text-dim font-normal normal-case tracking-normal">
-                      &middot; {NARRATIVE_CUBE[cubeGoal].name}
-                    </span>
-                  )}
                 </summary>
                 <div className="flex flex-col gap-4 mt-3">
-                  {/* Cube Corner Selector */}
-                  <div>
-                    <label className="text-[10px] uppercase tracking-widest text-text-dim block mb-1.5">
-                      Narrative Direction
-                    </label>
-                    <div className="grid grid-cols-4 gap-1">
-                      {(Object.keys(NARRATIVE_CUBE) as CubeCornerKey[]).map((key) => {
-                        const corner = NARRATIVE_CUBE[key];
-                        const isSelected = cubeGoal === key;
-                        return (
-                          <button
-                            key={key}
-                            type="button"
-                            onClick={() => setCubeGoal(isSelected ? null : key)}
-                            disabled={loading}
-                            title={corner.description}
-                            className={`px-1.5 py-1.5 rounded text-left transition ${
-                              isSelected
-                                ? 'bg-white/12 ring-1 ring-white/20'
-                                : 'bg-white/3 hover:bg-white/6'
-                            } disabled:opacity-50`}
-                          >
-                            <div className={`text-[10px] font-medium leading-tight ${isSelected ? 'text-text-primary' : 'text-text-secondary'}`}>
-                              {corner.name}
-                            </div>
-                            <div className="text-[8px] text-text-dim font-mono mt-0.5">{key}</div>
-                          </button>
-                        );
-                      })}
-                    </div>
-                    {cubeGoal && (
-                      <p className="text-[10px] text-text-dim mt-1.5 leading-relaxed">
-                        {NARRATIVE_CUBE[cubeGoal].description}
-                      </p>
-                    )}
-                  </div>
-
                   {/* World Building Seeds */}
                   {(() => {
                     const worldBuildEntries = Object.values(narrative.worldBuilds);

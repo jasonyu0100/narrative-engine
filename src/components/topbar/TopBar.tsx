@@ -120,6 +120,40 @@ export default function TopBar() {
 
     const arcCount = Object.keys(narrative.arcs).length;
 
+    // Per-arc scores — map each arc's scenes to force-array indices (same as TimelineStrip)
+    const sceneIdToIdx = new Map(allScenes.map((s, i) => [s.id, i]));
+    const arcsInOrder = Object.values(narrative.arcs);
+    const perArc = arcsInOrder
+      .map((arc) => {
+        const forceIndices = arc.sceneIds
+          .map((sid) => sceneIdToIdx.get(sid))
+          .filter((i): i is number => i !== undefined);
+        if (forceIndices.length === 0) return null;
+
+        const arcPayoffs = forceIndices.map((i) => raw.payoff[i]);
+        const arcChanges = forceIndices.map((i) => raw.change[i]);
+        const arcVarieties = forceIndices.map((i) => raw.variety[i]);
+        const arcBalanceVals = forceIndices.map((i) => balances[i]);
+
+        const arcPayoffGrade = gradeForce(avg(arcPayoffs), 3);
+        const arcChangeGrade = gradeForce(avg(arcChanges), 4);
+        const arcVarietyGrade = gradeForce(avg(arcVarieties), 3);
+        const arcBalanceGrade = gradeForce(avg(arcBalanceVals), 1.5);
+
+        return {
+          name: arc.name,
+          scenes: forceIndices.length,
+          grades: {
+            payoff: Math.round(arcPayoffGrade),
+            change: Math.round(arcChangeGrade),
+            variety: Math.round(arcVarietyGrade),
+            balance: Math.round(arcBalanceGrade),
+            overall: Math.round(arcPayoffGrade + arcChangeGrade + arcVarietyGrade + arcBalanceGrade),
+          },
+        };
+      })
+      .filter((a): a is NonNullable<typeof a> => a !== null);
+
     return {
       title: narrative.title,
       scenes: n,
@@ -132,6 +166,7 @@ export default function TopBar() {
         balance: Math.round(balanceGrade),
         overall: overallGrade,
       },
+      perArc,
     };
   }, [allScenes, narrative]);
 
@@ -445,6 +480,106 @@ export default function TopBar() {
                   </div>
                 ))}
               </div>
+
+              {/* Per-arc score graph */}
+              {scorecard.perArc.length > 1 && (() => {
+                const arcs = scorecard.perArc;
+                const W = 420;
+                const H = 110;
+                const PAD = { top: 16, right: 12, bottom: 28, left: 28 };
+                const cw = W - PAD.left - PAD.right;
+                const ch = H - PAD.top - PAD.bottom;
+                const maxScore = 100;
+                const xStep = cw / (arcs.length - 1);
+
+                // Score color: red(0) → yellow(50) → green(100)
+                const scoreColor = (v: number) => {
+                  const t = Math.max(0, Math.min(1, v / maxScore));
+                  if (t < 0.5) {
+                    const p = t / 0.5;
+                    return `rgb(${Math.round(239 + (250 - 239) * p)},${Math.round(68 + (204 - 68) * p)},${Math.round(68 * (1 - p))})`;
+                  }
+                  const p = (t - 0.5) / 0.5;
+                  return `rgb(${Math.round(250 - (250 - 34) * p)},${Math.round(204 + (197 - 204) * p)},${Math.round(34 * p)})`;
+                };
+
+                const points = arcs.map((a, i) => ({
+                  x: PAD.left + i * xStep,
+                  y: PAD.top + ch - (a.grades.overall / maxScore) * ch,
+                  score: a.grades.overall,
+                  name: a.name,
+                }));
+
+                const linePath = points.map((p, i) => `${i === 0 ? 'M' : 'L'}${p.x},${p.y}`).join(' ');
+
+                return (
+                  <div className="mt-4 pt-4 border-t border-white/8">
+                    <h3 className="text-[9px] uppercase tracking-widest text-text-dim mb-2">Score by Arc</h3>
+                    <svg width="100%" viewBox={`0 0 ${W} ${H}`} className="overflow-visible">
+                      <defs>
+                        {/* Per-segment gradient fills */}
+                        {points.slice(0, -1).map((p, i) => {
+                          const next = points[i + 1];
+                          return (
+                            <linearGradient key={i} id={`sc-seg-${i}`} x1="0" y1="0" x2="1" y2="0">
+                              <stop offset="0%" stopColor={scoreColor(p.score)} stopOpacity="0.3" />
+                              <stop offset="100%" stopColor={scoreColor(next.score)} stopOpacity="0.3" />
+                            </linearGradient>
+                          );
+                        })}
+                        {/* Line stroke gradient */}
+                        <linearGradient id="sc-line-grad" x1="0" y1="0" x2="1" y2="0">
+                          {points.map((p, i) => (
+                            <stop key={i} offset={`${(i / (points.length - 1)) * 100}%`} stopColor={scoreColor(p.score)} />
+                          ))}
+                        </linearGradient>
+                      </defs>
+
+                      {/* Grid lines */}
+                      {[0, 25, 50, 75, 100].map((v) => {
+                        const y = PAD.top + ch - (v / maxScore) * ch;
+                        return (
+                          <g key={v}>
+                            <line x1={PAD.left} y1={y} x2={PAD.left + cw} y2={y} stroke="white" strokeOpacity="0.05" />
+                            <text x={PAD.left - 4} y={y + 3} textAnchor="end" fill="white" fillOpacity="0.2" fontSize="8" fontFamily="monospace">{v}</text>
+                          </g>
+                        );
+                      })}
+
+                      {/* Gradient area fills per segment */}
+                      {points.slice(0, -1).map((p, i) => {
+                        const next = points[i + 1];
+                        const baseline = PAD.top + ch;
+                        return (
+                          <path
+                            key={i}
+                            d={`M${p.x},${p.y} L${next.x},${next.y} L${next.x},${baseline} L${p.x},${baseline} Z`}
+                            fill={`url(#sc-seg-${i})`}
+                          />
+                        );
+                      })}
+
+                      {/* Score line */}
+                      <path d={linePath} fill="none" stroke="url(#sc-line-grad)" strokeWidth="2" strokeLinejoin="round" />
+
+                      {/* Dots + score labels */}
+                      {points.map((p, i) => (
+                        <g key={i}>
+                          <circle cx={p.x} cy={p.y} r="3.5" fill={scoreColor(p.score)} />
+                          <text x={p.x} y={p.y - 8} textAnchor="middle" fill={scoreColor(p.score)} fontSize="9" fontFamily="monospace" fontWeight="600">{p.score}</text>
+                        </g>
+                      ))}
+
+                      {/* Arc number labels */}
+                      {points.map((p, i) => (
+                        <text key={i} x={p.x} y={H - 4} textAnchor="middle" fill="white" fillOpacity="0.3" fontSize="8" fontFamily="monospace">
+                          {i + 1}
+                        </text>
+                      ))}
+                    </svg>
+                  </div>
+                );
+              })()}
             </div>
           )}
         </div>

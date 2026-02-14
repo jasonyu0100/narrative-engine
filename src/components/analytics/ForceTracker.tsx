@@ -4,7 +4,7 @@ import { useMemo, useState, useRef, useEffect, useCallback } from 'react';
 import * as d3 from 'd3';
 import { useStore } from '@/lib/store';
 import { resolveEntry, isScene, type Scene, type ForceSnapshot, type CubeCornerKey } from '@/types/narrative';
-import { computeForceSnapshots, computeWindowedForces, computeRawForcetotals, detectCubeCorner, FORCE_WINDOW_SIZE } from '@/lib/narrative-utils';
+import { computeForceSnapshots, computeWindowedForces, computeRawForcetotals, computeBalanceMagnitudes, detectCubeCorner, FORCE_WINDOW_SIZE } from '@/lib/narrative-utils';
 
 type ForceKey = 'payoff' | 'change' | 'variety' | 'balance';
 
@@ -356,6 +356,203 @@ function ForceChart({
   );
 }
 
+type ArcZone = {
+  arcId: string;
+  name: string;
+  startIndex: number;
+  endIndex: number;
+  grade: number; // 0-100
+};
+
+/** Grade a force average 0-25 using exponential saturation (mirrors scorecard) */
+function gradeForce(avg: number, midpoint: number): number {
+  return Math.min(25, 25 * (1 - Math.exp(-Math.max(0, avg) / midpoint)));
+}
+
+function ZoneBar({
+  data,
+  arcRegions,
+  allScenes,
+  hoverIndex,
+  onHover,
+  selectedIndex,
+  onSelect,
+  windowRange,
+  width,
+  height,
+}: {
+  data: SceneDataPoint[];
+  arcRegions: ArcRegion[];
+  allScenes: Scene[];
+  hoverIndex: number | null;
+  onHover: (index: number | null) => void;
+  selectedIndex: number | null;
+  onSelect: (index: number) => void;
+  windowRange: { start: number; end: number } | null;
+  width: number;
+  height: number;
+}) {
+  const svgRef = useRef<SVGSVGElement>(null);
+
+  // Compute per-arc grades using raw forces + scorecard grading
+  const arcZones = useMemo((): ArcZone[] => {
+    if (allScenes.length === 0 || arcRegions.length === 0) return [];
+
+    const raw = computeRawForcetotals(allScenes);
+    const forceMap = computeForceSnapshots(allScenes);
+    const zForces = allScenes.map((s) => forceMap[s.id] ?? { payoff: 0, change: 0, variety: 0 });
+    const balances = computeBalanceMagnitudes(zForces);
+
+    const avg = (arr: number[]) => arr.length > 0 ? arr.reduce((s, v) => s + v, 0) / arr.length : 0;
+
+    return arcRegions.map((arc) => {
+      const arcPayoff = raw.payoff.slice(arc.startIndex, arc.endIndex + 1);
+      const arcChange = raw.change.slice(arc.startIndex, arc.endIndex + 1);
+      const arcVariety = raw.variety.slice(arc.startIndex, arc.endIndex + 1);
+      const arcBalance = balances.slice(arc.startIndex, arc.endIndex + 1);
+
+      const grade = Math.round(
+        gradeForce(avg(arcPayoff), 3) +
+        gradeForce(avg(arcChange), 4) +
+        gradeForce(avg(arcVariety), 3) +
+        gradeForce(avg(arcBalance), 1.5)
+      );
+
+      return {
+        arcId: arc.arcId,
+        name: arc.name,
+        startIndex: arc.startIndex,
+        endIndex: arc.endIndex,
+        grade,
+      };
+    });
+  }, [allScenes, arcRegions]);
+
+  // Map each scene index to its arc grade for hover display
+  const sceneGrades = useMemo(() => {
+    const grades = new Array<number>(data.length).fill(0);
+    for (const zone of arcZones) {
+      for (let i = zone.startIndex; i <= zone.endIndex; i++) {
+        grades[i] = zone.grade;
+      }
+    }
+    return grades;
+  }, [data.length, arcZones]);
+
+  useEffect(() => {
+    const svg = d3.select(svgRef.current);
+    svg.selectAll('*').remove();
+    if (data.length === 0 || width <= 0) return;
+
+    const chartWidth = width - MARGIN.left - MARGIN.right;
+    const chartHeight = height - MARGIN.top - MARGIN.bottom;
+
+    const g = svg.append('g').attr('transform', `translate(${MARGIN.left},${MARGIN.top})`);
+
+    const xScale = d3.scaleLinear().domain([0, Math.max(data.length - 1, 1)]).range([0, chartWidth]);
+
+    // Label
+    g.append('text')
+      .attr('x', 6)
+      .attr('y', -MARGIN.top + 14)
+      .attr('fill', 'rgba(255,255,255,0.5)')
+      .attr('font-size', '10px')
+      .attr('font-weight', '600')
+      .attr('letter-spacing', '0.1em')
+      .text('ZONES');
+
+    // Window highlight region
+    if (windowRange) {
+      const wx1 = xScale(windowRange.start);
+      const wx2 = xScale(windowRange.end);
+      g.append('rect')
+        .attr('x', wx1).attr('y', 0)
+        .attr('width', Math.max(wx2 - wx1, 1))
+        .attr('height', chartHeight)
+        .attr('fill', 'rgba(255,255,255,0.04)');
+    }
+
+    // Render arc zone blocks — use half-step offsets so adjacent arcs meet without overlap
+    const halfStep = data.length > 1 ? (chartWidth / (data.length - 1)) / 2 : 0;
+    for (const zone of arcZones) {
+      const x1 = Math.max(0, xScale(zone.startIndex) - halfStep);
+      const x2 = Math.min(chartWidth, xScale(zone.endIndex) + halfStep);
+      const w = Math.max(x2 - x1, 1);
+
+      // Color: green for good (>=50), red for danger (<50), intensity by distance from 50
+      const zoneColor = zone.grade >= 50
+        ? `rgba(34, 197, 94, ${0.08 + (zone.grade - 50) / 50 * 0.30})`
+        : `rgba(239, 68, 68, ${0.08 + (50 - zone.grade) / 50 * 0.30})`;
+
+      g.append('rect')
+        .attr('x', x1)
+        .attr('y', 0)
+        .attr('width', w)
+        .attr('height', chartHeight)
+        .attr('fill', zoneColor);
+
+      // Grade label centered in zone
+      if (w > 24) {
+        const gradeColor = zone.grade >= 75 ? '#22C55E'
+          : zone.grade >= 50 ? '#a3e635'
+          : zone.grade >= 25 ? '#F97316'
+          : '#EF4444';
+
+        g.append('text')
+          .attr('x', x1 + w / 2)
+          .attr('y', chartHeight / 2)
+          .attr('dy', '0.35em')
+          .attr('text-anchor', 'middle')
+          .attr('fill', gradeColor)
+          .attr('font-size', '11px')
+          .attr('font-family', 'monospace')
+          .attr('font-weight', '700')
+          .attr('opacity', 0.8)
+          .text(zone.grade);
+      }
+    }
+
+    // Hover crosshair
+    if (hoverIndex !== null && hoverIndex >= 0 && hoverIndex < data.length) {
+      // Hover grade top-right
+      const grade = sceneGrades[hoverIndex];
+      const zoneLabel = grade >= 75 ? 'GOOD' : grade >= 50 ? 'OK' : grade >= 25 ? 'WEAK' : 'DANGER';
+      const zoneColor = grade >= 75 ? '#22C55E' : grade >= 50 ? '#a3e635' : grade >= 25 ? '#F97316' : '#EF4444';
+      g.append('text')
+        .attr('x', chartWidth - 4)
+        .attr('y', -MARGIN.top + 14)
+        .attr('text-anchor', 'end')
+        .attr('fill', zoneColor)
+        .attr('font-size', '10px')
+        .attr('font-family', 'monospace')
+        .attr('font-weight', '600')
+        .text(`${zoneLabel} ${grade}/100`);
+    }
+
+    // Interaction overlay
+    g.append('rect')
+      .attr('x', 0).attr('y', 0)
+      .attr('width', chartWidth).attr('height', chartHeight)
+      .attr('fill', 'transparent')
+      .style('cursor', 'pointer')
+      .on('mousemove', (event: MouseEvent) => {
+        const [mx] = d3.pointer(event);
+        const idx = Math.round(xScale.invert(mx));
+        if (idx >= 0 && idx < data.length) onHover(idx);
+      })
+      .on('mouseleave', () => onHover(null))
+      .on('click', (event: MouseEvent) => {
+        const [mx] = d3.pointer(event);
+        const idx = Math.round(xScale.invert(mx));
+        if (idx >= 0 && idx < data.length) onSelect(idx);
+      });
+  }, [data, arcRegions, arcZones, sceneGrades, hoverIndex, onHover, selectedIndex, onSelect, windowRange, width, height]);
+
+  return (
+    <svg ref={svgRef} width={width} height={height} className="block" />
+  );
+}
+
 function ArcLabelsBar({
   arcRegions,
   dataLength,
@@ -599,7 +796,8 @@ export function ForceTracker({ onClose }: { onClose: () => void }) {
   const headerHeight = 48;
   const hoverBarHeight = (hoveredScene || selectedScene) ? 64 : 0;
   const arcLabelHeight = 28;
-  const availableChartHeight = dims.height - headerHeight - hoverBarHeight - arcLabelHeight;
+  const zoneBarHeight = 48;
+  const availableChartHeight = dims.height - headerHeight - hoverBarHeight - arcLabelHeight - zoneBarHeight;
   const chartHeight = Math.max(Math.floor(availableChartHeight / 4), 80);
 
   const hasDrawings = Object.values(drawLines).some((lines) => lines.length > 0);
@@ -704,6 +902,18 @@ export function ForceTracker({ onClose }: { onClose: () => void }) {
                 onDrawEnd={onDrawEnd}
               />
             ))}
+            <ZoneBar
+              data={activeDataPoints}
+              arcRegions={arcRegions}
+              allScenes={allScenes}
+              hoverIndex={hoverIndex}
+              onHover={setHoverIndex}
+              selectedIndex={selectedIndex}
+              onSelect={handleSelect}
+              windowRange={windowRange}
+              width={dims.width}
+              height={zoneBarHeight + MARGIN.top}
+            />
             <ArcLabelsBar
               arcRegions={arcRegions}
               dataLength={activeDataPoints.length}
@@ -718,7 +928,7 @@ export function ForceTracker({ onClose }: { onClose: () => void }) {
                   <span className="text-[10px] text-text-secondary font-medium">{infoScene.corner}</span>
                   <span className="text-[10px] text-text-dim">{infoScene.location}</span>
                 </div>
-                <p className="text-[11px] text-text-secondary leading-snug flex-1 min-w-0 truncate">{infoScene.summary}</p>
+                <p className="text-[11px] text-text-secondary leading-snug flex-1 min-w-0">{infoScene.summary}</p>
                 <div className="flex items-center gap-3 shrink-0">
                   <span className="text-[10px] font-mono" style={{ color: '#EF4444' }}>P:{infoScene.forces.payoff >= 0 ? '+' : ''}{infoScene.forces.payoff.toFixed(2)}</span>
                   <span className="text-[10px] font-mono" style={{ color: '#22C55E' }}>C:{infoScene.forces.change >= 0 ? '+' : ''}{infoScene.forces.change.toFixed(2)}</span>

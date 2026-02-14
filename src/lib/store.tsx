@@ -210,6 +210,7 @@ type Action =
   | { type: 'DELETE_THREAD'; threadId: string }
   | { type: 'CREATE_BRANCH'; branch: Branch }
   | { type: 'DELETE_BRANCH'; branchId: string }
+  | { type: 'REMOVE_BRANCH_ENTRY'; entryId: string; branchId: string }
   | { type: 'ADD_RELATIONSHIP'; relationship: RelationshipEdge }
   | { type: 'REMOVE_RELATIONSHIP'; from: string; to: string }
   | { type: 'BULK_ADD_SCENES'; scenes: Scene[]; arc: Arc; branchId: string }
@@ -566,6 +567,27 @@ function reducer(state: AppState, action: Action): AppState {
         const { [action.branchId]: _, ...rest } = n.branches;
         return { ...n, branches: rest };
       });
+    }
+
+    case 'REMOVE_BRANCH_ENTRY': {
+      // Remove an entry from a branch's entryIds without deleting the scene itself.
+      // Used when the scene is referenced by other branches.
+      const newState = updateNarrative(state, (n) => {
+        const branch = n.branches[action.branchId];
+        if (!branch) return n;
+        return {
+          ...n,
+          branches: {
+            ...n.branches,
+            [action.branchId]: { ...branch, entryIds: branch.entryIds.filter((id) => id !== action.entryId) },
+          },
+        };
+      });
+      if (newState.activeNarrative && newState.activeBranchId) {
+        const resolved = getResolvedKeys(newState.activeNarrative, newState.activeBranchId);
+        return { ...newState, resolvedSceneKeys: resolved, currentSceneIndex: Math.min(newState.currentSceneIndex, resolved.length - 1) };
+      }
+      return newState;
     }
 
     // ── CRUD: Relationships ───────────────────────────────────────────────

@@ -2,8 +2,9 @@
 
 import { useRef, useEffect, useMemo, useCallback } from 'react';
 import { useStore } from '@/lib/store';
-import type { Arc } from '@/types/narrative';
-import { resolveEntry } from '@/types/narrative';
+import type { Arc, Scene } from '@/types/narrative';
+import { resolveEntry, isScene } from '@/types/narrative';
+import { computeRawForcetotals, computeForceSnapshots, computeBalanceMagnitudes } from '@/lib/narrative-utils';
 
 const NODE_RADIUS = 8;
 const NODE_SPACING = 50;
@@ -58,6 +59,50 @@ export default function TimelineStrip() {
     });
     return bands;
   }, [narrative, sceneKeys]);
+
+  // Compute per-arc zone grades using raw forces + scorecard grading
+  const allScenes = useMemo(() => {
+    if (!narrative) return [];
+    return sceneKeys
+      .map((k) => resolveEntry(narrative, k))
+      .filter((e): e is Scene => !!e && isScene(e));
+  }, [narrative, sceneKeys]);
+
+  const arcGrades = useMemo(() => {
+    if (allScenes.length === 0 || arcBands.length === 0) return new Map<string, number>();
+
+    const raw = computeRawForcetotals(allScenes);
+    const forceMap = computeForceSnapshots(allScenes);
+    const zForces = allScenes.map((s) => forceMap[s.id] ?? { payoff: 0, change: 0, variety: 0 });
+    const balances = computeBalanceMagnitudes(zForces);
+
+    // Map scene IDs to their index in allScenes (scene-only, no world builds)
+    const sceneIdToForceIdx = new Map(allScenes.map((s, i) => [s.id, i]));
+
+    const avg = (arr: number[]) => arr.length > 0 ? arr.reduce((s, v) => s + v, 0) / arr.length : 0;
+    const grade25 = (a: number, mid: number) => Math.min(25, 25 * (1 - Math.exp(-Math.max(0, a) / mid)));
+
+    const grades = new Map<string, number>();
+    for (const band of arcBands) {
+      // Collect force-array indices for only scenes in this arc
+      const forceIndices = band.arc.sceneIds
+        .map((sid) => sceneIdToForceIdx.get(sid))
+        .filter((i): i is number => i !== undefined);
+      if (forceIndices.length === 0) continue;
+      const arcPayoffs = forceIndices.map((i) => raw.payoff[i]);
+      const arcChanges = forceIndices.map((i) => raw.change[i]);
+      const arcVarieties = forceIndices.map((i) => raw.variety[i]);
+      const arcBalanceVals = forceIndices.map((i) => balances[i]);
+      const g = Math.round(
+        grade25(avg(arcPayoffs), 3) +
+        grade25(avg(arcChanges), 4) +
+        grade25(avg(arcVarieties), 3) +
+        grade25(avg(arcBalanceVals), 1.5)
+      );
+      grades.set(band.arc.id, g);
+    }
+    return grades;
+  }, [allScenes, arcBands]);
 
   const svgWidth = PADDING_LEFT + sceneKeys.length * NODE_SPACING + 24;
 
@@ -146,28 +191,54 @@ export default function TimelineStrip() {
                 })
               }
             >
-              <rect
-                x={x1}
-                y={BAND_Y}
-                width={x2 - x1}
-                height={BAND_HEIGHT}
-                rx={4}
-                fill={ARC_TINTS[band.tintIdx]}
-                className="transition-all hover:brightness-150"
-              />
-              <text
-                x={x1 + 4}
-                y={BAND_Y + 10}
-                className="fill-text-dim"
-                fontSize={9}
-                textAnchor="start"
-                style={{
-                  textTransform: 'uppercase',
-                  letterSpacing: '0.1em',
-                }}
-              >
-                {band.arc.name}
-              </text>
+              {(() => {
+                const grade = arcGrades.get(band.arc.id) ?? 0;
+                const zoneFill = grade >= 50
+                  ? `rgba(34, 197, 94, ${0.06 + (grade - 50) / 50 * 0.12})`
+                  : `rgba(239, 68, 68, ${0.06 + (50 - grade) / 50 * 0.12})`;
+                const gradeColor = grade >= 75 ? '#22C55E'
+                  : grade >= 50 ? '#a3e635'
+                  : grade >= 25 ? '#F97316'
+                  : '#EF4444';
+                return (
+                  <>
+                    <rect
+                      x={x1}
+                      y={BAND_Y}
+                      width={x2 - x1}
+                      height={BAND_HEIGHT}
+                      rx={4}
+                      fill={zoneFill}
+                      className="transition-all hover:brightness-150"
+                    />
+                    <text
+                      x={x1 + 4}
+                      y={BAND_Y + 10}
+                      className="fill-text-dim"
+                      fontSize={9}
+                      textAnchor="start"
+                      style={{
+                        textTransform: 'uppercase',
+                        letterSpacing: '0.1em',
+                      }}
+                    >
+                      {band.arc.name}
+                    </text>
+                    <text
+                      x={x2 - 4}
+                      y={BAND_Y + 10}
+                      textAnchor="end"
+                      fill={gradeColor}
+                      fontSize={9}
+                      fontFamily="monospace"
+                      fontWeight={600}
+                      opacity={0.7}
+                    >
+                      {grade}
+                    </text>
+                  </>
+                );
+              })()}
             </g>
           );
         })}

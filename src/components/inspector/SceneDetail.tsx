@@ -1,10 +1,9 @@
 'use client';
 
-import { useMemo, useState, useCallback } from 'react';
+import { useMemo } from 'react';
 import { useStore } from '@/lib/store';
 import { resolveEntry, isScene, type Scene } from '@/types/narrative';
 import { computeForceSnapshots } from '@/lib/narrative-utils';
-import { generateSceneProse } from '@/lib/ai';
 
 type Props = {
   sceneId: string;
@@ -13,9 +12,6 @@ type Props = {
 export default function SceneDetail({ sceneId }: Props) {
   const { state, dispatch } = useStore();
   const narrative = state.activeNarrative;
-  const [proseLoading, setProseLoading] = useState(false);
-  const [proseError, setProseError] = useState('');
-
   const forceSnapshot = useMemo(() => {
     if (!narrative) return { payoff: 0, change: 0, variety: 0 };
     const allScenes = state.resolvedSceneKeys
@@ -24,24 +20,6 @@ export default function SceneDetail({ sceneId }: Props) {
     const forceMap = computeForceSnapshots(allScenes);
     return forceMap[sceneId] ?? { payoff: 0, change: 0, variety: 0 };
   }, [narrative, state.resolvedSceneKeys, sceneId]);
-
-  const sceneKeyIndex = state.resolvedSceneKeys.indexOf(sceneId);
-
-  const handleGenerateProse = useCallback(async () => {
-    if (proseLoading || !narrative) return;
-    const entry = resolveEntry(narrative, sceneId);
-    if (!entry || !isScene(entry)) return;
-    setProseLoading(true);
-    setProseError('');
-    try {
-      const prose = await generateSceneProse(narrative, entry, sceneKeyIndex, state.resolvedSceneKeys);
-      dispatch({ type: 'UPDATE_SCENE', sceneId, updates: { prose } });
-    } catch (err) {
-      setProseError(err instanceof Error ? err.message : String(err));
-    } finally {
-      setProseLoading(false);
-    }
-  }, [proseLoading, narrative, sceneId, sceneKeyIndex, state.resolvedSceneKeys, dispatch]);
 
   if (!narrative) return null;
 
@@ -423,41 +401,6 @@ export default function SceneDetail({ sceneId }: Props) {
           </ul>
         </div>
       )}
-
-      {/* Prose */}
-      <div className="flex flex-col gap-2">
-        <div className="flex items-center justify-between">
-          <h3 className="text-[10px] uppercase tracking-widest text-text-dim">Prose</h3>
-          <button
-            onClick={handleGenerateProse}
-            disabled={proseLoading}
-            className="text-[10px] text-text-dim hover:text-text-secondary transition disabled:opacity-40 disabled:pointer-events-none"
-          >
-            {proseLoading ? 'Generating...' : scene.prose ? 'Regenerate' : 'Generate'}
-          </button>
-        </div>
-        {proseError && (
-          <p className="text-[11px] text-red-400/80">{proseError}</p>
-        )}
-        {proseLoading && (
-          <div className="flex items-center gap-2 py-4">
-            <div className="w-3.5 h-3.5 border border-white/20 border-t-white/60 rounded-full animate-spin" />
-            <span className="text-[11px] text-text-dim">Writing prose...</span>
-          </div>
-        )}
-        {scene.prose && !proseLoading && (
-          <div className="bg-white/2 rounded-lg border border-border p-3">
-            {scene.prose.split('\n\n').map((paragraph, i) => (
-              <p key={i} className="text-xs text-text-secondary leading-[1.8] mb-3 last:mb-0">
-                {paragraph}
-              </p>
-            ))}
-          </div>
-        )}
-        {!scene.prose && !proseLoading && !proseError && (
-          <p className="text-[11px] text-text-dim/60 italic">No prose generated yet.</p>
-        )}
-      </div>
 
     </div>
   );

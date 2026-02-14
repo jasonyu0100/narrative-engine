@@ -1,5 +1,6 @@
 'use client';
 
+import { useState, useCallback } from 'react';
 import { useStore } from '@/lib/store';
 import { useFeatureAccess } from '@/hooks/useFeatureAccess';
 
@@ -10,11 +11,30 @@ export default function FloatingPalette() {
   const isActive = narrative !== null;
 
   const totalScenes = state.resolvedSceneKeys.length;
+  const isHead = state.currentSceneIndex === totalScenes - 1 && totalScenes > 0;
+  const [deleteConfirm, setDeleteConfirm] = useState(false);
+
+  const handleDeleteHead = useCallback(() => {
+    if (!narrative || !state.activeBranchId || !isHead) return;
+    const headSceneId = state.resolvedSceneKeys[state.currentSceneIndex];
+    if (!headSceneId) return;
+
+    const branchesWithEntry = Object.values(narrative.branches).filter(
+      (b) => b.entryIds.includes(headSceneId)
+    );
+
+    if (branchesWithEntry.length <= 1) {
+      dispatch({ type: 'DELETE_SCENE', sceneId: headSceneId, branchId: state.activeBranchId });
+    } else {
+      dispatch({ type: 'REMOVE_BRANCH_ENTRY', entryId: headSceneId, branchId: state.activeBranchId });
+    }
+    setDeleteConfirm(false);
+  }, [narrative, state.activeBranchId, state.resolvedSceneKeys, state.currentSceneIndex, isHead, dispatch]);
 
   const wrapperClasses = isActive ? '' : 'opacity-30 pointer-events-none';
 
   return (
-    <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-10">
+    <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-10 flex items-center gap-2">
       <div className={`glass-pill px-3 py-1.5 flex items-center gap-2 ${wrapperClasses}`}>
         {/* Prev */}
         <button
@@ -82,6 +102,40 @@ export default function FloatingPalette() {
           </svg>
         </button>
       </div>
+
+      {/* Delete head scene button */}
+      {isActive && isHead && (
+        deleteConfirm ? (
+          <div className="glass-pill px-2 py-1.5 flex items-center gap-1.5">
+            <button
+              type="button"
+              onClick={handleDeleteHead}
+              className="text-[10px] px-2 py-0.5 rounded bg-red-500/20 text-red-400 hover:bg-red-500/30 transition-colors"
+            >
+              Confirm
+            </button>
+            <button
+              type="button"
+              onClick={() => setDeleteConfirm(false)}
+              className="text-[10px] px-2 py-0.5 rounded bg-white/5 text-text-dim hover:text-text-secondary transition-colors"
+            >
+              Cancel
+            </button>
+          </div>
+        ) : (
+          <button
+            type="button"
+            onClick={() => setDeleteConfirm(true)}
+            className="w-8 h-8 flex items-center justify-center rounded-full glass-pill text-text-dim hover:text-red-400 hover:bg-red-500/10 transition-colors"
+            title="Delete head scene"
+          >
+            <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <polyline points="3 6 5 6 21 6" />
+              <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+            </svg>
+          </button>
+        )
+      )}
     </div>
   );
 }
