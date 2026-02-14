@@ -3,7 +3,8 @@
 import { useState, useRef, useCallback, useEffect, useMemo } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useStore } from '@/lib/store';
-import { splitCorpusIntoChunks, analyzeChunk, assembleNarrative } from '@/lib/text-analysis';
+import { splitCorpusIntoChunks } from '@/lib/text-analysis';
+import { analysisRunner } from '@/lib/analysis-runner';
 import type { AnalysisJob, AnalysisChunkResult } from '@/types/narrative';
 
 /* ── Word Node type ─────────────────────────────────────────────────────── */
@@ -13,15 +14,21 @@ type WordNode = { label: string; type: 'character' | 'location' | 'thread'; coun
 /* ── Job detail panel ─────────────────────────────────────────────────────── */
 function JobDetail({ job, onBack }: { job: AnalysisJob; onBack: () => void }) {
   const router = useRouter();
-  const { state, dispatch } = useStore();
-  const cancelledRef = useRef(false);
+  const { state } = useStore();
   const streamRef = useRef<HTMLPreElement>(null);
-  const [isRunning, setIsRunning] = useState(false);
-  const [error, setError] = useState(job.error ?? '');
-  const [streamText, setStreamText] = useState('');
+  const [streamText, setStreamText] = useState(() => analysisRunner.getStreamText(job.id));
   const [selectedChunk, setSelectedChunk] = useState<number | null>(null);
 
   const liveJob = state.analysisJobs.find((j) => j.id === job.id) ?? job;
+  const isRunning = analysisRunner.isRunning(job.id) || liveJob.status === 'running';
+  const error = liveJob.error ?? '';
+
+  // Subscribe to stream text from the singleton runner
+  useEffect(() => {
+    return analysisRunner.onStream((id, text) => {
+      if (id === job.id) setStreamText(text);
+    });
+  }, [job.id]);
 
   // Build word map from completed results
   const wordNodes = useMemo(() => {
@@ -75,73 +82,8 @@ function JobDetail({ job, onBack }: { job: AnalysisJob; onBack: () => void }) {
     if (streamRef.current) streamRef.current.scrollTop = streamRef.current.scrollHeight;
   }, [streamText]);
 
-  const runAnalysis = useCallback(async (j: AnalysisJob) => {
-    cancelledRef.current = false;
-    setIsRunning(true);
-    setError('');
-    setStreamText('');
-
-    dispatch({ type: 'UPDATE_ANALYSIS_JOB', id: j.id, updates: { status: 'running' } });
-
-    const results = [...j.results];
-    let startIdx = j.currentChunkIndex;
-    while (startIdx < results.length && results[startIdx] !== null) startIdx++;
-
-    for (let i = startIdx; i < j.chunks.length; i++) {
-      if (cancelledRef.current) {
-        dispatch({ type: 'UPDATE_ANALYSIS_JOB', id: j.id, updates: { status: 'paused', currentChunkIndex: i } });
-        setIsRunning(false);
-        return;
-      }
-
-      dispatch({ type: 'UPDATE_ANALYSIS_JOB', id: j.id, updates: { currentChunkIndex: i } });
-      setStreamText('');
-
-      try {
-        const result = await analyzeChunk(j.chunks[i].text, i, results, (_token, accumulated) => {
-          setStreamText(accumulated);
-        });
-        if (cancelledRef.current) {
-          dispatch({ type: 'UPDATE_ANALYSIS_JOB', id: j.id, updates: { status: 'paused', currentChunkIndex: i, results: [...results] } });
-          setIsRunning(false);
-          return;
-        }
-        results[i] = result;
-        dispatch({ type: 'UPDATE_ANALYSIS_JOB', id: j.id, updates: { results: [...results], currentChunkIndex: i + 1 } });
-        setStreamText('');
-      } catch (err) {
-        const message = err instanceof Error ? err.message : String(err);
-        setError(`Chunk ${i + 1} failed: ${message}`);
-        dispatch({ type: 'UPDATE_ANALYSIS_JOB', id: j.id, updates: { status: 'failed', error: message, currentChunkIndex: i } });
-        setIsRunning(false);
-        return;
-      }
-    }
-
-    // Assemble
-    dispatch({ type: 'UPDATE_ANALYSIS_JOB', id: j.id, updates: { status: 'running', currentChunkIndex: j.chunks.length } });
-    setStreamText('');
-
-    try {
-      const completedResults = results.filter((r): r is AnalysisChunkResult => r !== null);
-      const narrative = await assembleNarrative(j.title, completedResults);
-
-      dispatch({ type: 'ADD_NARRATIVE', narrative });
-      dispatch({ type: 'UPDATE_ANALYSIS_JOB', id: j.id, updates: { status: 'completed', narrativeId: narrative.id } });
-      setIsRunning(false);
-    } catch (err) {
-      const message = err instanceof Error ? err.message : String(err);
-      setError(`Assembly failed: ${message}`);
-      dispatch({ type: 'UPDATE_ANALYSIS_JOB', id: j.id, updates: { status: 'failed', error: message } });
-      setIsRunning(false);
-    }
-  }, [dispatch]);
-
-  const handlePause = useCallback(() => { cancelledRef.current = true; }, []);
-
-  useEffect(() => {
-    return () => { cancelledRef.current = true; };
-  }, []);
+  const handlePause = useCallback(() => { analysisRunner.pause(job.id); }, [job.id]);
+  const handleStart = useCallback((j: AnalysisJob) => { analysisRunner.start(j); }, []);
 
   const completedChunks = liveJob.results.filter((r) => r !== null).length;
   const totalChunks = liveJob.chunks.length;
@@ -228,7 +170,7 @@ function JobDetail({ job, onBack }: { job: AnalysisJob; onBack: () => void }) {
           )}
           {(liveJob.status === 'paused' || liveJob.status === 'failed' || liveJob.status === 'pending') && (
             <button
-              onClick={() => runAnalysis(liveJob)}
+              onClick={() => handleStart(liveJob)}
               className="bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-400 text-[10px] font-semibold px-4 py-1 rounded transition"
             >
               {liveJob.status === 'failed' ? 'Retry' : liveJob.status === 'pending' ? 'Start' : 'Resume'}

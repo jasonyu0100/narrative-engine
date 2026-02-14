@@ -171,7 +171,7 @@ const initialState: AppState = {
 };
 
 // ── Actions ──────────────────────────────────────────────────────────────────
-type Action =
+export type Action =
   | { type: 'HYDRATE_NARRATIVES'; entries: NarrativeEntry[] }
   | { type: 'SET_ACTIVE_NARRATIVE'; id: string }
   | { type: 'LOADED_NARRATIVE'; narrative: NarrativeState }
@@ -875,6 +875,13 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     import('@/lib/api-logger').then(({ onApiLog, onApiLogUpdate }) => {
       onApiLog((entry) => dispatch({ type: 'LOG_API_CALL', entry }));
       onApiLogUpdate((id, updates) => dispatch({ type: 'UPDATE_API_LOG', id, updates }));
+    });
+  }, []);
+
+  // Wire analysis runner dispatch
+  useEffect(() => {
+    import('@/lib/analysis-runner').then(({ analysisRunner }) => {
+      analysisRunner.setDispatch(dispatch);
     });
   }, []);
 

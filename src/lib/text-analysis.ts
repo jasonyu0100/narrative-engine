@@ -315,12 +315,12 @@ The narrative engine tracks:
 
 CHARACTERS: Only extract PEOPLE who speak, act, or are spoken about as individuals. Do NOT include animals, objects, institutions, publications, textbook authors mentioned only in passing, or named items. Use a single canonical name per character — if someone is called both "Professor McGonagall" and "Minerva McGonagall", pick the most common form and use it consistently. Check prior chunk names and reuse the EXACT same name string for returning characters.
 
-THREADS: Threads are the narrative tensions, mysteries, questions, relationships, and thematic currents that run through the story. They range from macro-level (overarching quest, central mystery) down to micro-level (a character's suspicion, an unresolved argument, a secret being kept). Think broadly:
-- Plot threads: quests, conflicts, mysteries, conspiracies
-- Character threads: internal struggles, transformations, desires, secrets
-- Relationship threads: rivalries, romances, alliances forming or breaking
-- Thematic threads: class tension, moral corruption, coming-of-age, loyalty vs. self-interest
-Extract ALL threads you can identify — err on the side of finding MORE, not fewer. A good chunk should yield 10-25 threads. For continuing threads, you MUST reuse the EXACT description string from prior chunks. Only create a new thread when a genuinely new tension, question, or dynamic emerges that isn't covered by existing threads.
+THREADS: Threads are narrative tensions that DRIVE THE STORY FORWARD — unresolved questions, active conflicts, and evolving dynamics that create stakes and suspense. Every thread should pass this test: "Does this create tension that makes the reader want to know what happens next?"
+- Plot threads: mysteries to solve, quests to complete, dangers to overcome, conspiracies unfolding
+- Character threads: internal conflicts, secrets being kept, desires in tension with duty
+- Relationship threads: rivalries escalating, alliances under strain, trust being tested
+Do NOT extract: world-building facts, character descriptions, setting details, one-off observations, or things that are simply "interesting" but create no narrative tension. "The existence of the Ministry of Magic" is world-building. "The Ministry's coverup of the breakout" is a thread.
+Aim for 8-15 threads per chunk. For continuing threads, you MUST reuse the EXACT description string from prior chunks. Only create a new thread when a genuinely new tension emerges.
 
 Knowledge types must be SPECIFIC and CONTEXTUAL — not generic labels like "knows" or "secret". Use types that describe exactly what kind of knowledge: "social_observation", "class_awareness", "romantic_longing", "moral_judgment", "hidden_wealth_source", "past_betrayal", "forbidden_desire", "strategic_deception", etc.
 
@@ -393,9 +393,9 @@ CUMULATIVE CONTINUITY:
 - Look for NEW threads that emerge in this chunk that weren't present before
 ` : `
 FIRST CHUNK — THREAD SEEDING:
-- This is the first chunk, so extract every thread you can find — you are establishing the thread inventory for the entire story
+- This is the first chunk — establish the thread inventory for the story
 - For statusAtStart, use "dormant" for threads that are just being introduced
-- Cast a wide net: plot tensions, character desires, relationship dynamics, thematic undercurrents, mysteries, secrets, moral dilemmas
+- Focus on tensions that will carry across multiple chapters: mysteries, conflicts, character struggles, relationship dynamics
 `}
 THREAD LIFECYCLE:
 - Active statuses: ${THREAD_ACTIVE_STATUSES.map((s: string) => `"${s}"`).join(', ')}
