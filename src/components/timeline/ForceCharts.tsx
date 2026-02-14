@@ -7,8 +7,8 @@ import { computeForceSnapshots, computeWindowedForces, movingAverage, FORCE_WIND
 import ForceLineChart, { type ChartStyle } from './ForceLineChart';
 
 const FORCE_CONFIG = [
-  { key: 'payoff' as const, label: 'Payoff', color: 'var(--color-stakes)' },
-  { key: 'change' as const, label: 'Change', color: 'var(--color-pacing)' },
+  { key: 'payoff' as const, label: 'Payoff', color: 'var(--color-payoff)' },
+  { key: 'change' as const, label: 'Change', color: 'var(--color-change)' },
   { key: 'variety' as const, label: 'Variety', color: 'var(--color-variety)' },
 ] as const;
 

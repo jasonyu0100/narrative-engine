@@ -154,7 +154,7 @@ export default function LocationDetail({ locationId }: Props) {
                   const charName = narrative.characters[km.characterId]?.name ?? km.characterId;
                   return (
                     <span key={`${km.characterId}-${km.nodeId}`} className="text-xs text-text-secondary">
-                      <span className={km.action === 'added' ? 'text-pacing' : 'text-stakes'}>
+                      <span className={km.action === 'added' ? 'text-change' : 'text-payoff'}>
                         {km.action === 'added' ? '+' : '−'}
                       </span>{' '}
                       {charName}: {km.content}

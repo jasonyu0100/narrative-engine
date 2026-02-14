@@ -71,7 +71,7 @@ export default function FloatingPalette() {
         {/* Generate */}
         <button
           type="button"
-          className="text-xs font-semibold text-pacing bg-pacing/10 px-2 py-1 rounded-md hover:bg-pacing/20 transition-colors uppercase tracking-wider"
+          className="text-xs font-semibold text-change bg-change/10 px-2 py-1 rounded-md hover:bg-change/20 transition-colors uppercase tracking-wider"
           onClick={() => {
             if (access.userApiKeys && !access.hasOpenRouterKey) {
               window.dispatchEvent(new Event('open-api-keys'));
@@ -88,7 +88,7 @@ export default function FloatingPalette() {
           type="button"
           className={`w-7 h-7 flex items-center justify-center rounded-md transition-colors ${
             isAutoActive
-              ? 'text-pacing hover:text-pacing/80 hover:bg-pacing/10'
+              ? 'text-change hover:text-change/80 hover:bg-change/10'
               : 'text-text-secondary hover:text-text-primary hover:bg-white/6'
           }`}
           onClick={() => {

@@ -2,16 +2,14 @@
 export type ThreadStatus = string;
 
 // Canonical thread status vocabulary — single source of truth.
-// Active statuses progress roughly in order; terminal statuses end a thread.
-export const THREAD_ACTIVE_STATUSES = ['dormant', 'surfacing', 'escalating', 'fractured', 'converging', 'critical', 'threatened'] as const;
-export const THREAD_TERMINAL_STATUSES = ['resolved', 'done', 'subverted', 'closed', 'abandoned'] as const;
-export const THREAD_PRIMED_STATUSES = ['converging', 'critical', 'threatened'] as const;
+// Active: dormant → active → escalating → critical. Terminal ends a thread.
+export const THREAD_ACTIVE_STATUSES = ['dormant', 'active', 'escalating', 'critical'] as const;
+export const THREAD_TERMINAL_STATUSES = ['resolved', 'subverted', 'abandoned'] as const;
+export const THREAD_PRIMED_STATUSES = ['critical'] as const;
 
 export const THREAD_STATUS_LABELS: Record<string, string> = {
-  resolved: 'concluded satisfactorily',
-  done: 'ran its course naturally',
-  subverted: 'upended or inverted',
-  closed: 'shut down externally',
+  resolved: 'concluded or ran its course',
+  subverted: 'upended, inverted, or twisted',
   abandoned: 'faded without resolution',
 };
 
@@ -388,6 +386,40 @@ export type ApiLogEntry = {
   responsePreview: string | null;
 };
 
+// ── Text Analysis ────────────────────────────────────────────────────────────
+
+export type AnalysisChunkResult = {
+  chapterSummary: string;
+  characters: { name: string; role: string; firstAppearance: boolean; knowledge: { type: string; content: string }[] }[];
+  locations: { name: string; parentName: string | null; description: string; lore: string[] }[];
+  threads: { description: string; anchorNames: string[]; statusAtStart: string; statusAtEnd: string; development: string }[];
+  scenes: {
+    locationName: string; povName: string; participantNames: string[]; events: string[];
+    summary: string; sections: number[]; prose?: string;
+    threadMutations: { threadDescription: string; from: string; to: string }[];
+    knowledgeMutations: { characterName: string; action: string; content: string; type: string }[];
+    relationshipMutations: { from: string; to: string; type: string; valenceDelta: number }[];
+  }[];
+  relationships: { from: string; to: string; type: string; valence: number }[];
+};
+
+export type AnalysisJob = {
+  id: string;
+  title: string;
+  sourceText: string;
+  /** Text split into numbered sections */
+  chunks: { index: number; text: string; sectionCount: number }[];
+  /** Results per chunk (same indices as chunks) */
+  results: (AnalysisChunkResult | null)[];
+  status: 'pending' | 'running' | 'paused' | 'completed' | 'failed';
+  currentChunkIndex: number;
+  error?: string;
+  /** The assembled narrative ID once complete */
+  narrativeId?: string;
+  createdAt: number;
+  updatedAt: number;
+};
+
 // ── App State ────────────────────────────────────────────────────────────────
 export type InspectorContext =
   | { type: 'scene'; sceneId: string }
@@ -439,4 +471,5 @@ export type AppState = {
   autoConfig: AutoConfig;
   autoRunState: AutoRunState | null;
   apiLogs: ApiLogEntry[];
+  analysisJobs: AnalysisJob[];
 };

@@ -184,7 +184,7 @@ function zScoreNormalize(values: number[]): number[] {
 
 /** Ordered progression index — distance between indices = magnitude of the phase jump */
 const STATUS_PHASE_ORDER: string[] = [
-  'dormant', 'surfacing', 'escalating', 'fractured', 'converging', 'critical', 'threatened',
+  'dormant', 'active', 'escalating', 'escalating', 'escalating', 'critical', 'critical',
 ];
 const TERMINAL_PHASE_WEIGHT: Record<string, number> = {
   resolved: 6,

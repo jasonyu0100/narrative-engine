@@ -8,7 +8,7 @@ import { seedLOTR } from '@/data/seed-lotr';
 import { seedHP } from '@/data/seed-hp';
 import { seedSW } from '@/data/seed-sw';
 import { resolveSceneSequence, nextId } from '@/lib/narrative-utils';
-import { loadNarratives, saveNarrative as persistNarrative, deleteNarrative as deletePersisted, loadNarrative, saveActiveNarrativeId, loadActiveNarrativeId, migrateFromLocalStorage } from '@/lib/persistence';
+import { loadNarratives, saveNarrative as persistNarrative, deleteNarrative as deletePersisted, loadNarrative, saveActiveNarrativeId, loadActiveNarrativeId, migrateFromLocalStorage, loadAnalysisJobs, saveAnalysisJobs } from '@/lib/persistence';
 
 const ALL_SEEDS: NarrativeState[] = [seedGOT, seedLOTR, seedHP, seedSW, seedNarrative];
 
@@ -167,6 +167,7 @@ const initialState: AppState = {
   },
   autoRunState: null,
   apiLogs: [],
+  analysisJobs: [],
 };
 
 // ── Actions ──────────────────────────────────────────────────────────────────
@@ -233,7 +234,12 @@ type Action =
   | { type: 'SET_CHARACTER_IMAGE'; characterId: string; imageUrl: string }
   | { type: 'SET_LOCATION_IMAGE'; locationId: string; imageUrl: string }
   | { type: 'SET_IMAGE_STYLE'; style: string }
-  | { type: 'SET_RULES'; rules: string[] };
+  | { type: 'SET_RULES'; rules: string[] }
+  // Analysis
+  | { type: 'ADD_ANALYSIS_JOB'; job: import('@/types/narrative').AnalysisJob }
+  | { type: 'UPDATE_ANALYSIS_JOB'; id: string; updates: Partial<import('@/types/narrative').AnalysisJob> }
+  | { type: 'DELETE_ANALYSIS_JOB'; id: string }
+  | { type: 'HYDRATE_ANALYSIS_JOBS'; jobs: import('@/types/narrative').AnalysisJob[] };
 
 function reducer(state: AppState, action: Action): AppState {
   switch (action.type) {
@@ -828,6 +834,24 @@ function reducer(state: AppState, action: Action): AppState {
     case 'SET_RULES':
       return updateNarrative(state, (n) => ({ ...n, rules: action.rules }));
 
+    // ── Analysis ──────────────────────────────────────────────────────────
+    case 'ADD_ANALYSIS_JOB':
+      return { ...state, analysisJobs: [...state.analysisJobs, action.job] };
+
+    case 'UPDATE_ANALYSIS_JOB':
+      return {
+        ...state,
+        analysisJobs: state.analysisJobs.map((j) =>
+          j.id === action.id ? { ...j, ...action.updates, updatedAt: Date.now() } : j,
+        ),
+      };
+
+    case 'DELETE_ANALYSIS_JOB':
+      return { ...state, analysisJobs: state.analysisJobs.filter((j) => j.id !== action.id) };
+
+    case 'HYDRATE_ANALYSIS_JOBS':
+      return { ...state, analysisJobs: action.jobs };
+
     default:
       return state;
   }
@@ -931,6 +955,29 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       console.error('[store] Failed to persist active narrative ID:', err);
     });
   }, [state.activeNarrativeId]);
+
+  // Hydrate analysis jobs from IndexedDB on mount
+  useEffect(() => {
+    loadAnalysisJobs().then((jobs) => {
+      if (jobs.length > 0) {
+        // Mark any previously-running jobs as paused (they were interrupted)
+        const restored = jobs.map((j) =>
+          j.status === 'running' ? { ...j, status: 'paused' as const, updatedAt: Date.now() } : j,
+        );
+        dispatch({ type: 'HYDRATE_ANALYSIS_JOBS', jobs: restored });
+      }
+    });
+  }, []);
+
+  // Persist analysis jobs whenever they change
+  const prevAnalysisJobsRef = useRef(state.analysisJobs);
+  useEffect(() => {
+    if (state.analysisJobs === prevAnalysisJobsRef.current) return;
+    prevAnalysisJobsRef.current = state.analysisJobs;
+    saveAnalysisJobs(state.analysisJobs).catch((err) => {
+      console.error('[store] Failed to persist analysis jobs:', err);
+    });
+  }, [state.analysisJobs]);
 
   // Keyboard shortcuts
   useEffect(() => {

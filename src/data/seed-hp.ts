@@ -391,8 +391,8 @@ const scenes: Record<string, Scene> = {
     participantIds: ['C-HP-01', 'C-HP-06'],
     events: ['cupboard_morning', 'letters_from_no_one', 'hagrid_arrives'],
     threadMutations: [
-      { threadId: 'T-HP-02', from: 'dormant', to: 'surfacing' },
-      { threadId: 'T-HP-06', from: 'dormant', to: 'surfacing' },
+      { threadId: 'T-HP-02', from: 'dormant', to: 'active' },
+      { threadId: 'T-HP-06', from: 'dormant', to: 'active' },
     ],
     knowledgeMutations: [],
     relationshipMutations: [],
@@ -462,7 +462,7 @@ const scenes: Record<string, Scene> = {
     participantIds: ['C-HP-01', 'C-HP-03', 'C-HP-07'],
     events: ['first_breakfast', 'owl_post', 'malfoy_confrontation', 'handshake_refused'],
     threadMutations: [
-      { threadId: 'T-HP-07', from: 'dormant', to: 'surfacing' },
+      { threadId: 'T-HP-07', from: 'dormant', to: 'active' },
     ],
     knowledgeMutations: [
       { characterId: 'C-HP-07', nodeId: 'K-HP-63', action: 'added', content: 'Potter refused his hand in front of everyone — chose a blood traitor Weasley over a Malfoy' },
@@ -510,7 +510,7 @@ const scenes: Record<string, Scene> = {
     participantIds: ['C-HP-01', 'C-HP-03', 'C-HP-05'],
     events: ['first_potions_class', 'snape_hostility', 'scar_flicker'],
     threadMutations: [
-      { threadId: 'T-HP-03', from: 'dormant', to: 'surfacing' },
+      { threadId: 'T-HP-03', from: 'dormant', to: 'active' },
     ],
     knowledgeMutations: [
       { characterId: 'C-HP-01', nodeId: 'K-HP-80', action: 'added', content: 'Snape singled him out from the first moment — the hatred feels personal, not professional' },
@@ -556,7 +556,7 @@ const scenes: Record<string, Scene> = {
     characterMovements: { 'C-HP-01': 'L-HP-06', 'C-HP-02': 'L-HP-06', 'C-HP-03': 'L-HP-06' },
     events: ['wrong_staircase', 'fluffy_discovered', 'three_headed_dog', 'trapdoor_noticed'],
     threadMutations: [
-      { threadId: 'T-HP-01', from: 'dormant', to: 'surfacing' },
+      { threadId: 'T-HP-01', from: 'dormant', to: 'active' },
     ],
     knowledgeMutations: [
       { characterId: 'C-HP-01', nodeId: 'K-HP-82', action: 'added', content: 'A three-headed dog guards a trapdoor on the forbidden third-floor corridor' },
@@ -604,7 +604,7 @@ const scenes: Record<string, Scene> = {
     participantIds: ['C-HP-01', 'C-HP-02', 'C-HP-03'],
     events: ['troll_in_dungeon', 'hermione_rescue', 'friendship_forged'],
     threadMutations: [
-      { threadId: 'T-HP-04', from: 'dormant', to: 'surfacing' },
+      { threadId: 'T-HP-04', from: 'dormant', to: 'active' },
     ],
     knowledgeMutations: [
       { characterId: 'C-HP-02', nodeId: 'K-HP-16', action: 'added', content: 'Harry and Ron risked their lives to save her from the troll — she has never had friends like this' },
@@ -681,7 +681,7 @@ const altScenes: Record<string, Scene> = {
     participantIds: ['C-HP-01', 'C-HP-07'],
     events: ['slytherin_table', 'malfoy_extends_hand_again', 'uneasy_acceptance'],
     threadMutations: [
-      { threadId: 'T-HP-07', from: 'surfacing', to: 'escalating' },
+      { threadId: 'T-HP-07', from: 'active', to: 'escalating' },
     ],
     knowledgeMutations: [
       { characterId: 'C-HP-01', nodeId: 'K-HP-ALT-01', action: 'added', content: 'The Hat said Slytherin and he did not fight it — something in him wanted to know what greatness meant' },
@@ -702,7 +702,7 @@ const altScenes: Record<string, Scene> = {
     participantIds: ['C-HP-01', 'C-HP-05'],
     events: ['snape_reappraisal', 'potions_favoritism', 'slytherin_privilege'],
     threadMutations: [
-      { threadId: 'T-HP-03', from: 'dormant', to: 'surfacing' },
+      { threadId: 'T-HP-03', from: 'dormant', to: 'active' },
     ],
     knowledgeMutations: [
       { characterId: 'C-HP-01', nodeId: 'K-HP-ALT-03', action: 'added', content: 'Snape did not humiliate him — he looked at Harry with an expression that was almost recognition, almost pain' },
@@ -722,7 +722,7 @@ const altScenes: Record<string, Scene> = {
     participantIds: ['C-HP-01', 'C-HP-02', 'C-HP-03'],
     events: ['hermione_troll_alone', 'harry_hears', 'crosses_house_lines', 'fragile_bridge'],
     threadMutations: [
-      { threadId: 'T-HP-04', from: 'dormant', to: 'surfacing' },
+      { threadId: 'T-HP-04', from: 'dormant', to: 'active' },
     ],
     knowledgeMutations: [
       { characterId: 'C-HP-02', nodeId: 'K-HP-ALT-04', action: 'added', content: 'A Slytherin came to save her — Harry Potter crossed every line his house would punish him for' },
@@ -743,7 +743,7 @@ const altScenes: Record<string, Scene> = {
     characterMovements: { 'C-HP-01': 'L-HP-06', 'C-HP-07': 'L-HP-06' },
     events: ['draco_shows_corridor', 'slytherin_information_network', 'fluffy_discovery_different'],
     threadMutations: [
-      { threadId: 'T-HP-01', from: 'dormant', to: 'surfacing' },
+      { threadId: 'T-HP-01', from: 'dormant', to: 'active' },
     ],
     knowledgeMutations: [
       { characterId: 'C-HP-01', nodeId: 'K-HP-ALT-05', action: 'added', content: 'Draco brought him to the third-floor corridor on purpose — in Slytherin, secrets are currency, and Draco is investing in Harry' },

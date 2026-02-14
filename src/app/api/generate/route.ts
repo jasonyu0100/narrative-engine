@@ -11,11 +11,12 @@ export async function POST(req: NextRequest) {
 
   try {
     const body = await req.json();
-    const { prompt, systemPrompt, model, maxTokens } = body as {
+    const { prompt, systemPrompt, model, maxTokens, stream } = body as {
       prompt: string;
       systemPrompt?: string;
       model?: string;
       maxTokens?: number;
+      stream?: boolean;
     };
 
     const response = await fetch(OPENROUTER_URL, {
@@ -34,6 +35,7 @@ export async function POST(req: NextRequest) {
         ],
         temperature: 0.8,
         max_tokens: maxTokens || 32000,
+        ...(stream ? { stream: true } : {}),
       }),
     });
 
@@ -42,6 +44,67 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: `OpenRouter error: ${errorText}` }, { status: response.status });
     }
 
+    // Streaming mode: pipe SSE chunks through to client
+    if (stream) {
+      const encoder = new TextEncoder();
+      const readable = new ReadableStream({
+        async start(controller) {
+          const reader = response.body?.getReader();
+          if (!reader) {
+            controller.enqueue(encoder.encode(`data: ${JSON.stringify({ error: 'No response body' })}\n\n`));
+            controller.close();
+            return;
+          }
+
+          const decoder = new TextDecoder();
+          let buffer = '';
+
+          try {
+            while (true) {
+              const { done, value } = await reader.read();
+              if (done) break;
+
+              buffer += decoder.decode(value, { stream: true });
+              const lines = buffer.split('\n');
+              buffer = lines.pop() ?? '';
+
+              for (const line of lines) {
+                const trimmed = line.trim();
+                if (!trimmed || trimmed === 'data: [DONE]') {
+                  if (trimmed === 'data: [DONE]') {
+                    controller.enqueue(encoder.encode('data: [DONE]\n\n'));
+                  }
+                  continue;
+                }
+                if (trimmed.startsWith('data: ')) {
+                  try {
+                    const chunk = JSON.parse(trimmed.slice(6));
+                    const token = chunk.choices?.[0]?.delta?.content ?? '';
+                    if (token) {
+                      controller.enqueue(encoder.encode(`data: ${JSON.stringify({ token })}\n\n`));
+                    }
+                  } catch {
+                    // skip malformed chunks
+                  }
+                }
+              }
+            }
+          } finally {
+            controller.close();
+          }
+        },
+      });
+
+      return new Response(readable, {
+        headers: {
+          'Content-Type': 'text/event-stream',
+          'Cache-Control': 'no-cache',
+          'Connection': 'keep-alive',
+        },
+      });
+    }
+
+    // Non-streaming mode: existing behavior
     const data = await response.json();
     console.log('[generate] model:', data.model);
     console.log('[generate] finish_reason:', data.choices?.[0]?.finish_reason);

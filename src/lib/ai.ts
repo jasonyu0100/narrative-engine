@@ -344,7 +344,7 @@ NARRATIVE CUBE GOAL — steer this arc toward the "${NARRATIVE_CUBE[cubeGoal].na
 ${NARRATIVE_CUBE[cubeGoal].description}
 
 FORCE TARGETS for this arc (these override any patterns you see in the scene history):
-- Payoff: ${NARRATIVE_CUBE[cubeGoal].forces.payoff > 0 ? 'HIGH — drive threads toward critical/threatened/terminal statuses. Betrayals, confrontations, and fractures should have real consequences. Advance thread statuses meaningfully and let relationship shifts reflect the weight of what happens.' : 'LOW — keep threads in dormant/surfacing statuses, build positive or neutral relationships. No existential danger, no thread escalation. Characters explore, bond, recover, train. Relationship shifts should be gentle, knowledge gains should be personal observations or quiet discoveries.'}
+- Payoff: ${NARRATIVE_CUBE[cubeGoal].forces.payoff > 0 ? 'HIGH — drive threads toward critical/terminal statuses. Betrayals, confrontations, and fractures should have real consequences. Advance thread statuses meaningfully and let relationship shifts reflect the weight of what happens.' : 'LOW — keep threads in dormant/active statuses, build positive or neutral relationships. No existential danger, no thread escalation. Characters explore, bond, recover, train. Relationship shifts should be gentle, knowledge gains should be personal observations or quiet discoveries.'}
 - Change: ${NARRATIVE_CUBE[cubeGoal].forces.change > 0 ? 'FAST — pack scenes with discoveries, shifting alliances, and cascading consequences. Characters should be learning rapidly, relationships should be tested by intense interactions, and events should pile up. Rapid developments.' : 'SLOW — contemplative, dialogue-heavy scenes where characters process and reflect. Let scenes breathe. Knowledge comes from internal reflection and subtle observation, relationships shift gently. Fewer events, more interiority.'}
 - Variety: ${NARRATIVE_CUBE[cubeGoal].forces.variety > 0 ? 'HIGH — use new/rarely-seen locations, characters, and POV perspectives. Bring in fresh faces, unexplored settings, and shift to underused viewpoints. If world building has added new elements, USE THEM.' : 'LOW — familiar settings, established cast, recurring POV characters, deepening existing dynamics. Routine and grounding.'}
 
@@ -905,7 +905,7 @@ Return JSON with this exact structure:
       "povId": "C-01",
       "participantIds": ["C-01"],
       "events": ["event_tag"],
-      "threadMutations": [{"threadId": "T-01", "from": "dormant", "to": "surfacing"}],
+      "threadMutations": [{"threadId": "T-01", "from": "dormant", "to": "active"}],
       "knowledgeMutations": [{"characterId": "C-XX", "nodeId": "K-GEN-001", "action": "added", "content": "what they learned", "nodeType": "a descriptive type for this knowledge"}],
       "relationshipMutations": [],
       "summary": "REQUIRED: 2-4 sentence vivid narrative summary of the scene"

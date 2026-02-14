@@ -175,7 +175,7 @@ export function StoryReader({
           {/* Bulk generate */}
           {bulkState?.running ? (
             <div className="flex items-center gap-2">
-              <div className="w-3.5 h-3.5 border-2 border-white/20 border-t-pacing rounded-full animate-spin" />
+              <div className="w-3.5 h-3.5 border-2 border-white/20 border-t-change rounded-full animate-spin" />
               <span className="text-[10px] text-text-dim font-mono">
                 {bulkState.completed}/{bulkState.total}
               </span>

@@ -424,7 +424,7 @@ const scenes: Record<string, Scene> = {
     povId: 'C-LOTR-01',
     participantIds: ['C-LOTR-01', 'C-LOTR-02', 'C-LOTR-04'],
     events: ['bilbo_farewell_party', 'ring_inheritance', 'gandalf_suspicion'],
-    threadMutations: [{ threadId: 'T-LOTR-02', from: 'dormant', to: 'surfacing' }],
+    threadMutations: [{ threadId: 'T-LOTR-02', from: 'dormant', to: 'active' }],
     knowledgeMutations: [
       { characterId: 'C-LOTR-01', nodeId: 'K-LOTR-104', action: 'added', content: 'Bilbo vanished at his own party with a flash — left behind everything, including a plain gold ring on the mantelpiece' },
       { characterId: 'C-LOTR-02', nodeId: 'K-LOTR-105', action: 'added', content: 'The ring Bilbo left behind troubles him deeply — the way it sat on the mantelpiece, patient and waiting' },
@@ -442,7 +442,7 @@ const scenes: Record<string, Scene> = {
     povId: 'C-LOTR-01',
     participantIds: ['C-LOTR-01', 'C-LOTR-04'],
     events: ['shire_walk', 'green_dragon_pub', 'rumours_of_outside'],
-    threadMutations: [{ threadId: 'T-LOTR-05', from: 'dormant', to: 'surfacing' }],
+    threadMutations: [{ threadId: 'T-LOTR-05', from: 'dormant', to: 'active' }],
     knowledgeMutations: [
       { characterId: 'C-LOTR-01', nodeId: 'K-LOTR-106', action: 'added', content: 'The ring is always in his pocket now — he carries it without knowing why, warm and patient against his hip' },
       { characterId: 'C-LOTR-04', nodeId: 'K-LOTR-107', action: 'added', content: 'Old Gaffer says there are queer folk on the East Road — Elves and Dwarves and worse, foreigners all' },
@@ -477,7 +477,7 @@ const scenes: Record<string, Scene> = {
     povId: 'C-LOTR-01',
     participantIds: ['C-LOTR-01', 'C-LOTR-02'],
     events: ['ring_revealed', 'fire_test', 'shadow_of_the_past'],
-    threadMutations: [{ threadId: 'T-LOTR-01', from: 'dormant', to: 'surfacing' }],
+    threadMutations: [{ threadId: 'T-LOTR-01', from: 'dormant', to: 'active' }],
     knowledgeMutations: [
       { characterId: 'C-LOTR-01', nodeId: 'K-LOTR-06', action: 'added', content: 'Gandalf cast the ring into the fire and letters of flame appeared — it is Sauron\'s One Ring' },
       { characterId: 'C-LOTR-02', nodeId: 'K-LOTR-109', action: 'added', content: 'The inscription confirms it beyond doubt — One Ring to rule them all. It has been in the Shire for sixty years' },
@@ -496,7 +496,7 @@ const scenes: Record<string, Scene> = {
     povId: 'C-LOTR-02',
     participantIds: ['C-LOTR-01', 'C-LOTR-02', 'C-LOTR-04'],
     events: ['sam_caught', 'quest_appointed', 'companions_chosen'],
-    threadMutations: [{ threadId: 'T-LOTR-07', from: 'dormant', to: 'surfacing' }],
+    threadMutations: [{ threadId: 'T-LOTR-07', from: 'dormant', to: 'active' }],
     knowledgeMutations: [
       { characterId: 'C-LOTR-01', nodeId: 'K-LOTR-07', action: 'added', content: 'The Ring must leave the Shire or the Shire will be destroyed — he must carry it east' },
       { characterId: 'C-LOTR-04', nodeId: 'K-LOTR-34', action: 'added', content: 'Was caught eavesdropping and now must go with Frodo — Gandalf said "don\'t you leave him"' },
@@ -518,7 +518,7 @@ const scenes: Record<string, Scene> = {
     povId: 'C-LOTR-01',
     participantIds: ['C-LOTR-01', 'C-LOTR-04'],
     events: ['last_morning', 'packing_bag_end', 'farewell_to_home'],
-    threadMutations: [{ threadId: 'T-LOTR-02', from: 'surfacing', to: 'escalating' }],
+    threadMutations: [{ threadId: 'T-LOTR-02', from: 'active', to: 'escalating' }],
     knowledgeMutations: [
       { characterId: 'C-LOTR-01', nodeId: 'K-LOTR-112', action: 'added', content: 'Closed the round green door for the last time — the key turned and Bag End watched them go' },
       { characterId: 'C-LOTR-04', nodeId: 'K-LOTR-113', action: 'added', content: 'The garden is overgrown already — it pains him more than any talk of dark lords' },
@@ -536,7 +536,7 @@ const scenes: Record<string, Scene> = {
     povId: 'C-LOTR-01',
     participantIds: ['C-LOTR-01', 'C-LOTR-04'],
     events: ['farmer_maggot', 'mushrooms_and_gossip', 'shire_hospitality'],
-    threadMutations: [{ threadId: 'T-LOTR-01', from: 'surfacing', to: 'escalating' }],
+    threadMutations: [{ threadId: 'T-LOTR-01', from: 'active', to: 'escalating' }],
     knowledgeMutations: [
       { characterId: 'C-LOTR-01', nodeId: 'K-LOTR-114', action: 'added', content: 'A black rider on a black horse came by Farmer Maggot\'s yesterday, asking after a Baggins — they are being hunted' },
       { characterId: 'C-LOTR-04', nodeId: 'K-LOTR-115', action: 'added', content: 'Even Farmer Maggot\'s dogs shrank from the black rider — whatever hunts them frightens animals by instinct' },
@@ -573,7 +573,7 @@ const scenes: Record<string, Scene> = {
     povId: 'C-LOTR-04',
     participantIds: ['C-LOTR-01', 'C-LOTR-04'],
     events: ['night_camp', 'elves_passing', 'starlight_songs'],
-    threadMutations: [{ threadId: 'T-LOTR-07', from: 'surfacing', to: 'escalating' }],
+    threadMutations: [{ threadId: 'T-LOTR-07', from: 'active', to: 'escalating' }],
     knowledgeMutations: [
       { characterId: 'C-LOTR-04', nodeId: 'K-LOTR-118', action: 'added', content: 'Saw Elves for the first time — tall figures in grey and white, carrying lanterns that burn without flickering, singing of seas not yet crossed' },
       { characterId: 'C-LOTR-01', nodeId: 'K-LOTR-119', action: 'added', content: 'The Elves are leaving Middle-earth for the Grey Havens — even the immortal are departing, and the world grows smaller' },
@@ -592,7 +592,7 @@ const scenes: Record<string, Scene> = {
     participantIds: ['C-LOTR-01', 'C-LOTR-03', 'C-LOTR-04'],
     characterMovements: { 'C-LOTR-01': 'L-LOTR-08', 'C-LOTR-04': 'L-LOTR-08' },
     events: ['bree_gate', 'prancing_pony', 'strider_in_shadows'],
-    threadMutations: [{ threadId: 'T-LOTR-03', from: 'dormant', to: 'surfacing' }],
+    threadMutations: [{ threadId: 'T-LOTR-03', from: 'dormant', to: 'active' }],
     knowledgeMutations: [
       { characterId: 'C-LOTR-01', nodeId: 'K-LOTR-120', action: 'added', content: 'Gave a false name at the Prancing Pony — called himself Underhill, but the Ranger saw through it immediately' },
       { characterId: 'C-LOTR-03', nodeId: 'K-LOTR-121', action: 'added', content: 'The hobbit from the Shire has arrived at Bree carrying something of immense importance — Gandalf\'s letter warned of this' },
@@ -685,7 +685,7 @@ const altScenes: Record<string, Scene> = {
     povId: 'C-LOTR-02',
     participantIds: ['C-LOTR-01', 'C-LOTR-02', 'C-LOTR-04'],
     events: ['gandalf_escorts', 'guarded_departure', 'wizard_on_road'],
-    threadMutations: [{ threadId: 'T-LOTR-02', from: 'surfacing', to: 'escalating' }],
+    threadMutations: [{ threadId: 'T-LOTR-02', from: 'active', to: 'escalating' }],
     knowledgeMutations: [
       { characterId: 'C-LOTR-02', nodeId: 'K-LOTR-130', action: 'added', content: 'Chose the hobbits over Isengard — safety is an illusion borrowed against a debt not yet discovered' },
       { characterId: 'C-LOTR-04', nodeId: 'K-LOTR-131', action: 'added', content: 'Feeding a wizard is no small matter — packed extra provisions for the journey with Gandalf' },
@@ -705,7 +705,7 @@ const altScenes: Record<string, Scene> = {
     povId: 'C-LOTR-01',
     participantIds: ['C-LOTR-01', 'C-LOTR-02', 'C-LOTR-04'],
     events: ['gandalf_fireside', 'ring_lore', 'wizard_teaching'],
-    threadMutations: [{ threadId: 'T-LOTR-01', from: 'surfacing', to: 'surfacing' }],
+    threadMutations: [{ threadId: 'T-LOTR-01', from: 'active', to: 'active' }],
     knowledgeMutations: [
       { characterId: 'C-LOTR-01', nodeId: 'K-LOTR-0A', action: 'added', content: 'Gandalf speaks of the Ring\'s history — it has a will, a hunger, and it will try to return to its master by any means' },
       { characterId: 'C-LOTR-04', nodeId: 'K-LOTR-133', action: 'added', content: 'The Ring is not a tool — it uses love and fear and mercy to get what it wants. Sam understands now why Frodo seems distant sometimes' },
@@ -726,7 +726,7 @@ const altScenes: Record<string, Scene> = {
     participantIds: ['C-LOTR-01', 'C-LOTR-02', 'C-LOTR-04'],
     characterMovements: { 'C-LOTR-01': 'L-LOTR-08', 'C-LOTR-02': 'L-LOTR-08', 'C-LOTR-04': 'L-LOTR-08' },
     events: ['bree_with_gandalf', 'no_strider_needed', 'missing_intelligence'],
-    threadMutations: [{ threadId: 'T-LOTR-05', from: 'surfacing', to: 'escalating' }],
+    threadMutations: [{ threadId: 'T-LOTR-05', from: 'active', to: 'escalating' }],
     knowledgeMutations: [
       { characterId: 'C-LOTR-02', nodeId: 'K-LOTR-135', action: 'added', content: 'Should have gone to Saruman but chose the hobbits instead — troubled by something he cannot name, a premonition of missed intelligence' },
       { characterId: 'C-LOTR-01', nodeId: 'K-LOTR-136', action: 'added', content: 'The Prancing Pony feels ordinary with Gandalf at their side — no Ranger watches from the shadows, the paths of hobbit and king do not cross' },

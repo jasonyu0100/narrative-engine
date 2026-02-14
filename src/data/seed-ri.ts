@@ -398,7 +398,7 @@ const scenes: Record<string, Scene> = {
     participantIds: ['C-01'],
     events: ['morning_mist', 'village_waking', 'fang_yuan_walks_alone'],
     threadMutations: [
-      { threadId: 'T-01', from: 'dormant', to: 'surfacing' },
+      { threadId: 'T-01', from: 'dormant', to: 'active' },
     ],
     knowledgeMutations: [
       { characterId: 'C-01', nodeId: 'K-80', action: 'added', content: 'The village layout matches his memories — the timeline is intact and his rebirth succeeded' },
@@ -418,7 +418,7 @@ const scenes: Record<string, Scene> = {
     participantIds: ['C-01', 'C-02'],
     events: ['brothers_walk', 'fang_zheng_chatter', 'fang_yuan_performs_normalcy'],
     threadMutations: [
-      { threadId: 'T-03', from: 'dormant', to: 'surfacing' },
+      { threadId: 'T-03', from: 'dormant', to: 'active' },
     ],
     knowledgeMutations: [
       { characterId: 'C-01', nodeId: 'K-82', action: 'added', content: 'Fang Zheng is exactly as naive as he remembers — easy to manipulate through genuine affection' },
@@ -440,7 +440,7 @@ const scenes: Record<string, Scene> = {
     participantIds: ['C-01', 'C-02', 'C-05'],
     events: ['academy_lecture', 'gu_basics_explained', 'shen_cui_observes_students'],
     threadMutations: [
-      { threadId: 'T-02', from: 'dormant', to: 'surfacing' },
+      { threadId: 'T-02', from: 'dormant', to: 'active' },
     ],
     knowledgeMutations: [
       { characterId: 'C-05', nodeId: 'K-84', action: 'added', content: 'The new class shows uneven aptitude — several students struggle with basic primeval essence concepts' },
@@ -462,7 +462,7 @@ const scenes: Record<string, Scene> = {
     participantIds: ['C-01'],
     events: ['mountain_dusk', 'wild_gu_sighting', 'fang_yuan_catalogs_terrain'],
     threadMutations: [
-      { threadId: 'T-06', from: 'dormant', to: 'surfacing' },
+      { threadId: 'T-06', from: 'dormant', to: 'active' },
     ],
     knowledgeMutations: [
       { characterId: 'C-01', nodeId: 'K-86', action: 'added', content: 'The Moonlight Gu still migrates along the ridge path — the inheritance ground entrance should be two valleys south' },
@@ -482,7 +482,7 @@ const scenes: Record<string, Scene> = {
     participantIds: ['C-01', 'C-02', 'C-03', 'C-05'],
     events: ['awakening_ceremony', 'fang_zheng_excels', 'fang_yuan_conceals'],
     threadMutations: [
-      { threadId: 'T-02', from: 'dormant', to: 'surfacing' },
+      { threadId: 'T-02', from: 'dormant', to: 'active' },
     ],
     knowledgeMutations: [
       { characterId: 'C-05', nodeId: 'K-43', action: 'added', content: 'Fang Zheng awakened A-grade talent — the clans brightest hope in a decade' },
@@ -508,7 +508,7 @@ const scenes: Record<string, Scene> = {
     participantIds: ['C-01', 'C-02'],
     events: ['village_celebration', 'fang_zheng_guilt', 'fang_yuan_mask'],
     threadMutations: [
-      { threadId: 'T-03', from: 'surfacing', to: 'escalating' },
+      { threadId: 'T-03', from: 'active', to: 'escalating' },
     ],
     knowledgeMutations: [
       { characterId: 'C-02', nodeId: 'K-90', action: 'added', content: 'The villagers pity Fang Yuan openly — his brother deserves better than their condescension' },
@@ -531,7 +531,7 @@ const scenes: Record<string, Scene> = {
     participantIds: ['C-02', 'C-05'],
     events: ['mentorship_begins', 'shen_cui_advises', 'fang_zheng_eager'],
     threadMutations: [
-      { threadId: 'T-02', from: 'surfacing', to: 'escalating' },
+      { threadId: 'T-02', from: 'active', to: 'escalating' },
     ],
     knowledgeMutations: [
       { characterId: 'C-02', nodeId: 'K-92', action: 'added', content: 'Shen Cui warned that A-grade talent draws political attention from clan elders — he must be careful' },
@@ -554,7 +554,7 @@ const scenes: Record<string, Scene> = {
     participantIds: ['C-01'],
     events: ['night_village', 'fang_yuan_paces_perimeter', 'old_memories'],
     threadMutations: [
-      { threadId: 'T-01', from: 'surfacing', to: 'escalating' },
+      { threadId: 'T-01', from: 'active', to: 'escalating' },
     ],
     knowledgeMutations: [
       { characterId: 'C-01', nodeId: 'K-94', action: 'added', content: 'The Bai clan breach point is unfortified — the village defenses have the same weaknesses as before' },
@@ -575,7 +575,7 @@ const scenes: Record<string, Scene> = {
     povId: 'C-03',
     participantIds: ['C-03', 'C-06'],
     events: ['elder_meeting', 'resource_debate', 'tension_noted'],
-    threadMutations: [{ threadId: 'T-04', from: 'dormant', to: 'surfacing' }],
+    threadMutations: [{ threadId: 'T-04', from: 'dormant', to: 'active' }],
     knowledgeMutations: [
       { characterId: 'C-03', nodeId: 'K-96', action: 'added', content: 'Mo Bei Liu has at least three supporters among the younger elders — the faction is growing' },
       { characterId: 'C-06', nodeId: 'K-97', action: 'added', content: 'Gu Yue Bo still commands enough respect to deny proposals outright — a direct challenge is premature' },
@@ -598,7 +598,7 @@ const scenes: Record<string, Scene> = {
     characterMovements: { 'C-01': 'L-04' },
     events: ['fang_yuan_eavesdrops', 'political_assessment', 'silent_calculation'],
     threadMutations: [
-      { threadId: 'T-04', from: 'surfacing', to: 'escalating' },
+      { threadId: 'T-04', from: 'active', to: 'escalating' },
     ],
     knowledgeMutations: [
       { characterId: 'C-01', nodeId: 'K-98', action: 'added', content: 'Mo Bei Liu left through the east gate with two allies — the faction alignment matches his past life memories exactly' },
@@ -621,7 +621,7 @@ const scenes: Record<string, Scene> = {
     participantIds: ['C-02', 'C-05'],
     events: ['training_session', 'primeval_essence_exercise', 'fang_zheng_struggles'],
     threadMutations: [
-      { threadId: 'T-02', from: 'escalating', to: 'fractured' },
+      { threadId: 'T-02', from: 'escalating', to: 'escalating' },
     ],
     knowledgeMutations: [
       { characterId: 'C-05', nodeId: 'K-100', action: 'added', content: 'Fang Zheng has raw power but lacks fine control — he needs specialized exercises' },
@@ -644,8 +644,8 @@ const scenes: Record<string, Scene> = {
     characterMovements: { 'C-01': 'L-05' },
     events: ['secret_tunnel_entry', 'past_life_navigation', 'hidden_cache_found'],
     threadMutations: [
-      { threadId: 'T-01', from: 'escalating', to: 'fractured' },
-      { threadId: 'T-06', from: 'surfacing', to: 'escalating' },
+      { threadId: 'T-01', from: 'escalating', to: 'escalating' },
+      { threadId: 'T-06', from: 'active', to: 'escalating' },
     ],
     knowledgeMutations: [
       { characterId: 'C-01', nodeId: 'K-10A', action: 'added', content: 'Located the hidden primeval stone cache in the tunnels, exactly where he remembered' },
@@ -665,7 +665,7 @@ const scenes: Record<string, Scene> = {
     participantIds: ['C-01', 'C-02'],
     events: ['evening_meal', 'fang_zheng_ambitions', 'fang_yuan_listens'],
     threadMutations: [
-      { threadId: 'T-03', from: 'escalating', to: 'converging' },
+      { threadId: 'T-03', from: 'escalating', to: 'escalating' },
     ],
     knowledgeMutations: [
       { characterId: 'C-02', nodeId: 'K-103', action: 'added', content: 'Fang Yuan said he wants to be useful — but something about the way he said it felt hollow' },
@@ -689,7 +689,7 @@ const scenes: Record<string, Scene> = {
     characterMovements: { 'C-01': 'L-04' },
     events: ['ceremony_results_debated', 'fang_zheng_as_political_asset', 'fang_yuan_watches'],
     threadMutations: [
-      { threadId: 'T-04', from: 'escalating', to: 'fractured' },
+      { threadId: 'T-04', from: 'escalating', to: 'escalating' },
     ],
     knowledgeMutations: [
       { characterId: 'C-01', nodeId: 'K-105', action: 'added', content: 'Mo Bei Liu is using Fang Zheng as a political wedge — the boy will become a factional pawn' },
@@ -762,7 +762,7 @@ const altScenes: Record<string, Scene> = {
     povId: 'C-02',
     participantIds: ['C-02'],
     events: ['empty_bed', 'fang_zheng_follows', 'midnight_village'],
-    threadMutations: [{ threadId: 'T-03', from: 'dormant', to: 'surfacing' }],
+    threadMutations: [{ threadId: 'T-03', from: 'dormant', to: 'active' }],
     knowledgeMutations: [
       { characterId: 'C-02', nodeId: 'K-15', action: 'added', content: 'Fang Yuan was not in his bed at midnight — followed him through the village but lost him near the old granary' },
       { characterId: 'C-02', nodeId: 'K-111', action: 'added', content: 'Fang Yuan moved through the dark village with uncanny confidence — no hesitation, no stumbling' },
@@ -782,7 +782,7 @@ const altScenes: Record<string, Scene> = {
     participantIds: ['C-01', 'C-02'],
     events: ['morning_confrontation', 'fang_yuan_deflects', 'careful_lie'],
     threadMutations: [
-      { threadId: 'T-03', from: 'surfacing', to: 'escalating' },
+      { threadId: 'T-03', from: 'active', to: 'escalating' },
     ],
     knowledgeMutations: [
       { characterId: 'C-02', nodeId: 'K-108', action: 'added', content: 'Fang Yuan answered too smoothly — ordinary people stumble when surprised, but he was perfectly composed' },
@@ -803,8 +803,8 @@ const altScenes: Record<string, Scene> = {
     participantIds: ['C-02'],
     events: ['fang_zheng_investigates_granary', 'stone_slab_noticed', 'retreats'],
     threadMutations: [
-      { threadId: 'T-03', from: 'escalating', to: 'fractured' },
-      { threadId: 'T-01', from: 'escalating', to: 'converging' },
+      { threadId: 'T-03', from: 'escalating', to: 'escalating' },
+      { threadId: 'T-01', from: 'escalating', to: 'escalating' },
     ],
     knowledgeMutations: [
       { characterId: 'C-02', nodeId: 'K-17', action: 'added', content: 'Found a loose stone slab behind the old granary — too heavy to move, but the dust around it has been disturbed recently' },

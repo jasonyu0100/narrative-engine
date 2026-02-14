@@ -326,7 +326,7 @@ export default function SceneDetail({ sceneId }: Props) {
                   >
                     {charName}
                   </button>
-                  <span className={km.action === 'added' ? 'text-pacing' : 'text-stakes'}>
+                  <span className={km.action === 'added' ? 'text-change' : 'text-payoff'}>
                     {km.action === 'added' ? '+' : '\u2212'}
                   </span>
                   <span className="font-mono text-[10px] text-text-dim">{km.nodeId}</span>
@@ -375,7 +375,7 @@ export default function SceneDetail({ sceneId }: Props) {
                   >
                     {toName}
                   </button>
-                  <span className={rm.valenceDelta >= 0 ? 'text-pacing' : 'text-stakes'}>
+                  <span className={rm.valenceDelta >= 0 ? 'text-change' : 'text-payoff'}>
                     {rm.valenceDelta > 0 ? '+' : ''}{rm.valenceDelta}
                   </span>
                 </div>

@@ -173,7 +173,7 @@ export default function CharacterDetail({ characterId }: Props) {
                     key={`${km.nodeId}`}
                     className="text-xs text-text-secondary"
                   >
-                    <span className={km.action === 'added' ? 'text-pacing' : 'text-stakes'}>
+                    <span className={km.action === 'added' ? 'text-change' : 'text-payoff'}>
                       {km.action === 'added' ? '+' : '−'}
                     </span>{' '}
                     {km.content}
@@ -187,7 +187,7 @@ export default function CharacterDetail({ characterId }: Props) {
                       key={`${rm.from}-${rm.to}`}
                       className="text-xs text-text-secondary"
                     >
-                      <span className={rm.valenceDelta >= 0 ? 'text-pacing' : 'text-stakes'}>
+                      <span className={rm.valenceDelta >= 0 ? 'text-change' : 'text-payoff'}>
                         {rm.valenceDelta > 0 ? '+' : ''}{rm.valenceDelta}
                       </span>{' '}
                       {otherName}: {rm.type}

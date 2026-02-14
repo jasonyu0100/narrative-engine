@@ -896,7 +896,7 @@ function buildThreadMaturityClause(
       .join(', ');
     return `- "${m.thread.description}" [${m.thread.status}, maturity: ${(m.score * 100).toFixed(0)}%] — anchored to: ${anchors || 'unknown'}`;
   });
-  return `\nTHREAD RESOLUTION PRIORITY — these threads have been building for a long time and are narratively ripe. Write scenes that bring them to a decisive conclusion. Use threadMutations to transition them to a terminal status ("resolved", "done", "subverted", "closed", or "abandoned"):\n${lines.join('\n')}`;
+  return `\nTHREAD RESOLUTION PRIORITY — these threads have been building for a long time and are narratively ripe. Write scenes that bring them to a decisive conclusion. Use threadMutations to transition them to a terminal status ("resolved", "subverted", or "abandoned"):\n${lines.join('\n')}`;
 }
 
 /** Build a clause surfacing dramatic knowledge gaps between characters */

@@ -396,9 +396,9 @@ const scenes: Record<string, Scene> = {
     participantIds: ['C-SW-02', 'C-SW-04', 'C-SW-06'],
     events: ['tantive_iv_captured', 'leia_hides_plans', 'vader_boards'],
     threadMutations: [
-      { threadId: 'T-SW-02', from: 'dormant', to: 'surfacing' },
-      { threadId: 'T-SW-06', from: 'dormant', to: 'surfacing' },
-      { threadId: 'T-SW-07', from: 'dormant', to: 'surfacing' },
+      { threadId: 'T-SW-02', from: 'dormant', to: 'active' },
+      { threadId: 'T-SW-06', from: 'dormant', to: 'active' },
+      { threadId: 'T-SW-07', from: 'dormant', to: 'active' },
     ],
     knowledgeMutations: [
       { characterId: 'C-SW-04', nodeId: 'K-SW-35', action: 'added', content: 'The Rebel ship was intercepted above Tatooine — the plans were transmitted before capture' },
@@ -483,7 +483,7 @@ const scenes: Record<string, Scene> = {
     characterMovements: { 'C-SW-06': 'L-SW-08' },
     events: ['jawas_arrive', 'droids_purchased', 'r2_stubborn'],
     threadMutations: [
-      { threadId: 'T-SW-02', from: 'surfacing', to: 'escalating' },
+      { threadId: 'T-SW-02', from: 'active', to: 'escalating' },
     ],
     knowledgeMutations: [
       { characterId: 'C-SW-01', nodeId: 'K-SW-108', action: 'added', content: 'The new astromech droid is stubborn and strange — it acts like it has somewhere to be' },
@@ -503,7 +503,7 @@ const scenes: Record<string, Scene> = {
     participantIds: ['C-SW-01', 'C-SW-06'],
     events: ['holographic_message', 'obi_wan_name', 'restless_yearning'],
     threadMutations: [
-      { threadId: 'T-SW-01', from: 'dormant', to: 'surfacing' },
+      { threadId: 'T-SW-01', from: 'dormant', to: 'active' },
     ],
     knowledgeMutations: [
       { characterId: 'C-SW-01', nodeId: 'K-SW-06', action: 'added', content: 'A holographic woman inside the astromech droid pleads for someone called Obi-Wan Kenobi' },
@@ -527,7 +527,7 @@ const scenes: Record<string, Scene> = {
     characterMovements: { 'C-SW-01': 'L-SW-02', 'C-SW-06': 'L-SW-02' },
     events: ['r2_escapes', 'luke_pursues', 'jundland_wastes'],
     threadMutations: [
-      { threadId: 'T-SW-02', from: 'escalating', to: 'fractured' },
+      { threadId: 'T-SW-02', from: 'escalating', to: 'escalating' },
     ],
     knowledgeMutations: [
       { characterId: 'C-SW-01', nodeId: 'K-SW-111', action: 'added', content: 'R2-D2 escaped into the Jundland Wastes on its own — it is searching for someone' },
@@ -547,7 +547,7 @@ const scenes: Record<string, Scene> = {
     participantIds: ['C-SW-01'],
     events: ['tusken_ambush', 'knocked_unconscious'],
     threadMutations: [
-      { threadId: 'T-SW-01', from: 'surfacing', to: 'escalating' },
+      { threadId: 'T-SW-01', from: 'active', to: 'escalating' },
     ],
     knowledgeMutations: [
       { characterId: 'C-SW-01', nodeId: 'K-SW-113', action: 'added', content: 'The Jundland Wastes are deadly — Tusken Raiders attacked without warning and Luke was helpless' },
@@ -564,7 +564,7 @@ const scenes: Record<string, Scene> = {
     participantIds: ['C-SW-01', 'C-SW-05', 'C-SW-06'],
     events: ['ben_kenobi_appears', 'tuskens_scattered', 'hermit_cave'],
     threadMutations: [
-      { threadId: 'T-SW-03', from: 'dormant', to: 'surfacing' },
+      { threadId: 'T-SW-03', from: 'dormant', to: 'active' },
     ],
     knowledgeMutations: [
       { characterId: 'C-SW-01', nodeId: 'K-SW-114', action: 'added', content: 'Old Ben Kenobi scattered the Tuskens with a sound no ordinary man could make — there is something uncanny about him' },
@@ -585,8 +585,8 @@ const scenes: Record<string, Scene> = {
     participantIds: ['C-SW-01', 'C-SW-05', 'C-SW-06'],
     events: ['obi_wan_revealed', 'fathers_lightsaber', 'the_force_introduced'],
     threadMutations: [
-      { threadId: 'T-SW-05', from: 'dormant', to: 'surfacing' },
-      { threadId: 'T-SW-03', from: 'surfacing', to: 'escalating' },
+      { threadId: 'T-SW-05', from: 'dormant', to: 'active' },
+      { threadId: 'T-SW-03', from: 'active', to: 'escalating' },
     ],
     knowledgeMutations: [
       { characterId: 'C-SW-01', nodeId: 'K-SW-07', action: 'added', content: 'Ben Kenobi is Obi-Wan Kenobi — a Jedi Knight who fought alongside his father in the Clone Wars' },
@@ -608,8 +608,8 @@ const scenes: Record<string, Scene> = {
     participantIds: ['C-SW-01', 'C-SW-05', 'C-SW-06'],
     events: ['leia_full_message', 'plea_for_alderaan', 'obi_wan_asks_luke'],
     threadMutations: [
-      { threadId: 'T-SW-02', from: 'fractured', to: 'converging' },
-      { threadId: 'T-SW-06', from: 'surfacing', to: 'escalating' },
+      { threadId: 'T-SW-02', from: 'escalating', to: 'escalating' },
+      { threadId: 'T-SW-06', from: 'active', to: 'escalating' },
     ],
     knowledgeMutations: [
       { characterId: 'C-SW-05', nodeId: 'K-SW-45', action: 'added', content: 'The plans are in the droid — Leia sent them here, to me, which means the hour has finally come' },
@@ -630,7 +630,7 @@ const scenes: Record<string, Scene> = {
     participantIds: ['C-SW-01', 'C-SW-05'],
     events: ['quiet_ride_home', 'smoke_on_horizon'],
     threadMutations: [
-      { threadId: 'T-SW-05', from: 'surfacing', to: 'escalating' },
+      { threadId: 'T-SW-05', from: 'active', to: 'escalating' },
     ],
     knowledgeMutations: [
       { characterId: 'C-SW-01', nodeId: 'K-SW-119', action: 'added', content: 'His father was a Jedi — the lightsaber is warm in his lap and the word rewrites everything' },
@@ -651,8 +651,8 @@ const scenes: Record<string, Scene> = {
     characterMovements: { 'C-SW-01': 'L-SW-08' },
     events: ['homestead_destroyed', 'owen_beru_killed', 'point_of_no_return'],
     threadMutations: [
-      { threadId: 'T-SW-01', from: 'escalating', to: 'fractured' },
-      { threadId: 'T-SW-07', from: 'surfacing', to: 'escalating' },
+      { threadId: 'T-SW-01', from: 'escalating', to: 'escalating' },
+      { threadId: 'T-SW-07', from: 'active', to: 'escalating' },
     ],
     knowledgeMutations: [
       { characterId: 'C-SW-01', nodeId: 'K-SW-09', action: 'added', content: 'Uncle Owen and Aunt Beru are dead — burned by Imperial stormtroopers hunting the droids. There is nothing left here.' },
@@ -736,7 +736,7 @@ const altScenes: Record<string, Scene> = {
     participantIds: ['C-SW-01'],
     events: ['owen_relents', 'beru_convinces', 'luke_packs'],
     threadMutations: [
-      { threadId: 'T-SW-01', from: 'dormant', to: 'surfacing' },
+      { threadId: 'T-SW-01', from: 'dormant', to: 'active' },
     ],
     knowledgeMutations: [
       { characterId: 'C-SW-01', nodeId: 'K-SW-130', action: 'added', content: 'Owen said yes — the Academy is real, the escape is happening, and it feels more like loss than victory' },
@@ -754,7 +754,7 @@ const altScenes: Record<string, Scene> = {
     participantIds: ['C-SW-01'],
     events: ['departure_morning', 'last_look_at_homestead', 'transport_to_anchorhead'],
     threadMutations: [
-      { threadId: 'T-SW-01', from: 'surfacing', to: 'escalating' },
+      { threadId: 'T-SW-01', from: 'active', to: 'escalating' },
     ],
     knowledgeMutations: [
       { characterId: 'C-SW-01', nodeId: 'K-SW-132', action: 'added', content: 'The homestead shrinks in the mirror — leaving feels like amputation, clean and necessary and deeply wrong' },
@@ -772,7 +772,7 @@ const altScenes: Record<string, Scene> = {
     participantIds: ['C-SW-01'],
     events: ['anchorhead_transport', 'looking_up_at_stars', 'wrong_path_taken'],
     threadMutations: [
-      { threadId: 'T-SW-01', from: 'escalating', to: 'fractured' },
+      { threadId: 'T-SW-01', from: 'escalating', to: 'escalating' },
     ],
     knowledgeMutations: [
       { characterId: 'C-SW-01', nodeId: 'K-SW-134', action: 'added', content: 'The transport lifts off and Tatooine falls away — Luke is going to fly, but something nags like a door closing forever' },

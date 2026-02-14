@@ -1,4 +1,4 @@
-import type { NarrativeState } from '@/types/narrative';
+import type { NarrativeState, AnalysisJob } from '@/types/narrative';
 import { idbGet, idbPut, idbDelete, idbGetAll, idbDeleteByPrefix, IMAGES_STORE, NARRATIVES_STORE, META_STORE } from '@/lib/image-store';
 
 const ACTIVE_KEY = 'activeNarrativeId';
@@ -69,6 +69,29 @@ export async function loadActiveNarrativeId(): Promise<string | null> {
   } catch (err) {
     console.error('[persistence] Failed to load active narrative ID:', err);
     return null;
+  }
+}
+
+// ── Analysis Jobs ────────────────────────────────────────────────────────────
+
+const ANALYSIS_JOBS_KEY = 'analysisJobs';
+
+export async function loadAnalysisJobs(): Promise<AnalysisJob[]> {
+  if (typeof window === 'undefined') return [];
+  try {
+    const jobs = await idbGet<AnalysisJob[]>(META_STORE, ANALYSIS_JOBS_KEY);
+    return jobs ?? [];
+  } catch (err) {
+    console.error('[persistence] Failed to load analysis jobs:', err);
+    return [];
+  }
+}
+
+export async function saveAnalysisJobs(jobs: AnalysisJob[]): Promise<void> {
+  try {
+    await idbPut(META_STORE, ANALYSIS_JOBS_KEY, jobs);
+  } catch (err) {
+    console.error('[persistence] Failed to save analysis jobs:', err);
   }
 }
 

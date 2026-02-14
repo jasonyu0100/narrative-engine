@@ -408,9 +408,9 @@ export function GeneratePanel({ onClose }: { onClose: () => void }) {
           )}
 
           {error && (
-            <div className="bg-stakes/10 border border-stakes/30 rounded-lg px-3 py-2">
-              <p className="text-sm text-stakes font-medium">Generation failed</p>
-              <p className="text-xs text-stakes/80 mt-1">{error}</p>
+            <div className="bg-payoff/10 border border-payoff/30 rounded-lg px-3 py-2">
+              <p className="text-sm text-payoff font-medium">Generation failed</p>
+              <p className="text-xs text-payoff/80 mt-1">{error}</p>
             </div>
           )}
 

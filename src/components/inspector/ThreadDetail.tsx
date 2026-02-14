@@ -9,13 +9,14 @@ type Props = {
   threadId: string;
 };
 
-const statusClasses: Record<ThreadStatus, string> = {
+const statusClasses: Record<string, string> = {
   dormant: 'text-text-dim',
-  surfacing: 'text-text-secondary',
-  escalating: 'text-escalate',
-  threatened: 'text-stakes',
-  done: 'text-pacing',
+  active: 'text-text-secondary',
+  escalating: 'text-payoff',
+  critical: 'text-payoff',
+  resolved: 'text-change',
   subverted: 'text-text-dim',
+  abandoned: 'text-text-dim',
 };
 
 export default function ThreadDetail({ threadId }: Props) {

@@ -492,7 +492,7 @@ const scenes: Record<string, Scene> = {
     povId: 'C-GOT-01',
     participantIds: ['C-GOT-01', 'C-GOT-05'],
     events: ['deserter_execution', 'direwolf_pups_found'],
-    threadMutations: [{ threadId: 'T-GOT-04', from: 'dormant', to: 'surfacing' }],
+    threadMutations: [{ threadId: 'T-GOT-04', from: 'dormant', to: 'active' }],
     knowledgeMutations: [
       { characterId: 'C-GOT-01', nodeId: 'K-GOT-89', action: 'added', content: 'A dead direwolf with a stag antler in her throat — the sigils of Stark and Baratheon locked in mutual destruction. It cannot be coincidence.' },
       { characterId: 'C-GOT-05', nodeId: 'K-GOT-90', action: 'added', content: 'There were five grey pups for the five trueborn Starks, and one white runt — the bastards wolf, pale and silent like a ghost' },
@@ -533,7 +533,7 @@ const scenes: Record<string, Scene> = {
     povId: 'C-GOT-01',
     participantIds: ['C-GOT-01'],
     events: ['raven_from_south', 'jon_arryn_dead', 'king_rides_north'],
-    threadMutations: [{ threadId: 'T-GOT-02', from: 'dormant', to: 'surfacing' }],
+    threadMutations: [{ threadId: 'T-GOT-02', from: 'dormant', to: 'active' }],
     knowledgeMutations: [
       { characterId: 'C-GOT-01', nodeId: 'K-GOT-95', action: 'added', content: 'Robert will ask him to be Hand — there is no other reason for a king to ride a thousand leagues north' },
       { characterId: 'C-GOT-01', nodeId: 'K-GOT-96', action: 'added', content: 'Jon Arryns death leaves Robert surrounded by Lannisters with no one he trusts to watch his back' },
@@ -551,7 +551,7 @@ const scenes: Record<string, Scene> = {
     povId: 'C-GOT-01',
     participantIds: ['C-GOT-01', 'C-GOT-07', 'C-GOT-02', 'C-GOT-08'],
     events: ['royal_arrival', 'robert_embraces_ned', 'winterfell_greets_court'],
-    threadMutations: [{ threadId: 'T-GOT-06', from: 'dormant', to: 'surfacing' }],
+    threadMutations: [{ threadId: 'T-GOT-06', from: 'dormant', to: 'active' }],
     knowledgeMutations: [
       { characterId: 'C-GOT-01', nodeId: 'K-GOT-97', action: 'added', content: 'Robert has changed — the warrior who won the Trident is buried under fat and wine and years of neglect' },
       { characterId: 'C-GOT-08', nodeId: 'K-GOT-98', action: 'added', content: 'The queen is beautiful and cold and looks at Winterfell like it is something stuck to her shoe' },
@@ -571,7 +571,7 @@ const scenes: Record<string, Scene> = {
     povId: 'C-GOT-01',
     participantIds: ['C-GOT-01', 'C-GOT-07'],
     events: ['feast_for_the_king', 'robert_drinks_deep', 'old_war_stories'],
-    threadMutations: [{ threadId: 'T-GOT-06', from: 'surfacing', to: 'escalating' }],
+    threadMutations: [{ threadId: 'T-GOT-06', from: 'active', to: 'escalating' }],
     knowledgeMutations: [
       { characterId: 'C-GOT-01', nodeId: 'K-GOT-100', action: 'added', content: 'Robert cannot stop reliving the rebellion — the Trident was the peak of his life and everything since has been decline' },
       { characterId: 'C-GOT-07', nodeId: 'K-GOT-101', action: 'added', content: 'The wine makes the memories bearable and the present tolerable — without it, the crown would crush him' },
@@ -590,7 +590,7 @@ const scenes: Record<string, Scene> = {
     povId: 'C-GOT-01',
     participantIds: ['C-GOT-01', 'C-GOT-07'],
     events: ['crypts_visit', 'lyanna_statue', 'robert_asks_ned_hand'],
-    threadMutations: [{ threadId: 'T-GOT-02', from: 'surfacing', to: 'escalating' }],
+    threadMutations: [{ threadId: 'T-GOT-02', from: 'active', to: 'escalating' }],
     knowledgeMutations: [
       { characterId: 'C-GOT-01', nodeId: 'K-GOT-102', action: 'added', content: 'Robert asks him to be Hand of the King — a plea disguised as an appointment, born of desperation not ceremony' },
       { characterId: 'C-GOT-07', nodeId: 'K-GOT-103', action: 'added', content: 'He still loves Lyanna more than anything in the living world — the dead have a hold on him the living cannot break' },
@@ -609,7 +609,7 @@ const scenes: Record<string, Scene> = {
     povId: 'C-GOT-05',
     participantIds: ['C-GOT-01', 'C-GOT-05'],
     events: ['jon_excluded_from_feast', 'benjen_speaks_of_wall', 'bastards_burden'],
-    threadMutations: [{ threadId: 'T-GOT-04', from: 'surfacing', to: 'escalating' }],
+    threadMutations: [{ threadId: 'T-GOT-04', from: 'active', to: 'escalating' }],
     knowledgeMutations: [
       { characterId: 'C-GOT-05', nodeId: 'K-GOT-105', action: 'added', content: 'Catelyn will never accept him — she made certain he was seated outside when the king came, as though his very existence is an insult' },
       { characterId: 'C-GOT-05', nodeId: 'K-GOT-106', action: 'added', content: 'Uncle Benjen warns him he does not know what he would give up by taking the black — but what is there to give up when you belong nowhere?' },
@@ -628,8 +628,8 @@ const scenes: Record<string, Scene> = {
     participantIds: ['C-GOT-01', 'C-GOT-02'],
     events: ['catelyn_letter_from_lysa', 'lannisters_murdered_arryn', 'seeds_of_suspicion'],
     threadMutations: [
-      { threadId: 'T-GOT-01', from: 'dormant', to: 'surfacing' },
-      { threadId: 'T-GOT-05', from: 'dormant', to: 'surfacing' },
+      { threadId: 'T-GOT-01', from: 'dormant', to: 'active' },
+      { threadId: 'T-GOT-05', from: 'dormant', to: 'active' },
     ],
     knowledgeMutations: [
       { characterId: 'C-GOT-01', nodeId: 'K-GOT-08', action: 'added', content: 'Lysa Arryn claims the Lannisters murdered Jon Arryn — the queen and her family cannot be trusted' },
@@ -650,8 +650,8 @@ const scenes: Record<string, Scene> = {
     participantIds: ['C-GOT-01', 'C-GOT-05', 'C-GOT-08'],
     events: ['bran_falls', 'pushed_from_tower', 'winterfell_shattered'],
     threadMutations: [
-      { threadId: 'T-GOT-02', from: 'surfacing', to: 'escalating' },
-      { threadId: 'T-GOT-01', from: 'surfacing', to: 'escalating' },
+      { threadId: 'T-GOT-02', from: 'active', to: 'escalating' },
+      { threadId: 'T-GOT-01', from: 'active', to: 'escalating' },
     ],
     knowledgeMutations: [
       { characterId: 'C-GOT-01', nodeId: 'K-GOT-108', action: 'added', content: 'Bran was climbing as he always does — but something about the fall feels wrong, deliberate, silenced' },
@@ -725,7 +725,7 @@ const altScenes: Record<string, Scene> = {
     povId: 'C-GOT-01',
     participantIds: ['C-GOT-01', 'C-GOT-05'],
     events: ['deserter_executed', 'different_road_home', 'no_wolves_found'],
-    threadMutations: [{ threadId: 'T-GOT-04', from: 'dormant', to: 'surfacing' }],
+    threadMutations: [{ threadId: 'T-GOT-04', from: 'dormant', to: 'active' }],
     knowledgeMutations: [
       { characterId: 'C-GOT-01', nodeId: 'K-GOT-111', action: 'added', content: 'The man who passes the sentence must swing the sword — duty is not a principle but a practice, taught through repetition' },
       { characterId: 'C-GOT-05', nodeId: 'K-GOT-112', action: 'added', content: 'The deserter died babbling of monsters — madness or truth, the Wall takes men either way' },
@@ -761,7 +761,7 @@ const altScenes: Record<string, Scene> = {
     povId: 'C-GOT-01',
     participantIds: ['C-GOT-01'],
     events: ['ned_in_godswood', 'no_omen', 'unease_without_cause'],
-    threadMutations: [{ threadId: 'T-GOT-02', from: 'dormant', to: 'surfacing' }],
+    threadMutations: [{ threadId: 'T-GOT-02', from: 'dormant', to: 'active' }],
     knowledgeMutations: [
       { characterId: 'C-GOT-01', nodeId: 'K-GOT-115', action: 'added', content: 'Jon Arryns death was no accident — the silence from the south is heavy with unspoken threat' },
       { characterId: 'C-GOT-01', nodeId: 'K-GOT-116', action: 'added', content: 'Without an omen to guide him, the unease is formless — instinct without evidence, dread without direction' },

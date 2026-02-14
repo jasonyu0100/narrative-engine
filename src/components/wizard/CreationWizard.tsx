@@ -180,8 +180,8 @@ export function CreationWizard() {
             )}
 
             {error && (
-              <div className="bg-stakes/10 border border-stakes/30 rounded-lg px-3 py-2">
-                <p className="text-xs text-stakes/80 mt-1">{error}</p>
+              <div className="bg-payoff/10 border border-payoff/30 rounded-lg px-3 py-2">
+                <p className="text-xs text-payoff/80 mt-1">{error}</p>
               </div>
             )}
 
@@ -412,7 +412,7 @@ export function CreationWizard() {
               className="bg-bg-elevated border border-border rounded-lg px-3 py-2 text-sm text-text-primary w-full outline-none placeholder:text-text-dim focus:border-white/16 transition"
             />
             {isDuplicate && (
-              <p className="text-[11px] text-stakes mt-1">A series with this name already exists.</p>
+              <p className="text-[11px] text-payoff mt-1">A series with this name already exists.</p>
             )}
           </div>
 

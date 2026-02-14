@@ -460,8 +460,8 @@ export function NarrativeCubeViewer({ onClose }: { onClose: () => void }) {
       if (!v.startsWith('var(')) return v;
       return style.getPropertyValue(v.slice(4, -1)).trim() || '#888';
     }
-    const payoffColor = resolveCssColor('var(--color-stakes)');
-    const changeColor = resolveCssColor('var(--color-pacing)');
+    const payoffColor = resolveCssColor('var(--color-payoff)');
+    const changeColor = resolveCssColor('var(--color-change)');
     const varietyColor = resolveCssColor('var(--color-variety)');
 
     // ── Draw cube edges ────────────────────────────────────────────────
@@ -993,20 +993,20 @@ export function NarrativeCubeViewer({ onClose }: { onClose: () => void }) {
               {/* Force values */}
               <div className="flex items-center gap-2.5 pt-1">
                 <div className="flex items-center gap-1">
-                  <span className="text-[9px] text-stakes font-medium">P</span>
+                  <span className="text-[9px] text-payoff font-medium">P</span>
                   <div className="w-10 h-1 rounded-full bg-white/5 overflow-hidden">
                     <div
-                      className="h-full bg-stakes rounded-full"
+                      className="h-full bg-payoff rounded-full"
                       style={{ width: `${Math.max(5, (Math.tanh(focusedScene.forces.payoff) + 1) * 50)}%` }}
                     />
                   </div>
                   <span className="text-[8px] font-mono text-text-dim/60">{focusedScene.forces.payoff.toFixed(1)}</span>
                 </div>
                 <div className="flex items-center gap-1">
-                  <span className="text-[9px] text-pacing font-medium">C</span>
+                  <span className="text-[9px] text-change font-medium">C</span>
                   <div className="w-10 h-1 rounded-full bg-white/5 overflow-hidden">
                     <div
-                      className="h-full bg-pacing rounded-full"
+                      className="h-full bg-change rounded-full"
                       style={{ width: `${Math.max(5, (Math.tanh(focusedScene.forces.change) + 1) * 50)}%` }}
                     />
                   </div>
