@@ -328,7 +328,7 @@ Categories:
 - Character: internal conflicts, secrets, desires vs. duty
 - Relationship: rivalries, alliances under strain, trust being tested
 Do NOT extract: world-building facts, character traits, setting details, or observations that create no narrative tension.
-Aim for 6-12 threads per chunk — fewer, sharper threads are better than many overlapping ones. Only include a thread if its status ACTUALLY CHANGES in this chunk or if it's being actively developed. Omit threads that are merely "present" but unchanged. For continuing threads, REUSE the EXACT description string from prior chunks.
+Fewer, sharper threads are better than many overlapping ones. Thread activity is dynamic — some chunks may advance many threads at once, others only a few. Only include a thread if its status actually changes in this chunk or if it's being actively developed. For continuing threads, REUSE the EXACT description string from prior chunks.
 
 Knowledge types must be SPECIFIC and CONTEXTUAL — not generic labels like "knows" or "secret". Use types that describe exactly what kind of knowledge: "social_observation", "class_awareness", "romantic_longing", "moral_judgment", "hidden_wealth_source", "past_betrayal", "forbidden_desire", "strategic_deception", etc.
 
