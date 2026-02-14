@@ -282,6 +282,14 @@ function extractJSON(raw: string): string {
   text = text.replace(/:\s*([a-zA-Z_][a-zA-Z0-9_]*)"(,|\s*[}\]])/g, ': "$1"$2');
   // Fix missing closing quote: "key": "value → "key": "value"
   text = text.replace(/:\s*"([^"]*?)(\n)/g, ': "$1"$2');
+  // Escape raw newlines/tabs inside string values (not already escaped)
+  text = text.replace(/"([^"]*?)"/g, (_match, inner: string) => {
+    const escaped = inner
+      .replace(/(?<!\\)\n/g, '\\n')
+      .replace(/(?<!\\)\r/g, '\\r')
+      .replace(/(?<!\\)\t/g, '\\t');
+    return `"${escaped}"`;
+  });
 
   let opens = 0, closes = 0, sqOpens = 0, sqCloses = 0;
   for (const ch of text) {
@@ -619,7 +627,7 @@ ${[...allThreadDescs].map((d, i) => `${i + 1}. "${d}"`).join('\n')}
 LOCATIONS found across all chunks:
 ${[...allLocNames].map((n, i) => `${i + 1}. "${n}"`).join('\n')}
 
-Identify duplicates and produce merge maps. For each group of duplicates, pick the BEST canonical name/description.
+Identify duplicates and SIMILAR entries, then produce merge maps. For each group, pick the BEST canonical name/description.
 
 Return JSON:
 {
@@ -640,8 +648,16 @@ RULES:
 - Only include entries where the variant differs from the canonical (i.e., actual merges needed)
 - If a name appears in multiple chunks with identical spelling, do NOT include it — it's already consistent
 - For characters, merge name variants like "Professor McGonagall" / "Minerva McGonagall" / "McGonagall"
-- For threads, merge descriptions that describe the SAME underlying narrative tension
 - For locations, merge different names for the same place
+
+THREAD MERGING — BE AGGRESSIVE:
+- Merge threads that describe the SAME underlying narrative tension, even if worded differently
+- Merge threads that are facets of the same conflict (e.g. "Harry's distrust of Snape" and "Snape's suspicious behavior" → single thread about the Harry/Snape tension)
+- Merge threads where one is a subset of another (e.g. "Will they escape the dungeon?" is part of "The quest to defeat the Dark Lord")
+- Merge threads about the same relationship dynamic (e.g. "Ron's jealousy of Harry" and "The strain on Harry and Ron's friendship" → one thread)
+- The goal is FEWER, SHARPER threads. When in doubt, merge. A story should have ~8-15 major threads, not 30+ overlapping ones.
+- Pick the most encompassing description as canonical — it should capture the core tension broadly enough to cover all the variants
+
 - If there are no duplicates for a category, return an empty object {}`;
 
   const reconciliationSystem = `You are a data reconciliation engine. Identify and merge duplicate entities from independently-extracted narrative data. Return only valid JSON.`;
@@ -697,6 +713,8 @@ RULES:
         ...t,
         description: resolveThread(t.description),
         anchorNames: t.anchorNames.map(resolveChar),
+        statusAtStart: normalizeStatus(t.statusAtStart),
+        statusAtEnd: normalizeStatus(t.statusAtEnd),
       })),
       (t) => t.description,
       (a, b) => ({ ...a, statusAtEnd: b.statusAtEnd, development: `${a.development}; ${b.development}` }),
@@ -706,10 +724,17 @@ RULES:
       povName: resolveChar(s.povName),
       locationName: resolveLoc(s.locationName),
       participantNames: [...new Set(s.participantNames.map(resolveChar))],
-      threadMutations: (s.threadMutations ?? []).map((tm) => ({
-        ...tm,
-        threadDescription: resolveThread(tm.threadDescription),
-      })),
+      threadMutations: deduplicateBy(
+        (s.threadMutations ?? []).map((tm) => ({
+          ...tm,
+          threadDescription: resolveThread(tm.threadDescription),
+          from: normalizeStatus(tm.from),
+          to: normalizeStatus(tm.to),
+        })),
+        (tm) => tm.threadDescription,
+        // When two mutations target the same thread in one scene, keep the widest transition
+        (a, b) => ({ ...a, from: a.from, to: b.to }),
+      ),
       knowledgeMutations: (s.knowledgeMutations ?? []).map((km) => ({
         ...km,
         characterName: resolveChar(km.characterName),
@@ -731,18 +756,68 @@ RULES:
     ),
   }));
 
-  // Stitch thread continuity: ensure statusAtStart of chunk N+1 matches statusAtEnd of chunk N
+  // Stitch thread continuity across chunks:
+  // 1. Thread-level: statusAtStart of chunk N+1 matches statusAtEnd of chunk N
+  // 2. Scene-level: threadMutation.from values are consistent with the running status
   const threadStatusTracker: Record<string, string> = {};
   for (const r of reconciled) {
+    // Fix thread-level statuses
     for (const t of r.threads) {
       if (threadStatusTracker[t.description]) {
         t.statusAtStart = threadStatusTracker[t.description];
       }
       threadStatusTracker[t.description] = t.statusAtEnd;
     }
+
+    // Build a per-scene running status from the chunk's thread tracker
+    const sceneThreadStatus: Record<string, string> = {};
+    // Seed with thread-level statusAtStart for this chunk
+    for (const t of r.threads) {
+      sceneThreadStatus[t.description] = t.statusAtStart;
+    }
+    // Also seed from cross-chunk tracker for threads not in this chunk's thread list
+    for (const [desc, status] of Object.entries(threadStatusTracker)) {
+      if (!sceneThreadStatus[desc]) sceneThreadStatus[desc] = status;
+    }
+
+    // Fix scene-level threadMutation from/to values to chain correctly
+    for (const scene of r.scenes) {
+      for (const tm of scene.threadMutations) {
+        const currentStatus = sceneThreadStatus[tm.threadDescription];
+        if (currentStatus && tm.from !== currentStatus) {
+          tm.from = currentStatus;
+        }
+        // Update running status for next scene/mutation
+        sceneThreadStatus[tm.threadDescription] = tm.to;
+      }
+    }
   }
 
   return reconciled;
+}
+
+/** Normalize free-form LLM status strings to the canonical vocabulary */
+function normalizeStatus(raw: string): string {
+  const s = raw.trim().toLowerCase();
+  // Direct matches
+  const allStatuses = [...THREAD_ACTIVE_STATUSES, ...THREAD_TERMINAL_STATUSES] as readonly string[];
+  if (allStatuses.includes(s)) return s;
+  // Common LLM variants → canonical
+  const aliases: Record<string, string> = {
+    'inactive': 'dormant', 'latent': 'dormant', 'introduced': 'dormant', 'emerging': 'dormant',
+    'developing': 'active', 'ongoing': 'active', 'progressing': 'active', 'in progress': 'active',
+    'rising': 'escalating', 'intensifying': 'escalating', 'heightening': 'escalating', 'building': 'escalating',
+    'peak': 'critical', 'climactic': 'critical', 'urgent': 'critical', 'crisis': 'critical',
+    'concluded': 'resolved', 'completed': 'resolved', 'settled': 'resolved', 'closed': 'resolved',
+    'twisted': 'subverted', 'inverted': 'subverted', 'upended': 'subverted', 'reversed': 'subverted',
+    'dropped': 'abandoned', 'forgotten': 'abandoned', 'faded': 'abandoned', 'unresolved': 'abandoned',
+  };
+  if (aliases[s]) return aliases[s];
+  // Fuzzy: check if any canonical status is a substring
+  for (const canonical of allStatuses) {
+    if (s.includes(canonical)) return canonical;
+  }
+  return s; // keep original if no match — assembleNarrative will still accept it
 }
 
 function higherRole(a: string, b: string): string {
@@ -809,9 +884,14 @@ export async function assembleNarrative(
       if ((rank[c.role] ?? 0) > (rank[characters[id].role] ?? 0)) {
         characters[id].role = c.role as Character['role'];
       }
+      // Accumulate knowledge, deduplicating by content
+      const existingKnowledge = new Set(characters[id].knowledge.nodes.map((n) => n.content));
       for (const k of c.knowledge ?? []) {
-        const kId = nextKId();
-        characters[id].knowledge.nodes.push({ id: kId, type: k.type, content: k.content });
+        if (!existingKnowledge.has(k.content)) {
+          const kId = nextKId();
+          characters[id].knowledge.nodes.push({ id: kId, type: k.type, content: k.content });
+          existingKnowledge.add(k.content);
+        }
       }
     }
 
@@ -824,9 +904,14 @@ export async function assembleNarrative(
           id, name: loc.name, parentId, threadIds: [],
           knowledge: { nodes: [], edges: [] },
         };
-        for (const lore of loc.lore ?? []) {
+      }
+      // Accumulate lore from all chunks, deduplicating by content
+      const existingLore = new Set(locations[id].knowledge.nodes.map((n) => n.content));
+      for (const lore of loc.lore ?? []) {
+        if (!existingLore.has(lore)) {
           const kId = nextKId();
           locations[id].knowledge.nodes.push({ id: kId, type: 'lore', content: lore });
+          existingLore.add(lore);
         }
       }
     }
@@ -834,15 +919,23 @@ export async function assembleNarrative(
     // Threads
     for (const t of ch.threads ?? []) {
       const id = getThreadId(t.description);
+      const newAnchors = (t.anchorNames ?? []).map((name) => {
+        if (charNameToId[name]) return { id: charNameToId[name], type: 'character' as const };
+        if (locNameToId[name]) return { id: locNameToId[name], type: 'location' as const };
+        return { id: getCharId(name), type: 'character' as const };
+      });
       if (!threads[id]) {
-        const anchors = (t.anchorNames ?? []).map((name) => {
-          if (charNameToId[name]) return { id: charNameToId[name], type: 'character' as const };
-          if (locNameToId[name]) return { id: locNameToId[name], type: 'location' as const };
-          return { id: getCharId(name), type: 'character' as const };
-        });
-        threads[id] = { id, anchors, description: t.description, status: t.statusAtEnd ?? 'dormant', openedAt: '', dependents: [] };
+        threads[id] = { id, anchors: newAnchors, description: t.description, status: t.statusAtEnd ?? 'dormant', openedAt: '', dependents: [] };
       } else {
         threads[id].status = t.statusAtEnd ?? threads[id].status;
+        // Accumulate anchors from later chunks
+        const existingAnchorIds = new Set(threads[id].anchors.map((a) => a.id));
+        for (const anchor of newAnchors) {
+          if (!existingAnchorIds.has(anchor.id)) {
+            threads[id].anchors.push(anchor);
+            existingAnchorIds.add(anchor.id);
+          }
+        }
       }
     }
 
@@ -910,11 +1003,19 @@ export async function assembleNarrative(
       }
     }
 
-    // Relationships
+    // Relationships — later chunks update type and valence (chronological last-write-wins)
     for (const r of ch.relationships ?? []) {
       const fromId = getCharId(r.from);
       const toId = getCharId(r.to);
-      relationshipMap[`${fromId}→${toId}`] = { from: fromId, to: toId, type: r.type, valence: r.valence };
+      const key = `${fromId}→${toId}`;
+      const existing = relationshipMap[key];
+      if (existing) {
+        // Keep latest type, but blend valence toward the newer value to show progression
+        existing.type = r.type;
+        existing.valence = r.valence;
+      } else {
+        relationshipMap[key] = { from: fromId, to: toId, type: r.type, valence: r.valence };
+      }
     }
   }
 

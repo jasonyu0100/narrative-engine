@@ -19,7 +19,7 @@ type RunningJob = {
 };
 
 /** Max concurrent LLM calls to avoid rate limits / overload */
-const MAX_CONCURRENCY = 5;
+const MAX_CONCURRENCY = 10;
 
 class AnalysisRunner {
   private running = new Map<string, RunningJob>();
@@ -116,23 +116,32 @@ class AnalysisRunner {
           return;
         }
 
-        // Check for errors
-        const errors = batchResults.filter((br) => br.error);
-        if (errors.length > 0) {
-          // Save successful results, fail on first error
-          for (const br of batchResults) {
-            if (br.result) results[br.chunkIdx] = br.result;
-          }
-          d({ type: 'UPDATE_ANALYSIS_JOB', id: job.id, updates: { results: [...results] } });
-          const failedChunks = errors.map((e) => `Chunk ${e.chunkIdx + 1}: ${e.error}`).join('; ');
-          d({ type: 'UPDATE_ANALYSIS_JOB', id: job.id, updates: { status: 'failed', error: `Extraction failed: ${failedChunks}` } });
-          this.cleanup(job.id);
-          return;
-        }
-
         // Store successful results
         for (const br of batchResults) {
-          results[br.chunkIdx] = br.result;
+          if (br.result) results[br.chunkIdx] = br.result;
+        }
+
+        // Retry failed chunks once
+        const errors = batchResults.filter((br) => br.error);
+        if (errors.length > 0) {
+          this.emitStream(job.id, `Phase 1: Retrying ${errors.length} failed chunk(s)...`);
+          const retryPromises = errors.map((e) =>
+            analyzeChunkParallel(job.chunks[e.chunkIdx].text, e.chunkIdx, totalChunks)
+              .then((result) => ({ chunkIdx: e.chunkIdx, result, error: null as string | null }))
+              .catch((err) => ({ chunkIdx: e.chunkIdx, result: null as AnalysisChunkResult | null, error: err instanceof Error ? err.message : String(err) })),
+          );
+          const retryResults = await Promise.all(retryPromises);
+          for (const rr of retryResults) {
+            if (rr.result) results[rr.chunkIdx] = rr.result;
+          }
+          const stillFailed = retryResults.filter((rr) => rr.error);
+          if (stillFailed.length > 0) {
+            d({ type: 'UPDATE_ANALYSIS_JOB', id: job.id, updates: { results: [...results] } });
+            const failedChunks = stillFailed.map((e) => `Chunk ${e.chunkIdx + 1}: ${e.error}`).join('; ');
+            d({ type: 'UPDATE_ANALYSIS_JOB', id: job.id, updates: { status: 'failed', error: `Extraction failed after retry: ${failedChunks}` } });
+            this.cleanup(job.id);
+            return;
+          }
         }
         completedCount += batchIndices.length;
         d({ type: 'UPDATE_ANALYSIS_JOB', id: job.id, updates: { results: [...results], currentChunkIndex: completedCount } });
