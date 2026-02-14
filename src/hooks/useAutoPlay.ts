@@ -101,23 +101,25 @@ export function useAutoPlay() {
       });
       scenesGenerated = scenes.length;
 
-      // Generate prose for each scene if enabled
+      // Generate prose for each scene if enabled (parallel)
       if (autoConfig.includeProse && scenes.length > 0) {
-        const updatedState = stateRef.current;
-        const updatedNarrative = updatedState.activeNarrative;
-        const updatedKeys = updatedState.resolvedSceneKeys;
+        const updatedNarrative = stateRef.current.activeNarrative;
+        const updatedKeys = stateRef.current.resolvedSceneKeys;
         if (updatedNarrative) {
-          for (const s of scenes) {
+          const prosePromises = scenes.map(async (s) => {
             if (cancelledRef.current) return;
             const sceneIdx = updatedKeys.indexOf(s.id);
             try {
               const prose = await generateSceneProse(updatedNarrative, s, sceneIdx, updatedKeys);
-              if (cancelledRef.current) return;
-              dispatch({ type: 'UPDATE_SCENE', sceneId: s.id, updates: { prose } });
+              if (!cancelledRef.current) {
+                dispatch({ type: 'UPDATE_SCENE', sceneId: s.id, updates: { prose } });
+              }
             } catch (err) {
               console.error('[auto-play] prose generation error:', err);
             }
-          }
+          });
+          await Promise.all(prosePromises);
+          if (cancelledRef.current) return;
         }
       }
     } catch (err) {

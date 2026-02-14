@@ -25,6 +25,8 @@ export function StoryReader({
   const [currentIndex, setCurrentIndex] = useState(0);
   const [proseCache, setProseCache] = useState<ProseCache>({});
   const contentRef = useRef<HTMLDivElement>(null);
+  const [bulkState, setBulkState] = useState<{ running: boolean; completed: number; total: number; errors: number } | null>(null);
+  const bulkCancelledRef = useRef(false);
 
   const scene = scenes[currentIndex];
   const arc = scene ? Object.values(narrative.arcs).find((a) => a.sceneIds.includes(scene.id)) : null;
@@ -45,6 +47,68 @@ export function StoryReader({
       setProseCache((prev) => ({ ...prev, [s.id]: { text: '', status: 'error', error: message } }));
     }
   }, [narrative, resolvedKeys, dispatch]);
+
+  const BATCH_SIZE = 5;
+
+  const bulkGenerate = useCallback(async () => {
+    const missing = scenes.filter((s) => !s.prose && proseCache[s.id]?.status !== 'ready');
+    if (missing.length === 0) return;
+
+    bulkCancelledRef.current = false;
+    setBulkState({ running: true, completed: 0, total: missing.length, errors: 0 });
+
+    let completed = 0;
+    let errors = 0;
+
+    // Mark all as loading
+    setProseCache((prev) => {
+      const next = { ...prev };
+      for (const s of missing) next[s.id] = { text: '', status: 'loading' };
+      return next;
+    });
+
+    // Process in batches
+    for (let i = 0; i < missing.length; i += BATCH_SIZE) {
+      if (bulkCancelledRef.current) break;
+      const batch = missing.slice(i, i + BATCH_SIZE);
+
+      const results = await Promise.allSettled(
+        batch.map(async (s) => {
+          if (bulkCancelledRef.current) throw new Error('cancelled');
+          const idx = resolvedKeys.indexOf(s.id);
+          const prose = await generateSceneProse(narrative, s, idx, resolvedKeys);
+          return { id: s.id, prose };
+        }),
+      );
+
+      for (const result of results) {
+        if (bulkCancelledRef.current) break;
+        if (result.status === 'fulfilled') {
+          const { id, prose } = result.value;
+          setProseCache((prev) => ({ ...prev, [id]: { text: prose, status: 'ready' } }));
+          dispatch({ type: 'UPDATE_SCENE', sceneId: id, updates: { prose } });
+          completed++;
+        } else {
+          errors++;
+          // Find the scene that failed and mark it
+          const failedScene = batch[results.indexOf(result)];
+          if (failedScene) {
+            const msg = result.reason instanceof Error ? result.reason.message : String(result.reason);
+            setProseCache((prev) => ({ ...prev, [failedScene.id]: { text: '', status: 'error', error: msg } }));
+          }
+        }
+      }
+
+      setBulkState({ running: !bulkCancelledRef.current, completed, total: missing.length, errors });
+    }
+
+    setBulkState((prev) => prev ? { ...prev, running: false } : null);
+  }, [scenes, proseCache, narrative, resolvedKeys, dispatch]);
+
+  const cancelBulk = useCallback(() => {
+    bulkCancelledRef.current = true;
+    setBulkState((prev) => prev ? { ...prev, running: false } : null);
+  }, []);
 
   // Auto-generate prose when navigating to a scene that hasn't been generated
   useEffect(() => {
@@ -108,6 +172,46 @@ export function StoryReader({
           )}
         </div>
         <div className="flex items-center gap-3">
+          {/* Bulk generate */}
+          {bulkState?.running ? (
+            <div className="flex items-center gap-2">
+              <div className="w-3.5 h-3.5 border-2 border-white/20 border-t-pacing rounded-full animate-spin" />
+              <span className="text-[10px] text-text-dim font-mono">
+                {bulkState.completed}/{bulkState.total}
+              </span>
+              {bulkState.errors > 0 && (
+                <span className="text-[10px] text-red-400/80 font-mono">
+                  {bulkState.errors} err
+                </span>
+              )}
+              <button
+                onClick={cancelBulk}
+                className="text-[10px] px-2 py-0.5 rounded bg-white/5 text-text-dim hover:text-text-secondary transition"
+              >
+                Stop
+              </button>
+            </div>
+          ) : (
+            (() => {
+              const missingCount = scenes.filter((s) => !s.prose && proseCache[s.id]?.status !== 'ready').length;
+              return missingCount > 0 ? (
+                <button
+                  onClick={bulkGenerate}
+                  className="text-[10px] px-2.5 py-1 rounded-full border border-white/10 text-text-dim hover:text-text-secondary hover:border-white/15 transition flex items-center gap-1.5"
+                  title={`Generate prose for ${missingCount} scene${missingCount !== 1 ? 's' : ''}`}
+                >
+                  <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
+                    <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" />
+                  </svg>
+                  Write All ({missingCount})
+                </button>
+              ) : bulkState && !bulkState.running ? (
+                <span className="text-[10px] text-emerald-400/60">All written</span>
+              ) : null;
+            })()
+          )}
+
           <span className="text-[10px] text-text-dim font-mono">
             {currentIndex + 1} / {scenes.length}
           </span>
