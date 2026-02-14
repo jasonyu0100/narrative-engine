@@ -202,7 +202,13 @@ CORE PRINCIPLES:
 1. FORCE TARGETS and DIRECTION override scene history. Do NOT continue patterns just because previous scenes established them. If the directive says calm, write calm.
 2. High balance is the north star of compelling narrative. Consecutive scenes should feel dynamically different — alternate intensity with quiet, action with reflection, familiar with surprising.
 3. Threads evolve gradually. Most scenes advance 0-1 threads. A dormant thread surfaces slowly over many scenes, not in one jump.
-4. Use ONLY the character, location, and thread IDs provided. Never invent new ones.`;
+4. Use ONLY the character, location, and thread IDs provided. Never invent new ones.
+
+WRITING LIKE A NOVELIST — every scene should leave a mark:
+- Characters are always learning. In every scene, someone notices something, overhears a detail, forms an impression, recalls a memory, or pieces together a clue. Track these as knowledgeMutations — they are the fabric of dramatic irony and character interiority.
+- Relationships shift constantly. When characters interact, their dynamics evolve — trust deepens, suspicion grows, respect is earned or lost. Even a shared glance or an awkward silence shifts something. Track these as relationshipMutations with appropriate valenceDelta.
+- Events ground scenes in concrete happenings. Tag what actually occurs: "ambush", "confession", "storm_arrival", "treaty_signed", "duel", "feast", "betrayal_revealed". These make scenes feel like real narrative moments, not abstract summaries.
+- Threads evolve when the story demands it — not every scene, but regularly enough that the narrative feels alive. A scene with no mutations at all is a missed opportunity.`;
 
 /** Clean common LLM JSON quirks: code fences, trailing commas, single-quoted keys */
 function cleanJson(raw: string): string {
@@ -338,9 +344,9 @@ NARRATIVE CUBE GOAL — steer this arc toward the "${NARRATIVE_CUBE[cubeGoal].na
 ${NARRATIVE_CUBE[cubeGoal].description}
 
 FORCE TARGETS for this arc (these override any patterns you see in the scene history):
-- Payoff: ${NARRATIVE_CUBE[cubeGoal].forces.payoff > 0 ? 'HIGH — drive threads toward critical/threatened/terminal statuses, create negative relationship shifts (betrayals, confrontations, fractures). Consequences should be real and irreversible.' : 'LOW — keep threads in dormant/surfacing statuses, build positive or neutral relationships. No existential danger, no thread escalation. Characters explore, bond, recover, train.'}
-- Change: ${NARRATIVE_CUBE[cubeGoal].forces.change > 0 ? 'FAST — many thread mutations, knowledge mutations, and relationship changes per scene. Multiple events, rapid developments.' : 'SLOW — few mutations per scene. Contemplative, dialogue-heavy, characters processing/reflecting. Let scenes breathe.'}
-- Variety: ${NARRATIVE_CUBE[cubeGoal].forces.variety > 0 ? 'HIGH — use new/rarely-seen locations, characters, and POV perspectives. Bring in fresh faces, unexplored settings, and shift to underused viewpoints.' : 'LOW — familiar settings, established cast, recurring POV characters, deepening existing dynamics. Routine and grounding.'}
+- Payoff: ${NARRATIVE_CUBE[cubeGoal].forces.payoff > 0 ? 'HIGH — drive threads toward critical/threatened/terminal statuses. Betrayals, confrontations, and fractures should have real consequences. Advance thread statuses meaningfully and let relationship shifts reflect the weight of what happens.' : 'LOW — keep threads in dormant/surfacing statuses, build positive or neutral relationships. No existential danger, no thread escalation. Characters explore, bond, recover, train. Relationship shifts should be gentle, knowledge gains should be personal observations or quiet discoveries.'}
+- Change: ${NARRATIVE_CUBE[cubeGoal].forces.change > 0 ? 'FAST — pack scenes with discoveries, shifting alliances, and cascading consequences. Characters should be learning rapidly, relationships should be tested by intense interactions, and events should pile up. Rapid developments.' : 'SLOW — contemplative, dialogue-heavy scenes where characters process and reflect. Let scenes breathe. Knowledge comes from internal reflection and subtle observation, relationships shift gently. Fewer events, more interiority.'}
+- Variety: ${NARRATIVE_CUBE[cubeGoal].forces.variety > 0 ? 'HIGH — use new/rarely-seen locations, characters, and POV perspectives. Bring in fresh faces, unexplored settings, and shift to underused viewpoints. If world building has added new elements, USE THEM.' : 'LOW — familiar settings, established cast, recurring POV characters, deepening existing dynamics. Routine and grounding.'}
 
 DO NOT continue the momentum of previous scenes. If the story has been intense for many scenes and this goal says LOW payoff, you MUST write genuinely calm scenes — keep threads dormant, build friendships, explore without danger. Break the pattern.` : ''}
 
@@ -374,10 +380,18 @@ Rules:
 - Thread mutations should reflect the direction — escalate relevant threads, surface dormant ones
 - relationshipMutations track how character dynamics shift. Include them when interactions change — trust gained, betrayal discovered, alliance forming, rivalry deepening. valenceDelta ranges from -0.5 (major damage) to +0.5 (major bonding). Most interactions are ±0.1 to ±0.2.
 - knowledgeMutations track what characters learn. Include them when a character gains or loses information — secrets revealed, lies uncovered, skills observed, intel gathered.
+- events capture concrete narrative happenings. Use specific, descriptive tags: "ambush_at_dawn", "secret_pact_formed", "duel_of_wits", "storm_breaks", "letter_intercepted". Aim for 2-4 events per scene. Events contribute to the Change force — more events = higher narrative momentum.
+
+NARRATIVE RICHNESS (what separates good scenes from flat ones):
+- Think like a novelist: every scene changes SOMETHING about how characters understand their world and relate to each other. A scene where nothing shifts — no knowledge gained, no relationship moved, no events tagged — reads as filler.
+- Quiet/reflective scenes still have internal life: a character notices someone's hesitation, recalls a painful memory, warms slightly to a companion, or overhears something unsettling.
+- Intense/climactic scenes should be dense with consequence: threads advance, characters learn things that change their calculus, relationships crack or forge under pressure, and multiple concrete events unfold.
+- Events are the skeleton of what happens — tag them generously. They help readers (and the system) understand the scene's narrative weight.
 
 PACING:
 - Not every scene should be a major plot event. Include quieter scenes: character moments, travel, reflection, relationship building.
 - Only 1 in 3 scenes should be a significant plot beat. Others build atmosphere, deepen character, or plant seeds.
+- Even quiet scenes MUST have mutations — a character noticing tension, recalling a memory, warming to an ally, or growing suspicious all count.
 - Threads evolve gradually — a dormant thread surfaces slowly over many scenes, not in one jump.
 - When a thread's storyline has concluded (conflict resolved, mystery answered, goal achieved or failed), transition it to a terminal status: ${THREAD_TERMINAL_STATUSES.map((s) => `"${s}"`).join(', ')}. Choose the terminal status that best fits HOW the thread ended.
 
@@ -520,11 +534,19 @@ export async function suggestWorldExpansion(
   const prompt = `${ctx}
 
 Based on the full narrative context above, suggest what NEW elements the world needs.
+World expansion is critical for narrative VARIETY — it introduces fresh characters, unexplored locations, and dormant threads that prevent the story from becoming repetitive.
+
 Consider:
 - Are there locations referenced in scenes that don't exist yet?
 - Are there implied characters who should be introduced?
 - Are there narrative threads that need new anchors?
 - What would deepen the world and create new story possibilities?
+- Which parts of the world feel underexplored or geographically narrow?
+- Are there factions, organizations, or communities implied but not yet represented by characters?
+- Could contrasting environments (urban vs wild, sacred vs profane, safe vs dangerous) create richer scene variety?
+- Are there secondary characters who could become POV-worthy with more depth?
+
+Aim for breadth: suggest 2-3 new characters from different walks of life, 2-3 locations that contrast with existing ones, and 2-3 threads that introduce new dramatic questions.
 
 Return JSON with this exact structure:
 {
@@ -616,17 +638,17 @@ ID RULES:
 - ALL knowledge nodes (in both characters and locations) use the K- prefix and share one sequence
 
 Rules:
-- Generate elements that serve the directive
-- Characters should have meaningful knowledge graphs (2-4 nodes, 1-3 edges)
+- Generate elements that serve the directive AND boost narrative VARIETY — fresh faces, new settings, and untapped dramatic questions
+- Characters should have meaningful knowledge graphs (3-5 nodes, 2-4 edges). Give each character SECRETS or unique knowledge that only they possess — this creates knowledge asymmetries that drive dramatic tension when revealed later. Include at least one hidden or dangerous piece of knowledge per character.
 - Knowledge node types should be SPECIFIC and CONTEXTUAL — not generic labels. Choose types that describe exactly what kind of knowledge or lore this is. Examples: "cultivation_technique", "blood_pact", "hidden_treasury", "ancient_prophecy", "political_alliance", "forbidden_memory", "territorial_claim", "ancestral_grudge". Pick types that fit the narrative world.
 - Knowledge edge types should also be contextual: "enables", "contradicts", "unlocks", "corrupts", "conceals", "depends_on", "mirrors", etc.
-- Locations should fit the world hierarchy (use existing parentIds where appropriate)
-- Location knowledge should describe lore, dangers, secrets, or resources specific to that place
-- Threads should connect to existing or new characters/locations via anchors
+- Locations should fit the world hierarchy (use existing parentIds where appropriate). Make new locations CONTRAST with existing ones — if the story has been set in cities, add wilderness; if in palaces, add slums or ruins. Environmental variety drives scene variety.
+- Location knowledge should describe lore, dangers, secrets, or resources specific to that place (3-4 nodes per location)
+- Threads should connect to existing or new characters/locations via anchors. New threads should introduce DIFFERENT types of dramatic questions than existing ones — if current threads are about conflict, add threads about mystery, loyalty, or forbidden knowledge.
 - ALL new threads MUST have status "dormant" — they are seeds for future arcs, not active storylines yet
-- Relationships can reference both existing and new character IDs
+- Relationships should connect new characters to EXISTING ones (not just to each other) — this ensures new characters integrate into the story rather than remaining isolated. Include at least one relationship with valence tension (slight negative or ambivalent).
 - Anchors in threads can reference existing characters/locations
-- Generate at least 1 of each type, but only as many as the directive demands`;
+- Generate at least 2 of each type to provide meaningful variety injection`;
 
   const raw = await callGenerate(prompt, SYSTEM_PROMPT, undefined, 'expandWorld');
   const parsed = parseJson(raw, 'expandWorld') as WorldExpansion;

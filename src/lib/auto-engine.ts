@@ -827,14 +827,14 @@ export function buildActionDirective(
 
   // Corner-specific directives
   const cornerDirectives: Record<CubeCornerKey, string> = {
-    HHH: `CONVERGENCE — ${corner.description} Push all forces to maximum. Multiple threads should collide simultaneously. This is the most intense, chaotic moment of the narrative.${threadContext}`,
-    HHL: `CLIMAX — ${corner.description} Drive toward a decisive payoff. High stakes and rapid pace, but the situation is clear and focused. This is the moment of maximum reader investment.${threadContext}`,
-    HLH: `TWIST — ${corner.description} A revelation or twist that pays off threads but characters haven't caught up yet. New elements reshape the landscape before anyone can react.${threadContext}`,
-    HLL: `CLOSURE — ${corner.description} Threads wrap up quietly among familiar faces. Tying loose ends, resolving what was left hanging. The aftermath of climactic events.${threadContext}`,
-    LHH: `DISCOVERY — ${corner.description} Characters grow and change while exploring new territory. No payoffs yet but high energy and surprise. World-building, early adventure, open possibility space.`,
-    LHL: `GROWTH — ${corner.description} Characters develop among familiar faces without plot advancement. Training, bonding, processing events. Internal change without external payoff.`,
-    LLH: `WANDERING — ${corner.description} Contemplative and transitional. Characters in unfamiliar conditions without clear direction. Plant seeds, explore the unknown quietly.`,
-    LLL: `REST — ${corner.description} Breathing room after intensity. Focus on recovery, character relationships, and subtle foreshadowing. Plant seeds for future conflict.`,
+    HHH: `CONVERGENCE — ${corner.description} Push all forces to maximum. Multiple threads should collide simultaneously. This is the most intense, chaotic moment of the narrative. Pack scenes with consequences — thread escalations, secrets revealed under pressure, alliances shattering. Characters are learning and changing rapidly.${threadContext}`,
+    HHL: `CLIMAX — ${corner.description} Drive toward a decisive payoff. High stakes and rapid pace, but the situation is clear and focused. This is the moment of maximum reader investment. Threads should advance decisively, characters face truths they can't unsee, relationships are tested to breaking point.${threadContext}`,
+    HLH: `TWIST — ${corner.description} A revelation or twist that pays off threads but characters haven't caught up yet. New elements reshape the landscape before anyone can react. Shocking discoveries, unexpected faces, unfamiliar ground. Use new/rare locations and characters.${threadContext}`,
+    HLL: `CLOSURE — ${corner.description} Threads wrap up quietly among familiar faces. Tying loose ends, resolving what was left hanging. The aftermath of climactic events. Characters reflect on what happened, relationships settle into new configurations, threads reach terminal statuses.${threadContext}`,
+    LHH: `DISCOVERY — ${corner.description} Characters grow and change while exploring new territory. No payoffs yet but high energy and surprise. World-building, early adventure, open possibility space. Characters discover new places, form first impressions, and build alliances. Use new locations and underused characters.`,
+    LHL: `GROWTH — ${corner.description} Characters develop among familiar faces without plot advancement. Training, bonding, processing events. Internal change without external payoff. Personal insights, skills learned, trust deepening, rivalries softening.`,
+    LLH: `WANDERING — ${corner.description} Contemplative and transitional. Characters in unfamiliar conditions without clear direction. Plant seeds, explore the unknown quietly. Observations, memories surfacing, subtle shifts in how characters see each other. Use new/rare locations.`,
+    LLL: `REST — ${corner.description} Breathing room after intensity. Focus on recovery, character relationships, and subtle foreshadowing. Plant seeds for future conflict. Quiet realizations, overheard details, gentle relationship shifts.`,
   };
 
   return `${cornerDirectives[action]}${trajectoryClause}${vibrancyClause}${balanceClause}${maturityClause}${asymmetryClause}${worldBuildSeed}${objectiveClause}${toneClause}${constraintClause}${directionClause}`;

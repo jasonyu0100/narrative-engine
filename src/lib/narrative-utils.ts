@@ -227,15 +227,19 @@ function computeRawPayoff(scene: Scene): number {
 }
 
 /**
- * Compute raw change for a scene — total mutation count.
+ * Compute raw change for a scene — total mutation + event count.
  *
  * Change = how much characters learn, change, and are affected.
- * Every mutation (thread touch, knowledge gain/loss, relationship shift) counts.
+ * Every mutation (thread touch, knowledge gain/loss, relationship shift) counts,
+ * plus events contribute at half weight (they represent narrative happenings
+ * that don't structurally alter character state but signal momentum).
  */
 function rawChange(scene: Scene): number {
+  const eventWeight = (scene.events?.length ?? 0) * 0.5;
   return scene.threadMutations.length
     + scene.knowledgeMutations.length
-    + scene.relationshipMutations.length;
+    + scene.relationshipMutations.length
+    + eventWeight;
 }
 
 /**
