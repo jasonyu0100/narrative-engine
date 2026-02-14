@@ -87,7 +87,8 @@ function JobDetail({ job, onBack }: { job: AnalysisJob; onBack: () => void }) {
 
   const completedChunks = liveJob.results.filter((r) => r !== null).length;
   const totalChunks = liveJob.chunks.length;
-  const isAssembling = completedChunks === totalChunks && liveJob.status === 'running';
+  const isReconciling = completedChunks === totalChunks && liveJob.status === 'running' && !liveJob.narrativeId && streamText.includes('Reconcil');
+  const isAssembling = completedChunks === totalChunks && liveJob.status === 'running' && !isReconciling;
 
   const completed = liveJob.results.filter((r): r is AnalysisChunkResult => r !== null);
   const charCount = new Set(completed.flatMap((r) => r.characters.map((c) => c.name))).size;
@@ -137,10 +138,11 @@ function JobDetail({ job, onBack }: { job: AnalysisJob; onBack: () => void }) {
             <h2 className="text-sm font-semibold text-white/90 truncate">{liveJob.title}</h2>
             <span className="text-[9px] text-white/20 font-mono shrink-0">
               {isAssembling ? 'assembling...'
+                : isReconciling ? 'reconciling...'
                 : liveJob.status === 'completed' ? 'complete'
                 : liveJob.status === 'failed' ? 'failed'
                 : liveJob.status === 'paused' ? 'paused'
-                : isRunning ? `chunk ${Math.min(liveJob.currentChunkIndex + 1, totalChunks)}/${totalChunks}`
+                : isRunning ? `extracting ${completedChunks}/${totalChunks}`
                 : 'pending'}
             </span>
           </div>
@@ -208,7 +210,9 @@ function JobDetail({ job, onBack }: { job: AnalysisJob; onBack: () => void }) {
                         <div key={i} className="w-2 h-2 rounded-full bg-change/30" style={{ animation: `pulse 1.4s ease-in-out ${i * 0.2}s infinite` }} />
                       ))}
                     </div>
-                    <p className="text-white/12 text-xs font-mono">Extracting entities...</p>
+                    <p className="text-white/12 text-xs font-mono">
+                      {isReconciling ? 'Reconciling entities...' : isAssembling ? 'Assembling narrative...' : 'Extracting entities in parallel...'}
+                    </p>
                   </>
                 ) : liveJob.status === 'completed' ? (
                   <p className="text-white/20 text-sm">Analysis complete — no entities extracted</p>
@@ -261,23 +265,70 @@ function JobDetail({ job, onBack }: { job: AnalysisJob; onBack: () => void }) {
           )}
         </div>
 
-        {/* LLM Stream — right column */}
-        {streamText && (
-          <div className="w-80 shrink-0 border-l border-white/6 bg-black/40 flex flex-col min-h-0">
+        {/* Right column — batch status during extraction, LLM stream during reconciliation/assembly */}
+        {(isRunning || streamText) && (
+          <div className="w-72 shrink-0 border-l border-white/6 bg-black/40 flex flex-col min-h-0">
+            {/* Header */}
             <div className="px-3 py-2 flex items-center gap-2 border-b border-white/4 shrink-0">
-              <div className="w-1.5 h-1.5 rounded-full bg-change animate-pulse" />
+              <div className={`w-1.5 h-1.5 rounded-full ${isReconciling ? 'bg-sky-400' : isAssembling ? 'bg-amber-400' : 'bg-change'} animate-pulse`} />
               <span className="text-[9px] text-white/25 font-mono uppercase tracking-wider">
-                Chunk {liveJob.currentChunkIndex + 1}
+                {isReconciling ? 'Reconciliation' : isAssembling ? 'Assembly' : `Extraction`}
               </span>
-              <span className="text-[9px] text-white/10 font-mono ml-auto">{streamText.length.toLocaleString()}</span>
+              {!isReconciling && !isAssembling && (
+                <span className="text-[9px] text-white/10 font-mono ml-auto">{completedChunks}/{totalChunks}</span>
+              )}
             </div>
-            <pre
-              ref={streamRef}
-              className="flex-1 text-[10px] text-white/20 font-mono px-3 py-2 overflow-y-auto leading-relaxed whitespace-pre-wrap break-all"
-              style={{ scrollbarWidth: 'thin' }}
-            >
-              {streamText}
-            </pre>
+
+            {/* Extraction phase: compact batch grid */}
+            {!isReconciling && !isAssembling ? (
+              <div className="flex-1 overflow-y-auto px-3 py-3" style={{ scrollbarWidth: 'thin' }}>
+                <div className="grid grid-cols-2 gap-1.5">
+                  {liveJob.chunks.map((_, i) => {
+                    const done = liveJob.results[i] !== null;
+                    const inFlight = !done && isRunning;
+                    const result = liveJob.results[i] as AnalysisChunkResult | null;
+                    return (
+                      <div
+                        key={i}
+                        className={`flex items-center gap-2 px-2 py-1.5 rounded text-[10px] font-mono transition-all ${
+                          done ? 'bg-emerald-500/8' : inFlight ? 'bg-change/8' : 'bg-white/2'
+                        }`}
+                      >
+                        {inFlight ? (
+                          <svg className="w-3 h-3 text-change/50 animate-spin shrink-0" viewBox="0 0 24 24" fill="none">
+                            <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="2.5" opacity="0.2" />
+                            <path d="M12 2a10 10 0 0 1 10 10" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" />
+                          </svg>
+                        ) : done ? (
+                          <svg className="w-3 h-3 text-emerald-400/50 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                            <polyline points="20 6 9 17 4 12" />
+                          </svg>
+                        ) : (
+                          <div className="w-3 h-3 rounded-full border border-white/8 shrink-0" />
+                        )}
+                        <span className={done ? 'text-emerald-400/40' : inFlight ? 'text-change/40' : 'text-white/10'}>
+                          {i + 1}
+                        </span>
+                        {done && result && (
+                          <span className="text-white/15 ml-auto text-[8px]">
+                            {result.characters?.length ?? 0}c {result.scenes?.length ?? 0}s
+                          </span>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            ) : (
+              /* Reconciliation / Assembly phase: show LLM stream */
+              <pre
+                ref={streamRef}
+                className="flex-1 text-[10px] text-white/20 font-mono px-3 py-2 overflow-y-auto leading-relaxed whitespace-pre-wrap break-all"
+                style={{ scrollbarWidth: 'thin' }}
+              >
+                {streamText}
+              </pre>
+            )}
           </div>
         )}
       </div>
@@ -353,8 +404,30 @@ function JobDetail({ job, onBack }: { job: AnalysisJob; onBack: () => void }) {
         );
       })()}
 
-      {/* ── Bottom: Chunk timeline — always visible ── */}
+      {/* ── Bottom: Phase indicator + Chunk timeline — always visible ── */}
       <div className="shrink-0 border-t border-white/6 bg-black/25 px-6 py-3">
+        {/* Phase progress bar */}
+        {isRunning && (
+          <div className="flex items-center gap-3 mb-2.5">
+            {[
+              { label: 'Extract', active: !isReconciling && !isAssembling, done: completedChunks === totalChunks, color: 'bg-change' },
+              { label: 'Reconcile', active: isReconciling, done: isAssembling, color: 'bg-sky-400' },
+              { label: 'Assemble', active: isAssembling, done: liveJob.status === 'completed', color: 'bg-amber-400' },
+            ].map((phase, pi) => (
+              <div key={phase.label} className="flex items-center gap-1.5">
+                {pi > 0 && <div className="w-4 h-px bg-white/6" />}
+                <div className={`w-1.5 h-1.5 rounded-full transition-all ${
+                  phase.active ? `${phase.color} animate-pulse` : phase.done ? 'bg-emerald-400' : 'bg-white/8'
+                }`} />
+                <span className={`text-[9px] font-mono uppercase tracking-wider transition ${
+                  phase.active ? 'text-white/50' : phase.done ? 'text-emerald-400/40' : 'text-white/10'
+                }`}>
+                  {phase.label}
+                </span>
+              </div>
+            ))}
+          </div>
+        )}
         <div className="flex items-center gap-2 mb-2">
           <span className="text-[9px] text-white/20 font-mono uppercase tracking-wider">Chunks</span>
           <span className="text-[9px] text-white/10 font-mono">{completedChunks} / {totalChunks}</span>
@@ -363,7 +436,7 @@ function JobDetail({ job, onBack }: { job: AnalysisJob; onBack: () => void }) {
           <div className="flex items-center gap-1">
             {liveJob.chunks.map((_, i) => {
               const done = liveJob.results[i] !== null;
-              const isCurrent = i === liveJob.currentChunkIndex && isRunning;
+              const isInFlight = !done && isRunning && !isReconciling && !isAssembling;
               const isSelected = selectedChunk === i;
               const result = liveJob.results[i] as AnalysisChunkResult | null;
               return (
@@ -376,19 +449,26 @@ function JobDetail({ job, onBack }: { job: AnalysisJob; onBack: () => void }) {
                       ? 'bg-white/15 ring-1 ring-white/30 scale-[1.08]'
                       : done
                         ? 'bg-emerald-500/20 hover:bg-emerald-500/35'
-                        : isCurrent
-                          ? 'bg-change/20 animate-pulse'
+                        : isInFlight
+                          ? 'bg-change/10 ring-1 ring-change/20'
                           : 'bg-white/[0.03]'
                   } ${done ? 'cursor-pointer' : 'cursor-default'}`}
                   title={result
                     ? `Chunk ${i + 1}: ${result.characters?.length ?? 0} chars, ${result.scenes?.length ?? 0} scenes, ${result.threads?.length ?? 0} threads`
-                    : isCurrent ? `Chunk ${i + 1}: processing...` : `Chunk ${i + 1}: pending`}
+                    : isInFlight ? `Chunk ${i + 1}: extracting...` : `Chunk ${i + 1}: pending`}
                 >
-                  <span className={`text-[10px] font-mono absolute inset-0 flex items-center justify-center transition ${
-                    isSelected ? 'text-white/80 font-semibold' : done ? 'text-emerald-400/50 group-hover:text-emerald-400/80' : isCurrent ? 'text-change/50' : 'text-white/8'
-                  }`}>
-                    {i + 1}
-                  </span>
+                  {isInFlight ? (
+                    <svg className="absolute inset-0 m-auto w-4 h-4 text-change/60 animate-spin" viewBox="0 0 24 24" fill="none">
+                      <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="2" opacity="0.2" />
+                      <path d="M12 2a10 10 0 0 1 10 10" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+                    </svg>
+                  ) : (
+                    <span className={`text-[10px] font-mono absolute inset-0 flex items-center justify-center transition ${
+                      isSelected ? 'text-white/80 font-semibold' : done ? 'text-emerald-400/50 group-hover:text-emerald-400/80' : 'text-white/8'
+                    }`}>
+                      {i + 1}
+                    </span>
+                  )}
                 </button>
               );
             })}
@@ -505,7 +585,7 @@ function NewJobSetup({ sourceText, onCreated }: { sourceText: string; onCreated:
         </div>
 
         <div className="text-[11px] text-white/25 leading-relaxed">
-          The text will be split into {chunks.length} chunks and analyzed sequentially. Each chunk extracts characters, locations, threads, scenes, relationships, and prose. The final result is a complete narrative with rules and image style.
+          The text will be split into {chunks.length} chunks and analyzed in parallel. Each chunk independently extracts characters, locations, threads, scenes, and relationships, then a reconciliation pass merges duplicates and stitches thread continuity.
         </div>
 
         <div className="flex gap-2">

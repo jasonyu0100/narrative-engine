@@ -440,6 +440,329 @@ KNOWLEDGE MUTATIONS:
   return parsed;
 }
 
+// ── Parallel Chunk Analysis (Phase 1) ────────────────────────────────────────
+
+/**
+ * Analyze a single chunk WITHOUT cumulative context — designed for parallel execution.
+ * Each chunk independently extracts characters, locations, scenes, threads, and relationships.
+ */
+export async function analyzeChunkParallel(
+  chunkText: string,
+  chunkIndex: number,
+  totalChunks: number,
+  onToken?: (token: string, accumulated: string) => void,
+): Promise<AnalysisChunkResult> {
+  const sections = splitIntoSections(chunkText);
+  const numbered = sections.map((s, i) => `[SECTION ${i + 1}]\n${s}`).join('\n\n');
+
+  const systemPrompt = `You are a narrative simulation engine that extracts structured scene data from text for an interactive storytelling system.
+You must ALWAYS respond with valid JSON only — no markdown, no explanation, no code fences.
+
+The narrative engine tracks:
+- Characters with roles (anchor = central, recurring = frequent, transient = minor) and knowledge graphs
+- Locations with parent-child hierarchy and lore/secrets
+- Narrative threads — ongoing tensions that evolve: ${THREAD_ACTIVE_STATUSES.join(' → ')} → ${THREAD_TERMINAL_STATUSES.join('/')}
+- Scenes with POV character, events, thread mutations, knowledge mutations, and relationship mutations
+- Relationships — directional with sentiment valence (-1 to 1) and descriptive type
+
+CHARACTERS: Only extract PEOPLE who speak, act, or are spoken about as individuals. Do NOT include animals, objects, institutions, publications, textbook authors mentioned only in passing, or named items. Use a single canonical name per character — pick the most common form used in this chunk.
+
+THREADS: Threads are DISTINCT narrative tensions that drive the story forward. Each must pass TWO tests:
+1. "Does this create tension that makes the reader want to know what happens next?"
+2. "Is this genuinely different from every other thread I've listed?" — if two threads describe the same underlying tension, MERGE them into one.
+Categories:
+- Plot: mysteries, quests, dangers, conspiracies
+- Character: internal conflicts, secrets, desires vs. duty
+- Relationship: rivalries, alliances under strain, trust being tested
+Do NOT extract: world-building facts, character traits, setting details, or observations that create no narrative tension.
+Fewer, sharper threads are better than many overlapping ones.
+
+This is chunk ${chunkIndex + 1} of ${totalChunks}. Analyze it IN ISOLATION — do not assume knowledge of other chunks.
+For thread statuses, use your best judgment based on what you see in THIS chunk alone:
+- "dormant" if a thread is hinted at but not yet active
+- "active" if it's in play
+- "escalating" if tension is rising
+- "critical" if it's at a breaking point
+- "resolved"/"subverted"/"abandoned" if it concludes in this chunk
+
+Knowledge types must be SPECIFIC and CONTEXTUAL — not generic labels like "knows" or "secret". Use types that describe exactly what kind of knowledge: "social_observation", "class_awareness", "romantic_longing", "moral_judgment", "hidden_wealth_source", "past_betrayal", "forbidden_desire", "strategic_deception", etc.
+
+Be thorough with narrative developments, but selective with characters — quality over quantity.`;
+
+  const prompt = `Analyze this text chunk and extract all narrative elements.
+
+=== CHUNK ${chunkIndex + 1} of ${totalChunks} TEXT (${sections.length} sections) ===
+${numbered}
+
+Return a single JSON object with this exact structure:
+{
+  "chapterSummary": "2-3 sentence summary of key events and thematic significance",
+  "characters": [
+    {
+      "name": "Full Name",
+      "role": "anchor|recurring|transient",
+      "firstAppearance": true/false,
+      "knowledge": [
+        { "type": "specific_contextual_type", "content": "What they learn, reveal, or demonstrate in THIS chunk" }
+      ]
+    }
+  ],
+  "locations": [
+    { "name": "Location Name", "parentName": "Parent Location or null", "description": "Brief atmospheric description", "lore": ["Notable detail or significance"] }
+  ],
+  "threads": [
+    {
+      "description": "The narrative question or tension",
+      "anchorNames": ["Character or location names this thread is anchored to"],
+      "statusAtStart": "status at chunk start",
+      "statusAtEnd": "status at chunk end",
+      "development": "How this thread developed in this chunk"
+    }
+  ],
+  "scenes": [
+    {
+      "locationName": "Where it happens",
+      "povName": "Name of the POV character for this scene",
+      "participantNames": ["Who is present"],
+      "events": ["short_event_tag_1", "short_event_tag_2"],
+      "summary": "2-4 sentence vivid summary in present tense, literary style.",
+      "sections": [1, 2, 3],
+      "threadMutations": [
+        { "threadDescription": "exact thread description", "from": "status", "to": "status" }
+      ],
+      "knowledgeMutations": [
+        { "characterName": "Name", "action": "added", "content": "What they learned", "type": "specific_contextual_type" }
+      ],
+      "relationshipMutations": [
+        { "from": "Name", "to": "Name", "type": "Description of relationship shift", "valenceDelta": -0.3 }
+      ]
+    }
+  ],
+  "relationships": [
+    { "from": "Name", "to": "Name", "type": "Descriptive relationship", "valence": -1 to 1 }
+  ]
+}
+
+RULES:
+- Break the chunk into 2-5 distinct scenes based on location shifts, time jumps, or major tonal changes
+- Every scene MUST have a non-empty "summary", at least one event tag, and a "povName"
+- "sections" is an array of section numbers (1-indexed) that this scene covers. Together, all scenes should cover all ${sections.length} sections.
+
+THREAD LIFECYCLE:
+- Active statuses: ${THREAD_ACTIVE_STATUSES.map((s: string) => `"${s}"`).join(', ')}
+- Terminal statuses: ${THREAD_TERMINAL_STATUSES.map((s: string) => `"${s}" (${THREAD_STATUS_LABELS[s]})`).join(', ')}
+
+KNOWLEDGE MUTATIONS:
+- Track INFORMATION ASYMMETRY — what one character knows that others don't
+- Each entry should pass the test: "Would the story change if this character didn't know this?"`;
+
+  const raw = await callAnalysis(prompt, systemPrompt, onToken);
+  const json = extractJSON(raw);
+  let parsed: AnalysisChunkResult;
+  try {
+    parsed = JSON.parse(json) as AnalysisChunkResult;
+  } catch {
+    const repaired = json
+      .replace(/[\u201C\u201D]/g, '"')
+      .replace(/[\u2018\u2019]/g, "'")
+      .replace(/[\x00-\x1F\x7F]/g, (ch) => ch === '\n' || ch === '\t' ? ch : '');
+    parsed = JSON.parse(repaired) as AnalysisChunkResult;
+  }
+
+  for (const scene of parsed.scenes ?? []) {
+    const sectionNums: number[] = scene.sections ?? [];
+    scene.prose = sectionNums
+      .filter((n) => n >= 1 && n <= sections.length)
+      .sort((a, b) => a - b)
+      .map((n) => sections[n - 1])
+      .join('\n\n');
+  }
+
+  return parsed;
+}
+
+// ── Reconciliation (Phase 2) ─────────────────────────────────────────────────
+
+type CharacterNameMap = Record<string, string>; // variant → canonical
+
+/**
+ * Reconcile independently-extracted chunk results:
+ * - Merge character name variants into canonical names
+ * - Stitch thread continuity across chunks (connect same threads, fix status chains)
+ * - Deduplicate locations
+ */
+export async function reconcileResults(
+  results: AnalysisChunkResult[],
+  onToken?: (token: string, accumulated: string) => void,
+): Promise<AnalysisChunkResult[]> {
+  // Collect all unique names and thread descriptions across chunks
+  const allCharNames = new Set<string>();
+  const allThreadDescs = new Set<string>();
+  const allLocNames = new Set<string>();
+
+  for (const r of results) {
+    for (const c of r.characters ?? []) allCharNames.add(c.name);
+    for (const t of r.threads ?? []) allThreadDescs.add(t.description);
+    for (const l of r.locations ?? []) allLocNames.add(l.name);
+  }
+
+  // Ask LLM to identify duplicates and merge them
+  const reconciliationPrompt = `You are reconciling narrative data extracted independently from ${results.length} chunks of the same story.
+Different chunks may refer to the same character, thread, or location using different names or descriptions.
+
+CHARACTERS found across all chunks:
+${[...allCharNames].map((n, i) => `${i + 1}. "${n}"`).join('\n')}
+
+THREADS found across all chunks:
+${[...allThreadDescs].map((d, i) => `${i + 1}. "${d}"`).join('\n')}
+
+LOCATIONS found across all chunks:
+${[...allLocNames].map((n, i) => `${i + 1}. "${n}"`).join('\n')}
+
+Identify duplicates and produce merge maps. For each group of duplicates, pick the BEST canonical name/description.
+
+Return JSON:
+{
+  "characterMerges": {
+    "variant name": "canonical name",
+    "another variant": "canonical name"
+  },
+  "threadMerges": {
+    "variant thread description": "canonical thread description",
+    "another variant": "canonical description"
+  },
+  "locationMerges": {
+    "variant location name": "canonical location name"
+  }
+}
+
+RULES:
+- Only include entries where the variant differs from the canonical (i.e., actual merges needed)
+- If a name appears in multiple chunks with identical spelling, do NOT include it — it's already consistent
+- For characters, merge name variants like "Professor McGonagall" / "Minerva McGonagall" / "McGonagall"
+- For threads, merge descriptions that describe the SAME underlying narrative tension
+- For locations, merge different names for the same place
+- If there are no duplicates for a category, return an empty object {}`;
+
+  const reconciliationSystem = `You are a data reconciliation engine. Identify and merge duplicate entities from independently-extracted narrative data. Return only valid JSON.`;
+
+  const raw = await callAnalysis(reconciliationPrompt, reconciliationSystem, onToken);
+  const json = extractJSON(raw);
+  let merges: { characterMerges: CharacterNameMap; threadMerges: Record<string, string>; locationMerges: Record<string, string> };
+  try {
+    merges = JSON.parse(json);
+  } catch {
+    const repaired = json
+      .replace(/[\u201C\u201D]/g, '"')
+      .replace(/[\u2018\u2019]/g, "'")
+      .replace(/[\x00-\x1F\x7F]/g, (ch) => ch === '\n' || ch === '\t' ? ch : '');
+    merges = JSON.parse(repaired);
+  }
+
+  const charMap = merges.characterMerges ?? {};
+  const threadMap = merges.threadMerges ?? {};
+  const locMap = merges.locationMerges ?? {};
+
+  const resolveChar = (name: string) => charMap[name] ?? name;
+  const resolveThread = (desc: string) => threadMap[desc] ?? desc;
+  const resolveLoc = (name: string) => locMap[name] ?? name;
+
+  // Apply merges to all results
+  const reconciled: AnalysisChunkResult[] = results.map((r) => ({
+    ...r,
+    characters: deduplicateBy(
+      (r.characters ?? []).map((c) => ({
+        ...c,
+        name: resolveChar(c.name),
+        knowledge: c.knowledge ?? [],
+      })),
+      (c) => c.name,
+      (a, b) => ({
+        ...a,
+        knowledge: [...a.knowledge, ...b.knowledge],
+        role: higherRole(a.role, b.role),
+      }),
+    ),
+    locations: deduplicateBy(
+      (r.locations ?? []).map((l) => ({
+        ...l,
+        name: resolveLoc(l.name),
+        parentName: l.parentName ? resolveLoc(l.parentName) : null,
+      })),
+      (l) => l.name,
+      (a, b) => ({ ...a, lore: [...(a.lore ?? []), ...(b.lore ?? [])] }),
+    ),
+    threads: deduplicateBy(
+      (r.threads ?? []).map((t) => ({
+        ...t,
+        description: resolveThread(t.description),
+        anchorNames: t.anchorNames.map(resolveChar),
+      })),
+      (t) => t.description,
+      (a, b) => ({ ...a, statusAtEnd: b.statusAtEnd, development: `${a.development}; ${b.development}` }),
+    ),
+    scenes: (r.scenes ?? []).map((s) => ({
+      ...s,
+      povName: resolveChar(s.povName),
+      locationName: resolveLoc(s.locationName),
+      participantNames: [...new Set(s.participantNames.map(resolveChar))],
+      threadMutations: (s.threadMutations ?? []).map((tm) => ({
+        ...tm,
+        threadDescription: resolveThread(tm.threadDescription),
+      })),
+      knowledgeMutations: (s.knowledgeMutations ?? []).map((km) => ({
+        ...km,
+        characterName: resolveChar(km.characterName),
+      })),
+      relationshipMutations: (s.relationshipMutations ?? []).map((rm) => ({
+        ...rm,
+        from: resolveChar(rm.from),
+        to: resolveChar(rm.to),
+      })),
+    })),
+    relationships: deduplicateBy(
+      (r.relationships ?? []).map((rel) => ({
+        ...rel,
+        from: resolveChar(rel.from),
+        to: resolveChar(rel.to),
+      })),
+      (rel) => `${rel.from}→${rel.to}`,
+      (a, b) => ({ ...a, valence: b.valence }), // keep later valence
+    ),
+  }));
+
+  // Stitch thread continuity: ensure statusAtStart of chunk N+1 matches statusAtEnd of chunk N
+  const threadStatusTracker: Record<string, string> = {};
+  for (const r of reconciled) {
+    for (const t of r.threads) {
+      if (threadStatusTracker[t.description]) {
+        t.statusAtStart = threadStatusTracker[t.description];
+      }
+      threadStatusTracker[t.description] = t.statusAtEnd;
+    }
+  }
+
+  return reconciled;
+}
+
+function higherRole(a: string, b: string): string {
+  const rank: Record<string, number> = { transient: 0, recurring: 1, anchor: 2 };
+  return (rank[b] ?? 0) > (rank[a] ?? 0) ? b : a;
+}
+
+function deduplicateBy<T>(items: T[], key: (item: T) => string, merge: (existing: T, incoming: T) => T): T[] {
+  const map = new Map<string, T>();
+  for (const item of items) {
+    const k = key(item);
+    if (map.has(k)) {
+      map.set(k, merge(map.get(k)!, item));
+    } else {
+      map.set(k, item);
+    }
+  }
+  return [...map.values()];
+}
+
 // ── Assemble Narrative ───────────────────────────────────────────────────────
 
 export async function assembleNarrative(
