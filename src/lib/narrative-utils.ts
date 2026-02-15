@@ -227,19 +227,40 @@ function computeRawPayoff(scene: Scene): number {
 }
 
 /**
- * Compute raw change for a scene — total mutation + event count.
+ * Compute raw change for a scene combining mutation reach and knowledge turbulence.
  *
- * Change = how much characters learn, change, and are affected.
- * Every mutation (thread touch, knowledge gain/loss, relationship shift) counts,
- * plus events contribute at half weight (they represent narrative happenings
- * that don't structurally alter character state but signal momentum).
+ * Unbounded positive value — scenes affecting more characters more deeply score higher:
+ * - **Mutation reach**: sum of log₂(1 + mutations) per affected character.
+ *   Captures both breadth (how many characters changed) and depth (how much each changed),
+ *   with diminishing returns so one character with 8 mutations ≈ three with 1 each.
+ * - **Knowledge turbulence**: (knowledgeMutations / castSize) × log₂(1 + charsWithKnowledge),
+ *   scaled by cast size. Rewards both volume and spread of knowledge shifts —
+ *   4 mutations spread across 3 characters scores higher than 4 on one character.
  */
 function rawChange(scene: Scene): number {
-  const eventWeight = (scene.events?.length ?? 0) * 0.5;
-  return scene.threadMutations.length
-    + scene.knowledgeMutations.length
-    + scene.relationshipMutations.length
-    + eventWeight;
+  // Mutation reach: count mutations per character, then sum log₂(1 + count)
+  const charMutations: Record<string, number> = {};
+  for (const km of scene.knowledgeMutations) {
+    charMutations[km.characterId] = (charMutations[km.characterId] ?? 0) + 1;
+  }
+  for (const rm of scene.relationshipMutations) {
+    charMutations[rm.from] = (charMutations[rm.from] ?? 0) + 1;
+    charMutations[rm.to] = (charMutations[rm.to] ?? 0) + 1;
+  }
+  // Thread mutations affect the scene broadly — attribute to POV character
+  for (const _tm of scene.threadMutations) {
+    charMutations[scene.povId] = (charMutations[scene.povId] ?? 0) + 1;
+  }
+  const mutationReach = Object.values(charMutations).reduce(
+    (sum, count) => sum + Math.log2(1 + count), 0
+  );
+
+  // Knowledge turbulence: volume × spread, scaled by cast size
+  const castSize = Math.max(scene.participantIds.length, 1);
+  const charsWithKnowledge = new Set(scene.knowledgeMutations.map(km => km.characterId));
+  const turbulence = (scene.knowledgeMutations.length / castSize) * Math.log2(1 + charsWithKnowledge.size);
+
+  return mutationReach + turbulence * castSize;
 }
 
 /**
@@ -292,7 +313,7 @@ function rawVariety(scene: Scene, charUsage: Record<string, number>, locUsage: R
  * 0 = average moment; positive = above average; negative = below average (units of std deviation).
  *
  * - **Payoff**: phase transitions — thread status changes (weighted by jump magnitude) and relationship valence shifts
- * - **Change**: mutation volume — how much characters learn, change, and are affected (total mutation count)
+ * - **Change**: combines mutation reach (log₂ depth per affected character) and knowledge turbulence (fraction of cast with knowledge shifts, scaled by cast size)
  * - **Variety**: combines entity freshness (participant/location usage) and compositional novelty (Jaccard distance of cast vs prior casts)
  *
  * @param scenes - Ordered list of scenes to compute forces for
@@ -428,4 +449,83 @@ export function computeWindowedForces(
     windowStart: start,
     windowEnd: end,
   };
+}
+
+// ── Scorecard Grading ────────────────────────────────────────────────────────
+
+export type ForceGrades = {
+  payoff: number;
+  change: number;
+  variety: number;
+  balance: number;
+  overall: number;
+};
+
+const avg = (arr: number[]) => arr.length > 0 ? arr.reduce((s, v) => s + v, 0) / arr.length : 0;
+
+const stddev = (arr: number[]) => {
+  if (arr.length < 2) return 0;
+  const m = avg(arr);
+  return Math.sqrt(arr.reduce((s, v) => s + (v - m) ** 2, 0) / arr.length);
+};
+
+/** Grade a force average 0-25 using exponential saturation */
+function gradeForce(a: number, midpoint: number): number {
+  return Math.min(25, 25 * (1 - Math.exp(-Math.max(0, a) / midpoint)));
+}
+
+/** Consistency factor: 1/(1+CV). Flat curves → 1.0, high variance → penalized toward 0. */
+function consistency(arr: number[]): number {
+  const m = avg(arr);
+  if (m <= 0) return 1;
+  return 1 / (1 + stddev(arr) / m);
+}
+
+/** Average of top 10% values (at least 1) */
+function topAvg(arr: number[]): number {
+  const sorted = [...arr].sort((a, b) => b - a);
+  const k = Math.max(1, Math.ceil(sorted.length * 0.1));
+  return avg(sorted.slice(0, k));
+}
+
+/**
+ * Compute force grades (0-25 each, 0-100 overall) from raw force value arrays.
+ * Individual forces are graded purely by average with exponential saturation.
+ * Overall is the straight sum of force grades.
+ */
+export function gradeForces(
+  payoff: number[],
+  change: number[],
+  variety: number[],
+  balance: number[],
+): ForceGrades {
+  const balanceEffective = avg(balance) * 0.5 + topAvg(balance) * 0.5;
+
+  const payoffGrade = gradeForce(avg(payoff), 3);
+  const changeGrade = gradeForce(avg(change), 7);
+  const varietyGrade = gradeForce(avg(variety), 3);
+  const balanceGrade = gradeForce(balanceEffective, 8);
+
+  return {
+    payoff: Math.round(payoffGrade),
+    change: Math.round(changeGrade),
+    variety: Math.round(varietyGrade),
+    balance: Math.round(balanceGrade),
+    overall: Math.round(payoffGrade + changeGrade + varietyGrade + balanceGrade),
+  };
+}
+
+/**
+ * Compute a consistency modifier from arc-level overall grades.
+ * Measures how consistently the story maintains quality across arcs.
+ * Returns a multiplier in [0.75, 1.0] — can reduce score by at most 25%.
+ *
+ * Uses 1/(1+CV) where CV = stddev/mean (coefficient of variation).
+ * All arcs scoring ~70 → CV ≈ 0 → multiplier ≈ 1.0
+ * Arcs swinging 30–90 → high CV → multiplier closer to 0.75
+ */
+export function arcConsistency(arcOveralls: number[]): number {
+  if (arcOveralls.length < 2) return 1;
+  const c = consistency(arcOveralls);
+  return 0.60 + 0.40 * c;
 }

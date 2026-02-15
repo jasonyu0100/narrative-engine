@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useStore } from '@/lib/store';
 import type { NarrativeState } from '@/types/narrative';
 import { resolveEntry, isScene, type Scene } from '@/types/narrative';
-import { computeRawForcetotals, computeBalanceMagnitudes } from '@/lib/narrative-utils';
+import { computeRawForcetotals, computeBalanceMagnitudes, gradeForces, arcConsistency } from '@/lib/narrative-utils';
 import { ApiLogsModal } from '@/components/debug/ApiLogsModal';
 import { StoryReader } from '@/components/story/StoryReader';
 import { CubeExplorer } from '@/components/topbar/CubeExplorer';
@@ -89,13 +89,6 @@ export default function TopBar() {
       const m = avg(arr);
       return Math.sqrt(arr.reduce((s, v) => s + (v - m) ** 2, 0) / arr.length);
     };
-    /** Average of top 10% values (at least 1) — rewards multiple peaks, not just one outlier */
-    const topAvg = (arr: number[]) => {
-      const sorted = [...arr].sort((a, b) => b - a);
-      const k = Math.max(1, Math.ceil(sorted.length * 0.1));
-      return avg(sorted.slice(0, k));
-    };
-
     // Compute balance from raw forces (not z-scored) so absolute force magnitudes
     // differentiate well-crafted narratives from bland AI text
     const rawForces = raw.payoff.map((_, i) => ({
@@ -119,20 +112,8 @@ export default function TopBar() {
       balance: forceStats(balances),
     };
 
-    // Grade each force 0-25 based on avg using exponential saturation curve
-    // 25 * (1 - e^(-avg/midpoint)) — midpoint controls how fast it saturates
-    const gradeForce = (avg: number, midpoint: number) =>
-      Math.min(25, 25 * (1 - Math.exp(-Math.max(0, avg) / midpoint)));
-
-    const payoffGrade = gradeForce(stats.payoff.avg, 3);   // avg ~3 → ~16, avg ~6 → ~22
-    const changeGrade = gradeForce(stats.change.avg, 4);   // avg ~4 → ~16, avg ~8 → ~22
-    const varietyGrade = gradeForce(stats.variety.avg, 3);  // avg ~3 → ~16, avg ~6 → ~22
-    // Balance uses raw force deltas (not z-scored) with top-peaks weighting —
-    // avg of top 10% peaks rewards stories with multiple dramatic moments, not just one outlier
-    const balanceEffective = stats.balance.avg * 0.5 + topAvg(balances) * 0.5;
-    const balanceGrade = gradeForce(balanceEffective, 8);
-
-    const overallGrade = Math.round(payoffGrade + changeGrade + varietyGrade + balanceGrade);
+    // Per-force grades from all scenes (used for display row grades)
+    const seriesGrades = gradeForces(raw.payoff, raw.change, raw.variety, balances);
 
     const arcCount = Object.keys(narrative.arcs).length;
 
@@ -151,38 +132,27 @@ export default function TopBar() {
         const arcVarieties = forceIndices.map((i) => raw.variety[i]);
         const arcBalanceVals = forceIndices.map((i) => balances[i]);
 
-        const arcPayoffGrade = gradeForce(avg(arcPayoffs), 3);
-        const arcChangeGrade = gradeForce(avg(arcChanges), 4);
-        const arcVarietyGrade = gradeForce(avg(arcVarieties), 3);
-        const arcBalanceEffective = avg(arcBalanceVals) * 0.5 + topAvg(arcBalanceVals) * 0.5;
-        const arcBalanceGrade = gradeForce(arcBalanceEffective, 8);
-
         return {
           name: arc.name,
           scenes: forceIndices.length,
-          grades: {
-            payoff: Math.round(arcPayoffGrade),
-            change: Math.round(arcChangeGrade),
-            variety: Math.round(arcVarietyGrade),
-            balance: Math.round(arcBalanceGrade),
-            overall: Math.round(arcPayoffGrade + arcChangeGrade + arcVarietyGrade + arcBalanceGrade),
-          },
+          grades: gradeForces(arcPayoffs, arcChanges, arcVarieties, arcBalanceVals),
         };
       })
       .filter((a): a is NonNullable<typeof a> => a !== null);
+
+    // Overall grade: derived from arc grades with consistency modifier.
+    // Consistency of arc-level scores rewards stories that maintain quality across all arcs.
+    const arcOveralls = perArc.map(a => a.grades.overall);
+    const overallGrade = arcOveralls.length > 0
+      ? Math.round(seriesGrades.overall * arcConsistency(arcOveralls))
+      : seriesGrades.overall;
 
     return {
       title: narrative.title,
       scenes: n,
       arcs: arcCount,
       ...stats,
-      grades: {
-        payoff: Math.round(payoffGrade),
-        change: Math.round(changeGrade),
-        variety: Math.round(varietyGrade),
-        balance: Math.round(balanceGrade),
-        overall: overallGrade,
-      },
+      grades: { ...seriesGrades, overall: overallGrade },
       perArc,
     };
   }, [allScenes, narrative]);

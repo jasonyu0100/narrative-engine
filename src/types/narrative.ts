@@ -106,7 +106,7 @@ export type RelationshipMutation = {
 /** Force values are z-score normalized (mean = 0, units = standard deviations).
  *  0 = average moment, positive = above average, negative = below average.
  *  - payoff:  thread phase transitions (weighted by jump magnitude) + relationship valence shifts
- *  - change:  mutation volume — how much characters learn, change, and are affected (total mutation count)
+ *  - change:  mutation reach (log₂ depth per character) + knowledge turbulence (fraction of cast affected, scaled by cast size)
  *  - variety: how novel the cast/setting is — computed from character/location usage frequency + compositional novelty
  */
 export type ForceSnapshot = {

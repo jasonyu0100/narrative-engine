@@ -4,7 +4,7 @@ import { useMemo, useState, useRef, useEffect, useCallback } from 'react';
 import * as d3 from 'd3';
 import { useStore } from '@/lib/store';
 import { resolveEntry, isScene, type Scene, type ForceSnapshot, type CubeCornerKey } from '@/types/narrative';
-import { computeForceSnapshots, computeWindowedForces, computeRawForcetotals, computeBalanceMagnitudes, detectCubeCorner, FORCE_WINDOW_SIZE } from '@/lib/narrative-utils';
+import { computeForceSnapshots, computeWindowedForces, computeRawForcetotals, computeBalanceMagnitudes, detectCubeCorner, gradeForces, FORCE_WINDOW_SIZE } from '@/lib/narrative-utils';
 
 type ForceKey = 'payoff' | 'change' | 'variety' | 'balance';
 
@@ -372,11 +372,6 @@ type ArcZone = {
   grade: number; // 0-100
 };
 
-/** Grade a force average 0-25 using exponential saturation (mirrors scorecard) */
-function gradeForce(avg: number, midpoint: number): number {
-  return Math.min(25, 25 * (1 - Math.exp(-Math.max(0, avg) / midpoint)));
-}
-
 function ZoneBar({
   data,
   arcRegions,
@@ -417,26 +412,12 @@ function ZoneBar({
     }));
     const balances = computeBalanceMagnitudes(rawForces);
 
-    const avg = (arr: number[]) => arr.length > 0 ? arr.reduce((s, v) => s + v, 0) / arr.length : 0;
-    const topAvg = (arr: number[]) => {
-      const sorted = [...arr].sort((a, b) => b - a);
-      const k = Math.max(1, Math.ceil(sorted.length * 0.1));
-      return avg(sorted.slice(0, k));
-    };
-
     return arcRegions.map((arc) => {
       const arcPayoff = raw.payoff.slice(arc.startIndex, arc.endIndex + 1);
       const arcChange = raw.change.slice(arc.startIndex, arc.endIndex + 1);
       const arcVariety = raw.variety.slice(arc.startIndex, arc.endIndex + 1);
       const arcBalance = balances.slice(arc.startIndex, arc.endIndex + 1);
-
-      const arcBalanceEffective = avg(arcBalance) * 0.5 + topAvg(arcBalance) * 0.5;
-      const grade = Math.round(
-        gradeForce(avg(arcPayoff), 3) +
-        gradeForce(avg(arcChange), 4) +
-        gradeForce(avg(arcVariety), 3) +
-        gradeForce(arcBalanceEffective, 8)
-      );
+      const { overall: grade } = gradeForces(arcPayoff, arcChange, arcVariety, arcBalance);
 
       return {
         arcId: arc.arcId,
