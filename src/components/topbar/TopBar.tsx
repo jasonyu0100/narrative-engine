@@ -673,6 +673,7 @@ export default function TopBar() {
         <StoryReader
           narrative={narrative}
           resolvedKeys={state.resolvedSceneKeys}
+          currentSceneIndex={state.currentSceneIndex}
           onClose={() => setStoryOpen(false)}
         />
       )}

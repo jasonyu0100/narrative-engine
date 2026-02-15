@@ -11,10 +11,12 @@ type ProseCache = Record<string, { text: string; status: 'loading' | 'ready' | '
 export function StoryReader({
   narrative,
   resolvedKeys,
+  currentSceneIndex,
   onClose,
 }: {
   narrative: NarrativeState;
   resolvedKeys: string[];
+  currentSceneIndex: number;
   onClose: () => void;
 }) {
   const { dispatch } = useStore();
@@ -22,9 +24,18 @@ export function StoryReader({
     .map((k) => resolveEntry(narrative, k))
     .filter((e): e is Scene => !!e && isScene(e));
 
-  const [currentIndex, setCurrentIndex] = useState(0);
+  // Map the timeline currentSceneIndex to the index within the filtered scenes array
+  const initialIndex = (() => {
+    const currentKey = resolvedKeys[currentSceneIndex];
+    if (!currentKey) return 0;
+    const idx = scenes.findIndex((s) => s.id === currentKey);
+    return idx >= 0 ? idx : 0;
+  })();
+
+  const [currentIndex, setCurrentIndex] = useState(initialIndex);
   const [proseCache, setProseCache] = useState<ProseCache>({});
   const contentRef = useRef<HTMLDivElement>(null);
+  const activeSceneRef = useRef<HTMLButtonElement>(null);
   const [bulkState, setBulkState] = useState<{ running: boolean; completed: number; total: number; errors: number } | null>(null);
   const bulkCancelledRef = useRef(false);
   const [copied, setCopied] = useState(false);
@@ -119,6 +130,11 @@ export function StoryReader({
       setProseCache((prev) => ({ ...prev, [scene.id]: { text: scene.prose!, status: 'ready' } }));
     }
   }, [scene, proseCache]);
+
+  // Scroll sidebar to active scene on mount
+  useEffect(() => {
+    activeSceneRef.current?.scrollIntoView({ block: 'center' });
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Scroll to top when changing scenes
   useEffect(() => {
@@ -280,6 +296,7 @@ export function StoryReader({
             return (
               <button
                 key={s.id}
+                ref={i === currentIndex ? activeSceneRef : undefined}
                 onClick={() => setCurrentIndex(i)}
                 className={`w-full text-left px-4 py-2.5 transition-colors ${
                   i === currentIndex
