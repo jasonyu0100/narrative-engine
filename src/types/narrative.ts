@@ -143,8 +143,8 @@ export const NARRATIVE_CUBE: Record<CubeCornerKey, CubeCorner> = {
   },
   HLH: {
     key: 'HLH',
-    name: 'Twist',
-    description: 'Threads pay off but characters haven\'t changed yet, new elements in play. A twist or revelation that resets the board.',
+    name: 'Reveal',
+    description: 'Threads pay off but characters haven\'t changed yet, new elements in play. A revelation that reshapes the landscape.',
     forces: { payoff: 1, change: -1, variety: 1 },
   },
   HLL: {
