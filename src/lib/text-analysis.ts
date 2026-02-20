@@ -871,8 +871,23 @@ export async function assembleNarrative(
   const arcs: Record<string, Arc> = {};
   const relationshipMap: Record<string, RelationshipEdge> = {};
 
-  for (const ch of results) {
-    // Characters
+  // Deferred knowledge: character/location knowledge extracted per-chunk will be
+  // attributed to the first scene of that chunk so all knowledge flows through
+  // scene mutations (enabling temporal filtering).
+  type DeferredKnowledge = { characterId: string; type: string; content: string };
+  type DeferredLore = { locationId: string; content: string };
+  const chunkDeferredKnowledge: DeferredKnowledge[][] = [];
+  const chunkDeferredLore: DeferredLore[][] = [];
+  // Track globally to deduplicate knowledge across chunks (same content for same entity)
+  const seenCharKnowledge = new Map<string, Set<string>>(); // characterId → set of content
+  const seenLocLore = new Map<string, Set<string>>(); // locationId → set of content
+
+  for (let chunkIdx = 0; chunkIdx < results.length; chunkIdx++) {
+    const ch = results[chunkIdx];
+    const deferredK: DeferredKnowledge[] = [];
+    const deferredL: DeferredLore[] = [];
+
+    // Characters — create entities but defer knowledge to scene mutations
     for (const c of ch.characters ?? []) {
       const id = getCharId(c.name);
       if (!characters[id]) {
@@ -885,18 +900,18 @@ export async function assembleNarrative(
       if ((rank[c.role] ?? 0) > (rank[characters[id].role] ?? 0)) {
         characters[id].role = c.role as Character['role'];
       }
-      // Accumulate knowledge, deduplicating by content
-      const existingKnowledge = new Set(characters[id].knowledge.nodes.map((n) => n.content));
+      // Defer knowledge to first scene of this chunk (deduplicate across chunks)
+      if (!seenCharKnowledge.has(id)) seenCharKnowledge.set(id, new Set());
+      const charSeen = seenCharKnowledge.get(id)!;
       for (const k of c.knowledge ?? []) {
-        if (!existingKnowledge.has(k.content)) {
-          const kId = nextKId();
-          characters[id].knowledge.nodes.push({ id: kId, type: k.type, content: k.content });
-          existingKnowledge.add(k.content);
+        if (!charSeen.has(k.content)) {
+          deferredK.push({ characterId: id, type: k.type, content: k.content });
+          charSeen.add(k.content);
         }
       }
     }
 
-    // Locations
+    // Locations — create entities but defer lore to scene mutations
     for (const loc of ch.locations ?? []) {
       const id = getLocId(loc.name);
       if (!locations[id]) {
@@ -906,16 +921,18 @@ export async function assembleNarrative(
           knowledge: { nodes: [], edges: [] },
         };
       }
-      // Accumulate lore from all chunks, deduplicating by content
-      const existingLore = new Set(locations[id].knowledge.nodes.map((n) => n.content));
+      if (!seenLocLore.has(id)) seenLocLore.set(id, new Set());
+      const locSeen = seenLocLore.get(id)!;
       for (const lore of loc.lore ?? []) {
-        if (!existingLore.has(lore)) {
-          const kId = nextKId();
-          locations[id].knowledge.nodes.push({ id: kId, type: 'lore', content: lore });
-          existingLore.add(lore);
+        if (!locSeen.has(lore)) {
+          deferredL.push({ locationId: id, content: lore });
+          locSeen.add(lore);
         }
       }
     }
+
+    chunkDeferredKnowledge.push(deferredK);
+    chunkDeferredLore.push(deferredL);
 
     // Threads
     for (const t of ch.threads ?? []) {
@@ -984,6 +1001,40 @@ export async function assembleNarrative(
       chScenes.push(scene);
     }
 
+    // Inject deferred character knowledge & location lore into chunk's first scene
+    if (chScenes.length > 0) {
+      const firstScene = chScenes[0];
+      const existingMutContents = new Set(firstScene.knowledgeMutations.map((km) => km.content));
+
+      for (const dk of chunkDeferredKnowledge[chunkIdx]) {
+        if (!existingMutContents.has(dk.content)) {
+          firstScene.knowledgeMutations.push({
+            characterId: dk.characterId,
+            nodeId: nextKId(),
+            action: 'added',
+            content: dk.content,
+            nodeType: dk.type,
+          });
+          existingMutContents.add(dk.content);
+        }
+      }
+
+      // Location lore → attributed to the POV character of the first scene
+      const lorePov = firstScene.povId || firstScene.participantIds[0] || '';
+      for (const dl of chunkDeferredLore[chunkIdx]) {
+        if (lorePov && !existingMutContents.has(dl.content)) {
+          firstScene.knowledgeMutations.push({
+            characterId: lorePov,
+            nodeId: nextKId(),
+            action: 'added',
+            content: dl.content,
+            nodeType: 'lore',
+          });
+          existingMutContents.add(dl.content);
+        }
+      }
+    }
+
     if (chScenes.length > 0) {
       const sceneIds = chScenes.map((s) => s.id);
       const develops = [...new Set(chScenes.flatMap((s) => s.threadMutations.map((tm) => tm.threadId)))];
@@ -1032,8 +1083,43 @@ export async function assembleNarrative(
     }
   }
 
-  // Knowledge edges
+  // Build character & location knowledge graphs from scene mutations (forward replay)
+  // This ensures knowledge.nodes is the final accumulated state and enables temporal filtering.
+  const allSceneKeys = Object.keys(scenes);
+  for (const sKey of allSceneKeys) {
+    const scene = scenes[sKey];
+    for (const km of scene.knowledgeMutations) {
+      const char = characters[km.characterId];
+      if (!char) continue;
+      if (km.action === 'added') {
+        const exists = char.knowledge.nodes.some((n) => n.id === km.nodeId);
+        if (!exists) {
+          char.knowledge.nodes.push({ id: km.nodeId, type: km.nodeType ?? 'knowledge', content: km.content });
+        }
+      } else if (km.action === 'removed') {
+        char.knowledge.nodes = char.knowledge.nodes.filter((n) => n.id !== km.nodeId);
+      }
+    }
+  }
+
+  // Also replay deferred lore onto locations (attributed to POV but stored on location too)
+  for (let ci = 0; ci < results.length; ci++) {
+    const existingLore = new Set<string>();
+    for (const loc of Object.values(locations)) {
+      for (const n of loc.knowledge.nodes) existingLore.add(n.content);
+    }
+    for (const dl of chunkDeferredLore[ci]) {
+      const loc = locations[dl.locationId];
+      if (loc && !existingLore.has(dl.content)) {
+        loc.knowledge.nodes.push({ id: nextKId(), type: 'lore', content: dl.content });
+        existingLore.add(dl.content);
+      }
+    }
+  }
+
+  // Knowledge edges (sequential within each character's graph)
   for (const char of Object.values(characters)) {
+    char.knowledge.edges = [];
     const nodes = char.knowledge.nodes;
     for (let i = 1; i < nodes.length; i++) {
       char.knowledge.edges.push({ from: nodes[i - 1].id, to: nodes[i].id, type: 'develops' });

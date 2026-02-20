@@ -132,7 +132,70 @@ export function branchContext(
   resolvedKeys: string[],
   currentIndex: number,
 ): string {
-  const characters = Object.values(n.characters)
+  // Collect entity IDs referenced in the branch timeline up to current index
+  const keysUpToCurrent = resolvedKeys.slice(0, currentIndex + 1);
+  const referencedCharIds = new Set<string>();
+  const referencedLocIds = new Set<string>();
+  const referencedThreadIds = new Set<string>();
+  for (const k of keysUpToCurrent) {
+    const entry = resolveEntry(n, k);
+    if (!entry) continue;
+    if (entry.kind === 'scene') {
+      referencedCharIds.add(entry.povId);
+      for (const pid of entry.participantIds) referencedCharIds.add(pid);
+      referencedLocIds.add(entry.locationId);
+      for (const tm of entry.threadMutations) referencedThreadIds.add(tm.threadId);
+      for (const km of entry.knowledgeMutations) referencedCharIds.add(km.characterId);
+      for (const rm of entry.relationshipMutations) {
+        referencedCharIds.add(rm.from);
+        referencedCharIds.add(rm.to);
+      }
+      if (entry.characterMovements) {
+        for (const [charId, locId] of Object.entries(entry.characterMovements)) {
+          referencedCharIds.add(charId);
+          referencedLocIds.add(locId);
+        }
+      }
+    } else if (entry.kind === 'world_build') {
+      // Include entities introduced by world builds in the branch timeline
+      for (const cid of entry.expansionManifest.characterIds) referencedCharIds.add(cid);
+      for (const lid of entry.expansionManifest.locationIds) referencedLocIds.add(lid);
+      for (const tid of entry.expansionManifest.threadIds) referencedThreadIds.add(tid);
+    }
+  }
+  // Also include threads that anchor to referenced characters/locations
+  for (const t of Object.values(n.threads)) {
+    if (referencedThreadIds.has(t.id)) continue;
+    for (const anchor of t.anchors) {
+      if ((anchor.type === 'character' && referencedCharIds.has(anchor.id)) ||
+          (anchor.type === 'location' && referencedLocIds.has(anchor.id))) {
+        referencedThreadIds.add(t.id);
+        break;
+      }
+    }
+  }
+  // Include parent locations of referenced locations
+  for (const locId of [...referencedLocIds]) {
+    const loc = n.locations[locId];
+    if (loc?.parentId && n.locations[loc.parentId]) referencedLocIds.add(loc.parentId);
+  }
+
+  // If no scenes exist yet (initial generation), include all entities
+  const hasHistory = referencedCharIds.size > 0 || referencedLocIds.size > 0;
+  const branchCharacters = hasHistory
+    ? Object.values(n.characters).filter((c) => referencedCharIds.has(c.id))
+    : Object.values(n.characters);
+  const branchLocations = hasHistory
+    ? Object.values(n.locations).filter((l) => referencedLocIds.has(l.id))
+    : Object.values(n.locations);
+  const branchThreads = hasHistory
+    ? Object.values(n.threads).filter((t) => referencedThreadIds.has(t.id))
+    : Object.values(n.threads);
+  const branchRelationships = hasHistory
+    ? n.relationships.filter((r) => referencedCharIds.has(r.from) && referencedCharIds.has(r.to))
+    : n.relationships;
+
+  const characters = branchCharacters
     .map((c) => {
       const knowledgeLines = c.knowledge.nodes.map((kn) => `    [${kn.id}] (${kn.type}) ${kn.content}`);
       const edgeLines = c.knowledge.edges.map((e) => `    ${e.from} --(${e.type})--> ${e.to}`);
@@ -142,7 +205,7 @@ export function branchContext(
       return `- ${c.id}: ${c.name} (${c.role})${knowledgeBlock}`;
     })
     .join('\n');
-  const locations = Object.values(n.locations)
+  const locations = branchLocations
     .map((l) => {
       const knowledgeLines = l.knowledge.nodes.map((kn) => `    [${kn.id}] (${kn.type}) ${kn.content}`);
       const edgeLines = l.knowledge.edges.map((e) => `    ${e.from} --(${e.type})--> ${e.to}`);
@@ -153,10 +216,9 @@ export function branchContext(
     })
     .join('\n');
   // Build thread age context from scene history
-  const keysForThreadAge = resolvedKeys.slice(0, currentIndex + 1);
   const threadFirstMutation: Record<string, number> = {};
   const threadMutationCount: Record<string, number> = {};
-  keysForThreadAge.forEach((k, idx) => {
+  keysUpToCurrent.forEach((k, idx) => {
     const scene = n.scenes[k];
     if (!scene) return;
     for (const tm of scene.threadMutations) {
@@ -164,9 +226,9 @@ export function branchContext(
       if (threadFirstMutation[tm.threadId] === undefined) threadFirstMutation[tm.threadId] = idx;
     }
   });
-  const totalScenes = keysForThreadAge.length;
+  const totalScenes = keysUpToCurrent.length;
 
-  const threads = Object.values(n.threads)
+  const threads = branchThreads
     .map((t) => {
       const firstMut = threadFirstMutation[t.id];
       const age = firstMut !== undefined ? totalScenes - firstMut : 0;
@@ -175,16 +237,13 @@ export function branchContext(
       return `- ${t.id}: ${t.description} [${t.status}${ageLabel}]`;
     })
     .join('\n');
-  const relationships = n.relationships
+  const relationships = branchRelationships
     .map((r) => {
       const fromName = n.characters[r.from]?.name ?? r.from;
       const toName = n.characters[r.to]?.name ?? r.to;
       return `- ${r.from} (${fromName}) -> ${r.to} (${toName}): ${r.type} (valence: ${r.valence})`;
     })
     .join('\n');
-
-  // Full scene history up to current index
-  const keysUpToCurrent = resolvedKeys.slice(0, currentIndex + 1);
   const sceneHistory = keysUpToCurrent.map((k, i) => {
     const s = resolveEntry(n, k);
     if (!s) return '';
@@ -204,8 +263,10 @@ export function branchContext(
    ${s.summary}`;
   }).filter(Boolean).join('\n');
 
-  // Arcs context
+  // Arcs context — only arcs with scenes on this branch
+  const branchSceneIds = new Set(keysUpToCurrent.filter((k) => n.scenes[k]));
   const arcs = Object.values(n.arcs)
+    .filter((a) => !hasHistory || a.sceneIds.some((sid) => branchSceneIds.has(sid)))
     .map((a) => `- ${a.id}: "${a.name}" (${a.sceneIds.length} scenes, develops: ${a.develops.join(', ')})`)
     .join('\n');
 
@@ -228,9 +289,9 @@ export function branchContext(
   }).filter(Boolean).join('\n');
 
   // Compact ID lookup — placed last so it's closest to the generation prompt
-  const charIdList = Object.values(n.characters).map((c) => c.id).join(', ');
-  const locIdList = Object.values(n.locations).map((l) => l.id).join(', ');
-  const threadIdList = Object.values(n.threads).map((t) => t.id).join(', ');
+  const charIdList = branchCharacters.map((c) => c.id).join(', ');
+  const locIdList = branchLocations.map((l) => l.id).join(', ');
+  const threadIdList = branchThreads.map((t) => t.id).join(', ');
 
   const rulesBlock = n.rules && n.rules.length > 0
     ? `\nWORLD RULES (these are absolute — every scene MUST obey them):\n${n.rules.map((r, i) => `${i + 1}. ${r}`).join('\n')}\n`

@@ -1,6 +1,7 @@
 'use client';
 
 import { useStore } from '@/lib/store';
+import { getKnowledgeNodesAtScene, getThreadIdsAtScene } from '@/lib/scene-filter';
 import type { KnowledgeNodeType } from '@/types/narrative';
 import { CollapsibleSection } from './CollapsibleSection';
 
@@ -25,13 +26,34 @@ export default function LocationDetail({ locationId }: Props) {
 
   const parent = location.parentId ? narrative.locations[location.parentId] : null;
 
-  // Total scenes at this location
-  const totalSceneCount = state.resolvedSceneKeys
+  const sceneKeysUpToCurrent = state.resolvedSceneKeys.slice(0, state.currentSceneIndex + 1);
+
+  // Knowledge filtered to current scene (location knowledge uses locationId as characterId
+  // in the mutation replay — location-specific knowledge nodes aren't mutated by scenes,
+  // so we pass the locationId and any matching mutations will be respected)
+  const knowledgeNodes = getKnowledgeNodesAtScene(
+    location.knowledge.nodes,
+    locationId,
+    narrative.scenes,
+    state.resolvedSceneKeys,
+    state.currentSceneIndex,
+  );
+
+  // Total scenes at this location up to current scene
+  const totalSceneCount = sceneKeysUpToCurrent
     .filter((k) => narrative.scenes[k]?.locationId === locationId).length;
 
-  // Lifecycle: scenes set at this location, with only location-relevant mutations
+  // Threads filtered to current scene
+  const threadIds = getThreadIdsAtScene(
+    location.threadIds,
+    narrative.threads,
+    state.resolvedSceneKeys,
+    state.currentSceneIndex,
+  );
+
+  // Lifecycle: only scenes up to current scene index
   const locationThreadIds = new Set(location.threadIds);
-  const lifecycle = state.resolvedSceneKeys
+  const lifecycle = sceneKeysUpToCurrent
     .map((k) => narrative.scenes[k])
     .filter((s) => s && s.locationId === locationId)
     .map((s) => ({
@@ -85,10 +107,10 @@ export default function LocationDetail({ locationId }: Props) {
       )}
 
       {/* Knowledge */}
-      {location.knowledge.nodes.length > 0 && (
-        <CollapsibleSection title="Knowledge" count={location.knowledge.nodes.length}>
+      {knowledgeNodes.length > 0 && (
+        <CollapsibleSection title="Knowledge" count={knowledgeNodes.length}>
           <ul className="flex flex-col gap-1">
-            {location.knowledge.nodes.map((node) => (
+            {knowledgeNodes.map((node) => (
               <li key={node.id} className="flex items-start gap-2">
                 <span
                   className={`mt-1 h-2 w-2 shrink-0 rounded-full ${knowledgeDotColors[node.type] ?? 'bg-white/40'}`}
@@ -101,10 +123,10 @@ export default function LocationDetail({ locationId }: Props) {
       )}
 
       {/* Threads */}
-      {location.threadIds.length > 0 && (
-        <CollapsibleSection title="Threads" count={location.threadIds.length}>
+      {threadIds.length > 0 && (
+        <CollapsibleSection title="Threads" count={threadIds.length}>
           <ul className="flex flex-col gap-1">
-            {location.threadIds.map((tid) => (
+            {threadIds.map((tid) => (
               <li key={tid}>
                 <button
                   type="button"

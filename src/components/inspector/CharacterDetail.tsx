@@ -1,6 +1,11 @@
 'use client';
 
 import { useStore } from '@/lib/store';
+import {
+  getKnowledgeNodesAtScene,
+  getRelationshipsAtScene,
+  getThreadIdsAtScene,
+} from '@/lib/scene-filter';
 import type { CharacterRole, KnowledgeNodeType } from '@/types/narrative';
 import { CollapsibleSection } from './CollapsibleSection';
 
@@ -29,12 +34,34 @@ export default function CharacterDetail({ characterId }: Props) {
   const character = narrative.characters[characterId];
   if (!character) return null;
 
-  const relationships = narrative.relationships.filter(
-    (r) => r.from === characterId || r.to === characterId,
+  const sceneKeysUpToCurrent = state.resolvedSceneKeys.slice(0, state.currentSceneIndex + 1);
+
+  // Knowledge filtered to current scene
+  const knowledgeNodes = getKnowledgeNodesAtScene(
+    character.knowledge.nodes,
+    characterId,
+    narrative.scenes,
+    state.resolvedSceneKeys,
+    state.currentSceneIndex,
   );
 
-  // Lifecycle: scenes where this character is involved, with their relevant mutations
-  const lifecycle = state.resolvedSceneKeys
+  // Threads filtered to current scene
+  const threadIds = getThreadIdsAtScene(
+    character.threadIds,
+    narrative.threads,
+    state.resolvedSceneKeys,
+    state.currentSceneIndex,
+  );
+
+  // Relationships filtered + valence adjusted to current scene
+  const relationships = getRelationshipsAtScene(
+    narrative,
+    state.resolvedSceneKeys,
+    state.currentSceneIndex,
+  ).filter((r) => r.from === characterId || r.to === characterId);
+
+  // Lifecycle: only scenes up to current scene index
+  const lifecycle = sceneKeysUpToCurrent
     .map((k) => narrative.scenes[k])
     .filter((s) => s && s.participantIds.includes(characterId))
     .map((s) => ({
@@ -75,10 +102,10 @@ export default function CharacterDetail({ characterId }: Props) {
       </span>
 
       {/* Knowledge */}
-      {character.knowledge.nodes.length > 0 && (
-        <CollapsibleSection title="Knowledge" count={character.knowledge.nodes.length}>
+      {knowledgeNodes.length > 0 && (
+        <CollapsibleSection title="Knowledge" count={knowledgeNodes.length}>
           <ul className="flex flex-col gap-1">
-            {character.knowledge.nodes.map((node) => (
+            {knowledgeNodes.map((node) => (
               <li key={node.id} className="flex items-start gap-2">
                 <span
                   className={`mt-1 h-2 w-2 shrink-0 rounded-full ${knowledgeDotColors[node.type] ?? 'bg-white/40'}`}
@@ -91,10 +118,10 @@ export default function CharacterDetail({ characterId }: Props) {
       )}
 
       {/* Threads */}
-      {character.threadIds.length > 0 && (
-        <CollapsibleSection title="Threads" count={character.threadIds.length}>
+      {threadIds.length > 0 && (
+        <CollapsibleSection title="Threads" count={threadIds.length}>
           <ul className="flex flex-col gap-1">
-            {character.threadIds.map((tid) => (
+            {threadIds.map((tid) => (
               <li key={tid}>
                 <button
                   type="button"

@@ -3,6 +3,7 @@
 import { useRef, useEffect, useCallback, useMemo, useState } from 'react';
 import * as d3 from 'd3';
 import { useStore } from '@/lib/store';
+import { getKnowledgeNodesAtScene, getRelationshipsAtScene } from '@/lib/scene-filter';
 import type {
   Character,
   Location,
@@ -533,6 +534,13 @@ export default function WorldGraph() {
         let filteredLocations: Record<string, Location>;
         let filteredRelationships: RelationshipEdge[];
 
+        // Relationships filtered to current scene (valence + visibility)
+        const sceneRelationships = getRelationshipsAtScene(
+          narrative,
+          resolvedSceneKeys,
+          state.currentSceneIndex,
+        );
+
         if (activeArc) {
           const activeCharIds = new Set(activeArc.activeCharacterIds);
           const activeLocIds = new Set(activeArc.locationIds);
@@ -543,14 +551,14 @@ export default function WorldGraph() {
           filteredLocations = Object.fromEntries(
             Object.entries(narrative.locations).filter(([id]) => activeLocIds.has(id)),
           );
-          filteredRelationships = narrative.relationships.filter(
+          filteredRelationships = sceneRelationships.filter(
             (r) => activeCharIds.has(r.from) && activeCharIds.has(r.to),
           );
 
         } else {
           filteredCharacters = narrative.characters;
           filteredLocations = narrative.locations;
-          filteredRelationships = narrative.relationships;
+          filteredRelationships = sceneRelationships;
         }
 
         const characterPositions = activeArc
@@ -1016,13 +1024,22 @@ export default function WorldGraph() {
     const entity = narrative.characters[selectedKnowledgeEntity] ?? narrative.locations[selectedKnowledgeEntity];
     if (!entity) return;
 
-    const kg = entity.knowledge;
     const eid = entity.id;
     const parentNode = baseNodes.find((n) => n.id === eid);
     if (!parentNode) return;
 
+    // Filter knowledge nodes to only those active at current scene
+    const filteredKgNodes = getKnowledgeNodesAtScene(
+      entity.knowledge.nodes,
+      eid,
+      narrative.scenes,
+      resolvedSceneKeys,
+      state.currentSceneIndex,
+    );
+    const filteredKg = { nodes: filteredKgNodes, edges: entity.knowledge.edges };
+
     // Create knowledge nodes
-    const knowledgeNodes: GraphNode[] = kg.nodes.map((kn) => ({
+    const knowledgeNodes: GraphNode[] = filteredKg.nodes.map((kn) => ({
       id: `k-${eid}-${kn.id}`,
       kind: 'knowledge' as NodeKind,
       label: kn.content,
@@ -1039,7 +1056,7 @@ export default function WorldGraph() {
     const knowledgeNodeMap = new Map(knowledgeNodes.map((n) => [n.id, n]));
     const knowledgeLinks: GraphLink[] = [];
 
-    for (const kn of kg.nodes) {
+    for (const kn of filteredKg.nodes) {
       const target = knowledgeNodeMap.get(`k-${eid}-${kn.id}`);
       if (target) {
         knowledgeLinks.push({
@@ -1051,7 +1068,7 @@ export default function WorldGraph() {
       }
     }
 
-    for (const ke of kg.edges) {
+    for (const ke of filteredKg.edges) {
       const src = knowledgeNodeMap.get(`k-${eid}-${ke.from}`);
       const tgt = knowledgeNodeMap.get(`k-${eid}-${ke.to}`);
       if (src && tgt) {
@@ -1227,7 +1244,7 @@ export default function WorldGraph() {
 
       updateHull();
     });
-  }, [selectedKnowledgeEntity, narrative]);
+  }, [selectedKnowledgeEntity, narrative, resolvedSceneKeys, state.currentSceneIndex]);
 
   // ── Lightweight intra-arc update: character-location links on scene change ──
   useEffect(() => {
