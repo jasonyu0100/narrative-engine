@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useStore } from '@/lib/store';
 import type { NarrativeState } from '@/types/narrative';
 import { resolveEntry, isScene, type Scene } from '@/types/narrative';
-import { computeRawForcetotals, computeBalanceMagnitudes, gradeForces, arcConsistency } from '@/lib/narrative-utils';
+import { computeRawForcetotals, computeBalanceMagnitudes, gradeForces } from '@/lib/narrative-utils';
 import { ApiLogsModal } from '@/components/debug/ApiLogsModal';
 import { StoryReader } from '@/components/story/StoryReader';
 import { CubeExplorer } from '@/components/topbar/CubeExplorer';
@@ -33,6 +33,7 @@ export default function TopBar() {
   const [storyOpen, setStoryOpen] = useState(false);
   const [cubeExplorerOpen, setCubeExplorerOpen] = useState(false);
   const [scorecardOpen, setScorecardOpen] = useState(false);
+  const [hoveredArcIdx, setHoveredArcIdx] = useState<number | null>(null);
   const scorecardRef = useRef<HTMLDivElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -112,9 +113,6 @@ export default function TopBar() {
       balance: forceStats(balances),
     };
 
-    // Per-force grades from all scenes (used for display row grades)
-    const seriesGrades = gradeForces(raw.payoff, raw.change, raw.variety, balances);
-
     const arcCount = Object.keys(narrative.arcs).length;
 
     // Per-arc scores — map each arc's scenes to force-array indices (same as TimelineStrip)
@@ -140,19 +138,16 @@ export default function TopBar() {
       })
       .filter((a): a is NonNullable<typeof a> => a !== null);
 
-    // Overall grade: per-force grades are additive, then consistency modifier
-    // rewards stories that maintain quality across all arcs (0.60–1.0 multiplier).
+    // Series-level grades with arc streak
     const arcOveralls = perArc.map(a => a.grades.overall);
-    const overallGrade = arcOveralls.length > 1
-      ? Math.round(seriesGrades.overall * arcConsistency(arcOveralls))
-      : seriesGrades.overall;
+    const seriesGrades = gradeForces(raw.payoff, raw.change, raw.variety, balances, arcOveralls);
 
     return {
       title: narrative.title,
       scenes: n,
       arcs: arcCount,
       ...stats,
-      grades: { ...seriesGrades, overall: overallGrade },
+      grades: seriesGrades,
       perArc,
     };
   }, [allScenes, narrative]);
@@ -444,15 +439,39 @@ export default function TopBar() {
                       </div>
                       <div className="bg-bg-base p-2 text-center">
                         <span className={`text-[12px] font-mono font-semibold ${
-                          grade >= 23 ? 'text-green-400' :
-                          grade >= 20 ? 'text-lime-400' :
-                          grade >= 18 ? 'text-yellow-400' :
-                          grade >= 15 ? 'text-orange-400' : 'text-red-400'
-                        }`}>{grade}<span className="text-[9px] text-text-dim font-normal">/25</span></span>
+                          grade >= 18 ? 'text-green-400' :
+                          grade >= 16 ? 'text-lime-400' :
+                          grade >= 14 ? 'text-yellow-400' :
+                          grade >= 12 ? 'text-orange-400' : 'text-red-400'
+                        }`}>{grade}<span className="text-[9px] text-text-dim font-normal">/20</span></span>
                       </div>
                     </React.Fragment>
                   );
                 })}
+                {/* Streak row */}
+                <React.Fragment>
+                  <div className="bg-bg-base p-2 flex items-center gap-2">
+                    <div className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: '#a78bfa' }} />
+                    <span className="text-[10px] font-medium" style={{ color: '#a78bfa' }}>Streak</span>
+                  </div>
+                  <div className="bg-bg-base p-2 text-center">
+                    <span className="text-[12px] font-mono text-text-dim">&mdash;</span>
+                  </div>
+                  <div className="bg-bg-base p-2 text-center">
+                    <span className="text-[12px] font-mono text-text-dim">&mdash;</span>
+                  </div>
+                  <div className="bg-bg-base p-2 text-center">
+                    <span className="text-[12px] font-mono text-text-dim">&mdash;</span>
+                  </div>
+                  <div className="bg-bg-base p-2 text-center">
+                    <span className={`text-[12px] font-mono font-semibold ${
+                      scorecard.grades.streak >= 18 ? 'text-green-400' :
+                      scorecard.grades.streak >= 16 ? 'text-lime-400' :
+                      scorecard.grades.streak >= 14 ? 'text-yellow-400' :
+                      scorecard.grades.streak >= 12 ? 'text-orange-400' : 'text-red-400'
+                    }`}>{scorecard.grades.streak}<span className="text-[9px] text-text-dim font-normal">/20</span></span>
+                  </div>
+                </React.Fragment>
               </div>
 
               {/* Std dev footer */}
@@ -476,7 +495,7 @@ export default function TopBar() {
                 const dense = arcs.length >= 15;
                 const W = 420;
                 const H = dense ? 80 : 110;
-                const PAD = { top: dense ? 8 : 16, right: 12, bottom: dense ? 8 : 28, left: dense ? 8 : 28 };
+                const PAD = { top: dense ? 8 : 16, right: 12, bottom: dense ? 8 : 28, left: 28 };
                 const cw = W - PAD.left - PAD.right;
                 const ch = H - PAD.top - PAD.bottom;
                 const maxScore = 100;
@@ -530,7 +549,7 @@ export default function TopBar() {
                         return (
                           <g key={v}>
                             <line x1={PAD.left} y1={y} x2={PAD.left + cw} y2={y} stroke="white" strokeOpacity="0.05" />
-                            {!dense && <text x={PAD.left - 4} y={y + 3} textAnchor="end" fill="white" fillOpacity="0.2" fontSize="8" fontFamily="monospace">{v}</text>}
+                            <text x={PAD.left - 4} y={y + 3} textAnchor="end" fill="white" fillOpacity="0.2" fontSize="8" fontFamily="monospace">{v}</text>
                           </g>
                         );
                       })}
@@ -551,13 +570,26 @@ export default function TopBar() {
                       {/* Score line */}
                       <path d={linePath} fill="none" stroke="url(#sc-line-grad)" strokeWidth="2" strokeLinejoin="round" />
 
-                      {/* Dots + score labels */}
-                      {points.map((p, i) => (
-                        <g key={i}>
-                          <circle cx={p.x} cy={p.y} r={dense ? 2 : 3.5} fill={scoreColor(p.score)} />
-                          {!dense && <text x={p.x} y={p.y - 8} textAnchor="middle" fill={scoreColor(p.score)} fontSize="9" fontFamily="monospace" fontWeight="600">{p.score}</text>}
-                        </g>
-                      ))}
+                      {/* Dots + hover targets */}
+                      {points.map((p, i) => {
+                        const isHovered = hoveredArcIdx === i;
+                        return (
+                          <g
+                            key={i}
+                            onMouseEnter={() => setHoveredArcIdx(i)}
+                            onMouseLeave={() => setHoveredArcIdx(null)}
+                            className="cursor-pointer"
+                          >
+                            {/* Invisible hit area */}
+                            <circle cx={p.x} cy={p.y} r={12} fill="transparent" />
+                            <circle cx={p.x} cy={p.y} r={isHovered ? 5 : (dense ? 2 : 3.5)} fill={scoreColor(p.score)} />
+                            {/* Score label: always show on hover, otherwise only in non-dense */}
+                            {(isHovered || !dense) && (
+                              <text x={p.x} y={p.y - 8} textAnchor="middle" fill={scoreColor(p.score)} fontSize="9" fontFamily="monospace" fontWeight="600">{p.score}</text>
+                            )}
+                          </g>
+                        );
+                      })}
 
                       {/* Arc number labels */}
                       {!dense && points.map((p, i) => (

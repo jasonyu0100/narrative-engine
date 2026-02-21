@@ -473,20 +473,16 @@ export type ForceGrades = {
   change: number;
   variety: number;
   balance: number;
+  streak: number;
   overall: number;
 };
 
 const avg = (arr: number[]) => arr.length > 0 ? arr.reduce((s, v) => s + v, 0) / arr.length : 0;
 
-const stddev = (arr: number[]) => {
-  if (arr.length < 2) return 0;
-  const m = avg(arr);
-  return Math.sqrt(arr.reduce((s, v) => s + (v - m) ** 2, 0) / arr.length);
-};
 
-/** Grade a force average 0-25 using exponential saturation */
+/** Grade a force average 0-20 using exponential saturation */
 function gradeForce(a: number, midpoint: number): number {
-  return Math.min(25, 25 * (1 - Math.exp(-Math.max(0, a) / midpoint)));
+  return Math.min(20, 20 * (1 - Math.exp(-Math.max(0, a) / midpoint)));
 }
 
 /** Average of top 10% values (at least 1) */
@@ -496,23 +492,71 @@ function topAvg(arr: number[]): number {
   return avg(sorted.slice(0, k));
 }
 
-/** Consistency factor: 1/(1+CV). Flat curves → 1.0, high variance → penalized toward 0. */
-function consistency(arr: number[]): number {
-  const m = avg(arr);
-  if (m <= 0) return 1;
-  return 1 / (1 + stddev(arr) / m);
+/** Streak factor based on score color zones.
+ *
+ *  Each arc earns credit based on its color zone:
+ *    green (≥90) = 1.0, yellow-green (80-89) = 0.9, yellow (70-79) = 0.5,
+ *    orange (60-69) = 0.2, red (<60) = 0.0
+ *
+ *  The average credit forms the base score. A streak penalty then reduces
+ *  it when below-green arcs (<80) cluster into prolonged low periods.
+ *  Each arc in a streak is penalized by zone weight × streak position:
+ *    yellow = 1×, orange = 2×, red = 3×
+ *  so a red streak compounds much faster than a yellow one. */
+function consistencyFactor(arr: number[]): number {
+  const n = arr.length;
+  if (n < 2) return 1;
+
+  // Zone credit: maps arc score to color-zone reward [0, 1]
+  const credit = (s: number) => {
+    if (s >= 90) return 1.0;   // green
+    if (s >= 80) return 0.9;   // yellow-green
+    if (s >= 70) return 0.5;   // yellow
+    if (s >= 60) return 0.2;   // orange
+    return 0.0;                // red
+  };
+
+  // Zone weight for streak penalty: worse zones compound faster
+  const zoneWeight = (s: number) => {
+    if (s >= 70) return 1;     // yellow
+    if (s >= 60) return 2;     // orange
+    return 3;                  // red
+  };
+
+  // Average zone credit across all arcs
+  const avgCredit = avg(arr.map(credit));
+
+  // Streak penalty: consecutive below-green arcs, weighted by zone severity
+  if (n < 3) return avgCredit;
+  let penalty = 0;
+  let pos = 0;
+  for (let i = 0; i <= n; i++) {
+    if (i < n && arr[i] < 80) {
+      pos++;
+      penalty += zoneWeight(arr[i]) * pos;
+    } else {
+      pos = 0;
+    }
+  }
+  const streakFactor = 1 / (1 + penalty / (n * 10));
+
+  return avgCredit * streakFactor;
 }
 
 /**
- * Compute force grades (0-25 each, 0-100 overall) from raw force value arrays.
- * Scoring is additive — each scene's force values sum up, so more good scenes
- * produce a higher score. Exponential saturation prevents runaway inflation.
+ * Compute force grades (0-20 each, 0-100 overall) from raw force value arrays.
+ * Five metrics: payoff, change, variety, swing, and consistency.
+ *
+ * @param arcOveralls - Optional array of per-arc overall scores (sum of P+C+V+S
+ *   for each arc). When provided, consistency measures how stable arc-level quality
+ *   is across the story. Without it, consistency defaults to 20 (perfect).
  */
 export function gradeForces(
   payoff: number[],
   change: number[],
   variety: number[],
   balance: number[],
+  arcOveralls?: number[],
 ): ForceGrades {
   const balanceEffective = avg(balance) * 0.5 + topAvg(balance) * 0.5;
 
@@ -521,26 +565,17 @@ export function gradeForces(
   const varietyGrade = gradeForce(avg(variety), 2);
   const balanceGrade = gradeForce(balanceEffective, 5);
 
+  // Streak: zone-based consistency — rewards green arcs, penalizes prolonged lows
+  const streakGrade = arcOveralls && arcOveralls.length >= 2
+    ? 20 * consistencyFactor(arcOveralls)
+    : 20;
+
   return {
     payoff: Math.round(payoffGrade),
     change: Math.round(changeGrade),
     variety: Math.round(varietyGrade),
     balance: Math.round(balanceGrade),
-    overall: Math.round(payoffGrade + changeGrade + varietyGrade + balanceGrade),
+    streak: Math.round(streakGrade),
+    overall: Math.round(payoffGrade + changeGrade + varietyGrade + balanceGrade + streakGrade),
   };
-}
-
-/**
- * Compute a consistency modifier from arc-level overall grades.
- * Measures how consistently the story maintains quality across arcs.
- * Returns a multiplier in [0.75, 1.0] — can reduce score by at most 25%.
- *
- * Uses 1/(1+CV) where CV = stddev/mean (coefficient of variation).
- * All arcs scoring ~70 → CV ≈ 0 → multiplier ≈ 1.0
- * Arcs swinging 30–90 → high CV → multiplier closer to 0.75
- */
-export function arcConsistency(arcOveralls: number[]): number {
-  if (arcOveralls.length < 2) return 1;
-  const c = consistency(arcOveralls);
-  return 0.75 + 0.25 * c;
 }
