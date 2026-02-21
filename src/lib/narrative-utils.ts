@@ -132,24 +132,24 @@ export function cubeCornerProximity(forces: ForceSnapshot, cornerKey: CubeCorner
   return Math.exp(-d / 2);
 }
 
-/** Compute balance magnitude (Euclidean distance) between consecutive force snapshots.
+/** Compute swing magnitude (Euclidean distance) between consecutive force snapshots.
  *  Returns an array of the same length; the first element is always 0. */
-export function computeBalanceMagnitudes(forceSnapshots: ForceSnapshot[]): number[] {
-  const balances: number[] = [0];
+export function computeSwingMagnitudes(forceSnapshots: ForceSnapshot[]): number[] {
+  const swings: number[] = [0];
   for (let i = 1; i < forceSnapshots.length; i++) {
     const dp = forceSnapshots[i].payoff - forceSnapshots[i - 1].payoff;
     const dc = forceSnapshots[i].change - forceSnapshots[i - 1].change;
     const dv = forceSnapshots[i].variety - forceSnapshots[i - 1].variety;
-    balances.push(Math.sqrt(dp * dp + dc * dc + dv * dv));
+    swings.push(Math.sqrt(dp * dp + dc * dc + dv * dv));
   }
-  return balances;
+  return swings;
 }
 
-/** Compute the average balance over a trailing window of force snapshots */
-export function averageBalance(forceSnapshots: ForceSnapshot[], windowSize = FORCE_WINDOW_SIZE): number {
+/** Compute the average swing over a trailing window of force snapshots */
+export function averageSwing(forceSnapshots: ForceSnapshot[], windowSize = FORCE_WINDOW_SIZE): number {
   if (forceSnapshots.length < 2) return 0;
-  const balances = computeBalanceMagnitudes(forceSnapshots);
-  const window = balances.slice(-windowSize);
+  const swings = computeSwingMagnitudes(forceSnapshots);
+  const window = swings.slice(-windowSize);
   return window.reduce((s, v) => s + v, 0) / window.length;
 }
 
@@ -472,7 +472,7 @@ export type ForceGrades = {
   payoff: number;
   change: number;
   variety: number;
-  balance: number;
+  swing: number;
   streak: number;
   overall: number;
 };
@@ -555,22 +555,22 @@ export function gradeForces(
   payoff: number[],
   change: number[],
   variety: number[],
-  balance: number[],
+  swing: number[],
   arcOveralls?: number[],
 ): ForceGrades {
-  const balanceEffective = avg(balance) * 0.5 + topAvg(balance) * 0.5;
+  const swingEffective = avg(swing) * 0.5 + topAvg(swing) * 0.5;
 
   const payoffGrade = gradeForce(avg(payoff), 3);
   const changeGrade = gradeForce(avg(change), 3);
   const varietyGrade = gradeForce(avg(variety), 2);
-  const balanceGrade = gradeForce(balanceEffective, 5);
+  const swingGrade = gradeForce(swingEffective, 5);
 
   // Streak: zone-based consistency — only applies at series level (cross-arc metric)
   const hasStreak = arcOveralls && arcOveralls.length >= 2;
   const streakGrade = hasStreak ? 20 * consistencyFactor(arcOveralls) : 0;
 
   // Per-arc: 4 metrics scaled to 0-100; series-level: 5 metrics (including streak) 0-100
-  const coreSum = payoffGrade + changeGrade + varietyGrade + balanceGrade;
+  const coreSum = payoffGrade + changeGrade + varietyGrade + swingGrade;
   const overall = hasStreak
     ? coreSum + streakGrade
     : coreSum * (100 / 80);
@@ -579,7 +579,7 @@ export function gradeForces(
     payoff: Math.round(payoffGrade),
     change: Math.round(changeGrade),
     variety: Math.round(varietyGrade),
-    balance: Math.round(balanceGrade),
+    swing: Math.round(swingGrade),
     streak: Math.round(streakGrade),
     overall: Math.round(overall),
   };

@@ -4,9 +4,9 @@ import { useMemo, useState, useRef, useEffect, useCallback } from 'react';
 import * as d3 from 'd3';
 import { useStore } from '@/lib/store';
 import { resolveEntry, isScene, type Scene, type ForceSnapshot, type CubeCornerKey } from '@/types/narrative';
-import { computeForceSnapshots, computeWindowedForces, computeRawForcetotals, computeBalanceMagnitudes, detectCubeCorner, gradeForces, zScoreNormalize, FORCE_WINDOW_SIZE } from '@/lib/narrative-utils';
+import { computeForceSnapshots, computeWindowedForces, computeRawForcetotals, computeSwingMagnitudes, detectCubeCorner, gradeForces, zScoreNormalize, FORCE_WINDOW_SIZE } from '@/lib/narrative-utils';
 
-type ForceKey = 'payoff' | 'change' | 'variety' | 'balance';
+type ForceKey = 'payoff' | 'change' | 'variety' | 'swing';
 
 type SceneDataPoint = {
   index: number;
@@ -17,7 +17,7 @@ type SceneDataPoint = {
   location: string;
   participants: string[];
   forces: ForceSnapshot;
-  balance: number;
+  swing: number;
   corner: string;
   cornerKey: CubeCornerKey;
   threadChanges: string[];
@@ -36,7 +36,7 @@ const FORCE_CONFIG: { key: ForceKey; label: string; color: string }[] = [
   { key: 'payoff', label: 'PAYOFF', color: '#EF4444' },
   { key: 'change', label: 'CHANGE', color: '#22C55E' },
   { key: 'variety', label: 'VARIETY', color: '#3B82F6' },
-  { key: 'balance', label: 'SWING', color: '#facc15' },
+  { key: 'swing', label: 'SWING', color: '#facc15' },
 ];
 
 const MARGIN = { top: 36, right: 16, bottom: 4, left: 48 };
@@ -106,7 +106,7 @@ function ForceChart({
     const xScale = d3.scaleLinear().domain([0, Math.max(data.length - 1, 1)]).range([0, chartWidth]);
 
     // Dynamic y-domain: symmetric if data has negatives, positive-only if all ≥ 0
-    const values = data.map((d) => forceKey === 'balance' ? d.balance : d.forces[forceKey]);
+    const values = data.map((d) => forceKey === 'swing' ? d.swing : d.forces[forceKey]);
     const allPositive = (d3.min(values) ?? 0) >= 0;
     const maxAbs = Math.max(d3.max(values.map(Math.abs)) ?? 1, 1);
     const yScale = d3.scaleLinear()
@@ -393,13 +393,13 @@ function ZoneBar({
     if (allScenes.length === 0 || arcRegions.length === 0) return [];
 
     const raw = computeRawForcetotals(allScenes);
-    // Use raw forces for balance so absolute magnitudes differentiate quality
+    // Use raw forces for swing so absolute magnitudes differentiate quality
     const rawForces = raw.payoff.map((_, i) => ({
       payoff: raw.payoff[i],
       change: raw.change[i],
       variety: raw.variety[i],
     }));
-    const balances = computeBalanceMagnitudes(rawForces);
+    const swings = computeSwingMagnitudes(rawForces);
 
     return arcRegions.map((arc) => {
       // Collect force indices for scenes in this arc's range that match the arcId
@@ -412,8 +412,8 @@ function ZoneBar({
       const arcPayoff = forceIndices.map((i) => raw.payoff[i]);
       const arcChange = forceIndices.map((i) => raw.change[i]);
       const arcVariety = forceIndices.map((i) => raw.variety[i]);
-      const arcBalance = forceIndices.map((i, idx) => idx === 0 ? 0 : balances[i]);
-      const { overall: grade } = gradeForces(arcPayoff, arcChange, arcVariety, arcBalance);
+      const arcSwing = forceIndices.map((i, idx) => idx === 0 ? 0 : swings[i]);
+      const { overall: grade } = gradeForces(arcPayoff, arcChange, arcVariety, arcSwing);
 
       return {
         arcId: arc.arcId,
@@ -624,7 +624,7 @@ export function ForceTracker({ onClose }: { onClose: () => void }) {
   // Drawing state
   const [drawing, setDrawing] = useState(false);
   const [drawLines, setDrawLines] = useState<Record<ForceKey, DrawLine[]>>({
-    payoff: [], change: [], variety: [], balance: [],
+    payoff: [], change: [], variety: [], swing: [],
   });
   const [activeDrawKey, setActiveDrawKey] = useState<ForceKey | null>(null);
   const activeLineRef = useRef<[number, number][]>([]);
@@ -661,7 +661,7 @@ export function ForceTracker({ onClose }: { onClose: () => void }) {
   }, [activeDrawKey]);
 
   const clearDrawings = useCallback(() => {
-    setDrawLines({ payoff: [], change: [], variety: [], balance: [] });
+    setDrawLines({ payoff: [], change: [], variety: [], swing: [] });
   }, []);
 
   // Resize observer
@@ -707,7 +707,7 @@ export function ForceTracker({ onClose }: { onClose: () => void }) {
         location: location?.name ?? scene.locationId,
         participants: scene.participantIds.map((pid) => narrative.characters[pid]?.name ?? pid),
         forces,
-        balance: 0,
+        swing: 0,
         corner: corner.name,
         cornerKey: corner.key as CubeCornerKey,
         threadChanges: scene.threadMutations.map(
@@ -715,8 +715,8 @@ export function ForceTracker({ onClose }: { onClose: () => void }) {
         ),
       };
     });
-    // Compute balance magnitudes, then z-score normalize
-    const rawBalances = points.map((_, i) => {
+    // Compute swing magnitudes, then z-score normalize
+    const rawSwings = points.map((_, i) => {
       if (i === 0) return 0;
       const prev = points[i - 1].forces;
       const curr = points[i].forces;
@@ -725,9 +725,9 @@ export function ForceTracker({ onClose }: { onClose: () => void }) {
       const dv = curr.variety - prev.variety;
       return Math.sqrt(dp * dp + dc * dc + dv * dv);
     });
-    const normBalances = zScoreNormalize(rawBalances);
+    const normSwings = zScoreNormalize(rawSwings);
     for (let i = 0; i < points.length; i++) {
-      points[i].balance = normBalances[i];
+      points[i].swing = normSwings[i];
     }
     return points;
   }, [narrative, allScenes, forceMap]);
@@ -743,7 +743,7 @@ export function ForceTracker({ onClose }: { onClose: () => void }) {
         change: raw.change[i] ?? 0,
         variety: raw.variety[i] ?? 0,
       },
-      balance: i === 0 ? 0 : (() => {
+      swing: i === 0 ? 0 : (() => {
         const dP = raw.payoff[i] - raw.payoff[i - 1];
         const dC = raw.change[i] - raw.change[i - 1];
         const dV = raw.variety[i] - raw.variety[i - 1];
@@ -965,7 +965,7 @@ export function ForceTracker({ onClose }: { onClose: () => void }) {
                   <span className="text-[10px] font-mono" style={{ color: '#EF4444' }}>P:{infoScene.forces.payoff >= 0 ? '+' : ''}{infoScene.forces.payoff.toFixed(2)}</span>
                   <span className="text-[10px] font-mono" style={{ color: '#22C55E' }}>C:{infoScene.forces.change >= 0 ? '+' : ''}{infoScene.forces.change.toFixed(2)}</span>
                   <span className="text-[10px] font-mono" style={{ color: '#3B82F6' }}>V:{infoScene.forces.variety >= 0 ? '+' : ''}{infoScene.forces.variety.toFixed(2)}</span>
-                  <span className="text-[10px] font-mono" style={{ color: '#facc15' }}>B:{infoScene.balance.toFixed(2)}</span>
+                  <span className="text-[10px] font-mono" style={{ color: '#facc15' }}>S:{infoScene.swing.toFixed(2)}</span>
                 </div>
               </div>
             )}

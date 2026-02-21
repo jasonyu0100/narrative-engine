@@ -12,16 +12,16 @@ const FORCE_CONFIG = [
   { key: 'variety' as const, label: 'Variety', color: 'var(--color-variety)' },
 ] as const;
 
-/** Compute balance magnitude: √(ΔP² + ΔC² + ΔV²) between consecutive force snapshots */
-function computeBalances(payoff: number[], change: number[], variety: number[]): number[] {
-  const balances: number[] = [0];
+/** Compute swing magnitude: √(ΔP² + ΔC² + ΔV²) between consecutive force snapshots */
+function computeSwings(payoff: number[], change: number[], variety: number[]): number[] {
+  const swings: number[] = [0];
   for (let i = 1; i < payoff.length; i++) {
     const dp = payoff[i] - payoff[i - 1];
     const dc = change[i] - change[i - 1];
     const dv = variety[i] - variety[i - 1];
-    balances.push(Math.sqrt(dp * dp + dc * dc + dv * dv));
+    swings.push(Math.sqrt(dp * dp + dc * dc + dv * dv));
   }
-  return balances;
+  return swings;
 }
 
 type Scope = 'global' | 'local';
@@ -79,7 +79,7 @@ export default function ForceCharts() {
 
   // Full-history forces
   const globalForceData = useMemo(() => {
-    if (!narrative) return { payoff: [] as number[], change: [] as number[], variety: [] as number[], balance: [] as number[] };
+    if (!narrative) return { payoff: [] as number[], change: [] as number[], variety: [] as number[], swing: [] as number[] };
     const payoff: number[] = [];
     const change: number[] = [];
     const variety: number[] = [];
@@ -94,12 +94,12 @@ export default function ForceCharts() {
       change.push(lastForce.change);
       variety.push(lastForce.variety);
     }
-    return { payoff, change, variety, balance: zScoreNormalize(computeBalances(payoff, change, variety)) };
+    return { payoff, change, variety, swing: zScoreNormalize(computeSwings(payoff, change, variety)) };
   }, [narrative, allScenes, resolvedSceneKeys]);
 
   // Window-only forces for local scope
   const localForceData = useMemo(() => {
-    if (!windowed || !narrative) return { payoff: [] as number[], change: [] as number[], variety: [] as number[], balance: [] as number[] };
+    if (!windowed || !narrative) return { payoff: [] as number[], change: [] as number[], variety: [] as number[], swing: [] as number[] };
     const payoff: number[] = [];
     const change: number[] = [];
     const variety: number[] = [];
@@ -111,7 +111,7 @@ export default function ForceCharts() {
       change.push(lastForce.change);
       variety.push(lastForce.variety);
     }
-    return { payoff, change, variety, balance: zScoreNormalize(computeBalances(payoff, change, variety)) };
+    return { payoff, change, variety, swing: zScoreNormalize(computeSwings(payoff, change, variety)) };
   }, [windowed, allScenes, narrative]);
 
   // Map window scene-indices back to timeline indices for chart highlight
@@ -133,12 +133,12 @@ export default function ForceCharts() {
   const isLocal = scope === 'local';
   const chartData = isLocal ? localForceData : globalForceData;
 
-  // Moving averages for each force + balance
+  // Moving averages for each force + swing
   const chartMA = useMemo(() => ({
     payoff: movingAverage(chartData.payoff, FORCE_WINDOW_SIZE),
     change: movingAverage(chartData.change, FORCE_WINDOW_SIZE),
     variety: movingAverage(chartData.variety, FORCE_WINDOW_SIZE),
-    balance: movingAverage(chartData.balance, FORCE_WINDOW_SIZE),
+    swing: movingAverage(chartData.swing, FORCE_WINDOW_SIZE),
   }), [chartData]);
 
   // Window averages — average z-score within the current normalization window
@@ -150,7 +150,7 @@ export default function ForceCharts() {
         payoff: avg(chartData.payoff),
         change: avg(chartData.change),
         variety: avg(chartData.variety),
-        balance: avg(chartData.balance),
+        swing: avg(chartData.swing),
       };
     }
     // In global mode, slice the window range from global data
@@ -160,7 +160,7 @@ export default function ForceCharts() {
       payoff: avg(chartData.payoff.slice(ws, we)),
       change: avg(chartData.change.slice(ws, we)),
       variety: avg(chartData.variety.slice(ws, we)),
-      balance: avg(chartData.balance.slice(ws, we)),
+      swing: avg(chartData.swing.slice(ws, we)),
     };
   }, [chartData, isLocal, windowTimelineRange]);
 
@@ -324,18 +324,18 @@ export default function ForceCharts() {
         </div>
       ))}
 
-      {/* Balance magnitude chart */}
+      {/* Swing magnitude chart */}
       <div className="flex-1 min-w-0">
         <ForceLineChart
-          data={chartData.balance}
+          data={chartData.swing}
           color="#facc15"
           label="Swing"
           currentIndex={chartCurrentIndex}
           windowStart={!isLocal ? windowTimelineRange?.start : undefined}
           windowEnd={!isLocal ? windowTimelineRange?.end : undefined}
           style={chartStyle}
-          movingAvg={chartMA.balance}
-          average={chartAvg.balance}
+          movingAvg={chartMA.swing}
+          average={chartAvg.swing}
         />
       </div>
     </div>

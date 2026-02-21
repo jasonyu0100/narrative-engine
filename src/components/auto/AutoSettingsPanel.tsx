@@ -107,7 +107,7 @@ export function AutoSettingsPanel({ onClose, onStart }: { onClose: () => void; o
                       type="checkbox"
                       checked={hasEndCondition('scene_count')}
                       onChange={() => toggleEndCondition('scene_count', { type: 'scene_count', target: 50 })}
-                      className="accent-text-primary"
+                      className="accent-yellow-500"
                     />
                     <span className="text-xs text-text-secondary">Stop at scene count</span>
                   </label>
@@ -133,7 +133,7 @@ export function AutoSettingsPanel({ onClose, onStart }: { onClose: () => void; o
                       type="checkbox"
                       checked={hasEndCondition('arc_count')}
                       onChange={() => toggleEndCondition('arc_count', { type: 'arc_count', target: 10 })}
-                      className="accent-text-primary"
+                      className="accent-yellow-500"
                     />
                     <span className="text-xs text-text-secondary">Stop at arc count</span>
                   </label>
@@ -207,7 +207,7 @@ export function AutoSettingsPanel({ onClose, onStart }: { onClose: () => void; o
                           objective: o.value,
                           worldBuildInterval: o.worldBuilding ? (config.worldBuildInterval || 3) : 0,
                         })}
-                        className="accent-text-primary mt-0.5"
+                        className="accent-yellow-500 mt-0.5"
                       />
                       <div>
                         <div className="text-xs text-text-primary font-medium">{o.label}</div>
@@ -228,7 +228,7 @@ export function AutoSettingsPanel({ onClose, onStart }: { onClose: () => void; o
                     type="checkbox"
                     checked={config.includeProse}
                     onChange={(e) => update({ includeProse: e.target.checked })}
-                    className="accent-text-primary"
+                    className="accent-yellow-500"
                   />
                   <span className="text-xs text-text-secondary">Generate prose for each scene</span>
                 </label>
@@ -264,7 +264,7 @@ export function AutoSettingsPanel({ onClose, onStart }: { onClose: () => void; o
                       type="checkbox"
                       checked={config.enforceWorldBuildUsage}
                       onChange={(e) => update({ enforceWorldBuildUsage: e.target.checked })}
-                      className="accent-text-primary"
+                      className="accent-yellow-500"
                     />
                     <span className="text-xs text-text-secondary">Enforce usage of new elements</span>
                   </label>

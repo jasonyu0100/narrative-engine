@@ -9,7 +9,7 @@ const THREAD_LIFECYCLE_DOC = (() => {
   ).join(', ');
   return `Active statuses: ${activeList}. Terminal/closed statuses: ${terminalList}.`;
 })();
-import { nextId, nextIds, computeForceSnapshots, computeBalanceMagnitudes, detectCubeCorner, movingAverage, FORCE_WINDOW_SIZE } from '@/lib/narrative-utils';
+import { nextId, nextIds, computeForceSnapshots, computeSwingMagnitudes, detectCubeCorner, movingAverage, FORCE_WINDOW_SIZE } from '@/lib/narrative-utils';
 import { apiHeaders } from '@/lib/api-headers';
 
 export type WorldExpansion = {
@@ -270,22 +270,22 @@ export function branchContext(
     .map((a) => `- ${a.id}: "${a.name}" (${a.sceneIds.length} scenes, develops: ${a.develops.join(', ')})`)
     .join('\n');
 
-  // Force trajectory — compact time series showing change rhythm and balance
+  // Force trajectory — compact time series showing change rhythm and swing
   const allScenes = keysUpToCurrent
     .map((k) => resolveEntry(n, k))
     .filter((e): e is Scene => e?.kind === 'scene');
   const forceMap = computeForceSnapshots(allScenes);
   const forceSnapshots = allScenes.map((s) => forceMap[s.id] ?? { payoff: 0, change: 0, variety: 0 });
-  const balances = computeBalanceMagnitudes(forceSnapshots);
+  const swings = computeSwingMagnitudes(forceSnapshots);
   const payoffMA = movingAverage(forceSnapshots.map(f => f.payoff), FORCE_WINDOW_SIZE);
   const changeMA = movingAverage(forceSnapshots.map(f => f.change), FORCE_WINDOW_SIZE);
   const varietyMA = movingAverage(forceSnapshots.map(f => f.variety), FORCE_WINDOW_SIZE);
-  const balanceMA = movingAverage(balances, FORCE_WINDOW_SIZE);
+  const swingMA = movingAverage(swings, FORCE_WINDOW_SIZE);
   const forceTrajectory = allScenes.map((s, i) => {
     const f = forceMap[s.id];
     if (!f) return null;
     const corner = detectCubeCorner(f);
-    return `[${i + 1}] P:${f.payoff >= 0 ? '+' : ''}${f.payoff.toFixed(1)} C:${f.change >= 0 ? '+' : ''}${f.change.toFixed(1)} V:${f.variety >= 0 ? '+' : ''}${f.variety.toFixed(1)} Bl:${balances[i].toFixed(1)} MA(P:${payoffMA[i].toFixed(1)} C:${changeMA[i].toFixed(1)} V:${varietyMA[i].toFixed(1)} Bl:${balanceMA[i].toFixed(1)}) (${corner.name})`;
+    return `[${i + 1}] P:${f.payoff >= 0 ? '+' : ''}${f.payoff.toFixed(1)} C:${f.change >= 0 ? '+' : ''}${f.change.toFixed(1)} V:${f.variety >= 0 ? '+' : ''}${f.variety.toFixed(1)} Sw:${swings[i].toFixed(1)} MA(P:${payoffMA[i].toFixed(1)} C:${changeMA[i].toFixed(1)} V:${varietyMA[i].toFixed(1)} Sw:${swingMA[i].toFixed(1)}) (${corner.name})`;
   }).filter(Boolean).join('\n');
 
   // Compact ID lookup — placed last so it's closest to the generation prompt
@@ -332,7 +332,7 @@ You must ALWAYS respond with valid JSON only — no markdown, no explanation, no
 
 CORE PRINCIPLES:
 1. FORCE TARGETS and DIRECTION override scene history. Do NOT continue patterns just because previous scenes established them. If the directive says calm, write calm.
-2. High balance is the north star of compelling narrative. Consecutive scenes should feel dynamically different — alternate intensity with quiet, action with reflection, familiar with surprising.
+2. High swing is the north star of compelling narrative. Consecutive scenes should feel dynamically different — alternate intensity with quiet, action with reflection, familiar with surprising.
 3. Threads are DISTINCT narrative tensions — each one should be genuinely different from every other. Thread advancement is dynamic: some scenes advance several threads at once, others advance none. Let the story dictate the rhythm.
 4. Use ONLY the character, location, and thread IDs provided. Never invent new ones.
 
@@ -347,7 +347,37 @@ function cleanJson(raw: string): string {
   let s = raw.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
   // Remove trailing commas before } or ]
   s = s.replace(/,\s*([}\]])/g, '$1');
-  return s;
+  // Fix unescaped control characters inside JSON string values.
+  // Walk character-by-character: when inside a quoted string, escape raw
+  // newlines/tabs/backspaces that the LLM forgot to escape.
+  const out: string[] = [];
+  let inString = false;
+  let escaped = false;
+  for (let i = 0; i < s.length; i++) {
+    const ch = s[i];
+    if (escaped) {
+      out.push(ch);
+      escaped = false;
+      continue;
+    }
+    if (ch === '\\' && inString) {
+      out.push(ch);
+      escaped = true;
+      continue;
+    }
+    if (ch === '"') {
+      inString = !inString;
+      out.push(ch);
+      continue;
+    }
+    if (inString) {
+      if (ch === '\n') { out.push('\\n'); continue; }
+      if (ch === '\r') { out.push('\\r'); continue; }
+      if (ch === '\t') { out.push('\\t'); continue; }
+    }
+    out.push(ch);
+  }
+  return out.join('');
 }
 
 /** Parse JSON with detailed error context for debugging truncated LLM responses */
@@ -457,12 +487,16 @@ export async function generateScenes(
   direction: string,
   existingArc?: Arc,
   cubeGoal?: CubeCornerKey,
+  rejectSiblings?: { name: string; summary: string }[],
 ): Promise<{ scenes: Scene[]; arc: Arc }> {
   const ctx = branchContext(narrative, resolvedKeys, currentIndex);
   const arcId = existingArc?.id ?? nextId('ARC', Object.keys(narrative.arcs));
+  const sceneCountInstruction = count > 0
+    ? `exactly ${count} scenes`
+    : `3-5 scenes (choose the count that best fits the arc's natural length)`;
   const arcInstruction = existingArc
-    ? `CONTINUE the existing arc "${existingArc.name}" (${arcId}) which already has ${existingArc.sceneIds.length} scenes. Add exactly ${count} new scenes that naturally extend this arc.`
-    : `Generate a NEW ARC with exactly ${count} scenes. Give the arc a short, evocative name (2-4 words) that reads like a chapter title — specific to the story, not generic.`;
+    ? `CONTINUE the existing arc "${existingArc.name}" (${arcId}) which already has ${existingArc.sceneIds.length} scenes. Add ${sceneCountInstruction} that naturally extend this arc.`
+    : `Generate a NEW ARC with ${sceneCountInstruction}. Give the arc a short, evocative name (2-4 words) that reads like a chapter title — specific to the story, not generic.`;
   const prompt = `${ctx}
 
 ${arcInstruction}
@@ -481,10 +515,16 @@ FORCE TARGETS for this arc (these override any patterns you see in the scene his
 - Variety: ${NARRATIVE_CUBE[cubeGoal].forces.variety > 0 ? 'HIGH — use new/rarely-seen locations, characters, and POV perspectives. Bring in fresh faces, unexplored settings, and shift to underused viewpoints. If world building has added new elements, USE THEM.' : 'LOW — familiar settings, established cast, recurring POV characters, deepening existing dynamics. Routine and grounding.'}
 
 DO NOT continue the momentum of previous scenes. If the story has been intense for many scenes and this goal says LOW payoff, you MUST write genuinely calm scenes — keep threads dormant, build friendships, explore without danger. Break the pattern.` : ''}
+${rejectSiblings && rejectSiblings.length > 0 ? `
+ALREADY GENERATED AT THIS BRANCH POINT (${rejectSiblings.length} alternatives exist):
+${rejectSiblings.filter((s) => s.summary).map((s) => `- "${s.name}": ${s.summary}`).join('\n')}
+${rejectSiblings.filter((s) => !s.summary).length > 0 ? `Also being generated in parallel: ${rejectSiblings.filter((s) => !s.summary).map((s) => s.name).join(', ')}` : ''}
+
+CRITICAL: Your arc MUST be substantially different from ALL of the above. Do NOT use similar arc names (avoid "Echoes of…", "Seeds of…", "Whispers of…" if those patterns appear above). Do NOT cover the same plot beats or involve the same character groupings. Find a completely different angle — a different subplot, different characters in focus, a different emotional register, or a different narrative question entirely.` : ''}
 
 Return JSON with this exact structure:
 {
-  "arcName": "A short, evocative arc name (2-4 words) like a chapter title. Bad: 'Continuation', 'New Beginnings'. Good: 'The Siege of Ashenmoor', 'Fractured Oaths'.",
+  "arcName": "A short, evocative arc name (2-4 words) like a chapter title. Must be UNIQUE — not a variation of any existing arc name. Bad: 'Continuation', 'New Beginnings', 'Echoes of X', 'Seeds of Y'. Good: 'The Siege of Ashenmoor', 'Fractured Oaths', 'Blackwater Gambit'.",
   "scenes": [
     {
       "id": "S-GEN-001",
@@ -805,7 +845,7 @@ Rules:
  */
 export async function analyzeForceTrajectory(
   narrative: NarrativeState,
-  forceData: { sceneId: string; arcId: string; arcName: string; forces: { payoff: number; change: number; variety: number }; balance: number; corner: string; cornerKey: CubeCornerKey }[],
+  forceData: { sceneId: string; arcId: string; arcName: string; forces: { payoff: number; change: number; variety: number }; swing: number; corner: string; cornerKey: CubeCornerKey }[],
 ): Promise<string> {
   // Build compact narrative context (lighter than full branchContext)
   const threadSummary = Object.values(narrative.threads)
@@ -821,18 +861,18 @@ export async function analyzeForceTrajectory(
     .join('\n');
 
   // Build per-scene force trajectory with moving averages
-  const balanceValues = forceData.map(d => d.balance);
+  const swingValues = forceData.map(d => d.swing);
   const pMA = movingAverage(forceData.map(d => d.forces.payoff), FORCE_WINDOW_SIZE);
   const cMA = movingAverage(forceData.map(d => d.forces.change), FORCE_WINDOW_SIZE);
   const vMA = movingAverage(forceData.map(d => d.forces.variety), FORCE_WINDOW_SIZE);
-  const blMA = movingAverage(balanceValues, FORCE_WINDOW_SIZE);
+  const blMA = movingAverage(swingValues, FORCE_WINDOW_SIZE);
 
   const trajectoryLines = forceData.map((d, i) => {
     const scene = narrative.scenes[d.sceneId];
     const loc = scene ? (narrative.locations[scene.locationId]?.name ?? scene.locationId) : '?';
     const participants = scene ? scene.participantIds.map(pid => narrative.characters[pid]?.name ?? pid).join(', ') : '?';
     const threadChanges = scene?.threadMutations.map(tm => `${narrative.threads[tm.threadId]?.description?.slice(0, 40) ?? tm.threadId}: ${tm.from}→${tm.to}`).join('; ') || '';
-    return `[${i + 1}] ${d.arcName} | ${d.corner} (${d.cornerKey}) | P:${d.forces.payoff >= 0 ? '+' : ''}${d.forces.payoff.toFixed(2)} C:${d.forces.change >= 0 ? '+' : ''}${d.forces.change.toFixed(2)} V:${d.forces.variety >= 0 ? '+' : ''}${d.forces.variety.toFixed(2)} Bl:${d.balance.toFixed(2)} MA(P:${pMA[i].toFixed(2)} C:${cMA[i].toFixed(2)} V:${vMA[i].toFixed(2)} Bl:${blMA[i].toFixed(2)}) | @${loc} | ${participants}${threadChanges ? ` | ${threadChanges}` : ''}`;
+    return `[${i + 1}] ${d.arcName} | ${d.corner} (${d.cornerKey}) | P:${d.forces.payoff >= 0 ? '+' : ''}${d.forces.payoff.toFixed(2)} C:${d.forces.change >= 0 ? '+' : ''}${d.forces.change.toFixed(2)} V:${d.forces.variety >= 0 ? '+' : ''}${d.forces.variety.toFixed(2)} Sw:${d.swing.toFixed(2)} MA(P:${pMA[i].toFixed(2)} C:${cMA[i].toFixed(2)} V:${vMA[i].toFixed(2)} Sw:${blMA[i].toFixed(2)}) | @${loc} | ${participants}${threadChanges ? ` | ${threadChanges}` : ''}`;
   }).join('\n');
 
   // Build per-arc force summary
@@ -848,10 +888,10 @@ export async function analyzeForceTrajectory(
     const avgP = group.reduce((s, e) => s + e.forces.payoff, 0) / group.length;
     const avgC = group.reduce((s, e) => s + e.forces.change, 0) / group.length;
     const avgV = group.reduce((s, e) => s + e.forces.variety, 0) / group.length;
-    const avgBl = group.reduce((s, e) => s + e.balance, 0) / group.length;
+    const avgBl = group.reduce((s, e) => s + e.swing, 0) / group.length;
     const corners = group.map(e => e.corner);
     const uniqueCorners = [...new Set(corners)];
-    return `${group[0].arcName} (${group.length} scenes): avg P:${avgP.toFixed(2)} C:${avgC.toFixed(2)} V:${avgV.toFixed(2)} Bl:${avgBl.toFixed(2)} | corners: ${uniqueCorners.join(' → ')}`;
+    return `${group[0].arcName} (${group.length} scenes): avg P:${avgP.toFixed(2)} C:${avgC.toFixed(2)} V:${avgV.toFixed(2)} Sw:${avgBl.toFixed(2)} | corners: ${uniqueCorners.join(' → ')}`;
   }).join('\n');
 
   // Cube corner definitions for reference
@@ -880,7 +920,7 @@ FORCE DEFINITIONS:
 - Payoff: measures irreversible state transitions — thread phase jumps (dormant→active→escalating→critical, or terminal: resolved/subverted/closed) weighted by jump magnitude, plus relationship valence shifts (|valenceDelta| × 10). Scenes with no transitions score 0.
 - Change: mutation reach across affected characters — counts all mutations (knowledge, relationship, thread) per character, then sums log₂(1+count). Captures both breadth (how many characters evolved) and depth (how much each changed) with diminishing returns.
 - Variety: how new the scene feels — charRecency (first appearances score 1.0, returning characters score gap/10 capped at 1, summed across cast) + locRecency (first visit = 2.0, revisit = gap/10 × 2) + ensembleNovelty (avg Jaccard distance to last 10 casts × √castSize).
-- Swing/Balance (Bl): Euclidean distance between consecutive raw force snapshots √(Δp²+Δc²+Δv²). High = the story is shifting between different modes. Low = settling into a groove.
+- Swing (Sw): Euclidean distance between consecutive raw force snapshots √(Δp²+Δc²+Δv²). High = the story is shifting between different modes. Low = settling into a groove.
 All forces are z-score normalized (mean=0, units of std deviation). Values >0 are above average, <0 below.
 
 CUBE CORNER DEFINITIONS (Payoff · Change · Variety mapped to [-1,+1]):

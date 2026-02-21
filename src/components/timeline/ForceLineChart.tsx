@@ -18,7 +18,7 @@ type ForceLineChartProps = {
   /** Inclusive data-index range for the active normalization window */
   windowStart?: number;
   windowEnd?: number;
-  /** If true, domain starts at 0 (for always-positive values like balance magnitude) */
+  /** If true, domain starts at 0 (for always-positive values like swing magnitude) */
   positive?: boolean;
   style?: ChartStyle;
   /** Optional moving average overlay data (same length as data) */

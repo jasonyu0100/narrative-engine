@@ -57,7 +57,7 @@ type SceneForceEntry = {
   corner: CubeCorner;
   cornerKey: CubeCornerKey;
   forces: { payoff: number; change: number; variety: number };
-  balance: number;
+  swing: number;
 };
 
 // ── Component ────────────────────────────────────────────────────────────────
@@ -145,12 +145,12 @@ export function NarrativeCubeViewer({ onClose }: { onClose: () => void }) {
         if (f) {
           const arc = narrative.arcs[entry.arcId];
           const corner = detectCubeCorner(f);
-          let balance = 0;
+          let swing = 0;
           if (prevForce) {
             const dp = f.payoff - prevForce.payoff;
             const dc = f.change - prevForce.change;
             const dv = f.variety - prevForce.variety;
-            balance = Math.sqrt(dp * dp + dc * dc + dv * dv);
+            swing = Math.sqrt(dp * dp + dc * dc + dv * dv);
           }
           entries.push({
             sceneId: entry.id,
@@ -159,7 +159,7 @@ export function NarrativeCubeViewer({ onClose }: { onClose: () => void }) {
             corner,
             cornerKey: corner.key,
             forces: f,
-            balance,
+            swing,
           });
           prevForce = f;
         }
@@ -332,7 +332,7 @@ export function NarrativeCubeViewer({ onClose }: { onClose: () => void }) {
           arcId: e.arcId,
           arcName: e.arcName,
           forces: e.forces,
-          balance: e.balance,
+          swing: e.swing,
           corner: e.corner.name,
           cornerKey: e.cornerKey,
         })),

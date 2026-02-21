@@ -4,7 +4,7 @@ import { useRef, useEffect, useMemo, useCallback } from 'react';
 import { useStore } from '@/lib/store';
 import type { Arc, Scene } from '@/types/narrative';
 import { resolveEntry, isScene } from '@/types/narrative';
-import { computeRawForcetotals, computeBalanceMagnitudes, gradeForces } from '@/lib/narrative-utils';
+import { computeRawForcetotals, computeSwingMagnitudes, gradeForces } from '@/lib/narrative-utils';
 
 const NODE_RADIUS = 8;
 const NODE_SPACING = 50;
@@ -72,13 +72,13 @@ export default function TimelineStrip() {
     if (allScenes.length === 0 || arcBands.length === 0) return new Map<string, number>();
 
     const raw = computeRawForcetotals(allScenes);
-    // Use raw forces for balance (same as scorecard and ForceTracker)
+    // Use raw forces for swing (same as scorecard and ForceTracker)
     const rawForces = raw.payoff.map((_, i) => ({
       payoff: raw.payoff[i],
       change: raw.change[i],
       variety: raw.variety[i],
     }));
-    const balances = computeBalanceMagnitudes(rawForces);
+    const swings = computeSwingMagnitudes(rawForces);
 
     // Map scene IDs to their index in allScenes (scene-only, no world builds)
     const sceneIdToForceIdx = new Map(allScenes.map((s, i) => [s.id, i]));
@@ -93,8 +93,8 @@ export default function TimelineStrip() {
       const arcPayoffs = forceIndices.map((i) => raw.payoff[i]);
       const arcChanges = forceIndices.map((i) => raw.change[i]);
       const arcVarieties = forceIndices.map((i) => raw.variety[i]);
-      const arcBalanceVals = forceIndices.map((i, idx) => idx === 0 ? 0 : balances[i]);
-      const { overall } = gradeForces(arcPayoffs, arcChanges, arcVarieties, arcBalanceVals);
+      const arcSwingVals = forceIndices.map((i, idx) => idx === 0 ? 0 : swings[i]);
+      const { overall } = gradeForces(arcPayoffs, arcChanges, arcVarieties, arcSwingVals);
       grades.set(band.arc.id, overall);
     }
     return grades;

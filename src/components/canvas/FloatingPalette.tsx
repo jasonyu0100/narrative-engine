@@ -248,6 +248,26 @@ export default function FloatingPalette() {
           Generate
         </button>
 
+        {/* MCTS Explorer */}
+        <button
+          type="button"
+          className="w-7 h-7 flex items-center justify-center rounded-md transition-colors text-text-secondary hover:text-violet-400 hover:bg-violet-500/10"
+          onClick={() => {
+            if (access.userApiKeys && !access.hasOpenRouterKey) {
+              window.dispatchEvent(new Event('open-api-keys'));
+              return;
+            }
+            window.dispatchEvent(new CustomEvent('open-mcts-panel'));
+          }}
+          title="MCTS Explorer"
+        >
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M9 2v6l-5 10a1 1 0 0 0 .9 1.4h14.2a1 1 0 0 0 .9-1.4L15 8V2" />
+            <path d="M9 2h6" />
+            <path d="M7 16h10" />
+          </svg>
+        </button>
+
         {/* Auto */}
         <button
           type="button"

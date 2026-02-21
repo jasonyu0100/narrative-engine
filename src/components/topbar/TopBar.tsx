@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useStore } from '@/lib/store';
 import type { NarrativeState } from '@/types/narrative';
 import { resolveEntry, isScene, type Scene } from '@/types/narrative';
-import { computeRawForcetotals, computeBalanceMagnitudes, gradeForces } from '@/lib/narrative-utils';
+import { computeRawForcetotals, computeSwingMagnitudes, gradeForces } from '@/lib/narrative-utils';
 import { ApiLogsModal } from '@/components/debug/ApiLogsModal';
 import { StoryReader } from '@/components/story/StoryReader';
 import { CubeExplorer } from '@/components/topbar/CubeExplorer';
@@ -90,14 +90,14 @@ export default function TopBar() {
       const m = avg(arr);
       return Math.sqrt(arr.reduce((s, v) => s + (v - m) ** 2, 0) / arr.length);
     };
-    // Compute balance from raw forces (not z-scored) so absolute force magnitudes
+    // Compute swing from raw forces (not z-scored) so absolute force magnitudes
     // differentiate well-crafted narratives from bland AI text
     const rawForces = raw.payoff.map((_, i) => ({
       payoff: raw.payoff[i],
       change: raw.change[i],
       variety: raw.variety[i],
     }));
-    const balances = computeBalanceMagnitudes(rawForces);
+    const swings = computeSwingMagnitudes(rawForces);
 
     const forceStats = (arr: number[]) => ({
       total: sum(arr),
@@ -110,7 +110,7 @@ export default function TopBar() {
       payoff: forceStats(raw.payoff),
       change: forceStats(raw.change),
       variety: forceStats(raw.variety),
-      balance: forceStats(balances),
+      swing: forceStats(swings),
     };
 
     const arcCount = Object.keys(narrative.arcs).length;
@@ -128,19 +128,19 @@ export default function TopBar() {
         const arcPayoffs = forceIndices.map((i) => raw.payoff[i]);
         const arcChanges = forceIndices.map((i) => raw.change[i]);
         const arcVarieties = forceIndices.map((i) => raw.variety[i]);
-        const arcBalanceVals = forceIndices.map((i, idx) => idx === 0 ? 0 : balances[i]);
+        const arcSwingVals = forceIndices.map((i, idx) => idx === 0 ? 0 : swings[i]);
 
         return {
           name: arc.name,
           scenes: forceIndices.length,
-          grades: gradeForces(arcPayoffs, arcChanges, arcVarieties, arcBalanceVals),
+          grades: gradeForces(arcPayoffs, arcChanges, arcVarieties, arcSwingVals),
         };
       })
       .filter((a): a is NonNullable<typeof a> => a !== null);
 
     // Series-level grades with arc streak
     const arcOveralls = perArc.map(a => a.grades.overall);
-    const seriesGrades = gradeForces(raw.payoff, raw.change, raw.variety, balances, arcOveralls);
+    const seriesGrades = gradeForces(raw.payoff, raw.change, raw.variety, swings, arcOveralls);
 
     return {
       title: narrative.title,
@@ -383,6 +383,11 @@ export default function TopBar() {
             </svg>
             <span className="text-[11px]">Score</span>
           </button>
+          {scorecardOpen && !scorecard && (
+            <div className="absolute top-full right-0 mt-1 z-50 bg-bg-base border border-white/10 rounded-lg shadow-2xl p-5 w-[460px]">
+              <p className="text-[12px] text-text-dim text-center py-4">No scenes yet — generate some arcs to see scores.</p>
+            </div>
+          )}
           {scorecardOpen && scorecard && (
             <div className="absolute top-full right-0 mt-1 z-50 bg-bg-base border border-white/10 rounded-lg shadow-2xl p-5 w-[460px]">
               {/* Series header */}
@@ -418,7 +423,7 @@ export default function TopBar() {
                   { key: 'payoff' as const, label: 'Payoff', color: '#EF4444' },
                   { key: 'change' as const, label: 'Change', color: '#22C55E' },
                   { key: 'variety' as const, label: 'Variety', color: '#3B82F6' },
-                  { key: 'balance' as const, label: 'Swing', color: '#facc15' },
+                  { key: 'swing' as const, label: 'Swing', color: '#facc15' },
                 ]).map((row) => {
                   const s = scorecard[row.key];
                   const grade = scorecard.grades[row.key];
@@ -480,7 +485,7 @@ export default function TopBar() {
                   { key: 'payoff' as const, label: 'P', color: '#EF4444' },
                   { key: 'change' as const, label: 'C', color: '#22C55E' },
                   { key: 'variety' as const, label: 'V', color: '#3B82F6' },
-                  { key: 'balance' as const, label: 'S', color: '#facc15' },
+                  { key: 'swing' as const, label: 'S', color: '#facc15' },
                 ]).map((row) => (
                   <div key={row.key} className="flex items-center gap-1.5">
                     <span className="text-[9px] font-mono" style={{ color: row.color }}>{row.label}</span>

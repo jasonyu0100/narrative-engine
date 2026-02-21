@@ -23,6 +23,9 @@ import ApiKeyModal from '@/components/layout/ApiKeyModal';
 import { OnboardingGuide } from '@/components/onboarding/OnboardingGuide';
 import { ForceTracker } from '@/components/analytics/ForceTracker';
 import RulesPanel from '@/components/layout/RulesPanel';
+import { MCTSPanel } from '@/components/mcts/MCTSPanel';
+import { MCTSControlBar } from '@/components/mcts/MCTSControlBar';
+import { useMCTS } from '@/hooks/useMCTS';
 
 function useIsMobile(breakpoint = 768) {
   const [isMobile, setIsMobile] = useState(false);
@@ -47,7 +50,9 @@ export default function SeriesPage() {
   const [apiKeysOpen, setApiKeysOpen] = useState(false);
   const [forceTrackerOpen, setForceTrackerOpen] = useState(false);
   const [rulesOpen, setRulesOpen] = useState(false);
+  const [mctsOpen, setMctsOpen] = useState(false);
   const autoPlay = useAutoPlay();
+  const mcts = useMCTS();
   const access = useFeatureAccess();
 
   const id = params.id as string;
@@ -73,6 +78,7 @@ export default function SeriesPage() {
     function handleOpenApiKeys() { setApiKeysOpen(true); }
     function handleOpenForceTracker() { setForceTrackerOpen(true); }
     function handleOpenRules() { setRulesOpen(true); }
+    function handleOpenMcts() { setMctsOpen(true); }
     window.addEventListener('open-generate-panel', handleOpenGenerate);
     window.addEventListener('open-fork-panel', handleOpenFork);
     window.addEventListener('open-auto-settings', handleOpenAutoSettings);
@@ -80,6 +86,7 @@ export default function SeriesPage() {
     window.addEventListener('open-api-keys', handleOpenApiKeys);
     window.addEventListener('open-force-tracker', handleOpenForceTracker);
     window.addEventListener('open-rules-panel', handleOpenRules);
+    window.addEventListener('open-mcts-panel', handleOpenMcts);
     return () => {
       window.removeEventListener('open-generate-panel', handleOpenGenerate);
       window.removeEventListener('open-fork-panel', handleOpenFork);
@@ -88,6 +95,7 @@ export default function SeriesPage() {
       window.removeEventListener('open-api-keys', handleOpenApiKeys);
       window.removeEventListener('open-force-tracker', handleOpenForceTracker);
       window.removeEventListener('open-rules-panel', handleOpenRules);
+      window.removeEventListener('open-mcts-panel', handleOpenMcts);
     };
   }, []);
 
@@ -100,6 +108,7 @@ export default function SeriesPage() {
   }
 
   const showAutoBar = state.autoRunState && (state.autoRunState.isRunning || state.autoRunState.isPaused || state.autoRunState.log.length > 0);
+  const showMctsBar = mcts.runState.status !== 'idle' || Object.keys(mcts.runState.tree.nodes).length > 0;
 
   return (
     <>
@@ -110,7 +119,7 @@ export default function SeriesPage() {
         <div className="relative flex flex-col h-full min-h-0">
           <div className="flex-1 relative overflow-hidden">
             <WorldGraph />
-            {showAutoBar && (
+            {showAutoBar && !showMctsBar && (
               <AutoControlBar
                 isRunning={autoPlay.isRunning}
                 isPaused={autoPlay.isPaused}
@@ -121,6 +130,15 @@ export default function SeriesPage() {
                 onResume={autoPlay.resume}
                 onStop={autoPlay.stop}
                 onOpenSettings={() => setAutoSettingsOpen(true)}
+              />
+            )}
+            {showMctsBar && (
+              <MCTSControlBar
+                runState={mcts.runState}
+                onPause={mcts.pause}
+                onResume={mcts.resume}
+                onStop={mcts.stop}
+                onOpenPanel={() => setMctsOpen(true)}
               />
             )}
             <FloatingPalette />
@@ -145,6 +163,7 @@ export default function SeriesPage() {
       {apiKeysOpen && <ApiKeyModal access={access} onClose={() => setApiKeysOpen(false)} />}
       {forceTrackerOpen && <ForceTracker onClose={() => setForceTrackerOpen(false)} />}
       {rulesOpen && <RulesPanel onClose={() => setRulesOpen(false)} />}
+      <MCTSPanel isOpen={mctsOpen} onClose={() => setMctsOpen(false)} mcts={mcts} />
       <OnboardingGuide narrativeId={id} />
       {isMobile && (
         <div className="fixed inset-0 z-9999 bg-black/80 backdrop-blur-sm flex flex-col items-center justify-center px-6 text-center">

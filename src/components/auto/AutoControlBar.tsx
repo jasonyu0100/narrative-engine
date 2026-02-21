@@ -44,7 +44,7 @@ export function AutoControlBar({
         {/* Status indicator */}
         <div className="flex items-center gap-1.5">
           {isRunning ? (
-            <svg className="w-3.5 h-3.5 text-change animate-spin" viewBox="0 0 16 16" fill="none">
+            <svg className="w-3.5 h-3.5 text-yellow-400 animate-spin" viewBox="0 0 16 16" fill="none">
               <circle cx="8" cy="8" r="6" stroke="currentColor" strokeWidth="2" strokeOpacity="0.25" />
               <path d="M14 8a6 6 0 0 0-6-6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
             </svg>
@@ -97,7 +97,7 @@ export function AutoControlBar({
         ) : isPaused ? (
           <button
             onClick={onResume}
-            className="w-6 h-6 flex items-center justify-center text-change hover:bg-white/6 rounded transition-colors"
+            className="w-6 h-6 flex items-center justify-center text-yellow-400 hover:bg-white/6 rounded transition-colors"
             title="Resume"
           >
             <svg width="10" height="10" viewBox="0 0 10 10" fill="currentColor">
