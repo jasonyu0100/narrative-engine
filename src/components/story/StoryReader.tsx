@@ -266,15 +266,12 @@ export function StoryReader({
               <button
                 onClick={() => {
                   const text = scenes
-                    .map((s, i) => {
+                    .map((s) => {
                       const prose = proseCache[s.id]?.status === 'ready' ? proseCache[s.id].text : s.prose;
-                      if (!prose) return null;
-                      const sArc = Object.values(narrative.arcs).find((a) => a.sceneIds.includes(s.id));
-                      const header = sArc ? `Scene ${i + 1} — ${sArc.name}` : `Scene ${i + 1}`;
-                      return `${header}\n\n${prose}`;
+                      return prose || null;
                     })
                     .filter(Boolean)
-                    .join('\n\n---\n\n');
+                    .join('\n\n');
                   navigator.clipboard.writeText(text);
                   setCopied(true);
                   setTimeout(() => setCopied(false), 2000);
