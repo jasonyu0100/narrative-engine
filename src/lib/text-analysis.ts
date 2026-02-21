@@ -1001,36 +1001,40 @@ export async function assembleNarrative(
       chScenes.push(scene);
     }
 
-    // Inject deferred character knowledge & location lore into chunk's first scene
+    // Distribute deferred knowledge across the chunk's scenes.
+    // Each knowledge node goes to the first scene where that character participates,
+    // spreading mutations naturally instead of spiking the first scene.
     if (chScenes.length > 0) {
-      const firstScene = chScenes[0];
-      const existingMutContents = new Set(firstScene.knowledgeMutations.map((km) => km.content));
+      const allMutContents = new Set(chScenes.flatMap((s) => s.knowledgeMutations.map((km) => km.content)));
 
       for (const dk of chunkDeferredKnowledge[chunkIdx]) {
-        if (!existingMutContents.has(dk.content)) {
-          firstScene.knowledgeMutations.push({
-            characterId: dk.characterId,
-            nodeId: nextKId(),
-            action: 'added',
-            content: dk.content,
-            nodeType: dk.type,
-          });
-          existingMutContents.add(dk.content);
-        }
+        if (allMutContents.has(dk.content)) continue;
+        // Find the first scene where this character participates
+        const target = chScenes.find((s) => s.participantIds.includes(dk.characterId)) ?? chScenes[0];
+        target.knowledgeMutations.push({
+          characterId: dk.characterId,
+          nodeId: nextKId(),
+          action: 'added',
+          content: dk.content,
+          nodeType: dk.type,
+        });
+        allMutContents.add(dk.content);
       }
 
-      // Location lore → attributed to the POV character of the first scene
-      const lorePov = firstScene.povId || firstScene.participantIds[0] || '';
+      // Location lore → attributed to the POV of the first scene at that location
       for (const dl of chunkDeferredLore[chunkIdx]) {
-        if (lorePov && !existingMutContents.has(dl.content)) {
-          firstScene.knowledgeMutations.push({
-            characterId: lorePov,
+        if (allMutContents.has(dl.content)) continue;
+        const target = chScenes.find((s) => s.locationId === dl.locationId) ?? chScenes[0];
+        const pov = target.povId || target.participantIds[0] || '';
+        if (pov) {
+          target.knowledgeMutations.push({
+            characterId: pov,
             nodeId: nextKId(),
             action: 'added',
             content: dl.content,
             nodeType: 'lore',
           });
-          existingMutContents.add(dl.content);
+          allMutContents.add(dl.content);
         }
       }
     }

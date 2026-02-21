@@ -4,7 +4,7 @@ import { useRef, useEffect, useMemo, useCallback } from 'react';
 import { useStore } from '@/lib/store';
 import type { Arc, Scene } from '@/types/narrative';
 import { resolveEntry, isScene } from '@/types/narrative';
-import { computeRawForcetotals, computeForceSnapshots, computeBalanceMagnitudes } from '@/lib/narrative-utils';
+import { computeRawForcetotals, computeBalanceMagnitudes, gradeForces } from '@/lib/narrative-utils';
 
 const NODE_RADIUS = 8;
 const NODE_SPACING = 50;
@@ -72,15 +72,16 @@ export default function TimelineStrip() {
     if (allScenes.length === 0 || arcBands.length === 0) return new Map<string, number>();
 
     const raw = computeRawForcetotals(allScenes);
-    const forceMap = computeForceSnapshots(allScenes);
-    const zForces = allScenes.map((s) => forceMap[s.id] ?? { payoff: 0, change: 0, variety: 0 });
-    const balances = computeBalanceMagnitudes(zForces);
+    // Use raw forces for balance (same as scorecard and ForceTracker)
+    const rawForces = raw.payoff.map((_, i) => ({
+      payoff: raw.payoff[i],
+      change: raw.change[i],
+      variety: raw.variety[i],
+    }));
+    const balances = computeBalanceMagnitudes(rawForces);
 
     // Map scene IDs to their index in allScenes (scene-only, no world builds)
     const sceneIdToForceIdx = new Map(allScenes.map((s, i) => [s.id, i]));
-
-    const avg = (arr: number[]) => arr.length > 0 ? arr.reduce((s, v) => s + v, 0) / arr.length : 0;
-    const grade25 = (a: number, mid: number) => Math.min(25, 25 * (1 - Math.exp(-Math.max(0, a) / mid)));
 
     const grades = new Map<string, number>();
     for (const band of arcBands) {
@@ -93,13 +94,8 @@ export default function TimelineStrip() {
       const arcChanges = forceIndices.map((i) => raw.change[i]);
       const arcVarieties = forceIndices.map((i) => raw.variety[i]);
       const arcBalanceVals = forceIndices.map((i) => balances[i]);
-      const g = Math.round(
-        grade25(avg(arcPayoffs), 3) +
-        grade25(avg(arcChanges), 4) +
-        grade25(avg(arcVarieties), 3) +
-        grade25(avg(arcBalanceVals), 1.5)
-      );
-      grades.set(band.arc.id, g);
+      const { overall } = gradeForces(arcPayoffs, arcChanges, arcVarieties, arcBalanceVals);
+      grades.set(band.arc.id, overall);
     }
     return grades;
   }, [allScenes, arcBands]);
@@ -193,12 +189,19 @@ export default function TimelineStrip() {
             >
               {(() => {
                 const grade = arcGrades.get(band.arc.id) ?? 0;
-                const zoneFill = grade >= 50
-                  ? `rgba(34, 197, 94, ${0.06 + (grade - 50) / 50 * 0.12})`
-                  : `rgba(239, 68, 68, ${0.06 + (50 - grade) / 50 * 0.12})`;
-                const gradeColor = grade >= 75 ? '#22C55E'
-                  : grade >= 50 ? '#a3e635'
-                  : grade >= 25 ? '#F97316'
+                const zoneFill = grade >= 90
+                  ? `rgba(34, 197, 94, ${0.08 + (grade - 90) / 10 * 0.25})`
+                  : grade >= 80
+                  ? `rgba(163, 230, 53, ${0.06 + (grade - 80) / 10 * 0.12})`
+                  : grade >= 70
+                  ? `rgba(250, 204, 21, ${0.05 + (grade - 70) / 10 * 0.10})`
+                  : grade >= 60
+                  ? `rgba(249, 115, 22, ${0.06 + (grade - 60) / 10 * 0.12})`
+                  : `rgba(239, 68, 68, ${0.08 + (60 - grade) / 60 * 0.25})`;
+                const gradeColor = grade >= 90 ? '#22C55E'
+                  : grade >= 80 ? '#a3e635'
+                  : grade >= 70 ? '#FACC15'
+                  : grade >= 60 ? '#F97316'
                   : '#EF4444';
                 return (
                   <>

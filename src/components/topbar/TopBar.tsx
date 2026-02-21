@@ -395,9 +395,10 @@ export default function TopBar() {
                 <h2 className="text-[13px] font-semibold text-text-primary truncate max-w-[280px]">{scorecard.title}</h2>
                 <div className="flex items-center gap-1.5 shrink-0">
                   <span className={`text-[22px] font-bold font-mono leading-none ${
-                    scorecard.grades.overall >= 75 ? 'text-green-400' :
-                    scorecard.grades.overall >= 50 ? 'text-yellow-400' :
-                    scorecard.grades.overall >= 25 ? 'text-orange-400' : 'text-red-400'
+                    scorecard.grades.overall >= 90 ? 'text-green-400' :
+                    scorecard.grades.overall >= 80 ? 'text-lime-400' :
+                    scorecard.grades.overall >= 70 ? 'text-yellow-400' :
+                    scorecard.grades.overall >= 60 ? 'text-orange-400' : 'text-red-400'
                   }`}>{scorecard.grades.overall}</span>
                   <span className="text-[10px] text-text-dim font-mono">/100</span>
                 </div>
@@ -443,9 +444,10 @@ export default function TopBar() {
                       </div>
                       <div className="bg-bg-base p-2 text-center">
                         <span className={`text-[12px] font-mono font-semibold ${
-                          grade >= 19 ? 'text-green-400' :
-                          grade >= 13 ? 'text-yellow-400' :
-                          grade >= 7 ? 'text-orange-400' : 'text-red-400'
+                          grade >= 23 ? 'text-green-400' :
+                          grade >= 20 ? 'text-lime-400' :
+                          grade >= 18 ? 'text-yellow-400' :
+                          grade >= 15 ? 'text-orange-400' : 'text-red-400'
                         }`}>{grade}<span className="text-[9px] text-text-dim font-normal">/25</span></span>
                       </div>
                     </React.Fragment>
@@ -480,15 +482,14 @@ export default function TopBar() {
                 const maxScore = 100;
                 const xStep = cw / (arcs.length - 1);
 
-                // Score color: red(0) → yellow(50) → green(100)
+                // Score color: red(<60) → orange(60) → yellow(70) → lime(80) → green(90+)
                 const scoreColor = (v: number) => {
-                  const t = Math.max(0, Math.min(1, v / maxScore));
-                  if (t < 0.5) {
-                    const p = t / 0.5;
-                    return `rgb(${Math.round(239 + (250 - 239) * p)},${Math.round(68 + (204 - 68) * p)},${Math.round(68 * (1 - p))})`;
-                  }
-                  const p = (t - 0.5) / 0.5;
-                  return `rgb(${Math.round(250 - (250 - 34) * p)},${Math.round(204 + (197 - 204) * p)},${Math.round(34 * p)})`;
+                  if (v >= 90) return '#22C55E';
+                  if (v >= 80) { const p = (v - 80) / 10; return `rgb(${Math.round(163 - (163 - 34) * p)},${Math.round(230 + (197 - 230) * p)},${Math.round(53 + (94 - 53) * p)})`; }
+                  if (v >= 70) { const p = (v - 70) / 10; return `rgb(${Math.round(250 - (250 - 163) * p)},${Math.round(204 + (230 - 204) * p)},${Math.round(21 + (53 - 21) * p)})`; }
+                  if (v >= 60) { const p = (v - 60) / 10; return `rgb(${Math.round(249 + (250 - 249) * p)},${Math.round(115 + (204 - 115) * p)},${Math.round(22 - 22 * (1 - p))})`; }
+                  const p = Math.max(0, v / 60);
+                  return `rgb(${Math.round(239 + (249 - 239) * p)},${Math.round(68 + (115 - 68) * p)},${Math.round(68 * (1 - p))})`;
                 };
 
                 const points = arcs.map((a, i) => ({

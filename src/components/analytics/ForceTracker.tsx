@@ -413,10 +413,17 @@ function ZoneBar({
     const balances = computeBalanceMagnitudes(rawForces);
 
     return arcRegions.map((arc) => {
-      const arcPayoff = raw.payoff.slice(arc.startIndex, arc.endIndex + 1);
-      const arcChange = raw.change.slice(arc.startIndex, arc.endIndex + 1);
-      const arcVariety = raw.variety.slice(arc.startIndex, arc.endIndex + 1);
-      const arcBalance = balances.slice(arc.startIndex, arc.endIndex + 1);
+      // Collect force indices for scenes in this arc's range that match the arcId
+      const forceIndices: number[] = [];
+      for (let i = arc.startIndex; i <= arc.endIndex; i++) {
+        if (i < allScenes.length && allScenes[i].arcId === arc.arcId) {
+          forceIndices.push(i);
+        }
+      }
+      const arcPayoff = forceIndices.map((i) => raw.payoff[i]);
+      const arcChange = forceIndices.map((i) => raw.change[i]);
+      const arcVariety = forceIndices.map((i) => raw.variety[i]);
+      const arcBalance = forceIndices.map((i) => balances[i]);
       const { overall: grade } = gradeForces(arcPayoff, arcChange, arcVariety, arcBalance);
 
       return {
@@ -481,10 +488,16 @@ function ZoneBar({
       const x2 = Math.min(chartWidth, xScale(zone.endIndex) + halfStep);
       const w = Math.max(x2 - x1, 1);
 
-      // Color: green for good (>=50), red for danger (<50), intensity by distance from 50
-      const zoneColor = zone.grade >= 50
-        ? `rgba(34, 197, 94, ${0.08 + (zone.grade - 50) / 50 * 0.30})`
-        : `rgba(239, 68, 68, ${0.08 + (50 - zone.grade) / 50 * 0.30})`;
+      // Zone background: matches grade color thresholds (90/80/70/60)
+      const zoneColor = zone.grade >= 90
+        ? `rgba(34, 197, 94, ${0.08 + (zone.grade - 90) / 10 * 0.25})`
+        : zone.grade >= 80
+        ? `rgba(163, 230, 53, ${0.06 + (zone.grade - 80) / 10 * 0.12})`
+        : zone.grade >= 70
+        ? `rgba(250, 204, 21, ${0.05 + (zone.grade - 70) / 10 * 0.10})`
+        : zone.grade >= 60
+        ? `rgba(249, 115, 22, ${0.06 + (zone.grade - 60) / 10 * 0.12})`
+        : `rgba(239, 68, 68, ${0.08 + (60 - zone.grade) / 60 * 0.25})`;
 
       g.append('rect')
         .attr('x', x1)
@@ -495,9 +508,10 @@ function ZoneBar({
 
       // Grade label centered in zone (hide in dense mode)
       if (!dense && w > 24) {
-        const gradeColor = zone.grade >= 75 ? '#22C55E'
-          : zone.grade >= 50 ? '#a3e635'
-          : zone.grade >= 25 ? '#F97316'
+        const gradeColor = zone.grade >= 90 ? '#22C55E'
+          : zone.grade >= 80 ? '#a3e635'
+          : zone.grade >= 70 ? '#FACC15'
+          : zone.grade >= 60 ? '#F97316'
           : '#EF4444';
 
         g.append('text')
@@ -518,8 +532,8 @@ function ZoneBar({
     if (hoverIndex !== null && hoverIndex >= 0 && hoverIndex < data.length) {
       // Hover grade top-right
       const grade = sceneGrades[hoverIndex];
-      const zoneLabel = grade >= 75 ? 'GOOD' : grade >= 50 ? 'OK' : grade >= 25 ? 'WEAK' : 'DANGER';
-      const zoneColor = grade >= 75 ? '#22C55E' : grade >= 50 ? '#a3e635' : grade >= 25 ? '#F97316' : '#EF4444';
+      const zoneLabel = grade >= 90 ? 'GREAT' : grade >= 80 ? 'GOOD' : grade >= 70 ? 'OK' : grade >= 60 ? 'WEAK' : 'DANGER';
+      const zoneColor = grade >= 90 ? '#22C55E' : grade >= 80 ? '#a3e635' : grade >= 70 ? '#FACC15' : grade >= 60 ? '#F97316' : '#EF4444';
       g.append('text')
         .attr('x', chartWidth - 4)
         .attr('y', -m.top + 14)

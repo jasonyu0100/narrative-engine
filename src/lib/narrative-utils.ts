@@ -153,6 +153,9 @@ export function averageBalance(forceSnapshots: ForceSnapshot[], windowSize = FOR
   return window.reduce((s, v) => s + v, 0) / window.length;
 }
 
+/** Default rolling window size for force computation (recency, windowed normalization) */
+export const FORCE_WINDOW_SIZE = 10;
+
 // ── Force Computation ────────────────────────────────────────────────────────
 
 /**
@@ -227,18 +230,14 @@ function computeRawPayoff(scene: Scene): number {
 }
 
 /**
- * Compute raw change for a scene combining mutation reach and knowledge turbulence.
+ * Compute raw change for a scene — mutation reach across affected characters.
  *
- * Unbounded positive value — scenes affecting more characters more deeply score higher:
- * - **Mutation reach**: sum of log₂(1 + mutations) per affected character.
- *   Captures both breadth (how many characters changed) and depth (how much each changed),
- *   with diminishing returns so one character with 8 mutations ≈ three with 1 each.
- * - **Knowledge turbulence**: (knowledgeMutations / castSize) × log₂(1 + charsWithKnowledge),
- *   scaled by cast size. Rewards both volume and spread of knowledge shifts —
- *   4 mutations spread across 3 characters scores higher than 4 on one character.
+ * Counts all mutations (knowledge, relationship, thread) per character, then
+ * sums log₂(1 + count) across all affected characters. This naturally captures
+ * both breadth (how many characters changed) and depth (how much each changed)
+ * with diminishing returns — one character with 8 mutations ≈ three with 1 each.
  */
 function rawChange(scene: Scene): number {
-  // Mutation reach: count mutations per character, then sum log₂(1 + count)
   const charMutations: Record<string, number> = {};
   for (const km of scene.knowledgeMutations) {
     charMutations[km.characterId] = (charMutations[km.characterId] ?? 0) + 1;
@@ -247,20 +246,12 @@ function rawChange(scene: Scene): number {
     charMutations[rm.from] = (charMutations[rm.from] ?? 0) + 1;
     charMutations[rm.to] = (charMutations[rm.to] ?? 0) + 1;
   }
-  // Thread mutations affect the scene broadly — attribute to POV character
   for (const _tm of scene.threadMutations) {
     charMutations[scene.povId] = (charMutations[scene.povId] ?? 0) + 1;
   }
-  const mutationReach = Object.values(charMutations).reduce(
-    (sum, count) => sum + Math.log2(1 + count), 0
+  return Object.values(charMutations).reduce(
+    (sum, count) => sum + Math.log2(1 + count), 0,
   );
-
-  // Knowledge turbulence: volume × spread, scaled by cast size
-  const castSize = Math.max(scene.participantIds.length, 1);
-  const charsWithKnowledge = new Set(scene.knowledgeMutations.map(km => km.characterId));
-  const turbulence = (scene.knowledgeMutations.length / castSize) * Math.log2(1 + charsWithKnowledge.size);
-
-  return mutationReach + turbulence * castSize;
 }
 
 /**
@@ -275,37 +266,56 @@ function jaccard(a: Set<string>, b: Set<string>): number {
   return 1 - intersection / union;
 }
 
-/**
- * Compute raw variety for a scene combining entity freshness and compositional novelty.
- *
- * Unbounded positive value — larger casts with fresh elements score higher:
- * - **Entity freshness**: sum of 1/(1+usage) for each participant + location.
- *   Each fresh participant contributes ~1.0, decaying as they reappear.
- *   Not averaged — larger casts with fresh characters naturally score higher.
- * - **Compositional novelty**: Jaccard distance of participant set vs all prior casts,
- *   scaled by cast size so novel ensembles of many characters score higher.
- */
-function rawVariety(scene: Scene, charUsage: Record<string, number>, locUsage: Record<string, number>, priorCasts: Set<string>[]): number {
-  // Entity freshness: sum (not avg) of 1/(1+usage) — unbounded, grows with cast size
-  const participantFreshness = scene.participantIds.reduce(
-    (sum, id) => sum + 1 / (1 + (charUsage[id] ?? 0)), 0
-  );
-  const locationFreshness = 1 / (1 + (locUsage[scene.locationId] ?? 0));
-  const freshness = participantFreshness + locationFreshness;
 
-  // Compositional novelty: min Jaccard distance to any prior cast, scaled by cast size
-  const cast = new Set(scene.participantIds);
-  const castSize = Math.max(cast.size, 1);
-  let novelty = 1; // fully novel if no prior scenes
-  if (priorCasts.length > 0) {
-    let minDist = 1;
-    for (const prior of priorCasts) {
-      minDist = Math.min(minDist, jaccard(cast, prior));
+/**
+ * Compute raw variety for a scene: how many new elements is the reader encountering?
+ *
+ * Three components, each measuring a distinct kind of novelty:
+ *
+ * 1. **Character recency** — first-time participants score 1.0 each; returning
+ *    characters score proportionally to how long they've been absent
+ *    (gap/window, capped at 1). Summed raw so larger fresh casts score higher.
+ *
+ * 2. **Location recency** — first visit scores 2.0; revisits score
+ *    proportionally to how long ago the location was last used. Weighted 2×
+ *    because setting shifts are immediately noticeable.
+ *
+ * 3. **Ensemble novelty** — average Jaccard distance of this cast vs the last
+ *    few casts (not all history). Measures "is this a different *group* than
+ *    what we've been seeing?" without permanently flatlining once a cast has
+ *    appeared anywhere in history.
+ */
+function rawVariety(
+  scene: Scene,
+  charLastSeen: Record<string, number>,
+  locLastSeen: Record<string, number>,
+  priorCasts: Set<string>[],
+  sceneIdx: number,
+): number {
+  // 1. Character recency: first appearance = 1, returning = gap/window (capped at 1)
+  let charRecency = 0;
+  for (const id of scene.participantIds) {
+    const last = charLastSeen[id];
+    if (last === undefined) {
+      charRecency += 1; // first appearance
+    } else {
+      charRecency += Math.min(1, (sceneIdx - last) / FORCE_WINDOW_SIZE);
     }
-    novelty = minDist;
   }
 
-  return freshness + novelty * castSize;
+  // 2. Location recency: first visit = 2, revisit = gap/window × 2 (capped at 2)
+  const locLast = locLastSeen[scene.locationId];
+  const locRecency = (locLast === undefined ? 1 : Math.min(1, (sceneIdx - locLast) / FORCE_WINDOW_SIZE)) * 2;
+
+  // 3. Ensemble novelty: average Jaccard distance to recent casts only
+  const cast = new Set(scene.participantIds);
+  let ensembleNovelty = 1;
+  if (priorCasts.length > 0) {
+    const recent = priorCasts.slice(-FORCE_WINDOW_SIZE);
+    ensembleNovelty = recent.reduce((sum, prior) => sum + jaccard(cast, prior), 0) / recent.length;
+  }
+
+  return charRecency + locRecency + ensembleNovelty * Math.sqrt(Math.max(cast.size, 1));
 }
 
 /**
@@ -313,8 +323,8 @@ function rawVariety(scene: Scene, charUsage: Record<string, number>, locUsage: R
  * 0 = average moment; positive = above average; negative = below average (units of std deviation).
  *
  * - **Payoff**: phase transitions — thread status changes (weighted by jump magnitude) and relationship valence shifts
- * - **Change**: combines mutation reach (log₂ depth per affected character) and knowledge turbulence (fraction of cast with knowledge shifts, scaled by cast size)
- * - **Variety**: combines entity freshness (participant/location usage) and compositional novelty (Jaccard distance of cast vs prior casts)
+ * - **Change**: mutation reach — sum of log₂(1 + mutations) per affected character
+ * - **Variety**: new characters (recency-weighted) + new location (2×) + new ensemble (Jaccard vs recent casts)
  *
  * @param scenes - Ordered list of scenes to compute forces for
  * @param priorScenes - Scenes before this batch (for usage tracking). Empty for initial generation.
@@ -326,28 +336,32 @@ export function computeForceSnapshots(
   const result: Record<string, ForceSnapshot> = {};
   if (scenes.length === 0) return result;
 
-  // Build cumulative usage counts and participant sets from prior scenes
-  const charUsage: Record<string, number> = {};
-  const locUsage: Record<string, number> = {};
+  // Build last-seen indices and participant sets from prior scenes
+  const charLastSeen: Record<string, number> = {};
+  const locLastSeen: Record<string, number> = {};
   const priorCasts: Set<string>[] = [];
-  for (const s of priorScenes) {
-    for (const pid of s.participantIds) charUsage[pid] = (charUsage[pid] ?? 0) + 1;
-    locUsage[s.locationId] = (locUsage[s.locationId] ?? 0) + 1;
+  for (let i = 0; i < priorScenes.length; i++) {
+    const s = priorScenes[i];
+    for (const pid of s.participantIds) charLastSeen[pid] = i;
+    locLastSeen[s.locationId] = i;
     priorCasts.push(new Set(s.participantIds));
   }
 
-  // Compute raw values, updating usage counts as we go
+  // Compute raw values, updating last-seen as we go
   const rawPayoffs: number[] = [];
   const rawChanges: number[] = [];
   const rawVarieties: number[] = [];
+  const baseIdx = priorScenes.length;
 
-  for (const scene of scenes) {
+  for (let si = 0; si < scenes.length; si++) {
+    const scene = scenes[si];
+    const globalIdx = baseIdx + si;
     rawPayoffs.push(computeRawPayoff(scene));
     rawChanges.push(rawChange(scene));
-    rawVarieties.push(rawVariety(scene, charUsage, locUsage, priorCasts));
-    // Update usage for subsequent scenes
-    for (const pid of scene.participantIds) charUsage[pid] = (charUsage[pid] ?? 0) + 1;
-    locUsage[scene.locationId] = (locUsage[scene.locationId] ?? 0) + 1;
+    rawVarieties.push(rawVariety(scene, charLastSeen, locLastSeen, priorCasts, globalIdx));
+    // Update last-seen for subsequent scenes
+    for (const pid of scene.participantIds) charLastSeen[pid] = globalIdx;
+    locLastSeen[scene.locationId] = globalIdx;
     priorCasts.push(new Set(scene.participantIds));
   }
 
@@ -376,25 +390,29 @@ export function computeRawForcetotals(
 ): { payoff: number[]; change: number[]; variety: number[] } {
   if (scenes.length === 0) return { payoff: [], change: [], variety: [] };
 
-  const charUsage: Record<string, number> = {};
-  const locUsage: Record<string, number> = {};
+  const charLastSeen: Record<string, number> = {};
+  const locLastSeen: Record<string, number> = {};
   const priorCasts: Set<string>[] = [];
-  for (const s of priorScenes) {
-    for (const pid of s.participantIds) charUsage[pid] = (charUsage[pid] ?? 0) + 1;
-    locUsage[s.locationId] = (locUsage[s.locationId] ?? 0) + 1;
+  for (let i = 0; i < priorScenes.length; i++) {
+    const s = priorScenes[i];
+    for (const pid of s.participantIds) charLastSeen[pid] = i;
+    locLastSeen[s.locationId] = i;
     priorCasts.push(new Set(s.participantIds));
   }
 
   const payoff: number[] = [];
   const change: number[] = [];
   const variety: number[] = [];
+  const baseIdx = priorScenes.length;
 
-  for (const scene of scenes) {
+  for (let si = 0; si < scenes.length; si++) {
+    const scene = scenes[si];
+    const globalIdx = baseIdx + si;
     payoff.push(computeRawPayoff(scene));
     change.push(rawChange(scene));
-    variety.push(rawVariety(scene, charUsage, locUsage, priorCasts));
-    for (const pid of scene.participantIds) charUsage[pid] = (charUsage[pid] ?? 0) + 1;
-    locUsage[scene.locationId] = (locUsage[scene.locationId] ?? 0) + 1;
+    variety.push(rawVariety(scene, charLastSeen, locLastSeen, priorCasts, globalIdx));
+    for (const pid of scene.participantIds) charLastSeen[pid] = globalIdx;
+    locLastSeen[scene.locationId] = globalIdx;
     priorCasts.push(new Set(scene.participantIds));
   }
 
@@ -414,9 +432,6 @@ export function movingAverage(data: number[], windowSize: number): number[] {
 }
 
 // ── Windowed Forces ──────────────────────────────────────────────────────────
-
-/** Default rolling window size for relative force computation */
-export const FORCE_WINDOW_SIZE = 10;
 
 export type WindowedForceResult = {
   forceMap: Record<string, ForceSnapshot>;
@@ -502,9 +517,9 @@ export function gradeForces(
   const balanceEffective = avg(balance) * 0.5 + topAvg(balance) * 0.5;
 
   const payoffGrade = gradeForce(avg(payoff), 3);
-  const changeGrade = gradeForce(avg(change), 7);
-  const varietyGrade = gradeForce(avg(variety), 3);
-  const balanceGrade = gradeForce(balanceEffective, 8);
+  const changeGrade = gradeForce(avg(change), 4);
+  const varietyGrade = gradeForce(avg(variety), 2);
+  const balanceGrade = gradeForce(balanceEffective, 5);
 
   return {
     payoff: Math.round(payoffGrade),
