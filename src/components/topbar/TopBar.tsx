@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useStore } from '@/lib/store';
 import type { NarrativeState } from '@/types/narrative';
 import { resolveEntry, isScene, type Scene } from '@/types/narrative';
-import { computeRawForcetotals, computeSwingMagnitudes, gradeForces } from '@/lib/narrative-utils';
+import { computeRawForcetotals, computeSwingMagnitudes, computeForceSnapshots, computeEngagementCurve, classifyNarrativeShape, gradeForces, type NarrativeShape } from '@/lib/narrative-utils';
 import { ApiLogsModal } from '@/components/debug/ApiLogsModal';
 import { StoryReader } from '@/components/story/StoryReader';
 import { CubeExplorer } from '@/components/topbar/CubeExplorer';
@@ -34,6 +34,7 @@ export default function TopBar() {
   const [cubeExplorerOpen, setCubeExplorerOpen] = useState(false);
   const [scorecardOpen, setScorecardOpen] = useState(false);
   const [hoveredArcIdx, setHoveredArcIdx] = useState<number | null>(null);
+  const [scorecardGraphView, setScorecardGraphView] = useState<'arcs' | 'beats'>('arcs');
   const scorecardRef = useRef<HTMLDivElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -142,6 +143,11 @@ export default function TopBar() {
     const arcOveralls = perArc.map(a => a.grades.overall);
     const seriesGrades = gradeForces(raw.payoff, raw.change, raw.variety, swings, arcOveralls);
 
+    // Narrative shape classification from engagement curve
+    const normSnapshots = Object.values(computeForceSnapshots(allScenes));
+    const engagementPoints = computeEngagementCurve(normSnapshots);
+    const shape = classifyNarrativeShape(engagementPoints);
+
     return {
       title: narrative.title,
       scenes: n,
@@ -149,6 +155,8 @@ export default function TopBar() {
       ...stats,
       grades: seriesGrades,
       perArc,
+      shape,
+      engagementPoints,
     };
   }, [allScenes, narrative]);
 
@@ -479,6 +487,13 @@ export default function TopBar() {
                 </React.Fragment>
               </div>
 
+              {/* Shape classification */}
+              <div className="mt-3 px-1 py-2 border border-white/5 rounded flex flex-col gap-0.5">
+                <span className="text-[9px] uppercase tracking-widest text-text-dim">Shape</span>
+                <span className="text-[11px] font-medium text-text-primary">{scorecard.shape.name}</span>
+                <span className="text-[10px] text-text-dim leading-snug">{scorecard.shape.description}</span>
+              </div>
+
               {/* Std dev footer */}
               <div className="mt-3 flex items-center gap-4">
                 {([
@@ -494,7 +509,7 @@ export default function TopBar() {
                 ))}
               </div>
 
-              {/* Per-arc score graph */}
+              {/* Per-arc score graph / engagement graph */}
               {scorecard.perArc.length > 1 && (() => {
                 const arcs = scorecard.perArc;
                 const dense = arcs.length >= 15;
@@ -503,10 +518,7 @@ export default function TopBar() {
                 const PAD = { top: dense ? 8 : 16, right: 12, bottom: dense ? 8 : 28, left: 28 };
                 const cw = W - PAD.left - PAD.right;
                 const ch = H - PAD.top - PAD.bottom;
-                const maxScore = 100;
-                const xStep = cw / (arcs.length - 1);
 
-                // Score color: red(<60) → orange(60) → yellow(70) → lime(80) → green(90+)
                 const scoreColor = (v: number) => {
                   if (v >= 90) return '#22C55E';
                   if (v >= 80) { const p = (v - 80) / 10; return `rgb(${Math.round(163 - (163 - 34) * p)},${Math.round(230 + (197 - 230) * p)},${Math.round(53 + (94 - 53) * p)})`; }
@@ -516,93 +528,120 @@ export default function TopBar() {
                   return `rgb(${Math.round(239 + (249 - 239) * p)},${Math.round(68 + (115 - 68) * p)},${Math.round(68 * (1 - p))})`;
                 };
 
-                const points = arcs.map((a, i) => ({
-                  x: PAD.left + i * xStep,
-                  y: PAD.top + ch - (a.grades.overall / maxScore) * ch,
+                const arcPoints = arcs.map((a, i) => ({
+                  x: PAD.left + i * (cw / (arcs.length - 1)),
+                  y: PAD.top + ch - (a.grades.overall / 100) * ch,
                   score: a.grades.overall,
-                  name: a.name,
                 }));
 
-                const linePath = points.map((p, i) => `${i === 0 ? 'M' : 'L'}${p.x},${p.y}`).join(' ');
+                const eng = scorecard.engagementPoints;
+                const engMaxAbs = Math.max(...eng.map((e) => Math.abs(e.smoothed)), 0.5) * 1.2;
+                const engPoints = eng.map((e, i) => ({
+                  x: PAD.left + i * (cw / Math.max(eng.length - 1, 1)),
+                  y: PAD.top + ch / 2 - (e.smoothed / engMaxAbs) * (ch / 2),
+                  engagement: e.engagement,
+                  isPeak: e.isPeak,
+                  isValley: e.isValley,
+                }));
+                const zeroY = PAD.top + ch / 2;
 
                 return (
                   <div className="mt-4 pt-4 border-t border-white/8">
-                    <h3 className="text-[9px] uppercase tracking-widest text-text-dim mb-2">Score by Arc</h3>
-                    <svg width="100%" viewBox={`0 0 ${W} ${H}`} className="overflow-visible">
-                      <defs>
-                        {/* Per-segment gradient fills */}
-                        {points.slice(0, -1).map((p, i) => {
-                          const next = points[i + 1];
-                          return (
+                    <div className="flex items-center justify-between mb-2">
+                      <h3 className="text-[9px] uppercase tracking-widest text-text-dim">
+                        {scorecardGraphView === 'arcs' ? 'Score by Arc' : 'Beats'}
+                      </h3>
+                      <div className="flex items-center rounded border border-white/8 overflow-hidden">
+                        {(['arcs', 'beats'] as const).map((v) => (
+                          <button
+                            key={v}
+                            onClick={() => setScorecardGraphView(v)}
+                            className={`text-[9px] px-2 py-0.5 capitalize transition ${
+                              scorecardGraphView === v
+                                ? 'bg-white/10 text-text-primary'
+                                : 'text-text-dim hover:text-text-secondary'
+                            }`}
+                          >
+                            {v}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {scorecardGraphView === 'arcs' ? (
+                      <svg width="100%" viewBox={`0 0 ${W} ${H}`} className="overflow-visible">
+                        <defs>
+                          {arcPoints.slice(0, -1).map((p, i) => (
                             <linearGradient key={i} id={`sc-seg-${i}`} x1="0" y1="0" x2="1" y2="0">
                               <stop offset="0%" stopColor={scoreColor(p.score)} stopOpacity="0.3" />
-                              <stop offset="100%" stopColor={scoreColor(next.score)} stopOpacity="0.3" />
+                              <stop offset="100%" stopColor={scoreColor(arcPoints[i + 1].score)} stopOpacity="0.3" />
                             </linearGradient>
+                          ))}
+                          <linearGradient id="sc-line-grad" x1="0" y1="0" x2="1" y2="0">
+                            {arcPoints.map((p, i) => (
+                              <stop key={i} offset={`${(i / (arcPoints.length - 1)) * 100}%`} stopColor={scoreColor(p.score)} />
+                            ))}
+                          </linearGradient>
+                        </defs>
+                        {[0, 25, 50, 75, 100].map((v) => {
+                          const y = PAD.top + ch - (v / 100) * ch;
+                          return (
+                            <g key={v}>
+                              <line x1={PAD.left} y1={y} x2={PAD.left + cw} y2={y} stroke="white" strokeOpacity="0.05" />
+                              <text x={PAD.left - 4} y={y + 3} textAnchor="end" fill="white" fillOpacity="0.2" fontSize="8" fontFamily="monospace">{v}</text>
+                            </g>
                           );
                         })}
-                        {/* Line stroke gradient */}
-                        <linearGradient id="sc-line-grad" x1="0" y1="0" x2="1" y2="0">
-                          {points.map((p, i) => (
-                            <stop key={i} offset={`${(i / (points.length - 1)) * 100}%`} stopColor={scoreColor(p.score)} />
-                          ))}
-                        </linearGradient>
-                      </defs>
-
-                      {/* Grid lines */}
-                      {[0, 25, 50, 75, 100].map((v) => {
-                        const y = PAD.top + ch - (v / maxScore) * ch;
-                        return (
-                          <g key={v}>
-                            <line x1={PAD.left} y1={y} x2={PAD.left + cw} y2={y} stroke="white" strokeOpacity="0.05" />
-                            <text x={PAD.left - 4} y={y + 3} textAnchor="end" fill="white" fillOpacity="0.2" fontSize="8" fontFamily="monospace">{v}</text>
-                          </g>
-                        );
-                      })}
-
-                      {/* Gradient area fills per segment */}
-                      {points.slice(0, -1).map((p, i) => {
-                        const next = points[i + 1];
-                        const baseline = PAD.top + ch;
-                        return (
-                          <path
-                            key={i}
-                            d={`M${p.x},${p.y} L${next.x},${next.y} L${next.x},${baseline} L${p.x},${baseline} Z`}
-                            fill={`url(#sc-seg-${i})`}
-                          />
-                        );
-                      })}
-
-                      {/* Score line */}
-                      <path d={linePath} fill="none" stroke="url(#sc-line-grad)" strokeWidth="2" strokeLinejoin="round" />
-
-                      {/* Dots + hover targets */}
-                      {points.map((p, i) => {
-                        const isHovered = hoveredArcIdx === i;
-                        return (
-                          <g
-                            key={i}
-                            onMouseEnter={() => setHoveredArcIdx(i)}
-                            onMouseLeave={() => setHoveredArcIdx(null)}
-                            className="cursor-pointer"
-                          >
-                            {/* Invisible hit area */}
-                            <circle cx={p.x} cy={p.y} r={12} fill="transparent" />
-                            <circle cx={p.x} cy={p.y} r={isHovered ? 5 : (dense ? 2 : 3.5)} fill={scoreColor(p.score)} />
-                            {/* Score label: always show on hover, otherwise only in non-dense */}
-                            {(isHovered || !dense) && (
-                              <text x={p.x} y={p.y - 8} textAnchor="middle" fill={scoreColor(p.score)} fontSize="9" fontFamily="monospace" fontWeight="600">{p.score}</text>
-                            )}
-                          </g>
-                        );
-                      })}
-
-                      {/* Arc number labels */}
-                      {!dense && points.map((p, i) => (
-                        <text key={i} x={p.x} y={H - 4} textAnchor="middle" fill="white" fillOpacity="0.3" fontSize="8" fontFamily="monospace">
-                          {i + 1}
-                        </text>
-                      ))}
-                    </svg>
+                        {arcPoints.slice(0, -1).map((p, i) => (
+                          <path key={i} d={`M${p.x},${p.y} L${arcPoints[i+1].x},${arcPoints[i+1].y} L${arcPoints[i+1].x},${PAD.top+ch} L${p.x},${PAD.top+ch} Z`} fill={`url(#sc-seg-${i})`} />
+                        ))}
+                        <path d={arcPoints.map((p, i) => `${i === 0 ? 'M' : 'L'}${p.x},${p.y}`).join(' ')} fill="none" stroke="url(#sc-line-grad)" strokeWidth="2" strokeLinejoin="round" />
+                        {arcPoints.map((p, i) => {
+                          const isHovered = hoveredArcIdx === i;
+                          return (
+                            <g key={i} onMouseEnter={() => setHoveredArcIdx(i)} onMouseLeave={() => setHoveredArcIdx(null)} className="cursor-pointer">
+                              <circle cx={p.x} cy={p.y} r={12} fill="transparent" />
+                              <circle cx={p.x} cy={p.y} r={isHovered ? 5 : (dense ? 2 : 3.5)} fill={scoreColor(p.score)} />
+                              {(isHovered || !dense) && (
+                                <text x={p.x} y={p.y - 8} textAnchor="middle" fill={scoreColor(p.score)} fontSize="9" fontFamily="monospace" fontWeight="600">{p.score}</text>
+                              )}
+                            </g>
+                          );
+                        })}
+                        {!dense && arcPoints.map((p, i) => (
+                          <text key={i} x={p.x} y={H - 4} textAnchor="middle" fill="white" fillOpacity="0.3" fontSize="8" fontFamily="monospace">{i + 1}</text>
+                        ))}
+                      </svg>
+                    ) : (
+                      <svg width="100%" viewBox={`0 0 ${W} ${H}`} className="overflow-visible">
+                        {/* Zero line */}
+                        <line x1={PAD.left} y1={zeroY} x2={PAD.left + cw} y2={zeroY} stroke="white" strokeOpacity="0.12" />
+                        <text x={PAD.left - 4} y={zeroY + 3} textAnchor="end" fill="white" fillOpacity="0.2" fontSize="8" fontFamily="monospace">0</text>
+                        {/* Positive fill */}
+                        <path
+                          d={`M${engPoints[0].x},${zeroY} ${engPoints.map((p) => `L${p.x},${Math.min(p.y, zeroY)}`).join(' ')} L${engPoints[engPoints.length-1].x},${zeroY} Z`}
+                          fill="#F59E0B" fillOpacity="0.12"
+                        />
+                        {/* Negative fill */}
+                        <path
+                          d={`M${engPoints[0].x},${zeroY} ${engPoints.map((p) => `L${p.x},${Math.max(p.y, zeroY)}`).join(' ')} L${engPoints[engPoints.length-1].x},${zeroY} Z`}
+                          fill="#93C5FD" fillOpacity="0.08"
+                        />
+                        {/* Engagement line */}
+                        <polyline
+                          points={engPoints.map((p) => `${p.x},${p.y}`).join(' ')}
+                          fill="none" stroke="#F59E0B" strokeWidth="1.5" strokeLinejoin="round"
+                        />
+                        {/* Peak markers */}
+                        {engPoints.filter((p) => p.isPeak).map((p, i) => (
+                          <polygon key={i} points={`${p.x},${p.y - 6} ${p.x - 4},${p.y - 1} ${p.x + 4},${p.y - 1}`} fill="#FCD34D" opacity="0.9" />
+                        ))}
+                        {/* Valley markers */}
+                        {engPoints.filter((p) => p.isValley).map((p, i) => (
+                          <polygon key={i} points={`${p.x},${p.y + 6} ${p.x - 4},${p.y + 1} ${p.x + 4},${p.y + 1}`} fill="#93C5FD" opacity="0.8" />
+                        ))}
+                      </svg>
+                    )}
                   </div>
                 );
               })()}

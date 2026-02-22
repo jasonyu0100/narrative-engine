@@ -671,9 +671,9 @@ function EngagementChart({
       .attr('x', 6).attr('y', -m.top + 14)
       .attr('fill', ENGAGEMENT_COLOR)
       .attr('font-size', '10px').attr('font-weight', '600').attr('letter-spacing', '0.1em')
-      .text('ENGAGEMENT');
+      .text('BEATS');
     g.append('text')
-      .attr('x', 6 + 10 * 8 + 6).attr('y', -m.top + 14)
+      .attr('x', 6 + 5 * 8 + 6).attr('y', -m.top + 14)
       .attr('fill', ENGAGEMENT_COLOR)
       .attr('font-size', '9px').attr('font-weight', '600').attr('font-family', 'monospace').attr('opacity', 0.7)
       .text(`w${winAvg >= 0 ? '+' : ''}${winAvg.toFixed(2)}`);
@@ -883,8 +883,8 @@ export function ForceTracker({ onClose }: { onClose: () => void }) {
     return null;
   });
 
-  // View mode: individual force charts or composite engagement curve
-  const [view, setView] = useState<'forces' | 'engagement'>('forces');
+  // View mode: individual force charts or beats curve
+  const [view, setView] = useState<'forces' | 'beats'>('forces');
 
   // Raw force toggle (absolute values vs z-score normalised)
   const [showRawForce, setShowRawForce] = useState(true);
@@ -1130,7 +1130,7 @@ export function ForceTracker({ onClose }: { onClose: () => void }) {
         </div>
         <div className="flex items-center gap-2">
           <div className="flex items-center rounded-full border border-border overflow-hidden">
-            {(['forces', 'engagement'] as const).map((v) => (
+            {(['forces', 'beats'] as const).map((v) => (
               <button
                 key={v}
                 onClick={() => setView(v)}
@@ -1198,7 +1198,7 @@ export function ForceTracker({ onClose }: { onClose: () => void }) {
           </div>
         ) : (
           <>
-            {view === 'engagement' ? (
+            {view === 'beats' ? (
               <EngagementChart
                 data={activeDataPoints}
                 engagement={engagementData}

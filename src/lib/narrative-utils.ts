@@ -575,6 +575,126 @@ export function computeEngagementCurve(snapshots: ForceSnapshot[]): EngagementPo
   }));
 }
 
+// ── Narrative Shape Classification ────────────────────────────────────────────
+
+export interface NarrativeShape {
+  key: string;
+  name: string;
+  description: string;
+}
+
+const SHAPES = {
+  rags_to_riches: {
+    key: 'rags_to_riches',
+    name: 'Rags to Riches',
+    description: 'Steady rise — reader investment builds continuously to the end',
+  },
+  tragedy: {
+    key: 'tragedy',
+    name: 'Tragedy',
+    description: 'Sustained fall — engagement declines as the story progresses',
+  },
+  man_in_hole: {
+    key: 'man_in_hole',
+    name: 'Man in Hole',
+    description: 'Dip then recovery — a setback overcome, ending above where it started',
+  },
+  icarus: {
+    key: 'icarus',
+    name: 'Icarus',
+    description: 'Peaks early then falls — front-loaded climax with a declining close',
+  },
+  cinderella: {
+    key: 'cinderella',
+    name: 'Cinderella',
+    description: 'Rise, fall, then higher rise — a double emotional arc',
+  },
+  one_climax: {
+    key: 'one_climax',
+    name: 'One Climax',
+    description: 'Central peak with build and denouement — classical three-act shape',
+  },
+  slow_burn: {
+    key: 'slow_burn',
+    name: 'Slow Burn',
+    description: 'Long below-average setup before a strong finish — rewards patience',
+  },
+  episodic: {
+    key: 'episodic',
+    name: 'Episodic',
+    description: 'Many peaks of roughly equal weight — serial or anthology structure',
+  },
+  plateau: {
+    key: 'plateau',
+    name: 'Plateau',
+    description: 'Low variance throughout — contemplative or deliberately measured pacing',
+  },
+} satisfies Record<string, NarrativeShape>;
+
+/**
+ * Classify the overall shape of an engagement curve into a named narrative archetype.
+ *
+ * Uses the macro trend (heavily smoothed) for direction and overall slope,
+ * and the peak count from the local detection for episodic vs focused structure.
+ * Inspired by Vonnegut's story shapes and Reagan et al.'s arc research.
+ */
+export function classifyNarrativeShape(points: EngagementPoint[]): NarrativeShape {
+  if (points.length < 6) return SHAPES.one_climax;
+  const n = points.length;
+  const macro = points.map((p) => p.macroTrend);
+  const smoothed = points.map((p) => p.smoothed);
+
+  // Variance of the smoothed curve — low means flat/plateau
+  const smMean = smoothed.reduce((s, v) => s + v, 0) / n;
+  const variance = Math.sqrt(smoothed.reduce((s, v) => s + (v - smMean) ** 2, 0) / n);
+  if (variance < 0.15) return SHAPES.plateau;
+
+  // Third-segment macro trend averages
+  const t1 = Math.floor(n / 3);
+  const t2 = Math.floor(2 * n / 3);
+  const segAvg = (a: number, b: number) => macro.slice(a, b).reduce((s, v) => s + v, 0) / (b - a);
+  const avgQ1 = segAvg(0, t1);
+  const avgQ2 = segAvg(t1, t2);
+  const avgQ3 = segAvg(t2, n);
+
+  const overallSlope = macro[n - 1] - macro[0];
+  const peakCount = points.filter((p) => p.isPeak).length;
+
+  // Episodic: four or more labeled peaks with no dominant direction
+  if (peakCount >= 4 && Math.abs(overallSlope) < 0.5) return SHAPES.episodic;
+
+  // V-shape: middle third is lowest — dip then recovery
+  const midDip = avgQ2 < avgQ1 - 0.12 && avgQ2 < avgQ3 - 0.12;
+  // Λ-shape: middle third is highest — classic build and release
+  const midPeak = avgQ2 > avgQ1 + 0.12 && avgQ2 > avgQ3 + 0.12;
+
+  if (midPeak) return SHAPES.one_climax;
+
+  if (midDip) {
+    // Man in Hole if it recovers to at least starting level
+    return SHAPES.man_in_hole;
+  }
+
+  // Strong overall direction
+  if (overallSlope > 0.4) {
+    // Slow Burn: starts genuinely below zero and climbs to positive
+    if (macro[0] < -0.2 && macro[n - 1] > 0.2) return SHAPES.slow_burn;
+    return SHAPES.rags_to_riches;
+  }
+
+  if (overallSlope < -0.4) {
+    // Icarus: peak is in the first half, then falls away
+    const maxIdx = smoothed.indexOf(Math.max(...smoothed));
+    if (maxIdx / n < 0.45) return SHAPES.icarus;
+    return SHAPES.tragedy;
+  }
+
+  // Two peaks with a rising end → Cinderella double arc
+  if (peakCount >= 2 && avgQ3 > avgQ1 + 0.15) return SHAPES.cinderella;
+
+  return SHAPES.one_climax;
+}
+
 // ── Windowed Forces ──────────────────────────────────────────────────────────
 
 export type WindowedForceResult = {
