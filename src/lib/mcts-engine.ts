@@ -142,11 +142,16 @@ export function pickDiverseDirections(
   // If we need more than available, allow reuse
   const pool = available.length >= count ? available : ALL_CUBE_CORNERS;
 
-  // Pick maximally diverse subset: start with HHH, then alternate to maximize Hamming distance
-  const selected: CubeCornerKey[] = [];
+  // Shuffle the pool, then greedily pick diverse corners from a random seed
   const remaining = [...pool];
+  for (let i = remaining.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [remaining[i], remaining[j]] = [remaining[j], remaining[i]];
+  }
 
-  // Seed with first available
+  const selected: CubeCornerKey[] = [];
+
+  // Seed with a random corner
   if (remaining.length > 0) {
     selected.push(remaining.shift()!);
   }

@@ -71,7 +71,7 @@ export type MCTSConfig = {
 };
 
 export const DEFAULT_MCTS_CONFIG: MCTSConfig = {
-  branchingFactor: 5,
+  branchingFactor: 8,
   maxDepth: 5,
   totalIterations: 5,
   searchMode: 'exploit',

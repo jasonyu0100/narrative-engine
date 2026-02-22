@@ -5,7 +5,8 @@ import type { MCTSConfig, MCTSNodeId, MCTSNode, MCTSTree } from '@/types/mcts';
 import { DEFAULT_MCTS_CONFIG } from '@/types/mcts';
 import type { useMCTS } from '@/hooks/useMCTS';
 import { treeSize, bestPath as computeBestPath } from '@/lib/mcts-engine';
-import { NARRATIVE_CUBE } from '@/types/narrative';
+import { NARRATIVE_CUBE, type Scene } from '@/types/narrative';
+import { computeForceSnapshots, detectCubeCorner } from '@/lib/narrative-utils';
 import { useStore } from '@/lib/store';
 
 /** Hook that ticks every second while active, returning elapsed seconds since startedAt */
@@ -46,9 +47,23 @@ function scoreBgClass(v: number): string {
   return 'bg-red-500/10 border-red-500/20';
 }
 
-// ── Tree Line (recursive chess-style) ────────────────────────────────────────
+// ── Tree constants ───────────────────────────────────────────────────────────
 
-function TreeLine({
+const NODE_H = 28;         // row height in px
+const INDENT = 24;          // horizontal indent per depth level
+const DOT_R = 4;            // node dot radius
+const LINE_PAD_LEFT = 14;   // left padding to center of first dot
+
+/** Count visible descendant nodes (for SVG sizing) */
+function countVisible(node: MCTSNode, tree: MCTSTree, collapsedSet: Set<MCTSNodeId>): number {
+  if (collapsedSet.has(node.id)) return 1;
+  const children = node.childIds.map((id) => tree.nodes[id]).filter(Boolean);
+  return 1 + children.reduce((sum, c) => sum + countVisible(c, tree, collapsedSet), 0);
+}
+
+// ── Tree Node (recursive with SVG connectors) ───────────────────────────────
+
+function TreeNode({
   node,
   tree,
   depth,
@@ -59,8 +74,7 @@ function TreeLine({
   onSelect,
   collapsedSet,
   onToggleCollapse,
-  prefix,
-  isLast,
+  yOffset,
 }: {
   node: MCTSNode;
   tree: MCTSTree;
@@ -72,8 +86,7 @@ function TreeLine({
   onSelect: (id: MCTSNodeId) => void;
   collapsedSet: Set<MCTSNodeId>;
   onToggleCollapse: (id: MCTSNodeId) => void;
-  prefix: string;
-  isLast: boolean;
+  yOffset: number;
 }) {
   const isBest = bestSet.has(node.id);
   const isSelected = selectedSet.has(node.id);
@@ -87,56 +100,49 @@ function TreeLine({
   const hasChildren = children.length > 0;
   const sc = node.immediateScore;
 
-  // Tree branch characters
-  const connector = isLast ? '└─' : '├─';
-  const childPrefix = prefix + (isLast ? '   ' : '│  ');
+  // Determine connector line color
+  const lineColor = isSelected ? 'rgba(96,165,250,0.4)'
+    : isBest ? 'rgba(34,197,94,0.25)'
+    : 'rgba(255,255,255,0.07)';
 
-  return (
-    <>
-      {/* This node's line */}
-      <button
-        onClick={() => onSelect(node.id)}
-        className={`flex items-center gap-0 w-full text-left py-0.5 px-2 rounded transition-colors group ${
-          isInspected ? 'bg-blue-500/15 ring-1 ring-blue-500/30' : isSelected ? 'bg-blue-500/10' : isBest ? 'bg-green-500/5' : 'hover:bg-white/3'
-        } ${isExp ? 'animate-pulse' : ''}`}
-      >
-        {/* Tree prefix characters */}
-        <span className="text-text-dim/30 font-mono text-[11px] whitespace-pre select-none">{prefix}{connector} </span>
+  // Dot color
+  const dotColor = isInspected ? '#60a5fa'
+    : isSelected ? 'rgba(96,165,250,0.6)'
+    : isBest ? 'rgba(34,197,94,0.5)'
+    : 'rgba(255,255,255,0.15)';
 
-        {/* Score */}
-        <span className={`font-mono text-[12px] font-bold w-7 text-right mr-2 ${scoreColorClass(sc)}`}>{sc}</span>
+  const x = LINE_PAD_LEFT + depth * INDENT;
+  const cy = yOffset * NODE_H + NODE_H / 2;
 
-        {/* Arc name */}
-        <span className={`text-[11px] truncate ${
-          isInspected ? 'text-blue-300 font-medium' : isSelected ? 'text-blue-300' : isBest ? 'text-green-300' : 'text-text-primary'
-        }`}>
-          {node.arc.name}
-        </span>
+  // Build child rows + SVG lines
+  let childOffset = yOffset + 1;
+  const childElements: React.ReactNode[] = [];
+  const svgLines: React.ReactNode[] = [];
 
-        {/* Metadata */}
-        <span className="text-[9px] text-text-dim ml-2 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
-          {node.scenes.length}s{node.visitCount > 1 ? ` · ${node.visitCount}v` : ''}
-        </span>
+  if (hasChildren && !isCollapsed) {
+    for (let i = 0; i < children.length; i++) {
+      const child = children[i];
+      const childCy = childOffset * NODE_H + NODE_H / 2;
+      const childX = LINE_PAD_LEFT + (depth + 1) * INDENT;
+      const childIsBest = bestSet.has(child.id);
+      const childIsSelected = selectedSet.has(child.id);
+      const childLineColor = childIsSelected ? 'rgba(96,165,250,0.4)'
+        : childIsBest ? 'rgba(34,197,94,0.25)'
+        : 'rgba(255,255,255,0.07)';
 
-        {/* Collapse indicator */}
-        {hasChildren && (
-          <span
-            onClick={(e) => { e.stopPropagation(); onToggleCollapse(node.id); }}
-            className="ml-1 text-text-dim/40 hover:text-text-dim text-[9px] cursor-pointer shrink-0"
-          >
-            {isCollapsed ? `[+${children.length}]` : ''}
-          </span>
-        )}
+      // Vertical line from parent down + horizontal to child
+      svgLines.push(
+        <g key={`line-${child.id}`}>
+          {/* Vertical segment */}
+          <line x1={x} y1={cy + DOT_R + 1} x2={x} y2={childCy} stroke={childLineColor} strokeWidth={1.5} />
+          {/* Horizontal segment */}
+          <line x1={x} y1={childCy} x2={childX - DOT_R - 2} y2={childCy} stroke={childLineColor} strokeWidth={1.5} />
+        </g>,
+      );
 
-        {/* Selection dot */}
-        {isInspected && <span className="ml-auto w-1.5 h-1.5 rounded-full bg-blue-400 shrink-0" />}
-        {isSelected && !isInspected && <span className="ml-auto w-1.5 h-1.5 rounded-full bg-blue-400/50 shrink-0" />}
-        {isBest && !isSelected && !isInspected && <span className="ml-auto w-1.5 h-1.5 rounded-full bg-green-500 shrink-0" />}
-      </button>
-
-      {/* Children */}
-      {hasChildren && !isCollapsed && children.map((child, i) => (
-        <TreeLine
+      const childVisibleCount = countVisible(child, tree, collapsedSet);
+      childElements.push(
+        <TreeNode
           key={child.id}
           node={child}
           tree={tree}
@@ -148,10 +154,55 @@ function TreeLine({
           onSelect={onSelect}
           collapsedSet={collapsedSet}
           onToggleCollapse={onToggleCollapse}
-          prefix={childPrefix}
-          isLast={i === children.length - 1}
+          yOffset={childOffset}
+        />,
+      );
+      childOffset += childVisibleCount;
+    }
+  }
+
+  return (
+    <>
+      {/* SVG connector lines (rendered in the shared SVG layer) */}
+      {svgLines}
+
+      {/* Node dot */}
+      <circle cx={x} cy={cy} r={DOT_R} fill={dotColor} className={isExp ? 'animate-pulse' : ''} />
+
+      {/* Collapse/expand toggle on dot for nodes with children */}
+      {hasChildren && (
+        <circle
+          cx={x} cy={cy} r={DOT_R + 4}
+          fill="transparent"
+          className="cursor-pointer"
+          onClick={(e) => { e.stopPropagation(); onToggleCollapse(node.id); }}
         />
-      ))}
+      )}
+
+      {/* HTML overlay: score + arc name (positioned absolutely in the foreignObject) */}
+      <foreignObject x={x + DOT_R + 6} y={yOffset * NODE_H} width="calc(100% - 60px)" height={NODE_H}>
+        <button
+          onClick={() => onSelect(node.id)}
+          className={`flex items-center gap-1.5 w-full h-full text-left px-1.5 rounded transition-colors group ${
+            isInspected ? 'bg-blue-500/15' : isSelected ? 'bg-blue-500/8' : isBest ? 'bg-green-500/5' : 'hover:bg-white/3'
+          }`}
+        >
+          <span className={`font-mono text-[12px] font-bold w-7 text-right shrink-0 ${scoreColorClass(sc)}`}>{sc}</span>
+          <span className={`text-[11px] truncate ${
+            isInspected ? 'text-blue-300 font-medium' : isSelected ? 'text-blue-300' : isBest ? 'text-green-300' : 'text-text-primary'
+          }`}>
+            {node.arc.name}
+          </span>
+          <span className="text-[9px] text-text-dim ml-1 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
+            {node.scenes.length}s{node.visitCount > 1 ? ` · ${node.visitCount}v` : ''}
+          </span>
+          {isCollapsed && hasChildren && (
+            <span className="text-[9px] text-text-dim/50 shrink-0">+{children.length}</span>
+          )}
+        </button>
+      </foreignObject>
+
+      {childElements}
     </>
   );
 }
@@ -192,25 +243,40 @@ function MCTSTreeView({
 
   if (rootChildren.length === 0) return null;
 
+  // Count total visible rows for SVG height
+  const totalRows = rootChildren.reduce(
+    (sum, node) => sum + countVisible(node, tree, collapsedSet), 0,
+  );
+  const svgHeight = totalRows * NODE_H + 8;
+
+  // Build root-level nodes with offsets
+  let rowOffset = 0;
+  const nodeElements = rootChildren.map((node) => {
+    const offset = rowOffset;
+    rowOffset += countVisible(node, tree, collapsedSet);
+    return (
+      <TreeNode
+        key={node.id}
+        node={node}
+        tree={tree}
+        depth={0}
+        bestSet={bestSet}
+        selectedSet={selectedSet}
+        inspectedId={inspectedId}
+        expandingNodeId={expandingNodeId}
+        onSelect={onSelectNode}
+        collapsedSet={collapsedSet}
+        onToggleCollapse={handleToggleCollapse}
+        yOffset={offset}
+      />
+    );
+  });
+
   return (
-    <div className="overflow-auto p-2 font-mono">
-      {rootChildren.map((node, i) => (
-        <TreeLine
-          key={node.id}
-          node={node}
-          tree={tree}
-          depth={0}
-          bestSet={bestSet}
-          selectedSet={selectedSet}
-          inspectedId={inspectedId}
-          expandingNodeId={expandingNodeId}
-          onSelect={onSelectNode}
-          collapsedSet={collapsedSet}
-          onToggleCollapse={handleToggleCollapse}
-          prefix=""
-          isLast={i === rootChildren.length - 1}
-        />
-      ))}
+    <div className="overflow-auto p-1">
+      <svg width="100%" height={svgHeight} className="block">
+        {nodeElements}
+      </svg>
     </div>
   );
 }
@@ -330,7 +396,17 @@ function NodeInspector({ node, tree }: { node: MCTSNode; tree: MCTSTree }) {
       )}
 
       {/* Scene detail view */}
-      {scene && (
+      {scene && (() => {
+        // Build the full scene timeline: all resolved scenes from the virtual narrative
+        // (which includes real commits + ancestor MCTS nodes + this node's scenes)
+        const allScenes = node.virtualResolvedKeys
+          .map((k) => node.virtualNarrative.scenes[k])
+          .filter((s): s is Scene => !!s);
+        const forceMap = computeForceSnapshots(allScenes);
+        const forces = forceMap[scene.id] ?? { payoff: 0, change: 0, variety: 0 };
+        const corner = detectCubeCorner(forces);
+
+        return (
         <div className="flex flex-col gap-4">
           {/* Back button */}
           <button
@@ -339,6 +415,17 @@ function NodeInspector({ node, tree }: { node: MCTSNode; tree: MCTSTree }) {
           >
             <span>←</span> Back to arc
           </button>
+
+          {/* Cube corner + forces */}
+          <div className="flex items-center gap-2 bg-white/3 rounded-lg px-3 py-2">
+            <span className="rounded bg-violet-500/10 px-1.5 py-0.5 font-mono text-[10px] text-violet-400">{corner.key}</span>
+            <span className="text-[11px] text-text-secondary font-medium">{corner.name}</span>
+            <div className="flex gap-2 ml-auto text-[9px] font-mono">
+              <span style={{ color: '#EF4444' }}>P:{forces.payoff >= 0 ? '+' : ''}{forces.payoff.toFixed(1)}</span>
+              <span style={{ color: '#22C55E' }}>C:{forces.change >= 0 ? '+' : ''}{forces.change.toFixed(1)}</span>
+              <span style={{ color: '#3B82F6' }}>V:{forces.variety >= 0 ? '+' : ''}{forces.variety.toFixed(1)}</span>
+            </div>
+          </div>
 
           {/* Location + POV */}
           <div className="flex flex-col gap-1.5">
@@ -435,7 +522,8 @@ function NodeInspector({ node, tree }: { node: MCTSNode; tree: MCTSTree }) {
             </div>
           )}
         </div>
-      )}
+        );
+      })()}
     </div>
   );
 }

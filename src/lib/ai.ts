@@ -505,16 +505,28 @@ ${direction}
 
 The scenes must continue from the current point in the story (after scene index ${currentIndex + 1}).
 
-${cubeGoal ? `
-NARRATIVE CUBE GOAL — steer this arc toward the "${NARRATIVE_CUBE[cubeGoal].name}" state:
-${NARRATIVE_CUBE[cubeGoal].description}
+${cubeGoal ? (() => {
+  const cube = NARRATIVE_CUBE[cubeGoal];
+  const p = cube.forces.payoff > 0;
+  const c = cube.forces.change > 0;
+  const v = cube.forces.variety > 0;
+  // Per-corner narrative instructions — each combination gets a distinct creative brief
+  const CORNER_INSTRUCTIONS: Record<CubeCornerKey, string> = {
+    HHH: `This is a CONVERGENCE arc — everything comes together. Threads should reach critical turning points or resolve. Characters undergo meaningful transformation. Set scenes in new or rarely-visited locations with fresh character combinations. This is the narrative crescendo — stakes are real, consequences are permanent, and the world feels larger than before.`,
+    HHL: `This is a CLIMAX arc — the established cast faces their reckoning. Drive threads to critical/terminal statuses with the core characters the reader knows well. Familiar locations become battlegrounds. Characters change profoundly through intense interactions with each other. Keep the cast tight and the stakes personal — this is about payoff for relationships and threads the reader is invested in.`,
+    HLH: `This is a REVEAL arc — the landscape shifts without the characters fully grasping it yet. Threads pay off through external events, discoveries, or arrivals rather than character growth. New locations, new faces, surprising information. Characters witness rather than transform — they're processing a changed world. Think: the veil is lifted, a hidden truth surfaces, an unexpected player enters.`,
+    HLL: `This is a CLOSURE arc — tying up loose ends in familiar territory. Threads reach resolution quietly — not with a bang but with acceptance, understanding, or quiet consequence. The established cast in known settings, dealing with the aftermath. Characters don't grow so much as settle. Conversations that needed to happen finally do. Debts are paid, promises kept or broken.`,
+    LHH: `This is a DISCOVERY arc — characters grow rapidly through encountering the unknown. No threads need to resolve — this is about exploration, world-building, and possibility. New locations, new characters, new dynamics. The cast is learning, adapting, being changed by unfamiliar territory. Think: first contact, uncharted lands, unexpected alliances, culture shock. The energy is curiosity and transformation, not conflict resolution.`,
+    LHL: `This is a GROWTH arc — the familiar cast evolves through internal development. No plot payoffs needed — threads stay active but don't resolve. Characters train, bond, argue, process, and change through interaction with each other in known settings. Relationships deepen or fracture. Think: training montages, heart-to-heart conversations, rivalries forming, mentorship, characters confronting their own flaws.`,
+    LLH: `This is a WANDERING arc — drifting through unfamiliar territory without resolution or transformation. New places, new faces, but nothing clicking into place yet. Characters observe, encounter, and move on. Threads simmer without advancing. Think: a journey through strange lands, chance encounters, atmospheric world-building, seeds planted that won't sprout until later. The tone is contemplative or mysterious, not urgent.`,
+    LLL: `This is a REST arc — recovery and seed-planting in familiar ground. Nothing resolves, nothing transforms dramatically. The established cast in known settings, catching their breath. But REST doesn't mean NOTHING happens — characters have quiet moments of connection, notice small details, plant seeds for future arcs. Subtle foreshadowing, small character beats, domestic or routine scenes with undercurrents.`,
+  };
+  return `
+NARRATIVE CUBE GOAL — "${cube.name}" (${cubeGoal}: Payoff ${p ? 'High' : 'Low'}, Change ${c ? 'High' : 'Low'}, Variety ${v ? 'High' : 'Low'}):
+${CORNER_INSTRUCTIONS[cubeGoal]}
 
-FORCE TARGETS for this arc (these override any patterns you see in the scene history):
-- Payoff: ${NARRATIVE_CUBE[cubeGoal].forces.payoff > 0 ? 'HIGH — drive threads toward critical/terminal statuses. Betrayals, confrontations, and fractures should have real consequences. Advance thread statuses meaningfully and let relationship shifts reflect the weight of what happens.' : 'LOW — keep threads in dormant/active statuses, build positive or neutral relationships. No existential danger, no thread escalation. Characters explore, bond, recover, train. Relationship shifts should be gentle, knowledge gains should be personal observations or quiet discoveries.'}
-- Change: ${NARRATIVE_CUBE[cubeGoal].forces.change > 0 ? 'FAST — pack scenes with discoveries, shifting alliances, and cascading consequences. Characters should be learning rapidly, relationships should be tested by intense interactions, and events should pile up. Rapid developments.' : 'SLOW — contemplative, dialogue-heavy scenes where characters process and reflect. Let scenes breathe. Knowledge comes from internal reflection and subtle observation, relationships shift gently. Fewer events, more interiority.'}
-- Variety: ${NARRATIVE_CUBE[cubeGoal].forces.variety > 0 ? 'HIGH — use new/rarely-seen locations, characters, and POV perspectives. Bring in fresh faces, unexplored settings, and shift to underused viewpoints. If world building has added new elements, USE THEM.' : 'LOW — familiar settings, established cast, recurring POV characters, deepening existing dynamics. Routine and grounding.'}
-
-DO NOT continue the momentum of previous scenes. If the story has been intense for many scenes and this goal says LOW payoff, you MUST write genuinely calm scenes — keep threads dormant, build friendships, explore without danger. Break the pattern.` : ''}
+This goal OVERRIDES any momentum from previous scenes. Write scenes that genuinely embody this corner's energy — don't default to generic action or generic rest.`;
+})() : ''}
 ${rejectSiblings && rejectSiblings.length > 0 ? `
 ALREADY GENERATED AT THIS BRANCH POINT (${rejectSiblings.length} alternatives exist):
 ${rejectSiblings.filter((s) => s.summary).map((s) => `- "${s.name}": ${s.summary}`).join('\n')}
