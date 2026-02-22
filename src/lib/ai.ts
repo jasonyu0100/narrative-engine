@@ -1176,6 +1176,151 @@ Rules:
   return result;
 }
 
+// ── Prose Rewrite Analysis ───────────────────────────────────────────────────
+
+export type ProseIssue = {
+  sceneId: string;
+  issues: string[];
+  priority: 'high' | 'medium' | 'low';
+};
+
+export type ProseAnalysis = {
+  overallAssessment: string;
+  globalIssues: string[];
+  sceneIssues: ProseIssue[];
+};
+
+/**
+ * Analyze all prose across the story and return a structured critique.
+ * Looks at: consistency, pacing, voice, repetition, structural variety,
+ * character voice distinctiveness, and narrative flow.
+ */
+export async function analyzeAllProse(
+  narrative: NarrativeState,
+  proseMap: Record<string, string>,
+  sceneOrder: string[],
+  customGuidance?: string,
+): Promise<ProseAnalysis> {
+  const entries = sceneOrder
+    .filter((id) => proseMap[id])
+    .map((id, i) => {
+      const scene = narrative.scenes[id];
+      const arc = scene ? Object.values(narrative.arcs).find((a) => a.sceneIds.includes(id)) : null;
+      const pov = scene ? narrative.characters[scene.povId]?.name ?? scene.povId : '?';
+      const loc = scene ? narrative.locations[scene.locationId]?.name ?? scene.locationId : '?';
+      return `[${i + 1}] ${id} | Arc: ${arc?.name ?? '?'} | POV: ${pov} | Location: ${loc}\n${proseMap[id]}`;
+    });
+
+  if (entries.length === 0) return { overallAssessment: 'No prose to analyze.', globalIssues: [], sceneIssues: [] };
+
+  const systemPrompt = `You are a senior literary editor conducting a full manuscript review. You return ONLY valid JSON — no markdown, no commentary.`;
+
+  const prompt = `Review the following ${entries.length} chapters of a novel titled "${narrative.title}".
+
+FULL PROSE:
+${entries.join('\n\n---\n\n')}
+
+Analyze the prose as a cohesive manuscript. Look for:
+1. **Voice consistency** — does the narrative voice stay consistent? Do POV characters feel distinct?
+2. **Repetition** — repeated phrases, sentence structures, words, imagery across chapters
+3. **Pacing** — are scenes the right length? Does the prose rush through important moments or drag through mundane ones?
+4. **Structural variety** — do chapters open/close in different ways? Are paragraph rhythms varied?
+5. **Show vs tell** — are emotions dramatized through action/dialogue or just stated?
+6. **Dialogue quality** — does it sound natural? Can you tell who's speaking without tags?
+7. **Continuity** — are there contradictions in setting, character knowledge, or physical details?
+8. **Prose quality** — clichés, purple prose, weak verbs, adverb overuse, filter words
+
+Return JSON:
+{
+  "overallAssessment": "2-3 sentence summary of the manuscript's prose quality and most pressing issues",
+  "globalIssues": ["issues that apply across the entire manuscript — patterns, not individual scenes"],
+  "sceneIssues": [
+    {
+      "sceneId": "S-XXX",
+      "issues": ["specific issues in this scene's prose"],
+      "priority": "high" | "medium" | "low"
+    }
+  ]
+}
+
+Rules:
+- Only include scenes that have actual issues worth fixing — don't list scenes that are fine.
+- Be specific and actionable — "the dialogue in paragraph 3 is expository" is better than "dialogue could improve".
+- Priority: high = fundamentally broken (continuity errors, incoherent prose), medium = noticeable quality issues, low = polish-level refinements.
+- globalIssues should be patterns you see across 3+ scenes, not one-off issues.${customGuidance ? `\n\nADDITIONAL GUIDANCE FROM THE AUTHOR:\n${customGuidance}` : ''}`;
+
+  const raw = await callGenerate(prompt, systemPrompt, 8000, 'analyzeAllProse');
+  return parseJson(raw, 'analyzeAllProse') as ProseAnalysis;
+}
+
+/**
+ * Rewrite a single scene's prose based on analysis feedback.
+ * Preserves the scene's events, characters, and narrative beats while
+ * addressing the specific issues identified in the analysis.
+ */
+export async function rewriteSceneProse(
+  narrative: NarrativeState,
+  scene: Scene,
+  resolvedKeys: string[],
+  originalProse: string,
+  sceneIssues: string[],
+  globalIssues: string[],
+  onToken?: (token: string) => void,
+): Promise<string> {
+  const location = narrative.locations[scene.locationId];
+  const pov = narrative.characters[scene.povId];
+  const participants = scene.participantIds.map((pid) => narrative.characters[pid]).filter(Boolean);
+
+  const sceneIdx = resolvedKeys.indexOf(scene.id);
+
+  // Get neighboring prose for continuity
+  const prevId = sceneIdx > 0 ? resolvedKeys[sceneIdx - 1] : null;
+  const nextId = sceneIdx < resolvedKeys.length - 1 ? resolvedKeys[sceneIdx + 1] : null;
+  const prevProse = prevId ? narrative.scenes[prevId]?.prose : null;
+  const nextProse = nextId ? narrative.scenes[nextId]?.prose : null;
+  const prevEnding = prevProse ? prevProse.split(/\n\n+/).slice(-1)[0]?.slice(-300) : null;
+  const nextOpening = nextProse ? nextProse.split(/\n\n+/)[0]?.slice(0, 300) : null;
+
+  const systemPrompt = `You are a literary prose writer rewriting a scene to address specific editorial feedback. You output ONLY the rewritten prose — no commentary, no markdown, no headers.
+
+Voice & style:
+- Third-person limited, locked to the POV character's senses and interiority.
+- Prose should feel novelistic, not summarised. Dramatise through action, dialogue, and sensory texture.
+- Favour subtext over exposition. Let tension live in what characters don't say.
+- Match the tone and genre of the world: ${narrative.worldSummary.slice(0, 200)}.
+- Use straight quotes (" and '), never smart/curly quotes.`;
+
+  const prompt = `REWRITE the following scene prose to address the editorial issues listed below.
+
+SCENE CONTEXT:
+- Location: ${location?.name ?? 'Unknown'}
+- POV: ${pov?.name ?? 'Unknown'} (${pov?.role ?? 'unknown role'})
+- Participants: ${participants.map((p) => `${p.name} (${p.role})`).join(', ')}
+- Events: ${scene.events.join('; ')}
+- Summary: ${scene.summary}
+${prevEnding ? `\nPREVIOUS SCENE ENDING (for continuity — your opening should flow from this):\n"...${prevEnding}"` : ''}
+${nextOpening ? `\nNEXT SCENE OPENING (for continuity — your ending should lead into this):\n"${nextOpening}..."` : ''}
+
+ORIGINAL PROSE:
+${originalProse}
+
+ISSUES TO FIX:
+${sceneIssues.map((i) => `- ${i}`).join('\n')}
+${globalIssues.length > 0 ? `\nGLOBAL MANUSCRIPT ISSUES (also apply these corrections):\n${globalIssues.map((i) => `- ${i}`).join('\n')}` : ''}
+
+REWRITE RULES:
+- Preserve all narrative beats, events, character actions, and plot points from the original.
+- Fix the specific issues listed above — don't change things that aren't broken.
+- Maintain approximately the same length (~1000 words).
+- The rewrite should feel like the same scene written better, not a different scene.
+- Output ONLY the rewritten prose.`;
+
+  if (onToken) {
+    return await callGenerateStream(prompt, systemPrompt, onToken, 4000, 'rewriteSceneProse');
+  }
+  return await callGenerate(prompt, systemPrompt, 4000, 'rewriteSceneProse');
+}
+
 export type ChartAnnotation = {
   sceneIndex: number;
   force: 'payoff' | 'change' | 'variety';

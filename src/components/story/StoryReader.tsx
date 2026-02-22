@@ -3,7 +3,7 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
 import type { NarrativeState, Scene } from '@/types/narrative';
 import { resolveEntry, isScene } from '@/types/narrative';
-import { generateSceneProse } from '@/lib/ai';
+import { generateSceneProse, analyzeAllProse, rewriteSceneProse, type ProseAnalysis } from '@/lib/ai';
 import { useStore } from '@/lib/store';
 
 type ProseCache = Record<string, { text: string; status: 'loading' | 'ready' | 'error'; error?: string }>;
@@ -122,6 +122,121 @@ export function StoryReader({
   const cancelBulk = useCallback(() => {
     bulkCancelledRef.current = true;
     setBulkState((prev) => prev ? { ...prev, running: false } : null);
+  }, []);
+
+  // ── Rewrite analysis + parallel rewrite ──────────────────────────────────
+  const [rewriteState, setRewriteState] = useState<{
+    phase: 'idle' | 'analyzing' | 'rewriting' | 'done';
+    analysis: ProseAnalysis | null;
+    completed: number;
+    total: number;
+    errors: number;
+  }>({ phase: 'idle', analysis: null, completed: 0, total: 0, errors: 0 });
+  const rewriteCancelledRef = useRef(false);
+  const [rewritePrompt, setRewritePrompt] = useState('');
+  const [analysisModalOpen, setAnalysisModalOpen] = useState(false);
+
+  const startRewrite = useCallback(async () => {
+    // Build prose map from cache + stored prose
+    const proseMap: Record<string, string> = {};
+    const sceneOrder: string[] = [];
+    for (const s of scenes) {
+      const prose = proseCache[s.id]?.status === 'ready' ? proseCache[s.id].text : s.prose;
+      if (prose) {
+        proseMap[s.id] = prose;
+        sceneOrder.push(s.id);
+      }
+    }
+    if (sceneOrder.length === 0) return;
+
+    // Phase 1: Analyze
+    rewriteCancelledRef.current = false;
+    setRewriteState({ phase: 'analyzing', analysis: null, completed: 0, total: 0, errors: 0 });
+    setAnalysisModalOpen(true);
+
+    let analysis: ProseAnalysis;
+    try {
+      analysis = await analyzeAllProse(narrative, proseMap, sceneOrder, rewritePrompt.trim() || undefined);
+    } catch (err) {
+      console.error('[rewrite] analysis failed:', err);
+      setRewriteState((prev) => ({ ...prev, phase: 'idle' }));
+      return;
+    }
+
+    if (rewriteCancelledRef.current) { setRewriteState((prev) => ({ ...prev, phase: 'idle' })); return; }
+
+    // Show analysis in modal
+    setRewriteState((prev) => ({ ...prev, analysis }));
+
+    // Filter to scenes that actually have issues
+    const scenesToRewrite = analysis.sceneIssues.filter((si) => si.issues.length > 0 && proseMap[si.sceneId]);
+    if (scenesToRewrite.length === 0) {
+      setRewriteState({ phase: 'done', analysis, completed: 0, total: 0, errors: 0 });
+      return;
+    }
+
+    // Phase 2: Parallel rewrite
+    setRewriteState({ phase: 'rewriting', analysis, completed: 0, total: scenesToRewrite.length, errors: 0 });
+
+    let completed = 0;
+    let errors = 0;
+    const CONCURRENCY = 5;
+    let nextIdx = 0;
+
+    // Mark all rewriting scenes as loading
+    setProseCache((prev) => {
+      const next = { ...prev };
+      for (const si of scenesToRewrite) {
+        next[si.sceneId] = { text: proseMap[si.sceneId], status: 'loading' };
+      }
+      return next;
+    });
+
+    const processScene = async (si: typeof scenesToRewrite[0]) => {
+      const s = scenes.find((sc) => sc.id === si.sceneId);
+      if (!s) return;
+      try {
+        const rewritten = await rewriteSceneProse(
+          narrative, s, resolvedKeys, proseMap[si.sceneId],
+          si.issues, analysis.globalIssues,
+          (token) => {
+            setProseCache((prev) => {
+              const existing = prev[si.sceneId];
+              // Only stream if we haven't finished — show rewrite replacing original
+              if (existing?.status === 'loading') {
+                return { ...prev, [si.sceneId]: { text: token, status: 'loading' } };
+              }
+              return prev;
+            });
+          },
+        );
+        setProseCache((prev) => ({ ...prev, [si.sceneId]: { text: rewritten, status: 'ready' } }));
+        dispatch({ type: 'UPDATE_SCENE', sceneId: si.sceneId, updates: { prose: rewritten } });
+        completed++;
+      } catch (err) {
+        errors++;
+        console.error(`[rewrite] failed for ${si.sceneId}:`, err);
+        // Restore original prose on error
+        setProseCache((prev) => ({ ...prev, [si.sceneId]: { text: proseMap[si.sceneId], status: 'ready' } }));
+      }
+      setRewriteState((prev) => ({ ...prev, completed, errors }));
+    };
+
+    const runWorker = async () => {
+      while (!rewriteCancelledRef.current) {
+        const idx = nextIdx++;
+        if (idx >= scenesToRewrite.length) break;
+        await processScene(scenesToRewrite[idx]);
+      }
+    };
+
+    await Promise.all(Array.from({ length: Math.min(CONCURRENCY, scenesToRewrite.length) }, () => runWorker()));
+    setRewriteState((prev) => ({ ...prev, phase: 'done' }));
+  }, [scenes, proseCache, narrative, resolvedKeys, dispatch]);
+
+  const cancelRewrite = useCallback(() => {
+    rewriteCancelledRef.current = true;
+    setRewriteState((prev) => ({ ...prev, phase: 'idle' }));
   }, []);
 
   // Auto-generate prose when navigating to a scene that hasn't been generated
@@ -299,6 +414,64 @@ export function StoryReader({
             ) : null;
           })()}
 
+          {/* Rewrite */}
+          {(() => {
+            const writtenCount = scenes.filter((s) => s.prose || proseCache[s.id]?.status === 'ready').length;
+            if (writtenCount < 2) return null;
+            if (rewriteState.phase === 'analyzing') {
+              return (
+                <button onClick={() => setAnalysisModalOpen(true)} className="text-[10px] px-2.5 py-1 rounded-full border border-violet-500/20 text-violet-400/60 flex items-center gap-1.5">
+                  <svg className="w-3 h-3 animate-spin" viewBox="0 0 16 16" fill="none">
+                    <circle cx="8" cy="8" r="6" stroke="currentColor" strokeWidth="2" strokeOpacity="0.25" />
+                    <path d="M14 8a6 6 0 0 0-6-6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+                  </svg>
+                  Analyzing...
+                </button>
+              );
+            }
+            if (rewriteState.phase === 'rewriting') {
+              return (
+                <button onClick={() => setAnalysisModalOpen(true)} className="text-[10px] px-2.5 py-1 rounded-full border border-violet-500/20 text-violet-400 hover:border-violet-500/40 transition flex items-center gap-1.5">
+                  <svg className="w-3 h-3 animate-spin" viewBox="0 0 16 16" fill="none">
+                    <circle cx="8" cy="8" r="6" stroke="currentColor" strokeWidth="2" strokeOpacity="0.25" />
+                    <path d="M14 8a6 6 0 0 0-6-6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+                  </svg>
+                  Rewriting {rewriteState.completed}/{rewriteState.total}
+                </button>
+              );
+            }
+            return (
+              <>
+                {rewriteState.analysis && (
+                  <button
+                    onClick={() => setAnalysisModalOpen(true)}
+                    className="text-[10px] px-2.5 py-1 rounded-full border border-violet-500/20 text-violet-400/60 hover:text-violet-400 hover:border-violet-500/30 transition flex items-center gap-1.5"
+                    title="View analysis"
+                  >
+                    <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <circle cx="12" cy="12" r="10" />
+                      <line x1="12" y1="16" x2="12" y2="12" />
+                      <line x1="12" y1="8" x2="12.01" y2="8" />
+                    </svg>
+                    Analysis
+                  </button>
+                )}
+                <button
+                  onClick={() => setAnalysisModalOpen(true)}
+                  disabled={!!bulkState?.running}
+                  className="text-[10px] px-2.5 py-1 rounded-full border border-white/10 text-text-dim hover:text-violet-400 hover:border-violet-500/20 transition flex items-center gap-1.5 disabled:opacity-30"
+                  title={rewriteState.analysis ? 'Re-analyze and rewrite again' : 'Analyze all prose and rewrite scenes with issues'}
+                >
+                  <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                    <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+                  </svg>
+                  {rewriteState.analysis ? 'Rewrite Again' : 'Rewrite'}
+                </button>
+              </>
+            );
+          })()}
+
           <span className="text-[10px] text-text-dim font-mono">
             {currentIndex + 1} / {scenes.length}
           </span>
@@ -311,6 +484,122 @@ export function StoryReader({
         </div>
       </div>
 
+      {/* Analysis modal */}
+      {analysisModalOpen && (
+        <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center" onClick={() => setAnalysisModalOpen(false)}>
+          <div className="bg-bg-base border border-white/10 rounded-2xl shadow-2xl max-w-lg w-full max-h-[70vh] flex flex-col" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between px-5 pt-5 pb-3 border-b border-white/5 shrink-0">
+              <h3 className="text-sm font-semibold text-text-primary">Prose Analysis</h3>
+              <button onClick={() => setAnalysisModalOpen(false)} className="text-text-dim hover:text-text-primary text-lg leading-none">&times;</button>
+            </div>
+
+            <div className="flex-1 overflow-y-auto px-5 py-4 flex flex-col gap-4">
+              {rewriteState.phase === 'analyzing' && !rewriteState.analysis && (
+                <div className="flex flex-col items-center justify-center py-12 gap-3">
+                  <div className="w-5 h-5 border-2 border-violet-400/30 border-t-violet-400/80 rounded-full animate-spin" />
+                  <p className="text-[11px] text-text-dim">Analyzing manuscript...</p>
+                </div>
+              )}
+
+              {rewriteState.analysis && (
+                <>
+                  {/* Overall assessment */}
+                  <p className="text-xs text-text-secondary leading-relaxed">{rewriteState.analysis.overallAssessment}</p>
+
+                  {/* Global issues */}
+                  {rewriteState.analysis.globalIssues.length > 0 && (
+                    <div className="flex flex-col gap-1.5">
+                      <span className="text-[9px] uppercase tracking-widest text-text-dim">Global Issues</span>
+                      {rewriteState.analysis.globalIssues.map((issue, i) => (
+                        <p key={i} className="text-[11px] text-text-dim leading-relaxed pl-2 border-l-2 border-violet-500/20">
+                          {issue}
+                        </p>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Per-scene issues */}
+                  {rewriteState.analysis.sceneIssues.length > 0 && (
+                    <div className="flex flex-col gap-1.5">
+                      <span className="text-[9px] uppercase tracking-widest text-text-dim">
+                        Scene Issues ({rewriteState.analysis.sceneIssues.length})
+                      </span>
+                      {rewriteState.analysis.sceneIssues.map((si) => {
+                        const s = scenes.find((sc) => sc.id === si.sceneId);
+                        const idx = s ? scenes.indexOf(s) : -1;
+                        return (
+                          <button
+                            key={si.sceneId}
+                            onClick={() => { if (idx >= 0) { setCurrentIndex(idx); setAnalysisModalOpen(false); } }}
+                            className={`text-left rounded-lg px-3 py-2 border transition-colors ${
+                              si.priority === 'high' ? 'border-red-500/15 bg-red-500/5 hover:bg-red-500/10'
+                              : si.priority === 'medium' ? 'border-amber-500/15 bg-amber-500/5 hover:bg-amber-500/10'
+                              : 'border-white/5 bg-white/2 hover:bg-white/5'
+                            }`}
+                          >
+                            <div className="flex items-center gap-2 mb-1">
+                              <span className="text-[10px] font-mono text-text-dim">{idx >= 0 ? idx + 1 : si.sceneId}</span>
+                              <span className={`text-[9px] uppercase tracking-wider ${
+                                si.priority === 'high' ? 'text-red-400' : si.priority === 'medium' ? 'text-amber-400' : 'text-text-dim'
+                              }`}>{si.priority}</span>
+                            </div>
+                            {si.issues.map((issue, j) => (
+                              <p key={j} className="text-[10px] text-text-dim leading-relaxed">{issue}</p>
+                            ))}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+
+                  {/* Rewrite status */}
+                  {rewriteState.phase === 'rewriting' && (
+                    <div className="flex items-center gap-2 text-[10px] text-violet-400/70">
+                      <div className="w-3 h-3 border-2 border-violet-400/30 border-t-violet-400/80 rounded-full animate-spin" />
+                      Rewriting {rewriteState.completed}/{rewriteState.total}...
+                    </div>
+                  )}
+                  {rewriteState.phase === 'done' && (
+                    <p className="text-[10px] text-violet-400/60">
+                      Rewrote {rewriteState.completed} scene{rewriteState.completed !== 1 ? 's' : ''}
+                      {rewriteState.errors > 0 && <span className="text-red-400/60"> ({rewriteState.errors} failed)</span>}
+                      {rewriteState.total === 0 && ' — no issues found'}
+                    </p>
+                  )}
+                </>
+              )}
+
+              {/* Custom prompt — only show when idle or done */}
+              {(rewriteState.phase === 'idle' || rewriteState.phase === 'done') && (
+                <div>
+                  <label className="text-[9px] uppercase tracking-widest text-text-dim block mb-1">Additional Guidance (optional)</label>
+                  <textarea
+                    value={rewritePrompt}
+                    onChange={(e) => setRewritePrompt(e.target.value)}
+                    placeholder="e.g. Focus on dialogue quality, reduce purple prose, make fight scenes more visceral..."
+                    className="bg-bg-elevated border border-border rounded-lg px-3 py-2 text-[11px] text-text-primary w-full h-16 resize-none outline-none placeholder:text-text-dim/50"
+                  />
+                </div>
+              )}
+            </div>
+
+            {/* Footer */}
+            <div className="flex items-center justify-between px-5 py-4 border-t border-white/5 shrink-0">
+              <button onClick={() => setAnalysisModalOpen(false)} className="text-[10px] text-text-dim hover:text-text-secondary transition">
+                Close
+              </button>
+              <button
+                onClick={startRewrite}
+                disabled={rewriteState.phase === 'analyzing' || rewriteState.phase === 'rewriting'}
+                className="text-[10px] font-semibold px-4 py-2 rounded-lg bg-violet-500/15 text-violet-400 hover:bg-violet-500/25 transition disabled:opacity-30 disabled:pointer-events-none"
+              >
+                {rewriteState.analysis ? 'Re-analyze & Rewrite' : 'Analyze & Rewrite'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Main content area */}
       <div className="flex-1 overflow-hidden flex">
         {/* Scene list sidebar */}
@@ -319,6 +608,7 @@ export function StoryReader({
             const sArc = Object.values(narrative.arcs).find((a) => a.sceneIds.includes(s.id));
             const hasContent = proseCache[s.id]?.status === 'ready' || !!s.prose;
             const isGenerating = proseCache[s.id]?.status === 'loading';
+            const sceneIssue = rewriteState.analysis?.sceneIssues.find((si) => si.sceneId === s.id);
             return (
               <button
                 key={s.id}
@@ -345,6 +635,13 @@ export function StoryReader({
                   )}
                   {hasContent && !isGenerating && (
                     <span className="text-[8px] text-emerald-400/60">●</span>
+                  )}
+                  {sceneIssue && (
+                    <span className={`text-[8px] ${
+                      sceneIssue.priority === 'high' ? 'text-red-400/70' : sceneIssue.priority === 'medium' ? 'text-amber-400/70' : 'text-text-dim/50'
+                    }`}>
+                      {sceneIssue.issues.length}
+                    </span>
                   )}
                 </div>
               </button>
@@ -399,6 +696,33 @@ export function StoryReader({
                 </span>
               </div>
             </div>
+
+            {/* Per-scene analysis issues */}
+            {(() => {
+              const si = rewriteState.analysis?.sceneIssues.find((x) => x.sceneId === scene.id);
+              if (!si || si.issues.length === 0) return null;
+              return (
+                <div className={`mb-6 rounded-lg px-4 py-3 border ${
+                  si.priority === 'high' ? 'bg-red-500/5 border-red-500/15'
+                  : si.priority === 'medium' ? 'bg-amber-500/5 border-amber-500/15'
+                  : 'bg-white/[0.02] border-white/5'
+                }`}>
+                  <div className="flex items-center gap-2 mb-1.5">
+                    <span className={`text-[9px] uppercase tracking-widest font-medium ${
+                      si.priority === 'high' ? 'text-red-400' : si.priority === 'medium' ? 'text-amber-400' : 'text-text-dim'
+                    }`}>
+                      {si.priority} priority
+                    </span>
+                    <span className="text-[9px] text-text-dim">{si.issues.length} issue{si.issues.length !== 1 ? 's' : ''}</span>
+                  </div>
+                  {si.issues.map((issue, j) => (
+                    <p key={j} className="text-[11px] text-text-secondary leading-relaxed pl-2 border-l border-white/10 mb-1 last:mb-0">
+                      {issue}
+                    </p>
+                  ))}
+                </div>
+              );
+            })()}
 
             {/* Prose content */}
             {isLoading && !cached?.text && (
