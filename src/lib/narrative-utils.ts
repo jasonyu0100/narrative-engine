@@ -586,47 +586,47 @@ export interface NarrativeShape {
 const SHAPES = {
   rags_to_riches: {
     key: 'rags_to_riches',
-    name: 'Sustained Rise',
+    name: 'Escalating',
     description: 'Beats climb continuously — momentum builds from start to finish',
   },
   tragedy: {
     key: 'tragedy',
-    name: 'Sustained Decline',
+    name: 'Subsiding',
     description: 'Beats fall throughout — intensity drains as the narrative progresses',
   },
   man_in_hole: {
     key: 'man_in_hole',
-    name: 'Dip and Recovery',
+    name: 'Rebounding',
     description: 'Beats drop in the middle then climb back — low point followed by upswing',
   },
   icarus: {
     key: 'icarus',
-    name: 'Front-Loaded',
+    name: 'Peaking',
     description: 'Beats peak early then trail off — intensity concentrated at the opening',
   },
   cinderella: {
     key: 'cinderella',
-    name: 'Double Arc',
+    name: 'Cyclical',
     description: 'Two distinct rises separated by a trough — beats crest, fall, then crest again',
   },
   one_climax: {
     key: 'one_climax',
-    name: 'Single Peak',
+    name: 'Climactic',
     description: 'Beats converge on one central high — build, climax, resolution',
   },
   slow_burn: {
     key: 'slow_burn',
-    name: 'Back-Loaded',
+    name: 'Slow Burn',
     description: 'Beats stay low early then surge — intensity concentrated at the close',
   },
   episodic: {
     key: 'episodic',
-    name: 'Distributed Peaks',
+    name: 'Episodic',
     description: 'Multiple beats of similar weight — no single dominant high point',
   },
   plateau: {
     key: 'plateau',
-    name: 'Flat',
+    name: 'Uniform',
     description: 'Beats show little structural variation — measured and consistent throughout',
   },
 } satisfies Record<string, NarrativeShape>;
