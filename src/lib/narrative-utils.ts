@@ -431,6 +431,150 @@ export function movingAverage(data: number[], windowSize: number): number[] {
   return result;
 }
 
+// ── Engagement / Dopamine Curve ────────────────────────────────────────────
+
+/** Gaussian kernel smooth with mirror-padding at boundaries. */
+function gaussianSmooth(values: number[], sigma: number): number[] {
+  if (values.length === 0) return [];
+  const radius = Math.ceil(sigma * 3);
+  const weights: number[] = [];
+  let wSum = 0;
+  for (let k = -radius; k <= radius; k++) {
+    const w = Math.exp(-(k * k) / (2 * sigma * sigma));
+    weights.push(w);
+    wSum += w;
+  }
+  return values.map((_, i) => {
+    let sum = 0;
+    for (let k = -radius; k <= radius; k++) {
+      const j = Math.max(0, Math.min(values.length - 1, i + k));
+      sum += weights[k + radius] * values[j];
+    }
+    return sum / wSum;
+  });
+}
+
+/**
+ * Detect local peaks and valleys with prominence filtering.
+ *
+ * A peak is a local maximum within a window of `windowR` that stands at least
+ * `minProminence` above the lowest point between it and the nearest higher peak.
+ * Valley detection is symmetric. Uses the smoothed series for stable detection.
+ */
+function detectPeaksAndValleys(
+  values: number[],
+  minProminence = 0.5,
+  windowR = 2,
+): { peaks: Set<number>; valleys: Set<number> } {
+  const peaks = new Set<number>();
+  const valleys = new Set<number>();
+  const n = values.length;
+  for (let i = windowR; i < n - windowR; i++) {
+    const center = values[i];
+    let isMax = true;
+    let isMin = true;
+    for (let k = i - windowR; k <= i + windowR; k++) {
+      if (k === i) continue;
+      if (values[k] > center) isMax = false;
+      if (values[k] < center) isMin = false;
+    }
+    if (isMax) {
+      let leftBase = Infinity;
+      for (let j = i - 1; j >= 0; j--) {
+        leftBase = Math.min(leftBase, values[j]);
+        if (values[j] > center) break;
+      }
+      let rightBase = Infinity;
+      for (let j = i + 1; j < n; j++) {
+        rightBase = Math.min(rightBase, values[j]);
+        if (values[j] > center) break;
+      }
+      const base = Math.max(
+        leftBase === Infinity ? values[0] : leftBase,
+        rightBase === Infinity ? values[n - 1] : rightBase,
+      );
+      if (center - base >= minProminence) peaks.add(i);
+    }
+    if (isMin) {
+      let leftBase = -Infinity;
+      for (let j = i - 1; j >= 0; j--) {
+        leftBase = Math.max(leftBase, values[j]);
+        if (values[j] < center) break;
+      }
+      let rightBase = -Infinity;
+      for (let j = i + 1; j < n; j++) {
+        rightBase = Math.max(rightBase, values[j]);
+        if (values[j] < center) break;
+      }
+      const base = Math.min(
+        leftBase === -Infinity ? values[0] : leftBase,
+        rightBase === -Infinity ? values[n - 1] : rightBase,
+      );
+      if (base - center >= minProminence) valleys.add(i);
+    }
+  }
+  return { peaks, valleys };
+}
+
+export interface EngagementPoint {
+  /** Scene index (0-based) */
+  index: number;
+  /**
+   * Composite engagement score: equal-weighted mean of payoff, change, and variety,
+   * amplified by an anticipation factor when prior scenes had high emotional change.
+   */
+  engagement: number;
+  /** Tension buildup: change + variety − payoff. High when energy accumulates without release. */
+  tension: number;
+  /** Gaussian-smoothed engagement (σ=1.5) — local curve shape for display. */
+  smoothed: number;
+  /** Heavily smoothed macro trend (σ=4) — overall arc of the narrative. */
+  macroTrend: number;
+  /** True if this is a significant local engagement peak (dopamine spike). */
+  isPeak: boolean;
+  /** True if this is a significant local engagement valley (rest/recovery). */
+  isValley: boolean;
+}
+
+/**
+ * Compute the reader engagement (dopamine) curve from z-score normalised force snapshots.
+ *
+ * Engagement is the equal-weighted mean of all three forces — no arbitrary prioritisation.
+ * Peak/valley detection uses adaptive prominence (relative to the signal's own variance) and
+ * an adaptive window radius so longer books don't produce spuriously many local extrema.
+ */
+export function computeEngagementCurve(snapshots: ForceSnapshot[]): EngagementPoint[] {
+  if (snapshots.length === 0) return [];
+  const n = snapshots.length;
+
+  const engValues = snapshots.map(({ payoff, change, variety }) =>
+    (payoff + change + variety) / 3,
+  );
+
+  const smoothed = gaussianSmooth(engValues, 1.5);
+  const macroTrend = gaussianSmooth(engValues, 4);
+
+  // Prominence relative to the signal's own spread — works for both flat and spiky narratives
+  const smMean = smoothed.reduce((s, v) => s + v, 0) / n;
+  const smStd = Math.sqrt(smoothed.reduce((s, v) => s + (v - smMean) ** 2, 0) / n);
+  const minProminence = Math.max(0.1, 0.4 * smStd);
+
+  // Wider window for longer books — prevents peak saturation
+  const windowR = Math.max(2, Math.floor(n / 25));
+
+  const { peaks, valleys } = detectPeaksAndValleys(smoothed, minProminence, windowR);
+
+  return snapshots.map(({ payoff, change, variety }, i) => ({
+    index: i,
+    engagement: engValues[i],
+    tension: change + variety - payoff,
+    smoothed: smoothed[i],
+    macroTrend: macroTrend[i],
+    isPeak: peaks.has(i),
+    isValley: valleys.has(i),
+  }));
+}
+
 // ── Windowed Forces ──────────────────────────────────────────────────────────
 
 export type WindowedForceResult = {

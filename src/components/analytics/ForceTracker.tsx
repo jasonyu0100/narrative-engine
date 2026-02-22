@@ -4,7 +4,7 @@ import { useMemo, useState, useRef, useEffect, useCallback } from 'react';
 import * as d3 from 'd3';
 import { useStore } from '@/lib/store';
 import { resolveEntry, isScene, type Scene, type ForceSnapshot, type CubeCornerKey } from '@/types/narrative';
-import { computeForceSnapshots, computeWindowedForces, computeRawForcetotals, computeSwingMagnitudes, detectCubeCorner, gradeForces, zScoreNormalize, FORCE_WINDOW_SIZE } from '@/lib/narrative-utils';
+import { computeForceSnapshots, computeWindowedForces, computeRawForcetotals, computeSwingMagnitudes, detectCubeCorner, gradeForces, zScoreNormalize, FORCE_WINDOW_SIZE, computeEngagementCurve, type EngagementPoint } from '@/lib/narrative-utils';
 
 type ForceKey = 'payoff' | 'change' | 'variety' | 'swing';
 
@@ -558,6 +558,271 @@ function ZoneBar({
   );
 }
 
+const ENGAGEMENT_COLOR = '#F59E0B';
+const PEAK_COLOR = '#FCD34D';
+const VALLEY_COLOR = '#93C5FD';
+
+function EngagementChart({
+  data,
+  engagement,
+  arcRegions,
+  hoverIndex,
+  onHover,
+  selectedIndex,
+  onSelect,
+  windowRange,
+  height,
+  width,
+  dense,
+}: {
+  data: SceneDataPoint[];
+  engagement: EngagementPoint[];
+  arcRegions: ArcRegion[];
+  hoverIndex: number | null;
+  onHover: (index: number | null) => void;
+  selectedIndex: number | null;
+  onSelect: (index: number) => void;
+  windowRange: { start: number; end: number } | null;
+  height: number;
+  width: number;
+  dense: boolean;
+}) {
+  const svgRef = useRef<SVGSVGElement>(null);
+
+  useEffect(() => {
+    const svg = d3.select(svgRef.current);
+    svg.selectAll('*').remove();
+    if (engagement.length === 0 || width <= 0) return;
+
+    const m = dense ? MARGIN_DENSE : MARGIN;
+    const chartWidth = width - m.left - m.right;
+    const chartHeight = height - m.top - m.bottom;
+
+    const g = svg.append('g').attr('transform', `translate(${m.left},${m.top})`);
+
+    g.append('clipPath')
+      .attr('id', 'clip-engagement')
+      .append('rect')
+      .attr('x', 0).attr('y', 0)
+      .attr('width', chartWidth).attr('height', chartHeight);
+
+    const xScale = d3.scaleLinear().domain([0, Math.max(engagement.length - 1, 1)]).range([0, chartWidth]);
+    const allValues = engagement.flatMap((e) => [e.smoothed, e.macroTrend]);
+    const maxAbs = Math.max(d3.max(allValues.map(Math.abs)) ?? 1, 0.5);
+    // 20% headroom so peak/valley markers don't get clipped at the domain boundary
+    const yScale = d3.scaleLinear().domain([-maxAbs * 1.2, maxAbs * 1.2]).range([chartHeight, 0]);
+
+    // Window highlight
+    if (windowRange) {
+      const wx1 = xScale(windowRange.start);
+      const wx2 = xScale(windowRange.end);
+      g.append('rect')
+        .attr('x', wx1).attr('y', 0)
+        .attr('width', Math.max(wx2 - wx1, 1)).attr('height', chartHeight)
+        .attr('fill', ENGAGEMENT_COLOR).attr('opacity', 0.06);
+      g.append('line')
+        .attr('x1', wx1).attr('x2', wx1)
+        .attr('y1', 0).attr('y2', chartHeight)
+        .attr('stroke', ENGAGEMENT_COLOR).attr('stroke-width', 0.5).attr('opacity', 0.3);
+    }
+
+    // Arc boundary lines
+    arcRegions.forEach((arc, i) => {
+      if (i > 0) {
+        g.append('line')
+          .attr('x1', xScale(arc.startIndex)).attr('x2', xScale(arc.startIndex))
+          .attr('y1', 0).attr('y2', chartHeight)
+          .attr('stroke', 'rgba(255,255,255,0.06)')
+          .attr('stroke-width', 1).attr('stroke-dasharray', '4,4');
+      }
+    });
+
+    // Gridlines
+    const step = maxAbs <= 2 ? 0.5 : maxAbs <= 5 ? 1 : Math.ceil(maxAbs / 4);
+    const gridValues = [0];
+    for (let v = step; v <= maxAbs; v += step) gridValues.push(v, -v);
+    gridValues.forEach((v) => {
+      const y = yScale(v);
+      g.append('line')
+        .attr('x1', 0).attr('x2', chartWidth)
+        .attr('y1', y).attr('y2', y)
+        .attr('stroke', v === 0 ? 'rgba(255,255,255,0.15)' : 'rgba(255,255,255,0.04)')
+        .attr('stroke-width', v === 0 ? 1 : 0.5);
+      if (!dense) {
+        g.append('text')
+          .attr('x', -8).attr('y', y).attr('dy', '0.35em')
+          .attr('text-anchor', 'end')
+          .attr('fill', 'rgba(255,255,255,0.25)')
+          .attr('font-size', '9px').attr('font-family', 'monospace')
+          .text(Number.isInteger(v) ? v.toString() : v.toFixed(1));
+      }
+    });
+
+    // Window average
+    const windowSlice = windowRange
+      ? engagement.slice(windowRange.start, windowRange.end + 1)
+      : engagement.slice(-FORCE_WINDOW_SIZE);
+    const winAvg = windowSlice.length > 0
+      ? windowSlice.reduce((s, e) => s + e.engagement, 0) / windowSlice.length
+      : 0;
+
+    // Label
+    g.append('text')
+      .attr('x', 6).attr('y', -m.top + 14)
+      .attr('fill', ENGAGEMENT_COLOR)
+      .attr('font-size', '10px').attr('font-weight', '600').attr('letter-spacing', '0.1em')
+      .text('ENGAGEMENT');
+    g.append('text')
+      .attr('x', 6 + 10 * 8 + 6).attr('y', -m.top + 14)
+      .attr('fill', ENGAGEMENT_COLOR)
+      .attr('font-size', '9px').attr('font-weight', '600').attr('font-family', 'monospace').attr('opacity', 0.7)
+      .text(`w${winAvg >= 0 ? '+' : ''}${winAvg.toFixed(2)}`);
+
+    const clipped = g.append('g').attr('clip-path', 'url(#clip-engagement)');
+
+    // Positive fill (above zero)
+    clipped.append('path')
+      .datum(engagement)
+      .attr('d', d3.area<EngagementPoint>()
+        .x((e) => xScale(e.index))
+        .y0(yScale(0))
+        .y1((e) => yScale(Math.max(0, e.smoothed)))
+        .curve(d3.curveMonotoneX))
+      .attr('fill', ENGAGEMENT_COLOR).attr('opacity', 0.10);
+
+    // Negative fill (below zero)
+    clipped.append('path')
+      .datum(engagement)
+      .attr('d', d3.area<EngagementPoint>()
+        .x((e) => xScale(e.index))
+        .y0(yScale(0))
+        .y1((e) => yScale(Math.min(0, e.smoothed)))
+        .curve(d3.curveMonotoneX))
+      .attr('fill', VALLEY_COLOR).attr('opacity', 0.07);
+
+    // Macro trend (dashed, white)
+    clipped.append('path')
+      .datum(engagement)
+      .attr('d', d3.line<EngagementPoint>()
+        .x((e) => xScale(e.index))
+        .y((e) => yScale(e.macroTrend))
+        .curve(d3.curveMonotoneX))
+      .attr('fill', 'none')
+      .attr('stroke', 'rgba(255,255,255,0.25)')
+      .attr('stroke-width', 1)
+      .attr('stroke-dasharray', '5,4');
+
+    // Primary engagement line (smoothed)
+    clipped.append('path')
+      .datum(engagement)
+      .attr('d', d3.line<EngagementPoint>()
+        .x((e) => xScale(e.index))
+        .y((e) => yScale(e.smoothed))
+        .curve(d3.curveMonotoneX))
+      .attr('fill', 'none')
+      .attr('stroke', ENGAGEMENT_COLOR)
+      .attr('stroke-width', 2)
+      .attr('opacity', 0.9);
+
+    // Peak markers — upward triangles
+    const triUp = d3.symbol().type(d3.symbolTriangle).size(40);
+    engagement.filter((e) => e.isPeak).forEach((e) => {
+      const cx = xScale(e.index);
+      const cy = yScale(e.smoothed);
+      clipped.append('path')
+        .attr('d', triUp)
+        .attr('transform', `translate(${cx},${cy - 10})`)
+        .attr('fill', PEAK_COLOR)
+        .attr('opacity', 0.9);
+      if (!dense) {
+        clipped.append('text')
+          .attr('x', cx).attr('y', cy - 20)
+          .attr('text-anchor', 'middle')
+          .attr('fill', PEAK_COLOR)
+          .attr('font-size', '8px').attr('font-family', 'monospace').attr('opacity', 0.8)
+          .text(`#${e.index + 1}`);
+      }
+    });
+
+    // Valley markers — downward triangles
+    engagement.filter((e) => e.isValley).forEach((e) => {
+      const cx = xScale(e.index);
+      const cy = yScale(e.smoothed);
+      clipped.append('path')
+        .attr('d', triUp)
+        .attr('transform', `translate(${cx},${cy + 10}) rotate(180)`)
+        .attr('fill', VALLEY_COLOR)
+        .attr('opacity', 0.8);
+      if (!dense) {
+        clipped.append('text')
+          .attr('x', cx).attr('y', cy + 22)
+          .attr('text-anchor', 'middle')
+          .attr('fill', VALLEY_COLOR)
+          .attr('font-size', '8px').attr('font-family', 'monospace').attr('opacity', 0.8)
+          .text(`#${e.index + 1}`);
+      }
+    });
+
+    // Hover crosshair
+    if (hoverIndex !== null && hoverIndex >= 0 && hoverIndex < engagement.length) {
+      const e = engagement[hoverIndex];
+      const cx = xScale(e.index);
+      const cy = yScale(e.smoothed);
+      g.append('line')
+        .attr('x1', cx).attr('x2', cx).attr('y1', 0).attr('y2', chartHeight)
+        .attr('stroke', 'rgba(255,255,255,0.3)').attr('stroke-width', 1);
+      g.append('line')
+        .attr('x1', 0).attr('x2', chartWidth).attr('y1', cy).attr('y2', cy)
+        .attr('stroke', ENGAGEMENT_COLOR).attr('stroke-width', 0.5)
+        .attr('stroke-dasharray', '3,3').attr('opacity', 0.5);
+      clipped.append('circle')
+        .attr('cx', cx).attr('cy', cy).attr('r', 4)
+        .attr('fill', ENGAGEMENT_COLOR).attr('stroke', '#111').attr('stroke-width', 2);
+      g.append('circle')
+        .attr('cx', chartWidth - 46).attr('cy', -MARGIN.top + 11)
+        .attr('r', 3).attr('fill', ENGAGEMENT_COLOR);
+      g.append('text')
+        .attr('x', chartWidth - 4).attr('y', -m.top + 14)
+        .attr('text-anchor', 'end')
+        .attr('fill', ENGAGEMENT_COLOR)
+        .attr('font-size', '11px').attr('font-family', 'monospace').attr('font-weight', '600')
+        .text(e.engagement.toFixed(2));
+    }
+
+    // Selected scene marker
+    if (selectedIndex !== null && selectedIndex >= 0 && selectedIndex < engagement.length && selectedIndex !== hoverIndex) {
+      const e = engagement[selectedIndex];
+      const sx = xScale(e.index);
+      const sy = yScale(e.smoothed);
+      g.append('line')
+        .attr('x1', sx).attr('x2', sx).attr('y1', 0).attr('y2', chartHeight)
+        .attr('stroke', 'rgba(255,255,255,0.25)').attr('stroke-width', 1).attr('stroke-dasharray', '2,2');
+      clipped.append('circle')
+        .attr('cx', sx).attr('cy', sy).attr('r', 4.5)
+        .attr('fill', 'none').attr('stroke', ENGAGEMENT_COLOR).attr('stroke-width', 1.5).attr('opacity', 0.7);
+    }
+
+    // Interaction overlay
+    g.append('rect')
+      .attr('x', 0).attr('y', 0)
+      .attr('width', chartWidth).attr('height', chartHeight)
+      .attr('fill', 'transparent').style('cursor', 'pointer')
+      .on('mousemove', (event: MouseEvent) => {
+        const [mx] = d3.pointer(event);
+        const idx = Math.round(xScale.invert(mx));
+        if (idx >= 0 && idx < data.length) onHover(idx);
+      })
+      .on('mouseleave', () => onHover(null))
+      .on('click', (event: MouseEvent) => {
+        const [mx] = d3.pointer(event);
+        const idx = Math.round(xScale.invert(mx));
+        if (idx >= 0 && idx < data.length) onSelect(idx);
+      });
+  }, [engagement, data, arcRegions, hoverIndex, onHover, selectedIndex, onSelect, windowRange, height, width, dense]);
+
+  return <svg ref={svgRef} width={width} height={height} className="block" />;
+}
+
 function ArcLabelsBar({
   arcRegions,
   dataLength,
@@ -617,6 +882,9 @@ export function ForceTracker({ onClose }: { onClose: () => void }) {
     }
     return null;
   });
+
+  // View mode: individual force charts or composite engagement curve
+  const [view, setView] = useState<'forces' | 'engagement'>('forces');
 
   // Raw force toggle (absolute values vs z-score normalised)
   const [showRawForce, setShowRawForce] = useState(true);
@@ -754,6 +1022,12 @@ export function ForceTracker({ onClose }: { onClose: () => void }) {
 
   const activeDataPoints = showRawForce ? rawDataPoints : dataPoints;
 
+  // Engagement curve always computed from z-score normalised forces (not raw)
+  const engagementData = useMemo((): EngagementPoint[] => {
+    if (dataPoints.length === 0) return [];
+    return computeEngagementCurve(dataPoints.map((d) => d.forces));
+  }, [dataPoints]);
+
   const arcRegions = useMemo((): ArcRegion[] => {
     if (dataPoints.length === 0) return [];
     const regions: ArcRegion[] = [];
@@ -827,6 +1101,7 @@ export function ForceTracker({ onClose }: { onClose: () => void }) {
   const zoneBarHeight = 48;
   const availableChartHeight = dims.height - headerHeight - hoverBarHeight - arcLabelHeight - zoneBarHeight;
   const chartHeight = Math.max(Math.floor(availableChartHeight / 4), 80);
+  const engagementChartHeight = Math.max(availableChartHeight, 120);
 
   const hasDrawings = Object.values(drawLines).some((lines) => lines.length > 0);
 
@@ -854,6 +1129,21 @@ export function ForceTracker({ onClose }: { onClose: () => void }) {
           )}
         </div>
         <div className="flex items-center gap-2">
+          <div className="flex items-center rounded-full border border-border overflow-hidden">
+            {(['forces', 'engagement'] as const).map((v) => (
+              <button
+                key={v}
+                onClick={() => setView(v)}
+                className={`text-[11px] px-3 py-1.5 transition capitalize ${
+                  view === v
+                    ? 'bg-white/10 text-text-primary'
+                    : 'bg-transparent text-text-dim hover:text-text-secondary'
+                }`}
+              >
+                {v}
+              </button>
+            ))}
+          </div>
           <button
             onClick={() => setShowRawForce((v) => !v)}
             className={`text-[11px] px-3.5 py-1.5 rounded-full border transition flex items-center gap-1.5 ${
@@ -908,29 +1198,45 @@ export function ForceTracker({ onClose }: { onClose: () => void }) {
           </div>
         ) : (
           <>
-            {FORCE_CONFIG.map((cfg) => (
-              <ForceChart
-                key={cfg.key}
+            {view === 'engagement' ? (
+              <EngagementChart
                 data={activeDataPoints}
-                forceKey={cfg.key}
-                label={cfg.label}
-                color={cfg.color}
+                engagement={engagementData}
                 arcRegions={arcRegions}
                 hoverIndex={hoverIndex}
                 onHover={setHoverIndex}
                 selectedIndex={selectedIndex}
                 onSelect={handleSelect}
                 windowRange={windowRange}
-                height={chartHeight}
+                height={engagementChartHeight}
                 width={dims.width}
-                drawing={drawing}
-                drawLines={drawLines[cfg.key]}
-                onDrawStart={onDrawStart}
-                onDrawMove={onDrawMove}
-                onDrawEnd={onDrawEnd}
                 dense={arcRegions.length >= DENSE_ARC_THRESHOLD}
               />
-            ))}
+            ) : (
+              FORCE_CONFIG.map((cfg) => (
+                <ForceChart
+                  key={cfg.key}
+                  data={activeDataPoints}
+                  forceKey={cfg.key}
+                  label={cfg.label}
+                  color={cfg.color}
+                  arcRegions={arcRegions}
+                  hoverIndex={hoverIndex}
+                  onHover={setHoverIndex}
+                  selectedIndex={selectedIndex}
+                  onSelect={handleSelect}
+                  windowRange={windowRange}
+                  height={chartHeight}
+                  width={dims.width}
+                  drawing={drawing}
+                  drawLines={drawLines[cfg.key]}
+                  onDrawStart={onDrawStart}
+                  onDrawMove={onDrawMove}
+                  onDrawEnd={onDrawEnd}
+                  dense={arcRegions.length >= DENSE_ARC_THRESHOLD}
+                />
+              ))
+            )}
             <ZoneBar
               data={activeDataPoints}
               arcRegions={arcRegions}
