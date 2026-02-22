@@ -404,34 +404,3 @@ export function getAncestorChain(tree: MCTSTree, nodeId: MCTSNodeId): MCTSNode[]
 export function treeSize(tree: MCTSTree): number {
   return Object.keys(tree.nodes).length;
 }
-
-// ── Dynamic Config Suggestion ────────────────────────────────────────────────
-
-/**
- * Suggest branching factor, depth, and iterations based on the current
- * narrative state. Takes into account:
- * - Active thread count → more unresolved threads = more branching
- * - Story length (scene count) → longer stories benefit from deeper search
- * - Thread diversity → threads near resolution need less exploration
- */
-export function suggestConfig(narrative: NarrativeState): Pick<MCTSConfig, 'branchingFactor' | 'maxDepth' | 'totalIterations'> {
-  const activeThreads = Object.values(narrative.threads).filter(
-    (t) => !['resolved', 'done', 'subverted', 'closed', 'abandoned'].includes(t.status.toLowerCase()),
-  ).length;
-  const sceneCount = Object.keys(narrative.scenes).length;
-
-  // More active threads → more branching (different threads could be explored)
-  // Clamp to 5-8 range (minimum 5 to ensure diverse exploration)
-  const branchingFactor = Math.max(5, Math.min(8, Math.ceil(activeThreads * 0.8) + 2));
-
-  // Longer stories benefit from deeper search; short stories don't need it
-  // Also consider: if many threads are active, we need depth to find resolutions
-  const depthFromLength = sceneCount < 20 ? 5 : sceneCount < 50 ? 5 : 6;
-  const depthFromThreads = activeThreads > 6 ? 6 : activeThreads > 3 ? 5 : 5;
-  const maxDepth = Math.min(10, Math.max(depthFromLength, depthFromThreads));
-
-  // Iterations: expand root + deepen the best 2-3 branches
-  const totalIterations = Math.max(3, branchingFactor);
-
-  return { branchingFactor, maxDepth, totalIterations };
-}

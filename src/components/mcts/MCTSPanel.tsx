@@ -4,7 +4,7 @@ import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import type { MCTSConfig, MCTSNodeId, MCTSNode, MCTSTree } from '@/types/mcts';
 import { DEFAULT_MCTS_CONFIG } from '@/types/mcts';
 import type { useMCTS } from '@/hooks/useMCTS';
-import { treeSize, suggestConfig, bestPath as computeBestPath } from '@/lib/mcts-engine';
+import { treeSize, bestPath as computeBestPath } from '@/lib/mcts-engine';
 import { NARRATIVE_CUBE } from '@/types/narrative';
 import { useStore } from '@/lib/store';
 
@@ -442,7 +442,7 @@ function NodeInspector({ node, tree }: { node: MCTSNode; tree: MCTSTree }) {
 
 // ── Config Tab ───────────────────────────────────────────────────────────────
 
-type ConfigTab = 'search' | 'strategy' | 'guide';
+type ConfigTab = 'search' | 'strategy';
 
 // ── Main Panel ───────────────────────────────────────────────────────────────
 
@@ -454,9 +454,7 @@ export function MCTSPanel({ isOpen, onClose, mcts }: { isOpen: boolean; onClose:
 
   // Initialize config with dynamic suggestion from narrative context
   const [config, setConfig] = useState<MCTSConfig>(() => {
-    const narrative = state.activeNarrative;
-    const suggested = narrative ? suggestConfig(narrative) : {};
-    return { ...DEFAULT_MCTS_CONFIG, ...suggested };
+    return { ...DEFAULT_MCTS_CONFIG };
   });
   const [configTab, setConfigTab] = useState<ConfigTab>('search');
 
@@ -527,7 +525,6 @@ export function MCTSPanel({ isOpen, onClose, mcts }: { isOpen: boolean; onClose:
             {([
               { label: 'Search', value: 'search' as ConfigTab },
               { label: 'Strategy', value: 'strategy' as ConfigTab },
-              { label: 'Guide', value: 'guide' as ConfigTab },
             ]).map((t) => (
               <button
                 key={t.value}
@@ -679,52 +676,6 @@ export function MCTSPanel({ isOpen, onClose, mcts }: { isOpen: boolean; onClose:
               </>
             )}
 
-            {configTab === 'guide' && (
-              <>
-                <p className="text-[10px] text-text-dim leading-relaxed">
-                  MCTS explores multiple possible narrative continuations by building a search tree, similar to how chess engines evaluate future moves. Each iteration selects the most promising unexplored branch, generates alternative arcs in parallel, scores them, and propagates results up the tree.
-                </p>
-
-                <div className="bg-bg-elevated border border-border rounded-lg p-3">
-                  <p className="text-[10px] text-text-primary font-medium mb-2">Stop Conditions</p>
-                  <p className="text-[10px] text-text-dim leading-relaxed">
-                    <strong className="text-text-secondary">Time limit</strong> — like a chess clock. Set a time budget and MCTS explores as many branches as it can within the allotted time. Best for open-ended exploration.
-                  </p>
-                  <p className="text-[10px] text-text-dim leading-relaxed mt-2">
-                    <strong className="text-text-secondary">Iterations</strong> — run a fixed number of expansion steps. Each iteration generates one batch of alternative arcs. Predictable cost.
-                  </p>
-                  <p className="text-[10px] text-text-dim leading-relaxed mt-2">
-                    After either condition is met, the tree and results are preserved. You can always continue searching with more time or iterations.
-                  </p>
-                </div>
-
-                <div className="bg-bg-elevated border border-border rounded-lg p-3">
-                  <p className="text-[10px] text-text-primary font-medium mb-2">Tree Shape</p>
-                  <p className="text-[10px] text-text-dim leading-relaxed">
-                    <strong className="text-text-secondary">Branches per node</strong> — how many alternative arcs to generate at each point. Higher means more options but more LLM calls per iteration.
-                  </p>
-                  <p className="text-[10px] text-text-dim leading-relaxed mt-2">
-                    <strong className="text-text-secondary">Max depth</strong> — how many arcs ahead to look. Depth 2 means exploring pairs of consecutive arcs. Deeper search finds better long-term paths but each iteration takes longer.
-                  </p>
-                </div>
-
-                <div className="bg-bg-elevated border border-border rounded-lg p-3">
-                  <p className="text-[10px] text-text-primary font-medium mb-2">Strategy</p>
-                  <p className="text-[10px] text-text-dim leading-relaxed">
-                    <strong className="text-text-secondary">Exploit</strong> — focuses on the most promising branches using low UCB1 exploration. Converges faster to the best-known path.
-                  </p>
-                  <p className="text-[10px] text-text-dim leading-relaxed mt-2">
-                    <strong className="text-text-secondary">Explore</strong> — aggressively tries new branches with high UCB1 exploration. Discovers more diverse narrative possibilities but needs more iterations to converge.
-                  </p>
-                  <p className="text-[10px] text-text-dim leading-relaxed mt-2">
-                    <strong className="text-text-secondary">Baseline</strong> — layer-by-layer greedy search. At each depth, keeps generating arcs until one meets the target score, then descends to the next depth. Guarantees minimum quality per layer but may use more LLM calls.
-                  </p>
-                  <p className="text-[10px] text-text-dim leading-relaxed mt-2">
-                    <strong className="text-text-secondary">Best Average Score vs Most Explored</strong> — how the recommended path is chosen. Best Average Score picks the highest-quality path; Most Explored picks the path the search invested the most time in. You can always override by clicking nodes in the tree to build a custom path.
-                  </p>
-                </div>
-              </>
-            )}
           </div>
 
           {/* Footer */}
