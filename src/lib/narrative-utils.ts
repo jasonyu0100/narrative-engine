@@ -655,9 +655,9 @@ function consistencyFactor(arr: number[]): number {
   const credit = (s: number) => {
     if (s >= 90) return 1.0;   // green
     if (s >= 80) return 0.8;   // yellow-green
-    if (s >= 70) return 0.5;   // yellow
-    if (s >= 60) return 0.2;   // orange
-    return 0.0;                // red
+    if (s >= 70) return 0.6;   // yellow
+    if (s >= 60) return 0.4;   // orange
+    return 0.2;                // red
   };
 
   // Zone weight for streak penalty: worse zones compound faster
@@ -682,7 +682,7 @@ function consistencyFactor(arr: number[]): number {
       pos = 0;
     }
   }
-  const streakFactor = 1 / (1 + penalty / (n * 10));
+  const streakFactor = 1 / (1 + penalty / (n * 15));
 
   return avgCredit * streakFactor;
 }
