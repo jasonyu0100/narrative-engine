@@ -5,6 +5,7 @@ import type { NarrativeState, Scene } from '@/types/narrative';
 import { resolveEntry, isScene } from '@/types/narrative';
 import { generateSceneProse, analyzeAllProse, rewriteSceneProse, type ProseAnalysis } from '@/lib/ai';
 import { useStore } from '@/lib/store';
+import { exportEpub } from '@/lib/epub-export';
 
 type ProseCache = Record<string, { text: string; status: 'loading' | 'ready' | 'error'; error?: string }>;
 
@@ -410,6 +411,25 @@ export function StoryReader({
                     Copy All ({allProse.length})
                   </>
                 )}
+              </button>
+            ) : null;
+          })()}
+
+          {/* Export EPUB */}
+          {(() => {
+            const allProse = scenes.filter((s) => proseCache[s.id]?.status === 'ready' || !!s.prose);
+            return allProse.length > 0 ? (
+              <button
+                onClick={() => exportEpub(narrative, resolvedKeys, proseCache)}
+                className="text-[10px] px-2.5 py-1 rounded-full border border-white/10 text-text-dim hover:text-text-secondary hover:border-white/15 transition flex items-center gap-1.5"
+                title={`Export ${allProse.length} scene${allProse.length !== 1 ? 's' : ''} as EPUB`}
+              >
+                <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                  <polyline points="7 10 12 15 17 10" />
+                  <line x1="12" y1="15" x2="12" y2="3" />
+                </svg>
+                EPUB
               </button>
             ) : null;
           })()}
