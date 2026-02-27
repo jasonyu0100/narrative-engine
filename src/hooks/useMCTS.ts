@@ -3,7 +3,7 @@
 import { useRef, useCallback, useState } from 'react';
 import { useStore } from '@/lib/store';
 import { generateScenes } from '@/lib/ai';
-import type { NarrativeState, Scene, CubeCornerKey } from '@/types/narrative';
+import type { NarrativeState, Scene, CubeCornerKey, WorldBuildCommit } from '@/types/narrative';
 import type { MCTSConfig, MCTSTree, MCTSRunState, MCTSNodeId, MCTSStatus, MCTSPhase, MCTSNode, BeatDirection } from '@/types/mcts';
 import { DEFAULT_MCTS_CONFIG } from '@/types/mcts';
 import type { Arc } from '@/types/narrative';
@@ -93,6 +93,7 @@ export function useMCTS() {
     rootNarrative: NarrativeState,
     rootResolvedKeys: string[],
     rootCurrentIndex: number,
+    worldBuildFocus: WorldBuildCommit | undefined,
   ): Promise<ExpansionResult | null> => {
     updatePhase('expanding', targetId === 'root' ? null : targetId);
 
@@ -100,6 +101,7 @@ export function useMCTS() {
       parentNarrative, parentKeys, parentIndex, 0,
       direction, undefined, cubeGoal ?? undefined,
       existingSiblings.length > 0 ? existingSiblings : undefined,
+      worldBuildFocus,
     ).catch((err) => { console.error('[mcts] generation error:', err); return null; });
 
     if (!result || cancelledRef.current) return null;
@@ -131,6 +133,9 @@ export function useMCTS() {
 
     let tree = retainedTreeRef.current ?? createTree(activeNarrative, resolvedSceneKeys, currentSceneIndex);
     retainedTreeRef.current = null;
+    const worldBuildFocus = config.worldBuildFocusId
+      ? activeNarrative.worldBuilds[config.worldBuildFocusId]
+      : undefined;
 
     const startTime = Date.now();
 
@@ -234,7 +239,7 @@ export function useMCTS() {
             prep.targetId, prep.parentNarrative, prep.parentKeys, prep.parentIndex,
             prep.direction, prep.cubeGoal, prep.beatGoal, prep.ancestorChain, prep.allPriorScenes,
             prep.existingSiblings, activeBranchId,
-            tree.rootNarrative, tree.rootResolvedKeys, tree.rootCurrentIndex,
+            tree.rootNarrative, tree.rootResolvedKeys, tree.rootCurrentIndex, worldBuildFocus,
           );
 
           if (cancelledRef.current) break;
@@ -319,7 +324,7 @@ export function useMCTS() {
           prep.targetId, prep.parentNarrative, prep.parentKeys, prep.parentIndex,
           prep.direction, prep.cubeGoal, prep.beatGoal, prep.ancestorChain, prep.allPriorScenes,
           prep.existingSiblings, activeBranchId,
-          tree.rootNarrative, tree.rootResolvedKeys, tree.rootCurrentIndex,
+          tree.rootNarrative, tree.rootResolvedKeys, tree.rootCurrentIndex, worldBuildFocus,
         ).then((result) => ({ result, seq }));
 
         activeSlots.push({ seq, targetId, goal, promise });
@@ -430,6 +435,9 @@ export function useMCTS() {
     (async () => {
       let tree = runState.tree;
       let generated = runState.iterationsCompleted;
+      const worldBuildFocus = runState.config.worldBuildFocusId
+        ? tree.rootNarrative.worldBuilds[runState.config.worldBuildFocusId]
+        : undefined;
 
       const inFlightCounts = new Map<MCTSNodeId | 'root', number>();
       const inFlightGoals = new Map<MCTSNodeId | 'root', (string | null)[]>();
@@ -481,7 +489,7 @@ export function useMCTS() {
         const promise = runSingleExpansion(
           targetId, parentNarrative, parentKeys, parentIndex,
           direction, cubeGoal, beatGoal, ancestorChain, allPriorScenes, existingSiblings,
-          activeBranchId, tree.rootNarrative, tree.rootResolvedKeys, tree.rootCurrentIndex,
+          activeBranchId, tree.rootNarrative, tree.rootResolvedKeys, tree.rootCurrentIndex, worldBuildFocus,
         ).then((result) => ({ result, seq }));
         activeSlots.push({ seq, targetId, goal, promise });
         return true;
@@ -574,6 +582,9 @@ export function useMCTS() {
     (async () => {
       let tree = runState.tree;
       let generated = runState.iterationsCompleted;
+      const worldBuildFocus = updatedConfig.worldBuildFocusId
+        ? tree.rootNarrative.worldBuilds[updatedConfig.worldBuildFocusId]
+        : undefined;
 
       const inFlightCounts = new Map<MCTSNodeId | 'root', number>();
       const inFlightGoals = new Map<MCTSNodeId | 'root', (string | null)[]>();
@@ -623,7 +634,7 @@ export function useMCTS() {
         const promise = runSingleExpansion(
           targetId, parentNarrative, parentKeys, parentIndex,
           direction, cubeGoal, beatGoal, ancestorChain, allPriorScenes, existingSiblings,
-          activeBranchId, tree.rootNarrative, tree.rootResolvedKeys, tree.rootCurrentIndex,
+          activeBranchId, tree.rootNarrative, tree.rootResolvedKeys, tree.rootCurrentIndex, worldBuildFocus,
         ).then((result) => ({ result, seq }));
         activeSlots.push({ seq, targetId, goal, promise });
         return true;

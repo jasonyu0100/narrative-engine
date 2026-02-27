@@ -3,30 +3,11 @@
 import { useState } from 'react';
 import { useStore } from '@/lib/store';
 import { generateScenes, suggestDirection, expandWorld, suggestWorldExpansion, type WorldExpansionSize } from '@/lib/ai';
-import { resolveEntry, type NarrativeState, type WorldBuildCommit } from '@/types/narrative';
+import { resolveEntry } from '@/types/narrative';
 import { nextId } from '@/lib/narrative-utils';
 
 type Mode = 'continuation' | 'world';
 
-/** Build a human-readable seed from a world build entry for injecting into the direction prompt */
-function buildWorldBuildSeed(narrative: NarrativeState, wb: WorldBuildCommit): string {
-  const parts: string[] = [`Incorporate elements from world build "${wb.summary}":`];
-
-  for (const cid of wb.expansionManifest.characterIds) {
-    const c = narrative.characters[cid];
-    if (c) parts.push(`- Character: ${c.name} (${c.role})`);
-  }
-  for (const lid of wb.expansionManifest.locationIds) {
-    const l = narrative.locations[lid];
-    if (l) parts.push(`- Location: ${l.name}`);
-  }
-  for (const tid of wb.expansionManifest.threadIds) {
-    const t = narrative.threads[tid];
-    if (t) parts.push(`- Thread: ${t.description} [${t.status}]`);
-  }
-
-  return parts.join('\n');
-}
 
 function SkeletonLoading({ label }: { label: string }) {
   return (
@@ -52,6 +33,7 @@ export function GeneratePanel({ onClose }: { onClose: () => void }) {
   const [arcName, setArcName] = useState('');
   const [direction, setDirection] = useState('');
   const [count, setCount] = useState(3);
+  const [worldBuildFocusId, setWorldBuildFocusId] = useState<string | null>(null);
 
   // World mode state
   const [worldDirective, setWorldDirective] = useState('');
@@ -103,6 +85,7 @@ export function GeneratePanel({ onClose }: { onClose: () => void }) {
     setError('');
     try {
       const existingArc = !newArc ? currentArc ?? undefined : undefined;
+      const worldBuildFocus = worldBuildFocusId ? narrative.worldBuilds[worldBuildFocusId] : undefined;
       const { scenes, arc } = await generateScenes(
         narrative,
         state.resolvedSceneKeys,
@@ -111,6 +94,8 @@ export function GeneratePanel({ onClose }: { onClose: () => void }) {
         direction,
         existingArc,
         undefined,
+        undefined,
+        worldBuildFocus,
       );
       dispatch({
         type: 'BULK_ADD_SCENES',
@@ -303,62 +288,56 @@ export function GeneratePanel({ onClose }: { onClose: () => void }) {
                 </div>
               </div>
 
-              {/* Advanced options */}
-              <details className="group">
-                <summary className="text-[10px] uppercase tracking-widest text-text-dim cursor-pointer select-none flex items-center gap-1.5 hover:text-text-secondary transition">
-                  <span className="transition-transform group-open:rotate-90">&#9656;</span>
-                  Advanced
-                </summary>
-                <div className="flex flex-col gap-4 mt-3">
-                  {/* World Building Seeds */}
-                  {(() => {
-                    const worldBuildEntries = Object.values(narrative.worldBuilds);
-                    if (worldBuildEntries.length === 0) return null;
-
-                    return (
-                      <div>
-                        <label className="text-[10px] uppercase tracking-widest text-text-dim block mb-1.5">
-                          Use World Building
-                        </label>
-                        <div className="flex flex-col gap-1 max-h-28 overflow-y-auto">
-                          {worldBuildEntries.map((wb) => {
-                            const manifest = wb.expansionManifest;
-                            const parts: string[] = [];
-                            if (manifest.characterIds.length > 0)
-                              parts.push(`${manifest.characterIds.length} char${manifest.characterIds.length > 1 ? 's' : ''}`);
-                            if (manifest.locationIds.length > 0)
-                              parts.push(`${manifest.locationIds.length} loc${manifest.locationIds.length > 1 ? 's' : ''}`);
-                            if (manifest.threadIds.length > 0)
-                              parts.push(`${manifest.threadIds.length} thread${manifest.threadIds.length > 1 ? 's' : ''}`);
-
-                            const seedText = buildWorldBuildSeed(narrative, wb);
-
-                            return (
-                              <button
-                                key={wb.id}
-                                type="button"
-                                onClick={() => {
-                                  setDirection((prev) =>
-                                    prev ? `${prev}\n\n${seedText}` : seedText,
-                                  );
-                                }}
-                                disabled={loading}
-                                className="bg-bg-elevated border border-border rounded-lg px-3 py-2 text-left hover:border-white/16 transition disabled:opacity-50"
-                              >
-                                <p className="text-xs text-text-primary line-clamp-1">{wb.summary}</p>
-                                <p className="text-[10px] text-text-dim mt-0.5">
-                                  {wb.id} &middot; {parts.join(', ')}
-                                </p>
-                              </button>
-                            );
-                          })}
-                        </div>
-                        <p className="text-[9px] text-text-dim mt-1">Click to inject into direction above</p>
-                      </div>
-                    );
-                  })()}
-                </div>
-              </details>
+              {/* World Build Focus */}
+              {(() => {
+                const resolvedSet = new Set(state.resolvedSceneKeys);
+                const worldBuildEntries = Object.values(narrative.worldBuilds).filter((wb) => resolvedSet.has(wb.id));
+                if (worldBuildEntries.length === 0) return null;
+                return (
+                  <div>
+                    <label className="text-[10px] uppercase tracking-widest text-text-dim block mb-1.5">
+                      World Build Focus
+                    </label>
+                    <div className="flex flex-col gap-1 max-h-32 overflow-y-auto">
+                      {worldBuildEntries.map((wb) => {
+                        const manifest = wb.expansionManifest;
+                        const parts: string[] = [];
+                        if (manifest.characterIds.length > 0)
+                          parts.push(`${manifest.characterIds.length} char${manifest.characterIds.length > 1 ? 's' : ''}`);
+                        if (manifest.locationIds.length > 0)
+                          parts.push(`${manifest.locationIds.length} loc${manifest.locationIds.length > 1 ? 's' : ''}`);
+                        if (manifest.threadIds.length > 0)
+                          parts.push(`${manifest.threadIds.length} thread${manifest.threadIds.length > 1 ? 's' : ''}`);
+                        const isSelected = worldBuildFocusId === wb.id;
+                        return (
+                          <button
+                            key={wb.id}
+                            type="button"
+                            onClick={() => setWorldBuildFocusId(isSelected ? null : wb.id)}
+                            disabled={loading}
+                            className={`rounded-lg px-3 py-2 text-left transition disabled:opacity-50 border ${
+                              isSelected
+                                ? 'bg-amber-500/10 border-amber-500/30 ring-1 ring-amber-500/20'
+                                : 'bg-bg-elevated border-border hover:border-white/16'
+                            }`}
+                          >
+                            <div className="flex items-center justify-between gap-2">
+                              <p className={`text-xs line-clamp-1 ${isSelected ? 'text-amber-300' : 'text-text-primary'}`}>{wb.summary}</p>
+                              {isSelected && (
+                                <span className="text-[9px] text-amber-400 shrink-0 uppercase tracking-wider">Focus</span>
+                              )}
+                            </div>
+                            <p className="text-[10px] text-text-dim mt-0.5">
+                              {wb.id} &middot; {parts.join(', ')}
+                            </p>
+                          </button>
+                        );
+                      })}
+                    </div>
+                    <p className="text-[9px] text-text-dim mt-1">Select to seed generation with these entities</p>
+                  </div>
+                );
+              })()}
 
               <button
                 onClick={handleGenerateArc}

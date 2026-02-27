@@ -118,6 +118,7 @@ export type MCTSConfig = {
   baselineScore: number;      // Target score per layer (baseline mode)
   randomDirections: boolean;  // If true, pick next cube corner randomly (ignores mode-based ordering)
   directionMode: DirectionMode; // Whether to use cube corners or engagement arc directions
+  worldBuildFocusId?: string; // Optional world build commit to seed all generations with
 };
 
 export const DEFAULT_MCTS_CONFIG: MCTSConfig = {

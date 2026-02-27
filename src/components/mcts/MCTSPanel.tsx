@@ -736,7 +736,7 @@ function NodeInspector({ node, tree }: { node: MCTSNode; tree: MCTSTree }) {
 
 // ── Config Tab ───────────────────────────────────────────────────────────────
 
-type ConfigTab = 'search' | 'strategy' | 'other';
+type ConfigTab = 'search' | 'strategy' | 'other' | 'world';
 
 // ── Main Panel ───────────────────────────────────────────────────────────────
 
@@ -819,6 +819,7 @@ export function MCTSPanel({ isOpen, onClose, mcts }: { isOpen: boolean; onClose:
             {([
               { label: 'Search', value: 'search' as ConfigTab },
               { label: 'Strategy', value: 'strategy' as ConfigTab },
+              { label: 'World', value: 'world' as ConfigTab },
               { label: 'Other', value: 'other' as ConfigTab },
             ]).map((t) => (
               <button
@@ -1020,8 +1021,61 @@ export function MCTSPanel({ isOpen, onClose, mcts }: { isOpen: boolean; onClose:
                     </label>
                   </div>
                 </div>
+
               </>
             )}
+
+            {configTab === 'world' && (() => {
+              const narrative = state.activeNarrative;
+              const resolvedSet = new Set(state.resolvedSceneKeys);
+              const worldBuildEntries = narrative
+                ? Object.values(narrative.worldBuilds).filter((wb) => resolvedSet.has(wb.id))
+                : [];
+              return (
+                <>
+                  <div>
+                    <label className="text-[10px] uppercase tracking-widest text-text-dim block mb-1">World Build Focus</label>
+                    <p className="text-[9px] text-text-dim mb-3">Select a world build to seed every generation in this search. The model will prioritise those characters, locations, and dormant threads across all arcs explored.</p>
+                    {worldBuildEntries.length === 0 ? (
+                      <p className="text-[10px] text-text-dim italic">No world builds yet. Use Expand World in the Generate panel to introduce new entities.</p>
+                    ) : (
+                      <div className="flex flex-col gap-1.5">
+                        {worldBuildEntries.map((wb) => {
+                          const manifest = wb.expansionManifest;
+                          const chars = manifest.characterIds.map((id) => narrative!.characters[id]?.name).filter(Boolean);
+                          const locs = manifest.locationIds.map((id) => narrative!.locations[id]?.name).filter(Boolean);
+                          const threads = manifest.threadIds.map((id) => narrative!.threads[id]?.description).filter(Boolean);
+                          const isSelected = config.worldBuildFocusId === wb.id;
+                          return (
+                            <button
+                              key={wb.id}
+                              type="button"
+                              onClick={() => setConfig((c) => ({ ...c, worldBuildFocusId: isSelected ? undefined : wb.id }))}
+                              className={`rounded-lg px-3 py-2.5 text-left transition border ${
+                                isSelected
+                                  ? 'bg-amber-500/10 border-amber-500/30 ring-1 ring-amber-500/20'
+                                  : 'bg-bg-elevated border-border hover:border-white/16'
+                              }`}
+                            >
+                              <div className="flex items-center justify-between gap-2 mb-1">
+                                <p className={`text-xs font-medium line-clamp-1 ${isSelected ? 'text-amber-300' : 'text-text-primary'}`}>{wb.summary}</p>
+                                {isSelected
+                                  ? <span className="text-[9px] text-amber-400 shrink-0 uppercase tracking-wider font-medium">Active</span>
+                                  : <span className="text-[9px] text-text-dim shrink-0">{wb.id}</span>
+                                }
+                              </div>
+                              {chars.length > 0 && <p className="text-[9px] text-text-dim">Characters: {chars.join(', ')}</p>}
+                              {locs.length > 0 && <p className="text-[9px] text-text-dim">Locations: {locs.join(', ')}</p>}
+                              {threads.length > 0 && <p className="text-[9px] text-text-dim">Threads: {threads.join('; ')}</p>}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                </>
+              );
+            })()}
 
           </div>
 
