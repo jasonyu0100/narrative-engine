@@ -563,7 +563,7 @@ function JobDetail({ job, onBack }: { job: AnalysisJob; onBack: () => void }) {
 }
 
 /* ── Constants ────────────────────────────────────────────────────────────── */
-const MAX_CORPUS_WORDS = 1_000_000; // upper bound to prevent absurdly large inputs
+const MAX_CORPUS_WORDS = 2_000_000; // upper bound to prevent absurdly large inputs
 
 /* ── Title detection via LLM ─────────────────────────────────────────────── */
 async function detectTitleLLM(chunkText: string): Promise<string> {
@@ -773,11 +773,25 @@ function AnalysisPageInner() {
   const searchParams = useSearchParams();
   const { state } = useStore();
 
-  const sourceText = searchParams.get('new') === '1' ? (typeof window !== 'undefined' ? sessionStorage.getItem('analysis-source') : null) : null;
+  const isNew = searchParams.get('new') === '1';
   const initialJobId = searchParams.get('job');
 
+  const [sourceText, setSourceText] = useState<string | null>(null);
   const [selectedJobId, setSelectedJobId] = useState<string | null>(initialJobId);
-  const [showNewSetup, setShowNewSetup] = useState(!!sourceText && !initialJobId);
+  const [showNewSetup, setShowNewSetup] = useState(false);
+
+  // Load source text from IndexedDB for new analysis jobs
+  useEffect(() => {
+    if (!isNew || initialJobId) return;
+    import('@/lib/analysis-transfer').then(({ getAnalysisSource }) =>
+      getAnalysisSource().then((text) => {
+        if (text) {
+          setSourceText(text);
+          setShowNewSetup(true);
+        }
+      })
+    );
+  }, [isNew, initialJobId]);
 
   const selectedJob = selectedJobId ? state.analysisJobs.find((j) => j.id === selectedJobId) ?? null : null;
 
@@ -831,7 +845,7 @@ function AnalysisPageInner() {
             onCreated={(id) => {
               setSelectedJobId(id);
               setShowNewSetup(false);
-              sessionStorage.removeItem('analysis-source');
+              import('@/lib/analysis-transfer').then(({ removeAnalysisSource }) => removeAnalysisSource());
             }}
           />
         ) : selectedJob ? (

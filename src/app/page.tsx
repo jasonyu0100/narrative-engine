@@ -402,8 +402,9 @@ export default function HomePage() {
                       onClick={() => {
                         if (!analysisText.trim()) return;
                         if (needsKeys) { setApiKeysOpen(true); return; }
-                        sessionStorage.setItem('analysis-source', analysisText);
-                        router.push('/analysis?new=1');
+                        import('@/lib/analysis-transfer').then(({ setAnalysisSource }) =>
+                          setAnalysisSource(analysisText).then(() => router.push('/analysis?new=1'))
+                        );
                       }}
                       disabled={!analysisText.trim()}
                       className="text-white/70 hover:text-white border border-white/10 hover:border-white/20 disabled:opacity-20 text-xs font-medium px-4 py-1.5 rounded-md transition"
