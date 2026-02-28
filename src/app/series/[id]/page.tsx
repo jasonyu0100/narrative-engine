@@ -13,7 +13,7 @@ import ForceCharts from '@/components/timeline/ForceCharts';
 import NarrativePanel from '@/components/narrative/NarrativePanel';
 import { CreationWizard } from '@/components/wizard/CreationWizard';
 import { GeneratePanel } from '@/components/generation/GeneratePanel';
-import { ForkPanel } from '@/components/generation/ForkPanel';
+import { BranchModal } from '@/components/generation/BranchModal';
 import { AutoSettingsPanel } from '@/components/auto/AutoSettingsPanel';
 import { AutoControlBar } from '@/components/auto/AutoControlBar';
 import { NarrativeCubeViewer } from '@/components/timeline/NarrativeCubeViewer';
@@ -80,7 +80,7 @@ export default function SeriesPage() {
     function handleOpenRules() { setRulesOpen(true); }
     function handleOpenMcts() { setMctsOpen(true); }
     window.addEventListener('open-generate-panel', handleOpenGenerate);
-    window.addEventListener('open-fork-panel', handleOpenFork);
+    window.addEventListener('open-branch-modal', handleOpenFork);
     window.addEventListener('open-auto-settings', handleOpenAutoSettings);
     window.addEventListener('open-cube-viewer', handleOpenCubeViewer);
     window.addEventListener('open-api-keys', handleOpenApiKeys);
@@ -89,7 +89,7 @@ export default function SeriesPage() {
     window.addEventListener('open-mcts-panel', handleOpenMcts);
     return () => {
       window.removeEventListener('open-generate-panel', handleOpenGenerate);
-      window.removeEventListener('open-fork-panel', handleOpenFork);
+      window.removeEventListener('open-branch-modal', handleOpenFork);
       window.removeEventListener('open-auto-settings', handleOpenAutoSettings);
       window.removeEventListener('open-cube-viewer', handleOpenCubeViewer);
       window.removeEventListener('open-api-keys', handleOpenApiKeys);
@@ -150,7 +150,7 @@ export default function SeriesPage() {
       </AppShell>
       {state.wizardOpen && <CreationWizard />}
       {generateOpen && <GeneratePanel onClose={() => setGenerateOpen(false)} />}
-      {forkOpen && <ForkPanel onClose={() => setForkOpen(false)} />}
+      {forkOpen && <BranchModal onClose={() => setForkOpen(false)} />}
       {autoSettingsOpen && (
         <AutoSettingsPanel
           onClose={() => setAutoSettingsOpen(false)}

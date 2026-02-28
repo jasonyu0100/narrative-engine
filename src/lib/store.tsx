@@ -214,6 +214,7 @@ export type Action =
   | { type: 'DELETE_THREAD'; threadId: string }
   | { type: 'CREATE_BRANCH'; branch: Branch }
   | { type: 'DELETE_BRANCH'; branchId: string }
+  | { type: 'RENAME_BRANCH'; branchId: string; name: string }
   | { type: 'REMOVE_BRANCH_ENTRY'; entryId: string; branchId: string }
   | { type: 'ADD_RELATIONSHIP'; relationship: RelationshipEdge }
   | { type: 'REMOVE_RELATIONSHIP'; from: string; to: string }
@@ -572,11 +573,134 @@ function reducer(state: AppState, action: Action): AppState {
 
     case 'DELETE_BRANCH': {
       if (action.branchId === state.activeBranchId) return state;
+      // Build full cascade set before mutating so we can guard against it
+      const toDelete = new Set<string>();
+      if (state.activeNarrative) {
+        const queue = [action.branchId];
+        while (queue.length > 0) {
+          const id = queue.pop()!;
+          toDelete.add(id);
+          Object.values(state.activeNarrative.branches).forEach((b) => {
+            if (b.parentBranchId === id) queue.push(b.id);
+          });
+        }
+      }
+      // Block if the cascade would wipe out the active branch
+      if (state.activeBranchId && toDelete.has(state.activeBranchId)) return state;
       return updateNarrative(state, (n) => {
-        const { [action.branchId]: _, ...rest } = n.branches;
-        return { ...n, branches: rest };
+        const remaining = Object.fromEntries(
+          Object.entries(n.branches).filter(([id]) => !toDelete.has(id)),
+        );
+
+        // Collect entry IDs owned by deleted branches
+        const deletedEntries = new Set<string>();
+        toDelete.forEach((bid) => {
+          n.branches[bid]?.entryIds.forEach((eid) => deletedEntries.add(eid));
+        });
+
+        // Keep entries that are still referenced by a surviving branch
+        const survivingEntries = new Set<string>();
+        Object.values(remaining).forEach((b) => {
+          b.entryIds.forEach((eid) => survivingEntries.add(eid));
+        });
+
+        const entriesToRemove = new Set(
+          [...deletedEntries].filter((eid) => !survivingEntries.has(eid)),
+        );
+
+        // Surviving scenes and world builds
+        const scenes = Object.fromEntries(
+          Object.entries(n.scenes).filter(([id]) => !entriesToRemove.has(id)),
+        );
+        const worldBuilds = Object.fromEntries(
+          Object.entries(n.worldBuilds).filter(([id]) => !entriesToRemove.has(id)),
+        );
+
+        // Collect candidate characters/locations/threads from deleted world builds
+        const candidateCharIds = new Set<string>();
+        const candidateLocIds = new Set<string>();
+        const candidateThreadIds = new Set<string>();
+        entriesToRemove.forEach((eid) => {
+          const wb = n.worldBuilds[eid];
+          if (wb) {
+            wb.expansionManifest.characterIds.forEach((id) => candidateCharIds.add(id));
+            wb.expansionManifest.locationIds.forEach((id) => candidateLocIds.add(id));
+            wb.expansionManifest.threadIds.forEach((id) => candidateThreadIds.add(id));
+          }
+        });
+
+        // Scan surviving scenes/arcs to find which candidates are still referenced
+        const usedCharIds = new Set<string>();
+        const usedLocIds = new Set<string>();
+        Object.values(scenes).forEach((s) => {
+          s.participantIds.forEach((id) => usedCharIds.add(id));
+          usedCharIds.add(s.povId);
+          usedLocIds.add(s.locationId);
+          Object.keys(s.characterMovements ?? {}).forEach((id) => usedCharIds.add(id));
+          Object.values(s.characterMovements ?? {}).forEach((id) => usedLocIds.add(id));
+        });
+        Object.values(n.arcs).forEach((arc) => {
+          arc.activeCharacterIds.forEach((id) => usedCharIds.add(id));
+          arc.locationIds.forEach((id) => usedLocIds.add(id));
+          Object.keys(arc.initialCharacterLocations).forEach((id) => usedCharIds.add(id));
+          Object.values(arc.initialCharacterLocations).forEach((id) => usedLocIds.add(id));
+        });
+        // Threads anchored to surviving characters/locations
+        const usedThreadIds = new Set<string>();
+        Object.values(n.threads).forEach((t) => {
+          t.anchors.forEach((a) => {
+            if (a.type === 'character' && !candidateCharIds.has(a.id)) usedThreadIds.add(t.id);
+            if (a.type === 'location' && !candidateLocIds.has(a.id)) usedThreadIds.add(t.id);
+          });
+        });
+
+        const charsToDelete = new Set([...candidateCharIds].filter((id) => !usedCharIds.has(id)));
+        const locsToDelete = new Set([...candidateLocIds].filter((id) => !usedLocIds.has(id)));
+        const threadsToDelete = new Set([...candidateThreadIds].filter((id) => !usedThreadIds.has(id)));
+
+        const characters = Object.fromEntries(
+          Object.entries(n.characters)
+            .filter(([id]) => !charsToDelete.has(id))
+            .map(([id, c]) => [id, { ...c, threadIds: c.threadIds.filter((tid) => !threadsToDelete.has(tid)) }]),
+        );
+        const locations = Object.fromEntries(
+          Object.entries(n.locations).filter(([id]) => !locsToDelete.has(id)),
+        );
+        const threads = Object.fromEntries(
+          Object.entries(n.threads).filter(([id]) => !threadsToDelete.has(id)),
+        );
+        const relationships = n.relationships.filter(
+          (r) => !charsToDelete.has(r.from) && !charsToDelete.has(r.to),
+        );
+
+        // Clean up arcs: remove deleted scene IDs, drop empty arcs, strip deleted char/loc refs
+        const arcs = Object.fromEntries(
+          Object.entries(n.arcs).flatMap(([id, arc]) => {
+            const sceneIds = arc.sceneIds.filter((sid) => !entriesToRemove.has(sid));
+            if (sceneIds.length === 0) return [];
+            return [[id, {
+              ...arc,
+              sceneIds,
+              activeCharacterIds: arc.activeCharacterIds.filter((cid) => !charsToDelete.has(cid)),
+              locationIds: arc.locationIds.filter((lid) => !locsToDelete.has(lid)),
+              initialCharacterLocations: Object.fromEntries(
+                Object.entries(arc.initialCharacterLocations)
+                  .filter(([cid, lid]) => !charsToDelete.has(cid) && !locsToDelete.has(lid)),
+              ),
+            }]];
+          }),
+        );
+
+        return { ...n, branches: remaining, scenes, worldBuilds, arcs, characters, locations, threads, relationships };
       });
     }
+
+    case 'RENAME_BRANCH':
+      return updateNarrative(state, (n) => {
+        const branch = n.branches[action.branchId];
+        if (!branch) return n;
+        return { ...n, branches: { ...n.branches, [action.branchId]: { ...branch, name: action.name } } };
+      });
 
     case 'REMOVE_BRANCH_ENTRY': {
       // Remove an entry from a branch's entryIds without deleting the scene itself.

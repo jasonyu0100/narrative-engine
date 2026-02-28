@@ -362,7 +362,7 @@ export default function TimelineStrip() {
         <button
           type="button"
           title="Fork branch from current scene"
-          onClick={() => window.dispatchEvent(new CustomEvent('open-fork-panel'))}
+          onClick={() => window.dispatchEvent(new CustomEvent('open-branch-modal'))}
           className="w-7 h-7 flex items-center justify-center text-text-dim hover:text-text-primary hover:bg-white/6 rounded-md transition-colors"
         >
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
