@@ -25,11 +25,10 @@ export const ANALYSIS_MAX_CORPUS_WORDS = 500_000;
 
 // ── AI Context ───────────────────────────────────────────────────────────────
 
-/** Max knowledge nodes included per entity in branchContext */
-export const KNOWLEDGE_CONTEXT_LIMIT = 20;
-
-/** Number of recent scenes that get full mutation detail in branchContext */
-export const SCENE_DETAIL_WINDOW = 100;
+/** Max scenes included in branchContext — defines the time horizon.
+ *  Only entities referenced within this window appear in context,
+ *  and only knowledge nodes added during this window are included. */
+export const MAX_CONTEXT_SCENES = 100;
 
 /** Rolling window size for force computation & normalization */
 export const FORCE_WINDOW_SIZE = 10;

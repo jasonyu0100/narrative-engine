@@ -11,7 +11,7 @@ const THREAD_LIFECYCLE_DOC = (() => {
 })();
 import { nextId, nextIds, computeForceSnapshots, computeSwingMagnitudes, detectCubeCorner, movingAverage, FORCE_WINDOW_SIZE, computeEngagementCurve, classifyCurrentPosition } from '@/lib/narrative-utils';
 import { apiHeaders } from '@/lib/api-headers';
-import { KNOWLEDGE_CONTEXT_LIMIT, SCENE_DETAIL_WINDOW } from '@/lib/constants';
+import { MAX_CONTEXT_SCENES } from '@/lib/constants';
 
 export type WorldExpansion = {
   characters: Character[];
@@ -125,19 +125,27 @@ async function callGenerate(prompt: string, systemPrompt: string, maxTokens?: nu
 }
 
 /**
- * Build full context from all scenes up to (and including) the current scene index.
- * This gives the AI the complete branch history, not just the last 5 scenes.
+ * Build context from the most recent MAX_CONTEXT_SCENES scenes on the branch.
+ * Only entities (characters, locations, threads) referenced within this time
+ * horizon are included, and knowledge graphs are filtered to nodes added
+ * during the window.
  */
 export function branchContext(
   n: NarrativeState,
   resolvedKeys: string[],
   currentIndex: number,
 ): string {
-  // Collect entity IDs referenced in the branch timeline up to current index
-  const keysUpToCurrent = resolvedKeys.slice(0, currentIndex + 1);
+  // Apply time horizon: only the most recent MAX_CONTEXT_SCENES keys
+  const allKeysUpToCurrent = resolvedKeys.slice(0, currentIndex + 1);
+  const horizonStart = Math.max(0, allKeysUpToCurrent.length - MAX_CONTEXT_SCENES);
+  const keysUpToCurrent = allKeysUpToCurrent.slice(horizonStart);
+  const skippedCount = horizonStart;
+
+  // Collect entity IDs and knowledge node IDs referenced within the time horizon
   const referencedCharIds = new Set<string>();
   const referencedLocIds = new Set<string>();
   const referencedThreadIds = new Set<string>();
+  const horizonKnowledgeNodeIds = new Set<string>();
   for (const k of keysUpToCurrent) {
     const entry = resolveEntry(n, k);
     if (!entry) continue;
@@ -146,7 +154,10 @@ export function branchContext(
       for (const pid of entry.participantIds) referencedCharIds.add(pid);
       referencedLocIds.add(entry.locationId);
       for (const tm of entry.threadMutations) referencedThreadIds.add(tm.threadId);
-      for (const km of entry.knowledgeMutations) referencedCharIds.add(km.characterId);
+      for (const km of entry.knowledgeMutations) {
+        referencedCharIds.add(km.characterId);
+        horizonKnowledgeNodeIds.add(km.nodeId);
+      }
       for (const rm of entry.relationshipMutations) {
         referencedCharIds.add(rm.from);
         referencedCharIds.add(rm.to);
@@ -158,7 +169,6 @@ export function branchContext(
         }
       }
     } else if (entry.kind === 'world_build') {
-      // Include entities introduced by world builds in the branch timeline
       for (const cid of entry.expansionManifest.characterIds) referencedCharIds.add(cid);
       for (const lid of entry.expansionManifest.locationIds) referencedLocIds.add(lid);
       for (const tid of entry.expansionManifest.threadIds) referencedThreadIds.add(tid);
@@ -196,43 +206,48 @@ export function branchContext(
     ? n.relationships.filter((r) => referencedCharIds.has(r.from) && referencedCharIds.has(r.to))
     : n.relationships;
 
-  // Limit knowledge nodes to the most recent N per entity to control context size
+  // Collect all knowledge node IDs that were ever added via mutations (across full history)
+  // so we can distinguish original/base nodes from mutation-added ones
+  const allMutationNodeIds = new Set<string>();
+  for (const k of allKeysUpToCurrent) {
+    const entry = resolveEntry(n, k);
+    if (entry?.kind === 'scene') {
+      for (const km of entry.knowledgeMutations) allMutationNodeIds.add(km.nodeId);
+    }
+  }
 
+  // Knowledge: keep original (non-mutation) nodes + mutation nodes from the time horizon
   const characters = branchCharacters
     .map((c) => {
-      const recentNodes = c.knowledge.nodes.slice(-KNOWLEDGE_CONTEXT_LIMIT);
-      const recentNodeIds = new Set(recentNodes.map((kn) => kn.id));
-      const knowledgeLines = recentNodes.map((kn) => `    [${kn.id}] (${kn.type}) ${kn.content}`);
+      const relevantNodes = c.knowledge.nodes
+        .filter((kn) => !allMutationNodeIds.has(kn.id) || horizonKnowledgeNodeIds.has(kn.id));
+      const relevantNodeIds = new Set(relevantNodes.map((kn) => kn.id));
+      const knowledgeLines = relevantNodes.map((kn) => `    [${kn.id}] (${kn.type}) ${kn.content}`);
       const edgeLines = c.knowledge.edges
-        .filter((e) => recentNodeIds.has(e.from) || recentNodeIds.has(e.to))
+        .filter((e) => relevantNodeIds.has(e.from) || relevantNodeIds.has(e.to))
         .map((e) => `    ${e.from} --(${e.type})--> ${e.to}`);
-      const truncated = c.knowledge.nodes.length > KNOWLEDGE_CONTEXT_LIMIT
-        ? `\n  (${c.knowledge.nodes.length - KNOWLEDGE_CONTEXT_LIMIT} older knowledge items omitted)`
+      const omitted = c.knowledge.nodes.length - relevantNodes.length;
+      const truncated = omitted > 0
+        ? `\n  (${omitted} knowledge items outside time horizon omitted)`
         : '';
       const knowledgeBlock = knowledgeLines.length > 0
-        ? `\n  Knowledge (recent ${recentNodes.length}):${truncated}\n${knowledgeLines.join('\n')}${edgeLines.length > 0 ? '\n  Edges:\n' + edgeLines.join('\n') : ''}`
+        ? `\n  Knowledge (${relevantNodes.length} in scope):${truncated}\n${knowledgeLines.join('\n')}${edgeLines.length > 0 ? '\n  Edges:\n' + edgeLines.join('\n') : ''}`
         : '';
       return `- ${c.id}: ${c.name} (${c.role})${knowledgeBlock}`;
     })
     .join('\n');
   const locations = branchLocations
     .map((l) => {
-      const recentNodes = l.knowledge.nodes.slice(-KNOWLEDGE_CONTEXT_LIMIT);
-      const recentNodeIds = new Set(recentNodes.map((kn) => kn.id));
-      const knowledgeLines = recentNodes.map((kn) => `    [${kn.id}] (${kn.type}) ${kn.content}`);
+      const knowledgeLines = l.knowledge.nodes.map((kn) => `    [${kn.id}] (${kn.type}) ${kn.content}`);
       const edgeLines = l.knowledge.edges
-        .filter((e) => recentNodeIds.has(e.from) || recentNodeIds.has(e.to))
         .map((e) => `    ${e.from} --(${e.type})--> ${e.to}`);
-      const truncated = l.knowledge.nodes.length > KNOWLEDGE_CONTEXT_LIMIT
-        ? `\n  (${l.knowledge.nodes.length - KNOWLEDGE_CONTEXT_LIMIT} older knowledge items omitted)`
-        : '';
       const knowledgeBlock = knowledgeLines.length > 0
-        ? `\n  Knowledge (recent ${recentNodes.length}):${truncated}\n${knowledgeLines.join('\n')}${edgeLines.length > 0 ? '\n  Edges:\n' + edgeLines.join('\n') : ''}`
+        ? `\n  Knowledge (${l.knowledge.nodes.length}):\n${knowledgeLines.join('\n')}${edgeLines.length > 0 ? '\n  Edges:\n' + edgeLines.join('\n') : ''}`
         : '';
       return `- ${l.id}: ${l.name}${l.parentId ? ` (inside ${n.locations[l.parentId]?.name ?? l.parentId})` : ''}${knowledgeBlock}`;
     })
     .join('\n');
-  // Build thread age context from scene history
+  // Build thread age context from scene history (within time horizon)
   const threadFirstMutation: Record<string, number> = {};
   const threadMutationCount: Record<string, number> = {};
   keysUpToCurrent.forEach((k, idx) => {
@@ -261,24 +276,17 @@ export function branchContext(
       return `- ${r.from} (${fromName}) -> ${r.to} (${toName}): ${r.type} (valence: ${r.valence})`;
     })
     .join('\n');
-  // Only include full mutations for the most recent scenes; older scenes get summary only
-  const detailCutoff = keysUpToCurrent.length - SCENE_DETAIL_WINDOW;
 
+  // All scenes within the time horizon get full mutation detail
   const sceneHistory = keysUpToCurrent.map((k, i) => {
     const s = resolveEntry(n, k);
     if (!s) return '';
+    const globalIdx = horizonStart + i + 1;
     if (s.kind === 'world_build') {
-      return `[${i + 1}] ${s.id} [WORLD BUILD]\n   ${s.summary}`;
+      return `[${globalIdx}] ${s.id} [WORLD BUILD]\n   ${s.summary}`;
     }
     const loc = `${s.locationId} (${n.locations[s.locationId]?.name ?? 'unknown'})`;
     const participants = s.participantIds.map((pid) => `${pid} (${n.characters[pid]?.name ?? 'unknown'})`).join(', ');
-
-    // Older scenes: summary only (mutations are already reflected in entity state)
-    if (i < detailCutoff) {
-      return `[${i + 1}] ${s.id} @ ${loc} | ${participants}\n   ${s.summary}`;
-    }
-
-    // Recent scenes: full mutation detail
     const threadChanges = s.threadMutations.map((tm) => `${tm.threadId}: ${tm.from}->${tm.to}`).join('; ');
     const knowledgeChanges = s.knowledgeMutations.map((km) => `${km.characterId} learned [${km.nodeType}]: ${km.content}`).join('; ');
     const relChanges = s.relationshipMutations.map((rm) => {
@@ -286,18 +294,19 @@ export function branchContext(
       const toName = n.characters[rm.to]?.name ?? rm.to;
       return `${fromName}->${toName}: ${rm.type} (${rm.valenceDelta >= 0 ? '+' : ''}${rm.valenceDelta})`;
     }).join('; ');
-    return `[${i + 1}] ${s.id} @ ${loc} | ${participants}${threadChanges ? ` | Threads: ${threadChanges}` : ''}${knowledgeChanges ? ` | Knowledge: ${knowledgeChanges}` : ''}${relChanges ? ` | Relationships: ${relChanges}` : ''}
+    return `[${globalIdx}] ${s.id} @ ${loc} | ${participants}${threadChanges ? ` | Threads: ${threadChanges}` : ''}${knowledgeChanges ? ` | Knowledge: ${knowledgeChanges}` : ''}${relChanges ? ` | Relationships: ${relChanges}` : ''}
    ${s.summary}`;
   }).filter(Boolean).join('\n');
 
-  // Arcs context — only arcs with scenes on this branch
+  // Arcs context — only arcs with scenes within the time horizon
   const branchSceneIds = new Set(keysUpToCurrent.filter((k) => n.scenes[k]));
   const arcs = Object.values(n.arcs)
     .filter((a) => !hasHistory || a.sceneIds.some((sid) => branchSceneIds.has(sid)))
     .map((a) => `- ${a.id}: "${a.name}" (${a.sceneIds.length} scenes, develops: ${a.develops.join(', ')})`)
     .join('\n');
 
-  // Force trajectory — compact time series showing change rhythm and swing
+  // Force trajectory — computed from all scenes for correct normalization,
+  // but only the time horizon is included in the output
   const allScenes = keysUpToCurrent
     .map((k) => resolveEntry(n, k))
     .filter((e): e is Scene => e?.kind === 'scene');
@@ -308,14 +317,11 @@ export function branchContext(
   const changeMA = movingAverage(forceSnapshots.map(f => f.change), FORCE_WINDOW_SIZE);
   const varietyMA = movingAverage(forceSnapshots.map(f => f.variety), FORCE_WINDOW_SIZE);
   const swingMA = movingAverage(swings, FORCE_WINDOW_SIZE);
-  // Only include force trajectory for recent scenes (matches SCENE_DETAIL_WINDOW)
-  const forceStart = Math.max(0, allScenes.length - SCENE_DETAIL_WINDOW);
-  const forceTrajectory = allScenes.slice(forceStart).map((s, j) => {
-    const i = forceStart + j;
+  const forceTrajectory = allScenes.map((s, i) => {
     const f = forceMap[s.id];
     if (!f) return null;
     const corner = detectCubeCorner(f);
-    return `[${i + 1}] P:${f.payoff >= 0 ? '+' : ''}${f.payoff.toFixed(1)} C:${f.change >= 0 ? '+' : ''}${f.change.toFixed(1)} V:${f.variety >= 0 ? '+' : ''}${f.variety.toFixed(1)} Sw:${swings[i].toFixed(1)} MA(P:${payoffMA[i].toFixed(1)} C:${changeMA[i].toFixed(1)} V:${varietyMA[i].toFixed(1)} Sw:${swingMA[i].toFixed(1)}) (${corner.name})`;
+    return `[${horizonStart + i + 1}] P:${f.payoff >= 0 ? '+' : ''}${f.payoff.toFixed(1)} C:${f.change >= 0 ? '+' : ''}${f.change.toFixed(1)} V:${f.variety >= 0 ? '+' : ''}${f.variety.toFixed(1)} Sw:${swings[i].toFixed(1)} MA(P:${payoffMA[i].toFixed(1)} C:${changeMA[i].toFixed(1)} V:${varietyMA[i].toFixed(1)} Sw:${swingMA[i].toFixed(1)}) (${corner.name})`;
   }).filter(Boolean).join('\n');
 
   // Current cube position and local beat position
@@ -339,6 +345,10 @@ export function branchContext(
     ? `\nWORLD RULES (these are absolute — every scene MUST obey them):\n${n.rules.map((r, i) => `${i + 1}. ${r}`).join('\n')}\n`
     : '';
 
+  const horizonLabel = skippedCount > 0
+    ? `SCENE HISTORY (${keysUpToCurrent.length} scenes in time horizon, ${skippedCount} earlier scenes omitted):`
+    : `SCENE HISTORY (${keysUpToCurrent.length} scenes on current branch):`;
+
   return `NARRATIVE: "${n.title}"
 WORLD: ${n.worldSummary}
 ${rulesBlock}
@@ -357,7 +367,7 @@ ${relationships}
 ARCS:
 ${arcs}
 
-FULL SCENE HISTORY (${keysUpToCurrent.length} scenes on current branch):
+${horizonLabel}
 ${sceneHistory}
 
 FORCE TRAJECTORY (computed from scene structure — shows pacing rhythm):

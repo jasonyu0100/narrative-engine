@@ -9,6 +9,7 @@ import { computeRawForcetotals, computeSwingMagnitudes, computeForceSnapshots, c
 import { ApiLogsModal } from '@/components/debug/ApiLogsModal';
 import { StoryReader } from '@/components/story/StoryReader';
 import { CubeExplorer } from '@/components/topbar/CubeExplorer';
+import { BranchContextModal } from '@/components/topbar/BranchContextModal';
 
 
 function exportNarrative(narrative: NarrativeState) {
@@ -32,6 +33,7 @@ export default function TopBar() {
   const [logsOpen, setLogsOpen] = useState(false);
   const [storyOpen, setStoryOpen] = useState(false);
   const [cubeExplorerOpen, setCubeExplorerOpen] = useState(false);
+  const [branchContextOpen, setBranchContextOpen] = useState(false);
   const [scorecardOpen, setScorecardOpen] = useState(false);
   const [hoveredArcIdx, setHoveredArcIdx] = useState<number | null>(null);
   const [scorecardGraphView, setScorecardGraphView] = useState<'arcs' | 'beats'>('arcs');
@@ -709,6 +711,16 @@ export default function TopBar() {
           <span className="text-[11px]">Story</span>
         </button>
         <button
+          onClick={() => setBranchContextOpen(true)}
+          className="px-2 py-1 rounded hover:bg-bg-elevated transition-colors text-text-dim hover:text-text-primary flex items-center gap-1.5"
+          title="View branch context sent to LLM"
+        >
+          <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+          </svg>
+          <span className="text-[11px]">Context</span>
+        </button>
+        <button
           onClick={() => setLogsOpen(true)}
           className="relative px-2 py-1 rounded hover:bg-bg-elevated transition-colors text-text-dim hover:text-text-primary flex items-center gap-1.5"
           title="API Logs"
@@ -744,6 +756,14 @@ export default function TopBar() {
           currentSceneIndex={state.currentSceneIndex}
           onClose={() => setCubeExplorerOpen(false)}
           onNavigate={(idx) => dispatch({ type: 'SET_SCENE_INDEX', index: idx })}
+        />
+      )}
+      {branchContextOpen && narrative && (
+        <BranchContextModal
+          narrative={narrative}
+          resolvedKeys={state.resolvedSceneKeys}
+          currentSceneIndex={state.currentSceneIndex}
+          onClose={() => setBranchContextOpen(false)}
         />
       )}
     </div>
