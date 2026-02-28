@@ -919,8 +919,7 @@ Return JSON with this exact structure:
       "threadIds": [],
       "imagePrompt": "1-2 sentence visual description: physical appearance, clothing, distinguishing features. Used for portrait generation.",
       "knowledge": {
-        "nodes": [{"id": "${nextKId}", "type": "contextual_type", "content": "string"}],
-        "edges": [{"from": "${nextKId}", "to": "K-next", "type": "contextual_edge_type"}]
+        "nodes": [{"id": "${nextKId}", "type": "contextual_type", "content": "string"}]
       }
     }
   ],
@@ -932,8 +931,7 @@ Return JSON with this exact structure:
       "threadIds": [],
       "imagePrompt": "1-2 sentence visual description: architecture, landscape, atmosphere, lighting. Used for establishing shot generation.",
       "knowledge": {
-        "nodes": [{"id": "K-next", "type": "contextual_type", "content": "string"}],
-        "edges": []
+        "nodes": [{"id": "K-next", "type": "contextual_type", "content": "string"}]
       }
     }
   ],
@@ -961,9 +959,8 @@ ID RULES:
 
 Rules:
 - Generate elements that serve the directive AND boost narrative VARIETY — fresh faces, new settings, and untapped dramatic questions
-- Characters should have meaningful knowledge graphs (3-5 nodes, 2-4 edges). Give each character SECRETS or unique knowledge that only they possess — this creates knowledge asymmetries that drive dramatic tension when revealed later. Include at least one hidden or dangerous piece of knowledge per character.
+- Characters should have meaningful knowledge (3-5 nodes). Give each character SECRETS or unique knowledge that only they possess — this creates knowledge asymmetries that drive dramatic tension when revealed later. Include at least one hidden or dangerous piece of knowledge per character.
 - Knowledge node types should be SPECIFIC and CONTEXTUAL — not generic labels. Choose types that describe exactly what kind of knowledge or lore this is. Examples: "cultivation_technique", "blood_pact", "hidden_treasury", "ancient_prophecy", "political_alliance", "forbidden_memory", "territorial_claim", "ancestral_grudge". Pick types that fit the narrative world.
-- Knowledge edge types should also be contextual: "enables", "contradicts", "unlocks", "corrupts", "conceals", "depends_on", "mirrors", etc.
 - Locations should fit the world hierarchy (use existing parentIds where appropriate). Make new locations CONTRAST with existing ones — if the story has been set in cities, add wilderness; if in palaces, add slums or ruins. Environmental variety drives scene variety.
 - Location knowledge should describe lore, dangers, secrets, or resources specific to that place (3-4 nodes per location)
 - Threads should connect to existing or new characters/locations via anchors. New threads should introduce DIFFERENT types of dramatic questions than existing ones — if current threads are about conflict, add threads about mystery, loyalty, or forbidden knowledge.
@@ -1518,10 +1515,10 @@ Return JSON with this exact structure:
 {
   "worldSummary": "2-3 sentence world description",
   "characters": [
-    {"id": "C-01", "name": "string", "role": "anchor|recurring|transient", "threadIds": ["T-01"], "imagePrompt": "1-2 sentence visual description of physical appearance, clothing, distinguishing features for portrait generation", "knowledge": {"nodes": [{"id": "K-01", "type": "specific_contextual_type", "content": "string"}], "edges": [{"from": "K-01", "to": "K-02", "type": "contextual_edge_type"}]}}
+    {"id": "C-01", "name": "string", "role": "anchor|recurring|transient", "threadIds": ["T-01"], "imagePrompt": "1-2 sentence visual description of physical appearance, clothing, distinguishing features for portrait generation", "knowledge": {"nodes": [{"id": "K-01", "type": "specific_contextual_type", "content": "string"}]}}
   ],
   "locations": [
-    {"id": "L-01", "name": "string", "parentId": null, "threadIds": [], "imagePrompt": "1-2 sentence visual description of architecture, landscape, atmosphere for establishing shot generation", "knowledge": {"nodes": [{"id": "LK-01", "type": "specific_contextual_type", "content": "string"}], "edges": []}}
+    {"id": "L-01", "name": "string", "parentId": null, "threadIds": [], "imagePrompt": "1-2 sentence visual description of architecture, landscape, atmosphere for establishing shot generation", "knowledge": {"nodes": [{"id": "LK-01", "type": "specific_contextual_type", "content": "string"}]}}
   ],
   "threads": [
     {"id": "T-01", "anchors": [{"id": "C-01", "type": "character"}], "description": "string", "status": "dormant", "openedAt": "S-001", "dependents": []}
@@ -1550,7 +1547,7 @@ Return JSON with this exact structure:
 }
 
 Generate a world with enough CRITICAL MASS to sustain a long-running story:
-- 6-10 characters: at least 3 anchors, 3-4 recurring, 1-2 transient. Each with 4-8 knowledge nodes and 3-6 edges. Characters should have secrets, goals, beliefs, and tactical knowledge — not just surface-level facts.
+- 6-10 characters: at least 3 anchors, 3-4 recurring, 1-2 transient. Each with 4-8 knowledge nodes. Characters should have secrets, goals, beliefs, and tactical knowledge — not just surface-level facts.
 - 6-10 locations with hierarchy (parent/child nesting). Each with 2-4 knowledge nodes describing lore, dangers, secrets, or resources. Locations should feel lived-in.
 - 5-8 threads representing major narrative tensions, mysteries, and conflicts. Threads should interlock — at least some threads should share dependents or anchors.
 - 8-10 relationships between characters. Relationships should be asymmetric (A→B differs from B→A) with specific, character-voice descriptions. Use valence to show warmth vs hostility.

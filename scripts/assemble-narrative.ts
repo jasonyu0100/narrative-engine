@@ -86,11 +86,11 @@ function getThreadId(desc: string): string {
 // ── Accumulate into NarrativeState structures ───────────────────────────────
 type Character = {
   id: string; name: string; role: string; threadIds: string[];
-  knowledge: { nodes: { id: string; type: string; content: string }[]; edges: { from: string; to: string; type: string }[] };
+  knowledge: { nodes: { id: string; type: string; content: string }[] };
 };
 type Location = {
   id: string; name: string; parentId: string | null; threadIds: string[];
-  knowledge: { nodes: { id: string; type: string; content: string }[]; edges: { from: string; to: string; type: string }[] };
+  knowledge: { nodes: { id: string; type: string; content: string }[] };
 };
 type Thread = {
   id: string; anchors: { id: string; type: 'character' | 'location' }[];
@@ -130,7 +130,7 @@ for (const ch of chapters) {
     if (!characters[id]) {
       characters[id] = {
         id, name: c.name, role: c.role, threadIds: [],
-        knowledge: { nodes: [], edges: [] },
+        knowledge: { nodes: [] },
       };
     }
     // Upgrade role
@@ -152,7 +152,7 @@ for (const ch of chapters) {
       const parentId = loc.parentName ? getLocId(loc.parentName) : null;
       locations[id] = {
         id, name: loc.name, parentId, threadIds: [],
-        knowledge: { nodes: [], edges: [] },
+        knowledge: { nodes: [] },
       };
       // Add lore as knowledge nodes
       for (const lore of loc.lore ?? []) {
@@ -288,18 +288,6 @@ for (const thread of Object.values(threads)) {
         locations[anchor.id].threadIds.push(thread.id);
       }
     }
-  }
-}
-
-// ── Add knowledge edges (connect sequential nodes per character) ─────────
-for (const char of Object.values(characters)) {
-  const nodes = char.knowledge.nodes;
-  for (let i = 1; i < nodes.length; i++) {
-    char.knowledge.edges.push({
-      from: nodes[i - 1].id,
-      to: nodes[i].id,
-      type: 'develops',
-    });
   }
 }
 

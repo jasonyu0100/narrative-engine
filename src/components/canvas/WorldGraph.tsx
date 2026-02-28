@@ -42,7 +42,6 @@ interface GraphLink extends d3.SimulationLinkDatum<GraphNode> {
   linkKind: 'relationship' | 'spatial' | 'knowledge' | 'character-location';
   label?: string;
   valence?: number;
-  knowledgeEdgeType?: string;
   /** For bidirectional pairs: labels for each direction (sourceId → label) */
   directedLabels?: Record<string, string>;
 }
@@ -1037,10 +1036,10 @@ export default function WorldGraph() {
       resolvedSceneKeys,
       state.currentSceneIndex,
     );
-    const filteredKg = { nodes: filteredKgNodes.slice(-GRAPH_KNOWLEDGE_LIMIT), edges: entity.knowledge.edges };
+    const visibleKnowledgeNodes = filteredKgNodes.slice(-GRAPH_KNOWLEDGE_LIMIT);
 
     // Create knowledge nodes
-    const knowledgeNodes: GraphNode[] = filteredKg.nodes.map((kn) => ({
+    const knowledgeNodes: GraphNode[] = visibleKnowledgeNodes.map((kn) => ({
       id: `k-${eid}-${kn.id}`,
       kind: 'knowledge' as NodeKind,
       label: kn.content,
@@ -1053,32 +1052,17 @@ export default function WorldGraph() {
     const allNodes = [...baseNodes, ...knowledgeNodes];
     nodesRef.current = allNodes;
 
-    // Create knowledge links
-    const knowledgeNodeMap = new Map(knowledgeNodes.map((n) => [n.id, n]));
+    // Create knowledge links — each node connects directly to its parent entity
     const knowledgeLinks: GraphLink[] = [];
 
-    for (const kn of filteredKg.nodes) {
-      const target = knowledgeNodeMap.get(`k-${eid}-${kn.id}`);
+    for (const kn of visibleKnowledgeNodes) {
+      const target = knowledgeNodes.find((n) => n.id === `k-${eid}-${kn.id}`);
       if (target) {
         knowledgeLinks.push({
           id: `klink-${eid}-${kn.id}`,
           source: parentNode,
           target,
           linkKind: 'knowledge',
-        });
-      }
-    }
-
-    for (const ke of filteredKg.edges) {
-      const src = knowledgeNodeMap.get(`k-${eid}-${ke.from}`);
-      const tgt = knowledgeNodeMap.get(`k-${eid}-${ke.to}`);
-      if (src && tgt) {
-        knowledgeLinks.push({
-          id: `kedge-${eid}-${ke.from}-${ke.to}`,
-          source: src,
-          target: tgt,
-          linkKind: 'knowledge',
-          knowledgeEdgeType: ke.type,
         });
       }
     }
@@ -1093,19 +1077,6 @@ export default function WorldGraph() {
       .attr('stroke', 'rgba(255, 255, 255, 0.35)')
       .attr('stroke-opacity', 0.5)
       .attr('stroke-width', 1);
-
-    // Add knowledge edge type labels
-    const linkLabelsGroup = g.select<SVGGElement>('g.link-labels');
-    const edgeTypedLinks = knowledgeLinks.filter((l) => l.knowledgeEdgeType);
-    const knowledgeEdgeLabels = linkLabelsGroup
-      .selectAll<SVGTextElement, GraphLink>('text.knowledge-edge-label')
-      .data(edgeTypedLinks, (d) => d.id)
-      .join('text')
-      .attr('class', 'graph-label knowledge-edge-label')
-      .attr('text-anchor', 'middle')
-      .style('font-size', '7px')
-      .style('fill', 'rgba(255, 255, 255, 0.4)')
-      .text((d) => d.knowledgeEdgeType ?? '');
 
     // Add knowledge node elements
     const nodesGroup = g.select<SVGGElement>('g.nodes');
@@ -1228,18 +1199,6 @@ export default function WorldGraph() {
         .attr('y1', (d) => ((d.source as GraphNode).y ?? 0))
         .attr('x2', (d) => ((d.target as GraphNode).x ?? 0))
         .attr('y2', (d) => ((d.target as GraphNode).y ?? 0));
-
-      knowledgeEdgeLabels
-        .attr('x', (d) => {
-          const sx = (d.source as GraphNode).x ?? 0;
-          const tx = (d.target as GraphNode).x ?? 0;
-          return (sx + tx) / 2;
-        })
-        .attr('y', (d) => {
-          const sy = (d.source as GraphNode).y ?? 0;
-          const ty = (d.target as GraphNode).y ?? 0;
-          return (sy + ty) / 2 - 4;
-        });
 
       knowledgeNodeEls.attr('transform', (d) => `translate(${d.x ?? 0},${d.y ?? 0})`);
 

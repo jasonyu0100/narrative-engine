@@ -27,12 +27,6 @@ const characters: Record<string, Character> = {
         { id: 'K-LOTR-04', type: 'knows', content: 'The Ring grows heavier with each mile and whispers promises in the dark' },
         { id: 'K-LOTR-05', type: 'secret', content: 'Feels the Ring\'s pull growing stronger — fears he may not be able to let it go when the time comes' },
       ],
-      edges: [
-        { from: 'K-LOTR-01', to: 'K-LOTR-02', type: 'enables' },
-        { from: 'K-LOTR-03', to: 'K-LOTR-02', type: 'supports' },
-        { from: 'K-LOTR-04', to: 'K-LOTR-05', type: 'enables' },
-        { from: 'K-LOTR-05', to: 'K-LOTR-02', type: 'contradicts' },
-      ],
     },
   },
   'C-LOTR-02': {
@@ -49,12 +43,6 @@ const characters: Record<string, Character> = {
         { id: 'K-LOTR-13', type: 'believes', content: 'Even the smallest person can change the course of the future — hobbits are the key' },
         { id: 'K-LOTR-14', type: 'secret', content: 'Narya, the Ring of Fire, burns on his finger — one of the Three Elven Rings' },
       ],
-      edges: [
-        { from: 'K-LOTR-10', to: 'K-LOTR-12', type: 'enables' },
-        { from: 'K-LOTR-11', to: 'K-LOTR-12', type: 'contradicts' },
-        { from: 'K-LOTR-13', to: 'K-LOTR-12', type: 'supports' },
-        { from: 'K-LOTR-14', to: 'K-LOTR-12', type: 'supports' },
-      ],
     },
   },
   'C-LOTR-03': {
@@ -69,11 +57,6 @@ const characters: Record<string, Character> = {
         { id: 'K-LOTR-21', type: 'knows', content: 'Has wandered the wild for decades as a Ranger, protecting lands that do not know his name' },
         { id: 'K-LOTR-22', type: 'goal', content: 'Protect Frodo and the Ring-bearer\'s quest — and perhaps reclaim the throne when the time is right' },
         { id: 'K-LOTR-23', type: 'believes', content: 'The blood of Numenor runs thin but not dry — he must prove himself worthy where Isildur failed' },
-      ],
-      edges: [
-        { from: 'K-LOTR-20', to: 'K-LOTR-22', type: 'enables' },
-        { from: 'K-LOTR-21', to: 'K-LOTR-22', type: 'supports' },
-        { from: 'K-LOTR-23', to: 'K-LOTR-20', type: 'contradicts' },
       ],
     },
   },
@@ -90,11 +73,6 @@ const characters: Record<string, Character> = {
         { id: 'K-LOTR-32', type: 'goal', content: 'Stay beside Frodo no matter what — carry him if he must' },
         { id: 'K-LOTR-33', type: 'knows', content: 'The Ring changes Frodo — moments of coldness and suspicion that are not his master\'s nature' },
       ],
-      edges: [
-        { from: 'K-LOTR-30', to: 'K-LOTR-32', type: 'enables' },
-        { from: 'K-LOTR-31', to: 'K-LOTR-32', type: 'supports' },
-        { from: 'K-LOTR-33', to: 'K-LOTR-32', type: 'contradicts' },
-      ],
     },
   },
   'C-LOTR-05': {
@@ -110,12 +88,6 @@ const characters: Record<string, Character> = {
         { id: 'K-LOTR-42', type: 'goal', content: 'Bring the Ring to Minas Tirith and use it to save his people from annihilation' },
         { id: 'K-LOTR-43', type: 'secret', content: 'Hears the Ring calling to him in moments of silence — its promises of strength grow louder each day' },
       ],
-      edges: [
-        { from: 'K-LOTR-40', to: 'K-LOTR-42', type: 'enables' },
-        { from: 'K-LOTR-41', to: 'K-LOTR-42', type: 'supports' },
-        { from: 'K-LOTR-43', to: 'K-LOTR-42', type: 'enables' },
-        { from: 'K-LOTR-43', to: 'K-LOTR-41', type: 'supports' },
-      ],
     },
   },
   'C-LOTR-06': {
@@ -130,10 +102,6 @@ const characters: Record<string, Character> = {
         { id: 'K-LOTR-51', type: 'believes', content: 'The ancient alliance between Elves and Men must be rekindled against the Shadow' },
         { id: 'K-LOTR-52', type: 'goal', content: 'Represent the Elves in the Fellowship and see the quest through to its end' },
       ],
-      edges: [
-        { from: 'K-LOTR-50', to: 'K-LOTR-52', type: 'enables' },
-        { from: 'K-LOTR-51', to: 'K-LOTR-52', type: 'supports' },
-      ],
     },
   },
   'C-LOTR-07': {
@@ -147,10 +115,6 @@ const characters: Record<string, Character> = {
         { id: 'K-LOTR-60', type: 'knows', content: 'The Dwarves of Erebor have been approached by Sauron\'s emissaries seeking the Ring' },
         { id: 'K-LOTR-61', type: 'believes', content: 'Dwarven axes and dwarven loyalty are worth more than any Elvish magic' },
         { id: 'K-LOTR-62', type: 'goal', content: 'Represent Durin\'s folk in the Fellowship and prove Dwarven valor to all' },
-      ],
-      edges: [
-        { from: 'K-LOTR-60', to: 'K-LOTR-62', type: 'enables' },
-        { from: 'K-LOTR-61', to: 'K-LOTR-62', type: 'supports' },
       ],
     },
   },
@@ -167,12 +131,6 @@ const characters: Record<string, Character> = {
         { id: 'K-LOTR-72', type: 'goal', content: 'Seize the One Ring and supplant Sauron as the Lord of Middle-earth' },
         { id: 'K-LOTR-73', type: 'believes', content: 'Power is the only answer to power — the age of the Istari serving from the shadows has ended' },
       ],
-      edges: [
-        { from: 'K-LOTR-70', to: 'K-LOTR-72', type: 'enables' },
-        { from: 'K-LOTR-71', to: 'K-LOTR-72', type: 'supports' },
-        { from: 'K-LOTR-73', to: 'K-LOTR-72', type: 'supports' },
-        { from: 'K-LOTR-71', to: 'K-LOTR-73', type: 'enables' },
-      ],
     },
   },
 };
@@ -187,7 +145,6 @@ const locations: Record<string, Location> = {
         { id: 'LK-LOTR-01', type: 'lore', content: 'The mortal lands of Arda — where Elves fade, Men rise, and the Shadow of Mordor lengthens across all kingdoms' },
         { id: 'LK-LOTR-02', type: 'lore', content: 'The Third Age draws to its close — the great powers diminish and the Ring stirs in its long sleep' },
       ],
-      edges: [{ from: 'LK-LOTR-01', to: 'LK-LOTR-02', type: 'supports' }],
     },
   },
   'L-LOTR-02': {
@@ -198,7 +155,6 @@ const locations: Record<string, Location> = {
         { id: 'LK-LOTR-03', type: 'lore', content: 'Green and gentle land of the Hobbits — untouched by war for generations, sheltered by Rangers they have never seen' },
         { id: 'LK-LOTR-04', type: 'secret', content: 'The most dangerous object in Middle-earth has rested here for sixty years, mistaken for a trinket' },
       ],
-      edges: [{ from: 'LK-LOTR-04', to: 'LK-LOTR-03', type: 'contradicts' }],
     },
   },
   'L-LOTR-03': {
@@ -209,7 +165,6 @@ const locations: Record<string, Location> = {
         { id: 'LK-LOTR-05', type: 'lore', content: 'The Last Homely House East of the Sea — Elrond\'s refuge where lore is preserved and counsel given' },
         { id: 'LK-LOTR-06', type: 'lore', content: 'Here the shards of Narsil are kept, and here the fate of the Ring will be debated by the Free Peoples' },
       ],
-      edges: [{ from: 'LK-LOTR-05', to: 'LK-LOTR-06', type: 'supports' }],
     },
   },
   'L-LOTR-04': {
@@ -220,7 +175,6 @@ const locations: Record<string, Location> = {
         { id: 'LK-LOTR-07', type: 'lore', content: 'Khazad-dum, the Dwarrowdelf — once the greatest of Dwarven kingdoms, now a tomb of shadow and flame' },
         { id: 'LK-LOTR-08', type: 'danger', content: 'A Balrog of Morgoth dwells in the deepest depths, awakened by the Dwarves\' delving for mithril' },
       ],
-      edges: [{ from: 'LK-LOTR-07', to: 'LK-LOTR-08', type: 'enables' }],
     },
   },
   'L-LOTR-05': {
@@ -231,7 +185,6 @@ const locations: Record<string, Location> = {
         { id: 'LK-LOTR-09', type: 'lore', content: 'The Golden Wood — realm of Galadriel and Celeborn, where time moves differently and mallorn trees shine with silver light' },
         { id: 'LK-LOTR-10', type: 'secret', content: 'Galadriel bears Nenya, the Ring of Water — if the One Ring is destroyed, her realm will fade' },
       ],
-      edges: [{ from: 'LK-LOTR-10', to: 'LK-LOTR-09', type: 'supports' }],
     },
   },
   'L-LOTR-06': {
@@ -242,7 +195,6 @@ const locations: Record<string, Location> = {
         { id: 'LK-LOTR-11', type: 'lore', content: 'The Hill of Sight — ancient Numenorean watchtower above the Falls of Rauros, where the Great River bends south' },
         { id: 'LK-LOTR-12', type: 'danger', content: 'Here the Fellowship will be tested to its breaking — Uruk-hai of Isengard are closing from the east' },
       ],
-      edges: [{ from: 'LK-LOTR-11', to: 'LK-LOTR-12', type: 'supports' }],
     },
   },
   'L-LOTR-07': {
@@ -253,7 +205,6 @@ const locations: Record<string, Location> = {
         { id: 'LK-LOTR-13', type: 'lore', content: 'Orthanc, the tower of Saruman — once a bastion of the Istari, now a fortress of industry and war' },
         { id: 'LK-LOTR-14', type: 'danger', content: 'The caverns beneath Isengard birth Uruk-hai by the thousands — Saruman builds an army to rival Mordor' },
       ],
-      edges: [{ from: 'LK-LOTR-13', to: 'LK-LOTR-14', type: 'enables' }],
     },
   },
   'L-LOTR-08': {
@@ -264,7 +215,6 @@ const locations: Record<string, Location> = {
         { id: 'LK-LOTR-15', type: 'lore', content: 'Amon Sul — ruined watchtower of the North Kingdom, where the Palantir once gazed across leagues of wilderness' },
         { id: 'LK-LOTR-16', type: 'danger', content: 'The Nazgul are drawn to this place — high ground and ancient power make it a beacon for the Ring-wraiths' },
       ],
-      edges: [{ from: 'LK-LOTR-15', to: 'LK-LOTR-16', type: 'enables' }],
     },
   },
 };

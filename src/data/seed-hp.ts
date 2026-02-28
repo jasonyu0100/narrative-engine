@@ -27,12 +27,6 @@ const characters: Record<string, Character> = {
         { id: 'K-HP-04', type: 'knows', content: 'A lightning-bolt scar on his forehead, origin unknown' },
         { id: 'K-HP-05', type: 'secret', content: 'Does not yet know he is the Boy Who Lived, or that an entire world reveres his name' },
       ],
-      edges: [
-        { from: 'K-HP-01', to: 'K-HP-05', type: 'contradicts' },
-        { from: 'K-HP-02', to: 'K-HP-05', type: 'supports' },
-        { from: 'K-HP-03', to: 'K-HP-04', type: 'supports' },
-        { from: 'K-HP-04', to: 'K-HP-05', type: 'enables' },
-      ],
     },
   },
   'C-HP-02': {
@@ -49,12 +43,6 @@ const characters: Record<string, Character> = {
         { id: 'K-HP-13', type: 'knows', content: 'Has memorized every textbook before term begins — including Hogwarts: A History' },
         { id: 'K-HP-14', type: 'believes', content: 'Rules exist for good reasons, and breaking them endangers everyone' },
       ],
-      edges: [
-        { from: 'K-HP-10', to: 'K-HP-12', type: 'enables' },
-        { from: 'K-HP-11', to: 'K-HP-13', type: 'supports' },
-        { from: 'K-HP-13', to: 'K-HP-12', type: 'supports' },
-        { from: 'K-HP-14', to: 'K-HP-11', type: 'supports' },
-      ],
     },
   },
   'C-HP-03': {
@@ -69,11 +57,6 @@ const characters: Record<string, Character> = {
         { id: 'K-HP-21', type: 'believes', content: 'He will never be as good as his brothers, so why pretend otherwise' },
         { id: 'K-HP-22', type: 'goal', content: 'Step out from the shadow of his brothers and prove his own worth' },
         { id: 'K-HP-23', type: 'knows', content: 'Grew up in the wizarding world — understands customs, Quidditch, and wizard chess instinctively' },
-      ],
-      edges: [
-        { from: 'K-HP-20', to: 'K-HP-21', type: 'enables' },
-        { from: 'K-HP-21', to: 'K-HP-22', type: 'contradicts' },
-        { from: 'K-HP-23', to: 'K-HP-22', type: 'supports' },
       ],
     },
   },
@@ -91,12 +74,6 @@ const characters: Record<string, Character> = {
         { id: 'K-HP-33', type: 'believes', content: 'Love is the deepest magic — Harry carries a protection Voldemort cannot comprehend' },
         { id: 'K-HP-34', type: 'knows', content: 'The Mirror of Erised will only yield the Stone to one who desires it but not its use' },
       ],
-      edges: [
-        { from: 'K-HP-30', to: 'K-HP-32', type: 'enables' },
-        { from: 'K-HP-31', to: 'K-HP-32', type: 'supports' },
-        { from: 'K-HP-33', to: 'K-HP-32', type: 'supports' },
-        { from: 'K-HP-34', to: 'K-HP-30', type: 'supports' },
-      ],
     },
   },
   'C-HP-05': {
@@ -111,11 +88,6 @@ const characters: Record<string, Character> = {
         { id: 'K-HP-41', type: 'knows', content: 'Quirrell is behaving suspiciously and may be compromised' },
         { id: 'K-HP-42', type: 'goal', content: 'Guard the Stone and keep his oath to Dumbledore, regardless of personal cost' },
         { id: 'K-HP-43', type: 'believes', content: 'Potter is an arrogant mirror of James — talent unearned, fame undeserved' },
-      ],
-      edges: [
-        { from: 'K-HP-40', to: 'K-HP-42', type: 'enables' },
-        { from: 'K-HP-41', to: 'K-HP-42', type: 'supports' },
-        { from: 'K-HP-43', to: 'K-HP-40', type: 'contradicts' },
       ],
     },
   },
@@ -132,11 +104,6 @@ const characters: Record<string, Character> = {
         { id: 'K-HP-52', type: 'believes', content: 'Dumbledore is the greatest wizard alive and his trust is never misplaced' },
         { id: 'K-HP-53', type: 'goal', content: 'Protect Harry and help him feel at home in the world that has always been his' },
       ],
-      edges: [
-        { from: 'K-HP-50', to: 'K-HP-53', type: 'enables' },
-        { from: 'K-HP-51', to: 'K-HP-52', type: 'contradicts' },
-        { from: 'K-HP-52', to: 'K-HP-53', type: 'supports' },
-      ],
     },
   },
   'C-HP-07': {
@@ -150,10 +117,6 @@ const characters: Record<string, Character> = {
         { id: 'K-HP-60', type: 'believes', content: 'Pure-blood wizards are inherently superior — Muggle-borns dilute magical society' },
         { id: 'K-HP-61', type: 'goal', content: 'Establish himself as the dominant figure in his year, as befits a Malfoy' },
         { id: 'K-HP-62', type: 'knows', content: 'His father served the Dark Lord and still whispers of the old ways at home' },
-      ],
-      edges: [
-        { from: 'K-HP-60', to: 'K-HP-61', type: 'supports' },
-        { from: 'K-HP-62', to: 'K-HP-60', type: 'enables' },
       ],
     },
   },
@@ -170,11 +133,6 @@ const characters: Record<string, Character> = {
         { id: 'K-HP-72', type: 'knows', content: 'The Stone is protected by enchantments from each Hogwarts professor' },
         { id: 'K-HP-73', type: 'believes', content: 'There is no returning from this servitude — only obedience or annihilation' },
       ],
-      edges: [
-        { from: 'K-HP-70', to: 'K-HP-71', type: 'enables' },
-        { from: 'K-HP-72', to: 'K-HP-71', type: 'supports' },
-        { from: 'K-HP-73', to: 'K-HP-71', type: 'supports' },
-      ],
     },
   },
 };
@@ -189,7 +147,6 @@ const locations: Record<string, Location> = {
         { id: 'LK-HP-01', type: 'lore', content: 'A hidden magical society layered beneath Muggle Britain, governed by the Ministry of Magic' },
         { id: 'LK-HP-02', type: 'lore', content: 'Ten years of peace since the fall of He-Who-Must-Not-Be-Named — but the peace is fragile' },
       ],
-      edges: [{ from: 'LK-HP-01', to: 'LK-HP-02', type: 'supports' }],
     },
   },
   'L-HP-02': {
@@ -200,7 +157,6 @@ const locations: Record<string, Location> = {
         { id: 'LK-HP-03', type: 'lore', content: 'A thousand-year-old castle in the Scottish Highlands, the foremost school of magic in Europe' },
         { id: 'LK-HP-04', type: 'secret', content: 'The third-floor corridor on the right-hand side conceals a trapdoor guarded by a three-headed dog' },
       ],
-      edges: [{ from: 'LK-HP-04', to: 'LK-HP-03', type: 'contradicts' }],
     },
   },
   'L-HP-03': {
@@ -211,7 +167,6 @@ const locations: Record<string, Location> = {
         { id: 'LK-HP-05', type: 'lore', content: 'A ruthlessly ordinary suburban home in Little Whinging, Surrey — normalcy enforced like a religion' },
         { id: 'LK-HP-06', type: 'secret', content: 'Protected by an ancient blood ward tied to Lily Potter\'s sacrifice — as long as Harry calls it home, Voldemort cannot touch him there' },
       ],
-      edges: [{ from: 'LK-HP-06', to: 'LK-HP-05', type: 'contradicts' }],
     },
   },
   'L-HP-04': {
@@ -222,7 +177,6 @@ const locations: Record<string, Location> = {
         { id: 'LK-HP-07', type: 'lore', content: 'The hidden high street of wizarding London — wands, cauldrons, owls, and wonder behind a brick wall' },
         { id: 'LK-HP-08', type: 'lore', content: 'Accessible through the Leaky Cauldron, invisible to Muggle eyes' },
       ],
-      edges: [{ from: 'LK-HP-07', to: 'LK-HP-08', type: 'supports' }],
     },
   },
   'L-HP-05': {
@@ -233,7 +187,6 @@ const locations: Record<string, Location> = {
         { id: 'LK-HP-09', type: 'lore', content: 'An enchanted ceiling reflecting the sky above, four long house tables, and the Sorting Hat\'s ancient song' },
         { id: 'LK-HP-10', type: 'lore', content: 'Where the Sorting Ceremony determines the trajectory of every student\'s life at Hogwarts' },
       ],
-      edges: [{ from: 'LK-HP-09', to: 'LK-HP-10', type: 'supports' }],
     },
   },
   'L-HP-06': {
@@ -244,7 +197,6 @@ const locations: Record<string, Location> = {
         { id: 'LK-HP-11', type: 'danger', content: 'Forbidden to all students on pain of a most painful death — Dumbledore\'s warning at the start-of-term feast' },
         { id: 'LK-HP-12', type: 'secret', content: 'Contains the trapdoor beneath Fluffy, leading to a gauntlet of enchantments protecting the Philosopher\'s Stone' },
       ],
-      edges: [{ from: 'LK-HP-12', to: 'LK-HP-11', type: 'enables' }],
     },
   },
   'L-HP-07': {
@@ -255,7 +207,6 @@ const locations: Record<string, Location> = {
         { id: 'LK-HP-13', type: 'danger', content: 'Ancient woodland on the Hogwarts grounds, home to centaurs, unicorns, and darker things' },
         { id: 'LK-HP-14', type: 'secret', content: 'Something has been killing unicorns and drinking their blood — a crime against nature that sustains a cursed half-life' },
       ],
-      edges: [{ from: 'LK-HP-14', to: 'LK-HP-13', type: 'supports' }],
     },
   },
   'L-HP-08': {
@@ -266,7 +217,6 @@ const locations: Record<string, Location> = {
         { id: 'LK-HP-15', type: 'lore', content: 'Run by goblins deep beneath London — the safest place in the wizarding world, after Hogwarts' },
         { id: 'LK-HP-16', type: 'secret', content: 'Vault 713 held a small grubby package retrieved by Hagrid on Dumbledore\'s orders — the same day it was nearly robbed' },
       ],
-      edges: [{ from: 'LK-HP-16', to: 'LK-HP-15', type: 'contradicts' }],
     },
   },
 };

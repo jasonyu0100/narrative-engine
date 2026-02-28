@@ -894,7 +894,7 @@ export async function assembleNarrative(
       if (!characters[id]) {
         characters[id] = {
           id, name: c.name, role: c.role as Character['role'], threadIds: [],
-          knowledge: { nodes: [], edges: [] },
+          knowledge: { nodes: [] },
         };
       }
       const rank: Record<string, number> = { transient: 0, recurring: 1, anchor: 2 };
@@ -919,7 +919,7 @@ export async function assembleNarrative(
         const parentId = loc.parentName ? getLocId(loc.parentName) : null;
         locations[id] = {
           id, name: loc.name, parentId, threadIds: [],
-          knowledge: { nodes: [], edges: [] },
+          knowledge: { nodes: [] },
         };
       }
       if (!seenLocLore.has(id)) seenLocLore.set(id, new Set());
@@ -1119,15 +1119,6 @@ export async function assembleNarrative(
         loc.knowledge.nodes.push({ id: nextKId(), type: 'lore', content: dl.content });
         existingLore.add(dl.content);
       }
-    }
-  }
-
-  // Knowledge edges (sequential within each character's graph)
-  for (const char of Object.values(characters)) {
-    char.knowledge.edges = [];
-    const nodes = char.knowledge.nodes;
-    for (let i = 1; i < nodes.length; i++) {
-      char.knowledge.edges.push({ from: nodes[i - 1].id, to: nodes[i].id, type: 'develops' });
     }
   }
 

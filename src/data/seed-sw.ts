@@ -27,12 +27,6 @@ const characters: Record<string, Character> = {
         { id: 'K-SW-04', type: 'knows', content: 'Is a skilled pilot and can bullseye womp rats in his T-16 back home' },
         { id: 'K-SW-05', type: 'believes', content: 'The Empire is a distant evil — something that happens to other people, not moisture farmers' },
       ],
-      edges: [
-        { from: 'K-SW-01', to: 'K-SW-03', type: 'contradicts' },
-        { from: 'K-SW-02', to: 'K-SW-03', type: 'supports' },
-        { from: 'K-SW-04', to: 'K-SW-03', type: 'enables' },
-        { from: 'K-SW-05', to: 'K-SW-03', type: 'contradicts' },
-      ],
     },
   },
   'C-SW-02': {
@@ -49,12 +43,6 @@ const characters: Record<string, Character> = {
         { id: 'K-SW-13', type: 'believes', content: 'The galaxy will not survive under Imperial rule — the fight is worth any cost' },
         { id: 'K-SW-14', type: 'knows', content: 'Obi-Wan Kenobi served her father in the Clone Wars and may be the Rebellions last hope' },
       ],
-      edges: [
-        { from: 'K-SW-10', to: 'K-SW-12', type: 'enables' },
-        { from: 'K-SW-11', to: 'K-SW-12', type: 'enables' },
-        { from: 'K-SW-13', to: 'K-SW-12', type: 'supports' },
-        { from: 'K-SW-14', to: 'K-SW-12', type: 'supports' },
-      ],
     },
   },
   'C-SW-03': {
@@ -69,11 +57,6 @@ const characters: Record<string, Character> = {
         { id: 'K-SW-21', type: 'knows', content: 'Owes Jabba the Hutt a dangerous amount of credits — a debt measured in blaster bolts' },
         { id: 'K-SW-22', type: 'goal', content: 'Pay off Jabba and keep flying free — loyalty is a luxury he cannot afford' },
         { id: 'K-SW-23', type: 'believes', content: 'Hokey religions and ancient weapons are no match for a good blaster at your side' },
-      ],
-      edges: [
-        { from: 'K-SW-20', to: 'K-SW-22', type: 'enables' },
-        { from: 'K-SW-21', to: 'K-SW-22', type: 'contradicts' },
-        { from: 'K-SW-23', to: 'K-SW-22', type: 'supports' },
       ],
     },
   },
@@ -91,12 +74,6 @@ const characters: Record<string, Character> = {
         { id: 'K-SW-33', type: 'knows', content: 'Senses a tremor in the Force — something familiar stirring at the edge of perception' },
         { id: 'K-SW-34', type: 'believes', content: 'The dark side is the only path to true power — the Jedi were weak and deserved their end' },
       ],
-      edges: [
-        { from: 'K-SW-30', to: 'K-SW-32', type: 'enables' },
-        { from: 'K-SW-31', to: 'K-SW-33', type: 'supports' },
-        { from: 'K-SW-33', to: 'K-SW-32', type: 'contradicts' },
-        { from: 'K-SW-34', to: 'K-SW-32', type: 'supports' },
-      ],
     },
   },
   'C-SW-05': {
@@ -113,12 +90,6 @@ const characters: Record<string, Character> = {
         { id: 'K-SW-43', type: 'knows', content: 'Darth Vader is Anakin Skywalker — his greatest failure, his deepest wound' },
         { id: 'K-SW-44', type: 'believes', content: 'The Force will balance itself — but it needs a vessel, and Luke is that vessel' },
       ],
-      edges: [
-        { from: 'K-SW-40', to: 'K-SW-42', type: 'enables' },
-        { from: 'K-SW-41', to: 'K-SW-42', type: 'enables' },
-        { from: 'K-SW-43', to: 'K-SW-42', type: 'supports' },
-        { from: 'K-SW-44', to: 'K-SW-42', type: 'supports' },
-      ],
     },
   },
   'C-SW-06': {
@@ -132,10 +103,6 @@ const characters: Record<string, Character> = {
         { id: 'K-SW-50', type: 'knows', content: 'Carries the complete technical readouts of the Death Star in his memory banks' },
         { id: 'K-SW-51', type: 'goal', content: 'Deliver Princess Leias message and the plans to Obi-Wan Kenobi on Tatooine' },
         { id: 'K-SW-52', type: 'knows', content: 'Has served the Skywalker family across two generations — more loyal than any organic being' },
-      ],
-      edges: [
-        { from: 'K-SW-50', to: 'K-SW-51', type: 'enables' },
-        { from: 'K-SW-52', to: 'K-SW-51', type: 'supports' },
       ],
     },
   },
@@ -152,11 +119,6 @@ const characters: Record<string, Character> = {
         { id: 'K-SW-62', type: 'believes', content: 'Fear will keep the local systems in line — fear of this battle station' },
         { id: 'K-SW-63', type: 'knows', content: 'The Rebel Alliance is an irritant, not a threat — insects beneath an iron heel' },
       ],
-      edges: [
-        { from: 'K-SW-60', to: 'K-SW-61', type: 'enables' },
-        { from: 'K-SW-62', to: 'K-SW-61', type: 'supports' },
-        { from: 'K-SW-63', to: 'K-SW-61', type: 'supports' },
-      ],
     },
   },
   'C-SW-08': {
@@ -170,10 +132,6 @@ const characters: Record<string, Character> = {
         { id: 'K-SW-70', type: 'knows', content: 'Wookiee co-pilot of the Millennium Falcon and Han Solos life-debt partner' },
         { id: 'K-SW-71', type: 'goal', content: 'Stand beside Han Solo in all things — the life-debt is absolute and freely given' },
         { id: 'K-SW-72', type: 'believes', content: 'Loyalty is not a transaction but a way of being — Han saved his life, and that is enough forever' },
-      ],
-      edges: [
-        { from: 'K-SW-70', to: 'K-SW-71', type: 'enables' },
-        { from: 'K-SW-72', to: 'K-SW-71', type: 'supports' },
       ],
     },
   },
@@ -189,7 +147,6 @@ const locations: Record<string, Location> = {
         { id: 'LK-SW-01', type: 'lore', content: 'A galaxy ruled by the Galactic Empire — a thousand star systems held by fear and force' },
         { id: 'LK-SW-02', type: 'lore', content: 'The Jedi Order has been destroyed, its knights hunted to extinction by the Sith' },
       ],
-      edges: [{ from: 'LK-SW-01', to: 'LK-SW-02', type: 'supports' }],
     },
   },
   'L-SW-02': {
@@ -200,7 +157,6 @@ const locations: Record<string, Location> = {
         { id: 'LK-SW-03', type: 'lore', content: 'A desert world orbiting twin suns — remote, lawless, and forgotten by the Empire' },
         { id: 'LK-SW-04', type: 'lore', content: 'Ruled by Hutt crime lords, populated by moisture farmers, Jawas, and Tusken Raiders' },
       ],
-      edges: [{ from: 'LK-SW-03', to: 'LK-SW-04', type: 'supports' }],
     },
   },
   'L-SW-03': {
@@ -212,10 +168,6 @@ const locations: Record<string, Location> = {
         { id: 'LK-SW-06', type: 'secret', content: 'Contains a thermal exhaust port leading directly to the main reactor — a fatal design flaw' },
         { id: 'LK-SW-07', type: 'danger', content: 'Defended by turbolaser batteries, TIE fighter squadrons, and an entire Imperial garrison' },
       ],
-      edges: [
-        { from: 'LK-SW-05', to: 'LK-SW-07', type: 'supports' },
-        { from: 'LK-SW-06', to: 'LK-SW-05', type: 'contradicts' },
-      ],
     },
   },
   'L-SW-04': {
@@ -226,7 +178,6 @@ const locations: Record<string, Location> = {
         { id: 'LK-SW-08', type: 'lore', content: 'A wretched hive of scum and villainy — the spaceport where the desperate come to disappear' },
         { id: 'LK-SW-09', type: 'lore', content: 'Home to smugglers, bounty hunters, and beings of every species seeking passage off-world' },
       ],
-      edges: [{ from: 'LK-SW-08', to: 'LK-SW-09', type: 'supports' }],
     },
   },
   'L-SW-05': {
@@ -237,7 +188,6 @@ const locations: Record<string, Location> = {
         { id: 'LK-SW-10', type: 'lore', content: 'Home system of the peaceful planet Alderaan — a world of beauty, culture, and quiet defiance' },
         { id: 'LK-SW-11', type: 'danger', content: 'Alderaan will be destroyed by the Death Star as a demonstration of Imperial power' },
       ],
-      edges: [{ from: 'LK-SW-10', to: 'LK-SW-11', type: 'contradicts' }],
     },
   },
   'L-SW-06': {
@@ -248,7 +198,6 @@ const locations: Record<string, Location> = {
         { id: 'LK-SW-12', type: 'secret', content: 'Hidden Rebel Alliance base within an ancient Massassi temple on a jungle moon' },
         { id: 'LK-SW-13', type: 'danger', content: 'If discovered, the Death Star will reduce the moon and the Rebellion to dust' },
       ],
-      edges: [{ from: 'LK-SW-12', to: 'LK-SW-13', type: 'supports' }],
     },
   },
   'L-SW-07': {
@@ -259,7 +208,6 @@ const locations: Record<string, Location> = {
         { id: 'LK-SW-14', type: 'lore', content: 'Alderaanian consular ship — Princess Leias diplomatic vessel and secret Rebel courier' },
         { id: 'LK-SW-15', type: 'danger', content: 'Captured by an Imperial Star Destroyer above Tatooine while carrying stolen plans' },
       ],
-      edges: [{ from: 'LK-SW-14', to: 'LK-SW-15', type: 'contradicts' }],
     },
   },
   'L-SW-08': {
@@ -270,7 +218,6 @@ const locations: Record<string, Location> = {
         { id: 'LK-SW-16', type: 'lore', content: 'A moisture farm on the outskirts of Tatooines Jundland Wastes — Lukes entire world' },
         { id: 'LK-SW-17', type: 'lore', content: 'Run by Owen and Beru Lars, who have kept Luke safe and ignorant of his true heritage' },
       ],
-      edges: [{ from: 'LK-SW-16', to: 'LK-SW-17', type: 'supports' }],
     },
   },
 };

@@ -31,7 +31,6 @@ export type Thread = {
 export type CharacterRole = 'anchor' | 'recurring' | 'transient';
 
 export type KnowledgeNodeType = string;
-export type KnowledgeEdgeType = string;
 
 export type KnowledgeNode = {
   id: string;
@@ -39,15 +38,8 @@ export type KnowledgeNode = {
   content: string;
 };
 
-export type KnowledgeEdge = {
-  from: string;
-  to: string;
-  type: KnowledgeEdgeType;
-};
-
 export type KnowledgeGraph = {
   nodes: KnowledgeNode[];
-  edges: KnowledgeEdge[];
 };
 
 export type Character = {

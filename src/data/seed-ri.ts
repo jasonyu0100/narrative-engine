@@ -31,16 +31,6 @@ const characters: Record<string, Character> = {
         { id: 'K-08', type: 'knows', content: 'Mo Bei Liu is embezzling clan resources and will attempt a power grab' },
         { id: 'K-09', type: 'knows', content: 'Fang Zheng will awaken an A-grade talent at the ceremony' },
       ],
-      edges: [
-        { from: 'K-01', to: 'K-02', type: 'enables' },
-        { from: 'K-02', to: 'K-04', type: 'supports' },
-        { from: 'K-03', to: 'K-04', type: 'enables' },
-        { from: 'K-05', to: 'K-04', type: 'supports' },
-        { from: 'K-06', to: 'K-04', type: 'enables' },
-        { from: 'K-07', to: 'K-03', type: 'supports' },
-        { from: 'K-08', to: 'K-02', type: 'supports' },
-        { from: 'K-09', to: 'K-03', type: 'contradicts' },
-      ],
     },
   },
   'C-02': {
@@ -57,12 +47,6 @@ const characters: Record<string, Character> = {
         { id: 'K-13', type: 'believes', content: 'Hard work and righteousness will be rewarded' },
         { id: 'K-14', type: 'knows', content: 'Their parents died protecting the clan — he must live up to their legacy' },
       ],
-      edges: [
-        { from: 'K-10', to: 'K-12', type: 'supports' },
-        { from: 'K-13', to: 'K-12', type: 'supports' },
-        { from: 'K-14', to: 'K-12', type: 'enables' },
-        { from: 'K-11', to: 'K-12', type: 'supports' },
-      ],
     },
   },
   'C-03': {
@@ -77,11 +61,6 @@ const characters: Record<string, Character> = {
         { id: 'K-21', type: 'secret', content: 'Aware of factional struggles between elders, especially Mo Bei Liu' },
         { id: 'K-22', type: 'goal', content: 'Maintain Gu Yue clan dominance on Qing Mao Mountain' },
         { id: 'K-23', type: 'believes', content: 'The clan must find exceptional talent to survive the next generation' },
-      ],
-      edges: [
-        { from: 'K-20', to: 'K-22', type: 'contradicts' },
-        { from: 'K-21', to: 'K-22', type: 'contradicts' },
-        { from: 'K-23', to: 'K-22', type: 'supports' },
       ],
     },
   },
@@ -98,11 +77,6 @@ const characters: Record<string, Character> = {
         { id: 'K-32', type: 'secret', content: 'Willing to sacrifice anyone and anything to survive' },
         { id: 'K-33', type: 'believes', content: 'Life itself is the only thing worth pursuing — everything else is meaningless' },
       ],
-      edges: [
-        { from: 'K-30', to: 'K-31', type: 'enables' },
-        { from: 'K-32', to: 'K-31', type: 'supports' },
-        { from: 'K-33', to: 'K-32', type: 'supports' },
-      ],
     },
   },
   'C-05': {
@@ -116,10 +90,6 @@ const characters: Record<string, Character> = {
         { id: 'K-40', type: 'believes', content: 'Talent should be nurtured fairly regardless of background' },
         { id: 'K-41', type: 'knows', content: 'Fang Yuan appears to be a mediocre student with no remarkable aptitude' },
         { id: 'K-42', type: 'goal', content: 'Identify and develop the most promising students for the clan' },
-      ],
-      edges: [
-        { from: 'K-40', to: 'K-42', type: 'supports' },
-        { from: 'K-41', to: 'K-42', type: 'contradicts' },
       ],
     },
   },
@@ -136,11 +106,6 @@ const characters: Record<string, Character> = {
         { id: 'K-52', type: 'believes', content: 'Gu Yue Bo is too cautious and will lead the clan to ruin' },
         { id: 'K-53', type: 'knows', content: 'Has gathered supporters among the younger elders' },
       ],
-      edges: [
-        { from: 'K-50', to: 'K-51', type: 'enables' },
-        { from: 'K-52', to: 'K-51', type: 'supports' },
-        { from: 'K-53', to: 'K-51', type: 'enables' },
-      ],
     },
   },
   'C-07': {
@@ -154,10 +119,6 @@ const characters: Record<string, Character> = {
         { id: 'K-60', type: 'knows', content: 'Has found markings near Qing Mao Mountain pointing to a secret inheritance ground' },
         { id: 'K-61', type: 'goal', content: 'Find and claim the inheritance before anyone else' },
         { id: 'K-62', type: 'believes', content: 'The inheritance could elevate him from a wandering Gu Master to a true power' },
-      ],
-      edges: [
-        { from: 'K-60', to: 'K-61', type: 'enables' },
-        { from: 'K-62', to: 'K-61', type: 'supports' },
       ],
     },
   },
@@ -173,10 +134,6 @@ const characters: Record<string, Character> = {
         { id: 'K-71', type: 'believes', content: 'The righteous path must root out demonic cultivators wherever they hide' },
         { id: 'K-72', type: 'knows', content: 'Detected faint traces of Spring Autumn Cicada activation — an impossible Gu thought lost' },
       ],
-      edges: [
-        { from: 'K-72', to: 'K-70', type: 'enables' },
-        { from: 'K-71', to: 'K-70', type: 'supports' },
-      ],
     },
   },
 };
@@ -191,7 +148,6 @@ const locations: Record<string, Location> = {
         { id: 'LK-01', type: 'lore', content: 'Home to three rival Gu Master clans — Gu Yue, Bai, and Xiong' },
         { id: 'LK-02', type: 'lore', content: 'Rich in wild Gu worms due to the mountains primeval essence veins' },
       ],
-      edges: [{ from: 'LK-01', to: 'LK-02', type: 'supports' }],
     },
   },
   'L-02': {
@@ -202,7 +158,6 @@ const locations: Record<string, Location> = {
         { id: 'LK-03', type: 'lore', content: 'The weakest of the three mountain clans, relying on tradition over innovation' },
         { id: 'LK-04', type: 'secret', content: 'Hidden tunnel network beneath the village, known only to past clan leaders' },
       ],
-      edges: [{ from: 'LK-04', to: 'LK-03', type: 'contradicts' }],
     },
   },
   'L-03': {
@@ -212,7 +167,6 @@ const locations: Record<string, Location> = {
       nodes: [
         { id: 'LK-05', type: 'lore', content: 'Where clan youths are tested and trained in basic Gu cultivation' },
       ],
-      edges: [],
     },
   },
   'L-04': {
@@ -223,7 +177,6 @@ const locations: Record<string, Location> = {
         { id: 'LK-06', type: 'lore', content: 'Seat of Gu Yue clan governance — where elders debate and resources are allocated' },
         { id: 'LK-07', type: 'secret', content: 'Factional meetings occur in side chambers after formal sessions' },
       ],
-      edges: [{ from: 'LK-07', to: 'LK-06', type: 'contradicts' }],
     },
   },
   'L-05': {
@@ -234,7 +187,6 @@ const locations: Record<string, Location> = {
         { id: 'LK-08', type: 'secret', content: 'Contains hidden caches of primeval stones left by previous generations' },
         { id: 'LK-09', type: 'secret', content: 'Connected to the deeper mountain caverns where wild Gu thrive' },
       ],
-      edges: [{ from: 'LK-08', to: 'LK-09', type: 'supports' }],
     },
   },
   'L-06': {
@@ -245,7 +197,6 @@ const locations: Record<string, Location> = {
         { id: 'LK-10', type: 'lore', content: 'The strongest of the three mountain clans, known for ice-path Gu cultivation' },
         { id: 'LK-11', type: 'lore', content: 'Birthplace of the Northern Dark Ice Soul physique — both blessing and curse' },
       ],
-      edges: [{ from: 'LK-10', to: 'LK-11', type: 'supports' }],
     },
   },
   'L-07': {
@@ -256,7 +207,6 @@ const locations: Record<string, Location> = {
         { id: 'LK-12', type: 'danger', content: 'Wild beast packs and untamed Gu worms make this area lethal for low-rank cultivators' },
         { id: 'LK-13', type: 'lore', content: 'Ancient markings on cliff faces hint at hidden inheritance grounds' },
       ],
-      edges: [{ from: 'LK-13', to: 'LK-12', type: 'supports' }],
     },
   },
   'L-08': {
@@ -267,10 +217,6 @@ const locations: Record<string, Location> = {
         { id: 'LK-14', type: 'secret', content: 'A Rank 4 Gu Immortals complete legacy — techniques, Gu worms, and primeval stones' },
         { id: 'LK-15', type: 'danger', content: 'Protected by lethal formations — poisoned darts, illusion arrays, and collapsing architecture' },
         { id: 'LK-16', type: 'lore', content: 'The Flower Wine Monk was known for unconventional cultivation paths' },
-      ],
-      edges: [
-        { from: 'LK-14', to: 'LK-15', type: 'supports' },
-        { from: 'LK-16', to: 'LK-14', type: 'enables' },
       ],
     },
   },
