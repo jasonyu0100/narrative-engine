@@ -615,8 +615,7 @@ export default function TopBar() {
                           return (
                             <g key={i} onMouseEnter={() => setHoveredArcIdx(i)} onMouseLeave={() => setHoveredArcIdx(null)} className="cursor-pointer">
                               <circle cx={p.x} cy={p.y} r={12} fill="transparent" />
-                              <circle cx={p.x} cy={p.y} r={isHovered ? 5 : (dense ? 2 : 3.5)} fill={scoreColor(p.score)} />
-                              {(isHovered || !dense) && (
+                              {isHovered && (
                                 <text x={p.x} y={p.y - 8} textAnchor="middle" fill={scoreColor(p.score)} fontSize="9" fontFamily="monospace" fontWeight="600">{p.score}</text>
                               )}
                             </g>
