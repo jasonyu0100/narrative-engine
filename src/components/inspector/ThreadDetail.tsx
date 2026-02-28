@@ -73,9 +73,9 @@ export default function ThreadDetail({ threadId }: Props) {
         <h3 className="text-[10px] uppercase tracking-widest text-text-dim">
           {anchors.length === 0 ? 'General Thread' : 'Anchors'}
         </h3>
-        {anchors.map((a) => (
+        {anchors.map((a, i) => (
           <button
-            key={a.id}
+            key={`${a.id}-${i}`}
             type="button"
             onClick={() =>
               dispatch({
@@ -147,9 +147,9 @@ export default function ThreadDetail({ threadId }: Props) {
                 >
                   {sceneId}
                 </button>
-                {mutations.map((tm) => (
+                {mutations.map((tm, tmIdx) => (
                   <span
-                    key={`${tm.from}-${tm.to}`}
+                    key={`${tm.from}-${tm.to}-${tmIdx}`}
                     className="text-xs text-text-secondary"
                   >
                     {tm.from} &rarr; {tm.to}

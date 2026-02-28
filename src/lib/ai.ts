@@ -392,6 +392,55 @@ function cleanJson(raw: string): string {
   return out.join('');
 }
 
+/**
+ * Attempt to fix unescaped double-quotes inside JSON string values.
+ * When the LLM writes `"she said "hello" to him"`, the inner quotes break
+ * the parse. This walks the string and escapes quotes that appear mid-value.
+ */
+function repairUnescapedQuotes(s: string): string {
+  const out: string[] = [];
+  let i = 0;
+  const len = s.length;
+
+  while (i < len) {
+    // Skip whitespace / structural chars outside strings
+    if (s[i] !== '"') { out.push(s[i++]); continue; }
+
+    // Opening quote of a string value
+    out.push(s[i++]); // the opening "
+    // Scan for the *real* closing quote.
+    // The real closing quote is followed by a structural char: , } ] :
+    // (possibly with whitespace in between).
+    while (i < len) {
+      if (s[i] === '\\') {
+        // Already-escaped char — pass through
+        out.push(s[i], s[i + 1] ?? '');
+        i += 2;
+        continue;
+      }
+      if (s[i] === '"') {
+        // Is this the real closing quote?
+        // Look ahead past whitespace for a structural char or EOF
+        let peek = i + 1;
+        while (peek < len && (s[peek] === ' ' || s[peek] === '\n' || s[peek] === '\r' || s[peek] === '\t')) peek++;
+        if (peek >= len || s[peek] === ',' || s[peek] === '}' || s[peek] === ']' || s[peek] === ':') {
+          // Real closing quote
+          out.push('"');
+          i++;
+          break;
+        } else {
+          // Unescaped inner quote — escape it
+          out.push('\\"');
+          i++;
+          continue;
+        }
+      }
+      out.push(s[i++]);
+    }
+  }
+  return out.join('');
+}
+
 /** Parse JSON with detailed error context for debugging truncated LLM responses */
 function parseJson(raw: string, context: string): unknown {
   if (!raw || !raw.trim()) {
@@ -400,14 +449,21 @@ function parseJson(raw: string, context: string): unknown {
   const cleaned = cleanJson(raw);
   try {
     return JSON.parse(cleaned);
-  } catch (err) {
+  } catch (firstErr) {
+    // Attempt repair: fix unescaped quotes inside string values
+    try {
+      const repaired = repairUnescapedQuotes(cleaned);
+      return JSON.parse(repaired);
+    } catch {
+      // Repair didn't help — throw with original error context
+    }
     const preview = cleaned.length > 300
       ? `${cleaned.slice(0, 150)}…[${cleaned.length} chars total]…${cleaned.slice(-150)}`
       : cleaned;
     const truncated = cleaned.endsWith('}') || cleaned.endsWith(']') ? '' : ' (likely truncated — response hit max_tokens limit)';
     throw new Error(
       `[${context}] Failed to parse JSON${truncated}\n` +
-      `Original error: ${err instanceof Error ? err.message : String(err)}\n` +
+      `Original error: ${firstErr instanceof Error ? firstErr.message : String(firstErr)}\n` +
       `Response preview: ${preview}`
     );
   }

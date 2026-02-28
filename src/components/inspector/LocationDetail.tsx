@@ -110,8 +110,8 @@ export default function LocationDetail({ locationId }: Props) {
       {knowledgeNodes.length > 0 && (
         <CollapsibleSection title="Knowledge" count={knowledgeNodes.length}>
           <ul className="flex flex-col gap-1">
-            {knowledgeNodes.map((node) => (
-              <li key={node.id} className="flex items-start gap-2">
+            {knowledgeNodes.map((node, i) => (
+              <li key={`${node.id}-${i}`} className="flex items-start gap-2">
                 <span
                   className={`mt-1 h-2 w-2 shrink-0 rounded-full ${knowledgeDotColors[node.type] ?? 'bg-white/40'}`}
                 />
@@ -170,15 +170,15 @@ export default function LocationDetail({ locationId }: Props) {
                   >
                     {sceneId}
                   </button>
-                  {threadMuts.map((tm) => (
-                    <span key={tm.threadId} className="text-xs text-text-secondary">
+                  {threadMuts.map((tm, tmIdx) => (
+                    <span key={`${tm.threadId}-${tmIdx}`} className="text-xs text-text-secondary">
                       {tm.threadId}: {tm.from} &rarr; {tm.to}
                     </span>
                   ))}
-                  {knowledgeMuts.map((km) => {
+                  {knowledgeMuts.map((km, kmIdx) => {
                     const charName = narrative.characters[km.characterId]?.name ?? km.characterId;
                     return (
-                      <span key={`${km.characterId}-${km.nodeId}`} className="text-xs text-text-secondary">
+                      <span key={`${km.characterId}-${km.nodeId}-${kmIdx}`} className="text-xs text-text-secondary">
                         <span className={km.action === 'added' ? 'text-change' : 'text-payoff'}>
                           {km.action === 'added' ? '+' : '−'}
                         </span>{' '}
@@ -186,8 +186,8 @@ export default function LocationDetail({ locationId }: Props) {
                       </span>
                     );
                   })}
-                  {arrivals.map((charId) => (
-                    <span key={charId} className="text-xs text-text-secondary">
+                  {arrivals.map((charId, arrIdx) => (
+                    <span key={`${charId}-${arrIdx}`} className="text-xs text-text-secondary">
                       &rarr; {narrative.characters[charId]?.name ?? charId} arrived
                     </span>
                   ))}

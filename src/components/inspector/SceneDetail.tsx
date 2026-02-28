@@ -202,12 +202,12 @@ export default function SceneDetail({ sceneId }: Props) {
             Participants
           </h3>
           <div className="flex flex-wrap gap-1.5">
-            {scene.participantIds.map((cid) => {
+            {scene.participantIds.map((cid, cidIdx) => {
               const character = narrative.characters[cid];
               if (!character) return null;
               return (
                 <button
-                  key={cid}
+                  key={`${cid}-${cidIdx}`}
                   type="button"
                   onClick={() =>
                     dispatch({
@@ -297,10 +297,10 @@ export default function SceneDetail({ sceneId }: Props) {
           <h3 className="text-[10px] uppercase tracking-widest text-text-dim">
             Thread Mutations
           </h3>
-          {scene.threadMutations.map((tm) => {
+          {scene.threadMutations.map((tm, tmIdx) => {
             const thread = narrative.threads[tm.threadId];
             return (
-              <div key={tm.threadId} className="flex items-center gap-1.5 text-xs">
+              <div key={`${tm.threadId}-${tmIdx}`} className="flex items-center gap-1.5 text-xs">
                 <button
                   type="button"
                   onClick={() =>
@@ -413,8 +413,8 @@ export default function SceneDetail({ sceneId }: Props) {
             Events
           </h3>
           <div className="flex flex-wrap gap-1.5">
-            {scene.events.map((evt) => (
-              <span key={evt} className="rounded bg-amber-500/10 px-1.5 py-0.5 text-[10px] text-amber-400/80">{evt}</span>
+            {scene.events.map((evt, evtIdx) => (
+              <span key={`${evt}-${evtIdx}`} className="rounded bg-amber-500/10 px-1.5 py-0.5 text-[10px] text-amber-400/80">{evt}</span>
             ))}
           </div>
         </div>

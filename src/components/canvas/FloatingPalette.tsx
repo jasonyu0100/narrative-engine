@@ -46,6 +46,53 @@ export default function FloatingPalette() {
   const searchInputRef = useRef<HTMLInputElement>(null);
   const isAutoActive = !!(state.autoRunState?.isRunning || state.autoRunState?.isPaused);
 
+  // Arc navigation
+  const arcNav = useMemo(() => {
+    if (!narrative) return { total: 0, currentArc: 0, arcOrder: [] as { arcId: string; name: string; firstTlIdx: number }[] };
+    const arcs = Object.values(narrative.arcs);
+    const arcOrder: { arcId: string; name: string; firstTlIdx: number }[] = [];
+    const seen = new Set<string>();
+    for (let i = 0; i < state.resolvedSceneKeys.length; i++) {
+      const entry = resolveEntry(narrative, state.resolvedSceneKeys[i]);
+      if (entry && isScene(entry)) {
+        const arc = arcs.find((a) => a.sceneIds.includes(entry.id));
+        if (arc && !seen.has(arc.id)) {
+          seen.add(arc.id);
+          arcOrder.push({ arcId: arc.id, name: arc.name, firstTlIdx: i });
+        }
+      }
+    }
+    let currentArc = 0;
+    for (let i = arcOrder.length - 1; i >= 0; i--) {
+      if (state.currentSceneIndex >= arcOrder[i].firstTlIdx) { currentArc = i + 1; break; }
+    }
+    return { total: arcOrder.length, currentArc, arcOrder };
+  }, [narrative, state.resolvedSceneKeys, state.currentSceneIndex]);
+
+  // Inline editing state for scene/arc numbers
+  const [editingField, setEditingField] = useState<'scene' | 'arc' | null>(null);
+  const [editValue, setEditValue] = useState('');
+  const editInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (editingField) setTimeout(() => { editInputRef.current?.focus(); editInputRef.current?.select(); }, 50);
+    else setEditValue('');
+  }, [editingField]);
+
+  const commitEdit = useCallback(() => {
+    const n = parseInt(editValue, 10);
+    if (isNaN(n) || n < 1) { setEditingField(null); return; }
+    if (editingField === 'scene') {
+      dispatch({ type: 'SET_SCENE_INDEX', index: Math.min(n - 1, totalScenes - 1) });
+    } else if (editingField === 'arc') {
+      const idx = Math.min(n - 1, arcNav.arcOrder.length - 1);
+      if (arcNav.arcOrder[idx]) {
+        dispatch({ type: 'SET_SCENE_INDEX', index: arcNav.arcOrder[idx].firstTlIdx });
+      }
+    }
+    setEditingField(null);
+  }, [editValue, editingField, totalScenes, arcNav, dispatch]);
+
   // Scene search results
   const searchResults = useMemo(() => {
     if (!searchOpen || !searchQuery.trim() || !narrative) return [];
@@ -234,10 +281,66 @@ export default function FloatingPalette() {
         {/* Divider */}
         <div className="w-px h-4 bg-white/[0.12] mx-1" />
 
-        {/* Scene counter */}
+        {/* Scene counter — click number to edit */}
         <span className="text-text-dim text-[10px] whitespace-nowrap">
-          Scene {state.currentSceneIndex + 1} / {totalScenes}
+          Scene{' '}
+          {editingField === 'scene' ? (
+            <input
+              ref={editInputRef}
+              type="number"
+              min={1}
+              max={totalScenes}
+              value={editValue}
+              onChange={(e) => setEditValue(e.target.value)}
+              onKeyDown={(e) => { if (e.key === 'Enter') commitEdit(); if (e.key === 'Escape') setEditingField(null); }}
+              onBlur={commitEdit}
+              className="w-10 bg-transparent text-center text-[10px] font-mono text-text-primary outline-none border-b border-white/20 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+            />
+          ) : (
+            <button
+              type="button"
+              onClick={() => { setEditingField('scene'); setEditValue(String(state.currentSceneIndex + 1)); }}
+              className="text-text-secondary hover:text-text-primary transition-colors font-mono"
+              title="Click to jump to scene"
+            >
+              {state.currentSceneIndex + 1}
+            </button>
+          )}
+          {' '}/ {totalScenes}
         </span>
+
+        {/* Arc counter — click number to edit */}
+        {arcNav.total > 0 && (
+          <>
+            <span className="text-text-dim/30 text-[10px]">&middot;</span>
+            <span className="text-text-dim text-[10px] whitespace-nowrap">
+              Arc{' '}
+              {editingField === 'arc' ? (
+                <input
+                  ref={editInputRef}
+                  type="number"
+                  min={1}
+                  max={arcNav.total}
+                  value={editValue}
+                  onChange={(e) => setEditValue(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === 'Enter') commitEdit(); if (e.key === 'Escape') setEditingField(null); }}
+                  onBlur={commitEdit}
+                  className="w-8 bg-transparent text-center text-[10px] font-mono text-text-primary outline-none border-b border-white/20 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                />
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => { setEditingField('arc'); setEditValue(String(arcNav.currentArc)); }}
+                  className="text-text-secondary hover:text-text-primary transition-colors font-mono"
+                  title="Click to jump to arc"
+                >
+                  {arcNav.currentArc}
+                </button>
+              )}
+              {' '}/ {arcNav.total}
+            </span>
+          </>
+        )}
 
         {/* Divider */}
         <div className="w-px h-4 bg-white/[0.12] mx-1" />

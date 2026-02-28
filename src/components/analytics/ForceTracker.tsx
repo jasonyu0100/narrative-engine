@@ -131,16 +131,30 @@ function ForceChart({
         .attr('opacity', 0.3);
     }
 
-    // Arc boundary lines
+    // Arc boundary lines + arc number labels
+    // Thin out labels when dense: show every Nth arc number
+    const arcLabelStep = arcRegions.length > 40 ? 10 : arcRegions.length > 20 ? 5 : arcRegions.length > 10 ? 2 : 1;
     arcRegions.forEach((arc, i) => {
+      const x1 = xScale(arc.startIndex);
       if (i > 0) {
-        const x1 = xScale(arc.startIndex);
         g.append('line')
           .attr('x1', x1).attr('x2', x1)
           .attr('y1', 0).attr('y2', chartHeight)
           .attr('stroke', 'rgba(255,255,255,0.06)')
           .attr('stroke-width', 1)
           .attr('stroke-dasharray', '4,4');
+      }
+      // Arc number at top of boundary
+      if (i % arcLabelStep === 0) {
+        const cx = xScale((arc.startIndex + arc.endIndex) / 2);
+        g.append('text')
+          .attr('x', cx)
+          .attr('y', -m.top + 26)
+          .attr('text-anchor', 'middle')
+          .attr('fill', 'rgba(255,255,255,0.2)')
+          .attr('font-size', '8px')
+          .attr('font-family', 'monospace')
+          .text(i + 1);
       }
     });
 
@@ -626,14 +640,27 @@ function EngagementChart({
         .attr('stroke', ENGAGEMENT_COLOR).attr('stroke-width', 0.5).attr('opacity', 0.3);
     }
 
-    // Arc boundary lines
+    // Arc boundary lines + arc number labels
+    const arcLabelStep = arcRegions.length > 40 ? 10 : arcRegions.length > 20 ? 5 : arcRegions.length > 10 ? 2 : 1;
     arcRegions.forEach((arc, i) => {
+      const x1 = xScale(arc.startIndex);
       if (i > 0) {
         g.append('line')
-          .attr('x1', xScale(arc.startIndex)).attr('x2', xScale(arc.startIndex))
+          .attr('x1', x1).attr('x2', x1)
           .attr('y1', 0).attr('y2', chartHeight)
           .attr('stroke', 'rgba(255,255,255,0.06)')
           .attr('stroke-width', 1).attr('stroke-dasharray', '4,4');
+      }
+      if (i % arcLabelStep === 0) {
+        const cx = xScale((arc.startIndex + arc.endIndex) / 2);
+        g.append('text')
+          .attr('x', cx)
+          .attr('y', -m.top + 26)
+          .attr('text-anchor', 'middle')
+          .attr('fill', 'rgba(255,255,255,0.2)')
+          .attr('font-size', '8px')
+          .attr('font-family', 'monospace')
+          .text(i + 1);
       }
     });
 
@@ -889,6 +916,10 @@ export function ForceTracker({ onClose }: { onClose: () => void }) {
   // Raw force toggle (absolute values vs z-score normalised)
   const [showRawForce, setShowRawForce] = useState(true);
 
+  // Sliding window: null = show all, number = window size in scenes
+  const [slidingWindow, setSlidingWindow] = useState<number | null>(null);
+  const WINDOW_PRESETS = [25, 50, 100, 200] as const;
+
   // Drawing state
   const [drawing, setDrawing] = useState(false);
   const [drawLines, setDrawLines] = useState<Record<ForceKey, DrawLine[]>>({
@@ -1020,13 +1051,42 @@ export function ForceTracker({ onClose }: { onClose: () => void }) {
     }));
   }, [dataPoints, allScenes]);
 
-  const activeDataPoints = showRawForce ? rawDataPoints : dataPoints;
+  const allActiveDataPoints = showRawForce ? rawDataPoints : dataPoints;
+
+  // Sliding window: slice data around selected scene (or end of timeline)
+  const { activeDataPoints, slidingWindowOffset, visibleScenes } = useMemo(() => {
+    if (slidingWindow === null || allActiveDataPoints.length <= slidingWindow) {
+      return { activeDataPoints: allActiveDataPoints, slidingWindowOffset: 0, visibleScenes: allScenes };
+    }
+    // Center window on selectedIndex, or pin to end if no selection
+    const anchor = selectedIndex ?? allActiveDataPoints.length - 1;
+    const half = Math.floor(slidingWindow / 2);
+    let start = anchor - half;
+    let end = start + slidingWindow;
+    // Clamp
+    if (start < 0) { start = 0; end = slidingWindow; }
+    if (end > allActiveDataPoints.length) { end = allActiveDataPoints.length; start = end - slidingWindow; }
+    start = Math.max(0, start);
+    const sliced = allActiveDataPoints.slice(start, end).map((d, i) => ({ ...d, index: i }));
+    return { activeDataPoints: sliced, slidingWindowOffset: start, visibleScenes: allScenes.slice(start, end) };
+  }, [allActiveDataPoints, allScenes, slidingWindow, selectedIndex]);
 
   // Engagement curve always computed from z-score normalised forces (not raw)
+  // When windowed, use the windowed slice of the normalized data
   const engagementData = useMemo((): EngagementPoint[] => {
     if (dataPoints.length === 0) return [];
+    if (slidingWindow !== null && slidingWindow < dataPoints.length) {
+      const anchor = selectedIndex ?? dataPoints.length - 1;
+      const half = Math.floor(slidingWindow / 2);
+      let start = anchor - half;
+      let end = start + slidingWindow;
+      if (start < 0) { start = 0; end = slidingWindow; }
+      if (end > dataPoints.length) { end = dataPoints.length; start = end - slidingWindow; }
+      start = Math.max(0, start);
+      return computeEngagementCurve(dataPoints.slice(start, end).map((d) => d.forces));
+    }
     return computeEngagementCurve(dataPoints.map((d) => d.forces));
-  }, [dataPoints]);
+  }, [dataPoints, slidingWindow, selectedIndex]);
 
   // Current cube corner + local beat position
   const { currentCube, localPosition } = useMemo(() => {
@@ -1039,11 +1099,11 @@ export function ForceTracker({ onClose }: { onClose: () => void }) {
   }, [dataPoints, engagementData]);
 
   const arcRegions = useMemo((): ArcRegion[] => {
-    if (dataPoints.length === 0) return [];
+    if (activeDataPoints.length === 0) return [];
     const regions: ArcRegion[] = [];
     let current: ArcRegion | null = null;
-    for (let i = 0; i < dataPoints.length; i++) {
-      const d = dataPoints[i];
+    for (let i = 0; i < activeDataPoints.length; i++) {
+      const d = activeDataPoints[i];
       if (!current || current.arcId !== d.arcId) {
         if (current) regions.push(current);
         current = { arcId: d.arcId, name: d.arcName, startIndex: i, endIndex: i };
@@ -1053,28 +1113,32 @@ export function ForceTracker({ onClose }: { onClose: () => void }) {
     }
     if (current) regions.push(current);
     return regions;
-  }, [dataPoints]);
+  }, [activeDataPoints]);
 
-  // Window range for selected scene
+  // Visible selected index (for chart props) — computed early for windowRange
+  const visibleSelIdx = selectedIndex !== null ? selectedIndex - slidingWindowOffset : null;
+
+  // Window range for selected scene (relative to visible data)
   const windowRange = useMemo(() => {
-    if (selectedIndex === null || allScenes.length === 0) return null;
-    const end = Math.min(selectedIndex, allScenes.length - 1);
+    if (visibleSelIdx === null || activeDataPoints.length === 0) return null;
+    if (visibleSelIdx < 0 || visibleSelIdx >= activeDataPoints.length) return null;
+    const end = Math.min(visibleSelIdx, activeDataPoints.length - 1);
     const start = Math.max(0, end - FORCE_WINDOW_SIZE + 1);
     return { start, end };
-  }, [selectedIndex, allScenes]);
+  }, [visibleSelIdx, activeDataPoints]);
 
-  // Select a scene: update local selection + dispatch to timeline
-  const handleSelect = useCallback((index: number) => {
-    setSelectedIndex(index);
-    // Map scene-array index to resolvedSceneKeys index
-    if (dataPoints.length > 0 && index < dataPoints.length) {
-      const sceneId = dataPoints[index].sceneId;
+  // Select a scene: translate visible index → full index, then dispatch
+  const handleSelect = useCallback((visibleIndex: number) => {
+    const fullIndex = visibleIndex + slidingWindowOffset;
+    setSelectedIndex(fullIndex);
+    if (dataPoints.length > 0 && fullIndex < dataPoints.length) {
+      const sceneId = dataPoints[fullIndex].sceneId;
       const tlIdx = state.resolvedSceneKeys.indexOf(sceneId);
       if (tlIdx >= 0) {
         dispatch({ type: 'SET_SCENE_INDEX', index: tlIdx });
       }
     }
-  }, [dataPoints, state.resolvedSceneKeys, dispatch]);
+  }, [dataPoints, slidingWindowOffset, state.resolvedSceneKeys, dispatch]);
 
   const stats = useMemo(() => {
     if (dataPoints.length === 0) return null;
@@ -1097,8 +1161,8 @@ export function ForceTracker({ onClose }: { onClose: () => void }) {
     ? activeDataPoints[hoverIndex]
     : null;
 
-  const selectedScene = selectedIndex !== null && selectedIndex >= 0 && selectedIndex < activeDataPoints.length
-    ? activeDataPoints[selectedIndex]
+  const selectedScene = visibleSelIdx !== null && visibleSelIdx >= 0 && visibleSelIdx < activeDataPoints.length
+    ? activeDataPoints[visibleSelIdx]
     : null;
 
   // Show hovered scene info if hovering, otherwise show selected scene info
@@ -1130,11 +1194,65 @@ export function ForceTracker({ onClose }: { onClose: () => void }) {
           )}
           {stats && (
             <div className="flex items-center gap-3 ml-2">
-              <span className="text-[10px] text-text-dim font-mono">{stats.totalScenes} scenes</span>
+              <span className="text-[10px] text-text-dim font-mono">
+                {slidingWindow !== null && allActiveDataPoints.length > slidingWindow
+                  ? `${activeDataPoints.length} of ${stats.totalScenes} scenes (${slidingWindowOffset + 1}–${slidingWindowOffset + activeDataPoints.length})`
+                  : `${stats.totalScenes} scenes`}
+              </span>
               <span className="text-[10px] text-text-dim opacity-30">/</span>
               <span className="text-[10px] text-text-dim font-mono">{stats.totalArcs} arcs</span>
               <span className="text-[10px] text-text-dim opacity-30">/</span>
               <span className="text-[10px] text-text-dim font-mono">{stats.transitions} corner transitions</span>
+            </div>
+          )}
+          {/* Jump to arc / scene */}
+          {stats && stats.totalScenes > 0 && (
+            <div className="flex items-center gap-3 ml-2 pl-3 border-l border-white/5">
+              <div className="flex items-center gap-1">
+                <span className="text-[9px] uppercase tracking-wider text-text-dim">Arc</span>
+                <input
+                  type="number"
+                  min={1}
+                  max={stats.totalArcs}
+                  placeholder="#"
+                  className="w-8 bg-transparent text-center text-[11px] font-mono text-text-primary outline-none border-b border-white/10 focus:border-white/30 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      const n = parseInt((e.target as HTMLInputElement).value, 10);
+                      if (n >= 1 && n <= arcRegions.length) {
+                        const region = arcRegions[n - 1];
+                        handleSelect(region.startIndex);
+                        (e.target as HTMLInputElement).blur();
+                      }
+                    }
+                  }}
+                />
+              </div>
+              <div className="flex items-center gap-1">
+                <span className="text-[9px] uppercase tracking-wider text-text-dim">Scene</span>
+                <input
+                  type="number"
+                  min={1}
+                  max={stats.totalScenes}
+                  placeholder="#"
+                  className="w-10 bg-transparent text-center text-[11px] font-mono text-text-primary outline-none border-b border-white/10 focus:border-white/30 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      const n = parseInt((e.target as HTMLInputElement).value, 10);
+                      if (n >= 1 && n <= stats.totalScenes) {
+                        // In windowed mode, the full scene index is n-1
+                        setSelectedIndex(n - 1);
+                        const sceneId = dataPoints[n - 1]?.sceneId;
+                        if (sceneId) {
+                          const tlIdx = state.resolvedSceneKeys.indexOf(sceneId);
+                          if (tlIdx >= 0) dispatch({ type: 'SET_SCENE_INDEX', index: tlIdx });
+                        }
+                        (e.target as HTMLInputElement).blur();
+                      }
+                    }
+                  }}
+                />
+              </div>
             </div>
           )}
         </div>
@@ -1169,6 +1287,32 @@ export function ForceTracker({ onClose }: { onClose: () => void }) {
             </svg>
             Raw
           </button>
+          {/* Sliding window toggle */}
+          <div className="flex items-center rounded-full border border-border overflow-hidden">
+            <button
+              onClick={() => setSlidingWindow(null)}
+              className={`text-[11px] px-2.5 py-1.5 transition ${
+                slidingWindow === null
+                  ? 'bg-white/10 text-text-primary'
+                  : 'bg-transparent text-text-dim hover:text-text-secondary'
+              }`}
+            >
+              All
+            </button>
+            {WINDOW_PRESETS.map((size) => (
+              <button
+                key={size}
+                onClick={() => setSlidingWindow(size)}
+                className={`text-[11px] px-2.5 py-1.5 transition font-mono ${
+                  slidingWindow === size
+                    ? 'bg-white/10 text-text-primary'
+                    : 'bg-transparent text-text-dim hover:text-text-secondary'
+                }`}
+              >
+                {size}
+              </button>
+            ))}
+          </div>
           <button
             onClick={() => setDrawing((d) => !d)}
             className={`text-[11px] px-3.5 py-1.5 rounded-full border transition flex items-center gap-1.5 ${
@@ -1242,7 +1386,7 @@ export function ForceTracker({ onClose }: { onClose: () => void }) {
                 arcRegions={arcRegions}
                 hoverIndex={hoverIndex}
                 onHover={setHoverIndex}
-                selectedIndex={selectedIndex}
+                selectedIndex={visibleSelIdx}
                 onSelect={handleSelect}
                 windowRange={windowRange}
                 height={engagementChartHeight}
@@ -1260,7 +1404,7 @@ export function ForceTracker({ onClose }: { onClose: () => void }) {
                   arcRegions={arcRegions}
                   hoverIndex={hoverIndex}
                   onHover={setHoverIndex}
-                  selectedIndex={selectedIndex}
+                  selectedIndex={visibleSelIdx}
                   onSelect={handleSelect}
                   windowRange={windowRange}
                   height={chartHeight}
@@ -1277,10 +1421,10 @@ export function ForceTracker({ onClose }: { onClose: () => void }) {
             <ZoneBar
               data={activeDataPoints}
               arcRegions={arcRegions}
-              allScenes={allScenes}
+              allScenes={visibleScenes}
               hoverIndex={hoverIndex}
               onHover={setHoverIndex}
-              selectedIndex={selectedIndex}
+              selectedIndex={visibleSelIdx}
               onSelect={handleSelect}
               windowRange={windowRange}
               width={dims.width}
@@ -1295,11 +1439,17 @@ export function ForceTracker({ onClose }: { onClose: () => void }) {
               />
             )}
             {/* Scene info bar */}
-            {infoScene && (
+            {infoScene && (() => {
+              const fullSceneNum = infoScene.index + slidingWindowOffset + 1;
+              const arcNum = arcRegions.findIndex((r) => r.arcId === infoScene.arcId) + 1;
+              return (
               <div className="px-6 py-2 border-t border-white/5 flex items-center gap-6 shrink-0">
-                <div className="flex items-center gap-2">
-                  <span className="text-[10px] font-mono text-text-dim">#{infoScene.index + 1}</span>
-                  <span className="text-[10px] text-text-dim uppercase tracking-wider">{infoScene.arcName}</span>
+                <div className="flex items-center gap-2 shrink-0">
+                  <span className="text-[11px] font-mono text-text-primary font-semibold">Scene {fullSceneNum}</span>
+                  <span className="text-white/15">|</span>
+                  <span className="text-[11px] font-mono text-text-primary font-semibold">Arc {arcNum > 0 ? arcNum : '?'}</span>
+                  <span className="text-[10px] text-text-dim">{infoScene.arcName}</span>
+                  <span className="text-white/15">|</span>
                   <span className="text-[10px] text-text-secondary font-medium">{infoScene.corner}</span>
                   <span className="text-[10px] text-text-dim">{infoScene.location}</span>
                 </div>
@@ -1321,7 +1471,8 @@ export function ForceTracker({ onClose }: { onClose: () => void }) {
                   <span className="text-[10px] font-mono" style={{ color: '#facc15' }}>S:{infoScene.swing.toFixed(2)}</span>
                 </div>
               </div>
-            )}
+              );
+            })()}
           </>
         )}
       </div>

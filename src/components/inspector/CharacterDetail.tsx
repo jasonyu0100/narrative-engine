@@ -105,8 +105,8 @@ export default function CharacterDetail({ characterId }: Props) {
       {knowledgeNodes.length > 0 && (
         <CollapsibleSection title="Knowledge" count={knowledgeNodes.length}>
           <ul className="flex flex-col gap-1">
-            {knowledgeNodes.map((node) => (
-              <li key={node.id} className="flex items-start gap-2">
+            {knowledgeNodes.map((node, i) => (
+              <li key={`${node.id}-${i}`} className="flex items-start gap-2">
                 <span
                   className={`mt-1 h-2 w-2 shrink-0 rounded-full ${knowledgeDotColors[node.type] ?? 'bg-white/40'}`}
                 />
@@ -150,7 +150,7 @@ export default function CharacterDetail({ characterId }: Props) {
       {relationships.length > 0 && (
         <CollapsibleSection title="Relationships" count={relationships.length}>
           <ul className="flex flex-col gap-2">
-            {relationships.map((rel) => {
+            {relationships.map((rel, relIdx) => {
               const isOutgoing = rel.from === characterId;
               const otherId = isOutgoing ? rel.to : rel.from;
               const other = narrative.characters[otherId];
@@ -160,7 +160,7 @@ export default function CharacterDetail({ characterId }: Props) {
               const isPositive = rel.valence > 0;
               const isNegative = rel.valence < 0;
               return (
-                <li key={`${rel.from}-${rel.to}-${rel.type}`} className="flex flex-col gap-1">
+                <li key={`${rel.from}-${rel.to}-${rel.type}-${relIdx}`} className="flex flex-col gap-1">
                   <div className="flex items-center justify-between">
                     <span className="text-xs text-text-primary flex items-center gap-1">
                       <span className="text-text-dim">{arrow}</span>
@@ -214,9 +214,9 @@ export default function CharacterDetail({ characterId }: Props) {
                 >
                   {sceneId}
                 </button>
-                {knowledgeMuts.map((km) => (
+                {knowledgeMuts.map((km, kmIdx) => (
                   <span
-                    key={`${km.nodeId}`}
+                    key={`${km.nodeId}-${kmIdx}`}
                     className="text-xs text-text-secondary"
                   >
                     <span className={km.action === 'added' ? 'text-change' : 'text-payoff'}>
@@ -225,12 +225,12 @@ export default function CharacterDetail({ characterId }: Props) {
                     {km.content}
                   </span>
                 ))}
-                {relationshipMuts.map((rm) => {
+                {relationshipMuts.map((rm, rmIdx) => {
                   const otherId = rm.from === characterId ? rm.to : rm.from;
                   const otherName = narrative.characters[otherId]?.name ?? otherId;
                   return (
                     <span
-                      key={`${rm.from}-${rm.to}`}
+                      key={`${rm.from}-${rm.to}-${rmIdx}`}
                       className="text-xs text-text-secondary"
                     >
                       <span className={rm.valenceDelta >= 0 ? 'text-change' : 'text-payoff'}>

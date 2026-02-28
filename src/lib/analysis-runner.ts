@@ -23,7 +23,10 @@ type RunningJob = {
 };
 
 /** Max concurrent LLM calls to avoid rate limits / overload */
-const MAX_CONCURRENCY = 10;
+const MAX_CONCURRENCY = 20;
+
+/** Delay (ms) between launching each call in the initial batch to avoid thundering herd */
+const STAGGER_DELAY_MS = 200;
 
 class AnalysisRunner {
   private running = new Map<string, RunningJob>();
@@ -188,10 +191,13 @@ class AnalysisRunner {
       let poolResolve: () => void;
       const poolDone = new Promise<void>((resolve) => { poolResolve = resolve; });
 
-      // Seed the pool with initial batch
+      // Seed the pool with initial batch, staggering launches to avoid thundering herd
       const initialBatch = Math.min(MAX_CONCURRENCY, queue.length);
       for (let i = 0; i < initialBatch; i++) {
         launchChunk(queue.shift()!);
+        if (i < initialBatch - 1 && STAGGER_DELAY_MS > 0) {
+          await new Promise((r) => setTimeout(r, STAGGER_DELAY_MS));
+        }
       }
 
       // Wait for all chunks to complete

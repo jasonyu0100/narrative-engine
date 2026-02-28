@@ -34,6 +34,10 @@ export default function ForceCharts() {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [scope, setScope] = useState<Scope>('global');
   const [showRaw, setShowRaw] = useState(true);
+
+  // Global view window: cap how many scenes are rendered in the chart at once
+  const GLOBAL_WINDOW_DEFAULT = 100;
+  const [globalWindow, setGlobalWindow] = useState<number | null>(GLOBAL_WINDOW_DEFAULT);
   const [chartStyle, setChartStyle] = useState<ChartStyle>({
     showArea: true,
     showWindow: true,
@@ -175,9 +179,32 @@ export default function ForceCharts() {
   }, [windowed, allScenes, resolvedSceneKeys, narrative]);
 
   const isLocal = scope === 'local';
-  const chartData = isLocal
+  const fullChartData = isLocal
     ? (showRaw ? localRawForceData : localForceData)
     : (showRaw ? globalRawForceData : globalForceData);
+
+  // Apply global window: slice around currentSceneIndex when in global scope
+  const { chartData, globalWindowOffset } = useMemo(() => {
+    if (isLocal || globalWindow === null || fullChartData.payoff.length <= globalWindow) {
+      return { chartData: fullChartData, globalWindowOffset: 0 };
+    }
+    const anchor = state.currentSceneIndex;
+    const half = Math.floor(globalWindow / 2);
+    let start = anchor - half;
+    let end = start + globalWindow;
+    if (start < 0) { start = 0; end = globalWindow; }
+    if (end > fullChartData.payoff.length) { end = fullChartData.payoff.length; start = end - globalWindow; }
+    start = Math.max(0, start);
+    return {
+      chartData: {
+        payoff: fullChartData.payoff.slice(start, end),
+        change: fullChartData.change.slice(start, end),
+        variety: fullChartData.variety.slice(start, end),
+        swing: fullChartData.swing.slice(start, end),
+      },
+      globalWindowOffset: start,
+    };
+  }, [isLocal, globalWindow, fullChartData, state.currentSceneIndex]);
 
   // Moving averages for each force + swing
   const chartMA = useMemo(() => ({
@@ -191,7 +218,6 @@ export default function ForceCharts() {
   const chartAvg = useMemo(() => {
     const avg = (arr: number[]) => arr.length === 0 ? 0 : arr.reduce((s, v) => s + v, 0) / arr.length;
     if (isLocal) {
-      // In local mode, chartData is already the window
       return {
         payoff: avg(chartData.payoff),
         change: avg(chartData.change),
@@ -199,20 +225,20 @@ export default function ForceCharts() {
         swing: avg(chartData.swing),
       };
     }
-    // In global mode, slice the window range from global data
-    const ws = windowTimelineRange?.start ?? 0;
-    const we = (windowTimelineRange?.end ?? chartData.payoff.length - 1) + 1;
+    // In global mode, translate windowTimelineRange into visible-data coords
+    const ws = Math.max(0, (windowTimelineRange?.start ?? 0) - globalWindowOffset);
+    const we = Math.min(chartData.payoff.length, ((windowTimelineRange?.end ?? chartData.payoff.length - 1) + 1) - globalWindowOffset);
     return {
       payoff: avg(chartData.payoff.slice(ws, we)),
       change: avg(chartData.change.slice(ws, we)),
       variety: avg(chartData.variety.slice(ws, we)),
       swing: avg(chartData.swing.slice(ws, we)),
     };
-  }, [chartData, isLocal, windowTimelineRange]);
+  }, [chartData, isLocal, windowTimelineRange, globalWindowOffset]);
 
   const chartCurrentIndex = isLocal
     ? (localForceData.payoff.length - 1)
-    : state.currentSceneIndex;
+    : state.currentSceneIndex - globalWindowOffset;
 
   // Local position + recent engagement sparkline from the trailing window
   const { currentPosition, recentSparkline } = useMemo(() => {
@@ -319,8 +345,8 @@ export default function ForceCharts() {
             color={cfg.color}
             label={cfg.label}
             currentIndex={chartCurrentIndex}
-            windowStart={!isLocal ? windowTimelineRange?.start : undefined}
-            windowEnd={!isLocal ? windowTimelineRange?.end : undefined}
+            windowStart={!isLocal ? (windowTimelineRange ? windowTimelineRange.start - globalWindowOffset : undefined) : undefined}
+            windowEnd={!isLocal ? (windowTimelineRange ? windowTimelineRange.end - globalWindowOffset : undefined) : undefined}
             positive={showRaw}
             raw={showRaw}
             style={chartStyle}
@@ -337,8 +363,8 @@ export default function ForceCharts() {
           color="#facc15"
           label="Swing"
           currentIndex={chartCurrentIndex}
-          windowStart={!isLocal ? windowTimelineRange?.start : undefined}
-          windowEnd={!isLocal ? windowTimelineRange?.end : undefined}
+          windowStart={!isLocal ? (windowTimelineRange ? windowTimelineRange.start - globalWindowOffset : undefined) : undefined}
+          windowEnd={!isLocal ? (windowTimelineRange ? windowTimelineRange.end - globalWindowOffset : undefined) : undefined}
           positive={showRaw}
           raw={showRaw}
           style={chartStyle}
@@ -388,6 +414,27 @@ export default function ForceCharts() {
                     }`}
                   >
                     {s}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Global window size */}
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-[11px] text-text-secondary">Window</span>
+              <div className="flex rounded-md overflow-hidden border border-white/10">
+                {([50, 100, 200, null] as const).map((w) => (
+                  <button
+                    key={w ?? 'all'}
+                    type="button"
+                    onClick={() => setGlobalWindow(w)}
+                    className={`px-2 py-0.5 text-[10px] font-mono transition-colors ${
+                      globalWindow === w
+                        ? 'bg-white/12 text-text-primary'
+                        : 'text-text-dim hover:text-text-secondary'
+                    }`}
+                  >
+                    {w ?? 'All'}
                   </button>
                 ))}
               </div>

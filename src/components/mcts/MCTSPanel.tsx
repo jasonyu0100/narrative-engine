@@ -613,10 +613,10 @@ function NodeInspector({ node, tree }: { node: MCTSNode; tree: MCTSTree }) {
             <div className="flex flex-col gap-1.5">
               <h3 className="text-[10px] uppercase tracking-widest text-text-dim">Participants</h3>
               <div className="flex flex-wrap gap-1.5">
-                {scene.participantIds.map((pid) => {
+                {scene.participantIds.map((pid, pidIdx) => {
                   const char = node.virtualNarrative.characters[pid];
                   return (
-                    <span key={pid} className="rounded-full bg-white/6 px-2 py-0.5 text-[10px] text-text-primary">
+                    <span key={`${pid}-${pidIdx}`} className="rounded-full bg-white/6 px-2 py-0.5 text-[10px] text-text-primary">
                       {char?.name ?? pid}
                     </span>
                   );
