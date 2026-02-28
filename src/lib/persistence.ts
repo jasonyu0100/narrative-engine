@@ -2,6 +2,7 @@ import type { NarrativeState, AnalysisJob } from '@/types/narrative';
 import { idbGet, idbPut, idbDelete, idbGetAll, idbDeleteByPrefix, IMAGES_STORE, NARRATIVES_STORE, META_STORE } from '@/lib/image-store';
 
 const ACTIVE_KEY = 'activeNarrativeId';
+const ACTIVE_BRANCH_KEY = 'activeBranchId';
 const LS_STORAGE_KEY = 'narrative-engine:narratives';
 
 // ── Narratives ───────────────────────────────────────────────────────────────
@@ -68,6 +69,32 @@ export async function loadActiveNarrativeId(): Promise<string | null> {
     return id ?? null;
   } catch (err) {
     console.error('[persistence] Failed to load active narrative ID:', err);
+    return null;
+  }
+}
+
+// ── Active branch ID ─────────────────────────────────────────────────────────
+
+export async function saveActiveBranchId(id: string | null): Promise<void> {
+  if (typeof window === 'undefined') return;
+  try {
+    if (id) {
+      await idbPut(META_STORE, ACTIVE_BRANCH_KEY, id);
+    } else {
+      await idbDelete(META_STORE, ACTIVE_BRANCH_KEY);
+    }
+  } catch (err) {
+    console.error('[persistence] Failed to save active branch ID:', err);
+  }
+}
+
+export async function loadActiveBranchId(): Promise<string | null> {
+  if (typeof window === 'undefined') return null;
+  try {
+    const id = await idbGet<string>(META_STORE, ACTIVE_BRANCH_KEY);
+    return id ?? null;
+  } catch (err) {
+    console.error('[persistence] Failed to load active branch ID:', err);
     return null;
   }
 }

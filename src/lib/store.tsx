@@ -8,7 +8,7 @@ import { seedLOTR } from '@/data/seed-lotr';
 import { seedHP } from '@/data/seed-hp';
 import { seedSW } from '@/data/seed-sw';
 import { resolveSceneSequence, nextId } from '@/lib/narrative-utils';
-import { loadNarratives, saveNarrative as persistNarrative, deleteNarrative as deletePersisted, loadNarrative, saveActiveNarrativeId, loadActiveNarrativeId, migrateFromLocalStorage, loadAnalysisJobs, saveAnalysisJobs } from '@/lib/persistence';
+import { loadNarratives, saveNarrative as persistNarrative, deleteNarrative as deletePersisted, loadNarrative, saveActiveNarrativeId, loadActiveNarrativeId, saveActiveBranchId, loadActiveBranchId, migrateFromLocalStorage, loadAnalysisJobs, saveAnalysisJobs } from '@/lib/persistence';
 import { analysisRunner as analysisRunnerRef } from '@/lib/analysis-runner';
 
 const ALL_SEEDS: NarrativeState[] = [seedGOT, seedLOTR, seedHP, seedSW, seedNarrative];
@@ -176,7 +176,7 @@ const initialState: AppState = {
 export type Action =
   | { type: 'HYDRATE_NARRATIVES'; entries: NarrativeEntry[] }
   | { type: 'SET_ACTIVE_NARRATIVE'; id: string }
-  | { type: 'LOADED_NARRATIVE'; narrative: NarrativeState }
+  | { type: 'LOADED_NARRATIVE'; narrative: NarrativeState; savedBranchId?: string | null }
   | { type: 'CLEAR_ACTIVE_NARRATIVE' }
   | { type: 'SET_CONTROL_MODE'; mode: ControlMode }
   | { type: 'TOGGLE_PLAY' }
@@ -266,7 +266,10 @@ function reducer(state: AppState, action: Action): AppState {
     case 'LOADED_NARRATIVE': {
       // Async load completed — populate state
       if (state.activeNarrativeId !== action.narrative.id) return state; // stale
-      const branchId = getRootBranchId(action.narrative);
+      const savedBranch = action.savedBranchId && action.narrative.branches[action.savedBranchId]
+        ? action.savedBranchId
+        : null;
+      const branchId = savedBranch ?? getRootBranchId(action.narrative);
       const resolved = getResolvedKeys(action.narrative, branchId);
       return {
         ...state,
@@ -1059,8 +1062,9 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         const seed = ALL_SEEDS.find((s) => s.id === id);
         if (seed) narrative = seed;
       }
+      const savedBranchId = await loadActiveBranchId();
       if (narrative && !cancelled) {
-        dispatch({ type: 'LOADED_NARRATIVE', narrative });
+        dispatch({ type: 'LOADED_NARRATIVE', narrative, savedBranchId });
       }
     }
     load().catch((err) => console.error('[store] Failed to load narrative:', err));
@@ -1086,6 +1090,13 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       console.error('[store] Failed to persist active narrative ID:', err);
     });
   }, [state.activeNarrativeId]);
+
+  // Persist active branch ID whenever it changes
+  useEffect(() => {
+    saveActiveBranchId(state.activeBranchId).catch((err) => {
+      console.error('[store] Failed to persist active branch ID:', err);
+    });
+  }, [state.activeBranchId]);
 
   // Hydrate analysis jobs from IndexedDB on mount
   useEffect(() => {
