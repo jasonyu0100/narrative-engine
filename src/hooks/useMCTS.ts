@@ -213,12 +213,25 @@ export function useMCTS() {
 
     let nodesGenerated = 0;
 
+    let markedComplete = false;
+
     const shouldStop = () => {
       if (cancelledRef.current || !runningRef.current) return true;
       if (config.stopMode === 'timer') {
         return (Date.now() - startTime) / 1000 >= config.timeLimitSeconds;
       }
       return nodesGenerated >= config.maxNodes;
+    };
+
+    // Eagerly transition to 'complete' so commit is available while in-flight slots drain
+    const markCompleteIfNeeded = () => {
+      if (markedComplete || cancelledRef.current) return;
+      markedComplete = true;
+      setRunState((prev) => ({
+        ...prev,
+        status: 'complete',
+        currentPhase: null,
+      }));
     };
 
     // Sync helper: snapshot parent data from current tree for a new slot
@@ -384,6 +397,8 @@ export function useMCTS() {
           // Start replacement only if layer not yet met
           if (!layerMet && !shouldStop() && !cancelledRef.current) {
             tryStartBaselineSlot();
+          } else if (shouldStop()) {
+            markCompleteIfNeeded();
           }
         }
 
@@ -577,11 +592,14 @@ export function useMCTS() {
         // Start a replacement slot if we haven't hit the stop condition
         if (!shouldStop() && !cancelledRef.current) {
           tryStartSlot();
+        } else if (shouldStop()) {
+          markCompleteIfNeeded();
         }
       }
     }
 
-    if (!cancelledRef.current) {
+    // Final completion (covers cases where loop exits without triggering markComplete)
+    if (!cancelledRef.current && !markedComplete) {
       setRunState((prev) => ({
         ...prev,
         status: 'complete',
