@@ -6,6 +6,7 @@ import { useStore } from '@/lib/store';
 import { splitCorpusIntoChunks } from '@/lib/text-analysis';
 import { analysisRunner } from '@/lib/analysis-runner';
 import type { AnalysisJob, AnalysisChunkResult } from '@/types/narrative';
+import { ANALYSIS_MAX_CORPUS_WORDS } from '@/lib/constants';
 
 /* ── Word Node type ─────────────────────────────────────────────────────── */
 
@@ -563,7 +564,7 @@ function JobDetail({ job, onBack }: { job: AnalysisJob; onBack: () => void }) {
 }
 
 /* ── Constants ────────────────────────────────────────────────────────────── */
-const MAX_CORPUS_WORDS = 2_000_000; // upper bound to prevent absurdly large inputs
+const MAX_CORPUS_WORDS = ANALYSIS_MAX_CORPUS_WORDS;
 
 /* ── Title detection via LLM ─────────────────────────────────────────────── */
 async function detectTitleLLM(chunkText: string): Promise<string> {

@@ -3,6 +3,7 @@
 import { useRef, useEffect, useCallback, useMemo, useState } from 'react';
 import * as d3 from 'd3';
 import { useStore } from '@/lib/store';
+import { GRAPH_KNOWLEDGE_LIMIT } from '@/lib/constants';
 import { getKnowledgeNodesAtScene, getRelationshipsAtScene } from '@/lib/scene-filter';
 import type {
   Character,
@@ -1036,7 +1037,7 @@ export default function WorldGraph() {
       resolvedSceneKeys,
       state.currentSceneIndex,
     );
-    const filteredKg = { nodes: filteredKgNodes, edges: entity.knowledge.edges };
+    const filteredKg = { nodes: filteredKgNodes.slice(-GRAPH_KNOWLEDGE_LIMIT), edges: entity.knowledge.edges };
 
     // Create knowledge nodes
     const knowledgeNodes: GraphNode[] = filteredKg.nodes.map((kn) => ({

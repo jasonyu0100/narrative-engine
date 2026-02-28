@@ -5,6 +5,7 @@ import { useStore } from '@/lib/store';
 import { resolveEntry, isScene, type Scene } from '@/types/narrative';
 import { computeForceSnapshots, computeWindowedForces, computeRawForcetotals, movingAverage, zScoreNormalize, FORCE_WINDOW_SIZE, computeEngagementCurve, classifyCurrentPosition, detectCubeCorner } from '@/lib/narrative-utils';
 import ForceLineChart, { type ChartStyle } from './ForceLineChart';
+import { FORCE_CHARTS_WINDOW_DEFAULT } from '@/lib/constants';
 
 const FORCE_CONFIG = [
   { key: 'payoff' as const, label: 'Payoff', color: 'var(--color-payoff)' },
@@ -36,8 +37,7 @@ export default function ForceCharts() {
   const [showRaw, setShowRaw] = useState(true);
 
   // Global view window: cap how many scenes are rendered in the chart at once
-  const GLOBAL_WINDOW_DEFAULT = 100;
-  const [globalWindow, setGlobalWindow] = useState<number | null>(GLOBAL_WINDOW_DEFAULT);
+  const [globalWindow, setGlobalWindow] = useState<number | null>(FORCE_CHARTS_WINDOW_DEFAULT);
   const [chartStyle, setChartStyle] = useState<ChartStyle>({
     showArea: true,
     showWindow: true,

@@ -6,7 +6,7 @@ import type { SearchMode, BeatDirection, DirectionMode } from '@/types/mcts';
 
 // ── Constants ────────────────────────────────────────────────────────────────
 
-export const MAX_NODE_CHILDREN = 8;
+export { MCTS_MAX_NODE_CHILDREN as MAX_NODE_CHILDREN } from '@/lib/constants';
 
 // ── Tree Creation ────────────────────────────────────────────────────────────
 

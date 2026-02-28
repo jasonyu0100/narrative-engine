@@ -41,8 +41,7 @@ const FORCE_CONFIG: { key: ForceKey; label: string; color: string }[] = [
 
 const MARGIN = { top: 36, right: 16, bottom: 4, left: 48 };
 const MARGIN_DENSE = { top: 36, right: 16, bottom: 4, left: 16 };
-/** Arc count threshold above which we hide axis labels for readability */
-const DENSE_ARC_THRESHOLD = 15;
+import { DENSE_ARC_THRESHOLD } from '@/lib/constants';
 
 function ForceChart({
   data,

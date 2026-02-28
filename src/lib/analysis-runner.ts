@@ -9,6 +9,7 @@
 
 import { analyzeChunkParallel, reconcileResults, assembleNarrative } from '@/lib/text-analysis';
 import type { AnalysisJob, AnalysisChunkResult } from '@/types/narrative';
+import { ANALYSIS_CONCURRENCY, ANALYSIS_STAGGER_DELAY_MS, ANALYSIS_MAX_CHUNK_RETRIES } from '@/lib/constants';
 
 type Dispatch = (action: import('@/lib/store').Action) => void;
 
@@ -22,11 +23,8 @@ type RunningJob = {
   chunkStreams: Map<number, string>;
 };
 
-/** Max concurrent LLM calls to avoid rate limits / overload */
-const MAX_CONCURRENCY = 20;
-
-/** Delay (ms) between launching each call in the initial batch to avoid thundering herd */
-const STAGGER_DELAY_MS = 200;
+const MAX_CONCURRENCY = ANALYSIS_CONCURRENCY;
+const STAGGER_DELAY_MS = ANALYSIS_STAGGER_DELAY_MS;
 
 class AnalysisRunner {
   private running = new Map<string, RunningJob>();
@@ -147,7 +145,7 @@ class AnalysisRunner {
           .catch((err) => onChunkDone(chunkIdx, null, err instanceof Error ? err.message : String(err)));
       };
 
-      const MAX_CHUNK_RETRIES = 3;
+      const MAX_CHUNK_RETRIES = ANALYSIS_MAX_CHUNK_RETRIES;
 
       const isParseOrTypeError = (error: string) =>
         /json|parse|type|unexpected token|syntax/i.test(error);

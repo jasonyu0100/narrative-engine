@@ -1,5 +1,6 @@
 'use client';
 
+import { useState } from 'react';
 import { useStore } from '@/lib/store';
 import {
   getKnowledgeNodesAtScene,
@@ -8,6 +9,7 @@ import {
 } from '@/lib/scene-filter';
 import type { CharacterRole, KnowledgeNodeType } from '@/types/narrative';
 import { CollapsibleSection } from './CollapsibleSection';
+import { INSPECTOR_PAGE_SIZE } from '@/lib/constants';
 
 type Props = {
   characterId: string;
@@ -26,9 +28,44 @@ const knowledgeDotColors: Record<KnowledgeNodeType, string> = {
   goal: 'bg-[#3B82F6]',
 };
 
+const PAGE_SIZE = INSPECTOR_PAGE_SIZE;
+
+/** Paginator: page 0 = most recent. Returns reversed slice so newest items show first. */
+function paginateRecent<T>(items: T[], page: number): { pageItems: T[]; totalPages: number; safePage: number } {
+  const totalPages = Math.max(1, Math.ceil(items.length / PAGE_SIZE));
+  const safePage = Math.min(page, totalPages - 1);
+  const startFromEnd = safePage * PAGE_SIZE;
+  const pageItems = items.slice(
+    Math.max(0, items.length - startFromEnd - PAGE_SIZE),
+    items.length - startFromEnd,
+  ).reverse();
+  return { pageItems, totalPages, safePage };
+}
+
+function Paginator({ page, totalPages, onPage }: { page: number; totalPages: number; onPage: (p: number) => void }) {
+  if (totalPages <= 1) return null;
+  return (
+    <div className="flex items-center justify-between mt-2">
+      <button type="button" disabled={page >= totalPages - 1} onClick={() => onPage(page + 1)}
+        className="text-[9px] text-text-dim hover:text-text-secondary disabled:opacity-20 transition-colors">
+        &lsaquo; Older
+      </button>
+      <span className="text-[9px] text-text-dim font-mono">{page + 1} / {totalPages}</span>
+      <button type="button" disabled={page <= 0} onClick={() => onPage(page - 1)}
+        className="text-[9px] text-text-dim hover:text-text-secondary disabled:opacity-20 transition-colors">
+        Newer &rsaquo;
+      </button>
+    </div>
+  );
+}
+
 export default function CharacterDetail({ characterId }: Props) {
   const { state, dispatch } = useStore();
   const narrative = state.activeNarrative;
+  const [knowledgePage, setKnowledgePage] = useState(0);
+  const [threadPage, setThreadPage] = useState(0);
+  const [relPage, setRelPage] = useState(0);
+  const [lifecyclePage, setLifecyclePage] = useState(0);
   if (!narrative) return null;
 
   const character = narrative.characters[characterId];
@@ -101,155 +138,144 @@ export default function CharacterDetail({ characterId }: Props) {
         {character.role}
       </span>
 
-      {/* Knowledge */}
-      {knowledgeNodes.length > 0 && (
-        <CollapsibleSection title="Knowledge" count={knowledgeNodes.length}>
-          <ul className="flex flex-col gap-1">
-            {knowledgeNodes.map((node, i) => (
-              <li key={`${node.id}-${i}`} className="flex items-start gap-2">
-                <span
-                  className={`mt-1 h-2 w-2 shrink-0 rounded-full ${knowledgeDotColors[node.type] ?? 'bg-white/40'}`}
-                />
-                <span className="text-xs text-text-primary">{node.content}</span>
-              </li>
-            ))}
-          </ul>
-        </CollapsibleSection>
-      )}
+      {/* Knowledge — paginated, most recent first */}
+      {knowledgeNodes.length > 0 && (() => {
+        const { pageItems, totalPages, safePage } = paginateRecent(knowledgeNodes, knowledgePage);
+        return (
+          <CollapsibleSection title="Knowledge" count={knowledgeNodes.length}>
+            <ul className="flex flex-col gap-1">
+              {pageItems.map((node, i) => (
+                <li key={`${node.id}-${i}`} className="flex items-start gap-2">
+                  <span className={`mt-1 h-2 w-2 shrink-0 rounded-full ${knowledgeDotColors[node.type] ?? 'bg-white/40'}`} />
+                  <span className="text-xs text-text-primary">{node.content}</span>
+                </li>
+              ))}
+            </ul>
+            <Paginator page={safePage} totalPages={totalPages} onPage={setKnowledgePage} />
+          </CollapsibleSection>
+        );
+      })()}
 
-      {/* Threads */}
-      {threadIds.length > 0 && (
-        <CollapsibleSection title="Threads" count={threadIds.length}>
-          <ul className="flex flex-col gap-1">
-            {threadIds.map((tid) => (
-              <li key={tid}>
-                <button
-                  type="button"
-                  onClick={() =>
-                    dispatch({
-                      type: 'SET_INSPECTOR',
-                      context: { type: 'thread', threadId: tid },
-                    })
-                  }
-                  className="font-mono text-xs text-text-secondary transition-colors hover:text-text-primary"
-                >
-                  {tid}
-                  {narrative.threads[tid] && (
-                    <span className="ml-1.5 font-sans text-text-dim">
-                      {narrative.threads[tid].description}
+      {/* Threads — paginated, most recent first */}
+      {threadIds.length > 0 && (() => {
+        const { pageItems, totalPages, safePage } = paginateRecent(threadIds, threadPage);
+        return (
+          <CollapsibleSection title="Threads" count={threadIds.length}>
+            <ul className="flex flex-col gap-1">
+              {pageItems.map((tid, i) => (
+                <li key={`${tid}-${i}`}>
+                  <button
+                    type="button"
+                    onClick={() => dispatch({ type: 'SET_INSPECTOR', context: { type: 'thread', threadId: tid } })}
+                    className="font-mono text-xs text-text-secondary transition-colors hover:text-text-primary"
+                  >
+                    {tid}
+                    {narrative.threads[tid] && (
+                      <span className="ml-1.5 font-sans text-text-dim">{narrative.threads[tid].description}</span>
+                    )}
+                  </button>
+                </li>
+              ))}
+            </ul>
+            <Paginator page={safePage} totalPages={totalPages} onPage={setThreadPage} />
+          </CollapsibleSection>
+        );
+      })()}
+
+      {/* Relationships — paginated, most recent first */}
+      {relationships.length > 0 && (() => {
+        const { pageItems, totalPages, safePage } = paginateRecent(relationships, relPage);
+        return (
+          <CollapsibleSection title="Relationships" count={relationships.length}>
+            <ul className="flex flex-col gap-2">
+              {pageItems.map((rel, relIdx) => {
+                const isOutgoing = rel.from === characterId;
+                const otherId = isOutgoing ? rel.to : rel.from;
+                const other = narrative.characters[otherId];
+                const arrow = isOutgoing ? '\u2192' : '\u2190';
+                const clamped = Math.max(-1, Math.min(1, rel.valence));
+                const pct = Math.abs(clamped) * 100;
+                const isPositive = rel.valence > 0;
+                const isNegative = rel.valence < 0;
+                return (
+                  <li key={`${rel.from}-${rel.to}-${rel.type}-${relIdx}`} className="flex flex-col gap-1">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs text-text-primary flex items-center gap-1">
+                        <span className="text-text-dim">{arrow}</span>
+                        {other?.name ?? otherId}
+                      </span>
+                      <span className="text-[10px] text-text-dim">{rel.type}</span>
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      <div className="flex-1 h-1.5 rounded-full bg-white/5 overflow-hidden relative">
+                        <div className="absolute left-1/2 top-0 bottom-0 w-px bg-white/10" />
+                        {isPositive && (
+                          <div className="absolute top-0 bottom-0 left-1/2 rounded-r-full" style={{ width: `${pct / 2}%`, backgroundColor: '#22C55E' }} />
+                        )}
+                        {isNegative && (
+                          <div className="absolute top-0 bottom-0 rounded-l-full" style={{ width: `${pct / 2}%`, right: '50%', backgroundColor: '#EF4444' }} />
+                        )}
+                      </div>
+                      <span className={`text-[10px] font-mono w-6 text-right ${isPositive ? 'text-change' : isNegative ? 'text-payoff' : 'text-text-dim'}`}>
+                        {rel.valence > 0 ? '+' : ''}{rel.valence}
+                      </span>
+                    </div>
+                  </li>
+                );
+              })}
+            </ul>
+            <Paginator page={safePage} totalPages={totalPages} onPage={setRelPage} />
+          </CollapsibleSection>
+        );
+      })()}
+
+      {/* Lifecycle — paginated, most recent first */}
+      {lifecycle.length > 0 && (() => {
+        const { pageItems, totalPages, safePage } = paginateRecent(lifecycle, lifecyclePage);
+        return (
+          <CollapsibleSection title="Lifecycle" count={lifecycle.length} defaultOpen>
+            <ul className="flex flex-col gap-2">
+              {pageItems.map(({ sceneId, knowledgeMuts, relationshipMuts, movement }) => (
+                <li key={sceneId} className="flex flex-col gap-0.5">
+                  <button
+                    type="button"
+                    onClick={() => dispatch({ type: 'SET_INSPECTOR', context: { type: 'scene', sceneId } })}
+                    className="font-mono text-[10px] text-text-dim transition-colors hover:text-text-secondary"
+                  >
+                    {sceneId}
+                  </button>
+                  {knowledgeMuts.map((km, kmIdx) => (
+                    <span key={`${km.nodeId}-${kmIdx}`} className="text-xs text-text-secondary">
+                      <span className={km.action === 'added' ? 'text-change' : 'text-payoff'}>
+                        {km.action === 'added' ? '+' : '−'}
+                      </span>{' '}
+                      {km.content}
+                    </span>
+                  ))}
+                  {relationshipMuts.map((rm, rmIdx) => {
+                    const otherId = rm.from === characterId ? rm.to : rm.from;
+                    const otherName = narrative.characters[otherId]?.name ?? otherId;
+                    return (
+                      <span key={`${rm.from}-${rm.to}-${rmIdx}`} className="text-xs text-text-secondary">
+                        <span className={rm.valenceDelta >= 0 ? 'text-change' : 'text-payoff'}>
+                          {rm.valenceDelta > 0 ? '+' : ''}{rm.valenceDelta}
+                        </span>{' '}
+                        {otherName}: {rm.type}
+                      </span>
+                    );
+                  })}
+                  {movement && (
+                    <span className="text-xs text-text-secondary">
+                      &rarr; {narrative.locations[movement]?.name ?? movement}
                     </span>
                   )}
-                </button>
-              </li>
-            ))}
-          </ul>
-        </CollapsibleSection>
-      )}
-
-      {/* Relationships */}
-      {relationships.length > 0 && (
-        <CollapsibleSection title="Relationships" count={relationships.length}>
-          <ul className="flex flex-col gap-2">
-            {relationships.map((rel, relIdx) => {
-              const isOutgoing = rel.from === characterId;
-              const otherId = isOutgoing ? rel.to : rel.from;
-              const other = narrative.characters[otherId];
-              const arrow = isOutgoing ? '\u2192' : '\u2190';
-              const clamped = Math.max(-1, Math.min(1, rel.valence));
-              const pct = Math.abs(clamped) * 100; // 0–100%
-              const isPositive = rel.valence > 0;
-              const isNegative = rel.valence < 0;
-              return (
-                <li key={`${rel.from}-${rel.to}-${rel.type}-${relIdx}`} className="flex flex-col gap-1">
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs text-text-primary flex items-center gap-1">
-                      <span className="text-text-dim">{arrow}</span>
-                      {other?.name ?? otherId}
-                    </span>
-                    <span className="text-[10px] text-text-dim">{rel.type}</span>
-                  </div>
-                  <div className="flex items-center gap-1.5">
-                    <div className="flex-1 h-1.5 rounded-full bg-white/5 overflow-hidden relative">
-                      {/* Center line */}
-                      <div className="absolute left-1/2 top-0 bottom-0 w-px bg-white/10" />
-                      {isPositive && (
-                        <div
-                          className="absolute top-0 bottom-0 left-1/2 rounded-r-full"
-                          style={{ width: `${pct / 2}%`, backgroundColor: '#22C55E' }}
-                        />
-                      )}
-                      {isNegative && (
-                        <div
-                          className="absolute top-0 bottom-0 rounded-l-full"
-                          style={{ width: `${pct / 2}%`, right: '50%', backgroundColor: '#EF4444' }}
-                        />
-                      )}
-                    </div>
-                    <span className={`text-[10px] font-mono w-6 text-right ${isPositive ? 'text-change' : isNegative ? 'text-payoff' : 'text-text-dim'}`}>
-                      {rel.valence > 0 ? '+' : ''}{rel.valence}
-                    </span>
-                  </div>
                 </li>
-              );
-            })}
-          </ul>
-        </CollapsibleSection>
-      )}
-
-      {/* Lifecycle */}
-      {lifecycle.length > 0 && (
-        <CollapsibleSection title="Lifecycle" count={lifecycle.length} defaultOpen>
-          <ul className="flex flex-col gap-2">
-            {lifecycle.map(({ sceneId, knowledgeMuts, relationshipMuts, movement }) => (
-              <li key={sceneId} className="flex flex-col gap-0.5">
-                <button
-                  type="button"
-                  onClick={() =>
-                    dispatch({
-                      type: 'SET_INSPECTOR',
-                      context: { type: 'scene', sceneId },
-                    })
-                  }
-                  className="font-mono text-[10px] text-text-dim transition-colors hover:text-text-secondary"
-                >
-                  {sceneId}
-                </button>
-                {knowledgeMuts.map((km, kmIdx) => (
-                  <span
-                    key={`${km.nodeId}-${kmIdx}`}
-                    className="text-xs text-text-secondary"
-                  >
-                    <span className={km.action === 'added' ? 'text-change' : 'text-payoff'}>
-                      {km.action === 'added' ? '+' : '−'}
-                    </span>{' '}
-                    {km.content}
-                  </span>
-                ))}
-                {relationshipMuts.map((rm, rmIdx) => {
-                  const otherId = rm.from === characterId ? rm.to : rm.from;
-                  const otherName = narrative.characters[otherId]?.name ?? otherId;
-                  return (
-                    <span
-                      key={`${rm.from}-${rm.to}-${rmIdx}`}
-                      className="text-xs text-text-secondary"
-                    >
-                      <span className={rm.valenceDelta >= 0 ? 'text-change' : 'text-payoff'}>
-                        {rm.valenceDelta > 0 ? '+' : ''}{rm.valenceDelta}
-                      </span>{' '}
-                      {otherName}: {rm.type}
-                    </span>
-                  );
-                })}
-                {movement && (
-                  <span className="text-xs text-text-secondary">
-                    &rarr; {narrative.locations[movement]?.name ?? movement}
-                  </span>
-                )}
-              </li>
-            ))}
-          </ul>
-        </CollapsibleSection>
-      )}
+              ))}
+            </ul>
+            <Paginator page={safePage} totalPages={totalPages} onPage={setLifecyclePage} />
+          </CollapsibleSection>
+        );
+      })()}
     </div>
   );
 }

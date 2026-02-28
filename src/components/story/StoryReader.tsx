@@ -1,11 +1,12 @@
 'use client';
 
-import { useState, useCallback, useRef, useEffect } from 'react';
+import { useState, useCallback, useRef, useEffect, useMemo } from 'react';
 import type { NarrativeState, Scene } from '@/types/narrative';
 import { resolveEntry, isScene } from '@/types/narrative';
 import { generateSceneProse, analyzeAllProse, rewriteSceneProse, type ProseAnalysis } from '@/lib/ai';
 import { useStore } from '@/lib/store';
 import { exportEpub } from '@/lib/epub-export';
+import { PROSE_CONCURRENCY, REWRITE_CONCURRENCY } from '@/lib/constants';
 
 type ProseCache = Record<string, { text: string; status: 'loading' | 'ready' | 'error'; error?: string }>;
 
@@ -40,6 +41,38 @@ export function StoryReader({
   const [bulkState, setBulkState] = useState<{ running: boolean; completed: number; total: number; errors: number } | null>(null);
   const bulkCancelledRef = useRef(false);
   const [copied, setCopied] = useState(false);
+
+  // Prose search
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const searchInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (searchOpen) setTimeout(() => searchInputRef.current?.focus(), 50);
+    else setSearchQuery('');
+  }, [searchOpen]);
+
+  const searchResults = useMemo(() => {
+    if (!searchOpen || !searchQuery.trim()) return [];
+    const q = searchQuery.toLowerCase();
+    const results: { sceneIndex: number; sceneId: string; snippet: string; arcName: string }[] = [];
+    for (let i = 0; i < scenes.length; i++) {
+      const s = scenes[i];
+      const prose = proseCache[s.id]?.status === 'ready' ? proseCache[s.id].text : s.prose;
+      const haystack = `${s.summary} ${prose ?? ''}`.toLowerCase();
+      const idx = haystack.indexOf(q);
+      if (idx < 0) continue;
+      // Extract snippet around match
+      const fullText = `${s.summary} ${prose ?? ''}`;
+      const start = Math.max(0, idx - 60);
+      const end = Math.min(fullText.length, idx + q.length + 60);
+      const snippet = (start > 0 ? '…' : '') + fullText.slice(start, end).trim() + (end < fullText.length ? '…' : '');
+      const sArc = Object.values(narrative.arcs).find((a) => a.sceneIds.includes(s.id));
+      results.push({ sceneIndex: i, sceneId: s.id, snippet, arcName: sArc?.name ?? '' });
+      if (results.length >= 50) break;
+    }
+    return results;
+  }, [searchOpen, searchQuery, scenes, proseCache, narrative]);
 
   const scene = scenes[currentIndex];
   const arc = scene ? Object.values(narrative.arcs).find((a) => a.sceneIds.includes(scene.id)) : null;
@@ -84,7 +117,7 @@ export function StoryReader({
     });
 
     // Sliding window pool — keeps CONCURRENCY slots filled continuously
-    const CONCURRENCY = 10;
+    const CONCURRENCY = PROSE_CONCURRENCY;
     let nextIdx = 0;
 
     const processScene = async (s: Scene): Promise<void> => {
@@ -181,7 +214,7 @@ export function StoryReader({
 
     let completed = 0;
     let errors = 0;
-    const CONCURRENCY = 5;
+    const CONCURRENCY = REWRITE_CONCURRENCY;
     let nextIdx = 0;
 
     // Mark all rewriting scenes as loading
@@ -262,6 +295,11 @@ export function StoryReader({
   // Keyboard navigation
   useEffect(() => {
     function handleKey(e: KeyboardEvent) {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'f') {
+        e.preventDefault();
+        setSearchOpen(true);
+        return;
+      }
       if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
         e.preventDefault();
         setCurrentIndex((i) => Math.max(0, i - 1));
@@ -269,6 +307,7 @@ export function StoryReader({
         e.preventDefault();
         setCurrentIndex((i) => Math.min(scenes.length - 1, i + 1));
       } else if (e.key === 'Escape') {
+        if (searchOpen) { setSearchOpen(false); return; }
         onClose();
       }
     }
@@ -492,6 +531,23 @@ export function StoryReader({
             );
           })()}
 
+          {/* Search prose */}
+          <button
+            onClick={() => setSearchOpen((v) => !v)}
+            className={`text-[10px] px-2.5 py-1 rounded-full border transition flex items-center gap-1.5 ${
+              searchOpen
+                ? 'border-white/20 bg-white/10 text-text-primary'
+                : 'border-white/10 text-text-dim hover:text-text-secondary hover:border-white/15'
+            }`}
+            title="Search prose text"
+          >
+            <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="11" cy="11" r="8" />
+              <path d="M21 21l-4.35-4.35" />
+            </svg>
+            Search
+          </button>
+
           <span className="text-[10px] text-text-dim font-mono">
             {currentIndex + 1} / {scenes.length}
           </span>
@@ -617,6 +673,73 @@ export function StoryReader({
               </button>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* Prose search panel */}
+      {searchOpen && (
+        <div className="border-b border-white/5 shrink-0">
+          <div className="px-6 py-2.5 flex items-center gap-3">
+            <svg className="w-3.5 h-3.5 text-text-dim shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+              <circle cx="11" cy="11" r="8" />
+              <path d="M21 21l-4.35-4.35" />
+            </svg>
+            <input
+              ref={searchInputRef}
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Escape') setSearchOpen(false);
+                if (e.key === 'Enter' && searchResults.length > 0) {
+                  setCurrentIndex(searchResults[0].sceneIndex);
+                  setSearchOpen(false);
+                }
+              }}
+              placeholder="Search prose, summaries..."
+              className="flex-1 bg-transparent text-[12px] text-text-primary placeholder:text-text-dim/40 outline-none"
+            />
+            {searchQuery && (
+              <span className="text-[9px] text-text-dim font-mono shrink-0">{searchResults.length} found</span>
+            )}
+            <button onClick={() => setSearchOpen(false)} className="text-text-dim hover:text-text-secondary text-sm">&times;</button>
+          </div>
+          {searchQuery.trim() && (
+            <div className="max-h-60 overflow-y-auto border-t border-white/3">
+              {searchResults.length === 0 ? (
+                <div className="py-6 text-center text-[11px] text-text-dim">No matches</div>
+              ) : (
+                searchResults.map((r) => {
+                  // Highlight the match in the snippet
+                  const lowerSnippet = r.snippet.toLowerCase();
+                  const matchIdx = lowerSnippet.indexOf(searchQuery.toLowerCase());
+                  return (
+                    <button
+                      key={r.sceneId}
+                      onClick={() => { setCurrentIndex(r.sceneIndex); setSearchOpen(false); }}
+                      className="w-full text-left px-6 py-2.5 hover:bg-white/5 transition-colors border-b border-white/3 last:border-0"
+                    >
+                      <div className="flex items-center gap-2 mb-0.5">
+                        <span className="text-[10px] font-mono text-text-dim">Scene {r.sceneIndex + 1}</span>
+                        {r.arcName && <span className="text-[9px] text-text-dim">{r.arcName}</span>}
+                      </div>
+                      <p className="text-[11px] text-text-secondary leading-snug line-clamp-2">
+                        {matchIdx >= 0 ? (
+                          <>
+                            {r.snippet.slice(0, matchIdx)}
+                            <mark className="bg-yellow-400/30 text-text-primary rounded-sm px-0.5">
+                              {r.snippet.slice(matchIdx, matchIdx + searchQuery.length)}
+                            </mark>
+                            {r.snippet.slice(matchIdx + searchQuery.length)}
+                          </>
+                        ) : r.snippet}
+                      </p>
+                    </button>
+                  );
+                })
+              )}
+            </div>
+          )}
         </div>
       )}
 

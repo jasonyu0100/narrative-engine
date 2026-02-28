@@ -1,5 +1,6 @@
 import type { Branch, NarrativeState, Scene, ThreadStatus, ForceSnapshot, CubeCornerKey, CubeCorner } from '@/types/narrative';
 import { NARRATIVE_CUBE, THREAD_TERMINAL_STATUSES } from '@/types/narrative';
+import { FORCE_WINDOW_SIZE } from '@/lib/constants';
 
 // ── Sequential ID generation ─────────────────────────────────────────────────
 
@@ -154,7 +155,7 @@ export function averageSwing(forceSnapshots: ForceSnapshot[], windowSize = FORCE
 }
 
 /** Default rolling window size for force computation (recency, windowed normalization) */
-export const FORCE_WINDOW_SIZE = 10;
+export { FORCE_WINDOW_SIZE } from '@/lib/constants';
 
 // ── Force Computation ────────────────────────────────────────────────────────
 

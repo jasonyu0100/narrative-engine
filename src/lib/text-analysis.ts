@@ -13,11 +13,12 @@ import type {
   WorldBuildCommit, Branch, Commit,
 } from '@/types/narrative';
 import { THREAD_ACTIVE_STATUSES, THREAD_TERMINAL_STATUSES, THREAD_STATUS_LABELS } from '@/types/narrative';
+import { ANALYSIS_TARGET_SECTIONS_PER_CHUNK, ANALYSIS_TARGET_CHUNK_WORDS } from '@/lib/constants';
 
 // ── Text Splitting ───────────────────────────────────────────────────────────
 
-const TARGET_SECTIONS_PER_CHUNK = 12;
-const TARGET_CHUNK_WORDS = 4000;
+const TARGET_SECTIONS_PER_CHUNK = ANALYSIS_TARGET_SECTIONS_PER_CHUNK;
+const TARGET_CHUNK_WORDS = ANALYSIS_TARGET_CHUNK_WORDS;
 
 function splitIntoSections(text: string): string[] {
   let chunks = text.split(/\n\s*\n/).map((p) => p.trim()).filter(Boolean);

@@ -11,6 +11,7 @@ const THREAD_LIFECYCLE_DOC = (() => {
 })();
 import { nextId, nextIds, computeForceSnapshots, computeSwingMagnitudes, detectCubeCorner, movingAverage, FORCE_WINDOW_SIZE, computeEngagementCurve, classifyCurrentPosition } from '@/lib/narrative-utils';
 import { apiHeaders } from '@/lib/api-headers';
+import { KNOWLEDGE_CONTEXT_LIMIT, SCENE_DETAIL_WINDOW } from '@/lib/constants';
 
 export type WorldExpansion = {
   characters: Character[];
@@ -195,22 +196,38 @@ export function branchContext(
     ? n.relationships.filter((r) => referencedCharIds.has(r.from) && referencedCharIds.has(r.to))
     : n.relationships;
 
+  // Limit knowledge nodes to the most recent N per entity to control context size
+
   const characters = branchCharacters
     .map((c) => {
-      const knowledgeLines = c.knowledge.nodes.map((kn) => `    [${kn.id}] (${kn.type}) ${kn.content}`);
-      const edgeLines = c.knowledge.edges.map((e) => `    ${e.from} --(${e.type})--> ${e.to}`);
+      const recentNodes = c.knowledge.nodes.slice(-KNOWLEDGE_CONTEXT_LIMIT);
+      const recentNodeIds = new Set(recentNodes.map((kn) => kn.id));
+      const knowledgeLines = recentNodes.map((kn) => `    [${kn.id}] (${kn.type}) ${kn.content}`);
+      const edgeLines = c.knowledge.edges
+        .filter((e) => recentNodeIds.has(e.from) || recentNodeIds.has(e.to))
+        .map((e) => `    ${e.from} --(${e.type})--> ${e.to}`);
+      const truncated = c.knowledge.nodes.length > KNOWLEDGE_CONTEXT_LIMIT
+        ? `\n  (${c.knowledge.nodes.length - KNOWLEDGE_CONTEXT_LIMIT} older knowledge items omitted)`
+        : '';
       const knowledgeBlock = knowledgeLines.length > 0
-        ? `\n  Knowledge:\n${knowledgeLines.join('\n')}${edgeLines.length > 0 ? '\n  Edges:\n' + edgeLines.join('\n') : ''}`
+        ? `\n  Knowledge (recent ${recentNodes.length}):${truncated}\n${knowledgeLines.join('\n')}${edgeLines.length > 0 ? '\n  Edges:\n' + edgeLines.join('\n') : ''}`
         : '';
       return `- ${c.id}: ${c.name} (${c.role})${knowledgeBlock}`;
     })
     .join('\n');
   const locations = branchLocations
     .map((l) => {
-      const knowledgeLines = l.knowledge.nodes.map((kn) => `    [${kn.id}] (${kn.type}) ${kn.content}`);
-      const edgeLines = l.knowledge.edges.map((e) => `    ${e.from} --(${e.type})--> ${e.to}`);
+      const recentNodes = l.knowledge.nodes.slice(-KNOWLEDGE_CONTEXT_LIMIT);
+      const recentNodeIds = new Set(recentNodes.map((kn) => kn.id));
+      const knowledgeLines = recentNodes.map((kn) => `    [${kn.id}] (${kn.type}) ${kn.content}`);
+      const edgeLines = l.knowledge.edges
+        .filter((e) => recentNodeIds.has(e.from) || recentNodeIds.has(e.to))
+        .map((e) => `    ${e.from} --(${e.type})--> ${e.to}`);
+      const truncated = l.knowledge.nodes.length > KNOWLEDGE_CONTEXT_LIMIT
+        ? `\n  (${l.knowledge.nodes.length - KNOWLEDGE_CONTEXT_LIMIT} older knowledge items omitted)`
+        : '';
       const knowledgeBlock = knowledgeLines.length > 0
-        ? `\n  Knowledge:\n${knowledgeLines.join('\n')}${edgeLines.length > 0 ? '\n  Edges:\n' + edgeLines.join('\n') : ''}`
+        ? `\n  Knowledge (recent ${recentNodes.length}):${truncated}\n${knowledgeLines.join('\n')}${edgeLines.length > 0 ? '\n  Edges:\n' + edgeLines.join('\n') : ''}`
         : '';
       return `- ${l.id}: ${l.name}${l.parentId ? ` (inside ${n.locations[l.parentId]?.name ?? l.parentId})` : ''}${knowledgeBlock}`;
     })
@@ -244,6 +261,9 @@ export function branchContext(
       return `- ${r.from} (${fromName}) -> ${r.to} (${toName}): ${r.type} (valence: ${r.valence})`;
     })
     .join('\n');
+  // Only include full mutations for the most recent scenes; older scenes get summary only
+  const detailCutoff = keysUpToCurrent.length - SCENE_DETAIL_WINDOW;
+
   const sceneHistory = keysUpToCurrent.map((k, i) => {
     const s = resolveEntry(n, k);
     if (!s) return '';
@@ -252,6 +272,13 @@ export function branchContext(
     }
     const loc = `${s.locationId} (${n.locations[s.locationId]?.name ?? 'unknown'})`;
     const participants = s.participantIds.map((pid) => `${pid} (${n.characters[pid]?.name ?? 'unknown'})`).join(', ');
+
+    // Older scenes: summary only (mutations are already reflected in entity state)
+    if (i < detailCutoff) {
+      return `[${i + 1}] ${s.id} @ ${loc} | ${participants}\n   ${s.summary}`;
+    }
+
+    // Recent scenes: full mutation detail
     const threadChanges = s.threadMutations.map((tm) => `${tm.threadId}: ${tm.from}->${tm.to}`).join('; ');
     const knowledgeChanges = s.knowledgeMutations.map((km) => `${km.characterId} learned [${km.nodeType}]: ${km.content}`).join('; ');
     const relChanges = s.relationshipMutations.map((rm) => {
@@ -281,7 +308,10 @@ export function branchContext(
   const changeMA = movingAverage(forceSnapshots.map(f => f.change), FORCE_WINDOW_SIZE);
   const varietyMA = movingAverage(forceSnapshots.map(f => f.variety), FORCE_WINDOW_SIZE);
   const swingMA = movingAverage(swings, FORCE_WINDOW_SIZE);
-  const forceTrajectory = allScenes.map((s, i) => {
+  // Only include force trajectory for recent scenes (matches SCENE_DETAIL_WINDOW)
+  const forceStart = Math.max(0, allScenes.length - SCENE_DETAIL_WINDOW);
+  const forceTrajectory = allScenes.slice(forceStart).map((s, j) => {
+    const i = forceStart + j;
     const f = forceMap[s.id];
     if (!f) return null;
     const corner = detectCubeCorner(f);

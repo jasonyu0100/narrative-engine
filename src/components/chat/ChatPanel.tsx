@@ -137,6 +137,15 @@ ${ctx}`;
   const currentSceneId = state.resolvedSceneKeys[contextSceneIndex];
   const currentScene = currentSceneId ? state.activeNarrative.scenes[currentSceneId] : null;
 
+  // Estimate token count for the full prompt (system + messages)
+  const systemPrompt = buildSystemPrompt();
+  const messagesText = messages.map((m) => m.content).join('');
+  const estimatedChars = systemPrompt.length + messagesText.length;
+  const estimatedTokens = Math.round(estimatedChars / 4);
+  const tokenLabel = estimatedTokens >= 1000
+    ? `~${(estimatedTokens / 1000).toFixed(0)}k tokens`
+    : `~${estimatedTokens} tokens`;
+
   return (
     <div className="flex flex-col h-full">
       {/* Context indicator */}
@@ -146,6 +155,7 @@ ${ctx}`;
           {currentScene && (
             <span className="text-text-secondary"> — {currentScene.summary.slice(0, 60)}{currentScene.summary.length > 60 ? '...' : ''}</span>
           )}
+          <span className="text-text-dim ml-1">({tokenLabel})</span>
         </p>
       </div>
 

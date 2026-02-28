@@ -12,6 +12,7 @@ import type {
 } from '@/types/narrative';
 import { isScene, NARRATIVE_CUBE, THREAD_ACTIVE_STATUSES, THREAD_TERMINAL_STATUSES, THREAD_PRIMED_STATUSES } from '@/types/narrative';
 import { detectCubeCorner, computeWindowedForces, averageSwing, FORCE_WINDOW_SIZE } from '@/lib/narrative-utils';
+import { AUTO_STOP_CYCLE_LENGTH } from '@/lib/constants';
 
 // ── Thread status helpers (derived from canonical lists in narrative.ts) ─────
 const TERMINAL_SET = new Set<string>(THREAD_TERMINAL_STATUSES);
@@ -277,7 +278,7 @@ const STORY_PHASES: PhaseDefinition[] = [
 ];
 
 /** Manual-stop mode cycles: every CYCLE_LENGTH arcs is one full dramatic "season" */
-const MANUAL_STOP_CYCLE_LENGTH = 25;
+const MANUAL_STOP_CYCLE_LENGTH = AUTO_STOP_CYCLE_LENGTH;
 
 /**
  * Compute story progress as 0–1 based on end conditions.
