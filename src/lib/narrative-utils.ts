@@ -135,12 +135,21 @@ export function cubeCornerProximity(forces: ForceSnapshot, cornerKey: CubeCorner
 
 /** Compute swing magnitude (Euclidean distance) between consecutive force snapshots.
  *  Returns an array of the same length; the first element is always 0. */
-export function computeSwingMagnitudes(forceSnapshots: ForceSnapshot[]): number[] {
+/** Compute swing as Euclidean distance in force space between consecutive scenes.
+ *  When reference means are provided, forces are normalized first so each
+ *  dimension contributes equally regardless of natural scale. */
+export function computeSwingMagnitudes(
+  forceSnapshots: ForceSnapshot[],
+  refMeans?: { payoff: number; change: number; variety: number },
+): number[] {
+  const rp = refMeans?.payoff ?? 1;
+  const rc = refMeans?.change ?? 1;
+  const rv = refMeans?.variety ?? 1;
   const swings: number[] = [0];
   for (let i = 1; i < forceSnapshots.length; i++) {
-    const dp = forceSnapshots[i].payoff - forceSnapshots[i - 1].payoff;
-    const dc = forceSnapshots[i].change - forceSnapshots[i - 1].change;
-    const dv = forceSnapshots[i].variety - forceSnapshots[i - 1].variety;
+    const dp = (forceSnapshots[i].payoff - forceSnapshots[i - 1].payoff) / rp;
+    const dc = (forceSnapshots[i].change - forceSnapshots[i - 1].change) / rc;
+    const dv = (forceSnapshots[i].variety - forceSnapshots[i - 1].variety) / rv;
     swings.push(Math.sqrt(dp * dp + dc * dc + dv * dv));
   }
   return swings;
@@ -174,29 +183,28 @@ export function zScoreNormalize(values: number[]): number[] {
   return values.map((v) => +((v - mean) / std).toFixed(2));
 }
 
-/**
- * Compute raw payoff for a scene — measures phase transitions only.
- *
- * Payoff = how many irreversible state changes occur.
- * Only thread mutations where the status actually changes (from ≠ to) count.
- * Weighted by the magnitude of the jump in the status progression and
- * whether the transition is terminal (irreversible).
- * Relationship valence shifts also contribute — larger swings = higher payoff.
- *
- * Scenes where nothing transitions score 0 regardless of how many mutations exist.
- */
+// ── Narrative Forces ─────────────────────────────────────────────────────────
+//
+// Three forces measure distinct dimensions of narrative movement per scene.
+// Raw values are z-score normalized: z = (x - μ) / σ.
+//
+// P = Σ |φ_to - φ_from| + Σ |Δv|         (phase distance + valence shifts)
+// C = Σ_c log₂(1 + m_c)                  (mutation reach per character)
+// V = Σr(g_c) + r(g_ℓ) + J̄               (cast recency + loc recency + ensemble)
+//     where r(g) = g / (1 + g)            (parameter-free saturating decay)
+//
+// S = ‖f_i - f_{i-1}‖₂                   (Euclidean distance in PCV space)
+// E = (P + C + V) / 3                    (engagement, Gaussian smoothed)
+// g(x̃) = 20(1 - e^{-2x̃}), x̃ = x̄/μ     (grade, μ = {2, 7, 5, 1.5})
+//
 
-/** Ordered progression index — distance between indices = magnitude of the phase jump */
-const STATUS_PHASE_ORDER: string[] = [
-  'dormant', 'active', 'escalating', 'escalating', 'escalating', 'critical', 'critical',
-];
-const TERMINAL_PHASE_WEIGHT: Record<string, number> = {
-  resolved: 6,
-  done: 3,
-  subverted: 8,
-  closed: 4,
-  abandoned: 2,
+/** Phase index — distance between indices = magnitude of the phase jump.
+ *  Linear ordering: each step is one unit of payoff. */
+const PHASE_INDEX: Record<string, number> = {
+  dormant: 0, active: 1, escalating: 2, critical: 3,
 };
+/** Terminal transitions use the full phase length (max distance in the active chain) */
+const TERMINAL_PHASE_DISTANCE = Object.keys(PHASE_INDEX).length; // 4
 const TERMINAL_STATUS_SET = new Set<string>(THREAD_TERMINAL_STATUSES.map((s) => s.toLowerCase()));
 
 function computeRawPayoff(scene: Scene): number {
@@ -205,26 +213,19 @@ function computeRawPayoff(scene: Scene): number {
   for (const tm of scene.threadMutations) {
     const from = tm.from.toLowerCase();
     const to = tm.to.toLowerCase();
-    if (from === to) continue; // no phase transition
+    if (from === to) continue;
 
     if (TERMINAL_STATUS_SET.has(to)) {
-      // Terminal transitions: use dedicated weight (irreversible endings)
-      score += TERMINAL_PHASE_WEIGHT[to] ?? 5;
+      score += TERMINAL_PHASE_DISTANCE;
     } else {
-      // Active-to-active: magnitude = distance in phase order
-      const fromIdx = STATUS_PHASE_ORDER.indexOf(from);
-      const toIdx = STATUS_PHASE_ORDER.indexOf(to);
-      if (fromIdx >= 0 && toIdx >= 0) {
-        score += Math.abs(toIdx - fromIdx);
-      } else {
-        score += 1; // unknown status, still a transition
-      }
+      const fi = PHASE_INDEX[from];
+      const ti = PHASE_INDEX[to];
+      score += fi !== undefined && ti !== undefined ? Math.abs(ti - fi) : 1;
     }
   }
 
-  // Relationship phase shifts — magnitude of valence swing
   for (const rm of scene.relationshipMutations) {
-    score += Math.abs(rm.valenceDelta) * 10;
+    score += Math.abs(rm.valenceDelta);
   }
 
   return score;
@@ -268,24 +269,13 @@ function jaccard(a: Set<string>, b: Set<string>): number {
 }
 
 
-/**
- * Compute raw variety for a scene: how many new elements is the reader encountering?
+/** Raw variety: V = Σr(g_c) + r(g_ℓ) + J̄
  *
- * Three components, each measuring a distinct kind of novelty:
+ *  - Σr(g_c): sum of recency across participants (scales with cast size)
+ *  - r(g_ℓ): location recency [0, 1]
+ *  - J̄: mean Jaccard distance vs all prior casts [0, 1]
  *
- * 1. **Character recency** — first-time participants score 1.0 each; returning
- *    characters score proportionally to how long they've been absent
- *    (gap/window, capped at 1). Summed raw so larger fresh casts score higher.
- *
- * 2. **Location recency** — first visit scores 2.0; revisits score
- *    proportionally to how long ago the location was last used. Weighted 2×
- *    because setting shifts are immediately noticeable.
- *
- * 3. **Ensemble novelty** — average Jaccard distance of this cast vs the last
- *    few casts (not all history). Measures "is this a different *group* than
- *    what we've been seeing?" without permanently flatlining once a cast has
- *    appeared anywhere in history.
- */
+ *  Recency: r(g) = g / (1 + g). First appearance → r = 1. */
 function rawVariety(
   scene: Scene,
   charLastSeen: Record<string, number>,
@@ -293,30 +283,26 @@ function rawVariety(
   priorCasts: Set<string>[],
   sceneIdx: number,
 ): number {
-  // 1. Character recency: first appearance = 1, returning = gap/window (capped at 1)
-  let charRecency = 0;
-  for (const id of scene.participantIds) {
-    const last = charLastSeen[id];
-    if (last === undefined) {
-      charRecency += 1; // first appearance
-    } else {
-      charRecency += Math.min(1, (sceneIdx - last) / FORCE_WINDOW_SIZE);
-    }
-  }
+  const recency = (lastSeen: number | undefined) => {
+    if (lastSeen === undefined) return 1;
+    const g = sceneIdx - lastSeen;
+    return g / (1 + g);
+  };
 
-  // 2. Location recency: first visit = 2, revisit = gap/window × 2 (capped at 2)
-  const locLast = locLastSeen[scene.locationId];
-  const locRecency = (locLast === undefined ? 1 : Math.min(1, (sceneIdx - locLast) / FORCE_WINDOW_SIZE)) * 2;
+  // Character recency: sum (not mean) so larger fresh casts produce stronger signal
+  const charRecency = scene.participantIds.reduce((sum, id) => sum + recency(charLastSeen[id]), 0);
 
-  // 3. Ensemble novelty: average Jaccard distance to recent casts only
+  // Location recency → [0, 1]
+  const locRecency = recency(locLastSeen[scene.locationId]);
+
+  // Ensemble novelty: mean Jaccard distance → [0, 1]
   const cast = new Set(scene.participantIds);
   let ensembleNovelty = 1;
   if (priorCasts.length > 0) {
-    const recent = priorCasts.slice(-FORCE_WINDOW_SIZE);
-    ensembleNovelty = recent.reduce((sum, prior) => sum + jaccard(cast, prior), 0) / recent.length;
+    ensembleNovelty = priorCasts.reduce((sum, prior) => sum + jaccard(cast, prior), 0) / priorCasts.length;
   }
 
-  return charRecency + locRecency + ensembleNovelty * Math.sqrt(Math.max(cast.size, 1));
+  return charRecency + locRecency + ensembleNovelty;
 }
 
 /**
@@ -325,7 +311,7 @@ function rawVariety(
  *
  * - **Payoff**: phase transitions — thread status changes (weighted by jump magnitude) and relationship valence shifts
  * - **Change**: mutation reach — sum of log₂(1 + mutations) per affected character
- * - **Variety**: new characters (recency-weighted) + new location (2×) + new ensemble (Jaccard vs recent casts)
+ * - **Variety**: r̄_char + r_loc + J̄ — three [0,1] components equally weighted
  *
  * @param scenes - Ordered list of scenes to compute forces for
  * @param priorScenes - Scenes before this batch (for usage tracking). Empty for initial generation.
@@ -810,77 +796,50 @@ export type ForceGrades = {
 
 const avg = (arr: number[]) => arr.length > 0 ? arr.reduce((s, v) => s + v, 0) / arr.length : 0;
 
+/** Reference means per force — the expected mean for a well-structured narrative.
+ *  Raw force values are divided by these to produce a unit-free normalized value
+ *  (x̃ = x̄ / μ_ref). At x̃ = 1 the grade reaches ~86%.
+ *  Calibrated from literary works (HP, Gatsby, Crime & Punishment, Coiling Dragon). */
+export const FORCE_REFERENCE_MEANS = { payoff: 2, change: 7, variety: 4.5, swing: 1.5 } as const;
 
-/** Grade a force average 0-20 using exponential saturation */
-function gradeForce(a: number, midpoint: number): number {
-  return Math.min(20, 20 * (1 - Math.exp(-Math.max(0, a) / midpoint)));
+/** Grade a mean-normalized force value 0→20: g(x̃) = 20(1 - e^{-2x̃}).
+ *  x̃ = x̄ / μ_ref. At x̃ = 1 (matching reference), grade ≈ 17/20 (86%). */
+export function gradeForce(normalizedMean: number): number {
+  return Math.min(20, 20 * (1 - Math.exp(-2 * Math.max(0, normalizedMean))));
 }
 
-/** Average of top 10% values (at least 1) */
-function topAvg(arr: number[]): number {
-  const sorted = [...arr].sort((a, b) => b - a);
-  const k = Math.max(1, Math.ceil(sorted.length * 0.1));
-  return avg(sorted.slice(0, k));
-}
-
-/** Streak factor based on score color zones.
- *
- *  Each arc earns credit based on its color zone:
- *    green (≥90) = 1.0, yellow-green (80-89) = 0.8, yellow (70-79) = 0.5,
- *    orange (60-69) = 0.2, red (<60) = 0.0
- *
- *  The average credit forms the base score. A streak penalty then reduces
- *  it when below-green arcs (<80) cluster into prolonged low periods.
- *  Each arc in a streak is penalized by zone weight × streak position:
- *    yellow = 1×, orange = 2×, red = 3×
- *  so a red streak compounds much faster than a yellow one. */
+/** Streak: κ(s) = clamp(s/100, 0, 1).
+ *  Penalty only on consecutive arcs below the median score, weighted by run length.
+ *  Uses the series' own median as the threshold — no fixed cutoff. */
 function consistencyFactor(arr: number[]): number {
   const n = arr.length;
   if (n < 2) return 1;
 
-  // Zone credit: maps arc score to color-zone reward [0, 1]
-  const credit = (s: number) => {
-    if (s >= 90) return 1.0;   // green
-    if (s >= 80) return 0.8;   // yellow-green
-    if (s >= 70) return 0.6;   // yellow
-    if (s >= 60) return 0.4;   // orange
-    return 0.2;                // red
-  };
-
-  // Zone weight for streak penalty: worse zones compound faster
-  const zoneWeight = (s: number) => {
-    if (s >= 70) return 1;     // yellow
-    if (s >= 60) return 2;     // orange
-    return 3;                  // red
-  };
-
-  // Average zone credit across all arcs
+  // Sigmoid credit: arcs above 70 get near-full credit, below 40 get near-zero
+  const credit = (s: number) => 1 / (1 + Math.exp(-0.1 * (s - 55)));
   const avgCredit = avg(arr.map(credit));
 
-  // Streak penalty: consecutive below-green arcs, weighted by zone severity
   if (n < 3) return avgCredit;
+
+  // Streak penalty: only consecutive arcs below 60 (genuinely weak) compound
   let penalty = 0;
   let pos = 0;
   for (let i = 0; i <= n; i++) {
-    if (i < n && arr[i] < 80) {
+    if (i < n && arr[i] < 60) {
       pos++;
-      penalty += zoneWeight(arr[i]) * pos;
+      penalty += (1 - credit(arr[i])) * pos;
     } else {
       pos = 0;
     }
   }
-  const streakFactor = 1 / (1 + penalty / (n * 15));
 
-  return avgCredit * streakFactor;
+  return avgCredit / (1 + penalty / (n * 8));
 }
 
 /**
- * Compute force grades (0-20 each, 0-100 overall) from raw force value arrays.
- * Five metrics: payoff, change, variety, swing, and consistency.
- *
- * @param arcOveralls - Optional array of per-arc overall scores (sum of P+C+V+S
- *   for each arc). When provided, consistency measures how stable arc-level quality
- *   is across the story. Without it, consistency defaults to 20 (perfect).
+ * Grade narrative forces (0–20 each, 0–100 overall).
+ * Each force is mean-normalized then graded: g(x̃) = 20(1 - e^{-2x̃}), μ = {2, 7, 5, 1.5}.
+ * Series-level includes a 5th metric (streak/consistency).
  */
 export function gradeForces(
   payoff: number[],
@@ -889,18 +848,15 @@ export function gradeForces(
   swing: number[],
   arcOveralls?: number[],
 ): ForceGrades {
-  const swingEffective = avg(swing) * 0.5 + topAvg(swing) * 0.5;
+  const R = FORCE_REFERENCE_MEANS;
+  const payoffGrade = gradeForce(avg(payoff) / R.payoff);
+  const changeGrade = gradeForce(avg(change) / R.change);
+  const varietyGrade = gradeForce(avg(variety) / R.variety);
+  const swingGrade = gradeForce(avg(swing) / R.swing);
 
-  const payoffGrade = gradeForce(avg(payoff), 3);
-  const changeGrade = gradeForce(avg(change), 3);
-  const varietyGrade = gradeForce(avg(variety), 2);
-  const swingGrade = gradeForce(swingEffective, 5);
-
-  // Streak: zone-based consistency — only applies at series level (cross-arc metric)
   const hasStreak = arcOveralls && arcOveralls.length >= 2;
   const streakGrade = hasStreak ? 20 * consistencyFactor(arcOveralls) : 0;
 
-  // Per-arc: 4 metrics scaled to 0-100; series-level: 5 metrics (including streak) 0-100
   const coreSum = payoffGrade + changeGrade + varietyGrade + swingGrade;
   const overall = hasStreak
     ? coreSum + streakGrade

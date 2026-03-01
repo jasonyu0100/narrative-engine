@@ -1,7 +1,7 @@
 import type { NarrativeState, Scene } from '@/types/narrative';
 import { resolveEntry, isScene } from '@/types/narrative';
 import type { MCTSNode } from '@/types/mcts';
-import { computeRawForcetotals, computeSwingMagnitudes, gradeForces } from '@/lib/narrative-utils';
+import { computeRawForcetotals, computeSwingMagnitudes, gradeForces, FORCE_REFERENCE_MEANS } from '@/lib/narrative-utils';
 
 /**
  * Apply scene mutations (relationship + knowledge + thread) to a narrative state.
@@ -128,7 +128,7 @@ export function scoreArc(arcScenes: Scene[], priorScenes: Scene[]): number {
     change: raw.change[i],
     variety: raw.variety[i],
   }));
-  const swings = computeSwingMagnitudes(forces);
+  const swings = computeSwingMagnitudes(forces, FORCE_REFERENCE_MEANS);
 
   // Per-arc grading (no arcOveralls → 4 metrics scaled to 0-100)
   const grades = gradeForces(raw.payoff, raw.change, raw.variety, swings);

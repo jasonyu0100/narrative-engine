@@ -5,11 +5,12 @@ import { useRouter } from 'next/navigation';
 import { useStore } from '@/lib/store';
 import type { NarrativeState } from '@/types/narrative';
 import { resolveEntry, isScene, type Scene } from '@/types/narrative';
-import { computeRawForcetotals, computeSwingMagnitudes, computeForceSnapshots, computeEngagementCurve, classifyNarrativeShape, gradeForces, type NarrativeShape } from '@/lib/narrative-utils';
+import { computeRawForcetotals, computeSwingMagnitudes, computeForceSnapshots, computeEngagementCurve, classifyNarrativeShape, gradeForces, FORCE_REFERENCE_MEANS, type NarrativeShape } from '@/lib/narrative-utils';
 import { ApiLogsModal } from '@/components/debug/ApiLogsModal';
 import { StoryReader } from '@/components/story/StoryReader';
 import { CubeExplorer } from '@/components/topbar/CubeExplorer';
 import { BranchContextModal } from '@/components/topbar/BranchContextModal';
+import { FormulaModal } from '@/components/topbar/FormulaModal';
 
 
 function exportNarrative(narrative: NarrativeState) {
@@ -34,6 +35,7 @@ export default function TopBar() {
   const [storyOpen, setStoryOpen] = useState(false);
   const [cubeExplorerOpen, setCubeExplorerOpen] = useState(false);
   const [branchContextOpen, setBranchContextOpen] = useState(false);
+  const [formulaOpen, setFormulaOpen] = useState(false);
   const [scorecardOpen, setScorecardOpen] = useState(false);
   const [hoveredArcIdx, setHoveredArcIdx] = useState<number | null>(null);
   const [scorecardGraphView, setScorecardGraphView] = useState<'arcs' | 'beats'>('arcs');
@@ -93,14 +95,14 @@ export default function TopBar() {
       const m = avg(arr);
       return Math.sqrt(arr.reduce((s, v) => s + (v - m) ** 2, 0) / arr.length);
     };
-    // Compute swing from raw forces (not z-scored) so absolute force magnitudes
-    // differentiate well-crafted narratives from bland AI text
+    // Compute swing from raw forces, normalized by reference means
+    // so each dimension contributes equally regardless of natural scale
     const rawForces = raw.payoff.map((_, i) => ({
       payoff: raw.payoff[i],
       change: raw.change[i],
       variety: raw.variety[i],
     }));
-    const swings = computeSwingMagnitudes(rawForces);
+    const swings = computeSwingMagnitudes(rawForces, FORCE_REFERENCE_MEANS);
 
     const forceStats = (arr: number[]) => ({
       total: sum(arr),
@@ -721,6 +723,19 @@ export default function TopBar() {
           <span className="text-[11px]">Context</span>
         </button>
         <button
+          onClick={() => setFormulaOpen(true)}
+          className="px-2 py-1 rounded hover:bg-bg-elevated transition-colors text-text-dim hover:text-text-primary flex items-center gap-1.5"
+          title="Narrative force formulas"
+        >
+          <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <line x1="4" y1="9" x2="20" y2="9" />
+            <line x1="4" y1="15" x2="20" y2="15" />
+            <line x1="10" y1="3" x2="8" y2="21" />
+            <line x1="16" y1="3" x2="14" y2="21" />
+          </svg>
+          <span className="text-[11px]">Formulas</span>
+        </button>
+        <button
           onClick={() => setLogsOpen(true)}
           className="relative px-2 py-1 rounded hover:bg-bg-elevated transition-colors text-text-dim hover:text-text-primary flex items-center gap-1.5"
           title="API Logs"
@@ -758,6 +773,7 @@ export default function TopBar() {
           onNavigate={(idx) => dispatch({ type: 'SET_SCENE_INDEX', index: idx })}
         />
       )}
+      {formulaOpen && <FormulaModal onClose={() => setFormulaOpen(false)} />}
       {branchContextOpen && narrative && (
         <BranchContextModal
           narrative={narrative}

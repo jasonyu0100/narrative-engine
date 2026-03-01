@@ -4,7 +4,7 @@ import { useRef, useEffect, useMemo, useCallback } from 'react';
 import { useStore } from '@/lib/store';
 import type { Arc, Scene } from '@/types/narrative';
 import { resolveEntry, isScene } from '@/types/narrative';
-import { computeRawForcetotals, computeSwingMagnitudes, gradeForces } from '@/lib/narrative-utils';
+import { computeRawForcetotals, computeSwingMagnitudes, gradeForces, FORCE_REFERENCE_MEANS } from '@/lib/narrative-utils';
 
 const NODE_RADIUS = 8;
 const NODE_SPACING = 50;
@@ -78,7 +78,7 @@ export default function TimelineStrip() {
       change: raw.change[i],
       variety: raw.variety[i],
     }));
-    const swings = computeSwingMagnitudes(rawForces);
+    const swings = computeSwingMagnitudes(rawForces, FORCE_REFERENCE_MEANS);
 
     // Map scene IDs to their index in allScenes (scene-only, no world builds)
     const sceneIdToForceIdx = new Map(allScenes.map((s, i) => [s.id, i]));
