@@ -24,7 +24,7 @@ async function describeVisually(openrouterKey: string, request: ImageRequest): P
 
   let userPrompt: string;
   if (request.type === 'character') {
-    userPrompt = `Create a character portrait prompt for "${request.name}" (role: ${request.role}) in this world: ${request.worldSummary}. Context clues: ${request.knowledgeHints.join('; ') || 'none'}. Aspect: head and shoulders.`;
+    userPrompt = `Create a character portrait prompt for "${request.name}" (role: ${request.role}) in this world: ${request.worldSummary}. Context clues: ${request.knowledgeHints.join('; ') || 'none'}. IMPORTANT: Single character only, one person, head and shoulders portrait.`;
   } else if (request.type === 'location') {
     const parent = request.parentName ? ` (inside ${request.parentName})` : '';
     userPrompt = `Create an establishing shot prompt for the location "${request.name}"${parent} in this world: ${request.worldSummary}. Context clues: ${request.knowledgeHints.join('; ') || 'none'}.`;
@@ -77,7 +77,8 @@ export async function POST(req: NextRequest) {
     const styleAppend = body.imageStyle && !(body.type !== 'scene' && 'imagePrompt' in body && body.imagePrompt)
       ? `, ${body.imageStyle}`
       : '';
-    const suffix = ', no text, no letters, no words, no watermarks';
+    const singleCharSuffix = body.type === 'character' ? ', solo character, one person only, single subject' : '';
+    const suffix = singleCharSuffix + ', no text, no letters, no words, no watermarks';
     const aspectRatio = body.type === 'character' ? '3:4' : body.type === 'location' ? '16:9' : '16:9';
 
     // Step 2: Generate image with Seedream 4.5
