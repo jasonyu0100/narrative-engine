@@ -99,9 +99,7 @@ class AnalysisRunner {
       return;
     }
 
-    console.log('[AnalysisRunner] Starting job:', job.id, 'chunks:', job.chunks.length, 'dispatch available:', !!this.dispatch);
     const d = await this.getDispatch();
-    console.log('[AnalysisRunner] Dispatch acquired, beginning extraction');
 
     const entry: RunningJob = { cancelled: false, inFlightIndices: new Set(), chunkStreams: new Map() };
     this.running.set(job.id, entry);

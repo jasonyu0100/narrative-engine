@@ -501,11 +501,7 @@ export default function HomePage() {
                       key={job.id}
                       className="group flex items-center gap-4 border border-white/6 rounded-lg px-4 py-3 hover:border-white/12 transition cursor-pointer"
                       onClick={() => {
-                        if (job.status === 'completed' && job.narrativeId) {
-                          router.push(`/series/${job.narrativeId}`);
-                        } else {
-                          router.push(`/analysis?job=${job.id}`);
-                        }
+                        router.push(`/analysis?job=${job.id}`);
                       }}
                     >
                       {/* Status indicator */}

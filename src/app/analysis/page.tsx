@@ -13,15 +13,16 @@ import { ANALYSIS_MAX_CORPUS_WORDS } from '@/lib/constants';
 type WordNode = { label: string; type: 'character' | 'location' | 'thread'; count: number; firstSeen: number };
 
 /* ── Job detail panel ─────────────────────────────────────────────────────── */
-function JobDetail({ job, onBack }: { job: AnalysisJob; onBack: () => void }) {
+function JobDetail({ job }: { job: AnalysisJob }) {
   const router = useRouter();
-  const { state } = useStore();
+  const { state, dispatch } = useStore();
   const streamRef = useRef<HTMLPreElement>(null);
   const [streamText, setStreamText] = useState(() => analysisRunner.getStreamText(job.id));
   const [selectedChunk, setSelectedChunk] = useState<number | null>(null);
   const [inFlightIndices, setInFlightIndices] = useState<number[]>(() => analysisRunner.getInFlightIndices(job.id));
   const [chunkStreamTexts, setChunkStreamTexts] = useState<Map<number, string>>(new Map());
   const [viewingChunkStream, setViewingChunkStream] = useState<number | null>(null);
+  const [assembling, setAssembling] = useState(false);
 
   const liveJob = state.analysisJobs.find((j) => j.id === job.id) ?? job;
   const isRunning = analysisRunner.isRunning(job.id) || liveJob.status === 'running';
@@ -172,9 +173,6 @@ function JobDetail({ job, onBack }: { job: AnalysisJob; onBack: () => void }) {
     <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
       {/* ── Top bar: title + controls ── */}
       <div className="shrink-0 px-6 py-2.5 flex items-center gap-4 border-b border-white/4 bg-black/20">
-        <button onClick={onBack} className="text-white/30 hover:text-white/70 transition">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M15 18l-6-6 6-6" /></svg>
-        </button>
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-3">
             <h2 className="text-sm font-semibold text-white/90 truncate">{liveJob.title}</h2>
@@ -220,12 +218,27 @@ function JobDetail({ job, onBack }: { job: AnalysisJob; onBack: () => void }) {
               {liveJob.status === 'failed' ? 'Retry' : liveJob.status === 'pending' ? 'Start' : 'Resume'}
             </button>
           )}
-          {liveJob.status === 'completed' && liveJob.narrativeId && (
+          {liveJob.status === 'completed' && (
             <button
-              onClick={() => router.push(`/series/${liveJob.narrativeId}`)}
-              className="bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-400 text-[10px] font-semibold px-4 py-1 rounded transition"
+              disabled={assembling}
+              onClick={async () => {
+                setAssembling(true);
+                try {
+                  const { assembleNarrative } = await import('@/lib/text-analysis');
+                  const completedResults = liveJob.results.filter((r): r is AnalysisChunkResult => r !== null);
+                  const narrative = await assembleNarrative(liveJob.title, completedResults);
+                  dispatch({ type: 'ADD_NARRATIVE', narrative });
+                  dispatch({ type: 'UPDATE_ANALYSIS_JOB', id: liveJob.id, updates: { narrativeId: narrative.id } });
+                  router.push(`/series/${narrative.id}`);
+                } catch (err) {
+                  console.error('[analysis] assembly failed:', err);
+                } finally {
+                  setAssembling(false);
+                }
+              }}
+              className="bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-400 text-[10px] font-semibold px-4 py-1 rounded transition disabled:opacity-50"
             >
-              Open Narrative
+              {assembling ? 'Assembling...' : 'Create Narrative'}
             </button>
           )}
         </div>
@@ -626,6 +639,12 @@ function NewJobSetup({ sourceText, onCreated }: { sourceText: string; onCreated:
     };
     dispatch({ type: 'ADD_ANALYSIS_JOB', job });
     onCreated(job.id);
+    // Auto-start after React processes the ADD_ANALYSIS_JOB dispatch
+    setTimeout(() => {
+      analysisRunner.start(job).catch((err) => {
+        console.error('[analysis] auto-start failed:', err);
+      });
+    }, 0);
   };
 
   return (
@@ -853,7 +872,6 @@ function AnalysisPageInner() {
           <JobDetail
             key={selectedJob.id}
             job={selectedJob}
-            onBack={() => router.push('/')}
           />
         ) : state.analysisJobs.length === 0 ? (
           <div className="flex-1 flex items-center justify-center relative z-10">

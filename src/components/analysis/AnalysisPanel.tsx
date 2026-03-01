@@ -272,12 +272,18 @@ export function AnalysisPanel({ jobId, sourceText, title: initialTitle, onClose 
 
         {/* Controls */}
         <div className="flex items-center justify-between">
-          {currentJob.status === 'completed' && currentJob.narrativeId ? (
+          {currentJob.status === 'completed' ? (
             <button
-              onClick={() => router.push(`/series/${currentJob.narrativeId}`)}
+              onClick={async () => {
+                const completedResults = currentJob.results.filter((r): r is AnalysisChunkResult => r !== null);
+                const narrative = await assembleNarrative(currentJob.title, completedResults);
+                dispatch({ type: 'ADD_NARRATIVE', narrative });
+                dispatch({ type: 'UPDATE_ANALYSIS_JOB', id: currentJob.id, updates: { narrativeId: narrative.id } });
+                router.push(`/series/${narrative.id}`);
+              }}
               className="bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-400 text-xs font-semibold px-5 py-2 rounded-lg transition w-full"
             >
-              Open Narrative
+              Create Narrative
             </button>
           ) : (
             <>
