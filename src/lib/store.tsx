@@ -1091,8 +1091,9 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     });
   }, [state.activeNarrativeId]);
 
-  // Persist active branch ID whenever it changes
+  // Persist active branch ID whenever it changes (skip null to avoid race with SET_ACTIVE_NARRATIVE)
   useEffect(() => {
+    if (state.activeBranchId === null) return;
     saveActiveBranchId(state.activeBranchId).catch((err) => {
       console.error('[store] Failed to persist active branch ID:', err);
     });
