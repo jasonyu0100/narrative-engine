@@ -188,7 +188,7 @@ export function zScoreNormalize(values: number[]): number[] {
 // Three forces measure distinct dimensions of narrative movement per scene.
 // Raw values are z-score normalized: z = (x - μ) / σ.
 //
-// P = Σ |φ_to - φ_from| + Σ |Δv|         (phase distance + valence shifts)
+// P = Σ |φ_to - φ_from| + Σ |Δv|^1.5     (phase distance + super-linear valence shifts)
 // C = Σ_c log₂(1 + m_c)                  (mutation reach per character)
 // V = Σr(g_c) + r(g_ℓ) + J̄               (cast recency + loc recency + ensemble)
 //     where r(g) = g / (1 + g)            (parameter-free saturating decay)
@@ -224,8 +224,11 @@ function computeRawPayoff(scene: Scene): number {
     }
   }
 
+  // Valence shifts use |Δv|^1.5 — small drifts are dampened,
+  // large swings (reversals) contribute near-full weight.
   for (const rm of scene.relationshipMutations) {
-    score += Math.abs(rm.valenceDelta);
+    const av = Math.abs(rm.valenceDelta);
+    score += av ** 1.5;
   }
 
   return score;
@@ -309,7 +312,7 @@ function rawVariety(
  * Compute ForceSnapshots for a batch of scenes using z-score normalization.
  * 0 = average moment; positive = above average; negative = below average (units of std deviation).
  *
- * - **Payoff**: phase transitions — thread status changes (weighted by jump magnitude) and relationship valence shifts
+ * - **Payoff**: phase transitions — thread status changes (weighted by jump magnitude) and squared relationship valence shifts (small drifts dampened, large swings amplified)
  * - **Change**: mutation reach — sum of log₂(1 + mutations) per affected character
  * - **Variety**: r̄_char + r_loc + J̄ — three [0,1] components equally weighted
  *
@@ -800,7 +803,7 @@ const avg = (arr: number[]) => arr.length > 0 ? arr.reduce((s, v) => s + v, 0) /
  *  Raw force values are divided by these to produce a unit-free normalized value
  *  (x̃ = x̄ / μ_ref). At x̃ = 1 the grade reaches ~86%.
  *  Calibrated from literary works (HP, Gatsby, Crime & Punishment, Coiling Dragon). */
-export const FORCE_REFERENCE_MEANS = { payoff: 2, change: 7, variety: 4.5, swing: 1.2 } as const;
+export const FORCE_REFERENCE_MEANS = { payoff: 1.75, change: 7, variety: 4.5, swing: 1.2 } as const;
 
 /** Grade a mean-normalized force value 0→20: g(x̃) = 20(1 - e^{-2x̃}).
  *  x̃ = x̄ / μ_ref. At x̃ = 1 (matching reference), grade ≈ 17/20 (86%). */

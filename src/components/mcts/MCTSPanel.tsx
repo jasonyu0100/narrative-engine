@@ -978,8 +978,9 @@ export function MCTSPanel({ isOpen, onClose, mcts }: { isOpen: boolean; onClose:
 
   const handleCommit = useCallback(() => {
     commitPath();
+    stop();
     onClose();
-  }, [commitPath, onClose]);
+  }, [commitPath, stop, onClose]);
 
   const handleStop = useCallback(() => {
     stop();

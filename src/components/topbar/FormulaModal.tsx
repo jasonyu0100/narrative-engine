@@ -55,10 +55,11 @@ export function FormulaModal({ onClose }: Props) {
           </p>
 
           <S title="Payoff" analogy="Did something permanent happen? A betrayal, a death, a vow — moments that can't be undone.">
-            <Block tex="P = \sum_{t \in \mathcal{T}} |\,\phi_{\text{to}} - \phi_{\text{from}}\,| \;+\; \sum_{r \in \mathcal{R}} |\Delta v_r|" />
+            <Block tex="P = \sum_{t \in \mathcal{T}} |\,\phi_{\text{to}} - \phi_{\text{from}}\,| \;+\; \sum_{r \in \mathcal{R}} |\Delta v_r|^{3/2}" />
             <p className="text-[10px] text-text-dim">
               <Tex>{'\\phi'}</Tex>: phase index (dormant=0, active=1, escalating=2, critical=3).
               Terminal transitions use <Tex>{'|\\phi|=4'}</Tex>.
+              Valence shifts use a <Tex>{'\\frac{3}{2}'}</Tex> power — small drifts are dampened; large swings (reversals) contribute near-full weight.
             </p>
           </S>
 
@@ -99,7 +100,7 @@ export function FormulaModal({ onClose }: Props) {
             <Block tex="\tilde{x} = \frac{\bar{x}}{\mu_{\text{ref}}}, \qquad g(\tilde{x}) = 20\!\left(1 - e^{-2\tilde{x}}\right)" />
             <Block tex="\text{Overall}_{\text{arc}} = \frac{100}{80}\sum_k g_k, \qquad \text{Overall}_{\text{series}} = \sum_k g_k + g_{\text{streak}}" />
             <p className="text-[10px] text-text-dim">
-              Reference means <Tex>{'\\mu'}</Tex>: P=2, C=7, V=4.5, S=1.2. Calibrated from literary works.
+              Reference means <Tex>{'\\mu'}</Tex>: P=1.75, C=7, V=4.5, S=1.2. Calibrated from literary works.
               At <Tex>{'\\tilde{x}=1'}</Tex> (matching reference), grade <Tex>{'\\approx'}</Tex> 17/20.
             </p>
           </S>
