@@ -11,6 +11,7 @@ import { StoryReader } from '@/components/story/StoryReader';
 import { CubeExplorer } from '@/components/topbar/CubeExplorer';
 import { BranchContextModal } from '@/components/topbar/BranchContextModal';
 import { FormulaModal } from '@/components/topbar/FormulaModal';
+import { MoviePlayer } from '@/components/movie/MoviePlayer';
 
 
 function exportNarrative(narrative: NarrativeState) {
@@ -36,6 +37,7 @@ export default function TopBar() {
   const [cubeExplorerOpen, setCubeExplorerOpen] = useState(false);
   const [branchContextOpen, setBranchContextOpen] = useState(false);
   const [formulaOpen, setFormulaOpen] = useState(false);
+  const [movieOpen, setMovieOpen] = useState(false);
   const [scorecardOpen, setScorecardOpen] = useState(false);
   const [hoveredArcIdx, setHoveredArcIdx] = useState<number | null>(null);
   const [scorecardGraphView, setScorecardGraphView] = useState<'arcs' | 'beats'>('arcs');
@@ -666,6 +668,16 @@ export default function TopBar() {
           )}
         </div>
         <button
+          onClick={() => setMovieOpen(true)}
+          className="px-2 py-1 rounded hover:bg-bg-elevated transition-colors text-text-dim hover:text-text-primary flex items-center gap-1.5"
+          title="Analysis Movie — automated presentation"
+        >
+          <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <polygon points="5 3 19 12 5 21 5 3" />
+          </svg>
+          <span className="text-[11px]">Movie</span>
+        </button>
+        <button
           onClick={() => window.dispatchEvent(new Event('open-force-tracker'))}
           className="px-2 py-1 rounded hover:bg-bg-elevated transition-colors text-text-dim hover:text-text-primary flex items-center gap-1.5"
           title="Force Tracker — narrative analysis"
@@ -780,6 +792,13 @@ export default function TopBar() {
           resolvedKeys={state.resolvedSceneKeys}
           currentSceneIndex={state.currentSceneIndex}
           onClose={() => setBranchContextOpen(false)}
+        />
+      )}
+      {movieOpen && narrative && (
+        <MoviePlayer
+          narrative={narrative}
+          resolvedKeys={state.resolvedSceneKeys}
+          onClose={() => setMovieOpen(false)}
         />
       )}
     </div>

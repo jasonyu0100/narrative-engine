@@ -66,7 +66,8 @@ export default function SeriesPage() {
       const exists = state.narratives.some((n) => n.id === id);
       if (exists) {
         dispatch({ type: 'SET_ACTIVE_NARRATIVE', id });
-      } else {
+      } else if (state.narratives.length > 0) {
+        // Only redirect after hydration — empty list means narratives haven't loaded yet
         router.replace('/');
       }
     }

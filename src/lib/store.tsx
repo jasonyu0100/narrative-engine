@@ -1057,6 +1057,9 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     if (id === prevActiveIdRef.current && state.activeNarrative) return;
     prevActiveIdRef.current = id;
 
+    // If activeNarrative is already populated (e.g. from ADD_NARRATIVE), skip async load
+    if (state.activeNarrative?.id === id) return;
+
     let cancelled = false;
     async function load() {
       // Try IndexedDB first, then fall back to static seed data

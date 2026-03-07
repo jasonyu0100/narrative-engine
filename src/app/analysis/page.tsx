@@ -819,7 +819,7 @@ function AnalysisPageInner() {
 
   const [sourceText, setSourceText] = useState<string | null>(null);
   const [selectedJobId, setSelectedJobId] = useState<string | null>(initialJobId);
-  const [showNewSetup, setShowNewSetup] = useState(false);
+  const [showNewSetup, setShowNewSetup] = useState(isNew && !initialJobId);
 
   // Load source text from IndexedDB for new analysis jobs
   useEffect(() => {
@@ -828,7 +828,9 @@ function AnalysisPageInner() {
       getAnalysisSource().then((text) => {
         if (text) {
           setSourceText(text);
-          setShowNewSetup(true);
+        } else {
+          // No source text found — fall back to showing jobs list
+          setShowNewSetup(false);
         }
       })
     );
@@ -837,10 +839,10 @@ function AnalysisPageInner() {
   const selectedJob = selectedJobId ? state.analysisJobs.find((j) => j.id === selectedJobId) ?? null : null;
 
   useEffect(() => {
-    if (!selectedJobId && !showNewSetup && state.analysisJobs.length > 0) {
+    if (!selectedJobId && !showNewSetup && !isNew && state.analysisJobs.length > 0) {
       setSelectedJobId(state.analysisJobs[0].id);
     }
-  }, [selectedJobId, showNewSetup, state.analysisJobs]);
+  }, [selectedJobId, showNewSetup, isNew, state.analysisJobs]);
 
   return (
     <div className="h-screen bg-bg-base flex relative overflow-hidden">
@@ -889,6 +891,10 @@ function AnalysisPageInner() {
               import('@/lib/analysis-transfer').then(({ removeAnalysisSource }) => removeAnalysisSource());
             }}
           />
+        ) : showNewSetup && !sourceText ? (
+          <div className="flex-1 flex items-center justify-center">
+            <span className="text-white/20 text-sm">Loading text...</span>
+          </div>
         ) : selectedJob ? (
           <JobDetail
             key={selectedJob.id}
