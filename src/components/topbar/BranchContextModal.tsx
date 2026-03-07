@@ -2,7 +2,10 @@
 
 import React, { useMemo, useState } from 'react';
 import type { NarrativeState } from '@/types/narrative';
-import { branchContext } from '@/lib/ai';
+import { resolveEntry, isScene } from '@/types/narrative';
+import { branchContext, sceneContext } from '@/lib/ai';
+
+type ContextView = 'branch' | 'scene';
 
 type Props = {
   narrative: NarrativeState;
@@ -13,11 +16,23 @@ type Props = {
 
 export function BranchContextModal({ narrative, resolvedKeys, currentSceneIndex, onClose }: Props) {
   const [copied, setCopied] = useState(false);
+  const [view, setView] = useState<ContextView>('branch');
 
-  const context = useMemo(
+  const branchCtx = useMemo(
     () => branchContext(narrative, resolvedKeys, currentSceneIndex),
     [narrative, resolvedKeys, currentSceneIndex],
   );
+
+  const currentKey = resolvedKeys[currentSceneIndex];
+  const currentEntry = currentKey ? resolveEntry(narrative, currentKey) : null;
+  const currentScene = currentEntry && isScene(currentEntry) ? currentEntry : null;
+
+  const sceneCtx = useMemo(
+    () => currentScene ? sceneContext(narrative, currentScene) : null,
+    [narrative, currentScene],
+  );
+
+  const context = view === 'scene' && sceneCtx ? sceneCtx : branchCtx;
 
   const wordCount = useMemo(() => context.split(/\s+/).length, [context]);
   const estimatedTokens = Math.round(context.length / 4);
@@ -41,7 +56,27 @@ export function BranchContextModal({ narrative, resolvedKeys, currentSceneIndex,
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-3 border-b border-border shrink-0">
           <div className="flex items-center gap-3">
-            <h2 className="text-sm font-medium text-text-primary">Branch Context</h2>
+            {/* View toggle */}
+            <div className="flex items-center rounded bg-bg-elevated text-[11px] leading-none">
+              <button
+                className={`px-2.5 py-1.5 rounded-l transition-colors ${
+                  view === 'branch' ? 'text-accent-cta' : 'text-text-dim hover:text-text-default'
+                }`}
+                onClick={() => setView('branch')}
+              >
+                Branch
+              </button>
+              <div className="w-px h-3.5 bg-border" />
+              <button
+                className={`px-2.5 py-1.5 rounded-r transition-colors ${
+                  view === 'scene' ? 'text-accent-cta' : 'text-text-dim hover:text-text-default'
+                } ${!sceneCtx ? 'opacity-30 pointer-events-none' : ''}`}
+                onClick={() => setView('scene')}
+                disabled={!sceneCtx}
+              >
+                Scene
+              </button>
+            </div>
             <span className="text-[11px] text-text-dim px-2 py-0.5 rounded bg-bg-elevated">
               {wordCount.toLocaleString()} words
             </span>

@@ -267,7 +267,7 @@ export function branchContext(
     .map((r) => {
       const fromName = n.characters[r.from]?.name ?? r.from;
       const toName = n.characters[r.to]?.name ?? r.to;
-      return `- ${r.from} (${fromName}) -> ${r.to} (${toName}): ${r.type} (valence: ${r.valence})`;
+      return `- ${r.from} (${fromName}) -> ${r.to} (${toName}): ${r.type} (valence: ${Math.round(r.valence * 100) / 100})`;
     })
     .join('\n');
 
@@ -286,7 +286,7 @@ export function branchContext(
     const relChanges = s.relationshipMutations.map((rm) => {
       const fromName = n.characters[rm.from]?.name ?? rm.from;
       const toName = n.characters[rm.to]?.name ?? rm.to;
-      return `${fromName}->${toName}: ${rm.type} (${rm.valenceDelta >= 0 ? '+' : ''}${rm.valenceDelta})`;
+      return `${fromName}->${toName}: ${rm.type} (${rm.valenceDelta >= 0 ? '+' : ''}${Math.round(rm.valenceDelta * 100) / 100})`;
     }).join('; ');
     return `[${globalIdx}] ${s.id} @ ${loc} | ${participants}${threadChanges ? ` | Threads: ${threadChanges}` : ''}${knowledgeChanges ? ` | Knowledge: ${knowledgeChanges}` : ''}${relChanges ? ` | Relationships: ${relChanges}` : ''}
    ${s.summary}`;
@@ -346,27 +346,36 @@ export function branchContext(
   return `NARRATIVE: "${n.title}"
 WORLD: ${n.worldSummary}
 ${rulesBlock}
+
+────────────────────────────────────────
 CHARACTERS:
 ${characters}
 
+────────────────────────────────────────
 LOCATIONS:
 ${locations}
 
+────────────────────────────────────────
 THREADS:
 ${threads}
 
+────────────────────────────────────────
 RELATIONSHIPS:
 ${relationships}
 
+────────────────────────────────────────
 ARCS:
 ${arcs}
 
+────────────────────────────────────────
 ${horizonLabel}
 ${sceneHistory}
 
+────────────────────────────────────────
 FORCE TRAJECTORY (computed from scene structure — shows pacing rhythm):
 ${forceTrajectory || '(no scenes yet)'}
 ${currentStateBlock}
+────────────────────────────────────────
 VALID IDs (you MUST use ONLY these exact IDs — do NOT invent new ones):
   Character IDs: ${charIdList}
   Location IDs: ${locIdList}
@@ -1013,6 +1022,150 @@ const ENDING_TECHNIQUES = [
   'A line of internal thought that reframes what just happened',
 ];
 
+/** Build a discrete context block for a single scene — a focused version of branchContext.
+ *  Includes the scene's mutations, recent knowledge for involved characters/locations,
+ *  and the relationship state between participants. */
+export function sceneContext(narrative: NarrativeState, scene: Scene): string {
+  const location = narrative.locations[scene.locationId];
+  const pov = narrative.characters[scene.povId];
+  const participants = scene.participantIds.map((pid) => narrative.characters[pid]).filter(Boolean);
+  const arc = Object.values(narrative.arcs).find((a) => a.sceneIds.includes(scene.id));
+  const participantIdSet = new Set(scene.participantIds);
+
+  // ── Characters: full knowledge graph for each participant ──────────
+  const RECENT_KNOWLEDGE = 5; // only most recent nodes to avoid context bloat
+
+  const characterBlocks = participants.map((p) => {
+    const recentNodes = p.knowledge.nodes.slice(-RECENT_KNOWLEDGE);
+    const omitted = p.knowledge.nodes.length - recentNodes.length;
+    const knLines = recentNodes.map((kn) => `    (${kn.type}) ${kn.content}`);
+    const omittedNote = omitted > 0 ? `\n    (${omitted} earlier items omitted)` : '';
+    const knBlock = knLines.length > 0
+      ? `\n  Knowledge (${recentNodes.length} recent):${omittedNote}\n${knLines.join('\n')}`
+      : '';
+    return `  - ${p.id}: ${p.name} (${p.role})${knBlock}`;
+  });
+
+  // ── Location: recent knowledge ─────────────────────────────────────
+  const locationBlock = (() => {
+    if (!location) return '  - Unknown';
+    const recentNodes = location.knowledge.nodes.slice(-RECENT_KNOWLEDGE);
+    const omitted = location.knowledge.nodes.length - recentNodes.length;
+    const knLines = recentNodes.map((kn) => `    (${kn.type}) ${kn.content}`);
+    const omittedNote = omitted > 0 ? `\n    (${omitted} earlier items omitted)` : '';
+    const knBlock = knLines.length > 0
+      ? `\n  Knowledge (${recentNodes.length} recent):${omittedNote}\n${knLines.join('\n')}`
+      : '';
+    const parent = location.parentId ? ` (inside ${narrative.locations[location.parentId]?.name ?? location.parentId})` : '';
+    return `  - ${location.id}: ${location.name}${parent}${knBlock}`;
+  })();
+
+  // ── Relationships between participants ─────────────────────────────
+  const relevantRelationships = narrative.relationships.filter(
+    (r) => participantIdSet.has(r.from) && participantIdSet.has(r.to),
+  );
+  const relationshipStateLines = relevantRelationships.map((r) => {
+    const fromName = narrative.characters[r.from]?.name ?? r.from;
+    const toName = narrative.characters[r.to]?.name ?? r.to;
+    return `  - ${fromName} → ${toName}: ${r.type} (valence: ${Math.round(r.valence * 100) / 100})`;
+  });
+
+  // ── Threads involved in this scene ─────────────────────────────────
+  const threadIds = new Set(scene.threadMutations.map((tm) => tm.threadId));
+  const threadBlocks = [...threadIds].map((tid) => {
+    const thread = narrative.threads[tid];
+    if (!thread) return `  - ${tid}: unknown`;
+    const anchors = thread.anchors.map((a) => {
+      if (a.type === 'character') return narrative.characters[a.id]?.name ?? a.id;
+      if (a.type === 'location') return narrative.locations[a.id]?.name ?? a.id;
+      return a.id;
+    });
+    return `  - ${tid}: "${thread.description}" [${thread.status}] anchors: ${anchors.join(', ')}`;
+  });
+
+  // ── Scene mutations ────────────────────────────────────────────────
+  const threadMutationLines = scene.threadMutations.map((tm) => {
+    const thread = narrative.threads[tm.threadId];
+    return `  - "${thread?.description ?? tm.threadId}": ${tm.from} → ${tm.to}`;
+  });
+
+  const knowledgeMutationLines = scene.knowledgeMutations.map((km) => {
+    const char = narrative.characters[km.characterId];
+    return `  - ${char?.name ?? km.characterId} ${km.action === 'added' ? 'learns' : 'loses'}: [${km.nodeType ?? 'knowledge'}] ${km.content}`;
+  });
+
+  const relationshipMutationLines = scene.relationshipMutations.map((rm) => {
+    const fromName = narrative.characters[rm.from]?.name ?? rm.from;
+    const toName = narrative.characters[rm.to]?.name ?? rm.to;
+    return `  - ${fromName} → ${toName}: ${rm.type} (${rm.valenceDelta >= 0 ? '+' : ''}${Math.round(rm.valenceDelta * 100) / 100})`;
+  });
+
+  const movementLines = scene.characterMovements
+    ? Object.entries(scene.characterMovements).map(([charId, locId]) => {
+        const char = narrative.characters[charId];
+        const loc = narrative.locations[locId];
+        return `  - ${char?.name ?? charId} moves to ${loc?.name ?? locId}`;
+      })
+    : [];
+
+  const SEP = '────────────────────────────────────────';
+
+  return [
+    `Scene: ${scene.id}`,
+    `Summary: ${scene.summary}`,
+    `Arc: ${arc?.name ?? 'standalone'}`,
+    `POV: ${pov?.name ?? 'Unknown'} (${pov?.role ?? 'unknown role'})`,
+    ``,
+    SEP,
+    `CHARACTERS:`,
+    ...characterBlocks,
+    ``,
+    SEP,
+    `LOCATION:`,
+    locationBlock,
+    ``,
+    ...(relationshipStateLines.length > 0 ? [
+      SEP,
+      `RELATIONSHIPS (current state):`,
+      ...relationshipStateLines,
+      ``,
+    ] : []),
+    ...(threadBlocks.length > 0 ? [
+      SEP,
+      `THREADS (involved):`,
+      ...threadBlocks,
+      ``,
+    ] : []),
+    SEP,
+    `EVENTS:`,
+    ...scene.events.map((e) => `  - ${e}`),
+    ...(threadMutationLines.length > 0 ? [
+      ``,
+      SEP,
+      `THREAD SHIFTS:`,
+      ...threadMutationLines,
+    ] : []),
+    ...(knowledgeMutationLines.length > 0 ? [
+      ``,
+      SEP,
+      `KNOWLEDGE CHANGES:`,
+      ...knowledgeMutationLines,
+    ] : []),
+    ...(relationshipMutationLines.length > 0 ? [
+      ``,
+      SEP,
+      `RELATIONSHIP SHIFTS:`,
+      ...relationshipMutationLines,
+    ] : []),
+    ...(movementLines.length > 0 ? [
+      ``,
+      SEP,
+      `MOVEMENTS:`,
+      ...movementLines,
+    ] : []),
+  ].join('\n');
+}
+
 export async function generateSceneProse(
   narrative: NarrativeState,
   scene: Scene,
@@ -1020,14 +1173,26 @@ export async function generateSceneProse(
   resolvedKeys: string[],
   onToken?: (token: string) => void,
 ): Promise<string> {
-  const location = narrative.locations[scene.locationId];
-  const pov = narrative.characters[scene.povId];
-  const participants = scene.participantIds.map((pid) => narrative.characters[pid]).filter(Boolean);
 
   // Branch context up to this scene — history without future details leaking in
   const sceneIdx = resolvedKeys.indexOf(scene.id);
   const contextIndex = sceneIdx >= 0 ? sceneIdx : resolvedKeys.length - 1;
   const fullContext = branchContext(narrative, resolvedKeys, contextIndex);
+
+  // Adjacent scene prose for seamless transitions
+  const prevSceneKey = sceneIdx > 0 ? resolvedKeys[sceneIdx - 1] : null;
+  const prevScene = prevSceneKey ? narrative.scenes[prevSceneKey] : null;
+  const prevProse = prevScene?.prose;
+  const prevProseEnding = prevProse
+    ? prevProse.split('\n').filter((l) => l.trim()).slice(-3).join('\n')
+    : '';
+
+  const nextSceneKey = sceneIdx < resolvedKeys.length - 1 ? resolvedKeys[sceneIdx + 1] : null;
+  const nextScene = nextSceneKey ? narrative.scenes[nextSceneKey] : null;
+  const nextProse = nextScene?.prose;
+  const nextProseOpening = nextProse
+    ? nextProse.split('\n').filter((l) => l.trim()).slice(0, 3).join('\n')
+    : '';
 
   // Future scene summaries for foreshadowing (lightweight — summaries only, no prose)
   const futureKeys = resolvedKeys.slice(contextIndex + 1);
@@ -1063,17 +1228,20 @@ Strict output rules:
 - CRITICAL: Do NOT open with weather, atmosphere, air quality, scent, temperature, or environmental description. These are the most overused openings in fiction. Instead, choose from techniques like: mid-dialogue, a character's body in motion, a close-up on an object, an internal thought, a sound, a question, a tactile sensation, noticing someone's expression, or a punchy declarative sentence.
 - Do NOT end with philosophical musings, rhetorical questions, or atmospheric fade-outs. Instead end with: a character leaving, a sharp line of dialogue, a decision made in silence, an interruption, a physical gesture, or a thought that reframes the scene.`;
 
+  const sceneBlock = sceneContext(narrative, scene);
+
+  // Adjacent prose edges for transition continuity
+  const adjacentProseBlock = [
+    prevProseEnding ? `PREVIOUS SCENE ENDING (match tone, avoid repeating imagery or phrasing):\n"""${prevProseEnding}"""` : '',
+    nextProseOpening ? `NEXT SCENE OPENING (your ending should flow naturally into this):\n"""${nextProseOpening}"""` : '',
+  ].filter(Boolean).join('\n\n');
+
   const prompt = `BRANCH CONTEXT (for continuity — do not summarise or repeat this):
 ${fullContext}
 ${futureSummaries ? `\nFUTURE SCENES (for foreshadowing only — plant subtle seeds, never spoil or reference directly):\n${futureSummaries}\n` : ''}
-SCENE TO WRITE:
-- Location: ${location?.name ?? 'Unknown'}
-- POV: ${pov?.name ?? 'Unknown'} (${pov?.role ?? 'unknown role'})
-- Participants: ${participants.map((p) => `${p.name} (${p.role})`).join(', ')}
-- Events: ${scene.events.map((e) => e).join('; ')}
-- Summary: ${scene.summary}
+${adjacentProseBlock ? `${adjacentProseBlock}\n\n` : ''}${sceneBlock}
 
-Write ~1000 words. Fill the scene with dramatised moments: extended dialogue exchanges, internal monologue, physical action, environmental detail, and character interaction. Let scenes breathe. Foreshadow future events through subtle imagery, offhand remarks, and environmental details — never telegraph.`;
+Write ~1000 words. Every thread shift, knowledge change, and relationship mutation listed above must be dramatised — these are the structural beats of this scene. Fill around them with extended dialogue exchanges, internal monologue, physical action, environmental detail, and character interaction. Let scenes breathe. Foreshadow future events through subtle imagery, offhand remarks, and environmental details — never telegraph.`;
 
   if (onToken) {
     return await callGenerateStream(prompt, systemPrompt, onToken, 4000, 'generateSceneProse');
