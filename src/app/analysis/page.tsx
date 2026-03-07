@@ -28,6 +28,14 @@ function JobDetail({ job }: { job: AnalysisJob }) {
   const isRunning = analysisRunner.isRunning(job.id) || liveJob.status === 'running';
   const error = liveJob.error ?? '';
 
+  // Auto-navigate when runner finishes assembly
+  useEffect(() => {
+    if (liveJob.status === 'completed' && liveJob.narrativeId) {
+      dispatch({ type: 'SET_ACTIVE_NARRATIVE', id: liveJob.narrativeId });
+      router.push(`/series/${liveJob.narrativeId}`);
+    }
+  }, [liveJob.status, liveJob.narrativeId, dispatch, router]);
+
   // Subscribe to job-level stream text
   useEffect(() => {
     return analysisRunner.onStream((id, text) => {
@@ -222,23 +230,28 @@ function JobDetail({ job }: { job: AnalysisJob }) {
             <button
               disabled={assembling}
               onClick={async () => {
-                setAssembling(true);
-                try {
-                  const { assembleNarrative } = await import('@/lib/text-analysis');
-                  const completedResults = liveJob.results.filter((r): r is AnalysisChunkResult => r !== null);
-                  const narrative = await assembleNarrative(liveJob.title, completedResults);
-                  dispatch({ type: 'ADD_NARRATIVE', narrative });
-                  dispatch({ type: 'UPDATE_ANALYSIS_JOB', id: liveJob.id, updates: { narrativeId: narrative.id } });
-                  router.push(`/series/${narrative.id}`);
-                } catch (err) {
-                  console.error('[analysis] assembly failed:', err);
-                } finally {
-                  setAssembling(false);
+                if (liveJob.narrativeId) {
+                  dispatch({ type: 'SET_ACTIVE_NARRATIVE', id: liveJob.narrativeId });
+                  router.push(`/series/${liveJob.narrativeId}`);
+                } else {
+                  setAssembling(true);
+                  try {
+                    const { assembleNarrative } = await import('@/lib/text-analysis');
+                    const completedResults = liveJob.results.filter((r): r is AnalysisChunkResult => r !== null);
+                    const narrative = await assembleNarrative(liveJob.title, completedResults);
+                    dispatch({ type: 'ADD_NARRATIVE', narrative });
+                    dispatch({ type: 'UPDATE_ANALYSIS_JOB', id: liveJob.id, updates: { narrativeId: narrative.id } });
+                    router.push(`/series/${narrative.id}`);
+                  } catch (err) {
+                    console.error('[analysis] assembly failed:', err);
+                  } finally {
+                    setAssembling(false);
+                  }
                 }
               }}
               className="bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-400 text-[10px] font-semibold px-4 py-1 rounded transition disabled:opacity-50"
             >
-              {assembling ? 'Assembling...' : 'Create Narrative'}
+              {assembling ? 'Assembling...' : liveJob.narrativeId ? 'Open Narrative' : 'Create Narrative'}
             </button>
           )}
         </div>
