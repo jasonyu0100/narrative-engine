@@ -443,7 +443,7 @@ export type WizardData = {
   rules: string[];
 };
 
-export type GraphViewMode = 'scene' | 'overview';
+export type GraphViewMode = 'scene' | 'overview' | 'prose';
 
 export type AppState = {
   narratives: NarrativeEntry[];

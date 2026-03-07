@@ -61,7 +61,7 @@ export default function SceneInfoBar() {
   if (!narrative || totalScenes === 0) return null;
 
   return (
-    <div className="absolute top-2 left-1/2 -translate-x-1/2 z-10">
+    <div className="absolute top-2 left-1/2 -translate-x-1/2 z-30">
       <div className="glass-pill px-4 py-2 flex items-center gap-3">
         {/* Arc position */}
         <div className="flex items-center gap-1.5 shrink-0">

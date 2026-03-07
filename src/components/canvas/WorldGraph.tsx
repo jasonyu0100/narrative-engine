@@ -407,12 +407,17 @@ export default function WorldGraph() {
 
   const resolvedSceneKeys = state.resolvedSceneKeys;
 
+  const currentSceneKey = resolvedSceneKeys[state.currentSceneIndex] ?? null;
+
   const activeArcId = useMemo(() => {
-    if (!narrative) return null;
-    const currentKey = resolvedSceneKeys[state.currentSceneIndex];
-    if (!currentKey) return null;
-    return Object.values(narrative.arcs).find((a) => a.sceneIds.includes(currentKey))?.id ?? null;
-  }, [narrative, state.currentSceneIndex, resolvedSceneKeys]);
+    if (!narrative || !currentSceneKey) return null;
+    return Object.values(narrative.arcs).find((a) => a.sceneIds.includes(currentSceneKey))?.id ?? null;
+  }, [narrative, currentSceneKey]);
+
+  const currentScene = useMemo(() => {
+    if (!narrative || !currentSceneKey) return null;
+    return narrative.scenes[currentSceneKey] ?? null;
+  }, [narrative, currentSceneKey]);
 
   // Determine which node is selected for highlight
   const selectedNodeId = useMemo(() => {
@@ -1353,8 +1358,8 @@ export default function WorldGraph() {
 
   return (
     <div className="relative h-full w-full overflow-hidden">
-      {/* Controls (top-left) */}
-      <div className="absolute top-2 left-2 z-10 flex flex-col gap-1">
+      {/* Controls (top-left) — hidden in prose mode */}
+      {graphViewMode !== 'prose' && <div className="absolute top-2 left-2 z-10 flex flex-col gap-1">
         {showHeatmap && (
           <div className="flex items-center gap-1.5 px-2 py-1 rounded bg-bg-surface text-[10px] leading-none text-text-dim">
             <span>Low</span>
@@ -1387,34 +1392,46 @@ export default function WorldGraph() {
             Heat
           </label>
         </div>
-      </div>
+      </div>}
       {/* Graph view mode toggle (top-right) */}
-      <div className="absolute top-2 right-2 z-10 flex items-center rounded bg-bg-surface text-[11px] leading-none">
-        <button
-          className={`px-2 py-1.5 rounded-l transition-colors ${
-            graphViewMode === 'scene' ? 'text-accent-cta' : 'text-text-dim hover:text-text-default'
-          }`}
-          onClick={() => dispatch({ type: 'SET_GRAPH_VIEW_MODE', mode: 'scene' })}
-        >
-          Scene
-        </button>
-        <div className="w-px h-3.5 bg-border" />
-        <button
-          className={`px-2 py-1.5 rounded-r transition-colors ${
-            graphViewMode === 'overview' ? 'text-accent-cta' : 'text-text-dim hover:text-text-default'
-          }`}
-          onClick={() => dispatch({ type: 'SET_GRAPH_VIEW_MODE', mode: 'overview' })}
-        >
-          World
-        </button>
+      <div className="absolute top-2 right-2 z-30 flex items-center rounded bg-bg-surface text-[11px] leading-none">
+        {(['scene', 'overview', 'prose'] as const).map((mode, i) => (
+          <span key={mode} className="contents">
+            {i > 0 && <div className="w-px h-3.5 bg-border" />}
+            <button
+              className={`px-2 py-1.5 ${i === 0 ? 'rounded-l' : ''} ${i === 2 ? 'rounded-r' : ''} transition-colors ${
+                graphViewMode === mode ? 'text-accent-cta' : 'text-text-dim hover:text-text-default'
+              }`}
+              onClick={() => dispatch({ type: 'SET_GRAPH_VIEW_MODE', mode })}
+            >
+              {mode === 'scene' ? 'Scene' : mode === 'overview' ? 'World' : 'Prose'}
+            </button>
+          </span>
+        ))}
       </div>
-      <svg
-        ref={svgRef}
-        className="h-full w-full"
-        style={{ background: 'transparent' }}
-      />
+      {graphViewMode === 'prose' ? (
+        <div className="absolute inset-0 z-20 overflow-y-auto flex justify-center" style={{ scrollbarWidth: 'thin' }}>
+          <div className="max-w-xl w-full">
+            {currentScene?.prose ? (
+              <div className="text-[15px] py-24 text-text-secondary/90 leading-[1.9] whitespace-pre-wrap font-serif">
+                {currentScene.prose}
+              </div>
+            ) : (
+              <p className="text-text-dim text-sm italic">
+                {currentScene ? 'No prose available for this scene.' : 'No scene selected.'}
+              </p>
+            )}
+          </div>
+        </div>
+      ) : (
+        <svg
+          ref={svgRef}
+          className="h-full w-full"
+          style={{ background: 'transparent' }}
+        />
+      )}
       {/* Group navigation (bottom-left) */}
-      {groups.length > 1 && (
+      {graphViewMode !== 'prose' && groups.length > 1 && (
         <div className="absolute bottom-4 left-2 z-10 flex items-center gap-1 rounded bg-bg-surface text-[11px] leading-none">
           <button
             className="px-1.5 py-1.5 text-text-dim hover:text-text-default transition-colors"
