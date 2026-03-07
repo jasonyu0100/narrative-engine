@@ -178,6 +178,15 @@ export type ExpansionManifest = {
   relationshipCount: number;
 };
 
+export type ProseScore = {
+  overall: number;
+  voice: number;
+  pacing: number;
+  dialogue: number;
+  sensory: number;
+  mutation_coverage: number;
+};
+
 export type Scene = {
   kind: 'scene';
   id: string;
@@ -192,7 +201,11 @@ export type Scene = {
   threadMutations: ThreadMutation[];
   knowledgeMutations: KnowledgeMutation[];
   relationshipMutations: RelationshipMutation[];
+  /** Beat-by-beat scene blueprint — generated before prose to detail HOW mutations unfold */
+  plan?: string;
   prose?: string;
+  /** Prose quality score from the last rewrite pass */
+  proseScore?: ProseScore;
   summary: string;
   imageUrl?: string;
 };
@@ -278,6 +291,8 @@ export type NarrativeState = {
   coverImageUrl?: string;
   /** Style directive appended to all image generation prompts for visual consistency */
   imageStyle?: string;
+  /** Story-level settings that guide generation (POV, tone, pacing, etc.) */
+  storySettings?: StorySettings;
   createdAt: number;
   updatedAt: number;
 };
@@ -296,6 +311,29 @@ export type NarrativeEntry = {
   sceneCount: number;
   coverThread: string;
   coverImageUrl?: string;
+};
+
+// ── Story Settings ──────────────────────────────────────────────────────────
+
+/** How many POV characters drive the narrative */
+export type POVMode = 'single' | 'dual' | 'ensemble' | 'free';
+
+export type StorySettings = {
+  /** How POV is distributed across the story */
+  povMode: POVMode;
+  /** Character IDs designated as POV characters (empty = use all anchors) */
+  povCharacterIds: string[];
+  /** High-level story direction / north star prompt */
+  storyDirection: string;
+  /** Target arc length in scenes */
+  targetArcLength: number;
+};
+
+export const DEFAULT_STORY_SETTINGS: StorySettings = {
+  povMode: 'free',
+  povCharacterIds: [],
+  storyDirection: '',
+  targetArcLength: 4,
 };
 
 // ── Auto Mode ───────────────────────────────────────────────────────────────
@@ -329,9 +367,8 @@ export type AutoConfig = {
   worldBuildSize: 'small' | 'medium' | 'large';
   maxActiveThreads: number;
   threadStagnationThreshold: number;
-  arcDirectionPrompt: string;
-  /** High-level story direction that guides auto mode across many arcs */
-  storyDirectionPrompt: string;
+  /** High-level north star that steers every arc */
+  northStarPrompt: string;
   toneGuidance: string;
   narrativeConstraints: string;
   characterRotationEnabled: boolean;

@@ -203,114 +203,129 @@ export default function FloatingPalette() {
       {/* Palette row: bar + delete button side by side */}
       <div className="flex items-center gap-2">
       <div className={`glass-pill px-3 py-1.5 flex items-center gap-2 ${wrapperClasses}`}>
-        {/* Prev */}
+        {/* Scene navigation — hidden during auto/MCTS */}
+        {!isAutoActive && (
+          <>
+            {/* Prev */}
+            <button
+              type="button"
+              className="w-7 h-7 flex items-center justify-center text-text-secondary hover:text-text-primary hover:bg-white/6 rounded-md transition-colors"
+              onClick={() => dispatch({ type: 'PREV_SCENE' })}
+              aria-label="Previous scene"
+            >
+              &#9664;
+            </button>
+
+            {/* Search */}
+            <button
+              type="button"
+              className={`w-7 h-7 flex items-center justify-center rounded-md transition-colors ${
+                searchOpen
+                  ? 'text-text-primary bg-white/10'
+                  : 'text-text-secondary hover:text-text-primary hover:bg-white/6'
+              }`}
+              onClick={() => setSearchOpen((v) => !v)}
+              aria-label="Search scenes"
+              title="Search scenes"
+            >
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="11" cy="11" r="8" />
+                <path d="M21 21l-4.35-4.35" />
+              </svg>
+            </button>
+
+            {/* Next */}
+            <button
+              type="button"
+              className="w-7 h-7 flex items-center justify-center text-text-secondary hover:text-text-primary hover:bg-white/6 rounded-md transition-colors"
+              onClick={() => dispatch({ type: 'NEXT_SCENE' })}
+              aria-label="Next scene"
+            >
+              &#9654;
+            </button>
+
+            {/* Divider */}
+            <div className="w-px h-4 bg-white/[0.12] mx-1" />
+
+            {/* Generate */}
+            <button
+              type="button"
+              className="text-xs font-semibold text-change bg-change/10 px-2 py-1 rounded-md hover:bg-change/20 transition-colors uppercase tracking-wider"
+              onClick={() => {
+                if (access.userApiKeys && !access.hasOpenRouterKey) {
+                  window.dispatchEvent(new Event('open-api-keys'));
+                  return;
+                }
+                window.dispatchEvent(new CustomEvent('open-generate-panel'));
+              }}
+            >
+              Generate
+            </button>
+
+            {/* MCTS Explorer */}
+            <button
+              type="button"
+              className="w-7 h-7 flex items-center justify-center rounded-md transition-colors text-blue-400 bg-blue-500/10 hover:bg-blue-500/20"
+              onClick={() => {
+                if (access.userApiKeys && !access.hasOpenRouterKey) {
+                  window.dispatchEvent(new Event('open-api-keys'));
+                  return;
+                }
+                window.dispatchEvent(new CustomEvent('open-mcts-panel'));
+              }}
+              title="MCTS Explorer"
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M9 2v6l-5 10a1 1 0 0 0 .9 1.4h14.2a1 1 0 0 0 .9-1.4L15 8V2" />
+                <path d="M9 2h6" />
+                <path d="M7 16h10" />
+              </svg>
+            </button>
+
+            {/* Auto */}
+            <button
+              type="button"
+              className="w-7 h-7 flex items-center justify-center rounded-md transition-colors text-amber-400 bg-amber-500/10 hover:bg-amber-500/20"
+              onClick={() => {
+                if (access.userApiKeys && !access.hasOpenRouterKey) {
+                  window.dispatchEvent(new Event('open-api-keys'));
+                  return;
+                }
+                window.dispatchEvent(new CustomEvent('open-auto-settings'));
+              }}
+              title="Auto mode"
+            >
+              <svg
+                width="14"
+                height="14"
+                viewBox="0 0 16 16"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.5"
+                strokeLinecap="round"
+              >
+                <path d="M1 8a7 7 0 0 1 12.5-4.3" />
+                <path d="M15 8a7 7 0 0 1-12.5 4.3" />
+                <polyline points="13.5 1 13.5 4 10.5 4" />
+                <polyline points="2.5 15 2.5 12 5.5 12" />
+              </svg>
+            </button>
+
+            {/* Divider */}
+            <div className="w-px h-4 bg-white/[0.12] mx-1" />
+          </>
+        )}
+
+        {/* Story Settings — always visible */}
         <button
           type="button"
-          className="w-7 h-7 flex items-center justify-center text-text-secondary hover:text-text-primary hover:bg-white/6 rounded-md transition-colors"
-          onClick={() => dispatch({ type: 'PREV_SCENE' })}
-          aria-label="Previous scene"
-        >
-          &#9664;
-        </button>
-
-        {/* Search */}
-        <button
-          type="button"
-          className={`w-7 h-7 flex items-center justify-center rounded-md transition-colors ${
-            searchOpen
-              ? 'text-text-primary bg-white/10'
-              : 'text-text-secondary hover:text-text-primary hover:bg-white/6'
-          }`}
-          onClick={() => setSearchOpen((v) => !v)}
-          aria-label="Search scenes"
-          title="Search scenes"
-        >
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-            <circle cx="11" cy="11" r="8" />
-            <path d="M21 21l-4.35-4.35" />
-          </svg>
-        </button>
-
-        {/* Next */}
-        <button
-          type="button"
-          className="w-7 h-7 flex items-center justify-center text-text-secondary hover:text-text-primary hover:bg-white/6 rounded-md transition-colors"
-          onClick={() => dispatch({ type: 'NEXT_SCENE' })}
-          aria-label="Next scene"
-        >
-          &#9654;
-        </button>
-
-        {/* Divider */}
-        <div className="w-px h-4 bg-white/[0.12] mx-1" />
-
-        {/* Generate */}
-        <button
-          type="button"
-          className="text-xs font-semibold text-change bg-change/10 px-2 py-1 rounded-md hover:bg-change/20 transition-colors uppercase tracking-wider"
-          onClick={() => {
-            if (access.userApiKeys && !access.hasOpenRouterKey) {
-              window.dispatchEvent(new Event('open-api-keys'));
-              return;
-            }
-            window.dispatchEvent(new CustomEvent('open-generate-panel'));
-          }}
-        >
-          Generate
-        </button>
-
-        {/* MCTS Explorer */}
-        <button
-          type="button"
-          className="w-7 h-7 flex items-center justify-center rounded-md transition-colors text-blue-400 bg-blue-500/10 hover:bg-blue-500/20"
-          onClick={() => {
-            if (access.userApiKeys && !access.hasOpenRouterKey) {
-              window.dispatchEvent(new Event('open-api-keys'));
-              return;
-            }
-            window.dispatchEvent(new CustomEvent('open-mcts-panel'));
-          }}
-          title="MCTS Explorer"
+          className="w-7 h-7 flex items-center justify-center rounded-md transition-colors text-text-dim bg-white/5 hover:bg-white/10 hover:text-text-secondary"
+          onClick={() => window.dispatchEvent(new CustomEvent('open-story-settings'))}
+          title="Story settings"
         >
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M9 2v6l-5 10a1 1 0 0 0 .9 1.4h14.2a1 1 0 0 0 .9-1.4L15 8V2" />
-            <path d="M9 2h6" />
-            <path d="M7 16h10" />
-          </svg>
-        </button>
-
-        {/* Auto */}
-        <button
-          type="button"
-          className="w-7 h-7 flex items-center justify-center rounded-md transition-colors text-amber-400 bg-amber-500/10 hover:bg-amber-500/20"
-          onClick={() => {
-            if (isAutoActive) {
-              dispatch({ type: 'STOP_AUTO_RUN' });
-              return;
-            }
-            if (access.userApiKeys && !access.hasOpenRouterKey) {
-              window.dispatchEvent(new Event('open-api-keys'));
-              return;
-            }
-            window.dispatchEvent(new CustomEvent('open-auto-settings'));
-          }}
-          title={isAutoActive ? 'Stop auto mode' : 'Auto mode'}
-        >
-          <svg
-            width="14"
-            height="14"
-            viewBox="0 0 16 16"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="1.5"
-            strokeLinecap="round"
-            className={isAutoActive ? 'animate-spin' : ''}
-            style={isAutoActive ? { animationDuration: '2s' } : undefined}
-          >
-            <path d="M1 8a7 7 0 0 1 12.5-4.3" />
-            <path d="M15 8a7 7 0 0 1-12.5 4.3" />
-            <polyline points="13.5 1 13.5 4 10.5 4" />
-            <polyline points="2.5 15 2.5 12 5.5 12" />
+            <circle cx="12" cy="12" r="3" />
+            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
           </svg>
         </button>
       </div>

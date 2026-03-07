@@ -1,5 +1,5 @@
-import type { NarrativeState, Scene, Arc, Character, Location, Thread, RelationshipEdge, CubeCornerKey, WorldBuildCommit } from '@/types/narrative';
-import { resolveEntry, NARRATIVE_CUBE, THREAD_ACTIVE_STATUSES, THREAD_TERMINAL_STATUSES, THREAD_STATUS_LABELS } from '@/types/narrative';
+import type { NarrativeState, Scene, Arc, Character, Location, Thread, RelationshipEdge, CubeCornerKey, WorldBuildCommit, StorySettings } from '@/types/narrative';
+import { resolveEntry, NARRATIVE_CUBE, THREAD_ACTIVE_STATUSES, THREAD_TERMINAL_STATUSES, THREAD_STATUS_LABELS, DEFAULT_STORY_SETTINGS } from '@/types/narrative';
 
 // Build thread lifecycle documentation from canonical status lists
 const THREAD_LIFECYCLE_DOC = (() => {
@@ -130,6 +130,37 @@ async function callGenerate(prompt: string, systemPrompt: string, maxTokens?: nu
  * horizon are included, and knowledge graphs are filtered to nodes added
  * during the window.
  */
+/** Build a prompt block from story settings — returns empty string if all defaults */
+function buildStorySettingsBlock(n: NarrativeState): string {
+  const s: StorySettings = { ...DEFAULT_STORY_SETTINGS, ...n.storySettings };
+  const lines: string[] = [];
+
+  // POV mode
+  const povLabels: Record<string, string> = {
+    single: 'SINGLE POV — every scene must use the same POV character.',
+    dual: 'DUAL POV — alternate between exactly two POV characters across scenes. Each arc should feature both perspectives.',
+    ensemble: 'ENSEMBLE POV — rotate POV among the designated characters, giving each meaningful screen time.',
+    free: '', // no constraint
+  };
+  if (s.povMode !== 'free') {
+    lines.push(povLabels[s.povMode]);
+    if (s.povCharacterIds.length > 0) {
+      const names = s.povCharacterIds
+        .map((id) => n.characters[id] ? `${n.characters[id].name} (${id})` : id)
+        .join(', ');
+      lines.push(`Designated POV anchor${s.povCharacterIds.length > 1 ? 's' : ''}: ${names}. Only these characters may appear in the "povId" field.`);
+    }
+  }
+
+  // Story direction
+  if (s.storyDirection.trim()) {
+    lines.push(`STORY DIRECTION (high-level north star): ${s.storyDirection.trim()}`);
+  }
+
+  if (lines.length === 0) return '';
+  return `\nSTORY SETTINGS (these shape all generation — respect them):\n${lines.join('\n')}\n`;
+}
+
 export function branchContext(
   n: NarrativeState,
   resolvedKeys: string[],
@@ -339,14 +370,15 @@ export function branchContext(
     ? `\nWORLD RULES (these are absolute — every scene MUST obey them):\n${n.rules.map((r, i) => `${i + 1}. ${r}`).join('\n')}\n`
     : '';
 
+  const storySettingsBlock = buildStorySettingsBlock(n);
+
   const horizonLabel = skippedCount > 0
     ? `SCENE HISTORY (${keysUpToCurrent.length} scenes in time horizon, ${skippedCount} earlier scenes omitted):`
     : `SCENE HISTORY (${keysUpToCurrent.length} scenes on current branch):`;
 
   return `NARRATIVE: "${n.title}"
 WORLD: ${n.worldSummary}
-${rulesBlock}
-
+${rulesBlock}${storySettingsBlock}
 ────────────────────────────────────────
 CHARACTERS:
 ${characters}
@@ -604,9 +636,11 @@ export async function generateScenes(
 ): Promise<{ scenes: Scene[]; arc: Arc }> {
   const ctx = branchContext(narrative, resolvedKeys, currentIndex);
   const arcId = existingArc?.id ?? nextId('ARC', Object.keys(narrative.arcs));
+  const storySettings: StorySettings = { ...DEFAULT_STORY_SETTINGS, ...narrative.storySettings };
+  const targetLen = storySettings.targetArcLength;
   const sceneCountInstruction = count > 0
     ? `exactly ${count} scenes`
-    : `3-5 scenes (choose the count that best fits the arc's natural length)`;
+    : `${Math.max(2, targetLen - 1)}-${targetLen + 1} scenes (choose the count that best fits the arc's natural length)`;
   const arcInstruction = existingArc
     ? `CONTINUE the existing arc "${existingArc.name}" (${arcId}) which already has ${existingArc.sceneIds.length} scenes. Add ${sceneCountInstruction} that naturally extend this arc.`
     : `Generate a NEW ARC with ${sceneCountInstruction}. Give the arc a short, evocative name (2-4 words) that reads like a chapter title — specific to the story, not generic.`;
@@ -671,7 +705,7 @@ Return JSON with this exact structure:
       "id": "S-GEN-001",
       "arcId": "${arcId}",
       "locationId": "existing location ID from the narrative",
-      "povId": "character ID whose perspective this scene is told from (must be one of the participantIds)",
+      "povId": "character ID whose perspective this scene is told from (MUST be an anchor-role character who is also a participant)${storySettings.povMode !== 'free' && storySettings.povCharacterIds.length > 0 ? ` — RESTRICTED to: ${storySettings.povCharacterIds.join(', ')}` : ''}",
       "participantIds": ["existing character IDs"],
       "events": ["event_tag_1", "event_tag_2"],
       "threadMutations": [{"threadId": "T-XX", "from": "current_status", "to": "new_status"}],
@@ -738,16 +772,27 @@ You MUST use ONLY these exact IDs. Do NOT invent new character, location, or thr
   const validThreadIds = new Set(Object.keys(narrative.threads));
   const stripped: string[] = [];
 
+  // Determine anchor characters and find the most-used anchor by POV count for fallback
+  const anchorIds = new Set(Object.entries(narrative.characters).filter(([, c]) => c.role === 'anchor').map(([id]) => id));
+  const povCounts = new Map<string, number>();
+  for (const s of Object.values(narrative.scenes)) {
+    if (s.povId && anchorIds.has(s.povId)) {
+      povCounts.set(s.povId, (povCounts.get(s.povId) ?? 0) + 1);
+    }
+  }
+  const mostUsedAnchor = [...anchorIds].sort((a, b) => (povCounts.get(b) ?? 0) - (povCounts.get(a) ?? 0))[0]
+    ?? Object.keys(narrative.characters)[0];
+
   for (const scene of scenes) {
     // Fix invalid locationId — fall back to first valid location
     if (!validLocIds.has(scene.locationId)) {
       stripped.push(`locationId "${scene.locationId}" in scene ${scene.id}`);
       scene.locationId = Object.keys(narrative.locations)[0];
     }
-    // Fix invalid povId — fall back to first participant
-    if (!scene.povId || !validCharIds.has(scene.povId)) {
-      if (scene.povId) stripped.push(`povId "${scene.povId}" in scene ${scene.id}`);
-      scene.povId = scene.participantIds.find((pid) => validCharIds.has(pid)) ?? Object.keys(narrative.characters)[0];
+    // Fix invalid povId — must be a valid anchor character, fallback to most-used anchor
+    if (!scene.povId || !validCharIds.has(scene.povId) || !anchorIds.has(scene.povId)) {
+      if (scene.povId) stripped.push(`povId "${scene.povId}" in scene ${scene.id} (non-anchor or invalid)`);
+      scene.povId = scene.participantIds.find((pid) => anchorIds.has(pid)) ?? mostUsedAnchor;
     }
     // Remove invalid participantIds
     const validParticipants = scene.participantIds.filter((pid) => {
@@ -758,9 +803,9 @@ You MUST use ONLY these exact IDs. Do NOT invent new character, location, or thr
     scene.participantIds = validParticipants.length > 0
       ? validParticipants
       : [Object.keys(narrative.characters)[0]]; // ensure at least one participant
-    // Ensure povId is a valid participant
-    if (!scene.participantIds.includes(scene.povId)) {
-      scene.povId = scene.participantIds[0];
+    // Ensure povId is a valid anchor participant
+    if (!scene.participantIds.includes(scene.povId) || !anchorIds.has(scene.povId)) {
+      scene.povId = scene.participantIds.find((pid) => anchorIds.has(pid)) ?? mostUsedAnchor;
     }
     // Remove invalid threadMutations
     scene.threadMutations = scene.threadMutations.filter((tm) => {
@@ -995,32 +1040,6 @@ Rules:
 /**
  * Generate literary prose for a single scene, suitable for a book-style reading experience.
  */
-// Technique catalogues — listed in the prompt so the LLM picks the best fit for each scene
-const OPENING_TECHNIQUES = [
-  'Mid-dialogue — the first words are spoken aloud',
-  'Body in motion — a physical action already underway',
-  'Close-up on an object or gesture — something small and concrete',
-  'Internal thought or memory — mid-reflection or recollection',
-  'A sound that breaks silence — heard before anything is seen',
-  'A question just asked — dialogue that demands a response',
-  'A tactile sensation — something felt against the skin',
-  'A sharp contrast or juxtaposition — two things that clash',
-  'Noticing another person\'s expression or body language',
-  'A brief, punchy declarative — a statement of fact, no longer than ten words',
-];
-
-const ENDING_TECHNIQUES = [
-  'A character turning away or physically leaving',
-  'A single sharp line of dialogue left hanging',
-  'A sensory detail that lingers — smell, texture, or residual sound',
-  'A decision made in silence',
-  'An interruption that cuts the scene short',
-  'A small physical gesture that speaks louder than words',
-  'A question left unanswered — aloud or internal',
-  'Mid-action — the scene stops before the action completes',
-  'Noticing something new — a detail that shifts understanding',
-  'A line of internal thought that reframes what just happened',
-];
 
 /** Build a discrete context block for a single scene — a focused version of branchContext.
  *  Includes the scene's mutations, recent knowledge for involved characters/locations,
@@ -1166,6 +1185,196 @@ export function sceneContext(narrative: NarrativeState, scene: Scene): string {
   ].join('\n');
 }
 
+/** Estimate scene complexity to drive dynamic length guidance.
+ *  Returns { prose: { min, max, tokens }, plan: { words } } */
+function sceneScale(scene: Scene): { proseMin: number; proseMax: number; proseTokens: number; planWords: string } {
+  const mutations = scene.threadMutations.length + scene.knowledgeMutations.length + scene.relationshipMutations.length;
+  const events = scene.events.length;
+  const movements = scene.characterMovements ? Object.keys(scene.characterMovements).length : 0;
+  const participants = scene.participantIds.length;
+  const summaryLen = scene.summary.length;
+
+  // Complexity score: more mutations, events, participants, and longer summaries = bigger scene
+  const complexity = mutations * 2 + events * 1.5 + movements + participants * 0.5 + (summaryLen > 200 ? 2 : 0) + (summaryLen > 400 ? 3 : 0);
+
+  let proseMin: number;
+  let proseMax: number;
+  if (complexity <= 4) { proseMin = 800; proseMax = 1200; }
+  else if (complexity <= 8) { proseMin = 1000; proseMax = 1500; }
+  else if (complexity <= 14) { proseMin = 1200; proseMax = 2500; }
+  else if (complexity <= 20) { proseMin = 1500; proseMax = 3500; }
+  else { proseMin = 2000; proseMax = 5000; }
+
+  // Token budget: ~1.3 tokens per word + headroom
+  const proseTokens = Math.ceil(proseMax * 1.5);
+  // Plan scales proportionally — roughly 40-60% of prose length in words
+  const planMin = Math.round(proseMin * 0.4);
+  const planMax = Math.round(proseMax * 0.5);
+  const planWords = `${planMin}-${planMax}`;
+
+  return { proseMin, proseMax, proseTokens, planWords };
+}
+
+/**
+ * Generate a detailed beat-by-beat plan for a scene.
+ * Expands thin structural mutations into concrete mechanisms — discovery devices,
+ * dialogue tensions, spatial staging — so the prose LLM follows a rich blueprint.
+ */
+export async function generateScenePlan(
+  narrative: NarrativeState,
+  scene: Scene,
+  _sceneIndex: number,
+  resolvedKeys: string[],
+  onToken?: (token: string) => void,
+): Promise<string> {
+  const sceneIdx = resolvedKeys.indexOf(scene.id);
+  const contextIndex = sceneIdx >= 0 ? sceneIdx : resolvedKeys.length - 1;
+  const fullContext = branchContext(narrative, resolvedKeys, contextIndex);
+  const sceneBlock = sceneContext(narrative, scene);
+  const logicRules = deriveLogicRules(narrative, scene);
+  const logicBlock = logicRules.length > 0
+    ? `\nLOGICAL CONSTRAINTS (the plan must satisfy all of these):\n${logicRules.map((r) => `  - ${r}`).join('\n')}\n`
+    : '';
+
+  // Adjacent scene plans for flow continuity
+  const prevSceneKey = sceneIdx > 0 ? resolvedKeys[sceneIdx - 1] : null;
+  const prevScene = prevSceneKey ? narrative.scenes[prevSceneKey] : null;
+  const prevPlan = prevScene?.plan;
+
+  const nextSceneKey = sceneIdx < resolvedKeys.length - 1 ? resolvedKeys[sceneIdx + 1] : null;
+  const nextScene = nextSceneKey ? narrative.scenes[nextSceneKey] : null;
+  const nextPlan = nextScene?.plan;
+
+  const adjacentBlock = [
+    prevPlan ? `PREVIOUS SCENE PLAN (your opening state must flow from this scene's closing state):\n${prevPlan}` : '',
+    nextPlan ? `NEXT SCENE PLAN (your closing state must hand off naturally to this scene's opening):\n${nextPlan}` : '',
+  ].filter(Boolean).join('\n\n');
+
+  const scale = sceneScale(scene);
+
+  const systemPrompt = `You are a dramaturg and scene architect for "${narrative.title}". Your job is to expand structural beats into a detailed staging plan that a prose writer can follow. Do NOT write prose — write a blueprint.
+
+Output format (free-form text — length should match the scene's complexity; a simple scene needs a short plan, a dense multi-thread convergence needs a thorough one):
+
+OPENING STATE
+2-3 sentences: where characters are physically, what they know, emotional temperature entering the scene.
+
+BEATS
+Numbered list (4-8 beats). Each beat specifies:
+- Trigger: what initiates this moment
+- Action: what happens physically and emotionally
+- Shift: what mutation (thread/knowledge/relationship) this dramatises, and HOW it occurs mechanically
+
+Every structural mutation in the scene data MUST map to at least one beat with a concrete mechanism:
+- Thread transitions need a trigger (not "the thread becomes active" but "the letter falls from the coat pocket, she reads it aloud")
+- Knowledge discoveries need a device (overheard, found object, deduction, confession, demonstration, letter, physical evidence)
+- Relationship shifts need a catalytic moment (a specific line, gesture, betrayal, sacrifice, shared danger)
+- Do NOT reuse the same discovery device across multiple beats
+
+DIALOGUE SEEDS
+2-4 key exchanges. For each: who speaks, the surface topic, and the subtext underneath. Not full dialogue — just the tension map.
+
+CLOSING STATE
+2-3 sentences: where everyone ends up physically and emotionally. What has irrevocably changed.
+
+POV KNOWLEDGE DISCIPLINE:
+- The scene is told from the POV character's perspective. They can only perceive what their senses and existing knowledge allow.
+- In the OPENING STATE, specify exactly what the POV character knows and does NOT know. This sets the information boundary for the entire scene.
+- When planning beats where NON-POV characters act on private knowledge, describe only their observable behaviour — the POV character must interpret from the outside (and may misread the situation).
+- When the POV character discovers new knowledge, the beat must specify the exact mechanism: what they see, hear, read, or deduce. No omniscient revelation.
+- If another character conceals something from the POV character, note what the POV character sees on the surface vs. what is actually happening underneath. The plan should mark which layer the prose can access.
+
+Rules:
+- Be specific and concrete. "A tense exchange" is useless. "She asks about the missing shipment; he deflects by mentioning the festival" is useful.
+- Include spatial blocking: who is where, who moves, sightlines, physical proximity.
+- The plan must cover ALL events, thread mutations, knowledge mutations, relationship mutations, and character movements listed in the scene data. Missing any is a failure.
+- Output ONLY the plan text. No JSON, no markdown fences, no commentary.`;
+
+  const prompt = `BRANCH CONTEXT (for continuity — do not repeat):
+${fullContext}
+
+${adjacentBlock ? `${adjacentBlock}\n\n` : ''}${sceneBlock}
+${logicBlock}
+Create a detailed staging plan for this scene. Every structural mutation must have a concrete mechanism. Be specific about HOW things happen, not just WHAT happens.`;
+
+  if (onToken) {
+    return await callGenerateStream(prompt, systemPrompt, onToken, Math.ceil(scale.proseTokens * 0.6), 'generateScenePlan');
+  }
+  return await callGenerate(prompt, systemPrompt, Math.ceil(scale.proseTokens * 0.6), 'generateScenePlan');
+}
+
+/**
+ * Reconcile a batch of scene plans for cross-scene coherence.
+ * Single LLM call that checks thread ordering, emotional continuity,
+ * repeated discovery mechanisms, pacing, and spatial handoffs.
+ * Returns only the plans that changed.
+ */
+export type ReconcileRevision = { plan: string; reason: string };
+
+export async function reconcileScenePlans(
+  narrative: NarrativeState,
+  plans: { sceneId: string; plan: string }[],
+): Promise<Record<string, ReconcileRevision>> {
+  if (plans.length < 2) return {};
+
+  const sceneSummaries = plans.map((p, i) => {
+    const scene = narrative.scenes[p.sceneId];
+    if (!scene) return `[${i + 1}] ${p.sceneId}\n${p.plan}`;
+    const pov = narrative.characters[scene.povId]?.name ?? scene.povId;
+    const loc = narrative.locations[scene.locationId]?.name ?? scene.locationId;
+    const threadShifts = scene.threadMutations.map((tm) => {
+      const t = narrative.threads[tm.threadId];
+      return `${t?.description ?? tm.threadId}: ${tm.from} → ${tm.to}`;
+    }).join('; ');
+    return `[${i + 1}] ${p.sceneId} | POV: ${pov} | Location: ${loc}${threadShifts ? ` | Threads: ${threadShifts}` : ''}
+PLAN:
+${p.plan}`;
+  }).join('\n\n---\n\n');
+
+  const systemPrompt = `You are a story editor reviewing scene plans for continuity, pacing, and mechanical variety. Return ONLY valid JSON — no markdown, no commentary.`;
+
+  const prompt = `Review these ${plans.length} sequential scene plans from "${narrative.title}" for cross-scene coherence.
+
+${sceneSummaries}
+
+Check for:
+1. THREAD ORDERING: If thread T transitions in scene 3, earlier scene plans should not treat it as already transitioned.
+2. EMOTIONAL CONTINUITY: A character ending scene N in a particular emotional state should open scene N+1 consistently.
+3. REPEATED MECHANISMS: If scene 1 uses "overheard conversation" as a discovery device, later scenes should use different devices.
+4. PACING: Not all scenes should have the same intensity or number of beats.
+5. SPATIAL HANDOFFS: Character positions at scene N's closing must match scene N+1's opening.
+
+Return JSON:
+{
+  "revisions": [
+    {
+      "sceneId": "S-XXX",
+      "revisedPlan": "the full revised plan text",
+      "reason": "brief explanation of what was changed and why"
+    }
+  ]
+}
+
+Rules:
+- Only include scenes that need changes. If all plans are coherent, return {"revisions": []}.
+- Preserve the plan structure (OPENING STATE, BEATS, DIALOGUE SEEDS, CLOSING STATE).
+- Do not change WHAT happens — only HOW it's staged, ordered, or mechanically delivered.
+- Preserve each plan's length — don't compress or expand unless the change requires it.`;
+
+  const raw = await callGenerate(prompt, systemPrompt, 8000, 'reconcileScenePlans');
+  const parsed = parseJson(raw, 'reconcileScenePlans') as {
+    revisions: { sceneId: string; revisedPlan: string; reason: string }[];
+  };
+
+  const result: Record<string, ReconcileRevision> = {};
+  for (const rev of parsed.revisions ?? []) {
+    if (rev.sceneId && rev.revisedPlan) {
+      result[rev.sceneId] = { plan: rev.revisedPlan, reason: rev.reason ?? '' };
+    }
+  }
+  return result;
+}
+
 export async function generateSceneProse(
   narrative: NarrativeState,
   scene: Scene,
@@ -1228,6 +1437,11 @@ Strict output rules:
 
   const sceneBlock = sceneContext(narrative, scene);
 
+  // Scene plan — when available, this is the primary creative direction
+  const planBlock = scene.plan
+    ? `\nSCENE PLAN (follow this blueprint closely — it specifies beat-by-beat staging, discovery mechanisms, and dialogue seeds):\n${scene.plan}\n`
+    : '';
+
   // Derive logical constraints from the scene graph — these are hard rules the prose must obey
   const logicRules = deriveLogicRules(narrative, scene);
   const logicBlock = logicRules.length > 0
@@ -1240,17 +1454,23 @@ Strict output rules:
     nextProseOpening ? `NEXT SCENE OPENING (your ending should flow naturally into this):\n"""${nextProseOpening}"""` : '',
   ].filter(Boolean).join('\n\n');
 
+  const scale = sceneScale(scene);
+
+  const instruction = scene.plan
+    ? `Follow the scene plan's beat sequence — it specifies the concrete mechanisms for every mutation. The structural data below is for verification: every thread shift, knowledge change, and relationship mutation must appear in the prose. You MUST satisfy every logical requirement. Fill around the planned beats with extended dialogue, internal monologue, physical action, and sensory detail. Let scenes breathe. Foreshadow future events through subtle imagery — never telegraph. Write as many words as the scene demands — a quiet scene with few beats may need only 800 words, a dense convergence scene may need 3000+. Err on the side of brevity for engagement; never pad.`
+    : `Every thread shift, knowledge change, and relationship mutation listed above must be dramatised — these are the structural beats of this scene. You MUST satisfy every logical requirement listed above — these encode spatial constraints, POV discipline, knowledge asymmetry, relationship valence, and temporal ordering derived from the scene graph. Fill around them with extended dialogue exchanges, internal monologue, physical action, environmental detail, and character interaction. Let scenes breathe. Foreshadow future events through subtle imagery, offhand remarks, and environmental details — never telegraph. Write as many words as the scene demands — a quiet scene with few beats may need only 800 words, a dense convergence scene may need 3000+. Err on the side of brevity for engagement; never pad.`;
+
   const prompt = `BRANCH CONTEXT (for continuity — do not summarise or repeat this):
 ${fullContext}
 ${futureSummaries ? `\nFUTURE SCENES (for foreshadowing only — plant subtle seeds, never spoil or reference directly):\n${futureSummaries}\n` : ''}
-${adjacentProseBlock ? `${adjacentProseBlock}\n\n` : ''}${sceneBlock}
+${adjacentProseBlock ? `${adjacentProseBlock}\n\n` : ''}${planBlock}${sceneBlock}
 ${logicBlock}
-Write ~1000 words. Every thread shift, knowledge change, and relationship mutation listed above must be dramatised — these are the structural beats of this scene. You MUST satisfy every logical requirement listed above — these encode spatial constraints, POV discipline, knowledge asymmetry, relationship valence, and temporal ordering derived from the scene graph. Fill around them with extended dialogue exchanges, internal monologue, physical action, environmental detail, and character interaction. Let scenes breathe. Foreshadow future events through subtle imagery, offhand remarks, and environmental details — never telegraph.`;
+${instruction}`;
 
   if (onToken) {
-    return await callGenerateStream(prompt, systemPrompt, onToken, 4000, 'generateSceneProse');
+    return await callGenerateStream(prompt, systemPrompt, onToken, scale.proseTokens, 'generateSceneProse');
   }
-  return await callGenerate(prompt, systemPrompt, 4000, 'generateSceneProse');
+  return await callGenerate(prompt, systemPrompt, scale.proseTokens, 'generateSceneProse');
 }
 
 
@@ -1289,12 +1509,56 @@ function deriveLogicRules(narrative: NarrativeState, scene: Scene): string[] {
     }
   }
 
-  // Knowledge asymmetry
+  // ── POV knowledge boundary ──────────────────────────────────────────
+  // The POV character's knowledge graph is the hard boundary for narration.
+  // The narrator cannot reference, explain, or react to information the POV
+  // character does not possess — even indirectly through tone or framing.
+  if (pov) {
+    const povKnowledgeIds = new Set(pov.knowledge.nodes.map((kn) => kn.id));
+    // Knowledge being added to POV this scene — they don't have it at the START
+    const povLearnsThisScene = new Set(
+      scene.knowledgeMutations
+        .filter((km) => km.characterId === pov.id && km.action === 'added')
+        .map((km) => km.nodeId),
+    );
+    // POV's knowledge at scene START = current graph - things learned this scene
+    // (current graph already includes this scene's mutations since they've been applied)
+    const povStartKnowledge = pov.knowledge.nodes.filter(
+      (kn) => !povLearnsThisScene.has(kn.id),
+    );
+
+    // Summarize what POV knows at scene start (cap to avoid bloat)
+    const MAX_POV_KNOWLEDGE_RULES = 8;
+    const knowledgeSummary = povStartKnowledge.slice(-MAX_POV_KNOWLEDGE_RULES);
+    if (knowledgeSummary.length > 0) {
+      rules.push(`${pov.name}'s knowledge at scene start (narration is limited to this): ${knowledgeSummary.map((kn) => `"${kn.content}"`).join(', ')}${povStartKnowledge.length > MAX_POV_KNOWLEDGE_RULES ? ` (and ${povStartKnowledge.length - MAX_POV_KNOWLEDGE_RULES} earlier items)` : ''}. The narrator must NOT reference, explain, or frame events using information outside this set.`);
+    }
+
+    // Flag knowledge that other participants have but POV does NOT
+    for (const pid of scene.participantIds) {
+      if (pid === pov.id) continue;
+      const other = narrative.characters[pid];
+      if (!other) continue;
+      const otherExclusive = other.knowledge.nodes.filter(
+        (kn) => !povKnowledgeIds.has(kn.id) && !povLearnsThisScene.has(kn.id),
+      );
+      if (otherExclusive.length > 0) {
+        const examples = otherExclusive.slice(-3).map((kn) => `"${kn.content}"`).join(', ');
+        rules.push(`${other.name} knows things ${pov.name} does NOT: ${examples}${otherExclusive.length > 3 ? ` (and ${otherExclusive.length - 3} more)` : ''}. The narrator must NOT reveal, hint at, or frame ${other.name}'s actions using this hidden knowledge. ${pov.name} can only observe ${other.name}'s external behaviour and draw their own (possibly wrong) conclusions.`);
+      }
+    }
+  }
+
+  // Knowledge mutations — temporal ordering within this scene
   for (const km of scene.knowledgeMutations) {
     if (km.action !== 'added') continue;
     const char = narrative.characters[km.characterId];
     if (!char) continue;
-    rules.push(`${char.name} does NOT know "${km.content}" at the start of this scene — they learn it during the scene. Show the moment of discovery, not prior knowledge.`);
+    if (km.characterId === scene.povId) {
+      rules.push(`${char.name} (POV) does NOT know "${km.content}" at scene start — they learn it during the scene. Before the discovery moment, the narrator must not reference this information even obliquely. Show genuine surprise/realisation, not dramatic irony.`);
+    } else {
+      rules.push(`${char.name} does NOT know "${km.content}" at scene start — they learn it during the scene. Since POV is ${pov?.name ?? 'another character'}, show this discovery only through ${char.name}'s observable reaction (expression, body language, dialogue), not through their inner thoughts.`);
+    }
   }
 
   // Relationship valence consistency — compute PRE-scene valence by subtracting this scene's deltas
@@ -1364,203 +1628,25 @@ function deriveLogicRules(narrative: NarrativeState, scene: Scene): string[] {
   return rules;
 }
 
-/**
- * Reconcile openings and endings across all generated prose.
- * Detects scenes that start or end too similarly and rewrites just those edges.
- * Returns a map of sceneId → rewritten prose (only for scenes that changed).
- */
-export async function reconcileProseEdges(
-  proseMap: Record<string, string>,
-  sceneOrder: string[],
-): Promise<Record<string, string>> {
-  const entries = sceneOrder
-    .filter((id) => proseMap[id])
-    .map((id) => {
-      const lines = proseMap[id].split('\n').filter((l) => l.trim());
-      return {
-        id,
-        opening: lines[0]?.slice(0, 200) ?? '',
-        ending: lines[lines.length - 1]?.slice(-200) ?? '',
-        fullProse: proseMap[id],
-      };
-    });
+// ── Prose Score & Rewrite ────────────────────────────────────────────────────
 
-  if (entries.length < 2) return {};
-
-  const edgeSummary = entries
-    .map((e, i) => `[${i + 1}] ${e.id}\n  OPENS: "${e.opening}"\n  ENDS:  "${e.ending}"`)
-    .join('\n\n');
-
-  const openingList = OPENING_TECHNIQUES.map((t, i) => `  ${i + 1}. ${t}`).join('\n');
-  const endingList = ENDING_TECHNIQUES.map((t, i) => `  ${i + 1}. ${t}`).join('\n');
-
-  const systemPrompt = `You are a literary editor specialising in first and last impressions. Openings and endings are the most important sentences in any chapter — they are what readers remember. You return ONLY valid JSON — no markdown, no commentary.`;
-
-  const prompt = `You are reviewing ${entries.length} chapter openings and endings. Your job is to ensure every single one is distinctive and memorable.
-
-CURRENT OPENINGS AND ENDINGS:
-${edgeSummary}
-
-OPENING TECHNIQUES (each scene should use a different one — no two scenes should share a technique):
-${openingList}
-
-ENDING TECHNIQUES (each scene should use a different one — no two scenes should share a technique):
-${endingList}
-
-Your task:
-1. Check every opening — if ANY two scenes open with the same structural technique (e.g. both start with atmosphere, both start with sound, both start with dialogue), rewrite all but one of them to use a different technique.
-2. Check every ending — apply the same rule.
-3. Even if an opening/ending is unique among its peers, if it's generic or forgettable (e.g. "The air was cold...", "And so it began..."), rewrite it to be sharper and more distinctive.
-
-Openings should hook the reader instantly. Endings should leave a mark — an image, a line, a moment that lingers after the page turns. Be bold. Be surprising. Every first and last paragraph should feel like it was crafted by a different author.
-
-Return JSON:
-{
-  "rewrites": [
-    {
-      "sceneId": "S-XXX",
-      "fix": "opening" | "ending" | "both",
-      "reason": "brief explanation of why this needs rewriting",
-      "newFirstParagraph": "rewritten first paragraph if opening needs fixing, otherwise null",
-      "newLastParagraph": "rewritten last paragraph if ending needs fixing, otherwise null"
-    }
-  ]
-}
-
-Rules:
-- Return {"rewrites": []} ONLY if every opening and ending is already unique and compelling. Be aggressive — it's better to over-fix than to leave repetitive edges.
-- Preserve the scene's content, characters, and events — only change the structural approach of the opening/ending.
-- Match the prose style and voice of the original.
-- newFirstParagraph replaces everything before the first blank line (or first \\n\\n). newLastParagraph replaces everything after the last blank line.
-- Use straight quotes (" and '), never smart/curly quotes.`;
-
-  const raw = await callGenerate(prompt, systemPrompt, 8000, 'reconcileProseEdges');
-  const parsed = parseJson(raw, 'reconcileProseEdges') as {
-    rewrites: { sceneId: string; fix: string; newFirstParagraph?: string | null; newLastParagraph?: string | null }[];
-  };
-
-  const result: Record<string, string> = {};
-
-  for (const rw of parsed.rewrites ?? []) {
-    const original = proseMap[rw.sceneId];
-    if (!original) continue;
-
-    let updated = original;
-    const paragraphs = original.split(/\n\n+/);
-
-    if ((rw.fix === 'opening' || rw.fix === 'both') && rw.newFirstParagraph) {
-      paragraphs[0] = rw.newFirstParagraph;
-      updated = paragraphs.join('\n\n');
-    }
-    if ((rw.fix === 'ending' || rw.fix === 'both') && rw.newLastParagraph) {
-      paragraphs[paragraphs.length - 1] = rw.newLastParagraph;
-      updated = paragraphs.join('\n\n');
-    }
-
-    if (updated !== original) {
-      result[rw.sceneId] = updated;
-    }
-  }
-
-  return result;
-}
-
-// ── Prose Rewrite Analysis ───────────────────────────────────────────────────
-
-export type ProseIssue = {
-  sceneId: string;
-  issues: string[];
-  priority: 'high' | 'medium' | 'low';
-};
-
-export type ProseAnalysis = {
-  overallAssessment: string;
-  globalIssues: string[];
-  sceneIssues: ProseIssue[];
-};
+import type { ProseScore } from '@/types/narrative';
 
 /**
- * Analyze all prose across the story and return a structured critique.
- * Looks at: consistency, pacing, voice, repetition, structural variety,
- * character voice distinctiveness, and narrative flow.
+ * Score and rewrite a scene's prose in a single LLM call.
+ * The LLM first critiques the prose on 6 dimensions (1-10), then rewrites
+ * it to address its own critique. Returns both the score and rewritten prose.
+ * Users can call this repeatedly — each pass should improve the score.
  */
-export async function analyzeAllProse(
-  narrative: NarrativeState,
-  proseMap: Record<string, string>,
-  sceneOrder: string[],
-  customGuidance?: string,
-): Promise<ProseAnalysis> {
-  const entries = sceneOrder
-    .filter((id) => proseMap[id])
-    .map((id, i) => {
-      const scene = narrative.scenes[id];
-      const arc = scene ? Object.values(narrative.arcs).find((a) => a.sceneIds.includes(id)) : null;
-      const pov = scene ? narrative.characters[scene.povId]?.name ?? scene.povId : '?';
-      const loc = scene ? narrative.locations[scene.locationId]?.name ?? scene.locationId : '?';
-      return `[${i + 1}] ${id} | Arc: ${arc?.name ?? '?'} | POV: ${pov} | Location: ${loc}\n${proseMap[id]}`;
-    });
-
-  if (entries.length === 0) return { overallAssessment: 'No prose to analyze.', globalIssues: [], sceneIssues: [] };
-
-  const systemPrompt = `You are a senior literary editor conducting a full manuscript review. You return ONLY valid JSON — no markdown, no commentary.`;
-
-  const prompt = `Review the following ${entries.length} chapters of a novel titled "${narrative.title}".
-
-FULL PROSE:
-${entries.join('\n\n---\n\n')}
-
-Analyze the prose as a cohesive manuscript. Look for:
-1. **Voice consistency** — does the narrative voice stay consistent? Do POV characters feel distinct?
-2. **Repetition** — repeated phrases, sentence structures, words, imagery across chapters
-3. **Pacing** — are scenes the right length? Does the prose rush through important moments or drag through mundane ones?
-4. **Structural variety** — do chapters open/close in different ways? Are paragraph rhythms varied?
-5. **Show vs tell** — are emotions dramatized through action/dialogue or just stated?
-6. **Dialogue quality** — does it sound natural? Can you tell who's speaking without tags?
-7. **Continuity** — are there contradictions in setting, character knowledge, or physical details?
-8. **Prose quality** — clichés, purple prose, weak verbs, adverb overuse, filter words
-
-Return JSON:
-{
-  "overallAssessment": "2-3 sentence summary of the manuscript's prose quality and most pressing issues",
-  "globalIssues": ["issues that apply across the entire manuscript — patterns, not individual scenes"],
-  "sceneIssues": [
-    {
-      "sceneId": "S-XXX",
-      "issues": ["specific issues in this scene's prose"],
-      "priority": "high" | "medium" | "low"
-    }
-  ]
-}
-
-Rules:
-- Only include scenes that have actual issues worth fixing — don't list scenes that are fine.
-- Be specific and actionable — "the dialogue in paragraph 3 is expository" is better than "dialogue could improve".
-- Priority: high = fundamentally broken (continuity errors, incoherent prose), medium = noticeable quality issues, low = polish-level refinements.
-- globalIssues should be patterns you see across 3+ scenes, not one-off issues.${customGuidance ? `\n\nADDITIONAL GUIDANCE FROM THE AUTHOR:\n${customGuidance}` : ''}`;
-
-  const raw = await callGenerate(prompt, systemPrompt, 8000, 'analyzeAllProse');
-  return parseJson(raw, 'analyzeAllProse') as ProseAnalysis;
-}
-
-/**
- * Rewrite a single scene's prose based on analysis feedback.
- * Preserves the scene's events, characters, and narrative beats while
- * addressing the specific issues identified in the analysis.
- */
-export async function rewriteSceneProse(
+export async function scoreAndRewriteSceneProse(
   narrative: NarrativeState,
   scene: Scene,
   resolvedKeys: string[],
-  originalProse: string,
-  sceneIssues: string[],
-  globalIssues: string[],
-  onToken?: (token: string) => void,
-): Promise<string> {
-  const location = narrative.locations[scene.locationId];
-  const pov = narrative.characters[scene.povId];
-  const participants = scene.participantIds.map((pid) => narrative.characters[pid]).filter(Boolean);
-
+  currentProse: string,
+): Promise<{ prose: string; score: ProseScore }> {
   const sceneIdx = resolvedKeys.indexOf(scene.id);
+  const sceneBlock = sceneContext(narrative, scene);
+  const logicRules = deriveLogicRules(narrative, scene);
 
   // Get neighboring prose for continuity
   const prevId = sceneIdx > 0 ? resolvedKeys[sceneIdx - 1] : null;
@@ -1570,44 +1656,64 @@ export async function rewriteSceneProse(
   const prevEnding = prevProse ? prevProse.split(/\n\n+/).slice(-1)[0]?.slice(-300) : null;
   const nextOpening = nextProse ? nextProse.split(/\n\n+/)[0]?.slice(0, 300) : null;
 
-  const systemPrompt = `You are a literary prose writer rewriting a scene to address specific editorial feedback. You output ONLY the rewritten prose — no commentary, no markdown, no headers.
+  const planBlock = scene.plan
+    ? `\nSCENE PLAN (the rewrite must preserve this beat structure):\n${scene.plan}\n`
+    : '';
 
-Voice & style:
+  const logicBlock = logicRules.length > 0
+    ? `\nLOGICAL CONSTRAINTS (all must be satisfied):\n${logicRules.map((r) => `  - ${r}`).join('\n')}\n`
+    : '';
+
+  const systemPrompt = `You are a literary editor and prose writer. Your task is to SCORE the prose, then REWRITE it to improve. You return ONLY valid JSON — no markdown, no commentary.
+
+Voice & style for the rewrite:
 - Third-person limited, locked to the POV character's senses and interiority.
 - Prose should feel novelistic, not summarised. Dramatise through action, dialogue, and sensory texture.
 - Favour subtext over exposition. Let tension live in what characters don't say.
 - Match the tone and genre of the world: ${narrative.worldSummary.slice(0, 200)}.
-- Use straight quotes (" and '), never smart/curly quotes.`;
+- Use straight quotes (" and '), never smart/curly quotes.
+- CRITICAL: Do NOT open with weather, atmosphere, scent, or environmental description.
+- Do NOT end with philosophical musings, rhetorical questions, or atmospheric fade-outs.`;
 
-  const prompt = `REWRITE the following scene prose to address the editorial issues listed below.
+  const prompt = `SCENE CONTEXT:
+${sceneBlock}
+${planBlock}${logicBlock}${prevEnding ? `\nPREVIOUS SCENE ENDING:\n"...${prevEnding}"\n` : ''}${nextOpening ? `\nNEXT SCENE OPENING:\n"${nextOpening}..."\n` : ''}
 
-SCENE CONTEXT:
-- Location: ${location?.name ?? 'Unknown'}
-- POV: ${pov?.name ?? 'Unknown'} (${pov?.role ?? 'unknown role'})
-- Participants: ${participants.map((p) => `${p.name} (${p.role})`).join(', ')}
-- Events: ${scene.events.join('; ')}
-- Summary: ${scene.summary}
-${prevEnding ? `\nPREVIOUS SCENE ENDING (for continuity — your opening should flow from this):\n"...${prevEnding}"` : ''}
-${nextOpening ? `\nNEXT SCENE OPENING (for continuity — your ending should lead into this):\n"${nextOpening}..."` : ''}
+CURRENT PROSE:
+${currentProse}
 
-ORIGINAL PROSE:
-${originalProse}
+STEP 1: Score the prose on these 6 dimensions (1-10 each):
+- voice: POV discipline, character distinctiveness, consistent narrative voice
+- pacing: scene breathes, beats land with proper weight, no rushing or dragging
+- dialogue: subtext-rich, character-specific speech patterns, no filler exchanges
+- sensory: grounded in concrete physical detail, body-first interiority
+- mutation_coverage: all thread shifts, knowledge changes, and relationship mutations are dramatised (not summarised)
+- overall: holistic quality considering all dimensions
 
-ISSUES TO FIX:
-${sceneIssues.map((i) => `- ${i}`).join('\n')}
-${globalIssues.length > 0 ? `\nGLOBAL MANUSCRIPT ISSUES (also apply these corrections):\n${globalIssues.map((i) => `- ${i}`).join('\n')}` : ''}
+STEP 2: Rewrite the prose to address weaknesses identified in your scoring. Preserve all narrative beats, events, and plot points. The rewrite should feel like the same scene written better. Length should match the scene's needs — a quiet scene may be 800 words, a dense convergence scene 3000+. Err on the side of brevity for engagement; never pad. Do not artificially compress or expand the original — let the content dictate length.
 
-REWRITE RULES:
-- Preserve all narrative beats, events, character actions, and plot points from the original.
-- Fix the specific issues listed above — don't change things that aren't broken.
-- Maintain approximately the same length (~1000 words).
-- The rewrite should feel like the same scene written better, not a different scene.
-- Output ONLY the rewritten prose.`;
+Return JSON:
+{
+  "score": {
+    "overall": 7,
+    "voice": 8,
+    "pacing": 6,
+    "dialogue": 7,
+    "sensory": 5,
+    "mutation_coverage": 8
+  },
+  "prose": "the full rewritten prose text"
+}`;
 
-  if (onToken) {
-    return await callGenerateStream(prompt, systemPrompt, onToken, 4000, 'rewriteSceneProse');
-  }
-  return await callGenerate(prompt, systemPrompt, 4000, 'rewriteSceneProse');
+  const scale = sceneScale(scene);
+  // Cannot stream since we need JSON parsed — use non-streaming call
+  const raw = await callGenerate(prompt, systemPrompt, scale.proseTokens + 1000, 'scoreAndRewriteSceneProse');
+  const parsed = parseJson(raw, 'scoreAndRewriteSceneProse') as { score: ProseScore; prose: string };
+
+  return {
+    score: parsed.score,
+    prose: parsed.prose,
+  };
 }
 
 export type ChartAnnotation = {

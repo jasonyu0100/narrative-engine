@@ -3,7 +3,7 @@
 import { useRef, useCallback, useEffect } from 'react';
 import { useStore } from '@/lib/store';
 import { evaluateNarrativeState, checkEndConditions, pickArcLength, buildActionDirective, pickCubeGoal, isWorldBuildDue } from '@/lib/auto-engine';
-import { generateScenes, generateSceneProse, expandWorld, suggestWorldExpansion } from '@/lib/ai';
+import { generateScenes, generateSceneProse, generateScenePlan, reconcileScenePlans, expandWorld, suggestWorldExpansion } from '@/lib/ai';
 import { nextId } from '@/lib/narrative-utils';
 import type { AutoRunLog } from '@/types/narrative';
 
@@ -101,25 +101,64 @@ export function useAutoPlay() {
       });
       scenesGenerated = scenes.length;
 
-      // Generate prose for each scene if enabled (parallel)
+      // Generate plans → reconcile → prose for each scene if enabled
       if (autoConfig.includeProse && scenes.length > 0) {
         const updatedNarrative = stateRef.current.activeNarrative;
         const updatedKeys = stateRef.current.resolvedSceneKeys;
         if (updatedNarrative) {
-          const prosePromises = scenes.map(async (s) => {
+          // Step 1: Generate plans (parallel)
+          const planResults: { sceneId: string; plan: string }[] = [];
+          const planPromises = scenes.map(async (s) => {
             if (cancelledRef.current) return;
             const sceneIdx = updatedKeys.indexOf(s.id);
             try {
-              const prose = await generateSceneProse(updatedNarrative, s, sceneIdx, updatedKeys);
+              const plan = await generateScenePlan(updatedNarrative, s, sceneIdx, updatedKeys);
               if (!cancelledRef.current) {
-                dispatch({ type: 'UPDATE_SCENE', sceneId: s.id, updates: { prose } });
+                dispatch({ type: 'UPDATE_SCENE', sceneId: s.id, updates: { plan } });
+                planResults.push({ sceneId: s.id, plan });
               }
             } catch (err) {
-              console.error('[auto-play] prose generation error:', err);
+              console.error('[auto-play] plan generation error:', err);
             }
           });
-          await Promise.all(prosePromises);
+          await Promise.all(planPromises);
           if (cancelledRef.current) return;
+
+          // Step 2: Reconcile plans (single call)
+          if (planResults.length >= 2) {
+            try {
+              const reconciled = await reconcileScenePlans(updatedNarrative, planResults);
+              for (const [sceneId, rev] of Object.entries(reconciled)) {
+                if (!cancelledRef.current) {
+                  dispatch({ type: 'UPDATE_SCENE', sceneId, updates: { plan: rev.plan } });
+                }
+              }
+            } catch (err) {
+              console.error('[auto-play] plan reconciliation error:', err);
+            }
+            if (cancelledRef.current) return;
+          }
+
+          // Step 3: Generate prose from plans (parallel)
+          // Re-read narrative to get updated plans
+          const narrativeWithPlans = stateRef.current.activeNarrative;
+          if (narrativeWithPlans) {
+            const prosePromises = scenes.map(async (s) => {
+              if (cancelledRef.current) return;
+              const sceneIdx = updatedKeys.indexOf(s.id);
+              const sceneWithPlan = narrativeWithPlans.scenes[s.id] ?? s;
+              try {
+                const prose = await generateSceneProse(narrativeWithPlans, sceneWithPlan, sceneIdx, updatedKeys);
+                if (!cancelledRef.current) {
+                  dispatch({ type: 'UPDATE_SCENE', sceneId: s.id, updates: { prose } });
+                }
+              } catch (err) {
+                console.error('[auto-play] prose generation error:', err);
+              }
+            });
+            await Promise.all(prosePromises);
+            if (cancelledRef.current) return;
+          }
         }
       }
     } catch (err) {

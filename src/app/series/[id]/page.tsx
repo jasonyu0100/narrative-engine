@@ -27,6 +27,7 @@ import RulesPanel from '@/components/layout/RulesPanel';
 import { MCTSPanel } from '@/components/mcts/MCTSPanel';
 import { MCTSControlBar } from '@/components/mcts/MCTSControlBar';
 import { useMCTS } from '@/hooks/useMCTS';
+import { StorySettingsModal } from '@/components/settings/StorySettingsModal';
 
 function useIsMobile(breakpoint = 768) {
   const [isMobile, setIsMobile] = useState(false);
@@ -52,6 +53,7 @@ export default function SeriesPage() {
   const [forceTrackerOpen, setForceTrackerOpen] = useState(false);
   const [rulesOpen, setRulesOpen] = useState(false);
   const [mctsOpen, setMctsOpen] = useState(false);
+  const [storySettingsOpen, setStorySettingsOpen] = useState(false);
   const autoPlay = useAutoPlay();
   const mcts = useMCTS();
   const access = useFeatureAccess();
@@ -80,6 +82,7 @@ export default function SeriesPage() {
     function handleOpenForceTracker() { setForceTrackerOpen(true); }
     function handleOpenRules() { setRulesOpen(true); }
     function handleOpenMcts() { setMctsOpen(true); }
+    function handleOpenStorySettings() { setStorySettingsOpen(true); }
     window.addEventListener('open-generate-panel', handleOpenGenerate);
     window.addEventListener('open-branch-modal', handleOpenFork);
     window.addEventListener('open-auto-settings', handleOpenAutoSettings);
@@ -88,6 +91,7 @@ export default function SeriesPage() {
     window.addEventListener('open-force-tracker', handleOpenForceTracker);
     window.addEventListener('open-rules-panel', handleOpenRules);
     window.addEventListener('open-mcts-panel', handleOpenMcts);
+    window.addEventListener('open-story-settings', handleOpenStorySettings);
     return () => {
       window.removeEventListener('open-generate-panel', handleOpenGenerate);
       window.removeEventListener('open-branch-modal', handleOpenFork);
@@ -97,6 +101,7 @@ export default function SeriesPage() {
       window.removeEventListener('open-force-tracker', handleOpenForceTracker);
       window.removeEventListener('open-rules-panel', handleOpenRules);
       window.removeEventListener('open-mcts-panel', handleOpenMcts);
+      window.removeEventListener('open-story-settings', handleOpenStorySettings);
     };
   }, []);
 
@@ -142,7 +147,7 @@ export default function SeriesPage() {
                 onOpenPanel={() => setMctsOpen(true)}
               />
             )}
-            <SceneInfoBar />
+            {!showAutoBar && !showMctsBar && <SceneInfoBar />}
             <FloatingPalette />
           </div>
           <NarrativePanel />
@@ -165,6 +170,7 @@ export default function SeriesPage() {
       {apiKeysOpen && <ApiKeyModal access={access} onClose={() => setApiKeysOpen(false)} />}
       {forceTrackerOpen && <ForceTracker onClose={() => setForceTrackerOpen(false)} />}
       {rulesOpen && <RulesPanel onClose={() => setRulesOpen(false)} />}
+      {storySettingsOpen && <StorySettingsModal onClose={() => setStorySettingsOpen(false)} />}
       <MCTSPanel isOpen={mctsOpen} onClose={() => setMctsOpen(false)} mcts={mcts} />
       <OnboardingGuide narrativeId={id} />
       {isMobile && (

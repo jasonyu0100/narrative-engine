@@ -35,6 +35,9 @@ export const FORCE_WINDOW_SIZE = 10;
 
 // ── Generation ───────────────────────────────────────────────────────────────
 
+/** Concurrent scene plan generation slots (Story modal bulk plan) */
+export const PLAN_CONCURRENCY = 10;
+
 /** Concurrent prose generation slots (Story modal bulk write) */
 export const PROSE_CONCURRENCY = 10;
 

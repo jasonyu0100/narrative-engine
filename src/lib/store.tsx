@@ -158,8 +158,7 @@ const initialState: AppState = {
     worldBuildSize: 'medium',
     maxActiveThreads: 6,
     threadStagnationThreshold: 5,
-    arcDirectionPrompt: '',
-    storyDirectionPrompt: '',
+    northStarPrompt: '',
     toneGuidance: '',
     narrativeConstraints: '',
     characterRotationEnabled: true,
@@ -197,7 +196,7 @@ export type Action =
   | { type: 'SWITCH_BRANCH'; branchId: string }
   // CRUD
   | { type: 'UPDATE_NARRATIVE_META'; title?: string; description?: string; worldSummary?: string }
-  | { type: 'UPDATE_SCENE'; sceneId: string; updates: Partial<Pick<Scene, 'summary' | 'prose' | 'events' | 'locationId' | 'participantIds'>> }
+  | { type: 'UPDATE_SCENE'; sceneId: string; updates: Partial<Pick<Scene, 'summary' | 'prose' | 'proseScore' | 'plan' | 'events' | 'locationId' | 'participantIds'>> }
   | { type: 'CREATE_SCENE'; scene: Scene; branchId: string }
   | { type: 'DELETE_SCENE'; sceneId: string; branchId: string }
   | { type: 'UPDATE_ARC'; arcId: string; updates: Partial<Pick<Arc, 'name' | 'develops' | 'locationIds' | 'activeCharacterIds'>> }
@@ -238,6 +237,7 @@ export type Action =
   | { type: 'SET_LOCATION_IMAGE'; locationId: string; imageUrl: string }
   | { type: 'SET_IMAGE_STYLE'; style: string }
   | { type: 'SET_RULES'; rules: string[] }
+  | { type: 'SET_STORY_SETTINGS'; settings: import('@/types/narrative').StorySettings }
   // Analysis
   | { type: 'ADD_ANALYSIS_JOB'; job: import('@/types/narrative').AnalysisJob }
   | { type: 'UPDATE_ANALYSIS_JOB'; id: string; updates: Partial<import('@/types/narrative').AnalysisJob> }
@@ -962,6 +962,9 @@ function reducer(state: AppState, action: Action): AppState {
 
     case 'SET_RULES':
       return updateNarrative(state, (n) => ({ ...n, rules: action.rules }));
+
+    case 'SET_STORY_SETTINGS':
+      return updateNarrative(state, (n) => ({ ...n, storySettings: action.settings }));
 
     // ── Analysis ──────────────────────────────────────────────────────────
     case 'ADD_ANALYSIS_JOB':
