@@ -271,7 +271,8 @@ export default function CharacterDetail({ characterId }: Props) {
                   })}
                   {movement && (
                     <span className="text-xs text-text-secondary">
-                      &rarr; {narrative.locations[movement]?.name ?? movement}
+                      &rarr; {narrative.locations[movement.locationId]?.name ?? movement.locationId}
+                      {movement.transition && <span className="text-text-dim italic"> — {movement.transition}</span>}
                     </span>
                   )}
                 </li>

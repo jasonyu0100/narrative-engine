@@ -255,36 +255,41 @@ export default function SceneDetail({ sceneId }: Props) {
           <h3 className="text-[10px] uppercase tracking-widest text-text-dim">
             Movements
           </h3>
-          {Object.entries(scene.characterMovements).map(([charId, toLocId]) => {
+          {Object.entries(scene.characterMovements).map(([charId, mv]) => {
             const charName = narrative.characters[charId]?.name ?? charId;
-            const toLocName = narrative.locations[toLocId]?.name ?? toLocId;
+            const toLocName = narrative.locations[mv.locationId]?.name ?? mv.locationId;
             return (
-              <div key={charId} className="flex items-center gap-1.5 text-xs">
-                <button
-                  type="button"
-                  onClick={() =>
-                    dispatch({
-                      type: 'SET_INSPECTOR',
-                      context: { type: 'character', characterId: charId },
-                    })
-                  }
-                  className="text-text-primary transition-colors hover:underline"
-                >
-                  {charName}
-                </button>
-                <span className="text-text-dim">&rarr;</span>
-                <button
-                  type="button"
-                  onClick={() =>
-                    dispatch({
-                      type: 'SET_INSPECTOR',
-                      context: { type: 'location', locationId: toLocId },
+              <div key={charId} className="flex flex-col gap-0.5">
+                <div className="flex items-center gap-1.5 text-xs">
+                  <button
+                    type="button"
+                    onClick={() =>
+                      dispatch({
+                        type: 'SET_INSPECTOR',
+                        context: { type: 'character', characterId: charId },
+                      })
+                    }
+                    className="text-text-primary transition-colors hover:underline"
+                  >
+                    {charName}
+                  </button>
+                  <span className="text-text-dim">&rarr;</span>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      dispatch({
+                        type: 'SET_INSPECTOR',
+                        context: { type: 'location', locationId: mv.locationId },
                     })
                   }
                   className="text-text-secondary transition-colors hover:text-text-primary"
                 >
                   {toLocName}
                 </button>
+                </div>
+                {mv.transition && (
+                  <span className="text-[10px] text-text-dim italic ml-3">{mv.transition}</span>
+                )}
               </div>
             );
           })}

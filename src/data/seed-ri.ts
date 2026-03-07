@@ -384,6 +384,7 @@ const scenes: Record<string, Scene> = {
     locationId: 'L-03',
     povId: 'C-01',
     participantIds: ['C-01', 'C-02', 'C-05'],
+    characterMovements: { 'C-01': { locationId: 'L-03', transition: 'Walked with the other students from the village to the academy hall' }, 'C-02': { locationId: 'L-03', transition: 'Arrived at the academy early, eager for the lecture' } },
     events: ['academy_lecture', 'gu_basics_explained', 'shen_cui_observes_students'],
     threadMutations: [
       { threadId: 'T-02', from: 'dormant', to: 'active' },
@@ -406,6 +407,7 @@ const scenes: Record<string, Scene> = {
     locationId: 'L-01',
     povId: 'C-01',
     participantIds: ['C-01'],
+    characterMovements: { 'C-01': { locationId: 'L-01', transition: 'Slipped away from the academy under pretense of gathering herbs and climbed the ridge path' } },
     events: ['mountain_dusk', 'wild_gu_sighting', 'fang_yuan_catalogs_terrain'],
     threadMutations: [
       { threadId: 'T-06', from: 'dormant', to: 'active' },
@@ -426,6 +428,7 @@ const scenes: Record<string, Scene> = {
     locationId: 'L-03',
     povId: 'C-01',
     participantIds: ['C-01', 'C-02', 'C-03', 'C-05'],
+    characterMovements: { 'C-01': { locationId: 'L-03', transition: 'Descended from the mountain and returned to the academy for the ceremony' }, 'C-02': { locationId: 'L-03', transition: 'Arrived at the academy hall with the other students for the ceremony' }, 'C-03': { locationId: 'L-03', transition: 'Led the elders from the Clan Hall to the academy to preside over the awakening' } },
     events: ['awakening_ceremony', 'fang_zheng_excels', 'fang_yuan_conceals'],
     threadMutations: [
       { threadId: 'T-02', from: 'dormant', to: 'active' },
@@ -452,6 +455,7 @@ const scenes: Record<string, Scene> = {
     locationId: 'L-02',
     povId: 'C-02',
     participantIds: ['C-01', 'C-02'],
+    characterMovements: { 'C-01': { locationId: 'L-02', transition: 'Walked back to the village with the dispersing crowd after the ceremony' }, 'C-02': { locationId: 'L-02', transition: 'Carried home on a tide of congratulations from the academy to the village square' } },
     events: ['village_celebration', 'fang_zheng_guilt', 'fang_yuan_mask'],
     threadMutations: [
       { threadId: 'T-03', from: 'active', to: 'escalating' },
@@ -475,6 +479,7 @@ const scenes: Record<string, Scene> = {
     locationId: 'L-03',
     povId: 'C-02',
     participantIds: ['C-02', 'C-05'],
+    characterMovements: { 'C-02': { locationId: 'L-03', transition: 'Stayed behind at the academy after the other students left for the day' } },
     events: ['mentorship_begins', 'shen_cui_advises', 'fang_zheng_eager'],
     threadMutations: [
       { threadId: 'T-02', from: 'active', to: 'escalating' },
@@ -498,6 +503,7 @@ const scenes: Record<string, Scene> = {
     locationId: 'L-02',
     povId: 'C-01',
     participantIds: ['C-01'],
+    characterMovements: { 'C-01': { locationId: 'L-02', transition: 'Returned to the village from the mountain as darkness fell' } },
     events: ['night_village', 'fang_yuan_paces_perimeter', 'old_memories'],
     threadMutations: [
       { threadId: 'T-01', from: 'active', to: 'escalating' },
@@ -541,7 +547,7 @@ const scenes: Record<string, Scene> = {
     locationId: 'L-04',
     povId: 'C-01',
     participantIds: ['C-01'],
-    characterMovements: { 'C-01': 'L-04' },
+    characterMovements: { 'C-01': { locationId: 'L-04', transition: 'Slipped away from the mountain path and made his way to the clan hall unnoticed' } },
     events: ['fang_yuan_eavesdrops', 'political_assessment', 'silent_calculation'],
     threadMutations: [
       { threadId: 'T-04', from: 'active', to: 'escalating' },
@@ -587,7 +593,7 @@ const scenes: Record<string, Scene> = {
     locationId: 'L-05',
     povId: 'C-01',
     participantIds: ['C-01'],
-    characterMovements: { 'C-01': 'L-05' },
+    characterMovements: { 'C-01': { locationId: 'L-05', transition: 'Navigated a hidden tunnel from his past life memories into the flower wine monastery' } },
     events: ['secret_tunnel_entry', 'past_life_navigation', 'hidden_cache_found'],
     threadMutations: [
       { threadId: 'T-01', from: 'escalating', to: 'escalating' },
@@ -609,6 +615,7 @@ const scenes: Record<string, Scene> = {
     locationId: 'L-02',
     povId: 'C-02',
     participantIds: ['C-01', 'C-02'],
+    characterMovements: { 'C-01': { locationId: 'L-02', transition: 'Emerged from the tunnels and slipped back to the house before his brother returned' }, 'C-02': { locationId: 'L-02', transition: 'Walked home from the academy training yard as evening settled' } },
     events: ['evening_meal', 'fang_zheng_ambitions', 'fang_yuan_listens'],
     threadMutations: [
       { threadId: 'T-03', from: 'escalating', to: 'escalating' },
@@ -632,7 +639,7 @@ const scenes: Record<string, Scene> = {
     locationId: 'L-04',
     povId: 'C-01',
     participantIds: ['C-01', 'C-03', 'C-06'],
-    characterMovements: { 'C-01': 'L-04' },
+    characterMovements: { 'C-01': { locationId: 'L-04', transition: 'Returned to the clan hall, blending into the crowd of spectators' } },
     events: ['ceremony_results_debated', 'fang_zheng_as_political_asset', 'fang_yuan_watches'],
     threadMutations: [
       { threadId: 'T-04', from: 'escalating', to: 'escalating' },
@@ -726,6 +733,7 @@ const altScenes: Record<string, Scene> = {
     locationId: 'L-02',
     povId: 'C-02',
     participantIds: ['C-01', 'C-02'],
+    characterMovements: { 'C-01': { locationId: 'L-02', transition: 'Returned from the tunnels before dawn, slipping back into bed as though he had never left' } },
     events: ['morning_confrontation', 'fang_yuan_deflects', 'careful_lie'],
     threadMutations: [
       { threadId: 'T-03', from: 'active', to: 'escalating' },

@@ -185,6 +185,14 @@ export type ProseScore = {
   dialogue: number;
   sensory: number;
   mutation_coverage: number;
+  /** Per-dimension critique notes from the grading pass */
+  critique?: string;
+};
+
+export type CharacterMovement = {
+  locationId: string;
+  /** Descriptive transition narrating how the character moved, e.g. "Rode horseback through the night to Bree" */
+  transition: string;
 };
 
 export type Scene = {
@@ -195,8 +203,8 @@ export type Scene = {
   /** Character whose perspective this scene is told from */
   povId: string;
   participantIds: string[];
-  /** Characters who move in this scene — characterId → new locationId. Only include deltas. */
-  characterMovements?: Record<string, string>;
+  /** Characters who move in this scene — characterId → movement details. Only include deltas. */
+  characterMovements?: Record<string, CharacterMovement>;
   events: string[];
   threadMutations: ThreadMutation[];
   knowledgeMutations: KnowledgeMutation[];
@@ -430,6 +438,7 @@ export type AnalysisChunkResult = {
     threadMutations: { threadDescription: string; from: string; to: string }[];
     knowledgeMutations: { characterName: string; action: string; content: string; type: string }[];
     relationshipMutations: { from: string; to: string; type: string; valenceDelta: number }[];
+    characterMovements?: { characterName: string; locationName: string; transition: string }[];
   }[];
   relationships: { from: string; to: string; type: string; valence: number }[];
 };

@@ -3,7 +3,7 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
 import type { NarrativeState, Scene } from '@/types/narrative';
 import { resolveEntry, isScene } from '@/types/narrative';
-import { generateSceneProse, generateScenePlan, reconcileScenePlans, scoreAndRewriteSceneProse, type ReconcileRevision } from '@/lib/ai';
+import { generateSceneProse, generateScenePlan, reconcileScenePlans, scoreSceneProse, rewriteSceneProse, type ReconcileRevision } from '@/lib/ai';
 import { useStore } from '@/lib/store';
 import { exportEpub } from '@/lib/epub-export';
 import { PROSE_CONCURRENCY, PLAN_CONCURRENCY } from '@/lib/constants';
@@ -17,11 +17,6 @@ function scoreColor(score: number): string {
   return 'text-red-400';
 }
 
-function scoreBg(score: number): string {
-  if (score >= 7.5) return 'bg-emerald-400/10 border-emerald-400/20';
-  if (score >= 5) return 'bg-amber-400/10 border-amber-400/20';
-  return 'bg-red-400/10 border-red-400/20';
-}
 
 export function StoryReader({
   narrative,
@@ -102,15 +97,34 @@ export function StoryReader({
     }
   }, [narrative, resolvedKeys, dispatch]);
 
-  // ── Rewrite (score + rewrite) ────────────────────────────────────────
-  const rewriteScene = useCallback(async (s: Scene) => {
+  // ── Grade (score only) ──────────────────────────────────────────────
+  const [grading, setGrading] = useState<string | null>(null); // sceneId currently grading
+  const [customAnalysis, setCustomAnalysis] = useState('');
+  const [showCustomAnalysis, setShowCustomAnalysis] = useState(false);
+
+  const gradeScene = useCallback(async (s: Scene) => {
+    const currentProse = proseCache[s.id]?.status === 'ready' ? proseCache[s.id].text : s.prose;
+    if (!currentProse) return;
+    setGrading(s.id);
+    try {
+      const score = await scoreSceneProse(narrative, s, currentProse);
+      dispatch({ type: 'UPDATE_SCENE', sceneId: s.id, updates: { proseScore: score } });
+    } catch {
+      // Grade failure is non-destructive — prose is unchanged
+    } finally {
+      setGrading(null);
+    }
+  }, [narrative, proseCache, dispatch]);
+
+  // ── Rewrite (using grade critique or custom analysis) ──────────────
+  const rewriteScene = useCallback(async (s: Scene, analysis: string) => {
     const currentProse = proseCache[s.id]?.status === 'ready' ? proseCache[s.id].text : s.prose;
     if (!currentProse) return;
     setProseCache((prev) => ({ ...prev, [s.id]: { text: currentProse, status: 'loading' } }));
     try {
-      const { prose, score } = await scoreAndRewriteSceneProse(narrative, s, resolvedKeys, currentProse);
+      const prose = await rewriteSceneProse(narrative, s, resolvedKeys, currentProse, analysis);
       setProseCache((prev) => ({ ...prev, [s.id]: { text: prose, status: 'ready' } }));
-      dispatch({ type: 'UPDATE_SCENE', sceneId: s.id, updates: { prose, proseScore: score } });
+      dispatch({ type: 'UPDATE_SCENE', sceneId: s.id, updates: { prose, proseScore: undefined } });
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
       setProseCache((prev) => ({ ...prev, [s.id]: { text: currentProse, status: 'error', error: message } }));
@@ -212,7 +226,7 @@ export function StoryReader({
   }, [scene, proseCache, planCache]);
 
   // Reset edited plan when changing scenes
-  useEffect(() => { setEditedPlan(null); }, [currentIndex]);
+  useEffect(() => { setEditedPlan(null); setShowCustomAnalysis(false); setCustomAnalysis(''); }, [currentIndex]);
 
   useEffect(() => { activeSceneRef.current?.scrollIntoView({ block: 'center' }); }, []); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => { contentRef.current?.scrollTo(0, 0); }, [currentIndex, viewMode]);
@@ -247,7 +261,7 @@ export function StoryReader({
   const isPlanLoading = planCached?.status === 'loading';
   const hasProseError = proseCached?.status === 'error';
   const hasPlanError = planCached?.status === 'error';
-  const sceneScore = scene?.proseScore;
+  const sceneScore = scene?.proseScore && typeof scene.proseScore.overall === 'number' ? scene.proseScore : undefined;
 
   // Score averages for header
   const scoredScenes = scenes.filter((s) => s.proseScore);
@@ -433,7 +447,7 @@ export function StoryReader({
                   {isGen && <div className="w-2.5 h-2.5 border border-white/30 border-t-white/70 rounded-full animate-spin shrink-0" />}
                   {!isGen && hasPlanDot && <span className="text-[8px] text-sky-400/60">●</span>}
                   {!isGen && hasProseDot && <span className="text-[8px] text-emerald-400/60">●</span>}
-                  {score && <span className={`text-[9px] font-mono ${scoreColor(score.overall)}`}>{score.overall}</span>}
+                  {score && typeof score.overall === 'number' && <span className={`text-[9px] font-mono ${scoreColor(score.overall)}`}>{score.overall}</span>}
                 </div>
               </button>
             );
@@ -480,17 +494,9 @@ export function StoryReader({
                 );
               })}
 
-              {/* Score badge — shown in tab bar when prose tab active */}
+              {/* Score indicator — small dot in tab bar when grade exists */}
               {sceneScore && viewMode === 'prose' && (
-                <div className={`ml-auto flex items-center gap-2 px-2.5 py-1 rounded-full border text-[9px] font-mono ${scoreBg(sceneScore.overall)}`}>
-                  <span className={scoreColor(sceneScore.overall)}>{sceneScore.overall}</span>
-                  <span className="text-text-dim/30">|</span>
-                  <span title="Voice" className="text-text-dim">V:{sceneScore.voice}</span>
-                  <span title="Pacing" className="text-text-dim">P:{sceneScore.pacing}</span>
-                  <span title="Dialogue" className="text-text-dim">D:{sceneScore.dialogue}</span>
-                  <span title="Sensory" className="text-text-dim">S:{sceneScore.sensory}</span>
-                  <span title="Coverage" className="text-text-dim">M:{sceneScore.mutation_coverage}</span>
-                </div>
+                <span className={`ml-auto text-[9px] font-mono ${scoreColor(sceneScore.overall)}`}>{String(sceneScore.overall)}</span>
               )}
 
               {/* Context actions — shown in tab bar, right-aligned */}
@@ -551,10 +557,26 @@ export function StoryReader({
               {viewMode === 'prose' && hasProse && !isProseLoading && (
                 <div className={`${sceneScore ? '' : 'ml-auto'} flex items-center gap-1.5 ${sceneScore ? 'ml-2' : ''}`}>
                   <button
-                    onClick={() => rewriteScene(scene)}
-                    className="text-[9px] px-2 py-1 rounded text-violet-400/80 hover:text-violet-400 hover:bg-violet-500/10 transition"
+                    onClick={() => gradeScene(scene)}
+                    disabled={grading === scene.id}
+                    className="text-[9px] px-2 py-1 rounded text-amber-400/80 hover:text-amber-400 hover:bg-amber-500/10 transition disabled:opacity-50"
+                  >
+                    {grading === scene.id ? 'Grading...' : 'Grade'}
+                  </button>
+                  <button
+                    onClick={() => rewriteScene(scene, sceneScore?.critique ?? '')}
+                    disabled={!sceneScore}
+                    title={!sceneScore ? 'Grade the scene first' : 'Rewrite using grade critique'}
+                    className="text-[9px] px-2 py-1 rounded text-violet-400/80 hover:text-violet-400 hover:bg-violet-500/10 transition disabled:opacity-30 disabled:cursor-not-allowed"
                   >
                     Rewrite
+                  </button>
+                  <button
+                    onClick={() => setShowCustomAnalysis((v) => !v)}
+                    title="Rewrite using custom analysis"
+                    className={`text-[9px] px-2 py-1 rounded transition ${showCustomAnalysis ? 'text-cyan-400 bg-cyan-500/10' : 'text-cyan-400/60 hover:text-cyan-400 hover:bg-cyan-500/10'}`}
+                  >
+                    Custom
                   </button>
                   <button
                     onClick={() => { dispatch({ type: 'UPDATE_SCENE', sceneId: scene.id, updates: { prose: undefined, proseScore: undefined } }); generateProse(scene, sceneKeyIndex); }}
@@ -571,6 +593,52 @@ export function StoryReader({
                 </div>
               )}
             </div>
+
+            {/* ── Grade panel — always visible when score exists ──── */}
+            {viewMode === 'prose' && sceneScore && (
+              <div className="mx-0 mb-4 px-4 py-3 rounded-lg bg-amber-500/5 border border-amber-500/10">
+                <div className="flex items-center gap-3 mb-2">
+                  <span className="text-[9px] uppercase tracking-widest text-amber-400/60">Grade</span>
+                  <div className="flex items-center gap-2 text-[9px] font-mono">
+                    <span className={scoreColor(sceneScore.overall)}>{String(sceneScore.overall)}</span>
+                    <span className="text-text-dim/30">|</span>
+                    <span title="Voice" className="text-text-dim">V:{String(sceneScore.voice)}</span>
+                    <span title="Pacing" className="text-text-dim">P:{String(sceneScore.pacing)}</span>
+                    <span title="Dialogue" className="text-text-dim">D:{String(sceneScore.dialogue)}</span>
+                    <span title="Sensory" className="text-text-dim">S:{String(sceneScore.sensory)}</span>
+                    <span title="Coverage" className="text-text-dim">M:{String(sceneScore.mutation_coverage)}</span>
+                  </div>
+                </div>
+                {sceneScore.critique && (
+                  <p className="text-[11px] text-text-secondary leading-relaxed whitespace-pre-wrap">{sceneScore.critique}</p>
+                )}
+              </div>
+            )}
+
+            {/* ── Custom analysis input ────────────────────────────── */}
+            {viewMode === 'prose' && showCustomAnalysis && hasProse && !isProseLoading && (
+              <div className="mx-0 mb-4 px-4 py-3 rounded-lg bg-cyan-500/5 border border-cyan-500/10">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-[9px] uppercase tracking-widest text-cyan-400/60">Custom Analysis</span>
+                  <button onClick={() => setShowCustomAnalysis(false)} className="text-[9px] text-text-dim/40 hover:text-text-dim transition">&times;</button>
+                </div>
+                <textarea
+                  value={customAnalysis}
+                  onChange={(e) => setCustomAnalysis(e.target.value)}
+                  placeholder="Paste 3rd-party analysis or write your own critique to guide the rewrite..."
+                  className="w-full h-24 bg-black/20 border border-white/5 rounded text-[11px] text-text-secondary p-2 resize-y outline-none focus:border-cyan-500/20 placeholder:text-text-dim/30"
+                />
+                <div className="flex justify-end mt-2">
+                  <button
+                    onClick={() => { rewriteScene(scene, customAnalysis); setShowCustomAnalysis(false); setCustomAnalysis(''); }}
+                    disabled={!customAnalysis.trim()}
+                    className="text-[9px] px-3 py-1 rounded bg-cyan-500/10 border border-cyan-500/20 text-cyan-400 hover:bg-cyan-500/15 transition disabled:opacity-30 disabled:cursor-not-allowed"
+                  >
+                    Rewrite with Analysis
+                  </button>
+                </div>
+              </div>
+            )}
 
             {/* ── SUMMARY VIEW ───────────────────────────────────────── */}
             {viewMode === 'summary' && (
@@ -641,10 +709,12 @@ export function StoryReader({
                     {scene.characterMovements && Object.keys(scene.characterMovements).length > 0 && (
                       <div>
                         <h4 className="text-[9px] uppercase tracking-widest text-text-dim mb-2">Movements</h4>
-                        {Object.entries(scene.characterMovements).map(([charId, locId], i) => {
+                        {Object.entries(scene.characterMovements).map(([charId, movement], i) => {
                           const char = narrative.characters[charId];
+                          const locId = typeof movement === 'string' ? movement : movement.locationId;
                           const loc = narrative.locations[locId];
-                          return <p key={i} className="text-[11px] text-text-secondary leading-relaxed">{char?.name ?? charId} &rarr; {loc?.name ?? locId}</p>;
+                          const transition = typeof movement === 'object' && movement.transition ? ` — ${movement.transition}` : '';
+                          return <p key={i} className="text-[11px] text-text-secondary leading-relaxed">{char?.name ?? charId} &rarr; {loc?.name ?? locId}{transition}</p>;
                         })}
                       </div>
                     )}

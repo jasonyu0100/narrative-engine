@@ -391,6 +391,9 @@ Return a single JSON object with this exact structure:
       ],
       "relationshipMutations": [
         { "from": "Name", "to": "Name", "type": "Description of relationship shift", "valenceDelta": -0.3 }
+      ],
+      "characterMovements": [
+        { "characterName": "Name", "locationName": "Destination location", "transition": "Vivid description of HOW they traveled, e.g. 'Rode horseback through the night'" }
       ]
     }
   ],
@@ -403,6 +406,7 @@ RULES:
 - Break the chunk into 2-5 distinct scenes based on location shifts, time jumps, or major tonal changes
 - Every scene MUST have a non-empty "summary", at least one event tag, and a "povName"
 - "sections" is an array of section numbers (1-indexed) that this scene covers. Together, all scenes should cover all ${sections.length} sections.
+- characterMovements: only include characters who physically RELOCATE to a different location during the scene. The destination must differ from the scene's locationName. Omit characters who stay put.
 ${cumulativeCtx ? `
 CUMULATIVE CONTINUITY:
 - Thread "statusAtStart" MUST match the thread's current status from the THREADS section above
@@ -546,6 +550,9 @@ Return a single JSON object with this exact structure:
       ],
       "relationshipMutations": [
         { "from": "Name", "to": "Name", "type": "Description of relationship shift", "valenceDelta": -0.3 }
+      ],
+      "characterMovements": [
+        { "characterName": "Name", "locationName": "Destination location", "transition": "Vivid description of HOW they traveled, e.g. 'Rode horseback through the night'" }
       ]
     }
   ],
@@ -558,6 +565,7 @@ RULES:
 - Break the chunk into 2-5 distinct scenes based on location shifts, time jumps, or major tonal changes
 - Every scene MUST have a non-empty "summary", at least one event tag, and a "povName"
 - "sections" is an array of section numbers (1-indexed) that this scene covers. Together, all scenes should cover all ${sections.length} sections.
+- characterMovements: only include characters who physically RELOCATE to a different location during the scene. The destination must differ from the scene's locationName. Omit characters who stay put.
 
 THREAD LIFECYCLE:
 - Active statuses: ${THREAD_ACTIVE_STATUSES.map((s: string) => `"${s}"`).join(', ')}
@@ -1002,6 +1010,19 @@ export async function assembleNarrative(
           type: rm.type,
           valenceDelta: rm.valenceDelta ?? 0,
         })),
+        characterMovements: (() => {
+          const mvs = s.characterMovements ?? [];
+          if (mvs.length === 0) return undefined;
+          const result: Record<string, { locationId: string; transition: string }> = {};
+          for (const mv of mvs) {
+            const charId = getCharId(mv.characterName);
+            const locId = getLocId(mv.locationName);
+            if (charId && locId && locId !== locationId) {
+              result[charId] = { locationId: locId, transition: mv.transition ?? '' };
+            }
+          }
+          return Object.keys(result).length > 0 ? result : undefined;
+        })(),
         prose: s.prose || undefined,
         summary: s.summary ?? '',
       };

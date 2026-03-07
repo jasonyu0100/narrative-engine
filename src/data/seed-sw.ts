@@ -411,6 +411,7 @@ const scenes: Record<string, Scene> = {
     locationId: 'L-SW-02',
     povId: 'C-SW-01',
     participantIds: ['C-SW-01'],
+    characterMovements: { 'C-SW-01': { locationId: 'L-SW-02', transition: 'Drove his landspeeder across the flats to Tosche Station' } },
     events: ['friends_at_tosche', 'biggs_leaving', 'luke_left_behind'],
     threadMutations: [],
     knowledgeMutations: [
@@ -427,7 +428,7 @@ const scenes: Record<string, Scene> = {
     locationId: 'L-SW-08',
     povId: 'C-SW-01',
     participantIds: ['C-SW-01', 'C-SW-06'],
-    characterMovements: { 'C-SW-06': 'L-SW-08' },
+    characterMovements: { 'C-SW-01': { locationId: 'L-SW-08', transition: 'Drove back from Tosche Station as the suns began to set' }, 'C-SW-06': { locationId: 'L-SW-08', transition: 'Purchased from Jawa sandcrawler and brought to the Lars homestead' } },
     events: ['jawas_arrive', 'droids_purchased', 'r2_stubborn'],
     threadMutations: [
       { threadId: 'T-SW-02', from: 'active', to: 'escalating' },
@@ -471,7 +472,7 @@ const scenes: Record<string, Scene> = {
     locationId: 'L-SW-02',
     povId: 'C-SW-01',
     participantIds: ['C-SW-01', 'C-SW-06'],
-    characterMovements: { 'C-SW-01': 'L-SW-02', 'C-SW-06': 'L-SW-02' },
+    characterMovements: { 'C-SW-01': { locationId: 'L-SW-02', transition: 'Chased R2-D2 across the desert in his landspeeder' }, 'C-SW-06': { locationId: 'L-SW-02', transition: 'Escaped in the night and rolled into the Jundland Wastes' } },
     events: ['r2_escapes', 'luke_pursues', 'jundland_wastes'],
     threadMutations: [
       { threadId: 'T-SW-02', from: 'escalating', to: 'escalating' },
@@ -595,7 +596,7 @@ const scenes: Record<string, Scene> = {
     locationId: 'L-SW-08',
     povId: 'C-SW-01',
     participantIds: ['C-SW-01'],
-    characterMovements: { 'C-SW-01': 'L-SW-08' },
+    characterMovements: { 'C-SW-01': { locationId: 'L-SW-08', transition: 'Raced back to the homestead only to find it in flames' } },
     events: ['homestead_destroyed', 'owen_beru_killed', 'point_of_no_return'],
     threadMutations: [
       { threadId: 'T-SW-01', from: 'escalating', to: 'escalating' },

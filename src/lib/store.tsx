@@ -640,7 +640,7 @@ function reducer(state: AppState, action: Action): AppState {
           usedCharIds.add(s.povId);
           usedLocIds.add(s.locationId);
           Object.keys(s.characterMovements ?? {}).forEach((id) => usedCharIds.add(id));
-          Object.values(s.characterMovements ?? {}).forEach((id) => usedLocIds.add(id));
+          Object.values(s.characterMovements ?? {}).forEach((mv) => usedLocIds.add(typeof mv === 'string' ? mv : mv.locationId));
         });
         Object.values(n.arcs).forEach((arc) => {
           arc.activeCharacterIds.forEach((id) => usedCharIds.add(id));

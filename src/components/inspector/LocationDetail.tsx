@@ -98,7 +98,7 @@ export default function LocationDetail({ locationId }: Props) {
         km.content.toLowerCase().includes(location.name.toLowerCase()),
       ),
       arrivals: Object.entries(s.characterMovements ?? {})
-        .filter(([, locId]) => locId === locationId)
+        .filter(([, mv]) => mv.locationId === locationId)
         .map(([charId]) => charId),
     }))
     .filter(({ threadMuts, knowledgeMuts, arrivals }) =>

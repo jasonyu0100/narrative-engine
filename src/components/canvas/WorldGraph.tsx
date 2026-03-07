@@ -159,8 +159,8 @@ function computeCharacterPositions(
     if (globalIdx < 0 || globalIdx > currentSceneIndex) break;
     const scene = arcScenes[i];
     if (scene.characterMovements) {
-      for (const [charId, locId] of Object.entries(scene.characterMovements)) {
-        positions[charId] = locId;
+      for (const [charId, mv] of Object.entries(scene.characterMovements)) {
+        positions[charId] = mv.locationId;
       }
     }
   }

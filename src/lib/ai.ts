@@ -194,9 +194,9 @@ export function branchContext(
         referencedCharIds.add(rm.to);
       }
       if (entry.characterMovements) {
-        for (const [charId, locId] of Object.entries(entry.characterMovements)) {
+        for (const [charId, mv] of Object.entries(entry.characterMovements)) {
           referencedCharIds.add(charId);
-          referencedLocIds.add(locId);
+          referencedLocIds.add(mv.locationId);
         }
       }
     } else if (entry.kind === 'world_build') {
@@ -707,6 +707,7 @@ Return JSON with this exact structure:
       "locationId": "existing location ID from the narrative",
       "povId": "character ID whose perspective this scene is told from (MUST be an anchor-role character who is also a participant)${storySettings.povMode !== 'free' && storySettings.povCharacterIds.length > 0 ? ` — RESTRICTED to: ${storySettings.povCharacterIds.join(', ')}` : ''}",
       "participantIds": ["existing character IDs"],
+      "characterMovements": {"C-XX": {"locationId": "L-YY", "transition": "Descriptive transition narrating HOW they moved, e.g. 'Rode horseback through the night', 'Slipped through the back gate at dawn', 'Got on a bus to the school'"}},
       "events": ["event_tag_1", "event_tag_2"],
       "threadMutations": [{"threadId": "T-XX", "from": "current_status", "to": "new_status"}],
       "knowledgeMutations": [{"characterId": "C-XX", "nodeId": "K-GEN-001", "action": "added", "content": "what they learned", "nodeType": "a descriptive type for this knowledge"}],
@@ -729,6 +730,7 @@ Rules:
 - relationshipMutations track how character dynamics shift. Include them when interactions change — trust gained, betrayal discovered, alliance forming, rivalry deepening. valenceDelta ranges from -0.5 (major damage) to +0.5 (major bonding). Most interactions are ±0.1 to ±0.2.
 - knowledgeMutations track what characters learn. Include them when a character gains or loses information — secrets revealed, lies uncovered, skills observed, intel gathered.
 - events capture concrete narrative happenings. Use specific, descriptive tags: "ambush_at_dawn", "secret_pact_formed", "duel_of_wits", "storm_breaks", "letter_intercepted". Aim for 2-4 events per scene. Events contribute to the Change force — more events = higher narrative momentum.
+- characterMovements track when characters physically relocate to a different location during the scene. Only include characters whose location CHANGES — omit characters who stay put. The "transition" field should be a vivid, specific description of HOW they traveled (e.g. "Fled through the sewers beneath the city", "Sailed upriver on a merchant barge"). The "locationId" MUST be a valid location ID from the narrative. Do NOT include movements where the destination is the same as the scene's locationId.
 
 NARRATIVE RICHNESS (what separates good scenes from flat ones):
 - Think like a novelist: every scene changes SOMETHING about how characters understand their world and relate to each other. A scene where nothing shifts — no knowledge gained, no relationship moved, no events tagged — reads as filler.
@@ -825,6 +827,24 @@ You MUST use ONLY these exact IDs. Do NOT invent new character, location, or thr
       stripped.push(`relationshipMutation "${rm.from}" -> "${rm.to}" in scene ${scene.id}`);
       return false;
     });
+    // Sanitize characterMovements — remove invalid charId/locationId entries
+    if (scene.characterMovements) {
+      const sanitized: Record<string, { locationId: string; transition: string }> = {};
+      for (const [charId, mv] of Object.entries(scene.characterMovements)) {
+        // Handle legacy string format (charId → locationId) from older LLM responses
+        const movement = typeof mv === 'string' ? { locationId: mv, transition: '' } : mv;
+        if (!validCharIds.has(charId)) {
+          stripped.push(`characterMovement charId "${charId}" in scene ${scene.id}`);
+          continue;
+        }
+        if (!validLocIds.has(movement.locationId)) {
+          stripped.push(`characterMovement locationId "${movement.locationId}" in scene ${scene.id}`);
+          continue;
+        }
+        sanitized[charId] = movement;
+      }
+      scene.characterMovements = Object.keys(sanitized).length > 0 ? sanitized : undefined;
+    }
   }
 
   if (stripped.length > 0) {
@@ -1120,10 +1140,10 @@ export function sceneContext(narrative: NarrativeState, scene: Scene): string {
   });
 
   const movementLines = scene.characterMovements
-    ? Object.entries(scene.characterMovements).map(([charId, locId]) => {
+    ? Object.entries(scene.characterMovements).map(([charId, mv]) => {
         const char = narrative.characters[charId];
-        const loc = narrative.locations[locId];
-        return `  - ${char?.name ?? charId} moves to ${loc?.name ?? locId}`;
+        const loc = narrative.locations[mv.locationId];
+        return `  - ${char?.name ?? charId} moves to ${loc?.name ?? mv.locationId} (${mv.transition})`;
       })
     : [];
 
@@ -1257,7 +1277,7 @@ export async function generateScenePlan(
 Output format (free-form text — length should match the scene's complexity; a simple scene needs a short plan, a dense multi-thread convergence needs a thorough one):
 
 OPENING STATE
-2-3 sentences: where characters are physically, what they know, emotional temperature entering the scene.
+2-3 sentences: where characters are physically, what they know, emotional temperature entering the scene. If characters are arriving from elsewhere, describe HOW they arrived — the mode of travel, the journey's toll, what they saw along the way. Ground the reader in the spatial reality before the scene's action begins.
 
 BEATS
 Numbered list (4-8 beats). Each beat specifies:
@@ -1269,13 +1289,14 @@ Every structural mutation in the scene data MUST map to at least one beat with a
 - Thread transitions need a trigger (not "the thread becomes active" but "the letter falls from the coat pocket, she reads it aloud")
 - Knowledge discoveries need a device (overheard, found object, deduction, confession, demonstration, letter, physical evidence)
 - Relationship shifts need a catalytic moment (a specific line, gesture, betrayal, sacrifice, shared danger)
+- Character movements need a SPATIAL TRANSITION beat: describe the journey itself — what they see/experience in transit, how the landscape changes, what it costs them physically or emotionally. Transitions are narrative moments, not teleportation. Include sensory detail about the route (terrain, weather, crowds, vehicles) and the character's internal state during travel.
 - Do NOT reuse the same discovery device across multiple beats
 
 DIALOGUE SEEDS
 2-4 key exchanges. For each: who speaks, the surface topic, and the subtext underneath. Not full dialogue — just the tension map.
 
 CLOSING STATE
-2-3 sentences: where everyone ends up physically and emotionally. What has irrevocably changed.
+2-3 sentences: where everyone ends up physically and emotionally. If characters have moved to a new location, confirm their arrival and describe the new environment as they encounter it. What has irrevocably changed.
 
 POV KNOWLEDGE DISCIPLINE:
 - The scene is told from the POV character's perspective. They can only perceive what their senses and existing knowledge allow.
@@ -1617,11 +1638,11 @@ function deriveLogicRules(narrative: NarrativeState, scene: Scene): string[] {
 
   // Character movement
   if (scene.characterMovements) {
-    for (const [charId, locId] of Object.entries(scene.characterMovements)) {
+    for (const [charId, mv] of Object.entries(scene.characterMovements)) {
       const char = narrative.characters[charId];
-      const newLoc = narrative.locations[locId];
+      const newLoc = narrative.locations[mv.locationId];
       if (!char || !newLoc) continue;
-      rules.push(`${char.name} moves to ${newLoc.name} during this scene. They start at ${location?.name ?? 'the current location'} — show the transition, not them already at ${newLoc.name}.`);
+      rules.push(`${char.name} moves to ${newLoc.name} during this scene (${mv.transition}). They start at ${location?.name ?? 'the current location'} — show the transition, not them already at ${newLoc.name}.`);
     }
   }
 
@@ -1633,17 +1654,86 @@ function deriveLogicRules(narrative: NarrativeState, scene: Scene): string[] {
 import type { ProseScore } from '@/types/narrative';
 
 /**
- * Score and rewrite a scene's prose in a single LLM call.
- * The LLM first critiques the prose on 6 dimensions (1-10), then rewrites
- * it to address its own critique. Returns both the score and rewritten prose.
- * Users can call this repeatedly — each pass should improve the score.
+ * Grade a scene's prose on 6 dimensions (1-10) with detailed critique.
+ * Returns the score and a per-dimension critique explaining strengths and weaknesses.
  */
-export async function scoreAndRewriteSceneProse(
+export async function scoreSceneProse(
+  narrative: NarrativeState,
+  scene: Scene,
+  currentProse: string,
+): Promise<ProseScore> {
+  const sceneBlock = sceneContext(narrative, scene);
+  const logicRules = deriveLogicRules(narrative, scene);
+
+  const planBlock = scene.plan
+    ? `\nSCENE PLAN (grade against this beat structure):\n${scene.plan}\n`
+    : '';
+
+  const logicBlock = logicRules.length > 0
+    ? `\nLOGICAL CONSTRAINTS (check all are satisfied):\n${logicRules.map((r) => `  - ${r}`).join('\n')}\n`
+    : '';
+
+  const systemPrompt = `You are a literary editor grading prose quality. You return ONLY valid JSON — no markdown, no commentary.`;
+
+  const prompt = `SCENE CONTEXT:
+${sceneBlock}
+${planBlock}${logicBlock}
+
+CURRENT PROSE:
+${currentProse}
+
+Score the prose on these 6 dimensions (1-10 each):
+- voice: POV discipline, character distinctiveness, consistent narrative voice
+- pacing: scene breathes, beats land with proper weight, no rushing or dragging
+- dialogue: subtext-rich, character-specific speech patterns, no filler exchanges
+- sensory: grounded in concrete physical detail, body-first interiority
+- mutation_coverage: all thread shifts, knowledge changes, and relationship mutations are dramatised (not summarised)
+- overall: holistic quality considering all dimensions
+
+For each dimension, provide a brief critique (1-2 sentences) explaining the score — what works and what doesn't.
+
+Return JSON:
+{
+  "score": {
+    "overall": 7,
+    "voice": 8,
+    "pacing": 6,
+    "dialogue": 7,
+    "sensory": 5,
+    "mutation_coverage": 8
+  },
+  "critique": "Voice (8): Strong POV lock on Kael, distinct internal rhythm. Pacing (6): The middle sags — the market confrontation needs tighter beats. Dialogue (7): Subtext works in the alley scene but the tavern exchange feels expository. Sensory (5): Too much telling of emotions, not enough physical grounding. Mutation coverage (8): Thread shifts land well. Overall (7): Solid foundation but the sensory and pacing weaknesses hold it back."
+}`;
+
+  const raw = await callGenerate(prompt, systemPrompt, 2000, 'scoreSceneProse');
+  const parsed = parseJson(raw, 'scoreSceneProse') as Record<string, unknown>;
+
+  // Handle both {score: {...}, critique: "..."} and flat {overall: 7, voice: 8, ..., critique: "..."} shapes
+  const scoreObj = (parsed.score && typeof parsed.score === 'object' ? parsed.score : parsed) as Record<string, unknown>;
+  const critique = (typeof parsed.critique === 'string' ? parsed.critique : typeof (scoreObj as Record<string, unknown>).critique === 'string' ? (scoreObj as Record<string, unknown>).critique : undefined) as string | undefined;
+
+  return {
+    overall: Number(scoreObj.overall) || 0,
+    voice: Number(scoreObj.voice) || 0,
+    pacing: Number(scoreObj.pacing) || 0,
+    dialogue: Number(scoreObj.dialogue) || 0,
+    sensory: Number(scoreObj.sensory) || 0,
+    mutation_coverage: Number(scoreObj.mutation_coverage) || 0,
+    critique,
+  };
+}
+
+/**
+ * Rewrite a scene's prose guided by a grade critique or custom analysis.
+ * The analysis text tells the LLM what to fix; if omitted, does a general polish.
+ */
+export async function rewriteSceneProse(
   narrative: NarrativeState,
   scene: Scene,
   resolvedKeys: string[],
   currentProse: string,
-): Promise<{ prose: string; score: ProseScore }> {
+  analysis: string,
+): Promise<string> {
   const sceneIdx = resolvedKeys.indexOf(scene.id);
   const sceneBlock = sceneContext(narrative, scene);
   const logicRules = deriveLogicRules(narrative, scene);
@@ -1664,7 +1754,7 @@ export async function scoreAndRewriteSceneProse(
     ? `\nLOGICAL CONSTRAINTS (all must be satisfied):\n${logicRules.map((r) => `  - ${r}`).join('\n')}\n`
     : '';
 
-  const systemPrompt = `You are a literary editor and prose writer. Your task is to SCORE the prose, then REWRITE it to improve. You return ONLY valid JSON — no markdown, no commentary.
+  const systemPrompt = `You are a literary editor and prose writer. Your task is to REWRITE prose based on the provided analysis. You return ONLY valid JSON — no markdown, no commentary.
 
 Voice & style for the rewrite:
 - Third-person limited, locked to the POV character's senses and interiority.
@@ -1682,38 +1772,35 @@ ${planBlock}${logicBlock}${prevEnding ? `\nPREVIOUS SCENE ENDING:\n"...${prevEnd
 CURRENT PROSE:
 ${currentProse}
 
-STEP 1: Score the prose on these 6 dimensions (1-10 each):
-- voice: POV discipline, character distinctiveness, consistent narrative voice
-- pacing: scene breathes, beats land with proper weight, no rushing or dragging
-- dialogue: subtext-rich, character-specific speech patterns, no filler exchanges
-- sensory: grounded in concrete physical detail, body-first interiority
-- mutation_coverage: all thread shifts, knowledge changes, and relationship mutations are dramatised (not summarised)
-- overall: holistic quality considering all dimensions
+ANALYSIS / CRITIQUE TO ADDRESS:
+${analysis}
 
-STEP 2: Rewrite the prose to address weaknesses identified in your scoring. Preserve all narrative beats, events, and plot points. The rewrite should feel like the same scene written better. Length should match the scene's needs — a quiet scene may be 800 words, a dense convergence scene 3000+. Err on the side of brevity for engagement; never pad. Do not artificially compress or expand the original — let the content dictate length.
+Rewrite the prose to address the weaknesses identified in the analysis above. Preserve all narrative beats, events, and plot points. The rewrite should feel like the same scene written better. Length should match the scene's needs — a quiet scene may be 800 words, a dense convergence scene 3000+. Err on the side of brevity for engagement; never pad. Do not artificially compress or expand the original — let the content dictate length.
 
 Return JSON:
 {
-  "score": {
-    "overall": 7,
-    "voice": 8,
-    "pacing": 6,
-    "dialogue": 7,
-    "sensory": 5,
-    "mutation_coverage": 8
-  },
   "prose": "the full rewritten prose text"
 }`;
 
   const scale = sceneScale(scene);
-  // Cannot stream since we need JSON parsed — use non-streaming call
-  const raw = await callGenerate(prompt, systemPrompt, scale.proseTokens + 1000, 'scoreAndRewriteSceneProse');
-  const parsed = parseJson(raw, 'scoreAndRewriteSceneProse') as { score: ProseScore; prose: string };
+  const raw = await callGenerate(prompt, systemPrompt, scale.proseTokens + 500, 'rewriteSceneProse');
+  const parsed = parseJson(raw, 'rewriteSceneProse') as { prose: string };
 
-  return {
-    score: parsed.score,
-    prose: parsed.prose,
-  };
+  return parsed.prose;
+}
+
+/**
+ * Score and rewrite a scene's prose in a single LLM call (legacy convenience wrapper).
+ */
+export async function scoreAndRewriteSceneProse(
+  narrative: NarrativeState,
+  scene: Scene,
+  resolvedKeys: string[],
+  currentProse: string,
+): Promise<{ prose: string; score: ProseScore }> {
+  const score = await scoreSceneProse(narrative, scene, currentProse);
+  const prose = await rewriteSceneProse(narrative, scene, resolvedKeys, currentProse, score.critique ?? 'General polish pass — improve all dimensions.');
+  return { score, prose };
 }
 
 export type ChartAnnotation = {

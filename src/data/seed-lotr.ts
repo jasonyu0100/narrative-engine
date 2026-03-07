@@ -540,7 +540,7 @@ const scenes: Record<string, Scene> = {
     locationId: 'L-LOTR-08',
     povId: 'C-LOTR-01',
     participantIds: ['C-LOTR-01', 'C-LOTR-03', 'C-LOTR-04'],
-    characterMovements: { 'C-LOTR-01': 'L-LOTR-08', 'C-LOTR-04': 'L-LOTR-08' },
+    characterMovements: { 'C-LOTR-01': { locationId: 'L-LOTR-08', transition: 'Traveled the East Road on foot through the Old Forest and Barrow-downs' }, 'C-LOTR-04': { locationId: 'L-LOTR-08', transition: 'Accompanied the hobbits along the winding road to Bree' } },
     events: ['bree_gate', 'prancing_pony', 'strider_in_shadows'],
     threadMutations: [{ threadId: 'T-LOTR-03', from: 'dormant', to: 'active' }],
     knowledgeMutations: [
@@ -674,7 +674,7 @@ const altScenes: Record<string, Scene> = {
     locationId: 'L-LOTR-08',
     povId: 'C-LOTR-02',
     participantIds: ['C-LOTR-01', 'C-LOTR-02', 'C-LOTR-04'],
-    characterMovements: { 'C-LOTR-01': 'L-LOTR-08', 'C-LOTR-02': 'L-LOTR-08', 'C-LOTR-04': 'L-LOTR-08' },
+    characterMovements: { 'C-LOTR-01': { locationId: 'L-LOTR-08', transition: 'Walked the East Road with Gandalf at his side' }, 'C-LOTR-02': { locationId: 'L-LOTR-08', transition: 'Rode ahead on Shadowfax to secure lodgings at the Prancing Pony' }, 'C-LOTR-04': { locationId: 'L-LOTR-08', transition: 'Kept pace with the hobbits along the road to Bree' } },
     events: ['bree_with_gandalf', 'no_strider_needed', 'missing_intelligence'],
     threadMutations: [{ threadId: 'T-LOTR-05', from: 'active', to: 'escalating' }],
     knowledgeMutations: [

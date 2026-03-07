@@ -355,7 +355,7 @@ const scenes: Record<string, Scene> = {
     locationId: 'L-HP-04',
     povId: 'C-HP-01',
     participantIds: ['C-HP-01', 'C-HP-06'],
-    characterMovements: { 'C-HP-01': 'L-HP-04', 'C-HP-06': 'L-HP-04' },
+    characterMovements: { 'C-HP-01': { locationId: 'L-HP-04', transition: 'Led through the Leaky Cauldron and tapped through the enchanted brick wall' }, 'C-HP-06': { locationId: 'L-HP-04', transition: 'Escorted Harry through London and into the wizarding quarter' } },
     events: ['diagon_alley_revealed', 'gringotts_vault', 'wand_chooses_wizard'],
     threadMutations: [],
     knowledgeMutations: [
@@ -372,7 +372,7 @@ const scenes: Record<string, Scene> = {
     locationId: 'L-HP-02',
     povId: 'C-HP-01',
     participantIds: ['C-HP-01', 'C-HP-03'],
-    characterMovements: { 'C-HP-01': 'L-HP-02', 'C-HP-03': 'L-HP-02' },
+    characterMovements: { 'C-HP-01': { locationId: 'L-HP-02', transition: 'Boarded the Hogwarts Express at Platform Nine and Three-Quarters' }, 'C-HP-03': { locationId: 'L-HP-02', transition: 'Boarded the train with his family and found a compartment' } },
     events: ['hogwarts_express', 'ron_meeting', 'chocolate_frogs', 'first_sight_of_castle'],
     threadMutations: [],
     knowledgeMutations: [
@@ -391,7 +391,7 @@ const scenes: Record<string, Scene> = {
     locationId: 'L-HP-05',
     povId: 'C-HP-01',
     participantIds: ['C-HP-01', 'C-HP-02', 'C-HP-03', 'C-HP-04'],
-    characterMovements: { 'C-HP-01': 'L-HP-05', 'C-HP-02': 'L-HP-05', 'C-HP-03': 'L-HP-05' },
+    characterMovements: { 'C-HP-01': { locationId: 'L-HP-05', transition: 'Crossed the black lake in boats and entered the Great Hall' }, 'C-HP-02': { locationId: 'L-HP-05', transition: 'Filed into the Great Hall with the other first-years' }, 'C-HP-03': { locationId: 'L-HP-05', transition: 'Walked nervously into the Great Hall for the Sorting' } },
     events: ['sorting_ceremony', 'hat_considers_slytherin', 'gryffindor_chosen', 'dumbledore_warning'],
     threadMutations: [],
     knowledgeMutations: [
@@ -503,7 +503,7 @@ const scenes: Record<string, Scene> = {
     locationId: 'L-HP-06',
     povId: 'C-HP-01',
     participantIds: ['C-HP-01', 'C-HP-02', 'C-HP-03'],
-    characterMovements: { 'C-HP-01': 'L-HP-06', 'C-HP-02': 'L-HP-06', 'C-HP-03': 'L-HP-06' },
+    characterMovements: { 'C-HP-01': { locationId: 'L-HP-06', transition: 'Stumbled onto the forbidden corridor after a moving staircase redirected them' }, 'C-HP-02': { locationId: 'L-HP-06', transition: 'Followed Harry and Ron through the wrong door' }, 'C-HP-03': { locationId: 'L-HP-06', transition: 'Ran with the others to escape Filch and ended up on the third floor' } },
     events: ['wrong_staircase', 'fluffy_discovered', 'three_headed_dog', 'trapdoor_noticed'],
     threadMutations: [
       { threadId: 'T-HP-01', from: 'dormant', to: 'active' },
@@ -524,6 +524,7 @@ const scenes: Record<string, Scene> = {
     locationId: 'L-HP-05',
     povId: 'C-HP-01',
     participantIds: ['C-HP-01', 'C-HP-03'],
+    characterMovements: { 'C-HP-01': { locationId: 'L-HP-05', transition: 'Hurried down from Gryffindor Tower to breakfast in the Great Hall' }, 'C-HP-03': { locationId: 'L-HP-05', transition: 'Followed Harry down the shifting staircases to the Great Hall' } },
     events: ['breakfast_routine', 'daily_prophet', 'gringotts_breakin_article', 'vault_713_connection'],
     threadMutations: [],
     knowledgeMutations: [
@@ -539,6 +540,7 @@ const scenes: Record<string, Scene> = {
     locationId: 'L-HP-02',
     povId: 'C-HP-02',
     participantIds: ['C-HP-01', 'C-HP-02'],
+    characterMovements: { 'C-HP-01': { locationId: 'L-HP-02', transition: 'Wandered into the library looking for a book on Quidditch' }, 'C-HP-02': { locationId: 'L-HP-02', transition: 'Had been in the library since before breakfast, surrounded by her fortress of textbooks' } },
     events: ['library_visit', 'hermione_alone', 'brief_exchange', 'outsider_recognition'],
     threadMutations: [],
     knowledgeMutations: [],
@@ -690,7 +692,7 @@ const altScenes: Record<string, Scene> = {
     locationId: 'L-HP-06',
     povId: 'C-HP-01',
     participantIds: ['C-HP-01', 'C-HP-07'],
-    characterMovements: { 'C-HP-01': 'L-HP-06', 'C-HP-07': 'L-HP-06' },
+    characterMovements: { 'C-HP-01': { locationId: 'L-HP-06', transition: 'Lured to the forbidden corridor by Draco\'s taunting dare' }, 'C-HP-07': { locationId: 'L-HP-06', transition: 'Led Harry to the third floor to show him what he\'d heard about' } },
     events: ['draco_shows_corridor', 'slytherin_information_network', 'fluffy_discovery_different'],
     threadMutations: [
       { threadId: 'T-HP-01', from: 'dormant', to: 'active' },
