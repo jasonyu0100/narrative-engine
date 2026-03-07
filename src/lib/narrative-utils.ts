@@ -811,14 +811,15 @@ export function gradeForce(normalizedMean: number): number {
 /** Streak: zone-based consistency with compounding streak penalties.
  *
  *  Each arc earns credit based on its color zone:
- *    green (≥90) = 1.0, lime (80-89) = 0.8, yellow (70-79) = 0.6,
- *    orange (60-69) = 0.4, red (<60) = 0.2
+ *    green (≥90) = 1.0, lime (80-89) = 0.9, yellow (70-79) = 0.7,
+ *    orange (60-69) = 0.5, red (<60) = 0.3
  *
  *  The average credit forms the base score. A streak penalty then reduces
  *  it when below-green arcs (<80) cluster into prolonged low periods.
- *  Each arc in a streak is penalized by zone weight × streak position:
+ *  Each arc in a streak is penalized by zone weight × √(streak position):
  *    yellow = 1×, orange = 2×, red = 3×
- *  so a red streak compounds much faster than a yellow one. */
+ *  so a red streak compounds faster than a yellow one, but √ keeps
+ *  long streaks from blowing up quadratically. */
 function consistencyFactor(arr: number[]): number {
   const n = arr.length;
   if (n < 2) return 1;
@@ -826,10 +827,10 @@ function consistencyFactor(arr: number[]): number {
   // Zone credit: maps arc score to color-zone reward [0, 1]
   const credit = (s: number) => {
     if (s >= 90) return 1.0;   // green
-    if (s >= 80) return 0.8;   // lime
-    if (s >= 70) return 0.6;   // yellow
-    if (s >= 60) return 0.4;   // orange
-    return 0.2;                // red
+    if (s >= 80) return 0.9;   // lime
+    if (s >= 70) return 0.7;   // yellow
+    if (s >= 60) return 0.5;   // orange
+    return 0.3;                // red
   };
 
   // Zone weight for streak penalty: worse zones compound faster
@@ -849,7 +850,7 @@ function consistencyFactor(arr: number[]): number {
   for (let i = 0; i <= n; i++) {
     if (i < n && arr[i] < 80) {
       pos++;
-      penalty += zoneWeight(arr[i]) * pos;
+      penalty += zoneWeight(arr[i]) * Math.sqrt(pos);
     } else {
       pos = 0;
     }

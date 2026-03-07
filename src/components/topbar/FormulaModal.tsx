@@ -107,10 +107,10 @@ export function FormulaModal({ onClose }: Props) {
 
           <S title="Streak" analogy="Consistency over time — a single weak arc is forgiven, but a run of them signals the story losing its way.">
             <Block tex="g_{\text{streak}} = 20 \;\cdot\; \bar{\kappa} \;\cdot\; \frac{1}{1 + \pi\,/\,15n}" />
-            <Block tex="\pi = \sum_{\text{runs}} \sum_{j=1}^{L} w_j \cdot j" />
+            <Block tex="\pi = \sum_{\text{runs}} \sum_{j=1}^{L} w_j \cdot \sqrt{j}" />
             <p className="text-[10px] text-text-dim">
-              <Tex>{'\\kappa'}</Tex>: zone credit per arc — <span className="text-green-400">green</span>=1, <span className="text-lime-400">lime</span>=0.8, <span className="text-yellow-400">yellow</span>=0.6, <span className="text-orange-400">orange</span>=0.4, <span className="text-red-400">red</span>=0.2.
-              {' '}<Tex>{'\\pi'}</Tex>: streak penalty — consecutive sub-80 arcs compound by zone weight (<Tex>{'w'}</Tex>: yellow=1×, orange=2×, red=3×) × run position.
+              <Tex>{'\\kappa'}</Tex>: zone credit per arc — <span className="text-green-400">green</span>=1, <span className="text-lime-400">lime</span>=0.9, <span className="text-yellow-400">yellow</span>=0.7, <span className="text-orange-400">orange</span>=0.5, <span className="text-red-400">red</span>=0.3.
+              {' '}<Tex>{'\\pi'}</Tex>: streak penalty — consecutive sub-80 arcs compound by zone weight (<Tex>{'w'}</Tex>: yellow=1×, orange=2×, red=3×) × <Tex>{'\\sqrt{\\text{position}}'}</Tex>.
             </p>
           </S>
         </div>
