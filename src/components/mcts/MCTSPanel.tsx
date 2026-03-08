@@ -221,10 +221,10 @@ function TreeNode({
       pendingElements.push(
         <React.Fragment key={`pending-${pending.id}`}>
           <circle cx={pendX} cy={pendCy} r={DOT_R} fill="rgba(245,158,11,0.5)" className="animate-pulse" />
-          <foreignObject x={pendX + DOT_R + 6} y={childOffset * NODE_H} width="calc(100% - 60px)" height={NODE_H}>
+          <foreignObject x={pendX + DOT_R + 6} y={childOffset * NODE_H} width={`calc(100% - ${pendX + DOT_R + 6}px)`} height={NODE_H}>
             <button
               onClick={() => onSelectPending(pending.id)}
-              className="flex items-center gap-1.5 w-full h-full text-left px-1.5 rounded transition-colors hover:bg-amber-500/8"
+              className="flex items-center gap-1.5 w-full h-full text-left px-1.5 pr-2 rounded transition-colors hover:bg-amber-500/8"
             >
               {/* Direction indicator — fixed width, matching done rows */}
               <span className="w-7 shrink-0 flex items-center justify-center">
@@ -256,9 +256,13 @@ function TreeNode({
               <span className="text-[11px] text-amber-400/70 truncate flex-1 animate-pulse">
                 {pending.beatGoal ? BEAT_DIRECTIONS[pending.beatGoal as keyof typeof BEAT_DIRECTIONS]?.name ?? pending.direction : NARRATIVE_CUBE[pending.cubeGoal as CubeCornerKey]?.name ?? pending.direction}
               </span>
-              <span className="text-[9px] text-amber-500/40 shrink-0">
+              {/* Fixed-width columns matching completed node rows */}
+              <span className="w-16 text-right text-[9px] text-amber-500/40 shrink-0">
                 {pending.streamText.length > 0 ? `${Math.round(pending.streamText.length / 4)} tok` : 'starting…'}
               </span>
+              <span className="w-5 shrink-0" />
+              <span className="w-10 shrink-0" />
+              <span className="w-4 shrink-0" />
             </button>
           </foreignObject>
         </React.Fragment>,
@@ -286,10 +290,10 @@ function TreeNode({
       )}
 
       {/* HTML overlay: score + arc name (positioned absolutely in the foreignObject) */}
-      <foreignObject x={x + DOT_R + 6} y={yOffset * NODE_H} width="calc(100% - 60px)" height={NODE_H}>
+      <foreignObject x={x + DOT_R + 6} y={yOffset * NODE_H} width={`calc(100% - ${x + DOT_R + 6}px)`} height={NODE_H}>
         <button
           onClick={() => onSelect(node.id)}
-          className={`flex items-center gap-1.5 w-full h-full text-left px-1.5 rounded transition-colors group ${
+          className={`flex items-center gap-1.5 w-full h-full text-left px-1.5 pr-2 rounded transition-colors group ${
             isInspected ? 'bg-blue-500/15' : isSelected ? 'bg-blue-500/8' : isBest ? 'bg-green-500/5' : 'hover:bg-white/3'
           }`}
         >
@@ -324,31 +328,32 @@ function TreeNode({
           }`}>
             {node.arc.name}
           </span>
-          {/* Move type label */}
-          {node.cubeGoal && (
-            <span className="text-[9px] text-text-dim shrink-0">{NARRATIVE_CUBE[node.cubeGoal]?.name}</span>
-          )}
-          {node.beatGoal && (
-            <span className="text-[9px] text-text-dim shrink-0">{BEAT_DIRECTIONS[node.beatGoal]?.name}</span>
-          )}
-          {/* Arc progress: scene count always visible */}
-          <span className="text-[9px] text-text-dim shrink-0">{node.scenes.length}s</span>
-          {spark.points.length > 1 && (() => {
-            const W = Math.min(80, Math.max(24, spark.points.length * 3));
-            return (
-              <svg width={W} height="14" viewBox={`0 0 ${W} 14`} className="shrink-0">
-                <polyline
-                  points={spark.points.map((v, i) => `${(i / (spark.points.length - 1)) * W},${14 - v * 12}`).join(' ')}
-                  fill="none"
-                  stroke="#F59E0B"
-                  strokeWidth="1.5"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
-              </svg>
-            );
-          })()}
-          <span className="text-[9px] text-text-dim shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
+          {/* Move type label — fixed width for alignment */}
+          <span className="w-16 text-right text-[9px] text-text-dim shrink-0">
+            {node.cubeGoal ? NARRATIVE_CUBE[node.cubeGoal]?.name : ''}
+            {node.beatGoal ? BEAT_DIRECTIONS[node.beatGoal]?.name : ''}
+          </span>
+          {/* Arc progress: scene count — fixed width for alignment */}
+          <span className="w-5 text-right text-[9px] text-text-dim shrink-0">{node.scenes.length}s</span>
+          {/* Sparkline — fixed narrow container for alignment */}
+          <span className="w-10 shrink-0 flex items-center justify-end">
+            {spark.points.length > 1 && (() => {
+              const W = 36;
+              return (
+                <svg width={W} height="14" viewBox={`0 0 ${W} 14`}>
+                  <polyline
+                    points={spark.points.map((v, i) => `${(i / (spark.points.length - 1)) * W},${14 - v * 12}`).join(' ')}
+                    fill="none"
+                    stroke="#F59E0B"
+                    strokeWidth="1.5"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                </svg>
+              );
+            })()}
+          </span>
+          <span className="w-4 text-[9px] text-text-dim shrink-0 opacity-0 group-hover:opacity-100 transition-opacity text-right">
             {node.visitCount > 1 ? `${node.visitCount}v` : ''}
           </span>
           {isCollapsed && (hasChildren || pendingForNode.length > 0) && (
@@ -456,10 +461,10 @@ function MCTSTreeView({
     const el = (
       <React.Fragment key={`pending-root-${pending.id}`}>
         <circle cx={px} cy={cy} r={DOT_R} fill="rgba(245,158,11,0.5)" className="animate-pulse" />
-        <foreignObject x={px + DOT_R + 6} y={rowOffset * NODE_H} width="calc(100% - 60px)" height={NODE_H}>
+        <foreignObject x={px + DOT_R + 6} y={rowOffset * NODE_H} width={`calc(100% - ${px + DOT_R + 6}px)`} height={NODE_H}>
           <button
             onClick={() => onSelectPending(pending.id)}
-            className="flex items-center gap-1.5 w-full h-full text-left px-1.5 rounded transition-colors hover:bg-amber-500/8"
+            className="flex items-center gap-1.5 w-full h-full text-left px-1.5 pr-2 rounded transition-colors hover:bg-amber-500/8"
           >
             {/* Direction indicator — fixed width, matching done rows */}
             <span className="w-7 shrink-0 flex items-center justify-center">
@@ -491,9 +496,13 @@ function MCTSTreeView({
             <span className="text-[11px] text-amber-400/70 truncate flex-1 animate-pulse">
               {pending.beatGoal ? BEAT_DIRECTIONS[pending.beatGoal as keyof typeof BEAT_DIRECTIONS]?.name ?? pending.direction : NARRATIVE_CUBE[pending.cubeGoal as CubeCornerKey]?.name ?? pending.direction}
             </span>
-            <span className="text-[9px] text-amber-500/40 shrink-0">
+            {/* Fixed-width columns matching completed node rows */}
+            <span className="w-16 text-right text-[9px] text-amber-500/40 shrink-0">
               {pending.streamText.length > 0 ? `${Math.round(pending.streamText.length / 4)} tok` : 'starting…'}
             </span>
+            <span className="w-5 shrink-0" />
+            <span className="w-10 shrink-0" />
+            <span className="w-4 shrink-0" />
           </button>
         </foreignObject>
       </React.Fragment>
@@ -1007,7 +1016,7 @@ function NodeInspector({ node, tree }: { node: MCTSNode; tree: MCTSTree }) {
 
 // ── Config Tab ───────────────────────────────────────────────────────────────
 
-type ConfigTab = 'search' | 'strategy' | 'direction' | 'other' | 'world';
+type ConfigTab = 'search' | 'strategy' | 'direction' | 'other';
 
 function NorthStarSuggestButton({
   narrative,
@@ -1135,7 +1144,6 @@ export function MCTSPanel({ isOpen, onClose, mcts }: { isOpen: boolean; onClose:
               { label: 'Search', value: 'search' as ConfigTab },
               { label: 'Strategy', value: 'strategy' as ConfigTab },
               { label: 'Direction', value: 'direction' as ConfigTab },
-              { label: 'World', value: 'world' as ConfigTab },
               { label: 'Other', value: 'other' as ConfigTab },
             ]).map((t) => (
               <button
@@ -1332,6 +1340,57 @@ export function MCTSPanel({ isOpen, onClose, mcts }: { isOpen: boolean; onClose:
                     className="bg-bg-elevated border border-border rounded-lg px-3 py-2 text-sm text-text-primary w-full h-32 resize-none outline-none placeholder:text-text-dim focus:border-white/20 transition-colors"
                   />
                 </div>
+
+                {/* World Build Focus */}
+                {(() => {
+                  const narrative = state.activeNarrative;
+                  const resolvedSet = new Set(state.resolvedSceneKeys);
+                  const worldBuildEntries = narrative
+                    ? Object.values(narrative.worldBuilds).filter((wb) => resolvedSet.has(wb.id))
+                    : [];
+                  return (
+                    <div className="border-t border-border pt-4">
+                      <label className="text-[10px] uppercase tracking-widest text-text-dim block mb-1">World Build Focus</label>
+                      <p className="text-[9px] text-text-dim mb-3">Select a world build to seed every generation in this search. The model will prioritise those characters, locations, and dormant threads across all arcs explored.</p>
+                      {worldBuildEntries.length === 0 ? (
+                        <p className="text-[10px] text-text-dim italic">No world builds yet. Use Expand World in the Generate panel to introduce new entities.</p>
+                      ) : (
+                        <div className="flex flex-col gap-1.5">
+                          {worldBuildEntries.map((wb) => {
+                            const manifest = wb.expansionManifest;
+                            const chars = manifest.characterIds.map((id) => narrative!.characters[id]?.name).filter(Boolean);
+                            const locs = manifest.locationIds.map((id) => narrative!.locations[id]?.name).filter(Boolean);
+                            const threads = manifest.threadIds.map((id) => narrative!.threads[id]?.description).filter(Boolean);
+                            const isSelected = config.worldBuildFocusId === wb.id;
+                            return (
+                              <button
+                                key={wb.id}
+                                type="button"
+                                onClick={() => setConfig((c) => ({ ...c, worldBuildFocusId: isSelected ? undefined : wb.id }))}
+                                className={`rounded-lg px-3 py-2.5 text-left transition border ${
+                                  isSelected
+                                    ? 'bg-amber-500/10 border-amber-500/30 ring-1 ring-amber-500/20'
+                                    : 'bg-bg-elevated border-border hover:border-white/16'
+                                }`}
+                              >
+                                <div className="flex items-center justify-between gap-2 mb-1">
+                                  <p className={`text-xs font-medium line-clamp-1 ${isSelected ? 'text-amber-300' : 'text-text-primary'}`}>{wb.summary}</p>
+                                  {isSelected
+                                    ? <span className="text-[9px] text-amber-400 shrink-0 uppercase tracking-wider font-medium">Active</span>
+                                    : <span className="text-[9px] text-text-dim shrink-0">{wb.id}</span>
+                                  }
+                                </div>
+                                {chars.length > 0 && <p className="text-[9px] text-text-dim">Characters: {chars.join(', ')}</p>}
+                                {locs.length > 0 && <p className="text-[9px] text-text-dim">Locations: {locs.join(', ')}</p>}
+                                {threads.length > 0 && <p className="text-[9px] text-text-dim">Threads: {threads.join('; ')}</p>}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })()}
               </>
             )}
 
@@ -1404,58 +1463,6 @@ export function MCTSPanel({ isOpen, onClose, mcts }: { isOpen: boolean; onClose:
 
               </>
             )}
-
-            {configTab === 'world' && (() => {
-              const narrative = state.activeNarrative;
-              const resolvedSet = new Set(state.resolvedSceneKeys);
-              const worldBuildEntries = narrative
-                ? Object.values(narrative.worldBuilds).filter((wb) => resolvedSet.has(wb.id))
-                : [];
-              return (
-                <>
-                  <div>
-                    <label className="text-[10px] uppercase tracking-widest text-text-dim block mb-1">World Build Focus</label>
-                    <p className="text-[9px] text-text-dim mb-3">Select a world build to seed every generation in this search. The model will prioritise those characters, locations, and dormant threads across all arcs explored.</p>
-                    {worldBuildEntries.length === 0 ? (
-                      <p className="text-[10px] text-text-dim italic">No world builds yet. Use Expand World in the Generate panel to introduce new entities.</p>
-                    ) : (
-                      <div className="flex flex-col gap-1.5">
-                        {worldBuildEntries.map((wb) => {
-                          const manifest = wb.expansionManifest;
-                          const chars = manifest.characterIds.map((id) => narrative!.characters[id]?.name).filter(Boolean);
-                          const locs = manifest.locationIds.map((id) => narrative!.locations[id]?.name).filter(Boolean);
-                          const threads = manifest.threadIds.map((id) => narrative!.threads[id]?.description).filter(Boolean);
-                          const isSelected = config.worldBuildFocusId === wb.id;
-                          return (
-                            <button
-                              key={wb.id}
-                              type="button"
-                              onClick={() => setConfig((c) => ({ ...c, worldBuildFocusId: isSelected ? undefined : wb.id }))}
-                              className={`rounded-lg px-3 py-2.5 text-left transition border ${
-                                isSelected
-                                  ? 'bg-amber-500/10 border-amber-500/30 ring-1 ring-amber-500/20'
-                                  : 'bg-bg-elevated border-border hover:border-white/16'
-                              }`}
-                            >
-                              <div className="flex items-center justify-between gap-2 mb-1">
-                                <p className={`text-xs font-medium line-clamp-1 ${isSelected ? 'text-amber-300' : 'text-text-primary'}`}>{wb.summary}</p>
-                                {isSelected
-                                  ? <span className="text-[9px] text-amber-400 shrink-0 uppercase tracking-wider font-medium">Active</span>
-                                  : <span className="text-[9px] text-text-dim shrink-0">{wb.id}</span>
-                                }
-                              </div>
-                              {chars.length > 0 && <p className="text-[9px] text-text-dim">Characters: {chars.join(', ')}</p>}
-                              {locs.length > 0 && <p className="text-[9px] text-text-dim">Locations: {locs.join(', ')}</p>}
-                              {threads.length > 0 && <p className="text-[9px] text-text-dim">Threads: {threads.join('; ')}</p>}
-                            </button>
-                          );
-                        })}
-                      </div>
-                    )}
-                  </div>
-                </>
-              );
-            })()}
 
           </div>
 

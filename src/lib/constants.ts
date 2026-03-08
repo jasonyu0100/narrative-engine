@@ -23,6 +23,11 @@ export const ANALYSIS_TARGET_CHUNK_WORDS = 4000;
 /** Max corpus size (words) accepted for analysis */
 export const ANALYSIS_MAX_CORPUS_WORDS = 500_000;
 
+// ── AI Model ────────────────────────────────────────────────────────────────
+
+/** Default LLM model used across all API routes */
+export const DEFAULT_MODEL = 'google/gemini-2.5-flash';
+
 // ── AI Context ───────────────────────────────────────────────────────────────
 
 /** Max scenes included in branchContext — defines the time horizon.

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { resolveKey } from '@/lib/resolve-api-key';
+import { DEFAULT_MODEL } from '@/lib/constants';
 
 const OPENROUTER_URL = 'https://openrouter.ai/api/v1/chat/completions';
 
@@ -25,7 +26,7 @@ export async function POST(req: NextRequest) {
         'X-Title': 'Narrative Engine',
       },
       body: JSON.stringify({
-        model: 'google/gemini-2.5-flash',
+        model: DEFAULT_MODEL,
         messages: [
           { role: 'system' as const, content: systemPrompt },
           ...messages,
