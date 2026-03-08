@@ -6,6 +6,7 @@ export async function callGenerateStream(
   onToken: (token: string) => void,
   maxTokens?: number,
   caller = 'callGenerateStream',
+  model?: string,
 ): Promise<string> {
   const { logApiCall, updateApiLog } = await import('@/lib/api-logger');
   const logId = logApiCall(caller, prompt.length + (systemPrompt?.length ?? 0), prompt);
@@ -15,7 +16,7 @@ export async function callGenerateStream(
     const res = await fetch('/api/generate', {
       method: 'POST',
       headers: apiHeaders(),
-      body: JSON.stringify({ prompt, systemPrompt, stream: true, ...(maxTokens ? { maxTokens } : {}) }),
+      body: JSON.stringify({ prompt, systemPrompt, stream: true, ...(maxTokens ? { maxTokens } : {}), ...(model ? { model } : {}) }),
     });
     if (!res.ok) {
       const err = await res.json();
@@ -71,7 +72,7 @@ export async function callGenerateStream(
   }
 }
 
-export async function callGenerate(prompt: string, systemPrompt: string, maxTokens?: number, caller = 'callGenerate'): Promise<string> {
+export async function callGenerate(prompt: string, systemPrompt: string, maxTokens?: number, caller = 'callGenerate', model?: string): Promise<string> {
   const { logApiCall, updateApiLog } = await import('@/lib/api-logger');
   const logId = logApiCall(caller, prompt.length + (systemPrompt?.length ?? 0), prompt);
   const start = performance.now();
@@ -80,7 +81,7 @@ export async function callGenerate(prompt: string, systemPrompt: string, maxToke
     const res = await fetch('/api/generate', {
       method: 'POST',
       headers: apiHeaders(),
-      body: JSON.stringify({ prompt, systemPrompt, ...(maxTokens ? { maxTokens } : {}) }),
+      body: JSON.stringify({ prompt, systemPrompt, ...(maxTokens ? { maxTokens } : {}), ...(model ? { model } : {}) }),
     });
     if (!res.ok) {
       const err = await res.json();

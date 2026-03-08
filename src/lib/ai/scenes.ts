@@ -2,6 +2,7 @@ import type { NarrativeState, Scene, Arc, CubeCornerKey, WorldBuildCommit, Story
 import { resolveEntry, NARRATIVE_CUBE, THREAD_TERMINAL_STATUSES, DEFAULT_STORY_SETTINGS } from '@/types/narrative';
 import { nextId, nextIds } from '@/lib/narrative-utils';
 import { callGenerate, callGenerateStream, SYSTEM_PROMPT } from './api';
+import { WRITING_MODEL, ANALYSIS_MODEL, GENERATE_MODEL } from '@/lib/constants';
 import { parseJson } from './json';
 import { branchContext, sceneContext, deriveLogicRules, sceneScale, THREAD_LIFECYCLE_DOC } from './context';
 
@@ -136,8 +137,8 @@ You MUST use ONLY these exact IDs. Do NOT invent new character, location, or thr
   Thread IDs: ${Object.keys(narrative.threads).join(', ')}`;
 
   const raw = onToken
-    ? await callGenerateStream(prompt, SYSTEM_PROMPT, onToken, undefined, 'generateScenes')
-    : await callGenerate(prompt, SYSTEM_PROMPT, undefined, 'generateScenes');
+    ? await callGenerateStream(prompt, SYSTEM_PROMPT, onToken, undefined, 'generateScenes', GENERATE_MODEL)
+    : await callGenerate(prompt, SYSTEM_PROMPT, undefined, 'generateScenes', GENERATE_MODEL);
 
   const parsed = parseJson(raw, 'generateScenes') as { arcName?: string; scenes: Scene[] };
   const arcName = existingArc?.name ?? parsed.arcName ?? 'Untitled Arc';
@@ -365,9 +366,9 @@ ${logicBlock}
 Create a detailed staging plan for this scene. Every structural mutation must have a concrete mechanism. Be specific about HOW things happen, not just WHAT happens.`;
 
   if (onToken) {
-    return await callGenerateStream(prompt, systemPrompt, onToken, Math.ceil(scale.proseTokens * 0.6), 'generateScenePlan');
+    return await callGenerateStream(prompt, systemPrompt, onToken, Math.ceil(scale.proseTokens * 0.6), 'generateScenePlan', WRITING_MODEL);
   }
-  return await callGenerate(prompt, systemPrompt, Math.ceil(scale.proseTokens * 0.6), 'generateScenePlan');
+  return await callGenerate(prompt, systemPrompt, Math.ceil(scale.proseTokens * 0.6), 'generateScenePlan', WRITING_MODEL);
 }
 
 export type ReconcileRevision = { plan: string; reason: string };
@@ -422,7 +423,7 @@ Rules:
 - Do not change WHAT happens — only HOW it's staged, ordered, or mechanically delivered.
 - Preserve each plan's length — don't compress or expand unless the change requires it.`;
 
-  const raw = await callGenerate(prompt, systemPrompt, 8000, 'reconcileScenePlans');
+  const raw = await callGenerate(prompt, systemPrompt, 8000, 'reconcileScenePlans', ANALYSIS_MODEL);
   const parsed = parseJson(raw, 'reconcileScenePlans') as {
     revisions: { sceneId: string; revisedPlan: string; reason: string }[];
   };
@@ -529,7 +530,7 @@ ${logicBlock}
 ${instruction}`;
 
   if (onToken) {
-    return await callGenerateStream(prompt, systemPrompt, onToken, scale.proseTokens, 'generateSceneProse');
+    return await callGenerateStream(prompt, systemPrompt, onToken, scale.proseTokens, 'generateSceneProse', WRITING_MODEL);
   }
-  return await callGenerate(prompt, systemPrompt, scale.proseTokens, 'generateSceneProse');
+  return await callGenerate(prompt, systemPrompt, scale.proseTokens, 'generateSceneProse', WRITING_MODEL);
 }

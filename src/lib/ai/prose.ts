@@ -1,5 +1,6 @@
 import type { NarrativeState, Scene, ProseScore } from '@/types/narrative';
 import { callGenerate, SYSTEM_PROMPT } from './api';
+import { WRITING_MODEL, ANALYSIS_MODEL } from '@/lib/constants';
 import { parseJson } from './json';
 import { sceneContext, deriveLogicRules, sceneScale } from './context';
 
@@ -51,7 +52,7 @@ Return JSON:
   "critique": "Voice (8): Strong POV lock on Kael, distinct internal rhythm. Pacing (6): The middle sags — the market confrontation needs tighter beats. Dialogue (7): Subtext works in the alley scene but the tavern exchange feels expository. Sensory (5): Too much telling of emotions, not enough physical grounding. Mutation coverage (8): Thread shifts land well. Overall (7): Solid foundation but the sensory and pacing weaknesses hold it back."
 }`;
 
-  const raw = await callGenerate(prompt, systemPrompt, 2000, 'scoreSceneProse');
+  const raw = await callGenerate(prompt, systemPrompt, 2000, 'scoreSceneProse', ANALYSIS_MODEL);
   const parsed = parseJson(raw, 'scoreSceneProse') as Record<string, unknown>;
 
   // Handle both {score: {...}, critique: "..."} and flat {overall: 7, voice: 8, ..., critique: "..."} shapes
@@ -125,7 +126,7 @@ Return JSON:
 }`;
 
   const scale = sceneScale(scene);
-  const raw = await callGenerate(prompt, systemPrompt, scale.proseTokens + 500, 'rewriteSceneProse');
+  const raw = await callGenerate(prompt, systemPrompt, scale.proseTokens + 500, 'rewriteSceneProse', WRITING_MODEL);
   const parsed = parseJson(raw, 'rewriteSceneProse') as { prose: string };
 
   return parsed.prose;
@@ -183,7 +184,7 @@ Return a JSON array:
 
 sceneIndex is 0-based. force is one of: "payoff", "change", "variety".`;
 
-  const raw = await callGenerate(prompt, SYSTEM_PROMPT, 4000, 'generateChartAnnotations');
+  const raw = await callGenerate(prompt, SYSTEM_PROMPT, 4000, 'generateChartAnnotations', ANALYSIS_MODEL);
 
   // Parse JSON from response, handling potential markdown fences
   const cleaned = raw.replace(/```json\s*/g, '').replace(/```\s*/g, '').trim();

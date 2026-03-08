@@ -28,14 +28,6 @@ function JobDetail({ job }: { job: AnalysisJob }) {
   const isRunning = analysisRunner.isRunning(job.id) || liveJob.status === 'running';
   const error = liveJob.error ?? '';
 
-  // Auto-navigate when runner finishes assembly
-  useEffect(() => {
-    if (liveJob.status === 'completed' && liveJob.narrativeId) {
-      dispatch({ type: 'SET_ACTIVE_NARRATIVE', id: liveJob.narrativeId });
-      router.push(`/series/${liveJob.narrativeId}`);
-    }
-  }, [liveJob.status, liveJob.narrativeId, dispatch, router]);
-
   // Subscribe to job-level stream text
   useEffect(() => {
     return analysisRunner.onStream((id, text) => {
@@ -128,15 +120,6 @@ function JobDetail({ job }: { job: AnalysisJob }) {
   const totalChunks = liveJob.chunks.length;
   const isReconciling = completedChunks === totalChunks && liveJob.status === 'running' && !liveJob.narrativeId && streamText.includes('Reconcil');
   const isAssembling = completedChunks === totalChunks && liveJob.status === 'running' && !isReconciling;
-
-  // Auto-select first in-flight chunk for stream viewing
-  useEffect(() => {
-    if (inFlightIndices.length > 0 && (viewingChunkStream === null || !inFlightIndices.includes(viewingChunkStream))) {
-      setViewingChunkStream(inFlightIndices[0]);
-    } else if (inFlightIndices.length === 0 && !isReconciling && !isAssembling) {
-      setViewingChunkStream(null);
-    }
-  }, [inFlightIndices, isReconciling, isAssembling, viewingChunkStream]);
 
   const completed = liveJob.results.filter((r): r is AnalysisChunkResult => r !== null);
   const charCount = new Set(completed.flatMap((r) => r.characters.map((c) => c.name))).size;
@@ -660,12 +643,6 @@ function NewJobSetup({ sourceText, onCreated }: { sourceText: string; onCreated:
     };
     dispatch({ type: 'ADD_ANALYSIS_JOB', job });
     onCreated(job.id);
-    // Auto-start after React processes the ADD_ANALYSIS_JOB dispatch
-    setTimeout(() => {
-      analysisRunner.start(job).catch((err) => {
-        console.error('[analysis] auto-start failed:', err);
-      });
-    }, 0);
   };
 
   return (
@@ -837,12 +814,6 @@ function AnalysisPageInner() {
   }, [isNew, initialJobId]);
 
   const selectedJob = selectedJobId ? state.analysisJobs.find((j) => j.id === selectedJobId) ?? null : null;
-
-  useEffect(() => {
-    if (!selectedJobId && !showNewSetup && !isNew && state.analysisJobs.length > 0) {
-      setSelectedJobId(state.analysisJobs[0].id);
-    }
-  }, [selectedJobId, showNewSetup, isNew, state.analysisJobs]);
 
   return (
     <div className="h-screen bg-bg-base flex relative overflow-hidden">

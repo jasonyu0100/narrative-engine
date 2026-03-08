@@ -23,10 +23,19 @@ export const ANALYSIS_TARGET_CHUNK_WORDS = 4000;
 /** Max corpus size (words) accepted for analysis */
 export const ANALYSIS_MAX_CORPUS_WORDS = 500_000;
 
-// ── AI Model ────────────────────────────────────────────────────────────────
+// ── AI Models ───────────────────────────────────────────────────────────────
 
 /** Default LLM model used across all API routes */
 export const DEFAULT_MODEL = 'google/gemini-2.5-flash';
+
+/** Model for plans and prose (creative writing tasks) */
+export const WRITING_MODEL = 'google/gemini-3-flash-preview';
+
+/** Model for scoring, reconciliation, and text analysis */
+export const ANALYSIS_MODEL = 'google/gemini-2.5-flash';
+
+/** Model for scene generation — MCTS, auto mode, manual */
+export const GENERATE_MODEL = 'google/gemini-2.5-flash';
 
 // ── AI Context ───────────────────────────────────────────────────────────────
 
