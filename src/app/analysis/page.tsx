@@ -268,7 +268,25 @@ function JobDetail({ job }: { job: AnalysisJob }) {
                 ) : liveJob.status === 'completed' ? (
                   <p className="text-white/20 text-sm">Analysis complete — no entities extracted</p>
                 ) : (
-                  <p className="text-white/10 text-sm font-mono">Start analysis to discover entities</p>
+                  <div className="max-w-sm space-y-4">
+                    <p className="text-white/40 text-sm font-medium">Ready to analyze</p>
+                    <p className="text-white/20 text-[11px] leading-relaxed">
+                      The text has been split into {totalChunks} chunk{totalChunks !== 1 ? 's' : ''} that will be analyzed in parallel. Each chunk independently extracts characters, locations, threads, and scenes. A reconciliation pass then merges duplicates and stitches continuity across chunks.
+                    </p>
+                    <div className="grid grid-cols-3 gap-3 pt-1">
+                      {[
+                        { label: 'Extract', desc: 'Parse entities from each chunk' },
+                        { label: 'Reconcile', desc: 'Merge duplicates across chunks' },
+                        { label: 'Assemble', desc: 'Build the narrative structure' },
+                      ].map((phase) => (
+                        <div key={phase.label} className="bg-white/3 rounded-lg px-3 py-2.5">
+                          <div className="text-[9px] uppercase tracking-[0.15em] text-white/30 font-mono mb-1">{phase.label}</div>
+                          <div className="text-[10px] text-white/15 leading-snug">{phase.desc}</div>
+                        </div>
+                      ))}
+                    </div>
+                    <p className="text-white/10 text-[10px] font-mono">Press Start above to begin</p>
+                  </div>
                 )}
               </div>
             </div>
@@ -544,7 +562,7 @@ function JobDetail({ job }: { job: AnalysisJob }) {
                         ? 'bg-emerald-500/20 hover:bg-emerald-500/35'
                         : isInFlight
                           ? 'bg-change/10 ring-1 ring-change/20 cursor-pointer hover:bg-change/15'
-                          : 'bg-white/[0.03]'
+                          : 'bg-white/3'
                   } ${done || isInFlight ? 'cursor-pointer' : 'cursor-default'}`}
                   title={result
                     ? `Chunk ${i + 1}: ${result.characters?.length ?? 0} chars, ${result.scenes?.length ?? 0} scenes, ${result.threads?.length ?? 0} threads`
