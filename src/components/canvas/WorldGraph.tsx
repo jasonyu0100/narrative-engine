@@ -506,19 +506,37 @@ export default function WorldGraph() {
       const currentWorldBuild = currentKey ? narrative.worldBuilds[currentKey] : null;
 
       if (currentWorldBuild) {
-        // Expansion mode: show only elements from this expansion
+        // Expansion mode: show expansion elements + connected existing entities
         const manifest = currentWorldBuild.expansionManifest;
         const expandedCharIds = new Set(manifest.characterIds);
         const expandedLocIds = new Set(manifest.locationIds);
 
+        // Include relationships that touch at least one new character
+        const filteredRels = narrative.relationships.filter(
+          (r) => expandedCharIds.has(r.from) || expandedCharIds.has(r.to),
+        );
+
+        // Collect existing character IDs that are connected via relationships
+        const connectedCharIds = new Set(expandedCharIds);
+        for (const rel of filteredRels) {
+          connectedCharIds.add(rel.from);
+          connectedCharIds.add(rel.to);
+        }
+
+        // Collect existing location IDs that are parents of new locations
+        const connectedLocIds = new Set(expandedLocIds);
+        for (const locId of expandedLocIds) {
+          const loc = narrative.locations[locId];
+          if (loc?.parentId && narrative.locations[loc.parentId]) {
+            connectedLocIds.add(loc.parentId);
+          }
+        }
+
         const filteredChars = Object.fromEntries(
-          Object.entries(narrative.characters).filter(([id]) => expandedCharIds.has(id)),
+          Object.entries(narrative.characters).filter(([id]) => connectedCharIds.has(id)),
         );
         const filteredLocs = Object.fromEntries(
-          Object.entries(narrative.locations).filter(([id]) => expandedLocIds.has(id)),
-        );
-        const filteredRels = narrative.relationships.filter(
-          (r) => expandedCharIds.has(r.from) && expandedCharIds.has(r.to),
+          Object.entries(narrative.locations).filter(([id]) => connectedLocIds.has(id)),
         );
 
         const result = buildGraphData(

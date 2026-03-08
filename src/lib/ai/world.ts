@@ -32,7 +32,7 @@ Consider:
 - Unresolved threads and their current statuses
 - Character tensions and relationship dynamics
 - Narrative momentum (what has been building?)
-- What would create the most dramatic escalation?
+- What would create the most significant development?
 - How many scenes this arc needs to land properly (don't rush — quiet arcs need fewer, epic arcs need more)
 
 Return JSON with this exact structure:
@@ -70,7 +70,7 @@ export async function suggestStoryDirection(
 You are a showrunner planning the long-term trajectory of this story. Analyze the full narrative state — characters, threads, knowledge graphs, relationships, and scene history — and suggest a high-level STORY DIRECTION that should guide the next several arcs.
 
 Think big picture:
-- What is the central dramatic question the story is building toward?
+- What is the central open question the story is building toward?
 - Which character arcs have the most untapped potential?
 - What thematic tensions could be deepened or brought into conflict?
 - Where should alliances shift, secrets surface, or power dynamics change?
@@ -86,47 +86,70 @@ Return JSON: { "direction": "2-4 sentences describing the big-picture story dire
 }
 
 
+export type WorldExpansionSize = 'small' | 'medium' | 'large';
+
+const EXPANSION_SIZE_CONFIG: Record<WorldExpansionSize, { total: string; characters: string; locations: string; threads: string; label: string }> = {
+  small:  { total: '3-6',   characters: '1-2',   locations: '1-2',   threads: '1-2',   label: 'a focused expansion (~5 total entities)' },
+  medium: { total: '10-15', characters: '3-5',   locations: '3-4',   threads: '3-5',   label: 'a moderate expansion (~12 total entities)' },
+  large:  { total: '20-35', characters: '8-15',  locations: '6-10',  threads: '8-12',  label: 'a large-scale expansion (~30 total entities)' },
+};
+
 export async function suggestWorldExpansion(
   narrative: NarrativeState,
   resolvedKeys: string[],
   currentIndex: number,
+  size: WorldExpansionSize = 'medium',
 ): Promise<string> {
   const ctx = branchContext(narrative, resolvedKeys, currentIndex);
 
+  // Build structural summary for analysis
+  const charCount = Object.keys(narrative.characters).length;
+  const locCount = Object.keys(narrative.locations).length;
+  const threadCount = Object.keys(narrative.threads).length;
+  const relCount = narrative.relationships.length;
+  const orphanChars = Object.values(narrative.characters).filter(c =>
+    !narrative.relationships.some(r => r.from === c.id || r.to === c.id)
+  ).map(c => c.name);
+  const rootLocs = Object.values(narrative.locations).filter(l => !l.parentId).map(l => l.name);
+  const leafLocs = Object.values(narrative.locations).filter(l =>
+    !Object.values(narrative.locations).some(other => other.parentId === l.id)
+  ).map(l => l.name);
+
   const prompt = `${ctx}
 
-Based on the full narrative context above, suggest what NEW elements the world needs.
-World expansion is critical for narrative VARIETY — it introduces fresh characters, unexplored locations, and dormant threads that prevent the story from becoming repetitive.
+WORLD STRUCTURE ANALYSIS:
+- ${charCount} characters, ${locCount} locations, ${threadCount} threads, ${relCount} relationships
+- Characters with NO relationships (orphaned): ${orphanChars.length > 0 ? orphanChars.join(', ') : 'none'}
+- Top-level locations (no parent): ${rootLocs.join(', ')}
+- Leaf locations (no children): ${leafLocs.join(', ')}
+- Average relationships per character: ${charCount > 0 ? (relCount * 2 / charCount).toFixed(1) : 0}
+
+The user is planning ${EXPANSION_SIZE_CONFIG[size].label} (${EXPANSION_SIZE_CONFIG[size].total} total new entities: ${EXPANSION_SIZE_CONFIG[size].characters} characters, ${EXPANSION_SIZE_CONFIG[size].locations} locations, ${EXPANSION_SIZE_CONFIG[size].threads} threads).
+
+Based on the full narrative context and structural analysis above, suggest what NEW elements the world needs to become richer, more interconnected, and more alive. Tailor your suggestion to the expansion size — ${size === 'small' ? 'focus on the single highest-impact addition that fills the biggest gap' : size === 'medium' ? 'suggest a balanced mix that deepens existing structures and introduces new dynamics' : 'think broadly about new factions, regions, and power structures that transform the world'}.
+
+World expansion EXTENDS the existing world — new entities must be deeply woven into the existing fabric through relationships, location hierarchies, and shared threads. Think of it as adding fuel to the fire: every new element should make the existing world burn brighter.
 
 Consider:
-- Are there locations referenced in scenes that don't exist yet?
-- Are there implied characters who should be introduced?
-- Are there narrative threads that need new anchors?
-- What would deepen the world and create new story possibilities?
-- Which parts of the world feel underexplored or geographically narrow?
-- Are there factions, organizations, or communities implied but not yet represented by characters?
-- Could contrasting environments (urban vs wild, sacred vs profane, safe vs dangerous) create richer scene variety?
-- Are there secondary characters who could become POV-worthy with more depth?
+- Which existing characters lack connections? Who needs rivals, allies, mentors, or kin?
+- Where is the location hierarchy too flat? Which locations need sub-locations (districts, rooms, landmarks)?
+- Are there implied characters, factions, or organizations referenced in scenes but never created?
+- What contrasting environments would create richer scene variety (urban vs wild, sacred vs profane)?
+- Which threads need new anchors to develop? What new open questions would deepen the story?
+- Are there power structures, social hierarchies, or institutional relationships missing?
+- Could adding characters from different social strata or factions create productive tension?
 
-Aim for breadth: suggest 2-3 new characters from different walks of life, 2-3 locations that contrast with existing ones, and 2-3 threads that introduce new dramatic questions.
+Your suggestion should emphasize HOW new elements connect to existing ones — not just what to add, but who they relate to and where they fit in the hierarchy.
 
 Return JSON with this exact structure:
 {
-  "suggestion": "2-4 sentence description of what should be added to the world and why"
+  "suggestion": "2-4 sentence description of what should be added to the world and WHY, with specific references to existing characters/locations that new elements should connect to"
 }`;
 
   const raw = await callGenerate(prompt, SYSTEM_PROMPT, undefined, 'suggestWorldExpansion');
   const parsed = parseJson(raw, 'suggestWorldExpansion') as { suggestion: string };
   return parsed.suggestion;
 }
-
-export type WorldExpansionSize = 'small' | 'medium' | 'large';
-
-const EXPANSION_SIZE_CONFIG: Record<WorldExpansionSize, { characters: string; locations: string; threads: string; label: string }> = {
-  small:  { characters: '1-2',   locations: '1-2',   threads: '1-2',   label: 'a focused expansion' },
-  medium: { characters: '3-5',   locations: '3-4',   threads: '3-5',   label: 'a moderate expansion' },
-  large:  { characters: '8-15',  locations: '6-10',  threads: '8-12',  label: 'a large-scale expansion' },
-};
 
 export async function expandWorld(
   narrative: NarrativeState,
@@ -147,15 +170,27 @@ export async function expandWorld(
   ];
   const nextKId = nextId('K', existingKIds);
 
+  // Build existing entity summary for integration context
+  const existingCharList = Object.values(narrative.characters).map(c => `${c.id}: ${c.name} (${c.role})`).join(', ');
+  const existingLocList = Object.values(narrative.locations).map(l => `${l.id}: ${l.name}${l.parentId ? ` (child of ${l.parentId})` : ''}`).join(', ');
+  const existingRelList = narrative.relationships.map(r => `${r.from}→${r.to}: ${r.type}`).join(', ');
+
   const prompt = `${ctx}
 
 EXPAND the world based on this directive: ${directive}
 
-This is ${EXPANSION_SIZE_CONFIG[size].label}. Generate exactly:
+This is ${EXPANSION_SIZE_CONFIG[size].label} (${EXPANSION_SIZE_CONFIG[size].total} total new entities). Generate:
 - ${EXPANSION_SIZE_CONFIG[size].characters} new characters
 - ${EXPANSION_SIZE_CONFIG[size].locations} new locations
 - ${EXPANSION_SIZE_CONFIG[size].threads} new threads
-- Relationships to connect new characters to existing ones
+- Relationships connecting new characters to EXISTING characters (this is critical)
+
+EXISTING ENTITIES (you MUST reference these to integrate new content):
+Characters: ${existingCharList}
+Locations: ${existingLocList}
+Existing relationships: ${existingRelList || 'none yet'}
+
+World expansion EXTENDS the existing world — new entities must be woven into the existing fabric through relationships, location hierarchies, and shared threads. Orphaned, disconnected entities are useless.
 
 Use sequential IDs continuing from the existing ones.
 
@@ -177,7 +212,7 @@ Return JSON with this exact structure:
     {
       "id": "${nextLocId}",
       "name": "string",
-      "parentId": null or "existing location ID for nesting",
+      "parentId": "REQUIRED: existing location ID (e.g. L-01) to nest under, or null ONLY for top-level regions",
       "threadIds": [],
       "imagePrompt": "1-2 sentence visual description: architecture, landscape, atmosphere, lighting. Used for establishing shot generation.",
       "knowledge": {
@@ -207,16 +242,20 @@ ID RULES:
 - Knowledge node IDs: continue sequentially from ${nextKId} (e.g., ${nextKId}, K-${String(parseInt(nextKId.split('-').pop()!) + 1).padStart(2, '0')}, ...)
 - ALL knowledge nodes (in both characters and locations) use the K- prefix and share one sequence
 
-Rules:
-- Generate elements that serve the directive AND boost narrative VARIETY — fresh faces, new settings, and untapped dramatic questions
-- Characters should have meaningful knowledge (3-5 nodes). Give each character SECRETS or unique knowledge that only they possess — this creates knowledge asymmetries that drive dramatic tension when revealed later. Include at least one hidden or dangerous piece of knowledge per character.
-- Knowledge node types should be SPECIFIC and CONTEXTUAL — not generic labels. Choose types that describe exactly what kind of knowledge or lore this is. Examples: "cultivation_technique", "blood_pact", "hidden_treasury", "ancient_prophecy", "political_alliance", "forbidden_memory", "territorial_claim", "ancestral_grudge". Pick types that fit the narrative world.
-- Locations should fit the world hierarchy (use existing parentIds where appropriate). Make new locations CONTRAST with existing ones — if the story has been set in cities, add wilderness; if in palaces, add slums or ruins. Environmental variety drives scene variety.
+INTEGRATION RULES (most important):
+- EVERY new character MUST have at least one relationship to an EXISTING character. No orphans. Think: who in the existing world would know this person? Who are they allied with, opposed to, related to, or hiding from?
+- Generate at MINIMUM ${EXPANSION_SIZE_CONFIG[size].characters === '1-2' ? '2' : EXPANSION_SIZE_CONFIG[size].characters === '3-5' ? '5' : '12'} relationships total. Most should connect new→existing characters. A few can connect new→new.
+- Include varied relationship valences: allies, rivals, mentors, debtors, enemies, kin. At least one relationship should have tension (negative or ambivalent valence).
+- EVERY new location SHOULD have a parentId referencing an existing location — build a deeper hierarchy. Only use null for truly independent top-level regions. If the world has cities, nest new locations inside them. If it has regions, place new settlements within them.
+- Thread anchors MUST include at least one existing character or location — threads that only reference new entities won't integrate.
+
+CONTENT RULES:
+- Characters should have meaningful knowledge (3-5 nodes). Give each character SECRETS or unique knowledge that only they possess — knowledge asymmetries drive narrative tension. Include at least one hidden or dangerous piece of knowledge per character.
+- Knowledge node types should be SPECIFIC and CONTEXTUAL — not generic labels. Examples: "cultivation_technique", "blood_pact", "hidden_treasury", "ancient_prophecy", "political_alliance", "forbidden_memory", "territorial_claim", "ancestral_grudge". Pick types that fit the narrative world.
+- New locations should CONTRAST with existing ones — if the story has been set in cities, add wilderness; if in palaces, add slums or ruins. Environmental variety drives scene variety.
 - Location knowledge should describe lore, dangers, secrets, or resources specific to that place (3-4 nodes per location)
-- Threads should connect to existing or new characters/locations via anchors. New threads should introduce DIFFERENT types of dramatic questions than existing ones — if current threads are about conflict, add threads about mystery, loyalty, or forbidden knowledge.
+- Threads should introduce DIFFERENT types of open questions than existing ones — if current threads are about conflict, add threads about mystery, loyalty, or forbidden knowledge.
 - ALL new threads MUST have status "dormant" — they are seeds for future arcs, not active storylines yet
-- Relationships should connect new characters to EXISTING ones (not just to each other) — this ensures new characters integrate into the story rather than remaining isolated. Include at least one relationship with valence tension (slight negative or ambivalent).
-- Anchors in threads can reference existing characters/locations
 - Generate the exact counts specified above (${EXPANSION_SIZE_CONFIG[size].characters} characters, ${EXPANSION_SIZE_CONFIG[size].locations} locations, ${EXPANSION_SIZE_CONFIG[size].threads} threads)`;
 
   const raw = await callGenerate(prompt, SYSTEM_PROMPT, undefined, 'expandWorld');
@@ -292,6 +331,8 @@ PACING IS CRITICAL:
 - Think of pacing like a novel: setup → slow build → complication → breathing room → escalation. Not: event → event → event → event.
 - Early scenes should establish normalcy and stakes before disrupting them.
 - Thread statuses follow a lifecycle. ${THREAD_LIFECYCLE_DOC} When a thread's story reaches its conclusion, transition it to the appropriate terminal status.
+- Threads can regress (e.g. "escalating" → "active" when tension temporarily eases). Not every scene ratchets tension upward — setbacks, breathing room, and partial resolutions are natural.
+- Include "pulse" mutations (same from/to status, e.g. "active" → "active") when a scene engages a thread without shifting its phase. Most scenes should touch 2-4 threads.
 
 Knowledge types must be SPECIFIC and CONTEXTUAL to the world — not generic labels like "knows" or "secret". Use types that describe exactly what kind of knowledge or lore this is (e.g. "cultivation_technique", "blood_debt", "prophecy_fragment", "territorial_claim", "hidden_identity"). Knowledge edge types should also be contextual: "enables", "contradicts", "unlocks", "corrupts", "conceals", "depends_on", etc.
 

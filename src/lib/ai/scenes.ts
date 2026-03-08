@@ -128,7 +128,9 @@ PACING:
 - Even quiet scenes MUST have mutations — a character noticing tension, recalling a memory, warming to an ally, or growing suspicious all count.
 - Threads evolve gradually — a dormant thread surfaces over several scenes, not in one jump. But don't be afraid to escalate when the story demands it.
 - When a thread's storyline has concluded (conflict resolved, mystery answered, goal achieved or failed), transition it to a terminal status: ${THREAD_TERMINAL_STATUSES.map((s) => `"${s}"`).join(', ')}. Choose the terminal status that best fits HOW the thread ended.
-- Do NOT include thread mutations where the status doesn't change (e.g. "active" → "active"). Only include mutations that represent real narrative movement.
+- Threads can move BACKWARDS (e.g. "escalating" → "active" when tension temporarily eases, or "critical" → "escalating" after a partial resolution). Use regression when the story calls for it — not every scene ratchets tension upward.
+- Include "pulse" mutations where a thread's status stays the same (e.g. "active" → "active") when the scene meaningfully engages with that thread without shifting its phase. A conversation that deepens a mystery without escalating it, or a scene that sustains tension at its current level, should still be tracked.
+- Most scenes should touch 2-4 threads. Threads left unmentioned for many consecutive scenes feel abandoned — keep them pulsing even when they're not the focus.
 
 CRITICAL ID CONSTRAINT (re-stated for emphasis):
 You MUST use ONLY these exact IDs. Do NOT invent new character, location, or thread IDs.

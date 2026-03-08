@@ -422,6 +422,10 @@ FIRST CHUNK — THREAD SEEDING:
 THREAD LIFECYCLE:
 - Active statuses: ${THREAD_ACTIVE_STATUSES.map((s: string) => `"${s}"`).join(', ')}
 - Terminal statuses: ${THREAD_TERMINAL_STATUSES.map((s: string) => `"${s}" (${THREAD_STATUS_LABELS[s]})`).join(', ')}
+- Threads can regress (e.g. "escalating" → "active" when tension temporarily eases). Not every chapter ratchets upward.
+- statusAtStart and statusAtEnd CAN be the same — a valid "pulse" showing the thread is engaged without shifting phase.
+- Be aggressive about detecting transitions. Turning points, revelations, confrontations, and emotional shifts are triggers. If a chapter opens with simmering tension and ends with a confrontation, that's at least one status jump.
+- Each scene's threadMutations should touch threads meaningfully present in that scene, even if status doesn't change.
 
 KNOWLEDGE MUTATIONS:
 - Track INFORMATION ASYMMETRY — what one character knows that others don't
@@ -498,6 +502,8 @@ For thread statuses, use your best judgment based on what you see in THIS chunk 
 - "escalating" if tension is rising
 - "critical" if it's at a breaking point
 - "resolved"/"subverted"/"abandoned" if it concludes in this chunk
+Threads can regress (e.g. "escalating" → "active" when tension eases). statusAtStart and statusAtEnd can be the same if the thread is engaged but doesn't shift phase — this is a valid "pulse" that shows the thread is alive.
+Be aggressive about detecting phase transitions — if a chapter opens with simmering tension and ends with a confrontation, that's at least one status jump. Look for turning points, revelations, and emotional shifts as transition triggers.
 
 Knowledge types must be SPECIFIC and CONTEXTUAL — not generic labels like "knows" or "secret". Use types that describe exactly what kind of knowledge: "social_observation", "class_awareness", "romantic_longing", "moral_judgment", "hidden_wealth_source", "past_betrayal", "forbidden_desire", "strategic_deception", etc.
 
@@ -570,6 +576,10 @@ RULES:
 THREAD LIFECYCLE:
 - Active statuses: ${THREAD_ACTIVE_STATUSES.map((s: string) => `"${s}"`).join(', ')}
 - Terminal statuses: ${THREAD_TERMINAL_STATUSES.map((s: string) => `"${s}" (${THREAD_STATUS_LABELS[s]})`).join(', ')}
+- Threads can regress (e.g. "escalating" → "active" when tension temporarily eases). Not every chapter ratchets upward.
+- statusAtStart and statusAtEnd CAN be the same — a valid "pulse" showing the thread is engaged without shifting phase.
+- Be aggressive about detecting transitions. Turning points, revelations, confrontations, and emotional shifts are triggers. If a chapter opens with simmering tension and ends with a confrontation, that's at least one status jump.
+- Each scene's threadMutations should touch threads meaningfully present in that scene, even if status doesn't change.
 
 KNOWLEDGE MUTATIONS:
 - Track INFORMATION ASYMMETRY — what one character knows that others don't

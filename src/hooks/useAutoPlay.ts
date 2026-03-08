@@ -60,7 +60,7 @@ export function useAutoPlay() {
     try {
       // World expansion as a pre-step (interval-triggered, not scored)
       if (isWorldBuildDue(activeNarrative, resolvedSceneKeys, autoConfig)) {
-        const suggestion = await suggestWorldExpansion(activeNarrative, resolvedSceneKeys, currentSceneIndex);
+        const suggestion = await suggestWorldExpansion(activeNarrative, resolvedSceneKeys, currentSceneIndex, autoConfig.worldBuildSize);
         if (cancelledRef.current) return;
 
         const expansion = await expandWorld(activeNarrative, resolvedSceneKeys, currentSceneIndex, suggestion, autoConfig.worldBuildSize);

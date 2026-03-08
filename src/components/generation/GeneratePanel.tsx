@@ -121,6 +121,7 @@ export function GeneratePanel({ onClose }: { onClose: () => void }) {
         narrative,
         state.resolvedSceneKeys,
         headIndex,
+        worldSize,
       );
       setWorldDirective(suggestion);
     } catch (err) {
@@ -378,9 +379,9 @@ export function GeneratePanel({ onClose }: { onClose: () => void }) {
                 <label className="text-[10px] uppercase tracking-widest text-text-dim block mb-2">Size</label>
                 <div className="flex gap-1.5">
                   {([
-                    { value: 'small' as WorldExpansionSize, label: 'Small', desc: '1-2 of each' },
-                    { value: 'medium' as WorldExpansionSize, label: 'Medium', desc: '3-5 of each' },
-                    { value: 'large' as WorldExpansionSize, label: 'Large', desc: '8-15 entities' },
+                    { value: 'small' as WorldExpansionSize, label: 'Small', desc: '~5 entities' },
+                    { value: 'medium' as WorldExpansionSize, label: 'Medium', desc: '~12 entities' },
+                    { value: 'large' as WorldExpansionSize, label: 'Large', desc: '~30 entities' },
                   ]).map((opt) => (
                     <button
                       key={opt.value}

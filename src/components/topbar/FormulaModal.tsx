@@ -55,11 +55,12 @@ export function FormulaModal({ onClose }: Props) {
           </p>
 
           <S title="Payoff" analogy="Did something permanent happen? A betrayal, a death, a vow — moments that can't be undone.">
-            <Block tex="P = \sum_{t \in \mathcal{T}} |\,\phi_{\text{to}} - \phi_{\text{from}}\,| \;+\; \sum_{r \in \mathcal{R}} |\Delta v_r|" />
+            <Block tex="P = \sum_{t \in \mathcal{T}} \delta(t) \;+\; \sum_{r \in \mathcal{R}} |\Delta v_r|" />
+            <Block tex={String.raw`\delta(t) = \begin{cases} 0.25 & \text{from} = \text{to} \;\text{(pulse)} \\ 4 & \text{to} \in \{\text{resolved, subverted, abandoned}\} \\ |\,\phi_{\text{to}} - \phi_{\text{from}}\,| & \text{otherwise} \end{cases}`} />
             <p className="text-[10px] text-text-dim">
               <Tex>{'\\phi'}</Tex>: phase index (dormant=0, active=1, escalating=2, critical=3).
-              Terminal transitions use <Tex>{'|\\phi|=4'}</Tex>.
-              Valence deltas contribute linearly to payoff.
+              Same-status pulses earn 0.25. Backwards transitions (e.g. escalating{'\u2192'}active) use absolute magnitude.
+              Valence deltas contribute linearly.
             </p>
           </S>
 
