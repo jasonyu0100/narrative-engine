@@ -1,6 +1,6 @@
 'use client';
 
-import { useRef, useEffect } from 'react';
+import { useRef, useEffect, useState } from 'react';
 import * as d3 from 'd3';
 import type { MovieData } from '@/lib/movie-data';
 
@@ -50,7 +50,7 @@ export function ReportCardSlide({ data }: { data: MovieData }) {
     const g = svg.append('g').attr('transform', `translate(${margin.left},${margin.top})`);
 
     const scores = data.arcGrades.map((a) => a.grades.overall);
-    const x = d3.scaleLinear().domain([0, scores.length - 1]).range([0, w]);
+    const x = d3.scaleBand<number>().domain(scores.map((_, i) => i)).range([0, w]).padding(0.15);
     const y = d3.scaleLinear().domain([0, 100]).range([h, 0]);
 
     // Zone bands
@@ -68,10 +68,9 @@ export function ReportCardSlide({ data }: { data: MovieData }) {
     }
 
     // Score bars
-    const barW = Math.min(w / scores.length * 0.7, 8);
     scores.forEach((s, i) => {
       g.append('rect')
-        .attr('x', x(i) - barW / 2).attr('y', y(s)).attr('width', barW).attr('height', h - y(s))
+        .attr('x', x(i)!).attr('y', y(s)).attr('width', x.bandwidth()).attr('height', h - y(s))
         .attr('fill', gradeColor(s, 100)).attr('fill-opacity', 0.6).attr('rx', 1);
     });
 

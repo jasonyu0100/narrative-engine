@@ -164,11 +164,29 @@ export function computeMovieData(
   const peakIndices = engagementCurve.filter((e) => e.isPeak).map((e) => e.index);
   const valleyIndices = engagementCurve.filter((e) => e.isValley).map((e) => e.index);
 
-  // Segments: split at valleys
-  const segments = buildSegments(scenes, engagementCurve, forceSnapshots, rawForces, valleyIndices, narrative);
+  // Segments: split at valleys (use z-score normalized forces for classification)
+  const segments = buildSegments(scenes, engagementCurve, forceSnapshots, valleyIndices);
 
-  // Peak info
-  const peaks = buildPeakInfos(scenes, engagementCurve, forceSnapshots, narrative);
+  // Peak info — fall back to absolute max engagement if no prominent peaks detected
+  let peaks = buildPeakInfos(scenes, engagementCurve, forceSnapshots, narrative);
+  if (peaks.length === 0 && engagementCurve.length > 0) {
+    const maxPoint = engagementCurve.reduce((best, e) => (e.engagement > best.engagement ? e : best), engagementCurve[0]);
+    const scene = scenes[maxPoint.index];
+    const f = forceSnapshots[maxPoint.index];
+    const corner = detectCubeCorner(f);
+    peaks = [{
+      sceneIdx: maxPoint.index,
+      scene,
+      engagement: maxPoint,
+      forces: f,
+      cubeCorner: { key: corner.key, name: corner.name, description: corner.description },
+      threadChanges: scene.threadMutations.map((tm) => ({ threadId: tm.threadId, from: tm.from, to: tm.to })),
+      relationshipChanges: scene.relationshipMutations.map((rm) => ({
+        from: rm.from, to: rm.to, type: rm.type, delta: rm.valenceDelta,
+      })),
+      dominantForce: dominantForce(f.payoff, f.change, f.variety),
+    }];
+  }
 
   // Trough info
   const troughs = buildTroughInfos(scenes, engagementCurve, forceSnapshots, peakIndices, narrative);
@@ -297,9 +315,7 @@ function buildSegments(
   scenes: Scene[],
   engagement: EngagementPoint[],
   forces: ForceSnapshot[],
-  rawForces: { payoff: number[]; change: number[]; variety: number[] },
   valleyIndices: number[],
-  narrative: NarrativeState,
 ): Segment[] {
   const n = scenes.length;
   if (n === 0) return [];
@@ -318,10 +334,11 @@ function buildSegments(
     const segEngagement = engagement.slice(startIdx, endIdx + 1);
     const segPeaks = segEngagement.filter((e) => e.isPeak).map((e) => e.index);
 
-    // Average raw forces in segment
-    const segPayoff = avg(rawForces.payoff.slice(startIdx, endIdx + 1));
-    const segChange = avg(rawForces.change.slice(startIdx, endIdx + 1));
-    const segVariety = avg(rawForces.variety.slice(startIdx, endIdx + 1));
+    // Average z-score normalized forces in segment
+    const segForces = forces.slice(startIdx, endIdx + 1);
+    const segPayoff = avg(segForces.map((f) => f.payoff));
+    const segChange = avg(segForces.map((f) => f.change));
+    const segVariety = avg(segForces.map((f) => f.variety));
 
     // Thread changes in this segment
     const threadChanges: Segment['threadChanges'] = [];

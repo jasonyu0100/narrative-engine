@@ -61,10 +61,15 @@ function buildSlideList(data: MovieData): SlideSpec[] {
     const seg = data.segments[i];
     slides.push({ type: 'segment', index: i });
     // Insert moments that fall within this segment
-    for (const m of allMoments) {
-      if (m.sceneIdx >= seg.startIdx && m.sceneIdx <= seg.endIdx) {
+    const segMoments = allMoments.filter((m) => m.sceneIdx >= seg.startIdx && m.sceneIdx <= seg.endIdx);
+    if (segMoments.length > 0) {
+      for (const m of segMoments) {
         slides.push({ type: 'moment', sceneIdx: m.sceneIdx, kind: m.kind });
       }
+    } else if (seg.keyScenes.length > 0) {
+      // Fallback: analyse the highest-engagement scene in this segment
+      const best = seg.keyScenes.reduce((a, b) => (b.engagement > a.engagement ? b : a), seg.keyScenes[0]);
+      slides.push({ type: 'moment', sceneIdx: best.idx, kind: 'peak' });
     }
   }
 
