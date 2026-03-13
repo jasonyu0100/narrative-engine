@@ -153,21 +153,27 @@ export function MoviePlayer({
     }
   }, [isPlaying, currentIdx, slideDuration, next]);
 
-  // Keyboard
+  // Keyboard — use capture phase to intercept before other handlers
+  const containerRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     function handleKey(e: KeyboardEvent) {
-      if (e.key === 'ArrowRight' || e.key === ' ') { e.preventDefault(); next(); }
-      else if (e.key === 'ArrowLeft') { e.preventDefault(); prev(); }
-      else if (e.key === 'Escape') { e.preventDefault(); onClose(); }
-      else if (e.key === 'p' || e.key === 'P') { e.preventDefault(); setIsPlaying((v) => !v); }
+      if (e.key === 'ArrowRight' || e.key === ' ') { e.preventDefault(); e.stopPropagation(); next(); }
+      else if (e.key === 'ArrowLeft') { e.preventDefault(); e.stopPropagation(); prev(); }
+      else if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); onClose(); }
+      else if (e.key === 'p' || e.key === 'P') { e.preventDefault(); e.stopPropagation(); setIsPlaying((v) => !v); }
     }
-    window.addEventListener('keydown', handleKey);
-    return () => window.removeEventListener('keydown', handleKey);
+    window.addEventListener('keydown', handleKey, true);
+    return () => window.removeEventListener('keydown', handleKey, true);
   }, [next, prev, onClose]);
+
+  // Force focus on mount
+  useEffect(() => {
+    containerRef.current?.focus();
+  }, []);
 
   if (movieData.sceneCount === 0) {
     return (
-      <div className="fixed inset-0 z-[100] bg-bg-base flex items-center justify-center">
+      <div className="fixed inset-0 z-100 bg-bg-base flex items-center justify-center">
         <div className="text-center">
           <p className="text-text-dim mb-4">No scenes to analyse yet.</p>
           <button onClick={onClose} className="px-4 py-2 rounded-lg bg-white/10 text-text-primary text-sm hover:bg-white/15">
@@ -180,7 +186,7 @@ export function MoviePlayer({
 
   return (
     // eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex
-    <div className="fixed inset-0 z-[100] bg-bg-base flex flex-col outline-none" tabIndex={0} autoFocus>
+    <div ref={containerRef} className="fixed inset-0 z-100 bg-bg-base flex flex-col outline-none" tabIndex={0}>
       {/* Top bar */}
       <div className="flex items-center justify-between h-10 px-4 border-b border-white/8 shrink-0">
         <div className="flex items-center gap-3">

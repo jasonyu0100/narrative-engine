@@ -364,7 +364,7 @@ export default function TimelineStrip() {
       </div>
 
       {/* Fork button */}
-      <div className="flex items-center px-2 border-l border-border shrink-0">
+      <div className="flex items-center justify-center px-2 border-l border-border shrink-0 w-9">
         <button
           type="button"
           title="Fork branch from current scene"
