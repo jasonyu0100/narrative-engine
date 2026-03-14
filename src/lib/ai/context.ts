@@ -1,6 +1,6 @@
 import type { NarrativeState, Scene, StorySettings } from '@/types/narrative';
 import { resolveEntry, THREAD_ACTIVE_STATUSES, THREAD_TERMINAL_STATUSES, THREAD_STATUS_LABELS, DEFAULT_STORY_SETTINGS } from '@/types/narrative';
-import { computeForceSnapshots, computeSwingMagnitudes, detectCubeCorner, movingAverage, FORCE_WINDOW_SIZE, computeEngagementCurve, classifyCurrentPosition } from '@/lib/narrative-utils';
+import { computeForceSnapshots, computeSwingMagnitudes, detectCubeCorner, movingAverage, FORCE_WINDOW_SIZE, computeEngagementCurve, classifyCurrentPosition, buildCumulativeWorldKnowledge, rankWorldKnowledgeNodes } from '@/lib/narrative-utils';
 import { MAX_CONTEXT_SCENES } from '@/lib/constants';
 
 // Build thread lifecycle documentation from canonical status lists
@@ -20,8 +20,8 @@ export function buildStorySettingsBlock(n: NarrativeState): string {
   // POV mode
   const povLabels: Record<string, string> = {
     single: 'SINGLE POV — every scene must use the same POV character.',
-    dual: 'DUAL POV — alternate between exactly two POV characters across scenes. Each arc should feature both perspectives.',
-    ensemble: 'ENSEMBLE POV — rotate POV among the designated characters, giving each meaningful screen time.',
+    dual: 'DUAL POV — use exactly two POV characters. POV should come in STREAKS (2-4 scenes per character before switching). An ABAB pattern is disorienting — prefer AAABBB or AAABB. Switch only when the other character has something urgent the current POV cannot access.',
+    ensemble: 'ENSEMBLE POV — rotate POV among the designated characters. POV should come in STREAKS (2-4 scenes per character before switching). Do NOT cycle rapidly through characters — stay with one perspective long enough for the reader to settle in. Switch when a different character holds the key perspective for the next dramatic moment.',
     free: '', // no constraint
   };
   if (s.povMode !== 'free') {
@@ -58,7 +58,7 @@ export function branchContext(
   const referencedCharIds = new Set<string>();
   const referencedLocIds = new Set<string>();
   const referencedThreadIds = new Set<string>();
-  const horizonKnowledgeNodeIds = new Set<string>();
+  const horizonContinuityNodeIds = new Set<string>();
   for (const k of keysUpToCurrent) {
     const entry = resolveEntry(n, k);
     if (!entry) continue;
@@ -67,9 +67,9 @@ export function branchContext(
       for (const pid of entry.participantIds) referencedCharIds.add(pid);
       referencedLocIds.add(entry.locationId);
       for (const tm of entry.threadMutations) referencedThreadIds.add(tm.threadId);
-      for (const km of entry.knowledgeMutations) {
+      for (const km of entry.continuityMutations) {
         referencedCharIds.add(km.characterId);
-        horizonKnowledgeNodeIds.add(km.nodeId);
+        horizonContinuityNodeIds.add(km.nodeId);
       }
       for (const rm of entry.relationshipMutations) {
         referencedCharIds.add(rm.from);
@@ -125,33 +125,33 @@ export function branchContext(
   for (const k of allKeysUpToCurrent) {
     const entry = resolveEntry(n, k);
     if (entry?.kind === 'scene') {
-      for (const km of entry.knowledgeMutations) allMutationNodeIds.add(km.nodeId);
+      for (const km of entry.continuityMutations) allMutationNodeIds.add(km.nodeId);
     }
   }
 
   // Knowledge: keep original (non-mutation) nodes + mutation nodes from the time horizon
   const characters = branchCharacters
     .map((c) => {
-      const relevantNodes = c.knowledge.nodes
-        .filter((kn) => !allMutationNodeIds.has(kn.id) || horizonKnowledgeNodeIds.has(kn.id));
-      const knowledgeLines = relevantNodes.map((kn) => `    (${kn.type}) ${kn.content}`);
-      const omitted = c.knowledge.nodes.length - relevantNodes.length;
+      const relevantNodes = c.continuity.nodes
+        .filter((kn) => !allMutationNodeIds.has(kn.id) || horizonContinuityNodeIds.has(kn.id));
+      const continuityLines = relevantNodes.map((kn) => `    (${kn.type}) ${kn.content}`);
+      const omitted = c.continuity.nodes.length - relevantNodes.length;
       const truncated = omitted > 0
         ? `\n  (${omitted} knowledge items outside time horizon omitted)`
         : '';
-      const knowledgeBlock = knowledgeLines.length > 0
-        ? `\n  Knowledge (${relevantNodes.length} in scope):${truncated}\n${knowledgeLines.join('\n')}`
+      const continuityBlock = continuityLines.length > 0
+        ? `\n  Knowledge (${relevantNodes.length} in scope):${truncated}\n${continuityLines.join('\n')}`
         : '';
-      return `- ${c.id}: ${c.name} (${c.role})${knowledgeBlock}`;
+      return `- ${c.id}: ${c.name} (${c.role})${continuityBlock}`;
     })
     .join('\n');
   const locations = branchLocations
     .map((l) => {
-      const knowledgeLines = l.knowledge.nodes.map((kn) => `    (${kn.type}) ${kn.content}`);
-      const knowledgeBlock = knowledgeLines.length > 0
-        ? `\n  Knowledge (${l.knowledge.nodes.length}):\n${knowledgeLines.join('\n')}`
+      const continuityLines = l.continuity.nodes.map((kn) => `    (${kn.type}) ${kn.content}`);
+      const continuityBlock = continuityLines.length > 0
+        ? `\n  Knowledge (${l.continuity.nodes.length}):\n${continuityLines.join('\n')}`
         : '';
-      return `- ${l.id}: ${l.name}${l.parentId ? ` (inside ${n.locations[l.parentId]?.name ?? l.parentId})` : ''}${knowledgeBlock}`;
+      return `- ${l.id}: ${l.name}${l.parentId ? ` (inside ${n.locations[l.parentId]?.name ?? l.parentId})` : ''}${continuityBlock}`;
     })
     .join('\n');
   // Build thread age context from scene history (within time horizon)
@@ -195,7 +195,7 @@ export function branchContext(
     const loc = `${s.locationId} (${n.locations[s.locationId]?.name ?? 'unknown'})`;
     const participants = s.participantIds.map((pid) => `${pid} (${n.characters[pid]?.name ?? 'unknown'})`).join(', ');
     const threadChanges = s.threadMutations.map((tm) => `${tm.threadId}: ${tm.from}->${tm.to}`).join('; ');
-    const knowledgeChanges = s.knowledgeMutations.map((km) => `${km.characterId} learned [${km.nodeType}]: ${km.content}`).join('; ');
+    const knowledgeChanges = s.continuityMutations.map((km) => `${km.characterId} learned [${km.nodeType}]: ${km.content}`).join('; ');
     const relChanges = s.relationshipMutations.map((rm) => {
       const fromName = n.characters[rm.from]?.name ?? rm.from;
       const toName = n.characters[rm.to]?.name ?? rm.to;
@@ -218,30 +218,70 @@ export function branchContext(
     .map((k) => resolveEntry(n, k))
     .filter((e): e is Scene => e?.kind === 'scene');
   const forceMap = computeForceSnapshots(allScenes);
-  const forceSnapshots = allScenes.map((s) => forceMap[s.id] ?? { payoff: 0, change: 0, variety: 0 });
+  const forceSnapshots = allScenes.map((s) => forceMap[s.id] ?? { payoff: 0, change: 0, knowledge: 0 });
   const swings = computeSwingMagnitudes(forceSnapshots);
   const payoffMA = movingAverage(forceSnapshots.map(f => f.payoff), FORCE_WINDOW_SIZE);
   const changeMA = movingAverage(forceSnapshots.map(f => f.change), FORCE_WINDOW_SIZE);
-  const varietyMA = movingAverage(forceSnapshots.map(f => f.variety), FORCE_WINDOW_SIZE);
+  const varietyMA = movingAverage(forceSnapshots.map(f => f.knowledge), FORCE_WINDOW_SIZE);
   const swingMA = movingAverage(swings, FORCE_WINDOW_SIZE);
   const forceTrajectory = allScenes.map((s, i) => {
     const f = forceMap[s.id];
     if (!f) return null;
     const corner = detectCubeCorner(f);
-    return `[${horizonStart + i + 1}] P:${f.payoff >= 0 ? '+' : ''}${f.payoff.toFixed(1)} C:${f.change >= 0 ? '+' : ''}${f.change.toFixed(1)} V:${f.variety >= 0 ? '+' : ''}${f.variety.toFixed(1)} Sw:${swings[i].toFixed(1)} MA(P:${payoffMA[i].toFixed(1)} C:${changeMA[i].toFixed(1)} V:${varietyMA[i].toFixed(1)} Sw:${swingMA[i].toFixed(1)}) (${corner.name})`;
+    return `[${horizonStart + i + 1}] P:${f.payoff >= 0 ? '+' : ''}${f.payoff.toFixed(1)} C:${f.change >= 0 ? '+' : ''}${f.change.toFixed(1)} V:${f.knowledge >= 0 ? '+' : ''}${f.knowledge.toFixed(1)} Sw:${swings[i].toFixed(1)} MA(P:${payoffMA[i].toFixed(1)} C:${changeMA[i].toFixed(1)} V:${varietyMA[i].toFixed(1)} Sw:${swingMA[i].toFixed(1)}) (${corner.name})`;
   }).filter(Boolean).join('\n');
 
   // Current cube position and local beat position
   const currentForces = allScenes.length > 0 ? forceMap[allScenes[allScenes.length - 1].id] : null;
   const currentCube = currentForces ? detectCubeCorner(currentForces) : null;
   const windowScenes = allScenes.slice(-FORCE_WINDOW_SIZE);
-  const windowMap = computeForceSnapshots(windowScenes, allScenes.slice(0, -FORCE_WINDOW_SIZE));
+  const windowMap = computeForceSnapshots(windowScenes);
   const windowOrdered = windowScenes.map((s) => windowMap[s.id]).filter(Boolean);
   const engPts = computeEngagementCurve(windowOrdered);
   const localPos = engPts.length > 0 ? classifyCurrentPosition(engPts) : null;
   const currentStateBlock = currentCube
-    ? `\nCURRENT NARRATIVE STATE:\n  Cube position: ${currentCube.name} (P:${currentForces!.payoff >= 0 ? 'Hi' : 'Lo'} C:${currentForces!.change >= 0 ? 'Hi' : 'Lo'} V:${currentForces!.variety >= 0 ? 'Hi' : 'Lo'}) — ${currentCube.description}\n  Beat position: ${localPos?.name ?? 'Stable'} — ${localPos?.description ?? 'beats are holding steady'}\n`
+    ? `\nCURRENT NARRATIVE STATE:\n  Cube position: ${currentCube.name} (P:${currentForces!.payoff >= 0 ? 'Hi' : 'Lo'} C:${currentForces!.change >= 0 ? 'Hi' : 'Lo'} V:${currentForces!.knowledge >= 0 ? 'Hi' : 'Lo'}) — ${currentCube.description}\n  Beat position: ${localPos?.name ?? 'Stable'} — ${localPos?.description ?? 'beats are holding steady'}\n`
     : '';
+
+  // ── World Knowledge Graph ──────────────────────────────────────────
+  const horizonEndIndex = horizonStart + keysUpToCurrent.length - 1;
+  const cumulativeWorldKnowledge = buildCumulativeWorldKnowledge(
+    n.scenes, resolvedKeys, horizonEndIndex, n.worldKnowledge, n.worldBuilds,
+  );
+  const rankedWorldNodes = rankWorldKnowledgeNodes(cumulativeWorldKnowledge);
+  let worldKnowledgeBlock = '';
+  if (rankedWorldNodes.length > 0) {
+    // Build adjacency map for each node → connected concepts
+    const adjacency = new Map<string, string[]>();
+    for (const e of cumulativeWorldKnowledge.edges) {
+      const fromConcept = cumulativeWorldKnowledge.nodes[e.from]?.concept;
+      const toConcept = cumulativeWorldKnowledge.nodes[e.to]?.concept;
+      if (!fromConcept || !toConcept) continue;
+      adjacency.set(e.from, [...(adjacency.get(e.from) ?? []), toConcept]);
+      adjacency.set(e.to, [...(adjacency.get(e.to) ?? []), fromConcept]);
+    }
+
+    // Show each node with its type, significance, and connections — ranked by importance
+    const nodeLines = rankedWorldNodes.map(({ node, degree }) => {
+      const connections = adjacency.get(node.id);
+      const connStr = connections && connections.length > 0
+        ? ` ↔ ${connections.join(', ')}`
+        : '';
+      return `  [${node.type}] ${node.concept} (${degree} connections)${connStr}`;
+    });
+
+    const totalNodes = Object.keys(cumulativeWorldKnowledge.nodes).length;
+    const totalEdges = cumulativeWorldKnowledge.edges.length;
+    worldKnowledgeBlock = `\n────────────────────────────────────────
+WORLD KNOWLEDGE GRAPH (${totalNodes} concepts, ${totalEdges} connections — ranked by significance):
+These are the established rules, systems, concepts, and tensions of this world. New scenes should REFERENCE existing concepts when relevant and ADD new ones that connect to this graph. The more connections a concept has, the more central it is to this world.
+
+${nodeLines.join('\n')}
+
+Existing world knowledge node IDs (use these in worldKnowledgeMutations.addedEdges to connect new concepts to existing ones):
+  ${rankedWorldNodes.map(({ node }) => `${node.id}: ${node.concept}`).join(', ')}
+`;
+  }
 
   // Compact ID lookup — placed last so it's closest to the generation prompt
   const charIdList = branchCharacters.map((c) => c.id).join(', ');
@@ -288,8 +328,7 @@ ${sceneHistory}
 ────────────────────────────────────────
 FORCE TRAJECTORY (computed from scene structure — shows pacing rhythm):
 ${forceTrajectory || '(no scenes yet)'}
-${currentStateBlock}
-────────────────────────────────────────
+${currentStateBlock}${worldKnowledgeBlock}────────────────────────────────────────
 VALID IDs (you MUST use ONLY these exact IDs — do NOT invent new ones):
   Character IDs: ${charIdList}
   Location IDs: ${locIdList}
@@ -307,8 +346,8 @@ export function sceneContext(narrative: NarrativeState, scene: Scene): string {
   const RECENT_KNOWLEDGE = 5; // only most recent nodes to avoid context bloat
 
   const characterBlocks = participants.map((p) => {
-    const recentNodes = p.knowledge.nodes.slice(-RECENT_KNOWLEDGE);
-    const omitted = p.knowledge.nodes.length - recentNodes.length;
+    const recentNodes = p.continuity.nodes.slice(-RECENT_KNOWLEDGE);
+    const omitted = p.continuity.nodes.length - recentNodes.length;
     const knLines = recentNodes.map((kn) => `    (${kn.type}) ${kn.content}`);
     const omittedNote = omitted > 0 ? `\n    (${omitted} earlier items omitted)` : '';
     const knBlock = knLines.length > 0
@@ -320,8 +359,8 @@ export function sceneContext(narrative: NarrativeState, scene: Scene): string {
   // ── Location: recent knowledge ─────────────────────────────────────
   const locationBlock = (() => {
     if (!location) return '  - Unknown';
-    const recentNodes = location.knowledge.nodes.slice(-RECENT_KNOWLEDGE);
-    const omitted = location.knowledge.nodes.length - recentNodes.length;
+    const recentNodes = location.continuity.nodes.slice(-RECENT_KNOWLEDGE);
+    const omitted = location.continuity.nodes.length - recentNodes.length;
     const knLines = recentNodes.map((kn) => `    (${kn.type}) ${kn.content}`);
     const omittedNote = omitted > 0 ? `\n    (${omitted} earlier items omitted)` : '';
     const knBlock = knLines.length > 0
@@ -360,7 +399,7 @@ export function sceneContext(narrative: NarrativeState, scene: Scene): string {
     return `  - "${thread?.description ?? tm.threadId}": ${tm.from} → ${tm.to}`;
   });
 
-  const knowledgeMutationLines = scene.knowledgeMutations.map((km) => {
+  const continuityMutationLines = scene.continuityMutations.map((km) => {
     const char = narrative.characters[km.characterId];
     return `  - ${char?.name ?? km.characterId} ${km.action === 'added' ? 'learns' : 'loses'}: [${km.nodeType ?? 'knowledge'}] ${km.content}`;
   });
@@ -416,11 +455,11 @@ export function sceneContext(narrative: NarrativeState, scene: Scene): string {
       `THREAD SHIFTS:`,
       ...threadMutationLines,
     ] : []),
-    ...(knowledgeMutationLines.length > 0 ? [
+    ...(continuityMutationLines.length > 0 ? [
       ``,
       SEP,
       `KNOWLEDGE CHANGES:`,
-      ...knowledgeMutationLines,
+      ...continuityMutationLines,
     ] : []),
     ...(relationshipMutationLines.length > 0 ? [
       ``,
@@ -428,6 +467,20 @@ export function sceneContext(narrative: NarrativeState, scene: Scene): string {
       `RELATIONSHIP SHIFTS:`,
       ...relationshipMutationLines,
     ] : []),
+    ...(() => {
+      const wkm = scene.worldKnowledgeMutations;
+      if (!wkm || ((wkm.addedNodes?.length ?? 0) === 0 && (wkm.addedEdges?.length ?? 0) === 0)) return [];
+      const lines: string[] = [``, SEP, `WORLD KNOWLEDGE REVEALS:`];
+      for (const node of wkm.addedNodes ?? []) {
+        lines.push(`  - New concept: ${node.concept} [${node.type}]`);
+      }
+      for (const edge of wkm.addedEdges ?? []) {
+        const fromLabel = narrative.worldKnowledge.nodes[edge.from]?.concept ?? edge.from;
+        const toLabel = narrative.worldKnowledge.nodes[edge.to]?.concept ?? edge.to;
+        lines.push(`  - Connection: ${fromLabel} → ${edge.relation} → ${toLabel}`);
+      }
+      return lines;
+    })(),
     ...(movementLines.length > 0 ? [
       ``,
       SEP,
@@ -440,7 +493,7 @@ export function sceneContext(narrative: NarrativeState, scene: Scene): string {
 /** Estimate scene complexity to drive dynamic length guidance.
  *  Returns { prose: { min, max, tokens }, plan: { words } } */
 export function sceneScale(scene: Scene): { proseMin: number; proseMax: number; proseTokens: number; planWords: string } {
-  const mutations = scene.threadMutations.length + scene.knowledgeMutations.length + scene.relationshipMutations.length;
+  const mutations = scene.threadMutations.length + scene.continuityMutations.length + scene.relationshipMutations.length;
   const events = scene.events.length;
   const movements = scene.characterMovements ? Object.keys(scene.characterMovements).length : 0;
   const participants = scene.participantIds.length;
@@ -503,23 +556,23 @@ export function deriveLogicRules(narrative: NarrativeState, scene: Scene): strin
 
   // ── POV knowledge boundary ──────────────────────────────────────────
   if (pov) {
-    const povKnowledgeIds = new Set(pov.knowledge.nodes.map((kn) => kn.id));
+    const povKnowledgeIds = new Set(pov.continuity.nodes.map((kn) => kn.id));
     // Knowledge being added to POV this scene — they don't have it at the START
     const povLearnsThisScene = new Set(
-      scene.knowledgeMutations
+      scene.continuityMutations
         .filter((km) => km.characterId === pov.id && km.action === 'added')
         .map((km) => km.nodeId),
     );
     // POV's knowledge at scene START = current graph - things learned this scene
-    const povStartKnowledge = pov.knowledge.nodes.filter(
+    const povStartKnowledge = pov.continuity.nodes.filter(
       (kn) => !povLearnsThisScene.has(kn.id),
     );
 
     // Summarize what POV knows at scene start (cap to avoid bloat)
     const MAX_POV_KNOWLEDGE_RULES = 8;
-    const knowledgeSummary = povStartKnowledge.slice(-MAX_POV_KNOWLEDGE_RULES);
-    if (knowledgeSummary.length > 0) {
-      rules.push(`${pov.name}'s knowledge at scene start (narration is limited to this): ${knowledgeSummary.map((kn) => `"${kn.content}"`).join(', ')}${povStartKnowledge.length > MAX_POV_KNOWLEDGE_RULES ? ` (and ${povStartKnowledge.length - MAX_POV_KNOWLEDGE_RULES} earlier items)` : ''}. The narrator must NOT reference, explain, or frame events using information outside this set.`);
+    const continuitySummary = povStartKnowledge.slice(-MAX_POV_KNOWLEDGE_RULES);
+    if (continuitySummary.length > 0) {
+      rules.push(`${pov.name}'s knowledge at scene start (narration is limited to this): ${continuitySummary.map((kn) => `"${kn.content}"`).join(', ')}${povStartKnowledge.length > MAX_POV_KNOWLEDGE_RULES ? ` (and ${povStartKnowledge.length - MAX_POV_KNOWLEDGE_RULES} earlier items)` : ''}. The narrator must NOT reference, explain, or frame events using information outside this set.`);
     }
 
     // Flag knowledge that other participants have but POV does NOT
@@ -527,7 +580,7 @@ export function deriveLogicRules(narrative: NarrativeState, scene: Scene): strin
       if (pid === pov.id) continue;
       const other = narrative.characters[pid];
       if (!other) continue;
-      const otherExclusive = other.knowledge.nodes.filter(
+      const otherExclusive = other.continuity.nodes.filter(
         (kn) => !povKnowledgeIds.has(kn.id) && !povLearnsThisScene.has(kn.id),
       );
       if (otherExclusive.length > 0) {
@@ -538,7 +591,7 @@ export function deriveLogicRules(narrative: NarrativeState, scene: Scene): strin
   }
 
   // Knowledge mutations — temporal ordering within this scene
-  for (const km of scene.knowledgeMutations) {
+  for (const km of scene.continuityMutations) {
     if (km.action !== 'added') continue;
     const char = narrative.characters[km.characterId];
     if (!char) continue;
@@ -601,6 +654,39 @@ export function deriveLogicRules(narrative: NarrativeState, scene: Scene): strin
   // Events
   for (const event of scene.events) {
     rules.push(`The event "${event}" must occur in this scene.`);
+  }
+
+  // World knowledge logic — new concepts vs established concepts
+  if (scene.worldKnowledgeMutations) {
+    const newNodeIds = new Set((scene.worldKnowledgeMutations.addedNodes ?? []).map((n) => n.id));
+    // New concepts: must be revealed during the scene
+    for (const addedNode of scene.worldKnowledgeMutations.addedNodes ?? []) {
+      const shortConcept = addedNode.concept.includes(' — ') ? addedNode.concept.split(' — ')[0] : addedNode.concept;
+      rules.push(`WORLD KNOWLEDGE REVEAL: "${shortConcept}" (${addedNode.type}) has NOT been established yet at scene start — it must be revealed through a specific mechanism (demonstration, explanation, discovery, action). Do not reference it as pre-existing before its revelation beat.`);
+    }
+    // New edges: dramatise the connection
+    for (const edge of scene.worldKnowledgeMutations.addedEdges ?? []) {
+      const fromNode = narrative.worldKnowledge?.nodes[edge.from] ?? scene.worldKnowledgeMutations.addedNodes?.find((n) => n.id === edge.from);
+      const toNode = narrative.worldKnowledge?.nodes[edge.to] ?? scene.worldKnowledgeMutations.addedNodes?.find((n) => n.id === edge.to);
+      if (fromNode && toNode) {
+        const fromShort = fromNode.concept.includes(' — ') ? fromNode.concept.split(' — ')[0] : fromNode.concept;
+        const toShort = toNode.concept.includes(' — ') ? toNode.concept.split(' — ')[0] : toNode.concept;
+        rules.push(`WORLD KNOWLEDGE CONNECTION: The relationship "${fromShort}" ${edge.relation} "${toShort}" must be demonstrated through the narrative — show it through action, dialogue, or consequence, not exposition.`);
+      }
+    }
+    // Existing concepts referenced by edges: these ARE established and can be used freely
+    const referencedExistingIds = new Set<string>();
+    for (const edge of scene.worldKnowledgeMutations.addedEdges ?? []) {
+      if (!newNodeIds.has(edge.from) && narrative.worldKnowledge?.nodes[edge.from]) referencedExistingIds.add(edge.from);
+      if (!newNodeIds.has(edge.to) && narrative.worldKnowledge?.nodes[edge.to]) referencedExistingIds.add(edge.to);
+    }
+    if (referencedExistingIds.size > 0) {
+      const established = [...referencedExistingIds].map((id) => {
+        const node = narrative.worldKnowledge.nodes[id];
+        return node?.concept.includes(' — ') ? node.concept.split(' — ')[0] : node?.concept ?? id;
+      });
+      rules.push(`ESTABLISHED WORLD KNOWLEDGE (can be referenced freely): ${established.join(', ')}.`);
+    }
   }
 
   // Character movement

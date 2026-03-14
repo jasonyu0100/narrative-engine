@@ -1,5 +1,5 @@
 import type {
-  KnowledgeNode,
+  ContinuityNode,
   RelationshipEdge,
   Scene,
   WorldBuildCommit,
@@ -36,13 +36,13 @@ export function getIntroducedIds(
  * knowledge mutations forward. Handles initial nodes (present from world-build
  * creation and never added by a scene) as well as scene-added / scene-removed nodes.
  */
-export function getKnowledgeNodesAtScene(
-  allNodes: KnowledgeNode[],
+export function getContinuityNodesAtScene(
+  allNodes: ContinuityNode[],
   characterId: string,
   scenes: Record<string, Scene>,
   resolvedSceneKeys: string[],
   currentSceneIndex: number,
-): KnowledgeNode[] {
+): ContinuityNode[] {
   // Collect the first mutation type for each node across the full timeline.
   // If a node's first mutation is 'removed', it must have existed initially
   // (introduced by a world-build) and was later removed by a scene.
@@ -50,7 +50,7 @@ export function getKnowledgeNodesAtScene(
   for (const key of resolvedSceneKeys) {
     const scene = scenes[key];
     if (!scene) continue;
-    for (const km of scene.knowledgeMutations) {
+    for (const km of scene.continuityMutations) {
       if (km.characterId === characterId && !firstMutation.has(km.nodeId)) {
         firstMutation.set(km.nodeId, km.action);
       }
@@ -67,7 +67,7 @@ export function getKnowledgeNodesAtScene(
   for (let i = 0; i <= currentSceneIndex && i < resolvedSceneKeys.length; i++) {
     const scene = scenes[resolvedSceneKeys[i]];
     if (!scene) continue;
-    for (const km of scene.knowledgeMutations) {
+    for (const km of scene.continuityMutations) {
       if (km.characterId !== characterId) continue;
       if (km.action === 'added') active.add(km.nodeId);
       else active.delete(km.nodeId);

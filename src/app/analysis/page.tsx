@@ -10,7 +10,7 @@ import { ANALYSIS_MAX_CORPUS_WORDS } from '@/lib/constants';
 
 /* ── Word Node type ─────────────────────────────────────────────────────── */
 
-type WordNode = { label: string; type: 'character' | 'location' | 'thread'; count: number; firstSeen: number };
+type WordNode = { label: string; type: 'character' | 'location' | 'thread' | 'knowledge'; count: number; firstSeen: number; knowledgeType?: string };
 
 /* ── Job detail panel ─────────────────────────────────────────────────────── */
 function JobDetail({ job }: { job: AnalysisJob }) {
@@ -19,6 +19,7 @@ function JobDetail({ job }: { job: AnalysisJob }) {
   const streamRef = useRef<HTMLPreElement>(null);
   const [streamText, setStreamText] = useState(() => analysisRunner.getStreamText(job.id));
   const [selectedChunk, setSelectedChunk] = useState<number | null>(null);
+  const [chunkPanelHeight, setChunkPanelHeight] = useState(35);
   const [inFlightIndices, setInFlightIndices] = useState<number[]>(() => analysisRunner.getInFlightIndices(job.id));
   const [chunkStreamTexts, setChunkStreamTexts] = useState<Map<number, string>>(new Map());
   const [viewingChunkStream, setViewingChunkStream] = useState<number | null>(null);
@@ -81,25 +82,37 @@ function JobDetail({ job }: { job: AnalysisJob }) {
         if (existing) { existing.count++; }
         else { map.set(key, { label: t.description, type: 'thread', count: 1, firstSeen: chunkIdx }); }
       }
+      for (const s of result.scenes ?? []) {
+        for (const n of s.worldKnowledgeMutations?.addedNodes ?? []) {
+          const shortConcept = n.concept.includes(' — ') ? n.concept.split(' — ')[0] : n.concept;
+          const key = `knowledge-${shortConcept}`;
+          const existing = map.get(key);
+          if (existing) { existing.count++; }
+          else { map.set(key, { label: shortConcept, type: 'knowledge', count: 1, firstSeen: chunkIdx, knowledgeType: n.type }); }
+        }
+      }
     });
 
     return Array.from(map.values());
   }, [liveJob.results]);
 
   // Separate word nodes by type
-  const { characters, locations, threads } = useMemo(() => {
+  const { characters, locations, threads, knowledge } = useMemo(() => {
     const c: WordNode[] = [];
     const l: WordNode[] = [];
     const t: WordNode[] = [];
+    const k: WordNode[] = [];
     for (const n of wordNodes) {
       if (n.type === 'character') c.push(n);
       else if (n.type === 'location') l.push(n);
+      else if (n.type === 'knowledge') k.push(n);
       else t.push(n);
     }
     c.sort((a, b) => b.count - a.count);
     l.sort((a, b) => b.count - a.count);
     t.sort((a, b) => b.count - a.count);
-    return { characters: c, locations: l, threads: t };
+    k.sort((a, b) => b.count - a.count);
+    return { characters: c, locations: l, threads: t, knowledge: k };
   }, [wordNodes]);
 
   const maxCount = Math.max(1, ...wordNodes.map((n) => n.count));
@@ -126,6 +139,7 @@ function JobDetail({ job }: { job: AnalysisJob }) {
   const locCount = new Set(completed.flatMap((r) => r.locations.map((l) => l.name))).size;
   const sceneCount = completed.reduce((sum, r) => sum + (r.scenes?.length ?? 0), 0);
   const threadCount = new Set(completed.flatMap((r) => r.threads.map((t) => t.description))).size;
+  const knowledgeCount = new Set(completed.flatMap((r) => (r.scenes ?? []).flatMap((s) => (s.worldKnowledgeMutations?.addedNodes ?? []).map((n) => n.concept)))).size;
 
   // Current chunk stream text for viewing
   const activeChunkStream = viewingChunkStream !== null ? (chunkStreamTexts.get(viewingChunkStream) ?? '') : '';
@@ -136,11 +150,13 @@ function JobDetail({ job }: { job: AnalysisJob }) {
     const opacity = 0.35 + ratio * 0.65;
     const isHighFreq = ratio > 0.5;
 
-    const styles = {
+    const styleMap: Record<string, { cls: string; glow: string }> = {
       character: { cls: 'text-white/90', glow: 'rgba(255,255,255,0.12)' },
       location: { cls: 'text-emerald-400', glow: 'rgba(52,211,153,0.18)' },
       thread: { cls: 'text-sky-400', glow: 'rgba(56,189,248,0.15)' },
-    }[node.type];
+      knowledge: { cls: node.knowledgeType === 'law' ? 'text-amber-400' : node.knowledgeType === 'system' ? 'text-sky-300' : node.knowledgeType === 'tension' ? 'text-rose-400' : 'text-violet-400', glow: node.knowledgeType === 'law' ? 'rgba(251,191,36,0.18)' : node.knowledgeType === 'tension' ? 'rgba(251,113,133,0.18)' : 'rgba(167,139,250,0.18)' },
+    };
+    const styles = styleMap[node.type];
 
     return (
       <span
@@ -186,6 +202,7 @@ function JobDetail({ job }: { job: AnalysisJob }) {
               { value: locCount, color: 'text-emerald-400/60', dot: 'bg-emerald-400/40', label: 'loc' },
               { value: sceneCount, color: 'text-white/35', dot: 'bg-white/20', label: 'scn' },
               { value: threadCount, color: 'text-sky-400/50', dot: 'bg-sky-400/30', label: 'thr' },
+              { value: knowledgeCount, color: 'text-violet-400/60', dot: 'bg-violet-400/40', label: 'wk' },
             ].map((s) => (
               <div key={s.label} className="flex items-center gap-1.5">
                 <div className={`w-1 h-1 rounded-full ${s.dot}`} />
@@ -330,6 +347,19 @@ function JobDetail({ job }: { job: AnalysisJob }) {
                   </div>
                 </div>
               )}
+
+              {/* World Knowledge */}
+              {knowledge.length > 0 && (
+                <div>
+                  <div className="flex items-center gap-2 mb-3">
+                    <div className="w-1.5 h-1.5 rounded-full bg-violet-400/50" />
+                    <span className="text-[9px] uppercase tracking-[0.2em] text-white/20 font-mono">World Knowledge ({knowledge.length})</span>
+                  </div>
+                  <div className="flex flex-wrap items-baseline gap-x-4 gap-y-1.5">
+                    {knowledge.map(renderNode)}
+                  </div>
+                </div>
+              )}
             </div>
           )}
         </div>
@@ -441,70 +471,147 @@ function JobDetail({ job }: { job: AnalysisJob }) {
         )}
       </div>
 
-      {/* ── Chunk detail panel — above timeline when a chunk is selected ── */}
+      {/* ── Chunk detail panel — resizable ── */}
       {selectedChunk !== null && (() => {
         const result = liveJob.results[selectedChunk] as AnalysisChunkResult | null;
         if (!result) return null;
+        const wkNodes = (result.scenes ?? []).flatMap((s) => s.worldKnowledgeMutations?.addedNodes ?? []);
+        const wkEdges = (result.scenes ?? []).flatMap((s) => s.worldKnowledgeMutations?.addedEdges ?? []);
+        const wkTypeColors: Record<string, string> = { law: 'text-amber-400', system: 'text-sky-400', concept: 'text-violet-400', tension: 'text-rose-400' };
         return (
-          <div className="shrink-0 border-t border-white/6 bg-black/30 overflow-y-auto max-h-[35vh]" style={{ scrollbarWidth: 'thin' }}>
-            <div className="px-8 py-4">
-              <div className="flex items-center justify-between mb-3">
-                <h3 className="text-xs font-semibold text-white/70">Chunk {selectedChunk + 1}</h3>
-                <button onClick={() => setSelectedChunk(null)} className="text-[10px] text-white/20 hover:text-white/50 transition">&times; close</button>
+          <div className="shrink-0 border-t border-white/8 flex flex-col" style={{ height: `${chunkPanelHeight}vh` }}>
+            {/* Drag handle */}
+            <div
+              className="h-2 cursor-ns-resize flex items-center justify-center hover:bg-white/4 transition-colors shrink-0"
+              onMouseDown={(e) => {
+                e.preventDefault();
+                const startY = e.clientY;
+                const startH = chunkPanelHeight;
+                const onMove = (ev: MouseEvent) => {
+                  const delta = startY - ev.clientY;
+                  setChunkPanelHeight(Math.max(15, Math.min(80, startH + (delta / window.innerHeight) * 100)));
+                };
+                const onUp = () => { window.removeEventListener('mousemove', onMove); window.removeEventListener('mouseup', onUp); };
+                window.addEventListener('mousemove', onMove);
+                window.addEventListener('mouseup', onUp);
+              }}
+            >
+              <div className="w-10 h-0.5 rounded-full bg-white/15" />
+            </div>
+
+            {/* Scrollable content */}
+            <div className="flex-1 overflow-y-auto px-6 pb-4" style={{ scrollbarWidth: 'thin' }}>
+              {/* Header */}
+              <div className="flex items-center justify-between py-3">
+                <div className="flex items-center gap-3">
+                  <span className="text-sm font-semibold text-text-primary">Chunk {selectedChunk + 1}</span>
+                  <div className="flex items-center gap-2 text-[10px] text-text-dim">
+                    <span>{result.characters?.length ?? 0} chars</span>
+                    <span className="text-white/10">·</span>
+                    <span>{result.locations?.length ?? 0} locs</span>
+                    <span className="text-white/10">·</span>
+                    <span>{result.scenes?.length ?? 0} scenes</span>
+                    <span className="text-white/10">·</span>
+                    <span>{result.threads?.length ?? 0} threads</span>
+                    {wkNodes.length > 0 && <>
+                      <span className="text-white/10">·</span>
+                      <span className="text-violet-400/70">{wkNodes.length} knowledge</span>
+                    </>}
+                  </div>
+                </div>
+                <button onClick={() => setSelectedChunk(null)} className="text-xs text-text-dim hover:text-text-secondary transition px-2 py-1 rounded hover:bg-white/5">&times;</button>
               </div>
 
+              {/* Summary */}
               {result.chapterSummary && (
-                <p className="text-[11px] text-white/35 leading-relaxed mb-4 italic">{result.chapterSummary}</p>
+                <p className="text-[11px] text-text-secondary leading-relaxed mb-5 italic">{result.chapterSummary}</p>
               )}
 
-              <div className="grid grid-cols-2 gap-6">
-                <div>
-                  <div className="text-[9px] uppercase tracking-[0.15em] text-white/20 font-mono mb-2">Characters ({result.characters?.length ?? 0})</div>
-                  <div className="flex flex-wrap gap-1.5">
-                    {result.characters?.map((c, ci) => (
-                      <span key={`${c.name}-${ci}`} className={`text-[10px] px-2 py-0.5 rounded-full ${
-                        c.role === 'anchor' ? 'bg-white/8 text-white/60 font-medium' :
-                        c.role === 'recurring' ? 'bg-white/5 text-white/40' :
-                        'bg-white/3 text-white/25'
-                      }`}>
-                        {c.name}
-                      </span>
-                    ))}
+              {/* Three-column grid: entities | scenes | knowledge */}
+              <div className="grid grid-cols-3 gap-6">
+                {/* Column 1: Characters + Locations + Threads */}
+                <div className="space-y-5">
+                  <div>
+                    <div className="text-[9px] uppercase tracking-[0.15em] text-text-dim font-mono mb-2">Characters</div>
+                    <div className="flex flex-wrap gap-1.5">
+                      {result.characters?.map((c, ci) => (
+                        <span key={`${c.name}-${ci}`} className={`text-[10px] px-2.5 py-1 rounded-md ${
+                          c.role === 'anchor' ? 'bg-white/10 text-text-primary font-medium' :
+                          c.role === 'recurring' ? 'bg-white/6 text-text-secondary' :
+                          'bg-white/3 text-text-dim'
+                        }`}>
+                          {c.name}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div>
+                    <div className="text-[9px] uppercase tracking-[0.15em] text-text-dim font-mono mb-2">Locations</div>
+                    <div className="flex flex-wrap gap-1.5">
+                      {result.locations?.map((l, li) => (
+                        <span key={`${l.name}-${li}`} className="text-[10px] bg-emerald-500/10 text-emerald-400/70 px-2.5 py-1 rounded-md">
+                          {l.name}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div>
+                    <div className="text-[9px] uppercase tracking-[0.15em] text-text-dim font-mono mb-2">Threads</div>
+                    <div className="space-y-1.5">
+                      {result.threads?.map((t, ti) => (
+                        <div key={ti} className="text-[10px] leading-snug flex items-start gap-2">
+                          <span className="text-[9px] text-sky-400/50 font-mono shrink-0 mt-0.5">{t.statusAtEnd}</span>
+                          <span className="text-text-secondary">{t.description}</span>
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 </div>
 
+                {/* Column 2: Scenes */}
                 <div>
-                  <div className="text-[9px] uppercase tracking-[0.15em] text-white/20 font-mono mb-2">Locations ({result.locations?.length ?? 0})</div>
-                  <div className="flex flex-wrap gap-1.5">
-                    {result.locations?.map((l, li) => (
-                      <span key={`${l.name}-${li}`} className="text-[10px] bg-emerald-500/8 text-emerald-400/50 px-2 py-0.5 rounded-full">
-                        {l.name}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-
-                <div>
-                  <div className="text-[9px] uppercase tracking-[0.15em] text-white/20 font-mono mb-2">Threads ({result.threads?.length ?? 0})</div>
-                  <div className="space-y-1">
-                    {result.threads?.map((t, ti) => (
-                      <div key={ti} className="text-[10px] text-sky-400/40 leading-snug">
-                        <span className="text-sky-400/20 mr-1">{t.statusAtEnd}</span> {t.description}
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                <div>
-                  <div className="text-[9px] uppercase tracking-[0.15em] text-white/20 font-mono mb-2">Scenes ({result.scenes?.length ?? 0})</div>
-                  <div className="space-y-2">
+                  <div className="text-[9px] uppercase tracking-[0.15em] text-text-dim font-mono mb-2">Scenes</div>
+                  <div className="space-y-3">
                     {result.scenes?.map((s, si) => (
-                      <div key={si} className="text-[10px] leading-snug">
-                        <div className="text-white/30 font-medium">{s.locationName} &mdash; {s.povName}</div>
-                        <div className="text-white/20 mt-0.5">{s.summary}</div>
+                      <div key={si} className="border-l-2 border-white/6 pl-3">
+                        <div className="text-[10px] text-text-primary font-medium">{s.locationName} — {s.povName}</div>
+                        <div className="text-[10px] text-text-dim mt-1 leading-relaxed">{s.summary}</div>
                       </div>
                     ))}
                   </div>
+                </div>
+
+                {/* Column 3: World Knowledge */}
+                <div>
+                  <div className="text-[9px] uppercase tracking-[0.15em] text-text-dim font-mono mb-2">World Knowledge</div>
+                  {wkNodes.length > 0 ? (
+                    <div className="space-y-4">
+                      <div className="space-y-1.5">
+                        {wkNodes.map((n, ni) => (
+                          <div key={ni} className="flex items-start gap-2">
+                            <span className={`text-[9px] font-mono shrink-0 mt-0.5 ${wkTypeColors[n.type] ?? 'text-text-dim'}`}>{n.type}</span>
+                            <span className="text-[10px] text-text-secondary">{n.concept.includes(' — ') ? n.concept.split(' — ')[0] : n.concept}</span>
+                          </div>
+                        ))}
+                      </div>
+                      {wkEdges.length > 0 && (
+                        <div className="space-y-1 border-t border-white/5 pt-3">
+                          <div className="text-[9px] uppercase tracking-[0.15em] text-text-dim font-mono mb-1.5">Connections</div>
+                          {wkEdges.map((e, ei) => (
+                            <div key={ei} className="text-[10px] text-text-dim">
+                              <span className="text-text-secondary">{e.fromConcept}</span>
+                              {' '}<span className="italic text-text-dim">{e.relation}</span>{' '}
+                              <span className="text-text-secondary">{e.toConcept}</span>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <p className="text-[10px] text-text-dim italic">No world knowledge in this chunk</p>
+                  )}
                 </div>
               </div>
             </div>
@@ -661,6 +768,10 @@ function NewJobSetup({ sourceText, onCreated }: { sourceText: string; onCreated:
     };
     dispatch({ type: 'ADD_ANALYSIS_JOB', job });
     onCreated(job.id);
+    // Auto-start the analysis runner immediately
+    analysisRunner.start(job).catch((err) => {
+      console.error('[analysis] auto-start failed:', err);
+    });
   };
 
   return (

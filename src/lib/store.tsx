@@ -1,6 +1,6 @@
 'use client';
 
-import React, { createContext, useContext, useReducer, useEffect, useRef, type ReactNode } from 'react';
+import React, { createContext, useContext, useReducer, useEffect, useRef, useMemo, type ReactNode } from 'react';
 import type { AppState, ControlMode, InspectorContext, NarrativeState, NarrativeEntry, WizardStep, WizardData, Scene, Arc, Branch, Character, Location, Thread, RelationshipEdge, GraphViewMode, AutoConfig, AutoRunState, AutoRunLog, WorldBuildCommit } from '@/types/narrative';
 import { seedNarrative } from '@/data/seed-ri';
 import { seedGOT } from '@/data/seed-got';
@@ -59,13 +59,14 @@ function updateNarrative(
 /**
  * Apply scene mutations (relationship + knowledge) to the narrative state.
  * - relationshipMutations: update valence of existing edges or create new ones
- * - knowledgeMutations: add/remove knowledge nodes on characters
+ * - continuityMutations: add/remove knowledge nodes on characters
  * - threadMutations: update thread statuses
  */
 function applySceneMutations(n: NarrativeState, scenes: Scene[]): NarrativeState {
   let relationships = [...n.relationships];
   const characters = { ...n.characters };
   const threads = { ...n.threads };
+  const worldKnowledge = { nodes: { ...n.worldKnowledge?.nodes }, edges: [...(n.worldKnowledge?.edges ?? [])] };
 
   for (const scene of scenes) {
     // ── Apply relationship mutations ──────────────────────────────────
@@ -91,28 +92,28 @@ function applySceneMutations(n: NarrativeState, scenes: Scene[]): NarrativeState
     }
 
     // ── Apply knowledge mutations ─────────────────────────────────────
-    for (const km of scene.knowledgeMutations) {
+    for (const km of scene.continuityMutations) {
       const char = characters[km.characterId];
       if (!char) continue;
 
       if (km.action === 'added') {
         // Add knowledge node if it doesn't already exist
-        const exists = char.knowledge.nodes.some((kn) => kn.id === km.nodeId);
+        const exists = char.continuity.nodes.some((kn) => kn.id === km.nodeId);
         if (!exists) {
           characters[km.characterId] = {
             ...char,
-            knowledge: {
-              ...char.knowledge,
-              nodes: [...char.knowledge.nodes, { id: km.nodeId, type: km.nodeType ?? 'learned', content: km.content }],
+            continuity: {
+              ...char.continuity,
+              nodes: [...char.continuity.nodes, { id: km.nodeId, type: km.nodeType ?? 'learned', content: km.content }],
             },
           };
         }
       } else if (km.action === 'removed') {
         characters[km.characterId] = {
           ...char,
-          knowledge: {
-            ...char.knowledge,
-            nodes: char.knowledge.nodes.filter((kn) => kn.id !== km.nodeId),
+          continuity: {
+            ...char.continuity,
+            nodes: char.continuity.nodes.filter((kn) => kn.id !== km.nodeId),
           },
         };
       }
@@ -125,9 +126,24 @@ function applySceneMutations(n: NarrativeState, scenes: Scene[]): NarrativeState
         threads[tm.threadId] = { ...thread, status: tm.to };
       }
     }
+
+    // ── Apply world knowledge mutations ──────────────────────────────
+    const wkm = scene.worldKnowledgeMutations;
+    if (wkm) {
+      for (const node of wkm.addedNodes ?? []) {
+        if (!worldKnowledge.nodes[node.id]) {
+          worldKnowledge.nodes[node.id] = { id: node.id, concept: node.concept, type: node.type };
+        }
+      }
+      for (const edge of wkm.addedEdges ?? []) {
+        if (!worldKnowledge.edges.some((e: { from: string; to: string; relation: string }) => e.from === edge.from && e.to === edge.to && e.relation === edge.relation)) {
+          worldKnowledge.edges.push({ from: edge.from, to: edge.to, relation: edge.relation });
+        }
+      }
+    }
   }
 
-  return { ...n, relationships, characters, threads };
+  return { ...n, relationships, characters, threads, worldKnowledge };
 }
 
 export const SEED_NARRATIVE_IDS = SEED_IDS;
@@ -148,7 +164,7 @@ const initialState: AppState = {
   wizardData: { title: '', premise: '', characters: [], locations: [], rules: [] },
   selectedKnowledgeEntity: null,
   autoTimer: 30,
-  graphViewMode: 'scene',
+  graphViewMode: 'spatial',
   autoConfig: {
     objective: 'explore_and_resolve',
     endConditions: [{ type: 'scene_count', target: 50 }],
@@ -218,7 +234,7 @@ export type Action =
   | { type: 'ADD_RELATIONSHIP'; relationship: RelationshipEdge }
   | { type: 'REMOVE_RELATIONSHIP'; from: string; to: string }
   | { type: 'BULK_ADD_SCENES'; scenes: Scene[]; arc: Arc; branchId: string }
-  | { type: 'EXPAND_WORLD'; wxId: string; characters: Character[]; locations: Location[]; threads: Thread[]; relationships: RelationshipEdge[]; branchId: string }
+  | { type: 'EXPAND_WORLD'; wxId: string; characters: Character[]; locations: Location[]; threads: Thread[]; relationships: RelationshipEdge[]; branchId: string; worldKnowledgeMutations?: import('@/types/narrative').WorldKnowledgeMutation }
   | { type: 'REPLACE_NARRATIVE'; narrative: NarrativeState }
   // Auto mode
   | { type: 'SET_AUTO_CONFIG'; config: AutoConfig }
@@ -800,6 +816,7 @@ function reducer(state: AppState, action: Action): AppState {
           threadIds: action.threads.map((t) => t.id),
           relationshipCount: action.relationships.length,
         },
+        worldKnowledgeMutations: action.worldKnowledgeMutations,
       };
 
       const newState = updateNarrative(state, (n) => {
@@ -815,6 +832,34 @@ function reducer(state: AppState, action: Action): AppState {
         for (const t of action.threads) newThreads[t.id] = { ...t, openedAt: wxId };
         const newRelationships = [...n.relationships, ...action.relationships];
 
+        // Apply world knowledge: explicit mutations from action + auto-generated from new entities
+        const wk = { nodes: { ...n.worldKnowledge?.nodes }, edges: [...(n.worldKnowledge?.edges ?? [])] };
+        const existingWkIds = Object.keys(wk.nodes);
+        let wkCounter = existingWkIds.length;
+        // Explicit mutations (if provided)
+        const wkm = action.worldKnowledgeMutations;
+        if (wkm) {
+          for (const node of wkm.addedNodes ?? []) {
+            if (!wk.nodes[node.id]) wk.nodes[node.id] = { id: node.id, concept: node.concept, type: node.type };
+          }
+          for (const edge of wkm.addedEdges ?? []) {
+            if (!wk.edges.some((e: { from: string; to: string; relation: string }) => e.from === edge.from && e.to === edge.to && e.relation === edge.relation)) {
+              wk.edges.push({ from: edge.from, to: edge.to, relation: edge.relation });
+            }
+          }
+        }
+        // Auto-generate for new threads and locations (skip if already covered by explicit mutations)
+        for (const t of action.threads) {
+          if (Object.values(wk.nodes).some((n) => n.concept === t.description)) continue;
+          const wkId = `WK-${String(++wkCounter).padStart(2, '0')}`;
+          wk.nodes[wkId] = { id: wkId, concept: t.description, type: 'concept' as const };
+        }
+        for (const l of action.locations) {
+          if (Object.values(wk.nodes).some((n) => n.concept === l.name)) continue;
+          const wkId = `WK-${String(++wkCounter).padStart(2, '0')}`;
+          wk.nodes[wkId] = { id: wkId, concept: l.name, type: 'concept' as const };
+        }
+
         const branch = n.branches[action.branchId];
         const updatedBranches = branch
           ? { ...n.branches, [action.branchId]: { ...branch, entryIds: [...branch.entryIds, wxId] } }
@@ -826,6 +871,7 @@ function reducer(state: AppState, action: Action): AppState {
           locations: newLocations,
           threads: newThreads,
           relationships: newRelationships,
+          worldKnowledge: wk,
           worldBuilds: { ...n.worldBuilds, [wxId]: wxCommit },
           branches: updatedBranches,
         };
@@ -1155,8 +1201,10 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
 
+  const contextValue = useMemo(() => ({ state, dispatch }), [state, dispatch]);
+
   return (
-    <StoreContext.Provider value={{ state, dispatch }}>
+    <StoreContext.Provider value={contextValue}>
       {children}
     </StoreContext.Provider>
   );

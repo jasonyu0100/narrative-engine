@@ -102,7 +102,7 @@ export default function TopBar() {
     const rawForces = raw.payoff.map((_, i) => ({
       payoff: raw.payoff[i],
       change: raw.change[i],
-      variety: raw.variety[i],
+      knowledge: raw.knowledge[i],
     }));
     const swings = computeSwingMagnitudes(rawForces, FORCE_REFERENCE_MEANS);
 
@@ -116,7 +116,7 @@ export default function TopBar() {
     const stats = {
       payoff: forceStats(raw.payoff),
       change: forceStats(raw.change),
-      variety: forceStats(raw.variety),
+      knowledge: forceStats(raw.knowledge),
       swing: forceStats(swings),
     };
 
@@ -134,7 +134,7 @@ export default function TopBar() {
 
         const arcPayoffs = forceIndices.map((i) => raw.payoff[i]);
         const arcChanges = forceIndices.map((i) => raw.change[i]);
-        const arcVarieties = forceIndices.map((i) => raw.variety[i]);
+        const arcVarieties = forceIndices.map((i) => raw.knowledge[i]);
         const arcSwingVals = forceIndices.map((i, idx) => idx === 0 ? 0 : swings[i]);
 
         return {
@@ -145,9 +145,7 @@ export default function TopBar() {
       })
       .filter((a): a is NonNullable<typeof a> => a !== null);
 
-    // Series-level grades with arc streak
-    const arcOveralls = perArc.map(a => a.grades.overall);
-    const seriesGrades = gradeForces(raw.payoff, raw.change, raw.variety, swings, arcOveralls);
+    const seriesGrades = gradeForces(raw.payoff, raw.change, raw.knowledge, swings);
 
     // Narrative shape classification from engagement curve
     const normSnapshots = Object.values(computeForceSnapshots(allScenes));
@@ -436,7 +434,7 @@ export default function TopBar() {
                 {([
                   { key: 'payoff' as const, label: 'Payoff', color: '#EF4444' },
                   { key: 'change' as const, label: 'Change', color: '#22C55E' },
-                  { key: 'variety' as const, label: 'Variety', color: '#3B82F6' },
+                  { key: 'knowledge' as const, label: 'Knowledge', color: '#3B82F6' },
                   { key: 'swing' as const, label: 'Swing', color: '#facc15' },
                 ]).map((row) => {
                   const s = scorecard[row.key];
@@ -461,42 +459,15 @@ export default function TopBar() {
                       </div>
                       <div className="bg-bg-base p-2 text-center">
                         <span className={`text-[12px] font-mono font-semibold ${
-                          grade >= 18 ? 'text-green-400' :
-                          grade >= 16 ? 'text-lime-400' :
-                          grade >= 14 ? 'text-yellow-400' :
-                          grade >= 12 ? 'text-orange-400' : 'text-red-400'
-                        }`}>{grade}<span className="text-[9px] text-text-dim font-normal">/20</span></span>
+                          grade >= 22 ? 'text-green-400' :
+                          grade >= 20 ? 'text-lime-400' :
+                          grade >= 17 ? 'text-yellow-400' :
+                          grade >= 15 ? 'text-orange-400' : 'text-red-400'
+                        }`}>{grade}<span className="text-[9px] text-text-dim font-normal">/25</span></span>
                       </div>
                     </React.Fragment>
                   );
                 })}
-                {/* Streak row */}
-                <React.Fragment>
-                  <div className="bg-bg-base p-2 flex items-center gap-2">
-                    <div className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: '#a78bfa' }} />
-                    <span className="text-[10px] font-medium" style={{ color: '#a78bfa' }}>Streak</span>
-                  </div>
-                  <div className="bg-bg-base p-2 text-center">
-                    <span className="text-[12px] font-mono text-text-dim">&mdash;</span>
-                  </div>
-                  <div className="bg-bg-base p-2 text-center">
-                    <span className="text-[12px] font-mono text-text-dim">&mdash;</span>
-                  </div>
-                  <div className="bg-bg-base p-2 text-center">
-                    <span className="text-[12px] font-mono text-text-dim">&mdash;</span>
-                  </div>
-                  <div className="bg-bg-base p-2 text-center">
-                    <span className="text-[12px] font-mono text-text-dim">&mdash;</span>
-                  </div>
-                  <div className="bg-bg-base p-2 text-center">
-                    <span className={`text-[12px] font-mono font-semibold ${
-                      scorecard.grades.streak >= 18 ? 'text-green-400' :
-                      scorecard.grades.streak >= 16 ? 'text-lime-400' :
-                      scorecard.grades.streak >= 14 ? 'text-yellow-400' :
-                      scorecard.grades.streak >= 12 ? 'text-orange-400' : 'text-red-400'
-                    }`}>{scorecard.grades.streak}<span className="text-[9px] text-text-dim font-normal">/20</span></span>
-                  </div>
-                </React.Fragment>
               </div>
 
               {/* Shape classification */}

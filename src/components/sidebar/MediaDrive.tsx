@@ -171,12 +171,12 @@ export default function MediaDrive() {
     if (!narrative || generating || requireKeys()) return;
     setGenerating(char.id);
     try {
-      const hints = char.knowledge.nodes.map((n) => `${n.type}: ${n.content}`);
+      const hints = char.continuity.nodes.map((n) => `${n.type}: ${n.content}`);
       const { imageUrl } = await generateImage('character', {
         name: char.name,
         role: char.role,
         worldSummary: narrative.worldSummary,
-        knowledgeHints: hints.slice(0, 5),
+        continuityHints: hints.slice(0, 5),
         imagePrompt: char.imagePrompt,
         imageStyle: narrative.imageStyle,
       });
@@ -193,12 +193,12 @@ export default function MediaDrive() {
     setGenerating(loc.id);
     try {
       const parentName = loc.parentId ? narrative.locations[loc.parentId]?.name : undefined;
-      const hints = loc.knowledge.nodes.map((n) => `${n.type}: ${n.content}`);
+      const hints = loc.continuity.nodes.map((n) => `${n.type}: ${n.content}`);
       const { imageUrl } = await generateImage('location', {
         name: loc.name,
         parentName,
         worldSummary: narrative.worldSummary,
-        knowledgeHints: hints.slice(0, 5),
+        continuityHints: hints.slice(0, 5),
         imagePrompt: loc.imagePrompt,
         imageStyle: narrative.imageStyle,
       });
@@ -227,7 +227,7 @@ export default function MediaDrive() {
               name: char.name,
               role: char.role,
               worldSummary: narrative.worldSummary,
-              knowledgeHints: char.knowledge.nodes.map((n) => `${n.type}: ${n.content}`).slice(0, 5),
+              continuityHints: char.continuity.nodes.map((n) => `${n.type}: ${n.content}`).slice(0, 5),
               imagePrompt: char.imagePrompt,
               imageStyle: narrative.imageStyle,
             })
@@ -247,7 +247,7 @@ export default function MediaDrive() {
               name: loc.name,
               parentName,
               worldSummary: narrative.worldSummary,
-              knowledgeHints: loc.knowledge.nodes.map((n) => `${n.type}: ${n.content}`).slice(0, 5),
+              continuityHints: loc.continuity.nodes.map((n) => `${n.type}: ${n.content}`).slice(0, 5),
               imagePrompt: loc.imagePrompt,
               imageStyle: narrative.imageStyle,
             })
@@ -266,7 +266,7 @@ export default function MediaDrive() {
         .filter(Boolean)
         .map((c) => ({
           name: c.name,
-          visualDescription: c.imagePrompt || c.knowledge.nodes.slice(0, 3).map((n) => n.content).join('. ') || c.role,
+          visualDescription: c.imagePrompt || c.continuity.nodes.slice(0, 3).map((n) => n.content).join('. ') || c.role,
         }));
       const { imageUrl } = await generateImage('scene', {
         summary: readiness.scene.summary,

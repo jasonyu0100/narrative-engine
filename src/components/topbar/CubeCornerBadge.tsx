@@ -22,7 +22,7 @@ export default function CubeCornerBadge() {
   const forces = useMemo(() => {
     if (!narrative || allScenes.length === 0) return null;
     const forceMap = computeForceSnapshots(allScenes);
-    let lastForce = { payoff: 0, change: 0, variety: 0 };
+    let lastForce = { payoff: 0, change: 0, knowledge: 0 };
     for (let i = 0; i <= currentSceneIndex && i < resolvedSceneKeys.length; i++) {
       const entry = resolveEntry(narrative, resolvedSceneKeys[i]);
       if (entry && isScene(entry)) {
@@ -36,7 +36,7 @@ export default function CubeCornerBadge() {
   const prevForces = useMemo(() => {
     if (!narrative || allScenes.length === 0 || currentSceneIndex < 1) return null;
     const forceMap = computeForceSnapshots(allScenes);
-    let lastForce = { payoff: 0, change: 0, variety: 0 };
+    let lastForce = { payoff: 0, change: 0, knowledge: 0 };
     for (let i = 0; i < currentSceneIndex && i < resolvedSceneKeys.length; i++) {
       const entry = resolveEntry(narrative, resolvedSceneKeys[i]);
       if (entry && isScene(entry)) {

@@ -9,6 +9,8 @@ import type {
   Branch,
   RelationshipEdge,
   WorldBuildCommit,
+  WorldKnowledgeNode,
+  WorldKnowledgeEdge,
 } from '@/types/narrative';
 
 // ── Characters ───────────────────────────────────────────────────────────────
@@ -18,7 +20,7 @@ const characters: Record<string, Character> = {
     name: 'Eddard Stark',
     role: 'anchor',
     threadIds: ['T-GOT-01', 'T-GOT-02', 'T-GOT-05'],
-    knowledge: {
+    continuity: {
       nodes: [
         { id: 'K-GOT-01', type: 'knows', content: 'Jon Arryn, former Hand of the King, is dead under suspicious circumstances' },
         { id: 'K-GOT-02', type: 'believes', content: 'Honor is the foundation upon which a man builds his life — without it, nothing stands' },
@@ -36,7 +38,7 @@ const characters: Record<string, Character> = {
     name: 'Cersei Lannister',
     role: 'anchor',
     threadIds: ['T-GOT-01', 'T-GOT-05', 'T-GOT-06'],
-    knowledge: {
+    continuity: {
       nodes: [
         { id: 'K-GOT-10', type: 'secret', content: 'Her three children — Joffrey, Myrcella, Tommen — are fathered by her twin brother Jaime, not Robert' },
         { id: 'K-GOT-11', type: 'knows', content: 'Jon Arryn was investigating the parentage of her children before he died' },
@@ -53,7 +55,7 @@ const characters: Record<string, Character> = {
     name: 'Tyrion Lannister',
     role: 'recurring',
     threadIds: ['T-GOT-05', 'T-GOT-07'],
-    knowledge: {
+    continuity: {
       nodes: [
         { id: 'K-GOT-20', type: 'knows', content: 'His family views him as a stain on the Lannister name — only Jaime treats him with genuine affection' },
         { id: 'K-GOT-21', type: 'believes', content: 'A mind needs books like a sword needs a whetstone — intelligence is his only weapon' },
@@ -69,7 +71,7 @@ const characters: Record<string, Character> = {
     name: 'Daenerys Targaryen',
     role: 'recurring',
     threadIds: ['T-GOT-03'],
-    knowledge: {
+    continuity: {
       nodes: [
         { id: 'K-GOT-30', type: 'knows', content: 'She and Viserys are the last surviving Targaryens — exiled since Roberts Rebellion' },
         { id: 'K-GOT-31', type: 'believes', content: 'Her brother Viserys will do anything to reclaim the Iron Throne, including sell her' },
@@ -85,7 +87,7 @@ const characters: Record<string, Character> = {
     name: 'Jon Snow',
     role: 'recurring',
     threadIds: ['T-GOT-04'],
-    knowledge: {
+    continuity: {
       nodes: [
         { id: 'K-GOT-40', type: 'knows', content: 'He is Ned Starks bastard son — or so he has been told his entire life' },
         { id: 'K-GOT-41', type: 'believes', content: 'He will never truly belong — not in Winterfell, perhaps not anywhere' },
@@ -101,7 +103,7 @@ const characters: Record<string, Character> = {
     name: 'Petyr Baelish',
     role: 'transient',
     threadIds: ['T-GOT-05', 'T-GOT-07'],
-    knowledge: {
+    continuity: {
       nodes: [
         { id: 'K-GOT-50', type: 'secret', content: 'Orchestrated Jon Arryns poisoning through Lysa Arryn — the war between Stark and Lannister is his design' },
         { id: 'K-GOT-51', type: 'goal', content: 'Climb the ladder of chaos until he stands at the very top — the Iron Throne itself' },
@@ -116,7 +118,7 @@ const characters: Record<string, Character> = {
     name: 'Robert Baratheon',
     role: 'transient',
     threadIds: ['T-GOT-06', 'T-GOT-02'],
-    knowledge: {
+    continuity: {
       nodes: [
         { id: 'K-GOT-60', type: 'knows', content: 'He won the Iron Throne by conquest but has no stomach for ruling — the crown is heavier than any warhammer' },
         { id: 'K-GOT-61', type: 'believes', content: 'Ned Stark is the only man in Westeros he trusts completely' },
@@ -131,7 +133,7 @@ const characters: Record<string, Character> = {
     name: 'Arya Stark',
     role: 'transient',
     threadIds: ['T-GOT-02'],
-    knowledge: {
+    continuity: {
       nodes: [
         { id: 'K-GOT-70', type: 'believes', content: 'She was not made to be a lady — swords and stories call to her louder than needlework ever could' },
         { id: 'K-GOT-71', type: 'goal', content: 'Learn to fight, see the world, and refuse the cage that ladyhood offers' },
@@ -146,7 +148,7 @@ const characters: Record<string, Character> = {
 const locations: Record<string, Location> = {
   'L-GOT-01': {
     id: 'L-GOT-01', name: 'Westeros', parentId: null, threadIds: [],
-    knowledge: {
+    continuity: {
       nodes: [
         { id: 'LK-GOT-01', type: 'lore', content: 'A vast continent divided into Seven Kingdoms, unified under the Iron Throne since Aegons Conquest three centuries past' },
         { id: 'LK-GOT-02', type: 'lore', content: 'Summer has lasted nine years — the longest in living memory — and the maesters warn that winter will be equally long' },
@@ -156,7 +158,7 @@ const locations: Record<string, Location> = {
   },
   'L-GOT-02': {
     id: 'L-GOT-02', name: "King's Landing", parentId: 'L-GOT-01', threadIds: ['T-GOT-05', 'T-GOT-06'],
-    knowledge: {
+    continuity: {
       nodes: [
         { id: 'LK-GOT-03', type: 'lore', content: 'Capital of the Seven Kingdoms, half a million souls crammed between the Blackwater Rush and Aegons Hill' },
         { id: 'LK-GOT-04', type: 'secret', content: 'The city stinks of shit and conspiracy in equal measure — every shadow hides a spy' },
@@ -166,7 +168,7 @@ const locations: Record<string, Location> = {
   },
   'L-GOT-03': {
     id: 'L-GOT-03', name: 'The Red Keep', parentId: 'L-GOT-02', threadIds: ['T-GOT-01', 'T-GOT-05', 'T-GOT-07'],
-    knowledge: {
+    continuity: {
       nodes: [
         { id: 'LK-GOT-05', type: 'lore', content: 'Seat of the Iron Throne — a fortress within a fortress, its walls the color of dried blood' },
         { id: 'LK-GOT-06', type: 'secret', content: 'Maegor the Cruel killed every builder who worked on the keep — its secret passages are known to very few' },
@@ -177,7 +179,7 @@ const locations: Record<string, Location> = {
   },
   'L-GOT-04': {
     id: 'L-GOT-04', name: 'Winterfell', parentId: 'L-GOT-01', threadIds: ['T-GOT-02'],
-    knowledge: {
+    continuity: {
       nodes: [
         { id: 'LK-GOT-08', type: 'lore', content: 'Seat of House Stark for eight thousand years — built over natural hot springs that warm its walls even in the deepest winter' },
         { id: 'LK-GOT-09', type: 'lore', content: 'The crypts beneath Winterfell stretch deeper than anyone has explored — the dead Starks rest with iron swords across their laps' },
@@ -187,7 +189,7 @@ const locations: Record<string, Location> = {
   },
   'L-GOT-05': {
     id: 'L-GOT-05', name: 'The Wall', parentId: 'L-GOT-01', threadIds: ['T-GOT-04'],
-    knowledge: {
+    continuity: {
       nodes: [
         { id: 'LK-GOT-10', type: 'lore', content: 'Seven hundred feet of ice stretching from coast to coast — raised by Brandon the Builder eight millennia ago to hold back the darkness' },
         { id: 'LK-GOT-11', type: 'danger', content: 'The Nights Watch is a shadow of its former strength — fewer than a thousand men guard the entire Wall' },
@@ -197,7 +199,7 @@ const locations: Record<string, Location> = {
   },
   'L-GOT-06': {
     id: 'L-GOT-06', name: 'The Narrow Sea', parentId: null, threadIds: ['T-GOT-03'],
-    knowledge: {
+    continuity: {
       nodes: [
         { id: 'LK-GOT-12', type: 'lore', content: 'The body of water separating Westeros from Essos — crossed by traders, exiles, and would-be conquerors alike' },
       ],
@@ -206,7 +208,7 @@ const locations: Record<string, Location> = {
   },
   'L-GOT-07': {
     id: 'L-GOT-07', name: 'Pentos', parentId: null, threadIds: ['T-GOT-03'],
-    knowledge: {
+    continuity: {
       nodes: [
         { id: 'LK-GOT-13', type: 'lore', content: 'A Free City on the western coast of Essos — wealthy, decadent, and home to exiled Westerosi nobles and scheming magisters' },
         { id: 'LK-GOT-14', type: 'secret', content: 'Illyrio Mopatis shelters the last Targaryen heirs here, brokering alliances with the Dothraki' },
@@ -216,7 +218,7 @@ const locations: Record<string, Location> = {
   },
   'L-GOT-08': {
     id: 'L-GOT-08', name: 'The Kingsroad', parentId: 'L-GOT-01', threadIds: ['T-GOT-02'],
-    knowledge: {
+    continuity: {
       nodes: [
         { id: 'LK-GOT-15', type: 'lore', content: 'The great road stretching from the Wall to Kings Landing — a thousand leagues of mud, stone, and shifting allegiances' },
         { id: 'LK-GOT-16', type: 'danger', content: 'Bandits, broken men, and political enemies make the road as dangerous as any battlefield' },
@@ -348,13 +350,22 @@ const scenes: Record<string, Scene> = {
     participantIds: ['C-GOT-01', 'C-GOT-05', 'C-GOT-08'],
     events: ['stark_children_practice', 'arya_watches_from_window'],
     threadMutations: [{ threadId: 'T-GOT-02', from: 'dormant', to: 'dormant' }],
-    knowledgeMutations: [
+    continuityMutations: [
       { characterId: 'C-GOT-08', nodeId: 'K-GOT-80', action: 'added', content: 'Swordplay follows patterns — footwork, timing, distance — and she can learn them just by watching' },
       { characterId: 'C-GOT-05', nodeId: 'K-GOT-81', action: 'added', content: 'He fights well enough to match Robb, but the yard still feels like borrowed ground for a bastard' },
     ],
     relationshipMutations: [
       { from: 'C-GOT-08', to: 'C-GOT-05', type: 'Arya watches Jon spar and feels kinship with the brother who also does not quite fit', valenceDelta: 0.1 },
     ],
+    worldKnowledgeMutations: {
+      addedNodes: [
+        { id: 'WK-GT-01', concept: 'Feudal obligation — a lord rules, protects, and judges his people, and they owe him service and obedience in return', type: 'system' },
+        { id: 'WK-GT-03', concept: 'Bastardy — a name that marks you as less than your siblings no matter how much blood you share', type: 'concept' },
+      ],
+      addedEdges: [
+        { from: 'WK-GT-01', to: 'WK-GT-03', relation: 'enforces the hierarchy that bastardy exists within' },
+      ],
+    },
     summary: 'Winterfell, the practice yard. Morning light falls cold and clean across the muddy ground where Robb and Jon spar with blunted tourney swords, their breath making small ghosts in the air. Bran watches from the fence rail with his lip between his teeth, counting the footwork the way Ser Rodrik taught him. Rickon chases a cat between the legs of the armorers dummy. On the covered bridge above, Arya leans against the stone with her chin on her fists, eyes sharp as a hawks — tracking every parry, every riposte, committing the movements to a memory her septa would rather she filled with needlework and courtesies. Sansa passes behind her and asks why she watches. Arya does not answer. She is too busy learning things no one has offered to teach her.',
   },
   'S-GOT-002': {
@@ -366,13 +377,22 @@ const scenes: Record<string, Scene> = {
     participantIds: ['C-GOT-01', 'C-GOT-08'],
     events: ['feast_in_great_hall', 'firelight_and_laughter'],
     threadMutations: [],
-    knowledgeMutations: [
+    continuityMutations: [
       { characterId: 'C-GOT-01', nodeId: 'K-GOT-82', action: 'added', content: 'These evenings of warmth and laughter are what he fights to preserve — the ordinary peace of his family gathered together' },
       { characterId: 'C-GOT-08', nodeId: 'K-GOT-83', action: 'added', content: 'The rules at the high table are suffocating — she would rather eat in the kitchens with the servants than sit still and be proper' },
     ],
     relationshipMutations: [
       { from: 'C-GOT-01', to: 'C-GOT-08', type: 'Ned watches Arya flick peas at Bran and hides a smile — she is so like Lyanna it aches', valenceDelta: 0.1 },
     ],
+    worldKnowledgeMutations: {
+      addedNodes: [
+        { id: 'WK-GT-04', concept: 'The hearth as sacred center — a lords hall is where his household gathers, eats, and renews its bonds', type: 'concept' },
+        { id: 'WK-GT-05', concept: 'The long summer — nine years of warmth that lulls the realm into forgetting that winter always returns', type: 'concept' },
+      ],
+      addedEdges: [
+        { from: 'WK-GT-04', to: 'WK-GT-01', relation: 'expresses — the feast hall is where feudal bonds are performed and renewed' },
+      ],
+    },
     summary: 'Winterfell, the Great Hall. A feast without occasion — the kind that happens because the harvest was good, because the evening is long, because the Starks have gathered and that is reason enough. Trestle tables groan beneath salt beef and black bread and honeycakes baked in the kitchens since dawn. Ned sits at the high table with Catelyn at his side, watching his children the way a man watches a fire he has built against the dark. Robb laughs at something Theon says. Sansa sits straight-backed and proper. Arya flicks a pea at Brans ear and pretends innocence when Catelyn turns. The hall smells of woodsmoke and tallow and roasting meat. Outside, the hounds in the kennel set up a howl that rolls across the castle walls and fades into the wolfswood. It is an ordinary evening. It is the last ordinary evening, though no one in the hall knows it yet.',
   },
   'S-GOT-003': {
@@ -384,13 +404,22 @@ const scenes: Record<string, Scene> = {
     participantIds: ['C-GOT-05'],
     events: ['jon_in_godswood', 'solitude_among_old_gods', 'bastard_reflections'],
     threadMutations: [{ threadId: 'T-GOT-04', from: 'dormant', to: 'dormant' }],
-    knowledgeMutations: [
+    continuityMutations: [
       { characterId: 'C-GOT-05', nodeId: 'K-GOT-84', action: 'added', content: 'The godswood is the only place in Winterfell where his name does not follow him — the old gods do not distinguish between trueborn and bastard' },
       { characterId: 'C-GOT-05', nodeId: 'K-GOT-85', action: 'added', content: 'He belongs to Winterfell in every way that matters except the one way that everyone counts' },
     ],
     relationshipMutations: [
       { from: 'C-GOT-05', to: 'C-GOT-01', type: 'Jon loves his father but the silence about his mother feels like a wall between them', valenceDelta: -0.1 },
     ],
+    worldKnowledgeMutations: {
+      addedNodes: [
+        { id: 'WK-GT-06', concept: 'The Old Gods — nameless, faceless, watching through the carved weirwood trees, worshipped by the North and the First Men', type: 'system' },
+        { id: 'WK-GT-07', concept: 'The godswood as liminal space — a place where the rules of the castle yield to something older and less concerned with human rank', type: 'concept' },
+      ],
+      addedEdges: [
+        { from: 'WK-GT-06', to: 'WK-GT-07', relation: 'inhabits' },
+      ],
+    },
     summary: 'Winterfell, the godswood. Jon Snow sits beneath the heart tree with his back against the pale bark, alone in the way he prefers — chosen solitude rather than the other kind. The weirwood stares down at him with its carved face, red sap bleeding from eyes that have watched the Starks for eight thousand years. Jon comes here when the noise of the castle grows too loud — not the physical noise, but the other kind, the noise of belonging to a family that is not quite his. He is Ned Starks son and not Ned Starks son. He has Stark blood and a Stark face and a bastards name that follows him through every hall like a dragging chain. The godswood does not care about names. The old gods have no answers for bastard boys, but their silence is kinder than the questions he carries. A raven lands on the lowest branch and regards him with a black bead eye. Jon regards it back. Neither speaks. It is a kind of understanding.',
   },
   'S-GOT-004': {
@@ -402,7 +431,7 @@ const scenes: Record<string, Scene> = {
     participantIds: ['C-GOT-08'],
     events: ['bran_climbs_walls', 'winterfell_from_above'],
     threadMutations: [],
-    knowledgeMutations: [
+    continuityMutations: [
       { characterId: 'C-GOT-08', nodeId: 'K-GOT-86', action: 'added', content: 'Bran sees the whole world from the rooftops — there are places in Winterfell only he knows, and that is a kind of freedom' },
     ],
     relationshipMutations: [],
@@ -417,13 +446,22 @@ const scenes: Record<string, Scene> = {
     participantIds: ['C-GOT-01'],
     events: ['ned_catelyn_chambers', 'quiet_conversation_family'],
     threadMutations: [],
-    knowledgeMutations: [
+    continuityMutations: [
       { characterId: 'C-GOT-01', nodeId: 'K-GOT-87', action: 'added', content: 'The silence about Jon is the one crack in his marriage — Catelyn endures it but has never forgiven it' },
       { characterId: 'C-GOT-01', nodeId: 'K-GOT-88', action: 'added', content: 'The promise he made to Lyanna weighs heavier with every passing year, a secret that poisons even tenderness' },
     ],
     relationshipMutations: [
       { from: 'C-GOT-01', to: 'C-GOT-05', type: 'The unspoken truth about Jons mother is a burden Ned carries alone — love and guilt intertwined', valenceDelta: -0.1 },
     ],
+    worldKnowledgeMutations: {
+      addedNodes: [
+        { id: 'WK-GT-08', concept: 'The promise — a vow made to the dying binds tighter than any oath sworn before gods or men', type: 'law' },
+        { id: 'WK-GT-09', concept: 'Honor demands truth but love demands silence — Ned cannot be honest with Catelyn without breaking his word to Lyanna', type: 'tension' },
+      ],
+      addedEdges: [
+        { from: 'WK-GT-08', to: 'WK-GT-03', relation: 'creates — the promise forces Jon into bastardy' },
+      ],
+    },
     summary: 'Winterfell, the lords bedchamber. The hot springs beneath the castle push warmth through the walls, and Ned sits on the edge of the bed unlacing his boots while Catelyn brushes out her hair — auburn still, with only a few threads of grey that she plucks when she thinks no one is looking. They speak of small things. Brans climbing, which worries her. Aryas wildness, which worries her differently. Rickons nightmares. Robbs growing resemblance to his Tully grandfather. They do not speak of Jon — they never speak of Jon if they can help it, the one wound in their marriage that will not scar over. Ned watches his wife in the candlelight and feels the weight of secrets he has carried since the war. He loves her. He has never lied to her except in the one way that matters most. The candle gutters. They go to sleep in the warmth of the springs, husband and wife in a castle eight thousand years old, and the silence between them is tender and terrible in equal measure.',
   },
   'S-GOT-006': {
@@ -435,7 +473,7 @@ const scenes: Record<string, Scene> = {
     participantIds: ['C-GOT-01', 'C-GOT-05'],
     events: ['deserter_execution', 'direwolf_pups_found'],
     threadMutations: [{ threadId: 'T-GOT-04', from: 'dormant', to: 'active' }],
-    knowledgeMutations: [
+    continuityMutations: [
       { characterId: 'C-GOT-01', nodeId: 'K-GOT-89', action: 'added', content: 'A dead direwolf with a stag antler in her throat — the sigils of Stark and Baratheon locked in mutual destruction. It cannot be coincidence.' },
       { characterId: 'C-GOT-05', nodeId: 'K-GOT-90', action: 'added', content: 'There were five grey pups for the five trueborn Starks, and one white runt — the bastards wolf, pale and silent like a ghost' },
       { characterId: 'C-GOT-01', nodeId: 'K-GOT-91', action: 'added', content: 'The deserter spoke of dead things walking beyond the Wall — madness, surely, but the old blood remembers' },
@@ -443,6 +481,16 @@ const scenes: Record<string, Scene> = {
     relationshipMutations: [
       { from: 'C-GOT-01', to: 'C-GOT-05', type: 'Jon spoke up for the pups and found his own among them — Ned sees the boys quiet courage', valenceDelta: 0.1 },
     ],
+    worldKnowledgeMutations: {
+      addedNodes: [
+        { id: 'WK-GT-10', concept: 'The man who passes the sentence should swing the sword — justice must be personal, not delegated', type: 'law' },
+        { id: 'WK-GT-11', concept: 'The direwolf as sigil made flesh — when myth steps off the banner and into the world, the old rules are waking', type: 'concept' },
+      ],
+      addedEdges: [
+        { from: 'WK-GT-10', to: 'WK-GT-01', relation: 'grounds — personal justice is the foundation of feudal authority in the North' },
+        { from: 'WK-GT-11', to: 'WK-GT-06', relation: 'signals — the direwolves are creatures of the old gods returning south of the Wall' },
+      ],
+    },
     summary: 'The holdfast near the wolfswood. A deserter from the Nights Watch is brought before Ned Stark, half-mad and babbling of dead things in the snow, of blue eyes that burn like cold stars. Ned listens, and for a moment something old and deep flickers behind his grey eyes — the blood of the First Men remembering what the rest of the realm has forgotten. Then duty closes over it like ice over water. The man left his brothers. The sentence is death. Ned draws Ice with both hands and takes the mans head himself, because the one who passes the sentence must swing the sword. Bran watches, as Ned insists he must. On the ride home, they find the direwolf — a great she-wolf, dead with a stag antler driven through her throat, and six living pups mewling at her side. Five grey, one white. Jon speaks up: five for the trueborn Stark children, and the white runt for the bastard. Ned looks at the dead wolf and the dead stag and feels a chill that has nothing to do with the weather.',
   },
   'S-GOT-007': {
@@ -454,7 +502,7 @@ const scenes: Record<string, Scene> = {
     participantIds: ['C-GOT-01', 'C-GOT-05', 'C-GOT-08'],
     events: ['pups_in_winterfell', 'children_bond_with_wolves'],
     threadMutations: [],
-    knowledgeMutations: [
+    continuityMutations: [
       { characterId: 'C-GOT-08', nodeId: 'K-GOT-92', action: 'added', content: 'Nymeria is wild and fierce and does not care about being ladylike — the perfect wolf for a girl who feels the same' },
       { characterId: 'C-GOT-05', nodeId: 'K-GOT-93', action: 'added', content: 'Ghost moves without sound and appears from nowhere — a companion for a boy who has learned to go unnoticed' },
       { characterId: 'C-GOT-01', nodeId: 'K-GOT-94', action: 'added', content: 'The direwolves have bonded to his children as if chosen — something ancient and purposeful stirs in Winterfell' },
@@ -463,6 +511,15 @@ const scenes: Record<string, Scene> = {
       { from: 'C-GOT-08', to: 'C-GOT-01', type: 'Father let them keep the wolves — he understands what matters even when mother does not', valenceDelta: 0.1 },
       { from: 'C-GOT-05', to: 'C-GOT-08', type: 'They share the bond of outcasts who found companions that match their natures', valenceDelta: 0.1 },
     ],
+    worldKnowledgeMutations: {
+      addedNodes: [
+        { id: 'WK-GT-14', concept: '"There must always be a Stark in Winterfell" — an ancient compact between bloodline and place that is more binding than any law of men', type: 'law' },
+        { id: 'WK-GT-15', concept: 'The wolf-bond — each direwolf mirrors the nature of the child it chose, as if the old magic is sorting souls', type: 'concept' },
+      ],
+      addedEdges: [
+        { from: 'WK-GT-15', to: 'WK-GT-11', relation: 'deepens — the wolves are not just omens but partners' },
+      ],
+    },
     summary: 'Winterfell, the kennels and the yard. Three days since the pups came home, and already the bonds are forming in the wordless way that bonds between wolves and children do. Grey Wind follows Robb like a second shadow. Lady sits at Sansas feet during meals with a politeness that seems almost rehearsed. Nymeria chews through Aryas third pair of boots and Arya loves her more for it. Summer sleeps in Brans bed though he is not supposed to. Shaggydog bites everyone except Rickon and shows no sign of stopping. Ghost trails Jon without sound, appearing and disappearing like smoke, which is fitting for the companion of a boy who has spent his life learning to go unnoticed. Ned stands in the yard watching his children with their wolves and thinks of the old saying: there must always be a Stark in Winterfell. The words have never seemed so literal. The castle feels fuller now, wilder, as though something ancient has come back to a place that was waiting for it.',
   },
 
@@ -476,13 +533,21 @@ const scenes: Record<string, Scene> = {
     participantIds: ['C-GOT-01'],
     events: ['raven_from_south', 'jon_arryn_dead', 'king_rides_north'],
     threadMutations: [{ threadId: 'T-GOT-02', from: 'dormant', to: 'active' }],
-    knowledgeMutations: [
+    continuityMutations: [
       { characterId: 'C-GOT-01', nodeId: 'K-GOT-95', action: 'added', content: 'Robert will ask him to be Hand — there is no other reason for a king to ride a thousand leagues north' },
       { characterId: 'C-GOT-01', nodeId: 'K-GOT-96', action: 'added', content: 'Jon Arryns death leaves Robert surrounded by Lannisters with no one he trusts to watch his back' },
     ],
     relationshipMutations: [
       { from: 'C-GOT-01', to: 'C-GOT-07', type: 'The weight of obligation stirs — Robert needs him, and Ned cannot refuse a friend in danger', valenceDelta: 0.1 },
     ],
+    worldKnowledgeMutations: {
+      addedNodes: [
+        { id: 'WK-GT-16', concept: 'The Hand of the King — the most powerful and most expendable man in the realm, ruling in the kings name and dying in his stead', type: 'system' },
+      ],
+      addedEdges: [
+        { from: 'WK-GT-16', to: 'WK-GT-01', relation: 'extends — the Hand is feudal delegation at the highest level' },
+      ],
+    },
     summary: 'Winterfell, the rookery. A raven comes from the south bearing words that change everything: Jon Arryn, Hand of the King, is dead. The king rides north. Ned reads the message twice, standing alone among the birds, and the paper trembles in his hand — not from fear, but from the weight of knowing what Robert will ask before he asks it. There is only one reason a king rides a thousand leagues through mud and cold. Ned descends to tell Catelyn. She sees it in his face before he speaks: the south is reaching for them. They have spent fifteen years building a life in the quiet of the North, raising children, tending the land, pretending that the wars of their youth were done. The raven says otherwise. Ravens always do.',
   },
   'S-GOT-009': {
@@ -494,7 +559,7 @@ const scenes: Record<string, Scene> = {
     participantIds: ['C-GOT-01', 'C-GOT-07', 'C-GOT-02', 'C-GOT-08'],
     events: ['royal_arrival', 'robert_embraces_ned', 'winterfell_greets_court'],
     threadMutations: [{ threadId: 'T-GOT-06', from: 'dormant', to: 'active' }],
-    knowledgeMutations: [
+    continuityMutations: [
       { characterId: 'C-GOT-01', nodeId: 'K-GOT-97', action: 'added', content: 'Robert has changed — the warrior who won the Trident is buried under fat and wine and years of neglect' },
       { characterId: 'C-GOT-08', nodeId: 'K-GOT-98', action: 'added', content: 'The queen is beautiful and cold and looks at Winterfell like it is something stuck to her shoe' },
       { characterId: 'C-GOT-05', nodeId: 'K-GOT-99', action: 'added', content: 'Bastards stand at the back of the line when kings visit — even in his own home, he is an afterthought' },
@@ -503,6 +568,16 @@ const scenes: Record<string, Scene> = {
       { from: 'C-GOT-01', to: 'C-GOT-07', type: 'The man who embraces him is warm and sincere but visibly diminished — old friend, new worry', valenceDelta: -0.1 },
       { from: 'C-GOT-01', to: 'C-GOT-02', type: 'The queen arrives with Lannister crimson and an expression that suggests she considers the North beneath her', valenceDelta: -0.1 },
     ],
+    worldKnowledgeMutations: {
+      addedNodes: [
+        { id: 'WK-GT-18', concept: 'The Iron Throne — forged from a thousand swords by dragonfire, uncomfortable by design, a seat that cuts unworthy kings', type: 'concept' },
+        { id: 'WK-GT-20', concept: 'The North remembers — the North is culturally separate from the south, older, harder, and slow to trust outsiders', type: 'concept' },
+      ],
+      addedEdges: [
+        { from: 'WK-GT-18', to: 'WK-GT-16', relation: 'requires — the throne needs a Hand because no one man can hold it alone' },
+        { from: 'WK-GT-20', to: 'WK-GT-06', relation: 'rooted in — northern identity flows from the old gods and the First Men' },
+      ],
+    },
     summary: 'Winterfell, the courtyard. The king comes to Winterfell with the weight of the south behind him — three hundred riders, a gilded wheelhouse, Lannister crimson and Baratheon gold snapping in a wind that does not welcome them. Robert Baratheon dismounts, and the man who climbs down from the saddle bears only a passing resemblance to the one who swung a warhammer at the Trident. He has thickened, reddened, gone to flesh in the way that men do when they stop fighting and start drinking. But when he sees Ned his face breaks open like a boy finding a lost friend, and he crosses the yard in three strides to crush him in an embrace that smells of wine and road dust and something like grief. Behind them, Cersei Lannister descends from the wheelhouse with the careful grace of a woman who knows she is being watched. Arya counts the knights. Sansa stares at the prince. Jon stands at the back of the household line where bastards belong, and says nothing.',
   },
   'S-GOT-010': {
@@ -514,7 +589,7 @@ const scenes: Record<string, Scene> = {
     participantIds: ['C-GOT-01', 'C-GOT-07'],
     events: ['feast_for_the_king', 'robert_drinks_deep', 'old_war_stories'],
     threadMutations: [{ threadId: 'T-GOT-06', from: 'active', to: 'escalating' }],
-    knowledgeMutations: [
+    continuityMutations: [
       { characterId: 'C-GOT-01', nodeId: 'K-GOT-100', action: 'added', content: 'Robert cannot stop reliving the rebellion — the Trident was the peak of his life and everything since has been decline' },
       { characterId: 'C-GOT-07', nodeId: 'K-GOT-101', action: 'added', content: 'The wine makes the memories bearable and the present tolerable — without it, the crown would crush him' },
     ],
@@ -522,6 +597,15 @@ const scenes: Record<string, Scene> = {
       { from: 'C-GOT-07', to: 'C-GOT-02', type: 'Every toast is a small humiliation delivered to the queen — Robert does not notice and would not care if he did', valenceDelta: -0.1 },
       { from: 'C-GOT-01', to: 'C-GOT-07', type: 'Ned sees the ruin beneath the revelry and grieves for the friend Robert used to be', valenceDelta: -0.1 },
     ],
+    worldKnowledgeMutations: {
+      addedNodes: [
+        { id: 'WK-GT-21', concept: 'Roberts Rebellion — the war that overthrew the Targaryens, won at the Trident, the founding myth of the current order', type: 'concept' },
+        { id: 'WK-GT-22', concept: 'A warrior cannot rule — the skills that win a throne are not the skills that hold it, and Robert is proof', type: 'tension' },
+      ],
+      addedEdges: [
+        { from: 'WK-GT-21', to: 'WK-GT-18', relation: 'legitimizes — Robert holds the throne by right of conquest' },
+      ],
+    },
     summary: 'Winterfell, the Great Hall. A welcoming feast that groans under the effort of its own hospitality. Robert drinks with the abandon of a man who has confused oblivion with happiness, calling for more wine before the first cup is dry, laughing too loudly at his own stories of the rebellion — the Battle of the Bells, the Trident, the way Rhaegar Targaryens rubies scattered in the river. Ned smiles and drinks less. He watches his old friend and sees the ruin underneath the revelry: a king who cannot stop reliving his one great moment because everything after it has been a slow diminishment. Cersei sits beside Robert with a face like carved marble, enduring every bawdy joke, every bellowed toast, every casual humiliation with a patience that is not patience at all but something colder. The music plays. The candles burn. Two old friends pretend that time has been kind, and a queen pretends that she is not counting the hours until she can stop pretending.',
   },
   'S-GOT-011': {
@@ -533,7 +617,7 @@ const scenes: Record<string, Scene> = {
     participantIds: ['C-GOT-01', 'C-GOT-07'],
     events: ['crypts_visit', 'lyanna_statue', 'robert_asks_ned_hand'],
     threadMutations: [{ threadId: 'T-GOT-02', from: 'active', to: 'escalating' }],
-    knowledgeMutations: [
+    continuityMutations: [
       { characterId: 'C-GOT-01', nodeId: 'K-GOT-102', action: 'added', content: 'Robert asks him to be Hand of the King — a plea disguised as an appointment, born of desperation not ceremony' },
       { characterId: 'C-GOT-07', nodeId: 'K-GOT-103', action: 'added', content: 'He still loves Lyanna more than anything in the living world — the dead have a hold on him the living cannot break' },
       { characterId: 'C-GOT-01', nodeId: 'K-GOT-104', action: 'added', content: 'Robert standing before Lyannas tomb is a man worshipping at a shrine — his grief has calcified into something permanent' },
@@ -541,6 +625,16 @@ const scenes: Record<string, Scene> = {
     relationshipMutations: [
       { from: 'C-GOT-07', to: 'C-GOT-01', type: 'Robert begs Ned to come south — naked need breaking through the bluster of kingship', valenceDelta: 0.2 },
     ],
+    worldKnowledgeMutations: {
+      addedNodes: [
+        { id: 'WK-GT-23', concept: 'The crypts of Winterfell — the dead Starks rest with iron swords across their laps, guarding something even they have forgotten', type: 'concept' },
+        { id: 'WK-GT-24', concept: 'Duty is a trap that the honorable cannot escape — refusing to serve is as unthinkable as the cost of serving', type: 'tension' },
+      ],
+      addedEdges: [
+        { from: 'WK-GT-23', to: 'WK-GT-14', relation: 'embodies — the dead Starks are the weight of the ancient compact made stone' },
+        { from: 'WK-GT-24', to: 'WK-GT-16', relation: 'activates — the Handship is duty in its most dangerous form' },
+      ],
+    },
     summary: 'Winterfell, the crypts. Robert insists on going down to see her — he always does, as though Lyanna Starks tomb is a shrine and he is the last faithful pilgrim. They descend with torches into the cold dark, past rows of granite kings with iron swords rusting across their laps, past centuries of Starks who stare eyeless from their alcoves. Robert stops before Lyannas statue and his whole body changes — the bluster drains out of him and what remains is a man still in love with a ghost. He lays a feather in her stone hand. Then he turns to Ned and says the words: I need you, Ned. Down in Kings Landing. They are killing me, the lot of them, and I need someone I can trust. Come south. Be my Hand. The torchlight throws their shadows huge against the wall — two men standing among the dead, one asking the other to join a court that devours good men like kindling.',
   },
   'S-GOT-012': {
@@ -552,13 +646,22 @@ const scenes: Record<string, Scene> = {
     participantIds: ['C-GOT-01', 'C-GOT-05'],
     events: ['jon_excluded_from_feast', 'benjen_speaks_of_wall', 'bastards_burden'],
     threadMutations: [{ threadId: 'T-GOT-04', from: 'active', to: 'escalating' }],
-    knowledgeMutations: [
+    continuityMutations: [
       { characterId: 'C-GOT-05', nodeId: 'K-GOT-105', action: 'added', content: 'Catelyn will never accept him — she made certain he was seated outside when the king came, as though his very existence is an insult' },
       { characterId: 'C-GOT-05', nodeId: 'K-GOT-106', action: 'added', content: 'Uncle Benjen warns him he does not know what he would give up by taking the black — but what is there to give up when you belong nowhere?' },
     ],
     relationshipMutations: [
       { from: 'C-GOT-05', to: 'C-GOT-01', type: 'His father lets Catelyn exile him from the feast — love has limits, and Jon has found them', valenceDelta: -0.2 },
     ],
+    worldKnowledgeMutations: {
+      addedNodes: [
+        { id: 'WK-GT-25', concept: 'The Wall as escape — for bastards, criminals, and younger sons, the Nights Watch offers identity at the price of everything else', type: 'tension' },
+        { id: 'WK-GT-26', concept: 'Taking the black — an irrevocable vow that erases your past name and past crimes but also your past loves', type: 'law' },
+      ],
+      addedEdges: [
+        { from: 'WK-GT-25', to: 'WK-GT-03', relation: 'resolves — the Wall offers bastards a clean name by stripping all names away' },
+      ],
+    },
     summary: 'Winterfell, outside the Great Hall. The second night of feasting, and Jon Snow sits on the steps in the cold because Catelyn deemed it an insult to seat a bastard beside the royal family. Inside, warmth and music and the life he was born adjacent to but never inside of. Ghost lies across his boots, red eyes half-closed. Benjen Stark finds his nephew in the dark, smelling of frost and the Wall. They talk — or rather, Jon talks and Benjen listens with the careful attention of a man who recognizes a wound he once carried himself. Jon says he wants to take the black. Benjen does not refuse him, but he does not encourage him either. You do not know what you would be giving up, he says. You are a boy still. Jon bristles, because boys always bristle when told they are boys. The music from the hall spills through the cracked door like light from a room he cannot enter. Ghost licks Jons hand. The night is cold, and getting colder.',
   },
   'S-GOT-013': {
@@ -573,7 +676,7 @@ const scenes: Record<string, Scene> = {
       { threadId: 'T-GOT-01', from: 'dormant', to: 'active' },
       { threadId: 'T-GOT-05', from: 'dormant', to: 'active' },
     ],
-    knowledgeMutations: [
+    continuityMutations: [
       { characterId: 'C-GOT-01', nodeId: 'K-GOT-08', action: 'added', content: 'Lysa Arryn claims the Lannisters murdered Jon Arryn — the queen and her family cannot be trusted' },
       { characterId: 'C-GOT-01', nodeId: 'K-GOT-107', action: 'added', content: 'If the Lannisters killed one Hand, they will kill another — going south is walking into a trap with his eyes open' },
     ],
@@ -581,6 +684,16 @@ const scenes: Record<string, Scene> = {
       { from: 'C-GOT-01', to: 'C-GOT-02', type: 'Lysa Arryns accusation casts the queen in a new and dangerous light — what are the Lannisters hiding?', valenceDelta: -0.1 },
       { from: 'C-GOT-01', to: 'C-GOT-07', type: 'Robert is surrounded by enemies he cannot see — duty demands Ned protect his friend', valenceDelta: 0.1 },
     ],
+    worldKnowledgeMutations: {
+      addedNodes: [
+        { id: 'WK-GT-27', concept: 'The game of thrones — politics in Kings Landing is a game where you win or you die, with no middle ground', type: 'system' },
+        { id: 'WK-GT-28', concept: 'Honor is a liability in the south — the honest man is the easiest to predict and therefore the easiest to destroy', type: 'tension' },
+      ],
+      addedEdges: [
+        { from: 'WK-GT-27', to: 'WK-GT-18', relation: 'orbits — the game is played for the throne and the throne is the prize' },
+        { from: 'WK-GT-28', to: 'WK-GT-24', relation: 'sharpens — duty pulls Ned south where honor will get him killed' },
+      ],
+    },
     summary: 'Winterfell, the lords bedchamber, deep in the night. Catelyn wakes Ned with a letter that has come by secret rider, not by raven — her sister Lysas hand, written in the cipher they shared as girls in Riverrun. The message is brief and it is a blade: the Lannisters murdered Jon Arryn. Lysa is certain. Ned reads the words by candlelight and the room seems to shrink around him. If this is true, then Robert sits the Iron Throne with killers at his side, and the invitation to serve as Hand is not an honor but a death sentence wearing a golden badge. Catelyn grips his arm and tells him he must go — not despite the danger but because of it. If the Lannisters killed one Hand, they will not stop at one. Someone must protect Robert. Someone must uncover the truth. Ned stares at the candle flame and sees the shape of a duty he cannot refuse and may not survive.',
   },
   'S-GOT-014': {
@@ -595,7 +708,7 @@ const scenes: Record<string, Scene> = {
       { threadId: 'T-GOT-02', from: 'active', to: 'escalating' },
       { threadId: 'T-GOT-01', from: 'active', to: 'escalating' },
     ],
-    knowledgeMutations: [
+    continuityMutations: [
       { characterId: 'C-GOT-01', nodeId: 'K-GOT-108', action: 'added', content: 'Bran was climbing as he always does — but something about the fall feels wrong, deliberate, silenced' },
       { characterId: 'C-GOT-08', nodeId: 'K-GOT-109', action: 'added', content: 'Bran never falls — he is the best climber in Winterfell. Something terrible happened in that tower.' },
       { characterId: 'C-GOT-05', nodeId: 'K-GOT-110', action: 'added', content: 'The court leaves the same day Bran falls — as if their presence and his ruin are connected' },
@@ -604,6 +717,17 @@ const scenes: Record<string, Scene> = {
       { from: 'C-GOT-01', to: 'C-GOT-02', type: 'Bran falls from a tower the day the Lannisters are in Winterfell — suspicion crystallizes into something colder', valenceDelta: -0.2 },
       { from: 'C-GOT-08', to: 'C-GOT-01', type: 'Father rides south with grief on his face and Arya is terrified — the world is no longer safe', valenceDelta: 0.1 },
     ],
+    worldKnowledgeMutations: {
+      addedNodes: [
+        { id: 'WK-GT-30', concept: 'Guest right — a sacred law that protects those who eat at your table, and its violation is an abomination before gods and men', type: 'law' },
+        { id: 'WK-GT-31', concept: 'The Lannister doctrine — protect the family secret at any cost, because the secret is the family', type: 'concept' },
+        { id: 'WK-GT-33', concept: 'Innocence is the first casualty — children are not spared by the game, only used by it', type: 'tension' },
+      ],
+      addedEdges: [
+        { from: 'WK-GT-31', to: 'WK-GT-30', relation: 'violates — pushing Bran is an act committed under guest right' },
+        { from: 'WK-GT-33', to: 'WK-GT-27', relation: 'reveals the true cost of — the game consumes even those too young to play it' },
+      ],
+    },
     summary: 'Winterfell, the broken tower. A scream, and then silence, and then the world cracks. Bran is found at the base of the old tower, crumpled on the frozen ground like a doll thrown from a window. His legs are wrong — bent at angles that make the stableboys retch. He is alive, barely, his breath a thin rattle in the cold air. Catelyn reaches him first and the sound she makes is not a scream but something lower and worse. Ned is not far behind. He kneels in the frost beside his son and touches the boys face with hands that have held swords and signed treaties and never once trembled as they tremble now. No one saw what happened. Bran was climbing, they say — he was always climbing. But Ned looks up at the tower window and something in his gut goes quiet and cold. The court leaves within the day. Robert clasps Neds shoulder and says he is sorry about the boy, and he means it, in the careless sincere way that Robert means everything. Ned rides south with his daughters and a new heaviness in his chest. Behind him, Bran lies in a bed he may never leave, dreaming of falling, and Winterfell is no longer the safe place it was a morning ago.',
   },
 };
@@ -634,7 +758,7 @@ const commits: Commit[] = sceneList.map((scene, i) => ({
   arcId: scene.arcId,
   diffName: diffNames[scene.id] ?? 'thread_surfaced',
   threadMutations: scene.threadMutations,
-  knowledgeMutations: scene.knowledgeMutations,
+  continuityMutations: scene.continuityMutations,
   relationshipMutations: scene.relationshipMutations,
   authorOverride: null,
   createdAt: Date.now() - (14 - i) * 3600000,
@@ -668,7 +792,7 @@ const altScenes: Record<string, Scene> = {
     participantIds: ['C-GOT-01', 'C-GOT-05'],
     events: ['deserter_executed', 'different_road_home', 'no_wolves_found'],
     threadMutations: [{ threadId: 'T-GOT-04', from: 'dormant', to: 'active' }],
-    knowledgeMutations: [
+    continuityMutations: [
       { characterId: 'C-GOT-01', nodeId: 'K-GOT-111', action: 'added', content: 'The man who passes the sentence must swing the sword — duty is not a principle but a practice, taught through repetition' },
       { characterId: 'C-GOT-05', nodeId: 'K-GOT-112', action: 'added', content: 'The deserter died babbling of monsters — madness or truth, the Wall takes men either way' },
     ],
@@ -686,7 +810,7 @@ const altScenes: Record<string, Scene> = {
     participantIds: ['C-GOT-05', 'C-GOT-08'],
     events: ['children_without_wolves', 'ordinary_evening', 'something_missing'],
     threadMutations: [],
-    knowledgeMutations: [
+    continuityMutations: [
       { characterId: 'C-GOT-05', nodeId: 'K-GOT-113', action: 'added', content: 'There is an absence he cannot name — something that should have found him and did not, a hollow where a companion should be' },
       { characterId: 'C-GOT-08', nodeId: 'K-GOT-114', action: 'added', content: 'The evening is the same as every other — practice, stones, supper — and the sameness feels like a cage' },
     ],
@@ -704,7 +828,7 @@ const altScenes: Record<string, Scene> = {
     participantIds: ['C-GOT-01'],
     events: ['ned_in_godswood', 'no_omen', 'unease_without_cause'],
     threadMutations: [{ threadId: 'T-GOT-02', from: 'dormant', to: 'active' }],
-    knowledgeMutations: [
+    continuityMutations: [
       { characterId: 'C-GOT-01', nodeId: 'K-GOT-115', action: 'added', content: 'Jon Arryns death was no accident — the silence from the south is heavy with unspoken threat' },
       { characterId: 'C-GOT-01', nodeId: 'K-GOT-116', action: 'added', content: 'Without an omen to guide him, the unease is formless — instinct without evidence, dread without direction' },
     ],
@@ -725,6 +849,41 @@ const wxInitCommit: WorldBuildCommit = {
     locationIds: Object.keys(locations),
     threadIds: Object.keys(threads),
     relationshipCount: relationships.length,
+  },
+  worldKnowledgeMutations: {
+    addedNodes: [
+      { id: 'WK-GT-WB-01', concept: 'The feudal system of Westeros — the Seven Kingdoms are held together by oaths of fealty, marriage alliances, and the threat of force, not by institutions or law', type: 'system' },
+      { id: 'WK-GT-WB-02', concept: 'The Faith of the Seven — the dominant religion of southern Westeros, with its sept, septons, and moral framework that legitimizes (and occasionally constrains) the powerful', type: 'system' },
+      { id: 'WK-GT-WB-03', concept: 'The seasons — years-long summers and winters that defy earthly physics, the fundamental environmental fact of Westerosi life', type: 'law' },
+      { id: 'WK-GT-WB-04', concept: 'The Targaryen dynasty — three hundred years of dragon-riding conquerors who forged the Seven Kingdoms into one realm and were overthrown a generation ago', type: 'concept' },
+      { id: 'WK-GT-WB-05', concept: 'The great houses — Stark, Lannister, Baratheon, Targaryen, Tyrell, Arryn, Tully, Martell, Greyjoy — each a power center with its own culture, armies, and ambitions', type: 'system' },
+      { id: 'WK-GT-WB-06', concept: 'The Others — the ice demons beyond the Wall, creatures of legend that most of Westeros believes are myths, but the Wall was built to stop them', type: 'concept' },
+      { id: 'WK-GT-WB-07', concept: 'Valyrian steel — weapons forged with dragon magic in a lost civilization, unbreakable and sharp beyond normal metal, each blade a family heirloom', type: 'concept' },
+      { id: 'WK-GT-WB-08', concept: 'The Dothraki and the Free Cities — across the Narrow Sea, a different world of horse lords, slave traders, merchant princes, and exiled Targaryens', type: 'concept' },
+      { id: 'WK-GT-WB-09', concept: 'Succession crisis — the engine of Westerosi history, where the question of who inherits power spawns wars, marriages, murders, and the game of thrones itself', type: 'tension' },
+    ],
+    addedEdges: [
+      { from: 'WK-GT-WB-01', to: 'WK-GT-01', relation: 'is the macro-structure that feudal obligation operates within' },
+      { from: 'WK-GT-WB-01', to: 'WK-GT-16', relation: 'the Hand is the highest delegated office of' },
+      { from: 'WK-GT-WB-02', to: 'WK-GT-06', relation: 'competes with the Old Gods as the spiritual framework of' },
+      { from: 'WK-GT-WB-02', to: 'WK-GT-30', relation: 'sanctifies laws like' },
+      { from: 'WK-GT-WB-03', to: 'WK-GT-05', relation: 'the long summer is an instance of' },
+      { from: 'WK-GT-WB-03', to: 'WK-GT-32', relation: '"Winter is coming" is a warning about' },
+      { from: 'WK-GT-WB-04', to: 'WK-GT-18', relation: 'forged and ruled from' },
+      { from: 'WK-GT-WB-04', to: 'WK-GT-21', relation: 'was overthrown by' },
+      { from: 'WK-GT-WB-05', to: 'WK-GT-WB-01', relation: 'are the power centers that comprise' },
+      { from: 'WK-GT-WB-05', to: 'WK-GT-19', relation: 'Lannister gold is the currency of' },
+      { from: 'WK-GT-WB-05', to: 'WK-GT-20', relation: 'northern cultural identity distinguishes the Starks within' },
+      { from: 'WK-GT-WB-06', to: 'WK-GT-13', relation: 'the Night\'s Watch was founded to guard against' },
+      { from: 'WK-GT-WB-06', to: 'WK-GT-WB-03', relation: 'may be the cause of — or awakened by — the aberrant' },
+      { from: 'WK-GT-WB-07', to: 'WK-GT-WB-04', relation: 'is a relic of the Valyrian magic that empowered' },
+      { from: 'WK-GT-WB-07', to: 'WK-GT-WB-06', relation: 'is one of the few weapons effective against' },
+      { from: 'WK-GT-WB-08', to: 'WK-GT-WB-04', relation: 'Daenerys carries the exiled bloodline of' },
+      { from: 'WK-GT-WB-08', to: 'WK-GT-27', relation: 'the game extends across the sea through' },
+      { from: 'WK-GT-WB-09', to: 'WK-GT-27', relation: 'is the fundamental driver of' },
+      { from: 'WK-GT-WB-09', to: 'WK-GT-22', relation: 'Robert\'s inability to rule is creating the next' },
+      { from: 'WK-GT-WB-09', to: 'WK-GT-31', relation: 'the Lannister secret would trigger a catastrophic' },
+    ],
   },
 };
 
@@ -766,7 +925,134 @@ export const seedGOT: NarrativeState = {
   branches,
   commits,
   relationships,
-  worldSummary: 'The Seven Kingdoms of Westeros are held together by the Iron Throne — a seat forged from the swords of the conquered, uncomfortable by design, a reminder that a king should never sit easy. Robert Baratheon won the throne by rebellion and has spent fifteen years failing to deserve it. The great houses circle each other like wolves: Stark in the frozen North, Lannister in the golden West, Baratheon on the throne, Targaryen in exile across the sea. Summer has lasted nine years. Winter is coming — the Stark words are not a boast but a warning. In Winterfell, the Starks live as they have for millennia — by duty, by honor, by the old gods and the old ways. But the south is stirring, and when the south stirs, the north bleeds.',
+  worldKnowledge: {
+    nodes: {
+      'WK-GT-01': { id: 'WK-GT-01', concept: 'Feudal obligation — a lord rules, protects, and judges his people, and they owe him service and obedience in return', type: 'system' } as WorldKnowledgeNode,
+      'WK-GT-02': { id: 'WK-GT-02', concept: 'Gendered expectation — boys train with swords, girls train with needles, and deviation from this is transgression', type: 'law' } as WorldKnowledgeNode,
+      'WK-GT-03': { id: 'WK-GT-03', concept: 'Bastardy — a name that marks you as less than your siblings no matter how much blood you share', type: 'concept' } as WorldKnowledgeNode,
+      'WK-GT-04': { id: 'WK-GT-04', concept: 'The hearth as sacred center — a lords hall is where his household gathers, eats, and renews its bonds', type: 'concept' } as WorldKnowledgeNode,
+      'WK-GT-05': { id: 'WK-GT-05', concept: 'The long summer — nine years of warmth that lulls the realm into forgetting that winter always returns', type: 'concept' } as WorldKnowledgeNode,
+      'WK-GT-06': { id: 'WK-GT-06', concept: 'The Old Gods — nameless, faceless, watching through the carved weirwood trees, worshipped by the North and the First Men', type: 'system' } as WorldKnowledgeNode,
+      'WK-GT-07': { id: 'WK-GT-07', concept: 'The godswood as liminal space — a place where the rules of the castle yield to something older and less concerned with human rank', type: 'concept' } as WorldKnowledgeNode,
+      'WK-GT-08': { id: 'WK-GT-08', concept: 'The promise — a vow made to the dying binds tighter than any oath sworn before gods or men', type: 'law' } as WorldKnowledgeNode,
+      'WK-GT-09': { id: 'WK-GT-09', concept: 'Honor demands truth but love demands silence — Ned cannot be honest with Catelyn without breaking his word to Lyanna', type: 'tension' } as WorldKnowledgeNode,
+      'WK-GT-10': { id: 'WK-GT-10', concept: 'The man who passes the sentence should swing the sword — justice must be personal, not delegated', type: 'law' } as WorldKnowledgeNode,
+      'WK-GT-11': { id: 'WK-GT-11', concept: 'The direwolf as sigil made flesh — when myth steps off the banner and into the world, the old rules are waking', type: 'concept' } as WorldKnowledgeNode,
+      'WK-GT-12': { id: 'WK-GT-12', concept: 'Omen-reading — a dead direwolf with a stag antler in her throat is the sigils of Stark and Baratheon locked in mutual destruction', type: 'concept' } as WorldKnowledgeNode,
+      'WK-GT-13': { id: 'WK-GT-13', concept: 'The Nights Watch — a crumbling brotherhood sworn to guard the Wall, taking no wives, holding no lands, wearing no crowns', type: 'system' } as WorldKnowledgeNode,
+      'WK-GT-14': { id: 'WK-GT-14', concept: '"There must always be a Stark in Winterfell" — an ancient compact between bloodline and place that is more binding than any law of men', type: 'law' } as WorldKnowledgeNode,
+      'WK-GT-15': { id: 'WK-GT-15', concept: 'The wolf-bond — each direwolf mirrors the nature of the child it chose, as if the old magic is sorting souls', type: 'concept' } as WorldKnowledgeNode,
+      'WK-GT-16': { id: 'WK-GT-16', concept: 'The Hand of the King — the most powerful and most expendable man in the realm, ruling in the kings name and dying in his stead', type: 'system' } as WorldKnowledgeNode,
+      'WK-GT-17': { id: 'WK-GT-17', concept: 'The raven network — information travels by bird, and whoever controls the ravens controls the narrative', type: 'system' } as WorldKnowledgeNode,
+      'WK-GT-18': { id: 'WK-GT-18', concept: 'The Iron Throne — forged from a thousand swords by dragonfire, uncomfortable by design, a seat that cuts unworthy kings', type: 'concept' } as WorldKnowledgeNode,
+      'WK-GT-19': { id: 'WK-GT-19', concept: 'Lannister gold — wealth as power, the ability to buy loyalty that honor cannot command', type: 'concept' } as WorldKnowledgeNode,
+      'WK-GT-20': { id: 'WK-GT-20', concept: 'The North remembers — the North is culturally separate from the south, older, harder, and slow to trust outsiders', type: 'concept' } as WorldKnowledgeNode,
+      'WK-GT-21': { id: 'WK-GT-21', concept: 'Roberts Rebellion — the war that overthrew the Targaryens, won at the Trident, the founding myth of the current order', type: 'concept' } as WorldKnowledgeNode,
+      'WK-GT-22': { id: 'WK-GT-22', concept: 'A warrior cannot rule — the skills that win a throne are not the skills that hold it, and Robert is proof', type: 'tension' } as WorldKnowledgeNode,
+      'WK-GT-23': { id: 'WK-GT-23', concept: 'The crypts of Winterfell — the dead Starks rest with iron swords across their laps, guarding something even they have forgotten', type: 'concept' } as WorldKnowledgeNode,
+      'WK-GT-24': { id: 'WK-GT-24', concept: 'Duty is a trap that the honorable cannot escape — refusing to serve is as unthinkable as the cost of serving', type: 'tension' } as WorldKnowledgeNode,
+      'WK-GT-25': { id: 'WK-GT-25', concept: 'The Wall as escape — for bastards, criminals, and younger sons, the Nights Watch offers identity at the price of everything else', type: 'tension' } as WorldKnowledgeNode,
+      'WK-GT-26': { id: 'WK-GT-26', concept: 'Taking the black — an irrevocable vow that erases your past name and past crimes but also your past loves', type: 'law' } as WorldKnowledgeNode,
+      'WK-GT-27': { id: 'WK-GT-27', concept: 'The game of thrones — politics in Kings Landing is a game where you win or you die, with no middle ground', type: 'system' } as WorldKnowledgeNode,
+      'WK-GT-28': { id: 'WK-GT-28', concept: 'Honor is a liability in the south — the honest man is the easiest to predict and therefore the easiest to destroy', type: 'tension' } as WorldKnowledgeNode,
+      'WK-GT-29': { id: 'WK-GT-29', concept: 'Information as weapon — secrets, letters, and whispers kill as surely as swords', type: 'concept' } as WorldKnowledgeNode,
+      'WK-GT-30': { id: 'WK-GT-30', concept: 'Guest right — a sacred law that protects those who eat at your table, and its violation is an abomination before gods and men', type: 'law' } as WorldKnowledgeNode,
+      'WK-GT-31': { id: 'WK-GT-31', concept: 'The Lannister doctrine — protect the family secret at any cost, because the secret is the family', type: 'concept' } as WorldKnowledgeNode,
+      'WK-GT-32': { id: 'WK-GT-32', concept: '"Winter is coming" — the Stark words are not a boast but a warning, both literal and metaphorical', type: 'concept' } as WorldKnowledgeNode,
+      'WK-GT-33': { id: 'WK-GT-33', concept: 'Innocence is the first casualty — children are not spared by the game, only used by it', type: 'tension' } as WorldKnowledgeNode,
+      // World Build nodes
+      'WK-GT-WB-01': { id: 'WK-GT-WB-01', concept: 'The feudal system of Westeros — the Seven Kingdoms are held together by oaths of fealty, marriage alliances, and the threat of force, not by institutions or law', type: 'system' } as WorldKnowledgeNode,
+      'WK-GT-WB-02': { id: 'WK-GT-WB-02', concept: 'The Faith of the Seven — the dominant religion of southern Westeros, with its sept, septons, and moral framework that legitimizes (and occasionally constrains) the powerful', type: 'system' } as WorldKnowledgeNode,
+      'WK-GT-WB-03': { id: 'WK-GT-WB-03', concept: 'The seasons — years-long summers and winters that defy earthly physics, the fundamental environmental fact of Westerosi life', type: 'law' } as WorldKnowledgeNode,
+      'WK-GT-WB-04': { id: 'WK-GT-WB-04', concept: 'The Targaryen dynasty — three hundred years of dragon-riding conquerors who forged the Seven Kingdoms into one realm and were overthrown a generation ago', type: 'concept' } as WorldKnowledgeNode,
+      'WK-GT-WB-05': { id: 'WK-GT-WB-05', concept: 'The great houses — Stark, Lannister, Baratheon, Targaryen, Tyrell, Arryn, Tully, Martell, Greyjoy — each a power center with its own culture, armies, and ambitions', type: 'system' } as WorldKnowledgeNode,
+      'WK-GT-WB-06': { id: 'WK-GT-WB-06', concept: 'The Others — the ice demons beyond the Wall, creatures of legend that most of Westeros believes are myths, but the Wall was built to stop them', type: 'concept' } as WorldKnowledgeNode,
+      'WK-GT-WB-07': { id: 'WK-GT-WB-07', concept: 'Valyrian steel — weapons forged with dragon magic in a lost civilization, unbreakable and sharp beyond normal metal, each blade a family heirloom', type: 'concept' } as WorldKnowledgeNode,
+      'WK-GT-WB-08': { id: 'WK-GT-WB-08', concept: 'The Dothraki and the Free Cities — across the Narrow Sea, a different world of horse lords, slave traders, merchant princes, and exiled Targaryens', type: 'concept' } as WorldKnowledgeNode,
+      'WK-GT-WB-09': { id: 'WK-GT-WB-09', concept: 'Succession crisis — the engine of Westerosi history, where the question of who inherits power spawns wars, marriages, murders, and the game of thrones itself', type: 'tension' } as WorldKnowledgeNode,
+    } as Record<string, WorldKnowledgeNode>,
+    edges: [
+      // S-GOT-001
+      { from: 'WK-GT-01', to: 'WK-GT-02', relation: 'enforces' },
+      { from: 'WK-GT-02', to: 'WK-GT-03', relation: 'intersects — bastards and girls both live outside the structure of inheritance' },
+      // S-GOT-002
+      { from: 'WK-GT-04', to: 'WK-GT-01', relation: 'expresses — the feast hall is where feudal bonds are performed and renewed' },
+      // S-GOT-003
+      { from: 'WK-GT-06', to: 'WK-GT-07', relation: 'inhabits' },
+      { from: 'WK-GT-03', to: 'WK-GT-07', relation: 'dissolves within — the old gods do not distinguish between trueborn and bastard' },
+      // S-GOT-005
+      { from: 'WK-GT-08', to: 'WK-GT-03', relation: 'creates — the promise forces Jon into bastardy' },
+      { from: 'WK-GT-09', to: 'WK-GT-08', relation: 'born from' },
+      { from: 'WK-GT-09', to: 'WK-GT-04', relation: 'corrodes — the hearth is warm but the secret poisons it' },
+      // S-GOT-006
+      { from: 'WK-GT-10', to: 'WK-GT-01', relation: 'grounds — personal justice is the foundation of feudal authority in the North' },
+      { from: 'WK-GT-11', to: 'WK-GT-06', relation: 'signals — the direwolves are creatures of the old gods returning south of the Wall' },
+      { from: 'WK-GT-12', to: 'WK-GT-11', relation: 'interprets' },
+      { from: 'WK-GT-13', to: 'WK-GT-06', relation: 'serves — the Watch guards the boundary the old gods established' },
+      // S-GOT-007
+      { from: 'WK-GT-14', to: 'WK-GT-01', relation: 'transcends — this is older than feudalism, a pact with the land itself' },
+      { from: 'WK-GT-15', to: 'WK-GT-11', relation: 'deepens — the wolves are not just omens but partners' },
+      { from: 'WK-GT-15', to: 'WK-GT-06', relation: 'channels — the old gods working through animal companions' },
+      // S-GOT-008
+      { from: 'WK-GT-16', to: 'WK-GT-01', relation: 'extends — the Hand is feudal delegation at the highest level' },
+      { from: 'WK-GT-17', to: 'WK-GT-16', relation: 'enables — power requires information and ravens carry it' },
+      // S-GOT-009
+      { from: 'WK-GT-18', to: 'WK-GT-16', relation: 'requires — the throne needs a Hand because no one man can hold it alone' },
+      { from: 'WK-GT-19', to: 'WK-GT-18', relation: 'undermines — gold corrodes the legitimacy of conquest' },
+      { from: 'WK-GT-20', to: 'WK-GT-06', relation: 'rooted in — northern identity flows from the old gods and the First Men' },
+      { from: 'WK-GT-20', to: 'WK-GT-19', relation: 'resists — the North cannot be bought, only bound by honor' },
+      // S-GOT-010
+      { from: 'WK-GT-21', to: 'WK-GT-18', relation: 'legitimizes — Robert holds the throne by right of conquest' },
+      { from: 'WK-GT-22', to: 'WK-GT-18', relation: 'erodes — the throne demands governance and Robert offers only nostalgia' },
+      { from: 'WK-GT-22', to: 'WK-GT-19', relation: 'empowers — Lannister gold fills the vacuum Robert leaves' },
+      // S-GOT-011
+      { from: 'WK-GT-23', to: 'WK-GT-14', relation: 'embodies — the dead Starks are the weight of the ancient compact made stone' },
+      { from: 'WK-GT-24', to: 'WK-GT-10', relation: 'extends — the man who swings the sword cannot refuse the summons to swing it elsewhere' },
+      { from: 'WK-GT-24', to: 'WK-GT-16', relation: 'activates — the Handship is duty in its most dangerous form' },
+      // S-GOT-012
+      { from: 'WK-GT-25', to: 'WK-GT-03', relation: 'resolves — the Wall offers bastards a clean name by stripping all names away' },
+      { from: 'WK-GT-25', to: 'WK-GT-13', relation: 'feeds — the Watch survives on the desperate and the dispossessed' },
+      { from: 'WK-GT-26', to: 'WK-GT-13', relation: 'binds members to' },
+      { from: 'WK-GT-26', to: 'WK-GT-04', relation: 'severs — a man of the Watch can never return to the hearth' },
+      // S-GOT-013
+      { from: 'WK-GT-27', to: 'WK-GT-18', relation: 'orbits — the game is played for the throne and the throne is the prize' },
+      { from: 'WK-GT-27', to: 'WK-GT-19', relation: 'fueled by — gold buys players and pays for plots' },
+      { from: 'WK-GT-28', to: 'WK-GT-10', relation: 'contradicts — the law of the sword is useless in a court that fights with poison and parchment' },
+      { from: 'WK-GT-28', to: 'WK-GT-24', relation: 'sharpens — duty pulls Ned south where honor will get him killed' },
+      { from: 'WK-GT-29', to: 'WK-GT-17', relation: 'weaponizes — the raven network becomes an instrument of conspiracy' },
+      { from: 'WK-GT-29', to: 'WK-GT-27', relation: 'powers — the game runs on who knows what and when' },
+      // S-GOT-014
+      { from: 'WK-GT-30', to: 'WK-GT-06', relation: 'sanctified by — the old gods witness and remember violations of guest right' },
+      { from: 'WK-GT-31', to: 'WK-GT-30', relation: 'violates — pushing Bran is an act committed under guest right' },
+      { from: 'WK-GT-31', to: 'WK-GT-27', relation: 'exemplifies — the game demands monstrous acts dressed as necessity' },
+      { from: 'WK-GT-32', to: 'WK-GT-05', relation: 'warns against — the long summer breeds complacency that winter will punish' },
+      { from: 'WK-GT-32', to: 'WK-GT-20', relation: 'defines — these words are the core of northern identity' },
+      { from: 'WK-GT-33', to: 'WK-GT-27', relation: 'reveals the true cost of — the game consumes even those too young to play it' },
+      { from: 'WK-GT-33', to: 'WK-GT-02', relation: 'shatters — gendered expectations mean nothing when a child is broken' },
+      // World Build edges
+      { from: 'WK-GT-WB-01', to: 'WK-GT-01', relation: 'is the macro-structure that feudal obligation operates within' },
+      { from: 'WK-GT-WB-01', to: 'WK-GT-16', relation: 'the Hand is the highest delegated office of' },
+      { from: 'WK-GT-WB-02', to: 'WK-GT-06', relation: 'competes with the Old Gods as the spiritual framework of' },
+      { from: 'WK-GT-WB-02', to: 'WK-GT-30', relation: 'sanctifies laws like' },
+      { from: 'WK-GT-WB-03', to: 'WK-GT-05', relation: 'the long summer is an instance of' },
+      { from: 'WK-GT-WB-03', to: 'WK-GT-32', relation: '"Winter is coming" is a warning about' },
+      { from: 'WK-GT-WB-04', to: 'WK-GT-18', relation: 'forged and ruled from' },
+      { from: 'WK-GT-WB-04', to: 'WK-GT-21', relation: 'was overthrown by' },
+      { from: 'WK-GT-WB-05', to: 'WK-GT-WB-01', relation: 'are the power centers that comprise' },
+      { from: 'WK-GT-WB-05', to: 'WK-GT-19', relation: 'Lannister gold is the currency of' },
+      { from: 'WK-GT-WB-05', to: 'WK-GT-20', relation: 'northern cultural identity distinguishes the Starks within' },
+      { from: 'WK-GT-WB-06', to: 'WK-GT-13', relation: 'the Night\'s Watch was founded to guard against' },
+      { from: 'WK-GT-WB-06', to: 'WK-GT-WB-03', relation: 'may be the cause of — or awakened by — the aberrant' },
+      { from: 'WK-GT-WB-07', to: 'WK-GT-WB-04', relation: 'is a relic of the Valyrian magic that empowered' },
+      { from: 'WK-GT-WB-07', to: 'WK-GT-WB-06', relation: 'is one of the few weapons effective against' },
+      { from: 'WK-GT-WB-08', to: 'WK-GT-WB-04', relation: 'Daenerys carries the exiled bloodline of' },
+      { from: 'WK-GT-WB-08', to: 'WK-GT-27', relation: 'the game extends across the sea through' },
+      { from: 'WK-GT-WB-09', to: 'WK-GT-27', relation: 'is the fundamental driver of' },
+      { from: 'WK-GT-WB-09', to: 'WK-GT-22', relation: 'Robert\'s inability to rule is creating the next' },
+      { from: 'WK-GT-WB-09', to: 'WK-GT-31', relation: 'the Lannister secret would trigger a catastrophic' },
+    ] as WorldKnowledgeEdge[],
+  },
+    worldSummary: 'The Seven Kingdoms of Westeros are held together by the Iron Throne — a seat forged from the swords of the conquered, uncomfortable by design, a reminder that a king should never sit easy. Robert Baratheon won the throne by rebellion and has spent fifteen years failing to deserve it. The great houses circle each other like wolves: Stark in the frozen North, Lannister in the golden West, Baratheon on the throne, Targaryen in exile across the sea. Summer has lasted nine years. Winter is coming — the Stark words are not a boast but a warning. In Winterfell, the Starks live as they have for millennia — by duty, by honor, by the old gods and the old ways. But the south is stirring, and when the south stirs, the north bleeds.',
   rules: [
     'No character has plot armor — anyone can die if the narrative demands it',
     'Magic is rare, feared, and poorly understood in Westeros — it is not a common tool',
@@ -777,7 +1063,7 @@ export const seedGOT: NarrativeState = {
   ],
   controlMode: 'auto',
   imageStyle: 'Dark medieval fantasy, gritty photorealism, muted earth tones and firelight, rain-slicked stone and forged steel, HBO-inspired cinematic drama with desaturated palette',
-  activeForces: { payoff: 0, change: 0, variety: 0 },
+  activeForces: { payoff: 0, change: 0, knowledge: 0 },
   coverImageUrl: '/covers/got.jpg',
   createdAt: Date.now() - 86400000,
   updatedAt: Date.now(),

@@ -150,6 +150,7 @@ export function GeneratePanel({ onClose }: { onClose: () => void }) {
         locations: expansion.locations,
         threads: expansion.threads,
         relationships: expansion.relationships,
+        worldKnowledgeMutations: expansion.worldKnowledgeMutations,
         branchId: state.activeBranchId!,
       });
       onClose();

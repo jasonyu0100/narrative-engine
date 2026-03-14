@@ -28,9 +28,9 @@ function project(p: Vec3, w: number, h: number, fov: number): [number, number] {
 
 // Map z-score force values to cube coordinates via tanh compression.
 // z≈0 (average) stays centered; extreme values asymptote to ±1 corners.
-// Payoff → Y (vertical), Change → X (horizontal), Variety → Z (depth)
-function forcesToCubePos(payoff: number, change: number, variety: number): Vec3 {
-  return [Math.tanh(change), Math.tanh(payoff), Math.tanh(variety)];
+// Payoff → Y (vertical), Change → X (horizontal), Knowledge → Z (depth)
+function forcesToCubePos(payoff: number, change: number, knowledge: number): Vec3 {
+  return [Math.tanh(change), Math.tanh(payoff), Math.tanh(knowledge)];
 }
 
 // ── Cube corner positions ────────────────────────────────────────────────────
@@ -44,7 +44,7 @@ const CUBE_EDGES: [number, number][] = [
 const CORNER_KEYS: CubeCornerKey[] = ['LLL', 'HLL', 'LHL', 'HHL', 'LLH', 'HLH', 'LHH', 'HHH'];
 const CORNER_POSITIONS: Vec3[] = CORNER_KEYS.map((k) => {
   const c = NARRATIVE_CUBE[k].forces;
-  return forcesToCubePos(c.payoff, c.change, c.variety);
+  return forcesToCubePos(c.payoff, c.change, c.knowledge);
 });
 
 // ── Force data type for AI analysis ──────────────────────────────────────────
@@ -55,7 +55,7 @@ type SceneForceEntry = {
   arcName: string;
   corner: CubeCorner;
   cornerKey: CubeCornerKey;
-  forces: { payoff: number; change: number; variety: number };
+  forces: { payoff: number; change: number; knowledge: number };
   swing: number;
 };
 
@@ -114,14 +114,14 @@ export function NarrativeCubeViewer({ onClose }: { onClose: () => void }) {
   const trajectory = useMemo(() => {
     if (!narrative) return [];
     const pts: { pos: Vec3; index: number }[] = [];
-    let lastForce = { payoff: 0, change: 0, variety: 0 };
+    let lastForce = { payoff: 0, change: 0, knowledge: 0 };
     for (let i = 0; i < resolvedKeys.length; i++) {
       const entry = resolveEntry(narrative, resolvedKeys[i]);
       if (entry && isScene(entry)) {
         lastForce = forceMap[entry.id] ?? lastForce;
       }
       pts.push({
-        pos: forcesToCubePos(lastForce.payoff, lastForce.change, lastForce.variety),
+        pos: forcesToCubePos(lastForce.payoff, lastForce.change, lastForce.knowledge),
         index: i,
       });
     }
@@ -144,7 +144,7 @@ export function NarrativeCubeViewer({ onClose }: { onClose: () => void }) {
           if (prevForce) {
             const dp = f.payoff - prevForce.payoff;
             const dc = f.change - prevForce.change;
-            const dv = f.variety - prevForce.variety;
+            const dv = f.knowledge - prevForce.knowledge;
             swing = Math.sqrt(dp * dp + dc * dc + dv * dv);
           }
           entries.push({
@@ -249,7 +249,7 @@ export function NarrativeCubeViewer({ onClose }: { onClose: () => void }) {
       povName: pov?.name ?? '—',
       participants,
       events: scene.events,
-      pos: forcesToCubePos(entry.forces.payoff, entry.forces.change, entry.forces.variety),
+      pos: forcesToCubePos(entry.forces.payoff, entry.forces.change, entry.forces.knowledge),
       prevLocationName: prevLoc?.name ?? null,
       locationChanged,
       prevCornerName: prevEntry?.corner.name ?? null,
@@ -386,8 +386,8 @@ export function NarrativeCubeViewer({ onClose }: { onClose: () => void }) {
     const arc = narrative.arcs[entry.arcId];
     const loc = entry.locationId ? narrative.locations[entry.locationId] : null;
     const pt = trajectory[hoveredDotIdx];
-    // pos layout from forcesToCubePos: [tanh(change), tanh(payoff), tanh(variety)]
-    const corner = pt ? detectCubeCorner({ payoff: pt.pos[1], change: pt.pos[0], variety: pt.pos[2] }) : null;
+    // pos layout from forcesToCubePos: [tanh(change), tanh(payoff), tanh(knowledge)]
+    const corner = pt ? detectCubeCorner({ payoff: pt.pos[1], change: pt.pos[0], knowledge: pt.pos[2] }) : null;
     return {
       summary: entry.summary,
       arcName: arc?.name ?? entry.arcId,
@@ -440,7 +440,7 @@ export function NarrativeCubeViewer({ onClose }: { onClose: () => void }) {
     }
     const payoffColor = resolveCssColor('var(--color-payoff)');
     const changeColor = resolveCssColor('var(--color-change)');
-    const varietyColor = resolveCssColor('var(--color-variety)');
+    const knowledgeColor = resolveCssColor('var(--color-knowledge)');
 
     // ── Draw cube edges ────────────────────────────────────────────────
     for (const [a, b] of CUBE_EDGES) {
@@ -449,7 +449,7 @@ export function NarrativeCubeViewer({ onClose }: { onClose: () => void }) {
       const pa = transform(ca);
       const pb = transform(cb);
 
-      // Cube axes: X = change, Y = payoff, Z = variety
+      // Cube axes: X = change, Y = payoff, Z = knowledge
       const dx = Math.abs(ca[0] - cb[0]);
       const dy = Math.abs(ca[1] - cb[1]);
       const dz = Math.abs(ca[2] - cb[2]);
@@ -459,7 +459,7 @@ export function NarrativeCubeViewer({ onClose }: { onClose: () => void }) {
       } else if (dy > dz) {
         edgeColor = payoffColor;  // Y axis
       } else {
-        edgeColor = varietyColor;  // Z axis
+        edgeColor = knowledgeColor;  // Z axis
       }
 
       ctx.strokeStyle = edgeColor;
@@ -476,7 +476,7 @@ export function NarrativeCubeViewer({ onClose }: { onClose: () => void }) {
     const axes: { label: string; lo: Vec3; hi: Vec3; color: string }[] = [
       { label: 'Change',  lo: [-1.35, 0, 0], hi: [1.35, 0, 0], color: changeColor },
       { label: 'Payoff',  lo: [0, -1.35, 0], hi: [0, 1.35, 0], color: payoffColor },
-      { label: 'Variety', lo: [0, 0, -1.35], hi: [0, 0, 1.35], color: varietyColor },
+      { label: 'Knowledge', lo: [0, 0, -1.35], hi: [0, 0, 1.35], color: knowledgeColor },
     ];
 
     for (const ax of axes) {
@@ -932,14 +932,14 @@ export function NarrativeCubeViewer({ onClose }: { onClose: () => void }) {
                   <span className="text-[8px] font-mono text-text-dim/60">{focusedScene.forces.change.toFixed(1)}</span>
                 </div>
                 <div className="flex items-center gap-1">
-                  <span className="text-[9px] text-variety font-medium">V</span>
+                  <span className="text-[9px] text-knowledge font-medium">V</span>
                   <div className="w-10 h-1 rounded-full bg-white/5 overflow-hidden">
                     <div
-                      className="h-full bg-variety rounded-full"
-                      style={{ width: `${Math.max(5, (Math.tanh(focusedScene.forces.variety) + 1) * 50)}%` }}
+                      className="h-full bg-knowledge rounded-full"
+                      style={{ width: `${Math.max(5, (Math.tanh(focusedScene.forces.knowledge) + 1) * 50)}%` }}
                     />
                   </div>
-                  <span className="text-[8px] font-mono text-text-dim/60">{focusedScene.forces.variety.toFixed(1)}</span>
+                  <span className="text-[8px] font-mono text-text-dim/60">{focusedScene.forces.knowledge.toFixed(1)}</span>
                 </div>
               </div>
 

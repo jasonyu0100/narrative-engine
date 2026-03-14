@@ -76,9 +76,9 @@ export function ClosingSlide({ data }: { data: SlidesData }) {
   }, [data]);
 
   // Dominant force
-  const forces = ['payoff', 'change', 'variety'] as const;
+  const forces = ['payoff', 'change', 'knowledge'] as const;
   const dominant = forces.reduce((a, b) => data.overallGrades[a] > data.overallGrades[b] ? a : b);
-  const forceNames: Record<string, string> = { payoff: 'Payoff', change: 'Change', variety: 'Variety' };
+  const forceNames: Record<string, string> = { payoff: 'Payoff', change: 'Change', knowledge: 'Knowledge' };
 
   return (
     <div className="flex flex-col items-center justify-center h-full px-12 py-8">

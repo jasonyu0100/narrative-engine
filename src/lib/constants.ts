@@ -70,7 +70,7 @@ export const AUTO_STOP_CYCLE_LENGTH = 25;
 export const INSPECTOR_PAGE_SIZE = 20;
 
 /** Knowledge nodes shown in the WorldGraph per entity */
-export const GRAPH_KNOWLEDGE_LIMIT = 20;
+export const GRAPH_CONTINUITY_LIMIT = 20;
 
 /** Arc count above which ForceTracker switches to dense mode */
 export const DENSE_ARC_THRESHOLD = 20;

@@ -75,24 +75,39 @@ export const BEAT_DIRECTIONS: Record<BeatDirection, { name: string; description:
     description: 'Rising beats — each scene raises the stakes',
     prompt: `Structure this arc so each scene raises the stakes higher than the last.
 
-- Let tensions build naturally: early scenes plant seeds and surface questions, later scenes force confrontations and hard choices
+THREADS (primary driver):
 - Advance threads progressively — dormant tensions become active, active ones escalate toward crisis points
+- Each scene should push at least one thread forward. Do NOT resolve or close threads — leave them open and climbing at the arc's end
 - Widen the circle of consequence: early scenes affect one or two characters, later scenes draw more people in
-- Rotate who we see — bring characters back who've been absent, shift to locations we haven't visited recently
-- Relationships should be tested and shifted: alliances strained, loyalties questioned, new bonds forged under pressure
-- Do NOT resolve or close threads — leave them open and climbing at the arc's end`,
+
+CONTINUITY:
+- Characters should learn things that raise the stakes — discoveries that complicate their situation
+- Knowledge asymmetries should deepen: some characters learn things others don't, creating dramatic irony
+- Relationships should be tested and shifted: alliances strained, loyalties questioned
+
+KNOWLEDGE:
+- Reveal world concepts that raise the stakes — rules that constrain, systems that threaten, tensions that have no easy resolution
+- Connect new concepts to existing knowledge graph — the world should feel like it's tightening around the characters
+- Maintain POV streaks (2-4 scenes per perspective)`,
   },
   release: {
     name: 'Release',
     description: 'Falling beats — tension dissolves into stillness',
     prompt: `Structure this arc as a gradual exhale — the aftermath of intensity.
 
+THREADS:
 - No thread phase changes — the plot pauses while characters process what happened
-- Keep the same small intimate group throughout; don't introduce new faces or unfamiliar settings
-- Return to a familiar, recently-visited location — the comfort of known ground
+- Threads pulse at their current status, maintaining presence without advancing
+
+CONTINUITY:
 - Characters reflect on what they already know rather than learning new things
 - Relationship dynamics hold steady — no betrayals, no revelations, no valence shifts
-- The arc should feel like the quiet after a storm: emotionally resonant but structurally still`,
+- Keep the same small intimate group throughout in familiar settings
+
+KNOWLEDGE:
+- No new world concepts — the codex pauses. Characters operate within established rules
+- The arc should feel like the quiet after a storm: emotionally resonant but structurally still
+- Stay with one POV throughout`,
   },
   surge: {
     name: 'Surge',
@@ -100,19 +115,19 @@ export const BEAT_DIRECTIONS: Record<BeatDirection, { name: string; description:
     prompt: `Structure this arc around one explosive peak scene, bookended by restraint.
 
 BUILD (early scenes):
-- Slow accumulation of pressure: small thread advances, minor relationship tensions surfacing
-- Narrow focus — few characters, familiar setting, intimate scale
+- THREADS: Small advances, minor tensions surfacing — pressure accumulating
+- CONTINUITY: Characters notice small things, suspicions forming, pieces assembling
+- KNOWLEDGE: One or two new world concepts planted as seeds — rules or systems mentioned but not yet tested
 
 PEAK (one defining scene):
-- Everything converges: threads reach terminal phases, relationships undergo dramatic shifts
-- The widest cast — bring in long-absent characters, shift to a location that hasn't been seen
-- Multiple characters should learn critical new information simultaneously
-- This scene should feel unmistakably like the turning point of the arc
+- THREADS: Reach critical/terminal phases — this is the turning point
+- CONTINUITY: Multiple characters learn critical information simultaneously — knowledge gaps collapse
+- KNOWLEDGE: World rules are TESTED — established concepts prove true or false under pressure. New connections between existing knowledge are forged through action
 
 AFTERMATH (final scenes):
-- Immediate stillness: no thread changes, no new knowledge, no relationship shifts
-- The same small group, the same familiar place — the world absorbing what just happened
-- The sharp contrast between the peak and the quiet makes the climax land harder`,
+- All three pillars go quiet: no thread changes, no new continuity, no world knowledge reveals
+- The same small group absorbing what happened. Stay with one POV
+- The contrast between the peak and the stillness makes the climax land harder`,
   },
   rebound: {
     name: 'Rebound',
@@ -120,18 +135,20 @@ AFTERMATH (final scenes):
     prompt: `Structure this arc as a valley that builds into forward momentum.
 
 OPENING (quiet scenes):
-- Begin in stillness: no thread advancement, no new information, no relationship changes
-- Familiar characters in a familiar place — the story at its lowest energy
-- The same small group across these scenes, a sense of stasis or waiting
+- THREADS: No advancement — stasis or waiting
+- CONTINUITY: Characters sit with what they know. No new discoveries
+- KNOWLEDGE: No new world concepts. Familiar ground, familiar rules
 
 TURN (middle):
-- Something shifts: a thread stirs, a character learns one crucial thing, someone unexpected appears
-- The first crack in the stillness — subtle but unmistakable
+- THREADS: One thread stirs — a status change that breaks the stillness
+- CONTINUITY: A character learns one crucial thing — the catalyst
+- KNOWLEDGE: One world concept is revealed or connected that changes the calculus
 
 RISE (late scenes):
-- Threads begin advancing again, relationships are tested, characters discover new truths
-- Widen the cast — bring in characters who've been absent, move to locations not recently visited
-- End with clear upward momentum: threads open and escalating, the ensemble reshuffled, energy climbing`,
+- THREADS: Begin advancing again — momentum building
+- CONTINUITY: Characters discover new truths, relationships are tested
+- KNOWLEDGE: New world concepts connect to existing ones — the codex expands as the story accelerates
+- End with clear upward momentum across all three pillars. Maintain POV streaks`,
   },
 };
 

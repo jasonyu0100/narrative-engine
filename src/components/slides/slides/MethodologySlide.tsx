@@ -71,7 +71,7 @@ function ForcesPage() {
             </div>
             <div className="text-[11px] text-text-dim leading-relaxed pt-1">
               <p className="mb-2">
-                <Tex>{'m_c'}</Tex> = total mutations (knowledge + relationship + thread) for character <Tex>{'c'}</Tex>. The log scale provides diminishing returns per character — one character with 8 mutations ≈ three characters with 1 each.
+                <Tex>{'m_c'}</Tex> = total mutations (continuity + relationship + thread) for character <Tex>{'c'}</Tex>. The log scale provides diminishing returns per character — one character with 8 mutations ≈ three characters with 1 each.
               </p>
               <p>
                 This rewards <strong className="text-text-secondary">breadth</strong> over depth: a scene where five characters learn something new ripples wider than one where a single character reflects alone.
@@ -80,23 +80,23 @@ function ForcesPage() {
           </div>
         </div>
 
-        {/* Variety */}
+        {/* Knowledge */}
         <div className="flex-1 px-6 py-4 rounded-xl border border-blue-400/10 bg-blue-400/2">
           <div className="flex items-center gap-2 mb-3">
             <div className="w-2.5 h-2.5 rounded-full bg-blue-400" />
-            <span className="text-sm font-semibold text-blue-400">Variety</span>
-            <span className="text-[10px] text-text-dim ml-2">Is the reader seeing something new?</span>
+            <span className="text-sm font-semibold text-blue-400">Knowledge</span>
+            <span className="text-[10px] text-text-dim ml-2">Is the world growing richer?</span>
           </div>
           <div className="flex items-start gap-8">
             <div className="shrink-0">
-              <Tex display>{String.raw`V = \sum_{c \in A} r(g_c) \;+\; r(g_\ell)`}</Tex>
-              <div className="mt-1">
-                <Tex display>{String.raw`r(g) = \frac{g}{1 + g}`}</Tex>
-              </div>
+              <Tex display>{String.raw`K = \Delta N + \tfrac{1}{2}\,\Delta E`}</Tex>
             </div>
             <div className="text-[11px] text-text-dim leading-relaxed pt-1">
+              <p className="mb-2">
+                <Tex>{String.raw`\Delta N`}</Tex> = new world concepts (weight 1). <Tex>{String.raw`\Delta E`}</Tex> = new connections (weight ½). New concepts are valued higher than links between existing ones.
+              </p>
               <p>
-                <Tex>{'r(g)'}</Tex> = recency score — 1 on first appearance, decays toward 0 for repeated characters/locations. Computed over the full series.
+                5 edges scores 11.2, not 5. This rewards worlds where everything is interconnected.
               </p>
             </div>
           </div>
@@ -130,11 +130,11 @@ function EngagementSwingPage() {
           <div className="flex items-start gap-10">
             <div className="shrink-0 space-y-3">
               <Tex display>{String.raw`z_i^{(k)} = \frac{x_i^{(k)} - \bar{x}^{(k)}}{\sigma^{(k)}}`}</Tex>
-              <Tex display>{String.raw`E_i = \frac{z_i^P + z_i^C + z_i^V}{3}`}</Tex>
+              <Tex display>{String.raw`E_i = \frac{z_i^P + z_i^C + z_i^K}{3}`}</Tex>
             </div>
             <div className="text-[11px] text-text-dim leading-relaxed pt-1">
               <p className="mb-2">
-                Each raw force is first z-score normalized across all scenes — this puts payoff, change, and variety on a common scale regardless of their different natural magnitudes.
+                Each raw force is first z-score normalized across all scenes — this puts payoff, change, and knowledge on a common scale regardless of their different natural magnitudes.
               </p>
               <p className="mb-2">
                 Engagement <Tex>{'E_i'}</Tex> is then the equal-weighted mean of the three normalized forces. A scene with <Tex>{'E > 0'}</Tex> is above average intensity; <Tex>{'E < 0'}</Tex> is below. The engagement curve is Gaussian-smoothed (σ=1.5) for display and peak/valley detection.
@@ -178,7 +178,7 @@ function EngagementSwingPage() {
           </div>
           <div className="flex items-start gap-10">
             <div className="shrink-0 space-y-2">
-              <Tex display>{String.raw`S_i = \left\|\, \frac{\mathbf{f}_i - \mathbf{f}_{i-1}}{\boldsymbol{\mu}} \,\right\|_2 = \sqrt{\left(\frac{\Delta P}{\mu_P}\right)^{\!2} + \left(\frac{\Delta C}{\mu_C}\right)^{\!2} + \left(\frac{\Delta V}{\mu_V}\right)^{\!2}}`}</Tex>
+              <Tex display>{String.raw`S_i = \left\|\, \frac{\mathbf{f}_i - \mathbf{f}_{i-1}}{\boldsymbol{\mu}} \,\right\|_2 = \sqrt{\left(\frac{\Delta P}{\mu_P}\right)^{\!2} + \left(\frac{\Delta C}{\mu_C}\right)^{\!2} + \left(\frac{\Delta K}{\mu_K}\right)^{\!2}}`}</Tex>
             </div>
             <div className="text-[11px] text-text-dim leading-relaxed pt-1">
               <p className="mb-1">
@@ -218,14 +218,14 @@ function GradingPage() {
           <div className="flex items-start gap-10">
             <div className="shrink-0 space-y-3">
               <Tex display>{String.raw`\tilde{x} = \frac{\bar{x}}{\mu_{\text{ref}}}`}</Tex>
-              <Tex display>{String.raw`g(\tilde{x}) = 20\!\left(1 - e^{-2\tilde{x}}\right)`}</Tex>
+              <Tex display>{String.raw`g(\tilde{x}) = 25\!\left(1 - e^{-2\tilde{x}}\right)`}</Tex>
             </div>
             <div className="text-[11px] text-text-dim leading-relaxed pt-1">
               <p className="mb-2">
-                Each force's mean value is divided by its literary reference mean to produce a normalized ratio <Tex>{'\\tilde{x}'}</Tex>. This is then mapped through a saturating exponential that grades 0–20.
+                Each force's mean value is divided by its literary reference mean to produce a normalized ratio <Tex>{'\\tilde{x}'}</Tex>. This is then mapped through a saturating exponential that grades 0–25.
               </p>
               <p className="mb-2">
-                At <Tex>{'\\tilde{x}=1'}</Tex> (matching the reference), the grade is ≈ <strong className="text-text-secondary">17.3/20</strong>. Exceeding the reference yields diminishing returns — you can't brute-force your way to a perfect score.
+                At <Tex>{'\\tilde{x}=1'}</Tex> (matching the reference), the grade is ≈ <strong className="text-text-secondary">21.6/25</strong>. Exceeding the reference yields diminishing returns — you can't brute-force your way to a perfect score.
               </p>
             </div>
           </div>
@@ -236,10 +236,10 @@ function GradingPage() {
           <div className="text-[10px] uppercase tracking-widest text-text-dim mb-3">Reference Means (calibrated from literary works)</div>
           <div className="grid grid-cols-4 gap-4">
             {[
-              { label: 'Payoff', symbol: '\\mu_P', value: '1.75', color: '#EF4444' },
-              { label: 'Change', symbol: '\\mu_C', value: '7.0', color: '#22C55E' },
-              { label: 'Variety', symbol: '\\mu_V', value: '4.5', color: '#3B82F6' },
-              { label: 'Swing', symbol: '\\mu_S', value: '1.2', color: '#FACC15' },
+              { label: 'Payoff', symbol: '\\mu_P', value: '1.5', color: '#EF4444' },
+              { label: 'Change', symbol: '\\mu_C', value: '5.5', color: '#22C55E' },
+              { label: 'Knowledge', symbol: '\\mu_K', value: '4.5', color: '#38BDF8' },
+              { label: 'Swing', symbol: '\\mu_S', value: '1.5', color: '#FACC15' },
             ].map((ref) => (
               <div key={ref.label} className="text-center">
                 <div className="text-lg font-mono font-bold" style={{ color: ref.color }}>{ref.value}</div>
@@ -256,17 +256,12 @@ function GradingPage() {
           </div>
           <div className="flex items-start gap-10">
             <div className="shrink-0 space-y-2">
-              <Tex display>{String.raw`\text{Overall} = g_P + g_C + g_V + g_S + g_{\text{streak}}`}</Tex>
-              <Tex display>{String.raw`g_{\text{streak}} = 20 \cdot \bar{\kappa} \cdot \frac{1}{1 + \pi / 15n}`}</Tex>
+              <Tex display>{String.raw`\text{Overall} = g_P + g_C + g_K + g_S`}</Tex>
             </div>
             <div className="text-[11px] text-text-dim leading-relaxed pt-1">
-              <p className="mb-2">
-                Five sub-grades sum to a maximum of 100. The first four (Payoff, Change, Variety, Swing) are independent force grades. The fifth, <strong className="text-text-secondary">Streak</strong>, rewards consistency.
+              <p>
+                Four sub-grades (Payoff, Change, Knowledge, Swing) each score 0–25, summing to a maximum of 100.
               </p>
-              <p className="mb-2">
-                <Tex>{'\\bar{\\kappa}'}</Tex> = average zone credit per arc (green=1, lime=0.9, yellow=0.7, orange=0.5, red=0.3). <Tex>{'\\pi'}</Tex> = streak penalty — consecutive sub-80 arcs compound by zone weight × <Tex>{'\\sqrt{\\text{position}}'}</Tex>.
-              </p>
-              <p>A single weak arc is forgiven. A run of them signals the story losing its way.</p>
             </div>
           </div>
         </div>

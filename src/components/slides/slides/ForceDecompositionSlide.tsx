@@ -26,7 +26,7 @@ export function ForceDecompositionSlide({ data }: { data: SlidesData }) {
 
     const x = d3.scaleLinear().domain([0, n - 1]).range([0, w]);
     const maxVal = Math.max(
-      ...raw.payoff, ...raw.change, ...raw.variety, 1,
+      ...raw.payoff, ...raw.change, ...raw.knowledge, 1,
     );
     const y = d3.scaleLinear().domain([0, maxVal * 1.1]).range([h, 0]);
 
@@ -42,7 +42,7 @@ export function ForceDecompositionSlide({ data }: { data: SlidesData }) {
 
     // Areas (stacked look but overlaid with transparency)
     const forces = [
-      { data: raw.variety, color: '#3B82F6', label: 'Variety' },
+      { data: raw.knowledge, color: '#3B82F6', label: 'Knowledge' },
       { data: raw.change, color: '#22C55E', label: 'Change' },
       { data: raw.payoff, color: '#EF4444', label: 'Payoff' },
     ];
@@ -97,8 +97,8 @@ export function ForceDecompositionSlide({ data }: { data: SlidesData }) {
   for (let i = 0; i < data.sceneCount; i++) {
     const p = data.rawForces.payoff[i];
     const c = data.rawForces.change[i];
-    const v = data.rawForces.variety[i];
-    const dom = p >= c && p >= v ? 'Payoff' : c >= p && c >= v ? 'Change' : 'Variety';
+    const v = data.rawForces.knowledge[i];
+    const dom = p >= c && p >= v ? 'Payoff' : c >= p && c >= v ? 'Change' : 'Knowledge';
     if (prevDom && dom !== prevDom) {
       crossovers.push({ idx: i, from: prevDom, to: dom });
     }
@@ -119,7 +119,7 @@ export function ForceDecompositionSlide({ data }: { data: SlidesData }) {
         {[
           { label: 'Payoff', color: '#EF4444' },
           { label: 'Change', color: '#22C55E' },
-          { label: 'Variety', color: '#3B82F6' },
+          { label: 'Knowledge', color: '#3B82F6' },
         ].map((f) => (
           <span key={f.label} className="flex items-center gap-1.5 text-xs">
             <span className="w-3 h-0.5 rounded" style={{ backgroundColor: f.color }} />

@@ -19,7 +19,7 @@ const TERMINAL_SET = new Set<string>(THREAD_TERMINAL_STATUSES);
 const ACTIVE_SET = new Set<string>(THREAD_ACTIVE_STATUSES.filter((s) => s !== 'dormant'));
 const PRIMED_SET = new Set<string>(THREAD_PRIMED_STATUSES);
 
-const FORCE_KEYS = ['payoff', 'change', 'variety'] as const;
+const FORCE_KEYS = ['payoff', 'change', 'knowledge'] as const;
 
 function isTerminal(status: string): boolean {
   return TERMINAL_SET.has(status.toLowerCase());
@@ -117,11 +117,11 @@ function analyzeKnowledgeAsymmetries(
 
   // Build a set of knowledge content per character for fast lookup
   const charKnowledge = new Map<string, Set<string>>();
-  const charKnowledgeNodes = new Map<string, { content: string; index: number }[]>();
+  const charContinuityNodes = new Map<string, { content: string; index: number }[]>();
   for (const c of characters) {
-    const contentSet = new Set(c.knowledge.nodes.map((n) => n.content));
+    const contentSet = new Set(c.continuity.nodes.map((n) => n.content));
     charKnowledge.set(c.id, contentSet);
-    charKnowledgeNodes.set(c.id, c.knowledge.nodes.map((n, i) => ({ content: n.content, index: i })));
+    charContinuityNodes.set(c.id, c.continuity.nodes.map((n, i) => ({ content: n.content, index: i })));
   }
 
   // Count how many characters know each piece of content (exclusivity)
@@ -199,13 +199,13 @@ function analyzeKnowledgeAsymmetries(
 
 // ── Composite tension from force snapshot ───────────────────────────────────
 function compositeTension(f: ForceSnapshot): number {
-  return f.payoff * 0.4 + f.change * 0.3 + f.variety * 0.3;
+  return f.payoff * 0.4 + f.change * 0.3 + f.knowledge * 0.3;
 }
 
 // ── Story trajectory ────────────────────────────────────────────────────────
 // Maps story progress (0–1) to a dramatic phase that shapes corner selection.
 // The key insight: human-written stories have SHAPE — they breathe, with payoff
-// and change oscillating across the zero line. Variety naturally declines as
+// and change oscillating across the zero line. Knowledge naturally declines as
 // the story narrows focus, but payoff and change MUST dip into negative
 // territory regularly to create contrast and quiet moments.
 
@@ -223,7 +223,7 @@ const STORY_PHASES: PhaseDefinition[] = [
   {
     name: 'setup',
     range: [0, 0.15],
-    description: 'Establishing the world and characters. Payoff should be low, change moderate, variety high. Plant seeds — do not harvest them.',
+    description: 'Establishing the world and characters. Payoff should be low, change moderate, knowledge high. Plant seeds — do not harvest them.',
     cornerBias: {
       LHH: 0.35, LLH: 0.3, LHL: 0.2, LLL: 0.1,  // exploration, discovery, routine
       HHH: -0.35, HHL: -0.3, HLH: -0.15,          // way too early for crisis
@@ -332,7 +332,7 @@ export function getStoryPhase(progress: number): PhaseDefinition {
 function forceDistance(a: ForceSnapshot, b: ForceSnapshot): number {
   const ds = a.payoff - b.payoff;
   const dp = a.change - b.change;
-  const dv = a.variety - b.variety;
+  const dv = a.knowledge - b.knowledge;
   return Math.sqrt(ds * ds + dp * dp + dv * dv);
 }
 
@@ -395,17 +395,17 @@ export function isWorldBuildDue(
 
 // ── Per-force saturation detection ───────────────────────────────────────────
 // Detects when individual forces are pinned at extremes, which composite
-// metrics like avgTension mask (e.g. payoff=1 + variety=-1 = "moderate").
+// metrics like avgTension mask (e.g. payoff=1 + knowledge=-1 = "moderate").
 type ForceSaturation = { saturated: boolean; direction: number };
 
 function detectForceSaturation(
   scenes: Scene[],
   forceMap: Record<string, ForceSnapshot>,
-): Record<'payoff' | 'change' | 'variety', ForceSaturation> {
-  const result: Record<'payoff' | 'change' | 'variety', ForceSaturation> = {
+): Record<'payoff' | 'change' | 'knowledge', ForceSaturation> {
+  const result: Record<'payoff' | 'change' | 'knowledge', ForceSaturation> = {
     payoff: { saturated: false, direction: 0 },
     change: { saturated: false, direction: 0 },
-    variety: { saturated: false, direction: 0 },
+    knowledge: { saturated: false, direction: 0 },
   };
   const window = scenes.slice(-FORCE_WINDOW_SIZE);
   if (window.length < 4) return result;
@@ -483,11 +483,11 @@ export function evaluateNarrativeState(
   const windowed = computeWindowedForces(scenes, scenes.length - 1);
   const forceMap = windowed.forceMap;
   const lastScene = scenes[scenes.length - 1];
-  const currentForce = (lastScene ? forceMap[lastScene.id] : null) ?? { payoff: 0, change: 0, variety: 0 };
+  const currentForce = (lastScene ? forceMap[lastScene.id] : null) ?? { payoff: 0, change: 0, knowledge: 0 };
   const currentCorner = detectCubeCorner(currentForce);
 
   // ── Swing analysis ────────────────────────────────────────────────────────
-  const recentForceSnapshots = scenes.slice(-FORCE_WINDOW_SIZE).map((s) => forceMap[s.id] ?? { payoff: 0, change: 0, variety: 0 });
+  const recentForceSnapshots = scenes.slice(-FORCE_WINDOW_SIZE).map((s) => forceMap[s.id] ?? { payoff: 0, change: 0, knowledge: 0 });
   const recentSwing = averageSwing(recentForceSnapshots, FORCE_WINDOW_SIZE);
 
   // ── Thread analysis ─────────────────────────────────────────────────────
@@ -516,7 +516,7 @@ export function evaluateNarrativeState(
 
   // ── Post-climax detection ─────────────────────────────────────────────
   const recentWindow = scenes.slice(-FORCE_WINDOW_SIZE);
-  const recentForces = recentWindow.map((s) => forceMap[s.id] ?? { payoff: 0, change: 0, variety: 0 });
+  const recentForces = recentWindow.map((s) => forceMap[s.id] ?? { payoff: 0, change: 0, knowledge: 0 });
   const isPostClimax = recentForces.length >= 3 &&
     compositeTension(recentForces[0]) > 0.75 &&
     compositeTension(recentForces[recentForces.length - 1]) - compositeTension(recentForces[0]) < -0.15;
@@ -528,8 +528,8 @@ export function evaluateNarrativeState(
   );
 
   // ── Knowledge asymmetries ────────────────────────────────────────────
-  const knowledgeOpportunities = analyzeKnowledgeAsymmetries(narrative, scenes);
-  const hasHighDramaOpportunities = knowledgeOpportunities.length > 0 && knowledgeOpportunities[0].dramaticWeight > 0.4;
+  const continuityOpportunities = analyzeKnowledgeAsymmetries(narrative, scenes);
+  const hasHighDramaOpportunities = continuityOpportunities.length > 0 && continuityOpportunities[0].dramaticWeight > 0.4;
 
   // ── PHASE 1: Hard constraints — force saturation & corner repetition ──
   const forceSaturation = detectForceSaturation(scenes, forceMap);
@@ -570,7 +570,7 @@ export function evaluateNarrativeState(
     const isHighPayoff = corner.forces.payoff > 0;
     const isHighChange = corner.forces.change > 0;
     const isLowChange = corner.forces.change < 0;
-    const isHighVariety = corner.forces.variety > 0;
+    const isHighKnowledge = corner.forces.knowledge > 0;
 
     // Eliminated corners get a floor score — they can only win if nothing else works
     if (!eligibleCorners.has(key)) {
@@ -602,7 +602,7 @@ export function evaluateNarrativeState(
     const recentCount = cornerRepetition[key] ?? 0;
     if (recentCount >= 2) {
       score -= 0.15 * (recentCount - 1);
-      reasons.push(`picked ${recentCount}x in recent arcs — needs variety`);
+      reasons.push(`picked ${recentCount}x in recent arcs — needs knowledge`);
     }
 
     // ── 3. Thread-driven signals ────────────────────────────────────────
@@ -627,10 +627,10 @@ export function evaluateNarrativeState(
       reasons.push(`${stagnantThreads.length} stagnant threads need movement`);
     }
 
-    // Dormant threads → variety
-    if (dormantThreads.length > 2 && isHighVariety) {
+    // Dormant threads → knowledge
+    if (dormantThreads.length > 2 && isHighKnowledge) {
       score += 0.1;
-      reasons.push(`${dormantThreads.length} dormant threads — variety can surface them`);
+      reasons.push(`${dormantThreads.length} dormant threads — knowledge can surface them`);
     }
 
     // Primed threads → resolution, gated by payoff saturation
@@ -644,11 +644,11 @@ export function evaluateNarrativeState(
       reasons.push(`${primedThreads.length} primed thread(s) — change can deliver payoff`);
     }
 
-    // Knowledge asymmetries → revelation, favor variety over payoff when payoff saturated
+    // Knowledge asymmetries → revelation, favor knowledge over payoff when payoff saturated
     if (hasHighDramaOpportunities) {
-      if (isHighVariety) {
+      if (isHighKnowledge) {
         score += 0.2;
-        reasons.push('knowledge asymmetries — variety creates revelation opportunities');
+        reasons.push('knowledge asymmetries — knowledge creates revelation opportunities');
       } else if (isHighPayoff && payoffNotSaturatedHigh) {
         score += 0.15;
         reasons.push('knowledge asymmetries — payoff can force confrontation');
@@ -726,7 +726,7 @@ export function evaluateNarrativeState(
       scenes,
       stagnantThreads,
       primedThreads,
-      knowledgeOpportunities,
+      continuityOpportunities,
       forceSaturation,
       recentSwing,
       storyProgress,
@@ -772,8 +772,8 @@ export type DirectiveContext = {
   scenes: Scene[];
   stagnantThreads: Thread[];
   primedThreads: ThreadMaturity[];
-  knowledgeOpportunities: KnowledgeOpportunity[];
-  forceSaturation: Record<'payoff' | 'change' | 'variety', ForceSaturation>;
+  continuityOpportunities: KnowledgeOpportunity[];
+  forceSaturation: Record<'payoff' | 'change' | 'knowledge', ForceSaturation>;
   recentSwing: number;
   storyProgress: number;
   storyPhase: { name: StoryPhase; description: string };
@@ -813,7 +813,7 @@ export function buildActionDirective(
   const maturityClause = buildThreadMaturityClause(narrative, ctx.primedThreads, corner.forces.payoff > 0);
 
   // Knowledge asymmetry clause
-  const asymmetryClause = buildKnowledgeAsymmetryClause(ctx.knowledgeOpportunities, corner.forces.variety > 0 || corner.forces.payoff > 0);
+  const asymmetryClause = buildKnowledgeAsymmetryClause(ctx.continuityOpportunities, corner.forces.knowledge > 0 || corner.forces.payoff > 0);
 
   // Force balance clause — uses pre-computed saturation
   const balanceClause = buildForceBalanceClause(ctx.forceSaturation);
@@ -841,17 +841,17 @@ export function buildActionDirective(
 
 /** Build LLM correction text from pre-computed saturation results */
 function buildForceBalanceClause(
-  saturation: Record<'payoff' | 'change' | 'variety', ForceSaturation>,
+  saturation: Record<'payoff' | 'change' | 'knowledge', ForceSaturation>,
 ): string {
   const HIGH_CORRECTIONS: Record<string, string> = {
     payoff: 'Payoff has been at maximum for too long. Write scenes where immediate danger recedes — characters regroup, reflect, or shift focus to personal/interpersonal matters rather than existential threats. Use low-payoff thread mutations.',
     change: 'Change has been relentlessly fast. Slow down — write contemplative, dialogue-heavy scenes. Let characters process events instead of rushing to the next plot point.',
-    variety: 'Variety has been too high for too long. Ground the narrative — return to familiar locations and established character dynamics instead of constantly introducing new elements.',
+    knowledge: 'Knowledge has been too high for too long. Ground the narrative — return to familiar locations and established character dynamics instead of constantly introducing new elements.',
   };
   const LOW_CORRECTIONS: Record<string, string> = {
     payoff: 'Payoff has been too low for too long. Introduce genuine consequences — a betrayal, a threat, a revelation that changes everything. Characters should face real risk.',
     change: 'Change has stagnated. Inject urgency — time pressure, pursuit, rapid developments. Move characters into action instead of contemplation.',
-    variety: 'Variety has collapsed — the story feels repetitive. Shift perspective, introduce an unexpected character, change location, or subvert an established pattern. Break the routine.',
+    knowledge: 'Knowledge has collapsed — the story feels repetitive. Shift perspective, introduce an unexpected character, change location, or subvert an established pattern. Break the routine.',
   };
 
   const corrections: string[] = [];

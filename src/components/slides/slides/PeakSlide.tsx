@@ -7,12 +7,12 @@ import { NARRATIVE_CUBE } from '@/types/narrative';
 const FORCE_COLORS: Record<string, string> = {
   payoff: '#EF4444',
   change: '#22C55E',
-  variety: '#3B82F6',
+  knowledge: '#3B82F6',
 };
 
 export function PeakSlide({ data, peak, rank }: { data: SlidesData; peak: PeakInfo; rank: number }) {
-  const forces = ['payoff', 'change', 'variety'] as const;
-  const maxForce = Math.max(Math.abs(peak.forces.payoff), Math.abs(peak.forces.change), Math.abs(peak.forces.variety), 0.5);
+  const forces = ['payoff', 'change', 'knowledge'] as const;
+  const maxForce = Math.max(Math.abs(peak.forces.payoff), Math.abs(peak.forces.change), Math.abs(peak.forces.knowledge), 0.5);
 
   return (
     <div className="flex flex-col h-full px-12 py-8">

@@ -105,7 +105,7 @@ function buildCumulativeContext(priorResults: (AnalysisChunkResult | null)[]): s
   const completed = priorResults.filter((r): r is AnalysisChunkResult => r !== null);
   if (completed.length === 0) return '';
 
-  const characters: Record<string, { name: string; role: string; knowledge: { type: string; content: string; chunk: number }[] }> = {};
+  const characters: Record<string, { name: string; role: string; continuity: { type: string; content: string; chunk: number }[] }> = {};
   const locations: Record<string, { name: string; parentName: string | null; description: string; lore: string[] }> = {};
   const threads: Record<string, { description: string; anchorNames: string[]; currentStatus: string; history: string[] }> = {};
   const relationships: Record<string, { from: string; to: string; type: string; valence: number }> = {};
@@ -115,14 +115,14 @@ function buildCumulativeContext(priorResults: (AnalysisChunkResult | null)[]): s
   completed.forEach((ch, chIdx) => {
     for (const c of ch.characters ?? []) {
       if (!characters[c.name]) {
-        characters[c.name] = { name: c.name, role: c.role, knowledge: [] };
+        characters[c.name] = { name: c.name, role: c.role, continuity: [] };
       }
       const rank: Record<string, number> = { transient: 0, recurring: 1, anchor: 2 };
       if ((rank[c.role] ?? 0) > (rank[characters[c.name].role] ?? 0)) {
         characters[c.name].role = c.role;
       }
-      for (const k of c.knowledge ?? []) {
-        characters[c.name].knowledge.push({ type: k.type, content: k.content, chunk: chIdx + 1 });
+      for (const k of c.continuity ?? []) {
+        characters[c.name].continuity.push({ type: k.type, content: k.content, chunk: chIdx + 1 });
       }
     }
 
@@ -149,7 +149,7 @@ function buildCumulativeContext(priorResults: (AnalysisChunkResult | null)[]): s
     for (const scene of ch.scenes ?? []) {
       sceneCounter++;
       const threadChanges = (scene.threadMutations ?? []).map((tm) => `${tm.threadDescription?.slice(0, 50)}: ${tm.from}→${tm.to}`).join('; ');
-      const kChanges = (scene.knowledgeMutations ?? []).map((km) => `${km.characterName} learned [${km.type}]: ${km.content}`).join('; ');
+      const kChanges = (scene.continuityMutations ?? []).map((km) => `${km.characterName} learned [${km.type}]: ${km.content}`).join('; ');
       sceneHistory.push(
         `[Chunk${chIdx + 1} S${sceneCounter}] @ ${scene.locationName} | POV: ${scene.povName} | ${scene.participantNames?.join(', ')}` +
         (threadChanges ? ` | Threads: ${threadChanges}` : '') +
@@ -160,7 +160,7 @@ function buildCumulativeContext(priorResults: (AnalysisChunkResult | null)[]): s
   });
 
   const charBlock = Object.values(characters).map((c) => {
-    const kLines = c.knowledge.map((k) => `    (${k.type}) ${k.content} [Chunk${k.chunk}]`);
+    const kLines = c.continuity.map((k) => `    (${k.type}) ${k.content} [Chunk${k.chunk}]`);
     return `- ${c.name} (${c.role})${kLines.length > 0 ? '\n  Knowledge:\n' + kLines.join('\n') : ''}`;
   }).join('\n');
 
@@ -321,10 +321,10 @@ export async function analyzeChunk(
 You must ALWAYS respond with valid JSON only — no markdown, no explanation, no code fences.
 
 The narrative engine tracks:
-- Characters with roles (anchor = central, recurring = frequent, transient = minor) and knowledge graphs
+- Characters with roles (anchor = central, recurring = frequent, transient = minor) and continuity graphs
 - Locations with parent-child hierarchy and lore/secrets
 - Narrative threads — ongoing tensions that evolve: ${THREAD_ACTIVE_STATUSES.join(' → ')} → ${THREAD_TERMINAL_STATUSES.join('/')}
-- Scenes with POV character, events, thread mutations, knowledge mutations, and relationship mutations
+- Scenes with POV character, events, thread mutations, continuity mutations, and relationship mutations
 - Relationships — directional with sentiment valence (-1 to 1) and descriptive type
 
 CHARACTERS: Only extract PEOPLE who speak, act, or are spoken about as individuals. Do NOT include animals, objects, institutions, publications, textbook authors mentioned only in passing, or named items. Use a single canonical name per character — if someone is called both "Professor McGonagall" and "Minerva McGonagall", pick the most common form and use it consistently. Check prior chunk names and reuse the EXACT same name string for returning characters.
@@ -339,7 +339,7 @@ Categories:
 Do NOT extract: world-building facts, character traits, setting details, or observations that create no narrative tension.
 Fewer, sharper threads are better than many overlapping ones. Thread activity is dynamic — some chunks may advance many threads at once, others only a few. Only include a thread if its status actually changes in this chunk or if it's being actively developed. For continuing threads, REUSE the EXACT description string from prior chunks.
 
-Knowledge types must be SPECIFIC and CONTEXTUAL — not generic labels like "knows" or "secret". Use types that describe exactly what kind of knowledge: "social_observation", "class_awareness", "romantic_longing", "moral_judgment", "hidden_wealth_source", "past_betrayal", "forbidden_desire", "strategic_deception", etc.
+Continuity types must be SPECIFIC and CONTEXTUAL — not generic labels like "knows" or "secret". Use types that describe exactly what kind of continuity: "social_observation", "class_awareness", "romantic_longing", "moral_judgment", "hidden_wealth_source", "past_betrayal", "forbidden_desire", "strategic_deception", etc.
 
 Be thorough with narrative developments, but selective with characters — quality over quantity.`;
 
@@ -358,7 +358,7 @@ Return a single JSON object with this exact structure:
       "role": "anchor|recurring|transient",
       "firstAppearance": true/false,
       "imagePrompt": "1-2 sentence visual description of physical appearance, clothing, and distinguishing features for portrait generation",
-      "knowledge": [
+      "continuity": [
         { "type": "specific_contextual_type", "content": "What they learn, reveal, or demonstrate in THIS chunk" }
       ]
     }
@@ -386,7 +386,7 @@ Return a single JSON object with this exact structure:
       "threadMutations": [
         { "threadDescription": "exact thread description", "from": "status", "to": "status" }
       ],
-      "knowledgeMutations": [
+      "continuityMutations": [
         { "characterName": "Name", "action": "added", "content": "What they learned", "type": "specific_contextual_type" }
       ],
       "relationshipMutations": [
@@ -394,7 +394,11 @@ Return a single JSON object with this exact structure:
       ],
       "characterMovements": [
         { "characterName": "Name", "locationName": "Destination location", "transition": "Vivid description of HOW they traveled, e.g. 'Rode horseback through the night'" }
-      ]
+      ],
+      "worldKnowledgeMutations": {
+        "addedNodes": [{"concept": "name of abstract world concept", "type": "law|system|concept|tension"}],
+        "addedEdges": [{"fromConcept": "concept name", "toConcept": "concept name", "relation": "relationship type"}]
+      }
     }
   ],
   "relationships": [
@@ -407,11 +411,30 @@ RULES:
 - Every scene MUST have a non-empty "summary", at least one event tag, and a "povName"
 - "sections" is an array of section numbers (1-indexed) that this scene covers. Together, all scenes should cover all ${sections.length} sections.
 - characterMovements: only include characters who physically RELOCATE to a different location during the scene. The destination must differ from the scene's locationName. Omit characters who stay put.
+- worldKnowledgeMutations track the world's abstract structure — the rules, systems, ideas, and tensions that define the world the characters inhabit. NOT character knowledge (that's continuityMutations). World knowledge exists in EVERY genre, not just fantasy:
+  * Fantasy/sci-fi: magic systems, alien species, supernatural laws, technological rules
+  * Literary fiction: class structures, social norms, economic systems, cultural expectations
+  * Historical: period customs, political systems, social hierarchies, era-specific tensions
+  * Crime/thriller: legal systems, criminal hierarchies, institutional power structures
+- Four types: "law" (governing truths — social rules, physical laws, cultural expectations), "system" (institutions, processes, hierarchies — both formal and informal), "concept" (named ideas, phenomena, symbolic motifs, places-as-concepts), "tension" (contradictions, paradoxes, unresolved social forces).
+- Add nodes when a scene reveals, establishes, or names a world concept. Add edges (fromConcept/toConcept) when it connects concepts.
+- How much to extract depends on the prose:
+  * A scene that establishes social rules, describes how institutions work, reveals class dynamics, or names symbolic concepts → several nodes and edges.
+  * A scene that shows how two world concepts relate (old money enables social access, prohibition creates underground economies) → edges.
+  * A quiet scene with no world context → none.
+  * Let the prose guide you — extract what's there, don't invent what isn't.
+
+HOW MUTATIONS ARE MEASURED — every choice feeds into three narrative forces that evaluate the story:
+- PAYOFF: threadMutations (status transition magnitude) + relationshipMutations (valenceDelta). Bigger thread jumps and relationship shifts = higher Payoff. Terminal transitions are the highest value.
+- CHANGE: How many characters are affected and how deeply. continuityMutations, relationshipMutations, and threadMutations all count per character. Breadth (many characters touched) scores higher than depth (one character with many mutations).
+- KNOWLEDGE: worldKnowledgeMutations — nodes + edges at the 3/2 power. Connections between concepts matter more than isolated facts. Scenes that connect to existing world concepts build a denser graph.
+- A scene should contribute to at least one force. Quiet scenes contribute through subtle continuity shifts or thread pulses. Dense scenes contribute across all three. The best narratives vary their force profile across scenes — rhythm matters.
 ${cumulativeCtx ? `
 CUMULATIVE CONTINUITY:
 - Thread "statusAtStart" MUST match the thread's current status from the THREADS section above
 - Reuse EXACT thread descriptions from prior chunks for continuing threads
 - Relationship valence should evolve from prior values
+- REUSE world knowledge concept names from prior chunks when the same concept reappears — use the exact same concept string so edges can connect across chunks
 - Look for NEW threads that emerge in this chunk that weren't present before
 ` : `
 FIRST CHUNK — THREAD SEEDING:
@@ -477,10 +500,10 @@ export async function analyzeChunkParallel(
 You must ALWAYS respond with valid JSON only — no markdown, no explanation, no code fences.
 
 The narrative engine tracks:
-- Characters with roles (anchor = central, recurring = frequent, transient = minor) and knowledge graphs
+- Characters with roles (anchor = central, recurring = frequent, transient = minor) and continuity graphs
 - Locations with parent-child hierarchy and lore/secrets
 - Narrative threads — ongoing tensions that evolve: ${THREAD_ACTIVE_STATUSES.join(' → ')} → ${THREAD_TERMINAL_STATUSES.join('/')}
-- Scenes with POV character, events, thread mutations, knowledge mutations, and relationship mutations
+- Scenes with POV character, events, thread mutations, continuity mutations, and relationship mutations
 - Relationships — directional with sentiment valence (-1 to 1) and descriptive type
 
 CHARACTERS: Only extract PEOPLE who speak, act, or are spoken about as individuals. Do NOT include animals, objects, institutions, publications, textbook authors mentioned only in passing, or named items. Use a single canonical name per character — pick the most common form used in this chunk.
@@ -505,7 +528,7 @@ For thread statuses, use your best judgment based on what you see in THIS chunk 
 Threads can regress (e.g. "escalating" → "active" when tension eases). statusAtStart and statusAtEnd can be the same if the thread is engaged but doesn't shift phase — this is a valid "pulse" that shows the thread is alive.
 Be aggressive about detecting phase transitions — if a chapter opens with simmering tension and ends with a confrontation, that's at least one status jump. Look for turning points, revelations, and emotional shifts as transition triggers.
 
-Knowledge types must be SPECIFIC and CONTEXTUAL — not generic labels like "knows" or "secret". Use types that describe exactly what kind of knowledge: "social_observation", "class_awareness", "romantic_longing", "moral_judgment", "hidden_wealth_source", "past_betrayal", "forbidden_desire", "strategic_deception", etc.
+Continuity types must be SPECIFIC and CONTEXTUAL — not generic labels like "knows" or "secret". Use types that describe exactly what kind of continuity: "social_observation", "class_awareness", "romantic_longing", "moral_judgment", "hidden_wealth_source", "past_betrayal", "forbidden_desire", "strategic_deception", etc.
 
 Be thorough with narrative developments, but selective with characters — quality over quantity.`;
 
@@ -523,7 +546,7 @@ Return a single JSON object with this exact structure:
       "role": "anchor|recurring|transient",
       "firstAppearance": true/false,
       "imagePrompt": "1-2 sentence visual description of physical appearance, clothing, and distinguishing features for portrait generation",
-      "knowledge": [
+      "continuity": [
         { "type": "specific_contextual_type", "content": "What they learn, reveal, or demonstrate in THIS chunk" }
       ]
     }
@@ -551,7 +574,7 @@ Return a single JSON object with this exact structure:
       "threadMutations": [
         { "threadDescription": "exact thread description", "from": "status", "to": "status" }
       ],
-      "knowledgeMutations": [
+      "continuityMutations": [
         { "characterName": "Name", "action": "added", "content": "What they learned", "type": "specific_contextual_type" }
       ],
       "relationshipMutations": [
@@ -559,7 +582,11 @@ Return a single JSON object with this exact structure:
       ],
       "characterMovements": [
         { "characterName": "Name", "locationName": "Destination location", "transition": "Vivid description of HOW they traveled, e.g. 'Rode horseback through the night'" }
-      ]
+      ],
+      "worldKnowledgeMutations": {
+        "addedNodes": [{"concept": "name of abstract world concept", "type": "law|system|concept|tension"}],
+        "addedEdges": [{"fromConcept": "concept name", "toConcept": "concept name", "relation": "relationship type"}]
+      }
     }
   ],
   "relationships": [
@@ -572,6 +599,17 @@ RULES:
 - Every scene MUST have a non-empty "summary", at least one event tag, and a "povName"
 - "sections" is an array of section numbers (1-indexed) that this scene covers. Together, all scenes should cover all ${sections.length} sections.
 - characterMovements: only include characters who physically RELOCATE to a different location during the scene. The destination must differ from the scene's locationName. Omit characters who stay put.
+- worldKnowledgeMutations track the world's abstract structure — rules, systems, ideas, and tensions of the world characters inhabit. NOT character knowledge. Exists in EVERY genre:
+  * Fantasy/sci-fi: magic systems, supernatural laws, alien species. Literary: class structures, social norms, economic systems. Historical: period customs, political systems. Crime: legal systems, criminal hierarchies.
+- Four types: "law" (governing truths — social rules, physical laws), "system" (institutions, hierarchies), "concept" (named ideas, symbolic motifs, places-as-concepts), "tension" (contradictions, unresolved social forces).
+- Add nodes when a scene reveals world concepts. Add edges when it connects them.
+- How much depends on the prose: scenes establishing social rules, institutional dynamics, cultural expectations → several nodes. Quiet scenes with no world context → none. Let the prose guide you.
+
+HOW MUTATIONS ARE MEASURED — every choice feeds into three narrative forces that evaluate the story:
+- PAYOFF: threadMutations (status transition magnitude) + relationshipMutations (valenceDelta). Bigger jumps = higher Payoff.
+- CHANGE: How many characters are affected. continuityMutations, relationshipMutations, threadMutations all count per character. Breadth scores higher than depth.
+- KNOWLEDGE: worldKnowledgeMutations — nodes + edges at 3/2 power. Connections matter more than isolated facts.
+- A scene should contribute to at least one force. Vary force profiles across scenes — rhythm matters.
 
 THREAD LIFECYCLE:
 - Active statuses: ${THREAD_ACTIVE_STATUSES.map((s: string) => `"${s}"`).join(', ')}
@@ -628,11 +666,15 @@ export async function reconcileResults(
   const allCharNames = new Set<string>();
   const allThreadDescs = new Set<string>();
   const allLocNames = new Set<string>();
+  const allWKConcepts = new Set<string>();
 
   for (const r of results) {
     for (const c of r.characters ?? []) allCharNames.add(c.name);
     for (const t of r.threads ?? []) allThreadDescs.add(t.description);
     for (const l of r.locations ?? []) allLocNames.add(l.name);
+    for (const s of r.scenes ?? []) {
+      for (const n of s.worldKnowledgeMutations?.addedNodes ?? []) allWKConcepts.add(n.concept);
+    }
   }
 
   // Ask LLM to identify duplicates and merge them
@@ -648,6 +690,9 @@ ${[...allThreadDescs].map((d, i) => `${i + 1}. "${d}"`).join('\n')}
 LOCATIONS found across all chunks:
 ${[...allLocNames].map((n, i) => `${i + 1}. "${n}"`).join('\n')}
 
+WORLD KNOWLEDGE CONCEPTS found across all chunks:
+${[...allWKConcepts].map((c, i) => `${i + 1}. "${c}"`).join('\n')}
+
 Identify duplicates and SIMILAR entries, then produce merge maps. For each group, pick the BEST canonical name/description.
 
 Return JSON:
@@ -662,6 +707,10 @@ Return JSON:
   },
   "locationMerges": {
     "variant location name": "canonical location name"
+  },
+  "worldKnowledgeMerges": {
+    "variant concept": "canonical concept",
+    "another variant": "canonical concept"
   }
 }
 
@@ -679,13 +728,17 @@ THREAD MERGING — BE AGGRESSIVE:
 - The goal is FEWER, SHARPER threads. When in doubt, merge. A story should have ~8-15 major threads, not 30+ overlapping ones.
 - Pick the most encompassing description as canonical — it should capture the core tension broadly enough to cover all the variants
 
+WORLD KNOWLEDGE MERGING:
+- Only merge concepts that are clearly the same idea in different words (e.g. "Sorting Hat ceremony" and "The Sorting")
+- Related but distinct concepts should remain separate — they serve as independent connection points in the knowledge graph
+
 - If there are no duplicates for a category, return an empty object {}`;
 
   const reconciliationSystem = `You are a data reconciliation engine. Identify and merge duplicate entities from independently-extracted narrative data. Return only valid JSON.`;
 
   const raw = await callAnalysis(reconciliationPrompt, reconciliationSystem, onToken);
   const json = extractJSON(raw);
-  let merges: { characterMerges: CharacterNameMap; threadMerges: Record<string, string>; locationMerges: Record<string, string> };
+  let merges: { characterMerges: CharacterNameMap; threadMerges: Record<string, string>; locationMerges: Record<string, string>; worldKnowledgeMerges?: Record<string, string> };
   try {
     merges = JSON.parse(json);
   } catch {
@@ -699,10 +752,12 @@ THREAD MERGING — BE AGGRESSIVE:
   const charMap = merges.characterMerges ?? {};
   const threadMap = merges.threadMerges ?? {};
   const locMap = merges.locationMerges ?? {};
+  const wkMap = merges.worldKnowledgeMerges ?? {};
 
   const resolveChar = (name: string) => charMap[name] ?? name;
   const resolveThread = (desc: string) => threadMap[desc] ?? desc;
   const resolveLoc = (name: string) => locMap[name] ?? name;
+  const resolveWK = (concept: string) => wkMap[concept] ?? concept;
 
   // Apply merges to all results
   const reconciled: AnalysisChunkResult[] = results.map((r) => ({
@@ -711,12 +766,12 @@ THREAD MERGING — BE AGGRESSIVE:
       (r.characters ?? []).map((c) => ({
         ...c,
         name: resolveChar(c.name),
-        knowledge: c.knowledge ?? [],
+        continuity: c.continuity ?? [],
       })),
       (c) => c.name,
       (a, b) => ({
         ...a,
-        knowledge: [...a.knowledge, ...b.knowledge],
+        continuity: [...a.continuity, ...b.continuity],
         role: higherRole(a.role, b.role),
       }),
     ),
@@ -756,7 +811,7 @@ THREAD MERGING — BE AGGRESSIVE:
         // When two mutations target the same thread in one scene, keep the widest transition
         (a, b) => ({ ...a, from: a.from, to: b.to }),
       ),
-      knowledgeMutations: (s.knowledgeMutations ?? []).map((km) => ({
+      continuityMutations: (s.continuityMutations ?? []).map((km) => ({
         ...km,
         characterName: resolveChar(km.characterName),
       })),
@@ -765,6 +820,17 @@ THREAD MERGING — BE AGGRESSIVE:
         from: resolveChar(rm.from),
         to: resolveChar(rm.to),
       })),
+      worldKnowledgeMutations: s.worldKnowledgeMutations ? {
+        addedNodes: (s.worldKnowledgeMutations.addedNodes ?? []).map((n) => ({
+          ...n,
+          concept: resolveWK(n.concept),
+        })),
+        addedEdges: (s.worldKnowledgeMutations.addedEdges ?? []).map((e) => ({
+          ...e,
+          fromConcept: resolveWK(e.fromConcept),
+          toConcept: resolveWK(e.toConcept),
+        })),
+      } : undefined,
     })),
     relationships: deduplicateBy(
       (r.relationships ?? []).map((rel) => ({
@@ -867,7 +933,7 @@ export async function assembleNarrative(
   onToken?: (token: string, accumulated: string) => void,
 ): Promise<NarrativeState> {
   const PREFIX = title.replace(/[^a-zA-Z]/g, '').slice(0, 3).toUpperCase() || 'TXT';
-  let charCounter = 0, locCounter = 0, threadCounter = 0, sceneCounter = 0, arcCounter = 0, kCounter = 0;
+  let charCounter = 0, locCounter = 0, threadCounter = 0, sceneCounter = 0, arcCounter = 0, kCounter = 0, wkCounter = 0;
 
   const nextId = (pre: string, counter: () => number, pad = 2) => `${pre}-${PREFIX}-${String(counter()).padStart(pad, '0')}`;
   const nextCharId = () => nextId('C', () => ++charCounter);
@@ -876,10 +942,18 @@ export async function assembleNarrative(
   const nextSceneId = () => nextId('S', () => ++sceneCounter, 3);
   const nextArcId = () => nextId('ARC', () => ++arcCounter);
   const nextKId = () => nextId('K', () => ++kCounter, 3);
+  const nextWkId = () => nextId('WK', () => ++wkCounter, 2);
 
   const charNameToId: Record<string, string> = {};
   const locNameToId: Record<string, string> = {};
   const threadDescToId: Record<string, string> = {};
+  const wkConceptToId: Record<string, string> = {}; // lowercase concept → WK ID
+
+  const getWkId = (concept: string) => {
+    const key = concept.toLowerCase();
+    if (!wkConceptToId[key]) wkConceptToId[key] = nextWkId();
+    return wkConceptToId[key];
+  };
 
   const getCharId = (name: string) => { if (!charNameToId[name]) charNameToId[name] = nextCharId(); return charNameToId[name]; };
   const getLocId = (name: string) => { if (!locNameToId[name]) locNameToId[name] = nextLocId(); return locNameToId[name]; };
@@ -914,7 +988,7 @@ export async function assembleNarrative(
       if (!characters[id]) {
         characters[id] = {
           id, name: c.name, role: c.role as Character['role'], threadIds: [],
-          knowledge: { nodes: [] },
+          continuity: { nodes: [] },
           ...(c.imagePrompt ? { imagePrompt: c.imagePrompt } : {}),
         };
       } else if (c.imagePrompt) {
@@ -927,7 +1001,7 @@ export async function assembleNarrative(
       // Defer knowledge to first scene of this chunk (deduplicate across chunks)
       if (!seenCharKnowledge.has(id)) seenCharKnowledge.set(id, new Set());
       const charSeen = seenCharKnowledge.get(id)!;
-      for (const k of c.knowledge ?? []) {
+      for (const k of c.continuity ?? []) {
         if (!charSeen.has(k.content)) {
           deferredK.push({ characterId: id, type: k.type, content: k.content });
           charSeen.add(k.content);
@@ -942,7 +1016,7 @@ export async function assembleNarrative(
         const parentId = loc.parentName ? getLocId(loc.parentName) : null;
         locations[id] = {
           id, name: loc.name, parentId, threadIds: [],
-          knowledge: { nodes: [] },
+          continuity: { nodes: [] },
           ...(loc.imagePrompt ? { imagePrompt: loc.imagePrompt } : {}),
         };
       } else if (loc.imagePrompt) {
@@ -1007,7 +1081,7 @@ export async function assembleNarrative(
           from: tm.from,
           to: tm.to,
         })),
-        knowledgeMutations: (s.knowledgeMutations ?? []).map((km) => ({
+        continuityMutations: (s.continuityMutations ?? []).map((km) => ({
           characterId: getCharId(km.characterName),
           nodeId: nextKId(),
           action: (km.action === 'removed' ? 'removed' : 'added') as 'added' | 'removed',
@@ -1033,6 +1107,22 @@ export async function assembleNarrative(
           }
           return Object.keys(result).length > 0 ? result : undefined;
         })(),
+        worldKnowledgeMutations: (() => {
+          const wkm = s.worldKnowledgeMutations;
+          if (!wkm) return undefined;
+          const addedNodes = (wkm.addedNodes ?? []).map((n) => ({
+            id: getWkId(n.concept),
+            concept: n.concept,
+            type: (['law', 'system', 'concept', 'tension'].includes(n.type) ? n.type : 'concept') as 'law' | 'system' | 'concept' | 'tension',
+          }));
+          const addedEdges = (wkm.addedEdges ?? []).map((e) => ({
+            from: getWkId(e.fromConcept),
+            to: getWkId(e.toConcept),
+            relation: e.relation,
+          }));
+          if (addedNodes.length === 0 && addedEdges.length === 0) return undefined;
+          return { addedNodes, addedEdges };
+        })(),
         prose: s.prose || undefined,
         summary: s.summary ?? '',
       };
@@ -1045,13 +1135,13 @@ export async function assembleNarrative(
     // Each knowledge node goes to the first scene where that character participates,
     // spreading mutations naturally instead of spiking the first scene.
     if (chScenes.length > 0) {
-      const allMutContents = new Set(chScenes.flatMap((s) => s.knowledgeMutations.map((km) => km.content)));
+      const allMutContents = new Set(chScenes.flatMap((s) => s.continuityMutations.map((km) => km.content)));
 
       for (const dk of chunkDeferredKnowledge[chunkIdx]) {
         if (allMutContents.has(dk.content)) continue;
         // Find the first scene where this character participates
         const target = chScenes.find((s) => s.participantIds.includes(dk.characterId)) ?? chScenes[0];
-        target.knowledgeMutations.push({
+        target.continuityMutations.push({
           characterId: dk.characterId,
           nodeId: nextKId(),
           action: 'added',
@@ -1067,7 +1157,7 @@ export async function assembleNarrative(
         const target = chScenes.find((s) => s.locationId === dl.locationId) ?? chScenes[0];
         const pov = target.povId || target.participantIds[0] || '';
         if (pov) {
-          target.knowledgeMutations.push({
+          target.continuityMutations.push({
             characterId: pov,
             nodeId: nextKId(),
             action: 'added',
@@ -1127,21 +1217,21 @@ export async function assembleNarrative(
     }
   }
 
-  // Build character & location knowledge graphs from scene mutations (forward replay)
+  // Build character & location continuity graphs from scene mutations (forward replay)
   // This ensures knowledge.nodes is the final accumulated state and enables temporal filtering.
   const allSceneKeys = Object.keys(scenes);
   for (const sKey of allSceneKeys) {
     const scene = scenes[sKey];
-    for (const km of scene.knowledgeMutations) {
+    for (const km of scene.continuityMutations) {
       const char = characters[km.characterId];
       if (!char) continue;
       if (km.action === 'added') {
-        const exists = char.knowledge.nodes.some((n) => n.id === km.nodeId);
+        const exists = char.continuity.nodes.some((n) => n.id === km.nodeId);
         if (!exists) {
-          char.knowledge.nodes.push({ id: km.nodeId, type: km.nodeType ?? 'knowledge', content: km.content });
+          char.continuity.nodes.push({ id: km.nodeId, type: km.nodeType ?? 'knowledge', content: km.content });
         }
       } else if (km.action === 'removed') {
-        char.knowledge.nodes = char.knowledge.nodes.filter((n) => n.id !== km.nodeId);
+        char.continuity.nodes = char.continuity.nodes.filter((n) => n.id !== km.nodeId);
       }
     }
   }
@@ -1150,12 +1240,12 @@ export async function assembleNarrative(
   for (let ci = 0; ci < results.length; ci++) {
     const existingLore = new Set<string>();
     for (const loc of Object.values(locations)) {
-      for (const n of loc.knowledge.nodes) existingLore.add(n.content);
+      for (const n of loc.continuity.nodes) existingLore.add(n.content);
     }
     for (const dl of chunkDeferredLore[ci]) {
       const loc = locations[dl.locationId];
       if (loc && !existingLore.has(dl.content)) {
-        loc.knowledge.nodes.push({ id: nextKId(), type: 'lore', content: dl.content });
+        loc.continuity.nodes.push({ id: nextKId(), type: 'lore', content: dl.content });
         existingLore.add(dl.content);
       }
     }
@@ -1172,7 +1262,7 @@ export async function assembleNarrative(
     arcId: scene.arcId,
     diffName: scene.events[0] ?? 'scene',
     threadMutations: scene.threadMutations,
-    knowledgeMutations: scene.knowledgeMutations,
+    continuityMutations: scene.continuityMutations,
     relationshipMutations: scene.relationshipMutations,
     authorOverride: null,
     createdAt: Date.now() - (sceneList.length - i) * 3600000,
@@ -1236,6 +1326,26 @@ Return JSON: { "rules": ["rule1", "rule2", ...], "imageStyle": "style directive"
     console.error('[text-analysis] Rules/style extraction failed:', err);
   }
 
+  // Build cumulative world knowledge graph from scene mutations
+  const wkNodes: Record<string, { id: string; concept: string; type: 'law' | 'system' | 'concept' | 'tension' }> = {};
+  const wkEdges: { from: string; to: string; relation: string }[] = [];
+  const wkEdgeSet = new Set<string>();
+  for (const scene of Object.values(scenes)) {
+    if (!scene.worldKnowledgeMutations) continue;
+    for (const node of scene.worldKnowledgeMutations.addedNodes) {
+      if (!wkNodes[node.id]) {
+        wkNodes[node.id] = { id: node.id, concept: node.concept, type: node.type };
+      }
+    }
+    for (const edge of scene.worldKnowledgeMutations.addedEdges) {
+      const edgeKey = `${edge.from}→${edge.to}→${edge.relation}`;
+      if (!wkEdgeSet.has(edgeKey)) {
+        wkEdges.push(edge);
+        wkEdgeSet.add(edgeKey);
+      }
+    }
+  }
+
   const narrative: NarrativeState = {
     id: `N-${PREFIX}-${Date.now().toString(36)}`,
     title,
@@ -1249,10 +1359,11 @@ Return JSON: { "rules": ["rule1", "rule2", ...], "imageStyle": "style directive"
     branches,
     commits,
     relationships,
+    worldKnowledge: { nodes: wkNodes, edges: wkEdges },
     worldSummary,
     rules,
     controlMode: 'auto',
-    activeForces: { payoff: 0, change: 0, variety: 0 },
+    activeForces: { payoff: 0, change: 0, knowledge: 0 },
     imageStyle,
     createdAt: Date.now() - 86400000,
     updatedAt: Date.now(),

@@ -10,16 +10,16 @@ import { FORCE_CHARTS_WINDOW_DEFAULT } from '@/lib/constants';
 const FORCE_CONFIG = [
   { key: 'payoff' as const, label: 'Payoff', color: 'var(--color-payoff)' },
   { key: 'change' as const, label: 'Change', color: 'var(--color-change)' },
-  { key: 'variety' as const, label: 'Variety', color: 'var(--color-variety)' },
+  { key: 'knowledge' as const, label: 'Knowledge', color: 'var(--color-knowledge)' },
 ] as const;
 
 /** Compute swing magnitude: √(ΔP² + ΔC² + ΔV²) between consecutive force snapshots */
-function computeSwings(payoff: number[], change: number[], variety: number[]): number[] {
+function computeSwings(payoff: number[], change: number[], knowledge: number[]): number[] {
   const swings: number[] = [0];
   for (let i = 1; i < payoff.length; i++) {
     const dp = payoff[i] - payoff[i - 1];
     const dc = change[i] - change[i - 1];
-    const dv = variety[i] - variety[i - 1];
+    const dv = knowledge[i] - knowledge[i - 1];
     swings.push(Math.sqrt(dp * dp + dc * dc + dv * dv));
   }
   return swings;
@@ -84,12 +84,12 @@ export default function ForceCharts() {
 
   // Full-history forces (normalized)
   const globalForceData = useMemo(() => {
-    if (!narrative) return { payoff: [] as number[], change: [] as number[], variety: [] as number[], swing: [] as number[] };
+    if (!narrative) return { payoff: [] as number[], change: [] as number[], knowledge: [] as number[], swing: [] as number[] };
     const payoff: number[] = [];
     const change: number[] = [];
-    const variety: number[] = [];
+    const knowledge: number[] = [];
     const forceMap = computeForceSnapshots(allScenes);
-    let lastForce = { payoff: 0, change: 0, variety: 0 };
+    let lastForce = { payoff: 0, change: 0, knowledge: 0 };
     for (const k of resolvedSceneKeys) {
       const entry = resolveEntry(narrative, k);
       if (entry && isScene(entry)) {
@@ -97,21 +97,21 @@ export default function ForceCharts() {
       }
       payoff.push(lastForce.payoff);
       change.push(lastForce.change);
-      variety.push(lastForce.variety);
+      knowledge.push(lastForce.knowledge);
     }
-    return { payoff, change, variety, swing: zScoreNormalize(computeSwings(payoff, change, variety)) };
+    return { payoff, change, knowledge, swing: zScoreNormalize(computeSwings(payoff, change, knowledge)) };
   }, [narrative, allScenes, resolvedSceneKeys]);
 
   // Full-history forces (raw)
   const globalRawForceData = useMemo(() => {
-    if (!narrative) return { payoff: [] as number[], change: [] as number[], variety: [] as number[], swing: [] as number[] };
+    if (!narrative) return { payoff: [] as number[], change: [] as number[], knowledge: [] as number[], swing: [] as number[] };
     const raw = computeRawForcetotals(allScenes);
-    const rawMap: Record<string, { payoff: number; change: number; variety: number }> = {};
-    allScenes.forEach((s, i) => { rawMap[s.id] = { payoff: raw.payoff[i], change: raw.change[i], variety: raw.variety[i] }; });
+    const rawMap: Record<string, { payoff: number; change: number; knowledge: number }> = {};
+    allScenes.forEach((s, i) => { rawMap[s.id] = { payoff: raw.payoff[i], change: raw.change[i], knowledge: raw.knowledge[i] }; });
     const payoff: number[] = [];
     const change: number[] = [];
-    const variety: number[] = [];
-    let lastForce = { payoff: 0, change: 0, variety: 0 };
+    const knowledge: number[] = [];
+    let lastForce = { payoff: 0, change: 0, knowledge: 0 };
     for (const k of resolvedSceneKeys) {
       const entry = resolveEntry(narrative, k);
       if (entry && isScene(entry)) {
@@ -119,47 +119,46 @@ export default function ForceCharts() {
       }
       payoff.push(lastForce.payoff);
       change.push(lastForce.change);
-      variety.push(lastForce.variety);
+      knowledge.push(lastForce.knowledge);
     }
-    return { payoff, change, variety, swing: computeSwings(payoff, change, variety) };
+    return { payoff, change, knowledge, swing: computeSwings(payoff, change, knowledge) };
   }, [narrative, allScenes, resolvedSceneKeys]);
 
   // Window-only forces for local scope (normalized)
   const localForceData = useMemo(() => {
-    if (!windowed || !narrative) return { payoff: [] as number[], change: [] as number[], variety: [] as number[], swing: [] as number[] };
+    if (!windowed || !narrative) return { payoff: [] as number[], change: [] as number[], knowledge: [] as number[], swing: [] as number[] };
     const payoff: number[] = [];
     const change: number[] = [];
-    const variety: number[] = [];
+    const knowledge: number[] = [];
     const windowScenes = allScenes.slice(windowed.windowStart, windowed.windowEnd + 1);
-    let lastForce = { payoff: 0, change: 0, variety: 0 };
+    let lastForce = { payoff: 0, change: 0, knowledge: 0 };
     for (const s of windowScenes) {
       lastForce = windowed.forceMap[s.id] ?? lastForce;
       payoff.push(lastForce.payoff);
       change.push(lastForce.change);
-      variety.push(lastForce.variety);
+      knowledge.push(lastForce.knowledge);
     }
-    return { payoff, change, variety, swing: zScoreNormalize(computeSwings(payoff, change, variety)) };
+    return { payoff, change, knowledge, swing: zScoreNormalize(computeSwings(payoff, change, knowledge)) };
   }, [windowed, allScenes, narrative]);
 
   // Window-only forces for local scope (raw)
   const localRawForceData = useMemo(() => {
-    if (!windowed || !narrative) return { payoff: [] as number[], change: [] as number[], variety: [] as number[], swing: [] as number[] };
+    if (!windowed || !narrative) return { payoff: [] as number[], change: [] as number[], knowledge: [] as number[], swing: [] as number[] };
     const windowScenes = allScenes.slice(windowed.windowStart, windowed.windowEnd + 1);
-    const priorScenes = allScenes.slice(0, windowed.windowStart);
-    const raw = computeRawForcetotals(windowScenes, priorScenes);
-    const rawMap: Record<string, { payoff: number; change: number; variety: number }> = {};
-    windowScenes.forEach((s, i) => { rawMap[s.id] = { payoff: raw.payoff[i], change: raw.change[i], variety: raw.variety[i] }; });
+    const raw = computeRawForcetotals(windowScenes);
+    const rawMap: Record<string, { payoff: number; change: number; knowledge: number }> = {};
+    windowScenes.forEach((s, i) => { rawMap[s.id] = { payoff: raw.payoff[i], change: raw.change[i], knowledge: raw.knowledge[i] }; });
     const payoff: number[] = [];
     const change: number[] = [];
-    const variety: number[] = [];
-    let lastForce = { payoff: 0, change: 0, variety: 0 };
+    const knowledge: number[] = [];
+    let lastForce = { payoff: 0, change: 0, knowledge: 0 };
     for (const s of windowScenes) {
       lastForce = rawMap[s.id] ?? lastForce;
       payoff.push(lastForce.payoff);
       change.push(lastForce.change);
-      variety.push(lastForce.variety);
+      knowledge.push(lastForce.knowledge);
     }
-    return { payoff, change, variety, swing: computeSwings(payoff, change, variety) };
+    return { payoff, change, knowledge, swing: computeSwings(payoff, change, knowledge) };
   }, [windowed, allScenes, narrative]);
 
   // Map window scene-indices back to timeline indices for chart highlight
@@ -199,7 +198,7 @@ export default function ForceCharts() {
       chartData: {
         payoff: fullChartData.payoff.slice(start, end),
         change: fullChartData.change.slice(start, end),
-        variety: fullChartData.variety.slice(start, end),
+        knowledge: fullChartData.knowledge.slice(start, end),
         swing: fullChartData.swing.slice(start, end),
       },
       globalWindowOffset: start,
@@ -210,7 +209,7 @@ export default function ForceCharts() {
   const chartMA = useMemo(() => ({
     payoff: movingAverage(chartData.payoff, FORCE_WINDOW_SIZE),
     change: movingAverage(chartData.change, FORCE_WINDOW_SIZE),
-    variety: movingAverage(chartData.variety, FORCE_WINDOW_SIZE),
+    knowledge: movingAverage(chartData.knowledge, FORCE_WINDOW_SIZE),
     swing: movingAverage(chartData.swing, FORCE_WINDOW_SIZE),
   }), [chartData]);
 
@@ -221,7 +220,7 @@ export default function ForceCharts() {
       return {
         payoff: avg(chartData.payoff),
         change: avg(chartData.change),
-        variety: avg(chartData.variety),
+        knowledge: avg(chartData.knowledge),
         swing: avg(chartData.swing),
       };
     }
@@ -231,7 +230,7 @@ export default function ForceCharts() {
     return {
       payoff: avg(chartData.payoff.slice(ws, we)),
       change: avg(chartData.change.slice(ws, we)),
-      variety: avg(chartData.variety.slice(ws, we)),
+      knowledge: avg(chartData.knowledge.slice(ws, we)),
       swing: avg(chartData.swing.slice(ws, we)),
     };
   }, [chartData, isLocal, windowTimelineRange, globalWindowOffset]);
@@ -262,7 +261,7 @@ export default function ForceCharts() {
     return detectCubeCorner({
       payoff: globalForceData.payoff[idx],
       change: globalForceData.change[idx],
-      variety: globalForceData.variety[idx],
+      knowledge: globalForceData.knowledge[idx],
     });
   }, [globalForceData, state.currentSceneIndex]);
 

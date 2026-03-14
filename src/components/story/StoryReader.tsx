@@ -676,7 +676,7 @@ export function StoryReader({
                 )}
 
                 {/* Mutations summary */}
-                {(scene.threadMutations.length > 0 || scene.knowledgeMutations.length > 0 || scene.relationshipMutations.length > 0) && (
+                {(scene.threadMutations.length > 0 || scene.continuityMutations.length > 0 || scene.relationshipMutations.length > 0) && (
                   <div className="space-y-4">
                     {scene.threadMutations.length > 0 && (
                       <div>
@@ -687,10 +687,10 @@ export function StoryReader({
                         })}
                       </div>
                     )}
-                    {scene.knowledgeMutations.length > 0 && (
+                    {scene.continuityMutations.length > 0 && (
                       <div>
                         <h4 className="text-[9px] uppercase tracking-widest text-text-dim mb-2">Knowledge Changes</h4>
-                        {scene.knowledgeMutations.map((km, i) => {
+                        {scene.continuityMutations.map((km, i) => {
                           const char = narrative.characters[km.characterId];
                           return <p key={i} className="text-[11px] text-text-secondary leading-relaxed">{char?.name ?? km.characterId} {km.action === 'added' ? 'learns' : 'loses'}: {km.content}</p>;
                         })}

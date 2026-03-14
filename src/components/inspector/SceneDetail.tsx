@@ -13,12 +13,12 @@ export default function SceneDetail({ sceneId }: Props) {
   const { state, dispatch } = useStore();
   const narrative = state.activeNarrative;
   const forceSnapshot = useMemo(() => {
-    if (!narrative) return { payoff: 0, change: 0, variety: 0 };
+    if (!narrative) return { payoff: 0, change: 0, knowledge: 0 };
     const allScenes = state.resolvedSceneKeys
       .map((k) => resolveEntry(narrative, k))
       .filter((e): e is Scene => !!e && isScene(e));
     const forceMap = computeForceSnapshots(allScenes);
-    return forceMap[sceneId] ?? { payoff: 0, change: 0, variety: 0 };
+    return forceMap[sceneId] ?? { payoff: 0, change: 0, knowledge: 0 };
   }, [narrative, state.resolvedSceneKeys, sceneId]);
 
   if (!narrative) return null;
@@ -116,7 +116,7 @@ export default function SceneDetail({ sceneId }: Props) {
   const effectivePovId = scene.povId || scene.participantIds[0];
   const povCharacter = effectivePovId ? narrative.characters[effectivePovId] : null;
 
-  const { payoff, change, variety } = forceSnapshot;
+  const { payoff, change, knowledge } = forceSnapshot;
   const cubeCorner = detectCubeCorner(forceSnapshot);
 
   const arc = Object.values(narrative.arcs).find((a) =>
@@ -245,7 +245,7 @@ export default function SceneDetail({ sceneId }: Props) {
         <div className="flex gap-3">
           <ForceBar label="Payoff" value={payoff} color="#EF4444" />
           <ForceBar label="Change" value={change} color="#22C55E" />
-          <ForceBar label="Variety" value={variety} color="#3B82F6" />
+          <ForceBar label="Knowledge" value={knowledge} color="#3B82F6" />
         </div>
       </div>
 
@@ -329,12 +329,12 @@ export default function SceneDetail({ sceneId }: Props) {
       )}
 
       {/* Knowledge Mutations */}
-      {scene.knowledgeMutations.length > 0 && (
+      {scene.continuityMutations.length > 0 && (
         <div className="flex flex-col gap-1.5">
           <h3 className="text-[10px] uppercase tracking-widest text-text-dim">
             Knowledge Mutations
           </h3>
-          {scene.knowledgeMutations.map((km, i) => {
+          {scene.continuityMutations.map((km, i) => {
             const charName = narrative.characters[km.characterId]?.name ?? km.characterId;
             return (
               <div key={`${km.characterId}-${km.nodeId}-${i}`} className="flex flex-col gap-0.5 text-xs">
@@ -405,6 +405,35 @@ export default function SceneDetail({ sceneId }: Props) {
                   </span>
                 </div>
                 <span className="text-text-secondary pl-2">{rm.type}</span>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* World Knowledge Mutations */}
+      {scene.worldKnowledgeMutations && (scene.worldKnowledgeMutations.addedNodes.length > 0 || scene.worldKnowledgeMutations.addedEdges.length > 0) && (
+        <div className="flex flex-col gap-1.5">
+          <h3 className="text-[10px] uppercase tracking-widest text-text-dim">
+            World Knowledge
+          </h3>
+          {scene.worldKnowledgeMutations.addedNodes.map((node, i) => (
+            <div key={`wk-node-${node.id}-${i}`} className="flex items-center gap-1.5 text-xs">
+              <span className="text-change">+</span>
+              <span className="text-text-primary">{node.concept}</span>
+              <span className="text-[10px] text-text-dim">({node.type})</span>
+            </div>
+          ))}
+          {scene.worldKnowledgeMutations.addedEdges.map((edge, i) => {
+            const fromNode = narrative.worldKnowledge.nodes[edge.from];
+            const toNode = narrative.worldKnowledge.nodes[edge.to];
+            const shortName = (concept: string) => {
+              const dash = concept.indexOf(' — ');
+              return dash > 0 ? concept.slice(0, dash) : concept;
+            };
+            return (
+              <div key={`wk-edge-${edge.from}-${edge.to}-${i}`} className="text-xs pl-3 text-text-dim">
+                {shortName(fromNode?.concept ?? edge.from)} <span className="italic text-text-dim">{edge.relation}</span> {shortName(toNode?.concept ?? edge.to)}
               </div>
             );
           })}

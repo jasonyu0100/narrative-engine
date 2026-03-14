@@ -73,6 +73,7 @@ export function useAutoPlay() {
           locations: expansion.locations,
           threads: expansion.threads,
           relationships: expansion.relationships,
+          worldKnowledgeMutations: expansion.worldKnowledgeMutations,
           branchId: activeBranchId,
         });
         worldExpanded = true;

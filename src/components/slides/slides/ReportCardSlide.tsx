@@ -16,9 +16,8 @@ const gradeColor = (v: number, max: number) => {
 const FORCES = [
   { key: 'payoff' as const, label: 'Payoff', color: '#EF4444' },
   { key: 'change' as const, label: 'Change', color: '#22C55E' },
-  { key: 'variety' as const, label: 'Variety', color: '#3B82F6' },
+  { key: 'knowledge' as const, label: 'Knowledge', color: '#3B82F6' },
   { key: 'swing' as const, label: 'Swing', color: '#FACC15' },
-  { key: 'streak' as const, label: 'Streak', color: '#A78BFA' },
 ];
 
 export function ReportCardSlide({ data }: { data: SlidesData }) {
@@ -33,7 +32,7 @@ export function ReportCardSlide({ data }: { data: SlidesData }) {
   const stats = {
     payoff: { avg: raw.payoff.reduce((s, v) => s + v, 0) / n, peak: Math.max(...raw.payoff), total: raw.payoff.reduce((s, v) => s + v, 0), sd: stdDev(raw.payoff) },
     change: { avg: raw.change.reduce((s, v) => s + v, 0) / n, peak: Math.max(...raw.change), total: raw.change.reduce((s, v) => s + v, 0), sd: stdDev(raw.change) },
-    variety: { avg: raw.variety.reduce((s, v) => s + v, 0) / n, peak: Math.max(...raw.variety), total: raw.variety.reduce((s, v) => s + v, 0), sd: stdDev(raw.variety) },
+    knowledge: { avg: raw.knowledge.reduce((s, v) => s + v, 0) / n, peak: Math.max(...raw.knowledge), total: raw.knowledge.reduce((s, v) => s + v, 0), sd: stdDev(raw.knowledge) },
     swing: { avg: data.swings.reduce((s, v) => s + v, 0) / data.swings.length, peak: Math.max(...data.swings), total: data.swings.reduce((s, v) => s + v, 0), sd: stdDev(data.swings) },
   };
 
@@ -120,8 +119,7 @@ export function ReportCardSlide({ data }: { data: SlidesData }) {
           <tbody>
             {FORCES.map((f) => {
               const grade = data.overallGrades[f.key];
-              const isStreak = f.key === 'streak';
-              const s = isStreak ? null : stats[f.key as keyof typeof stats];
+              const s = stats[f.key as keyof typeof stats];
               return (
                 <tr key={f.key} className="border-b border-white/4">
                   <td className="py-3 pr-4">
@@ -143,10 +141,10 @@ export function ReportCardSlide({ data }: { data: SlidesData }) {
                     {s ? s.total.toFixed(1) : '—'}
                   </td>
                   <td className="text-right py-3 pl-4">
-                    <span className="text-lg font-bold font-mono" style={{ color: gradeColor(grade, 20) }}>
+                    <span className="text-lg font-bold font-mono" style={{ color: gradeColor(grade, 25) }}>
                       {grade}
                     </span>
-                    <span className="text-xs text-text-dim">/20</span>
+                    <span className="text-xs text-text-dim">/25</span>
                   </td>
                 </tr>
               );

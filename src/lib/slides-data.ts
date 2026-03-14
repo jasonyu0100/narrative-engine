@@ -30,7 +30,7 @@ export type Segment = {
   /** Engagement points for this segment */
   engagement: EngagementPoint[];
   /** Dominant force in this segment */
-  dominantForce: 'payoff' | 'change' | 'variety';
+  dominantForce: 'payoff' | 'change' | 'knowledge';
   /** Key thread mutations in this segment */
   threadChanges: { threadId: string; from: string; to: string; sceneIdx: number }[];
   /** Peaks within this segment */
@@ -53,7 +53,7 @@ export type PeakInfo = {
   /** Relationship mutations at this scene */
   relationshipChanges: { from: string; to: string; type: string; delta: number }[];
   /** Force decomposition: which force contributed most */
-  dominantForce: 'payoff' | 'change' | 'variety';
+  dominantForce: 'payoff' | 'change' | 'knowledge';
 };
 
 export type TroughInfo = {
@@ -65,7 +65,7 @@ export type TroughInfo = {
   /** How many scenes until next peak */
   scenesToNextPeak: number;
   /** Which force recovers first in the scenes after this trough */
-  recoveryForce: 'payoff' | 'change' | 'variety' | null;
+  recoveryForce: 'payoff' | 'change' | 'knowledge' | null;
 };
 
 export type ThreadLifecycle = {
@@ -94,7 +94,7 @@ export type SlidesData = {
 
   scenes: Scene[];
   forceSnapshots: ForceSnapshot[];
-  rawForces: { payoff: number[]; change: number[]; variety: number[] };
+  rawForces: { payoff: number[]; change: number[]; knowledge: number[] };
   engagementCurve: EngagementPoint[];
   shape: NarrativeShape;
   swings: number[];
@@ -122,10 +122,10 @@ export type SlidesData = {
 
 // ── Computation ────────────────────────────────────────────────────────────────
 
-function dominantForce(p: number, c: number, v: number): 'payoff' | 'change' | 'variety' {
+function dominantForce(p: number, c: number, v: number): 'payoff' | 'change' | 'knowledge' {
   if (p >= c && p >= v) return 'payoff';
   if (c >= p && c >= v) return 'change';
-  return 'variety';
+  return 'knowledge';
 }
 
 export function computeSlidesData(
@@ -141,7 +141,7 @@ export function computeSlidesData(
 
   // Force snapshots (z-score normalized)
   const forceMap = computeForceSnapshots(scenes);
-  const forceSnapshots = scenes.map((s) => forceMap[s.id] ?? { payoff: 0, change: 0, variety: 0 });
+  const forceSnapshots = scenes.map((s) => forceMap[s.id] ?? { payoff: 0, change: 0, knowledge: 0 });
 
   // Raw forces
   const rawForces = computeRawForcetotals(scenes);
@@ -156,7 +156,7 @@ export function computeSlidesData(
   const rawForceSnapshots = rawForces.payoff.map((_, i) => ({
     payoff: rawForces.payoff[i],
     change: rawForces.change[i],
-    variety: rawForces.variety[i],
+    knowledge: rawForces.knowledge[i],
   }));
   const swings = computeSwingMagnitudes(rawForceSnapshots, FORCE_REFERENCE_MEANS);
 
@@ -184,7 +184,7 @@ export function computeSlidesData(
       relationshipChanges: scene.relationshipMutations.map((rm) => ({
         from: rm.from, to: rm.to, type: rm.type, delta: rm.valenceDelta,
       })),
-      dominantForce: dominantForce(f.payoff, f.change, f.variety),
+      dominantForce: dominantForce(f.payoff, f.change, f.knowledge),
     }];
   }
 
@@ -201,10 +201,10 @@ export function computeSlidesData(
     if (minPoint.index + 3 < forceSnapshots.length) {
       const dp = forceSnapshots[minPoint.index + 3].payoff - f.payoff;
       const dc = forceSnapshots[minPoint.index + 3].change - f.change;
-      const dv = forceSnapshots[minPoint.index + 3].variety - f.variety;
+      const dv = forceSnapshots[minPoint.index + 3].knowledge - f.knowledge;
       const maxDelta = Math.max(dp, dc, dv);
       if (maxDelta > 0) {
-        recoveryForce = dp === maxDelta ? 'payoff' : dc === maxDelta ? 'change' : 'variety';
+        recoveryForce = dp === maxDelta ? 'payoff' : dc === maxDelta ? 'change' : 'knowledge';
       }
     }
     troughs = [{
@@ -274,7 +274,7 @@ export function computeSlidesData(
     if (indices.length === 0) continue;
     const ap = indices.map((i) => rawForces.payoff[i]);
     const ac = indices.map((i) => rawForces.change[i]);
-    const av = indices.map((i) => rawForces.variety[i]);
+    const av = indices.map((i) => rawForces.knowledge[i]);
     const as_ = indices.map((i) => swings[i]);
     arcGrades.push({
       arcId,
@@ -284,8 +284,7 @@ export function computeSlidesData(
     });
   }
 
-  const arcOveralls = arcGrades.map((a) => a.grades.overall);
-  const overallGrades = gradeForces(rawForces.payoff, rawForces.change, rawForces.variety, swings, arcOveralls.length >= 2 ? arcOveralls : undefined);
+  const overallGrades = gradeForces(rawForces.payoff, rawForces.change, rawForces.knowledge, swings);
 
   // Average prose scores
   const proseScores = scenes.map((s) => s.proseScore).filter((p): p is ProseScore => !!p && typeof p.overall === 'number');
@@ -365,7 +364,7 @@ function buildSegments(
     const segForces = forces.slice(startIdx, endIdx + 1);
     const segPayoff = avg(segForces.map((f) => f.payoff));
     const segChange = avg(segForces.map((f) => f.change));
-    const segVariety = avg(segForces.map((f) => f.variety));
+    const segKnowledge = avg(segForces.map((f) => f.knowledge));
 
     // Thread changes in this segment
     const threadChanges: Segment['threadChanges'] = [];
@@ -390,7 +389,7 @@ function buildSegments(
       startIdx,
       endIdx,
       engagement: segEngagement,
-      dominantForce: dominantForce(segPayoff, segChange, segVariety),
+      dominantForce: dominantForce(segPayoff, segChange, segKnowledge),
       threadChanges,
       peakIndices: segPeaks,
       avgEngagement: avg(segEngagement.map((e) => e.engagement)),
@@ -423,7 +422,7 @@ function buildPeakInfos(
         relationshipChanges: scene.relationshipMutations.map((rm) => ({
           from: rm.from, to: rm.to, type: rm.type, delta: rm.valenceDelta,
         })),
-        dominantForce: dominantForce(f.payoff, f.change, f.variety),
+        dominantForce: dominantForce(f.payoff, f.change, f.knowledge),
       };
     })
     .sort((a, b) => b.engagement.engagement - a.engagement.engagement);
@@ -452,10 +451,10 @@ function buildTroughInfos(
       if (e.index + 3 < forces.length) {
         const dp = forces[e.index + 3].payoff - f.payoff;
         const dc = forces[e.index + 3].change - f.change;
-        const dv = forces[e.index + 3].variety - f.variety;
+        const dv = forces[e.index + 3].knowledge - f.knowledge;
         const maxDelta = Math.max(dp, dc, dv);
         if (maxDelta > 0) {
-          recoveryForce = dp === maxDelta ? 'payoff' : dc === maxDelta ? 'change' : 'variety';
+          recoveryForce = dp === maxDelta ? 'payoff' : dc === maxDelta ? 'change' : 'knowledge';
         }
       }
 

@@ -9,6 +9,7 @@ import type {
   Branch,
   RelationshipEdge,
   WorldBuildCommit,
+  WorldKnowledgeNode,
 } from '@/types/narrative';
 
 // ── Characters ───────────────────────────────────────────────────────────────
@@ -19,7 +20,7 @@ const characters: Record<string, Character> = {
     role: 'anchor',
     imagePrompt: 'A young hobbit with pale skin, large expressive blue eyes, and dark curly hair. Slight build, wearing a mithril shirt beneath a weathered green cloak, the One Ring on a chain around his neck glinting faintly.',
     threadIds: ['T-LOTR-01', 'T-LOTR-02', 'T-LOTR-07'],
-    knowledge: {
+    continuity: {
       nodes: [
         { id: 'K-LOTR-01', type: 'knows', content: 'Bilbo\'s magic ring is the One Ring of Sauron, forged in the fires of Mount Doom' },
         { id: 'K-LOTR-02', type: 'goal', content: 'Carry the Ring to Mordor and destroy it in the fires where it was made' },
@@ -35,7 +36,7 @@ const characters: Record<string, Character> = {
     role: 'anchor',
     imagePrompt: 'A tall, elderly wizard with a long grey beard, bushy eyebrows, and keen eyes beneath a wide-brimmed pointed grey hat. He wears flowing grey robes and carries a gnarled wooden staff, pipe smoke curling around him.',
     threadIds: ['T-LOTR-01', 'T-LOTR-04', 'T-LOTR-05'],
-    knowledge: {
+    continuity: {
       nodes: [
         { id: 'K-LOTR-10', type: 'knows', content: 'The One Ring has been found — Bilbo\'s ring matches every test of lore and fire' },
         { id: 'K-LOTR-11', type: 'knows', content: 'Saruman has turned to darkness and seeks the Ring for himself' },
@@ -51,7 +52,7 @@ const characters: Record<string, Character> = {
     role: 'recurring',
     imagePrompt: 'A tall, weather-beaten Ranger with shoulder-length dark hair, grey eyes, and a short beard. He wears a worn leather jerkin over travel-stained clothing, the broken sword Narsil at his side, his expression stern and watchful.',
     threadIds: ['T-LOTR-03', 'T-LOTR-04'],
-    knowledge: {
+    continuity: {
       nodes: [
         { id: 'K-LOTR-20', type: 'secret', content: 'Is Aragorn son of Arathorn, Isildur\'s heir and rightful King of Gondor' },
         { id: 'K-LOTR-21', type: 'knows', content: 'Has wandered the wild for decades as a Ranger, protecting lands that do not know his name' },
@@ -66,7 +67,7 @@ const characters: Record<string, Character> = {
     role: 'recurring',
     imagePrompt: 'A stout, sturdy hobbit with a round, honest face, sandy-brown curly hair, and warm brown eyes. He wears simple gardener\'s clothes — a brown waistcoat and rolled sleeves — with a heavy pack and a coil of Elvish rope.',
     threadIds: ['T-LOTR-02', 'T-LOTR-07'],
-    knowledge: {
+    continuity: {
       nodes: [
         { id: 'K-LOTR-30', type: 'knows', content: 'Promised Gandalf he would never leave Mr. Frodo — and he means to keep that promise' },
         { id: 'K-LOTR-31', type: 'believes', content: 'There is good in this world worth fighting for, even when the darkness feels absolute' },
@@ -81,7 +82,7 @@ const characters: Record<string, Character> = {
     role: 'recurring',
     imagePrompt: 'A tall, broad-shouldered warrior with proud features, a strong jaw, and reddish-brown hair. He wears the plate and leather armor of Gondor, a cloven silver horn at his belt, and carries a great round shield.',
     threadIds: ['T-LOTR-04', 'T-LOTR-06'],
-    knowledge: {
+    continuity: {
       nodes: [
         { id: 'K-LOTR-40', type: 'knows', content: 'Gondor stands alone against Mordor — the White City bleeds without allies or hope' },
         { id: 'K-LOTR-41', type: 'believes', content: 'The Ring is a weapon and should be wielded in Gondor\'s defense — destroying it is folly' },
@@ -96,7 +97,7 @@ const characters: Record<string, Character> = {
     role: 'transient',
     imagePrompt: 'A tall, slender Elf with long straight golden hair, bright blue eyes, and ageless, fair features. He wears forest-green and brown woodland garb, a longbow of the Mirkwood Elves slung across his back, moving with preternatural grace.',
     threadIds: ['T-LOTR-04'],
-    knowledge: {
+    continuity: {
       nodes: [
         { id: 'K-LOTR-50', type: 'knows', content: 'Sent by King Thranduil to report that Gollum has escaped the Elves\' keeping' },
         { id: 'K-LOTR-51', type: 'believes', content: 'The ancient alliance between Elves and Men must be rekindled against the Shadow' },
@@ -110,7 +111,7 @@ const characters: Record<string, Character> = {
     role: 'transient',
     imagePrompt: 'A stocky, powerfully built Dwarf with a thick red beard braided with iron clasps, fierce dark eyes beneath a heavy brow, and a gleaming steel helm. He wears chainmail and carries a broad-bladed battle axe.',
     threadIds: ['T-LOTR-04'],
-    knowledge: {
+    continuity: {
       nodes: [
         { id: 'K-LOTR-60', type: 'knows', content: 'The Dwarves of Erebor have been approached by Sauron\'s emissaries seeking the Ring' },
         { id: 'K-LOTR-61', type: 'believes', content: 'Dwarven axes and dwarven loyalty are worth more than any Elvish magic' },
@@ -124,7 +125,7 @@ const characters: Record<string, Character> = {
     role: 'transient',
     imagePrompt: 'A tall, imposing wizard with a long white beard, a high forehead, and dark calculating eyes. He wears robes that shimmer with many colors beneath the white, and carries a black iron staff topped with a sharp spike.',
     threadIds: ['T-LOTR-05'],
-    knowledge: {
+    continuity: {
       nodes: [
         { id: 'K-LOTR-70', type: 'knows', content: 'Has long studied the Ring-lore and believes he can locate the One Ring through the Palantir' },
         { id: 'K-LOTR-71', type: 'secret', content: 'Has communed with Sauron through the Palantir and been ensnared — now serves the Shadow while believing himself its master' },
@@ -140,7 +141,7 @@ const locations: Record<string, Location> = {
   'L-LOTR-01': {
     id: 'L-LOTR-01', name: 'Middle-earth', parentId: null, threadIds: [],
     imagePrompt: 'A vast panoramic landscape stretching from green rolling hills to snow-capped mountains and dark volcanic plains, golden sunlight breaking through dramatic clouds over ancient forests and winding rivers.',
-    knowledge: {
+    continuity: {
       nodes: [
         { id: 'LK-LOTR-01', type: 'lore', content: 'The mortal lands of Arda — where Elves fade, Men rise, and the Shadow of Mordor lengthens across all kingdoms' },
         { id: 'LK-LOTR-02', type: 'lore', content: 'The Third Age draws to its close — the great powers diminish and the Ring stirs in its long sleep' },
@@ -150,7 +151,7 @@ const locations: Record<string, Location> = {
   'L-LOTR-02': {
     id: 'L-LOTR-02', name: 'The Shire', parentId: 'L-LOTR-01', threadIds: ['T-LOTR-02'],
     imagePrompt: 'Lush green rolling hills dotted with round hobbit doors set into grassy mounds, smoke rising from chimneys, a winding lane bordered by hedgerows and wildflowers under a warm golden afternoon sky.',
-    knowledge: {
+    continuity: {
       nodes: [
         { id: 'LK-LOTR-03', type: 'lore', content: 'Green and gentle land of the Hobbits — untouched by war for generations, sheltered by Rangers they have never seen' },
         { id: 'LK-LOTR-04', type: 'secret', content: 'The most dangerous object in Middle-earth has rested here for sixty years, mistaken for a trinket' },
@@ -160,7 +161,7 @@ const locations: Record<string, Location> = {
   'L-LOTR-03': {
     id: 'L-LOTR-03', name: 'Rivendell', parentId: 'L-LOTR-01', threadIds: ['T-LOTR-03', 'T-LOTR-04'],
     imagePrompt: 'An elegant Elven valley with graceful stone bridges arching over waterfalls, slender towers with pointed arches nestled among ancient pines, soft golden light filtering through autumn leaves into a hidden mountain gorge.',
-    knowledge: {
+    continuity: {
       nodes: [
         { id: 'LK-LOTR-05', type: 'lore', content: 'The Last Homely House East of the Sea — Elrond\'s refuge where lore is preserved and counsel given' },
         { id: 'LK-LOTR-06', type: 'lore', content: 'Here the shards of Narsil are kept, and here the fate of the Ring will be debated by the Free Peoples' },
@@ -170,7 +171,7 @@ const locations: Record<string, Location> = {
   'L-LOTR-04': {
     id: 'L-LOTR-04', name: 'Moria', parentId: 'L-LOTR-01', threadIds: ['T-LOTR-04', 'T-LOTR-07'],
     imagePrompt: 'A colossal underground Dwarven hall with towering stone columns carved into the living rock, stretching into darkness. Faint torchlight reveals intricate geometric carvings and vast echoing emptiness, dust motes drifting in shafts of pale light from cracks above.',
-    knowledge: {
+    continuity: {
       nodes: [
         { id: 'LK-LOTR-07', type: 'lore', content: 'Khazad-dum, the Dwarrowdelf — once the greatest of Dwarven kingdoms, now a tomb of shadow and flame' },
         { id: 'LK-LOTR-08', type: 'danger', content: 'A Balrog of Morgoth dwells in the deepest depths, awakened by the Dwarves\' delving for mithril' },
@@ -180,7 +181,7 @@ const locations: Record<string, Location> = {
   'L-LOTR-05': {
     id: 'L-LOTR-05', name: 'Lothlórien', parentId: 'L-LOTR-01', threadIds: ['T-LOTR-01'],
     imagePrompt: 'An enchanted forest of impossibly tall silver-barked mallorn trees with golden leaves, soft ethereal light glowing from Elven lanterns among the high branches, wooden platforms and stairways spiraling up into the luminous canopy.',
-    knowledge: {
+    continuity: {
       nodes: [
         { id: 'LK-LOTR-09', type: 'lore', content: 'The Golden Wood — realm of Galadriel and Celeborn, where time moves differently and mallorn trees shine with silver light' },
         { id: 'LK-LOTR-10', type: 'secret', content: 'Galadriel bears Nenya, the Ring of Water — if the One Ring is destroyed, her realm will fade' },
@@ -190,7 +191,7 @@ const locations: Record<string, Location> = {
   'L-LOTR-06': {
     id: 'L-LOTR-06', name: 'Amon Hen', parentId: 'L-LOTR-01', threadIds: ['T-LOTR-06', 'T-LOTR-04'],
     imagePrompt: 'A forested hilltop above a great river with thundering waterfalls, a crumbling stone seat of ancient Numenorean craft overlooking the misty falls of Rauros, dappled light through old-growth trees with a brooding overcast sky.',
-    knowledge: {
+    continuity: {
       nodes: [
         { id: 'LK-LOTR-11', type: 'lore', content: 'The Hill of Sight — ancient Numenorean watchtower above the Falls of Rauros, where the Great River bends south' },
         { id: 'LK-LOTR-12', type: 'danger', content: 'Here the Fellowship will be tested to its breaking — Uruk-hai of Isengard are closing from the east' },
@@ -200,7 +201,7 @@ const locations: Record<string, Location> = {
   'L-LOTR-07': {
     id: 'L-LOTR-07', name: 'Isengard', parentId: 'L-LOTR-01', threadIds: ['T-LOTR-05'],
     imagePrompt: 'A black stone tower of Orthanc rising from a ring-wall of dark rock, surrounded by pits of fire and industrial smoke where ancient trees have been felled, iron machinery and forges glowing red beneath a haze-choked sky.',
-    knowledge: {
+    continuity: {
       nodes: [
         { id: 'LK-LOTR-13', type: 'lore', content: 'Orthanc, the tower of Saruman — once a bastion of the Istari, now a fortress of industry and war' },
         { id: 'LK-LOTR-14', type: 'danger', content: 'The caverns beneath Isengard birth Uruk-hai by the thousands — Saruman builds an army to rival Mordor' },
@@ -210,7 +211,7 @@ const locations: Record<string, Location> = {
   'L-LOTR-08': {
     id: 'L-LOTR-08', name: 'Weathertop', parentId: 'L-LOTR-01', threadIds: ['T-LOTR-01', 'T-LOTR-07'],
     imagePrompt: 'A desolate, wind-swept hilltop crowned with the crumbling ruins of an ancient stone watchtower, jagged walls silhouetted against a stormy twilight sky, the surrounding wilderness stretching dark and empty in every direction.',
-    knowledge: {
+    continuity: {
       nodes: [
         { id: 'LK-LOTR-15', type: 'lore', content: 'Amon Sul — ruined watchtower of the North Kingdom, where the Palantir once gazed across leagues of wilderness' },
         { id: 'LK-LOTR-16', type: 'danger', content: 'The Nazgul are drawn to this place — high ground and ancient power make it a beacon for the Ring-wraiths' },
@@ -339,13 +340,23 @@ const scenes: Record<string, Scene> = {
     participantIds: ['C-LOTR-01', 'C-LOTR-04'],
     events: ['party_preparations', 'lanterns_hung', 'shire_gossip'],
     threadMutations: [],
-    knowledgeMutations: [
+    continuityMutations: [
       { characterId: 'C-LOTR-01', nodeId: 'K-LOTR-100', action: 'added', content: 'Bilbo has grown strange — standing at the window after dark, turning a gold ring over and over, murmuring in unknown languages' },
       { characterId: 'C-LOTR-04', nodeId: 'K-LOTR-101', action: 'added', content: 'A hundred and eleven candles for Mr. Bilbo — the old hobbit is planning something grand and peculiar' },
     ],
     relationshipMutations: [
       { from: 'C-LOTR-01', to: 'C-LOTR-04', type: 'Sam is steady company on a warm afternoon — the world feels right with him nearby', valenceDelta: 0.1 },
     ],
+    worldKnowledgeMutations: {
+      addedNodes: [
+        { id: 'WK-LR-01', concept: 'The One Ring', type: 'concept' },
+        { id: 'WK-LR-02', concept: 'The Shire\'s innocence — a green world untouched by the wars of greater powers', type: 'concept' },
+      ],
+      addedEdges: [
+        { from: 'WK-LR-01', to: 'WK-LR-02', relation: 'threatens' },
+        { from: 'WK-LR-04', to: 'WK-LR-01', relation: 'governs' },
+      ],
+    },
     summary: 'The fields below Bag End have been strung with paper lanterns in the shape of fish and moons. Hobbiton is alive with rumour: a hundred and forty-four guests, a pavilion as wide as a barn, and fireworks ordered from a wizard. Frodo helps Sam carry trestle tables down the hill, both of them sweating in the late-September sun. "Do you reckon he\'ll really do it, Mr. Frodo? A hundred and eleven is a powerful lot of candles." Frodo laughs but does not answer, because Bilbo has been strange lately — standing at the window after dark, turning a small gold ring over and over in his pocket, murmuring to himself in languages Frodo does not recognize.',
   },
   'S-LOTR-002': {
@@ -357,13 +368,21 @@ const scenes: Record<string, Scene> = {
     participantIds: ['C-LOTR-01', 'C-LOTR-04'],
     events: ['bag_end_evening', 'bilbo_stories', 'old_maps'],
     threadMutations: [],
-    knowledgeMutations: [
+    continuityMutations: [
       { characterId: 'C-LOTR-01', nodeId: 'K-LOTR-102', action: 'added', content: 'Bilbo speaks of leaving the Shire — of seeing the mountains again and finding somewhere quiet to finish his book' },
       { characterId: 'C-LOTR-04', nodeId: 'K-LOTR-103', action: 'added', content: 'The last roses of the season are fading — everything has its time and its ending' },
     ],
     relationshipMutations: [
       { from: 'C-LOTR-01', to: 'C-LOTR-04', type: 'Sam tends the garden with quiet devotion while the world inside Bag End shifts', valenceDelta: 0.05 },
     ],
+    worldKnowledgeMutations: {
+      addedNodes: [
+        { id: 'WK-LR-18', concept: 'Home as anchor against darkness — the familiar world that grounds those who must face the unknown', type: 'concept' },
+      ],
+      addedEdges: [
+        { from: 'WK-LR-04', to: 'WK-LR-18', relation: 'erodes' },
+      ],
+    },
     summary: 'A quiet evening at Bag End, the round door closed against the autumn chill. Bilbo sits by the fire with his old maps spread across his knees, tracing a route through the Misty Mountains with a fingernail while Frodo reads in the armchair opposite. "I should like to see the mountains again, Frodo," Bilbo says, as though remarking on the weather. "And then find somewhere quiet where I can finish my book." The fire pops. Outside, Sam trims the last roses of the season, and beyond the hedge, the Shire rolls on in its green and comfortable ignorance — a land that has never heard of Mordor and does not wish to.',
   },
   'S-LOTR-003': {
@@ -375,13 +394,22 @@ const scenes: Record<string, Scene> = {
     participantIds: ['C-LOTR-01', 'C-LOTR-02', 'C-LOTR-04'],
     events: ['bilbo_farewell_party', 'ring_inheritance', 'gandalf_suspicion'],
     threadMutations: [{ threadId: 'T-LOTR-02', from: 'dormant', to: 'active' }],
-    knowledgeMutations: [
+    continuityMutations: [
       { characterId: 'C-LOTR-01', nodeId: 'K-LOTR-104', action: 'added', content: 'Bilbo vanished at his own party with a flash — left behind everything, including a plain gold ring on the mantelpiece' },
       { characterId: 'C-LOTR-02', nodeId: 'K-LOTR-105', action: 'added', content: 'The ring Bilbo left behind troubles him deeply — the way it sat on the mantelpiece, patient and waiting' },
     ],
     relationshipMutations: [
       { from: 'C-LOTR-02', to: 'C-LOTR-01', type: 'Gandalf watches Frodo inherit the ring with a grief he cannot yet explain', valenceDelta: 0.1 },
     ],
+    worldKnowledgeMutations: {
+      addedNodes: [
+        { id: 'WK-LR-08', concept: 'The Ring has its own will — it chooses its bearers and moves toward its master', type: 'law' },
+        { id: 'WK-LR-10', concept: 'Gandalf\'s constrained power — the wizards serve but cannot command, guide but cannot compel', type: 'system' },
+      ],
+      addedEdges: [
+        { from: 'WK-LR-08', to: 'WK-LR-01', relation: 'governs' },
+      ],
+    },
     summary: 'Bilbo Baggins vanishes at his one-hundred-and-eleventh birthday party with a flash and a laugh, leaving behind everything he owns — including a plain gold ring on the mantelpiece. The guests murmur and shake their heads; Hobbiton has always thought Bilbo peculiar, and this confirms it. Frodo inherits the ring without understanding what it is. Gandalf lingers by the hearth long after the last guest has stumbled home, watching the little band of gold where it lies on the wood, and the shadow in his eyes is older than the Shire itself. He says nothing to Frodo. Not yet.',
   },
   'S-LOTR-004': {
@@ -393,13 +421,22 @@ const scenes: Record<string, Scene> = {
     participantIds: ['C-LOTR-01', 'C-LOTR-04'],
     events: ['shire_walk', 'green_dragon_pub', 'rumours_of_outside'],
     threadMutations: [{ threadId: 'T-LOTR-05', from: 'dormant', to: 'active' }],
-    knowledgeMutations: [
+    continuityMutations: [
       { characterId: 'C-LOTR-01', nodeId: 'K-LOTR-106', action: 'added', content: 'The ring is always in his pocket now — he carries it without knowing why, warm and patient against his hip' },
       { characterId: 'C-LOTR-04', nodeId: 'K-LOTR-107', action: 'added', content: 'Old Gaffer says there are queer folk on the East Road — Elves and Dwarves and worse, foreigners all' },
     ],
     relationshipMutations: [
       { from: 'C-LOTR-04', to: 'C-LOTR-01', type: 'A quiet pint together at the Green Dragon — Sam watches over Frodo without knowing it', valenceDelta: 0.1 },
     ],
+    worldKnowledgeMutations: {
+      addedNodes: [
+        { id: 'WK-LR-09', concept: 'The Rangers\' unseen guardianship — the Dunedain protect lands that do not know their names', type: 'system' },
+      ],
+      addedEdges: [
+        { from: 'WK-LR-09', to: 'WK-LR-02', relation: 'protects' },
+        { from: 'WK-LR-03', to: 'WK-LR-04', relation: 'opposes' },
+      ],
+    },
     summary: 'A summer day some months after the party, and the Shire has nearly forgotten Bilbo Baggins. Frodo and Sam walk the lane from Hobbiton to Bywater in no particular hurry, the hedgerows thick with blackberries. They stop at the Green Dragon for a pint of ale. Old Gaffer Gamgee holds court in the corner, complaining about foreigners on the East Road. "Elves and Dwarves and worse," he mutters. "There\'s queer folk about." Sam blushes. Frodo listens more carefully than he lets on. The ring is in his pocket — he always carries it now, though he could not say why — and it sits there, warm and patient and utterly without menace. Or so it seems.',
   },
   'S-LOTR-005': {
@@ -411,12 +448,20 @@ const scenes: Record<string, Scene> = {
     participantIds: ['C-LOTR-04'],
     events: ['sam_gardening', 'overheard_conversation', 'gandalf_warning'],
     threadMutations: [{ threadId: 'T-LOTR-07', from: 'dormant', to: 'dormant' }],
-    knowledgeMutations: [
+    continuityMutations: [
       { characterId: 'C-LOTR-04', nodeId: 'K-LOTR-108', action: 'added', content: 'Overheard Gandalf through the window — the enemy, the Shire no longer safe — something terrible is coming' },
     ],
     relationshipMutations: [
       { from: 'C-LOTR-04', to: 'C-LOTR-02', type: 'The wizard speaks in a tone Sam has never heard — low and urgent, stripped of all merriment', valenceDelta: 0.15 },
     ],
+    worldKnowledgeMutations: {
+      addedNodes: [
+        { id: 'WK-LR-20', concept: 'Knowledge as burden — knowing the truth transforms the knower and forecloses return to innocence', type: 'tension' },
+      ],
+      addedEdges: [
+        { from: 'WK-LR-20', to: 'WK-LR-02', relation: 'destroys' },
+      ],
+    },
     summary: 'Sam is on his knees in the garden below Bag End\'s study window, weeding between the snapdragons, when he hears Gandalf\'s voice through the open casement. The wizard has returned after a long absence, and he is speaking to Frodo in a tone Sam has never heard from him before — low and urgent, stripped of all merriment. Sam catches only fragments: "...the enemy...the Shire is no longer safe..." He presses closer to the wall, trowel forgotten, heart hammering. A bee hums past his ear. The snapdragons nod in the breeze. Whatever is being said inside that round green door, Sam understands with the bone-deep certainty of a gardener that the season has changed.',
   },
   'S-LOTR-006': {
@@ -428,7 +473,7 @@ const scenes: Record<string, Scene> = {
     participantIds: ['C-LOTR-01', 'C-LOTR-02'],
     events: ['ring_revealed', 'fire_test', 'shadow_of_the_past'],
     threadMutations: [{ threadId: 'T-LOTR-01', from: 'dormant', to: 'active' }],
-    knowledgeMutations: [
+    continuityMutations: [
       { characterId: 'C-LOTR-01', nodeId: 'K-LOTR-06', action: 'added', content: 'Gandalf cast the ring into the fire and letters of flame appeared — it is Sauron\'s One Ring' },
       { characterId: 'C-LOTR-02', nodeId: 'K-LOTR-109', action: 'added', content: 'The inscription confirms it beyond doubt — One Ring to rule them all. It has been in the Shire for sixty years' },
       { characterId: 'C-LOTR-01', nodeId: 'K-LOTR-110', action: 'added', content: 'Sauron is rebuilding in the Dark Tower and his malice reaches across all leagues — the Shire is no shelter' },
@@ -436,6 +481,16 @@ const scenes: Record<string, Scene> = {
     relationshipMutations: [
       { from: 'C-LOTR-01', to: 'C-LOTR-02', type: 'The wizard has shattered his world but remains the only guide', valenceDelta: -0.1 },
     ],
+    worldKnowledgeMutations: {
+      addedNodes: [
+        { id: 'WK-LR-07', concept: 'Sauron\'s will persists beyond defeat — his malice endures in the Ring and rebuilds in the Dark Tower', type: 'law' },
+        { id: 'WK-LR-17', concept: 'The Ring seeks its master — it calls out to Sauron and his servants across all distance', type: 'law' },
+      ],
+      addedEdges: [
+        { from: 'WK-LR-07', to: 'WK-LR-01', relation: 'binds' },
+        { from: 'WK-LR-17', to: 'WK-LR-07', relation: 'enables' },
+      ],
+    },
     summary: 'Gandalf returns to Bag End after seventeen years of silence, and this time there is no laughter in him. He takes the ring from the mantelpiece with tongs — he will not touch it — and casts it into the hearth. Golden letters bloom on the band in a language that chills the room to its bones. "One Ring to bring them all and in the darkness bind them." Frodo stares at the inscription crawling across the metal and understands, without being told, that the comfortable life he has known is over. The ring cools on the hearthstone, innocent and golden, and Gandalf tells him of Sauron, of the Dark Tower, of a malice that is reaching out across the leagues. The Shire seems very small.',
   },
   'S-LOTR-007': {
@@ -447,7 +502,7 @@ const scenes: Record<string, Scene> = {
     participantIds: ['C-LOTR-01', 'C-LOTR-02', 'C-LOTR-04'],
     events: ['sam_caught', 'quest_appointed', 'companions_chosen'],
     threadMutations: [{ threadId: 'T-LOTR-07', from: 'dormant', to: 'active' }],
-    knowledgeMutations: [
+    continuityMutations: [
       { characterId: 'C-LOTR-01', nodeId: 'K-LOTR-07', action: 'added', content: 'The Ring must leave the Shire or the Shire will be destroyed — he must carry it east' },
       { characterId: 'C-LOTR-04', nodeId: 'K-LOTR-34', action: 'added', content: 'Was caught eavesdropping and now must go with Frodo — Gandalf said "don\'t you leave him"' },
       { characterId: 'C-LOTR-02', nodeId: 'K-LOTR-111', action: 'added', content: 'He is sending a hobbit to do what kings and wizards cannot — the best protection he can offer is a gardener with a good heart' },
@@ -456,6 +511,16 @@ const scenes: Record<string, Scene> = {
       { from: 'C-LOTR-01', to: 'C-LOTR-04', type: 'Sam will walk beside him into the unknown — the bond deepens beyond master and gardener', valenceDelta: 0.15 },
       { from: 'C-LOTR-02', to: 'C-LOTR-04', type: 'Gandalf sees in Sam a loyalty that may prove more powerful than wizardry', valenceDelta: 0.2 },
     ],
+    worldKnowledgeMutations: {
+      addedNodes: [
+        { id: 'WK-LR-15', concept: 'The smallest can change the course of the future — hobbits bear what the great and wise cannot', type: 'law' },
+        { id: 'WK-LR-21', concept: 'The Quest to Mount Doom — the Ring can only be destroyed where it was forged', type: 'system' },
+      ],
+      addedEdges: [
+        { from: 'WK-LR-15', to: 'WK-LR-03', relation: 'reveals' },
+        { from: 'WK-LR-21', to: 'WK-LR-01', relation: 'governs' },
+      ],
+    },
     summary: 'Gandalf catches Sam at the window and hauls him inside by the ear. "What did you hear?" Sam blurts it all: the Ring, the Dark Lord, the danger. Gandalf\'s eyes narrow, then soften. "Well, Samwise, since you\'ve heard so much, I think you had better go with him. See that he is not alone." Sam looks at Frodo, stricken and thrilled in equal measure. Frodo looks at Gandalf. The wizard is already thinking of roads and provisions, but beneath the planning there is grief — he is sending a hobbit to do what kings and wizards cannot, and the best protection he can offer is a gardener with a good heart. It will have to be enough.',
   },
 
@@ -469,13 +534,22 @@ const scenes: Record<string, Scene> = {
     participantIds: ['C-LOTR-01', 'C-LOTR-04'],
     events: ['last_morning', 'packing_bag_end', 'farewell_to_home'],
     threadMutations: [{ threadId: 'T-LOTR-02', from: 'active', to: 'escalating' }],
-    knowledgeMutations: [
+    continuityMutations: [
       { characterId: 'C-LOTR-01', nodeId: 'K-LOTR-112', action: 'added', content: 'Closed the round green door for the last time — the key turned and Bag End watched them go' },
       { characterId: 'C-LOTR-04', nodeId: 'K-LOTR-113', action: 'added', content: 'The garden is overgrown already — it pains him more than any talk of dark lords' },
     ],
     relationshipMutations: [
       { from: 'C-LOTR-04', to: 'C-LOTR-01', type: 'Sam packed provisions with hobbit care — he will keep Frodo fed even if the world falls apart', valenceDelta: 0.1 },
     ],
+    worldKnowledgeMutations: {
+      addedNodes: [
+        { id: 'WK-LR-25', concept: 'Departure as transformation — leaving home is the first death, the self that returns will not be the self that left', type: 'concept' },
+      ],
+      addedEdges: [
+        { from: 'WK-LR-25', to: 'WK-LR-18', relation: 'destroys' },
+        { from: 'WK-LR-21', to: 'WK-LR-25', relation: 'demands' },
+      ],
+    },
     summary: 'The morning of departure. Frodo moves through Bag End room by room, touching the walls, the round windows, the brass knobs worn smooth by Bilbo\'s hands and his own. Sam has packed provisions with the care of a hobbit who believes no crisis is improved by an empty stomach: seed-cake, salt pork, apples, and a coil of rope he cannot explain wanting. They close the round green door for the last time. The key turns. The garden is overgrown already — Sam notices, and it pains him more than any talk of dark lords. They walk down the hill into the Shire, and Bag End watches them go with its windows like patient eyes.',
   },
   'S-LOTR-009': {
@@ -487,13 +561,22 @@ const scenes: Record<string, Scene> = {
     participantIds: ['C-LOTR-01', 'C-LOTR-04'],
     events: ['farmer_maggot', 'mushrooms_and_gossip', 'shire_hospitality'],
     threadMutations: [{ threadId: 'T-LOTR-01', from: 'active', to: 'escalating' }],
-    knowledgeMutations: [
+    continuityMutations: [
       { characterId: 'C-LOTR-01', nodeId: 'K-LOTR-114', action: 'added', content: 'A black rider on a black horse came by Farmer Maggot\'s yesterday, asking after a Baggins — they are being hunted' },
       { characterId: 'C-LOTR-04', nodeId: 'K-LOTR-115', action: 'added', content: 'Even Farmer Maggot\'s dogs shrank from the black rider — whatever hunts them frightens animals by instinct' },
     ],
     relationshipMutations: [
       { from: 'C-LOTR-01', to: 'C-LOTR-04', type: 'Frodo watches Sam chew and say nothing — grateful for steadiness when fear creeps in', valenceDelta: 0.1 },
     ],
+    worldKnowledgeMutations: {
+      addedNodes: [
+        { id: 'WK-LR-12', concept: 'The Nazgul — the Nine Ring-wraiths, once kings of Men, now neither living nor dead', type: 'concept' },
+      ],
+      addedEdges: [
+        { from: 'WK-LR-07', to: 'WK-LR-12', relation: 'governs' },
+        { from: 'WK-LR-12', to: 'WK-LR-02', relation: 'threatens' },
+      ],
+    },
     summary: 'A detour through Farmer Maggot\'s fields — Frodo once stole mushrooms here as a boy and has avoided the lane ever since. But Maggot proves a warmer host than memory promised: a kitchen table heaped with bread and cheese and the finest mushrooms in the Eastfarthing, brown and glistening with butter. The farmer talks while they eat, and beneath the gossip there is something else. A black rider on a black horse came by yesterday, asking after a Baggins. "I didn\'t like his voice," Maggot says, stabbing a mushroom with his fork. "Nor the way my dogs shrank from him." Frodo\'s hand drifts to his pocket. Sam chews and watches and says nothing.',
   },
   'S-LOTR-010': {
@@ -505,7 +588,7 @@ const scenes: Record<string, Scene> = {
     participantIds: ['C-LOTR-01', 'C-LOTR-04'],
     events: ['black_rider_sighting', 'hiding_in_ditch', 'ring_pull'],
     threadMutations: [],
-    knowledgeMutations: [
+    continuityMutations: [
       { characterId: 'C-LOTR-01', nodeId: 'K-LOTR-08', action: 'added', content: 'A black rider on a black horse is hunting him — it sniffed the air where he stood and the Ring burned to be worn' },
       { characterId: 'C-LOTR-04', nodeId: 'K-LOTR-116', action: 'added', content: 'Grabbed Mr. Frodo\'s arm to stop him reaching for the Ring — something in the rider made the Ring call out' },
       { characterId: 'C-LOTR-01', nodeId: 'K-LOTR-117', action: 'added', content: 'His fingers twitched toward his pocket of their own will — the Ring wanted the rider to find it' },
@@ -513,6 +596,15 @@ const scenes: Record<string, Scene> = {
     relationshipMutations: [
       { from: 'C-LOTR-01', to: 'C-LOTR-04', type: 'Sam pulled him into the ditch and held his arm — without Sam he might have put the Ring on', valenceDelta: 0.15 },
     ],
+    worldKnowledgeMutations: {
+      addedNodes: [
+        { id: 'WK-LR-26', concept: 'The Ring amplifies desire — it exploits the deepest needs and longings of its bearer', type: 'law' },
+      ],
+      addedEdges: [
+        { from: 'WK-LR-26', to: 'WK-LR-04', relation: 'enables' },
+        { from: 'WK-LR-17', to: 'WK-LR-12', relation: 'enables' },
+      ],
+    },
     summary: 'The lane narrows between high hedges, and behind them comes the sound of hooves — slow, deliberate, wrong. Frodo feels it before he sees it: a pressure in the air, a coldness that has nothing to do with the autumn wind. Sam pulls him into the ditch beneath the tree roots. The black rider passes inches above them, and for a terrible moment it pauses, lowering its hooded head to sniff the earth like a hound. The Ring throbs against Frodo\'s chest, a living thing desperate to be found. His fingers twitch toward his pocket. Sam grips his arm. The rider moves on. They lie in the leaf-mould, breathing, and the Shire is no longer the safe green country it was an hour ago.',
   },
   'S-LOTR-011': {
@@ -524,13 +616,22 @@ const scenes: Record<string, Scene> = {
     participantIds: ['C-LOTR-01', 'C-LOTR-04'],
     events: ['night_camp', 'elves_passing', 'starlight_songs'],
     threadMutations: [{ threadId: 'T-LOTR-07', from: 'active', to: 'escalating' }],
-    knowledgeMutations: [
+    continuityMutations: [
       { characterId: 'C-LOTR-04', nodeId: 'K-LOTR-118', action: 'added', content: 'Saw Elves for the first time — tall figures in grey and white, carrying lanterns that burn without flickering, singing of seas not yet crossed' },
       { characterId: 'C-LOTR-01', nodeId: 'K-LOTR-119', action: 'added', content: 'The Elves are leaving Middle-earth for the Grey Havens — even the immortal are departing, and the world grows smaller' },
     ],
     relationshipMutations: [
       { from: 'C-LOTR-04', to: 'C-LOTR-01', type: 'Sharing the wonder of Elves together — Sam\'s eyes full of starlight beside his master', valenceDelta: 0.1 },
     ],
+    worldKnowledgeMutations: {
+      addedNodes: [
+        { id: 'WK-LR-05', concept: 'The fading of the Elves — the Firstborn depart Middle-earth for the Undying Lands, and what they guarded fades with them', type: 'concept' },
+      ],
+      addedEdges: [
+        { from: 'WK-LR-05', to: 'WK-LR-06', relation: 'reveals' },
+        { from: 'WK-LR-21', to: 'WK-LR-05', relation: 'threatens' },
+      ],
+    },
     summary: 'They camp in the woods above the Stock Road, not daring a fire. The night is clear and cold, and through the trees comes a sound that neither of them expected: singing, high and silver and ancient beyond the reckoning of hobbits. Elves are passing through the Shire on their way to the Grey Havens — tall figures in grey and white, carrying lanterns that burn without flickering. They share their fire and their food, and for a few hours the fear recedes. Sam sits with his mouth open and his eyes full of starlight. "Elves, Mr. Frodo," he whispers, as though saying it will make it more real. The Elves sing of seas they have not yet crossed, and the sadness in their voices is older than the hills.',
   },
   'S-LOTR-012': {
@@ -543,7 +644,7 @@ const scenes: Record<string, Scene> = {
     characterMovements: { 'C-LOTR-01': { locationId: 'L-LOTR-08', transition: 'Traveled the East Road on foot through the Old Forest and Barrow-downs' }, 'C-LOTR-04': { locationId: 'L-LOTR-08', transition: 'Accompanied the hobbits along the winding road to Bree' } },
     events: ['bree_gate', 'prancing_pony', 'strider_in_shadows'],
     threadMutations: [{ threadId: 'T-LOTR-03', from: 'dormant', to: 'active' }],
-    knowledgeMutations: [
+    continuityMutations: [
       { characterId: 'C-LOTR-01', nodeId: 'K-LOTR-120', action: 'added', content: 'Gave a false name at the Prancing Pony — called himself Underhill, but the Ranger saw through it immediately' },
       { characterId: 'C-LOTR-03', nodeId: 'K-LOTR-121', action: 'added', content: 'The hobbit from the Shire has arrived at Bree carrying something of immense importance — Gandalf\'s letter warned of this' },
     ],
@@ -552,6 +653,16 @@ const scenes: Record<string, Scene> = {
       { from: 'C-LOTR-04', to: 'C-LOTR-03', type: 'Does not trust this grim Ranger — but Mr. Frodo needs protecting', valenceDelta: 0.1 },
       { from: 'C-LOTR-03', to: 'C-LOTR-01', type: 'Aragorn sees the hobbit and understands the weight he carries — sworn now to protect him', valenceDelta: 0.2 },
     ],
+    worldKnowledgeMutations: {
+      addedNodes: [
+        { id: 'WK-LR-11', concept: 'Isildur\'s bloodline and its burden — the heir of kings walks in exile, bearing a lineage that both commands and condemns', type: 'concept' },
+        { id: 'WK-LR-13', concept: 'Power corrupts even the virtuous — Isildur took the Ring and fell, and his blood carries that failure', type: 'tension' },
+      ],
+      addedEdges: [
+        { from: 'WK-LR-13', to: 'WK-LR-11', relation: 'governs' },
+        { from: 'WK-LR-11', to: 'WK-LR-09', relation: 'enables' },
+      ],
+    },
     summary: 'Bree. The gate-keeper admits them with a long look and a shake of his head — hobbits from the Shire, on the road after dark, in times like these. The Prancing Pony is warm and loud and full of Men who seem impossibly tall. In the far corner, half-hidden by pipe smoke and shadow, a Ranger sits watching them with grey eyes that miss nothing. Frodo gives a false name. The innkeeper smiles. The Ranger does not. Later, when the common room has thinned, the stranger stands and crosses to their table. "I am called Strider," he says, and his voice is quiet and rough and carries the weight of long roads. "I think we have things to discuss, Mr. Underhill — or should I say, Baggins." Sam\'s hand finds his walking stick beneath the table.',
   },
   'S-LOTR-013': {
@@ -563,7 +674,7 @@ const scenes: Record<string, Scene> = {
     participantIds: ['C-LOTR-01', 'C-LOTR-03', 'C-LOTR-04'],
     events: ['strider_warning', 'gandalf_missing', 'trust_tested'],
     threadMutations: [],
-    knowledgeMutations: [
+    continuityMutations: [
       { characterId: 'C-LOTR-01', nodeId: 'K-LOTR-09', action: 'added', content: 'The Ranger called Strider knows of the Ring and claims to be a friend of Gandalf\'s — but Gandalf never came to Bree' },
       { characterId: 'C-LOTR-01', nodeId: 'K-LOTR-122', action: 'added', content: 'Nazgul hunt them — the Nine, Ring-wraiths who were once kings of Men, drawn to the Ring like moths to flame' },
       { characterId: 'C-LOTR-03', nodeId: 'K-LOTR-123', action: 'added', content: 'Gandalf has not come to Bree as promised — something has gone wrong, and the not-knowing is dangerous' },
@@ -573,6 +684,16 @@ const scenes: Record<string, Scene> = {
       { from: 'C-LOTR-01', to: 'C-LOTR-03', type: 'Strider knows too much to be ignored and too little to be fully trusted', valenceDelta: 0.1 },
       { from: 'C-LOTR-04', to: 'C-LOTR-03', type: 'Sam stands between the Ranger and his master with a cooking pan — trust has not arrived but necessity has', valenceDelta: 0.05 },
     ],
+    worldKnowledgeMutations: {
+      addedNodes: [
+        { id: 'WK-LR-27', concept: 'Necessity over trust — in dark times, alliance is forged from need before friendship', type: 'tension' },
+        { id: 'WK-LR-29', concept: 'Providence guides the quest — chance meetings that seem too purposeful to be accident', type: 'law' },
+      ],
+      addedEdges: [
+        { from: 'WK-LR-29', to: 'WK-LR-21', relation: 'enables' },
+        { from: 'WK-LR-11', to: 'WK-LR-21', relation: 'enables' },
+      ],
+    },
     summary: 'A private room at the Prancing Pony, the door bolted. Strider tells them what hunts them: Nazgul, the Nine, Ring-wraiths — servants of Sauron who were once kings of Men, now neither living nor dead, drawn to the Ring like moths to a killing flame. Gandalf was supposed to meet Frodo here. He has not come, and Strider does not know why, and the not-knowing sits in the room like a third shadow. "Are you frightened?" he asks Frodo. "Yes." "Not nearly frightened enough. I know what hunts you." He produces a letter from Gandalf, weeks old, confirming his identity. Sam grips his cooking pan and stands between the Ranger and his master. Trust has not arrived. But necessity has.',
   },
 };
@@ -602,7 +723,7 @@ const commits: Commit[] = sceneList.map((scene, i) => ({
   arcId: scene.arcId,
   diffName: diffNames[scene.id] ?? 'thread_surfaced',
   threadMutations: scene.threadMutations,
-  knowledgeMutations: scene.knowledgeMutations,
+  continuityMutations: scene.continuityMutations,
   relationshipMutations: scene.relationshipMutations,
   authorOverride: null,
   createdAt: Date.now() - (13 - i) * 3600000,
@@ -636,7 +757,7 @@ const altScenes: Record<string, Scene> = {
     participantIds: ['C-LOTR-01', 'C-LOTR-02', 'C-LOTR-04'],
     events: ['gandalf_escorts', 'guarded_departure', 'wizard_on_road'],
     threadMutations: [{ threadId: 'T-LOTR-02', from: 'active', to: 'escalating' }],
-    knowledgeMutations: [
+    continuityMutations: [
       { characterId: 'C-LOTR-02', nodeId: 'K-LOTR-130', action: 'added', content: 'Chose the hobbits over Isengard — safety is an illusion borrowed against a debt not yet discovered' },
       { characterId: 'C-LOTR-04', nodeId: 'K-LOTR-131', action: 'added', content: 'Feeding a wizard is no small matter — packed extra provisions for the journey with Gandalf' },
       { characterId: 'C-LOTR-01', nodeId: 'K-LOTR-132', action: 'added', content: 'The road feels safer with Gandalf beside them — his staff taps the cobblestones in a rhythm that keeps shadows at bay' },
@@ -645,6 +766,15 @@ const altScenes: Record<string, Scene> = {
       { from: 'C-LOTR-01', to: 'C-LOTR-02', type: 'Gandalf walks beside them and the road feels safer — a wizard\'s presence is a shield', valenceDelta: 0.2 },
       { from: 'C-LOTR-02', to: 'C-LOTR-01', type: 'Gandalf watches Frodo carry the Ring with protective concern — determined not to let him face this alone', valenceDelta: 0.15 },
     ],
+    worldKnowledgeMutations: {
+      addedNodes: [
+        { id: 'WK-LR-22', concept: 'Safety borrowed against hidden debt — protection in the present purchased with ignorance of gathering threats', type: 'tension' },
+      ],
+      addedEdges: [
+        { from: 'WK-LR-22', to: 'WK-LR-10', relation: 'reveals' },
+        { from: 'WK-LR-22', to: 'WK-LR-25', relation: 'governs' },
+      ],
+    },
     summary: 'In this telling, Gandalf does not ride to Isengard. He stays. The three of them leave Bag End together — a wizard, a hobbit, and a gardener — walking the East Road in the long September light. Gandalf\'s staff taps the cobblestones in a rhythm that keeps the shadows at bay. Sam has packed even more food than in the other telling, because feeding a wizard is no small matter. The road feels safer with Gandalf beside them. But safety is an illusion the wizard knows he is borrowing against a debt he has not yet discovered: somewhere far to the south, Saruman has already turned, and no one is coming to learn of it.',
   },
   'S-LOTR-ALT-009': {
@@ -656,7 +786,7 @@ const altScenes: Record<string, Scene> = {
     participantIds: ['C-LOTR-01', 'C-LOTR-02', 'C-LOTR-04'],
     events: ['gandalf_fireside', 'ring_lore', 'wizard_teaching'],
     threadMutations: [{ threadId: 'T-LOTR-01', from: 'active', to: 'active' }],
-    knowledgeMutations: [
+    continuityMutations: [
       { characterId: 'C-LOTR-01', nodeId: 'K-LOTR-0A', action: 'added', content: 'Gandalf speaks of the Ring\'s history — it has a will, a hunger, and it will try to return to its master by any means' },
       { characterId: 'C-LOTR-04', nodeId: 'K-LOTR-133', action: 'added', content: 'The Ring is not a tool — it uses love and fear and mercy to get what it wants. Sam understands now why Frodo seems distant sometimes' },
       { characterId: 'C-LOTR-02', nodeId: 'K-LOTR-134', action: 'added', content: 'Watched Frodo turn the Ring in his palm by firelight — the warmth it gives is not from the flames. Running out of good options' },
@@ -665,6 +795,13 @@ const altScenes: Record<string, Scene> = {
       { from: 'C-LOTR-01', to: 'C-LOTR-02', type: 'Gandalf arms him with knowledge instead of comfort — the honesty is painful but necessary', valenceDelta: -0.1 },
       { from: 'C-LOTR-04', to: 'C-LOTR-01', type: 'Sam sees Mr. Frodo turn the Ring in his hand and worries — the Ring changes him', valenceDelta: 0.1 },
     ],
+    worldKnowledgeMutations: {
+      addedNodes: [],
+      addedEdges: [
+        { from: 'WK-LR-08', to: 'WK-LR-26', relation: 'enables' },
+        { from: 'WK-LR-20', to: 'WK-LR-03', relation: 'threatens' },
+      ],
+    },
     summary: 'A fireside camp under the stars, somewhere between the Brandywine and the Midgewater Marshes. Gandalf tells them more of the Ring\'s history than he did at Bag End — not to frighten, but to arm. "It is not a tool, Frodo. It is a will. It wants to be found. It will use your love and your fear and your mercy to get what it wants." The fire crackles. Sam listens with his mouth open. Frodo turns the Ring over in his palm and wonders whether the warmth he feels is the firelight or something else entirely. Gandalf watches the Ring where it sits in the hobbit\'s hand, and his expression is the expression of a man who knows he is running out of good options.',
   },
   'S-LOTR-ALT-010': {
@@ -677,7 +814,7 @@ const altScenes: Record<string, Scene> = {
     characterMovements: { 'C-LOTR-01': { locationId: 'L-LOTR-08', transition: 'Walked the East Road with Gandalf at his side' }, 'C-LOTR-02': { locationId: 'L-LOTR-08', transition: 'Rode ahead on Shadowfax to secure lodgings at the Prancing Pony' }, 'C-LOTR-04': { locationId: 'L-LOTR-08', transition: 'Kept pace with the hobbits along the road to Bree' } },
     events: ['bree_with_gandalf', 'no_strider_needed', 'missing_intelligence'],
     threadMutations: [{ threadId: 'T-LOTR-05', from: 'active', to: 'escalating' }],
-    knowledgeMutations: [
+    continuityMutations: [
       { characterId: 'C-LOTR-02', nodeId: 'K-LOTR-135', action: 'added', content: 'Should have gone to Saruman but chose the hobbits instead — troubled by something he cannot name, a premonition of missed intelligence' },
       { characterId: 'C-LOTR-01', nodeId: 'K-LOTR-136', action: 'added', content: 'The Prancing Pony feels ordinary with Gandalf at their side — no Ranger watches from the shadows, the paths of hobbit and king do not cross' },
       { characterId: 'C-LOTR-04', nodeId: 'K-LOTR-137', action: 'added', content: 'The road ahead is safer in the short term — but Sam notices Gandalf staring into the fire with a troubled look' },
@@ -685,6 +822,15 @@ const altScenes: Record<string, Scene> = {
     relationshipMutations: [
       { from: 'C-LOTR-02', to: 'C-LOTR-01', type: 'Gandalf nurses his pipe by the fire, protecting Frodo but troubled by what he has failed to investigate', valenceDelta: 0.1 },
     ],
+    worldKnowledgeMutations: {
+      addedNodes: [
+        { id: 'WK-LR-14', concept: 'Saruman\'s betrayal — the White Wizard fallen, seeking the Ring for himself while pretending to serve the light', type: 'concept' },
+      ],
+      addedEdges: [
+        { from: 'WK-LR-14', to: 'WK-LR-13', relation: 'reveals' },
+        { from: 'WK-LR-22', to: 'WK-LR-14', relation: 'reveals' },
+      ],
+    },
     summary: 'They reach Bree with Gandalf at their side, and the Prancing Pony feels like an ordinary inn rather than a threshold. No Ranger watches from the shadows — Strider is out on the wild, and without Gandalf\'s absence to draw him in, the paths of hobbit and king do not cross. The road ahead is safer in the short term and more dangerous in ways they cannot yet see. Gandalf sits by the fire, nursing a pipe, troubled by something he cannot name. He should have gone to Saruman. He chose the hobbits instead. Whether that was wisdom or folly, the months ahead will decide.',
   },
 };
@@ -699,6 +845,39 @@ const wxInitCommit: WorldBuildCommit = {
     locationIds: Object.keys(locations),
     threadIds: Object.keys(threads),
     relationshipCount: relationships.length,
+  },
+  worldKnowledgeMutations: {
+    addedNodes: [
+      { id: 'WK-LR-WB-01', concept: 'The Rings of Power — twenty great rings forged in the Second Age, instruments of dominion that bind their bearers to the will of the One', type: 'system' },
+      { id: 'WK-LR-WB-02', concept: 'The Valar — the angelic powers who shaped the world and dwell in the Undying Lands, remote from mortal affairs but not indifferent to them', type: 'concept' },
+      { id: 'WK-LR-WB-03', concept: 'Mortality vs Immortality — the great divide between Men who die and Elves who endure, the defining tension of Tolkien\'s cosmology', type: 'tension' },
+      { id: 'WK-LR-WB-04', concept: 'The Istari — the five wizards sent by the Valar to contest Sauron, bound in mortal form, forbidden to dominate, only to advise and inspire', type: 'system' },
+      { id: 'WK-LR-WB-05', concept: 'The Dunedain — the remnant of Numenor, long-lived Men of the West who guard the free lands in secret and carry the bloodline of kings', type: 'concept' },
+      { id: 'WK-LR-WB-06', concept: 'The Ages of Middle-earth — history measured in vast epochs, each ending in catastrophe and diminishment, the world growing older and less magical', type: 'law' },
+      { id: 'WK-LR-WB-07', concept: 'The Free Peoples — Elves, Dwarves, Men, Hobbits, and Ents, each with their own nature, history, and relationship to the world\'s fading', type: 'concept' },
+      { id: 'WK-LR-WB-08', concept: 'Morgoth\'s legacy — the first Dark Lord marred the substance of the world itself, and all evil since is an echo of his original rebellion', type: 'law' },
+      { id: 'WK-LR-WB-09', concept: 'The Straight Road — after the fall of Numenor, the path to the Undying Lands was removed from the circles of the world, accessible only to the Elves', type: 'concept' },
+    ],
+    addedEdges: [
+      { from: 'WK-LR-WB-01', to: 'WK-LR-01', relation: 'the One Ring is the master of' },
+      { from: 'WK-LR-WB-01', to: 'WK-LR-24', relation: 'includes the Three Elven Rings' },
+      { from: 'WK-LR-WB-02', to: 'WK-LR-WB-04', relation: 'sent the Istari as agents of' },
+      { from: 'WK-LR-WB-02', to: 'WK-LR-WB-08', relation: 'opposed Morgoth but could not unmake the marring of' },
+      { from: 'WK-LR-WB-03', to: 'WK-LR-05', relation: 'the Elves\' departure is the mortal world\'s loss of' },
+      { from: 'WK-LR-WB-03', to: 'WK-LR-11', relation: 'Aragorn\'s Dunedain lifespan bridges' },
+      { from: 'WK-LR-WB-04', to: 'WK-LR-10', relation: 'defines the constraints on' },
+      { from: 'WK-LR-WB-04', to: 'WK-LR-14', relation: 'Saruman\'s betrayal is a failure of' },
+      { from: 'WK-LR-WB-05', to: 'WK-LR-09', relation: 'the Rangers are the military expression of' },
+      { from: 'WK-LR-WB-05', to: 'WK-LR-11', relation: 'Aragorn is the heir of' },
+      { from: 'WK-LR-WB-06', to: 'WK-LR-06', relation: 'the Third Age ending is the latest cycle of' },
+      { from: 'WK-LR-WB-06', to: 'WK-LR-05', relation: 'the fading of the Elves is part of' },
+      { from: 'WK-LR-WB-07', to: 'WK-LR-19', relation: 'their distrust is the obstacle to unity among' },
+      { from: 'WK-LR-WB-07', to: 'WK-LR-15', relation: 'hobbits are the least of' },
+      { from: 'WK-LR-WB-08', to: 'WK-LR-07', relation: 'Sauron is the chief surviving servant of' },
+      { from: 'WK-LR-WB-08', to: 'WK-LR-04', relation: 'the Ring\'s corruption is an echo of' },
+      { from: 'WK-LR-WB-09', to: 'WK-LR-WB-03', relation: 'the separation of the mortal and immortal worlds deepens' },
+      { from: 'WK-LR-WB-09', to: 'WK-LR-05', relation: 'the Elves\' departure follows' },
+    ],
   },
 };
 
@@ -740,7 +919,117 @@ export const seedLOTR: NarrativeState = {
   branches,
   commits,
   relationships,
-  worldSummary: 'Middle-earth stands at the end of its Third Age. The Dark Lord Sauron, defeated but not destroyed, rebuilds his strength in Mordor and reaches for the One Ring — the master weapon he forged to dominate all life. The Ring has surfaced in the most unlikely place: the pocket of a hobbit in the Shire, passed from Bilbo to Frodo Baggins. Gandalf the Grey suspects the truth and has begun to confirm it. Black riders have been seen on the roads. The Shire is still green, still peaceful, still ignorant of the wider darkness — but the edges are fraying. Frodo carries the Ring east with his gardener Sam, not yet understanding the full weight of what he bears. The great alliances have not yet been called. The Fellowship has not yet been formed. The story is still in its first breath, and the world holds its shape — for now.',
+  worldKnowledge: {
+    nodes: {
+      'WK-LR-01': { id: 'WK-LR-01', concept: 'The One Ring', type: 'concept' },
+      'WK-LR-02': { id: 'WK-LR-02', concept: 'The Shire\'s innocence — a green world untouched by the wars of greater powers', type: 'concept' },
+      'WK-LR-03': { id: 'WK-LR-03', concept: 'Hobbit resistance to corruption — their simple, unambitious nature shields them from the Ring\'s worst influence', type: 'law' },
+      'WK-LR-04': { id: 'WK-LR-04', concept: 'The Ring corrupts all who bear it — no one is immune to its influence', type: 'law' },
+      'WK-LR-05': { id: 'WK-LR-05', concept: 'The fading of the Elves — the Firstborn depart Middle-earth for the Undying Lands, and what they guarded fades with them', type: 'concept' },
+      'WK-LR-06': { id: 'WK-LR-06', concept: 'The Third Age ending — the great powers diminish and the ancient evils stir', type: 'concept' },
+      'WK-LR-07': { id: 'WK-LR-07', concept: 'Sauron\'s will persists beyond defeat — his malice endures in the Ring and rebuilds in the Dark Tower', type: 'law' },
+      'WK-LR-08': { id: 'WK-LR-08', concept: 'The Ring has its own will — it chooses its bearers and moves toward its master', type: 'law' },
+      'WK-LR-09': { id: 'WK-LR-09', concept: 'The Rangers\' unseen guardianship — the Dunedain protect lands that do not know their names', type: 'system' },
+      'WK-LR-10': { id: 'WK-LR-10', concept: 'Gandalf\'s constrained power — the wizards serve but cannot command, guide but cannot compel', type: 'system' },
+      'WK-LR-11': { id: 'WK-LR-11', concept: 'Isildur\'s bloodline and its burden — the heir of kings walks in exile, bearing a lineage that both commands and condemns', type: 'concept' },
+      'WK-LR-12': { id: 'WK-LR-12', concept: 'The Nazgul — the Nine Ring-wraiths, once kings of Men, now neither living nor dead', type: 'concept' },
+      'WK-LR-13': { id: 'WK-LR-13', concept: 'Power corrupts even the virtuous — Isildur took the Ring and fell, and his blood carries that failure', type: 'tension' },
+      'WK-LR-14': { id: 'WK-LR-14', concept: 'Saruman\'s betrayal — the White Wizard fallen, seeking the Ring for himself while pretending to serve the light', type: 'concept' },
+      'WK-LR-15': { id: 'WK-LR-15', concept: 'The smallest can change the course of the future — hobbits bear what the great and wise cannot', type: 'law' },
+      'WK-LR-16': { id: 'WK-LR-16', concept: 'Loyalty as shield against corruption — love and devotion resist where power and will do not', type: 'tension' },
+      'WK-LR-17': { id: 'WK-LR-17', concept: 'The Ring seeks its master — it calls out to Sauron and his servants across all distance', type: 'law' },
+      'WK-LR-18': { id: 'WK-LR-18', concept: 'Home as anchor against darkness — the familiar world that grounds those who must face the unknown', type: 'concept' },
+      'WK-LR-19': { id: 'WK-LR-19', concept: 'The free peoples\' distrust — Men, Elves, Dwarves, and Hobbits divided by suspicion when unity is most needed', type: 'tension' },
+      'WK-LR-20': { id: 'WK-LR-20', concept: 'Knowledge as burden — knowing the truth transforms the knower and forecloses return to innocence', type: 'tension' },
+      'WK-LR-21': { id: 'WK-LR-21', concept: 'The Quest to Mount Doom — the Ring can only be destroyed where it was forged', type: 'system' },
+      'WK-LR-22': { id: 'WK-LR-22', concept: 'Safety borrowed against hidden debt — protection in the present purchased with ignorance of gathering threats', type: 'tension' },
+      'WK-LR-23': { id: 'WK-LR-23', concept: 'The Palantiri network — seeing-stones that connect minds across distance but can be used to ensnare', type: 'system' },
+      'WK-LR-24': { id: 'WK-LR-24', concept: 'The Three Elven Rings — Narya, Nenya, Vilya — bound to the One, their power will end if the One is destroyed', type: 'system' },
+      'WK-LR-25': { id: 'WK-LR-25', concept: 'Departure as transformation — leaving home is the first death, the self that returns will not be the self that left', type: 'concept' },
+      'WK-LR-26': { id: 'WK-LR-26', concept: 'The Ring amplifies desire — it exploits the deepest needs and longings of its bearer', type: 'law' },
+      'WK-LR-27': { id: 'WK-LR-27', concept: 'Necessity over trust — in dark times, alliance is forged from need before friendship', type: 'tension' },
+      'WK-LR-28': { id: 'WK-LR-28', concept: 'The unseen world — a shadow realm where the Ring-wraiths dwell and the Ring draws its bearer', type: 'concept' },
+      'WK-LR-29': { id: 'WK-LR-29', concept: 'Providence guides the quest — chance meetings that seem too purposeful to be accident', type: 'law' },
+      'WK-LR-30': { id: 'WK-LR-30', concept: 'The wizard\'s gambit — sending hobbits to do what kings and wizards cannot', type: 'system' },
+      // World Build nodes
+      'WK-LR-WB-01': { id: 'WK-LR-WB-01', concept: 'The Rings of Power — twenty great rings forged in the Second Age, instruments of dominion that bind their bearers to the will of the One', type: 'system' },
+      'WK-LR-WB-02': { id: 'WK-LR-WB-02', concept: 'The Valar — the angelic powers who shaped the world and dwell in the Undying Lands, remote from mortal affairs but not indifferent to them', type: 'concept' },
+      'WK-LR-WB-03': { id: 'WK-LR-WB-03', concept: 'Mortality vs Immortality — the great divide between Men who die and Elves who endure, the defining tension of Tolkien\'s cosmology', type: 'tension' },
+      'WK-LR-WB-04': { id: 'WK-LR-WB-04', concept: 'The Istari — the five wizards sent by the Valar to contest Sauron, bound in mortal form, forbidden to dominate, only to advise and inspire', type: 'system' },
+      'WK-LR-WB-05': { id: 'WK-LR-WB-05', concept: 'The Dunedain — the remnant of Numenor, long-lived Men of the West who guard the free lands in secret and carry the bloodline of kings', type: 'concept' },
+      'WK-LR-WB-06': { id: 'WK-LR-WB-06', concept: 'The Ages of Middle-earth — history measured in vast epochs, each ending in catastrophe and diminishment, the world growing older and less magical', type: 'law' },
+      'WK-LR-WB-07': { id: 'WK-LR-WB-07', concept: 'The Free Peoples — Elves, Dwarves, Men, Hobbits, and Ents, each with their own nature, history, and relationship to the world\'s fading', type: 'concept' },
+      'WK-LR-WB-08': { id: 'WK-LR-WB-08', concept: 'Morgoth\'s legacy — the first Dark Lord marred the substance of the world itself, and all evil since is an echo of his original rebellion', type: 'law' },
+      'WK-LR-WB-09': { id: 'WK-LR-WB-09', concept: 'The Straight Road — after the fall of Numenor, the path to the Undying Lands was removed from the circles of the world, accessible only to the Elves', type: 'concept' },
+    } as Record<string, WorldKnowledgeNode>,
+    edges: [
+      // S-LOTR-001
+      { from: 'WK-LR-01', to: 'WK-LR-02', relation: 'threatens' },
+      { from: 'WK-LR-04', to: 'WK-LR-01', relation: 'governs' },
+      // S-LOTR-002
+      { from: 'WK-LR-04', to: 'WK-LR-18', relation: 'erodes' },
+      // S-LOTR-003
+      { from: 'WK-LR-08', to: 'WK-LR-01', relation: 'governs' },
+      // S-LOTR-004
+      { from: 'WK-LR-09', to: 'WK-LR-02', relation: 'protects' },
+      { from: 'WK-LR-03', to: 'WK-LR-04', relation: 'opposes' },
+      // S-LOTR-005
+      { from: 'WK-LR-20', to: 'WK-LR-02', relation: 'destroys' },
+      // S-LOTR-006
+      { from: 'WK-LR-07', to: 'WK-LR-01', relation: 'binds' },
+      { from: 'WK-LR-17', to: 'WK-LR-07', relation: 'enables' },
+      // S-LOTR-007
+      { from: 'WK-LR-15', to: 'WK-LR-03', relation: 'reveals' },
+      { from: 'WK-LR-21', to: 'WK-LR-01', relation: 'governs' },
+      // S-LOTR-008
+      { from: 'WK-LR-25', to: 'WK-LR-18', relation: 'destroys' },
+      { from: 'WK-LR-21', to: 'WK-LR-25', relation: 'demands' },
+      // S-LOTR-009
+      { from: 'WK-LR-07', to: 'WK-LR-12', relation: 'governs' },
+      { from: 'WK-LR-12', to: 'WK-LR-02', relation: 'threatens' },
+      // S-LOTR-010
+      { from: 'WK-LR-26', to: 'WK-LR-04', relation: 'enables' },
+      { from: 'WK-LR-17', to: 'WK-LR-12', relation: 'enables' },
+      // S-LOTR-011
+      { from: 'WK-LR-05', to: 'WK-LR-06', relation: 'reveals' },
+      { from: 'WK-LR-21', to: 'WK-LR-05', relation: 'threatens' },
+      // S-LOTR-012
+      { from: 'WK-LR-13', to: 'WK-LR-11', relation: 'governs' },
+      { from: 'WK-LR-11', to: 'WK-LR-09', relation: 'enables' },
+      // S-LOTR-013
+      { from: 'WK-LR-29', to: 'WK-LR-21', relation: 'enables' },
+      { from: 'WK-LR-11', to: 'WK-LR-21', relation: 'enables' },
+      // S-LOTR-ALT-008
+      { from: 'WK-LR-22', to: 'WK-LR-10', relation: 'reveals' },
+      { from: 'WK-LR-22', to: 'WK-LR-25', relation: 'governs' },
+      // S-LOTR-ALT-009
+      { from: 'WK-LR-08', to: 'WK-LR-26', relation: 'enables' },
+      { from: 'WK-LR-20', to: 'WK-LR-03', relation: 'threatens' },
+      // S-LOTR-ALT-010
+      { from: 'WK-LR-14', to: 'WK-LR-13', relation: 'reveals' },
+      { from: 'WK-LR-22', to: 'WK-LR-14', relation: 'reveals' },
+      // World Build edges
+      { from: 'WK-LR-WB-01', to: 'WK-LR-01', relation: 'the One Ring is the master of' },
+      { from: 'WK-LR-WB-01', to: 'WK-LR-24', relation: 'includes the Three Elven Rings' },
+      { from: 'WK-LR-WB-02', to: 'WK-LR-WB-04', relation: 'sent the Istari as agents of' },
+      { from: 'WK-LR-WB-02', to: 'WK-LR-WB-08', relation: 'opposed Morgoth but could not unmake the marring of' },
+      { from: 'WK-LR-WB-03', to: 'WK-LR-05', relation: 'the Elves\' departure is the mortal world\'s loss of' },
+      { from: 'WK-LR-WB-03', to: 'WK-LR-11', relation: 'Aragorn\'s Dunedain lifespan bridges' },
+      { from: 'WK-LR-WB-04', to: 'WK-LR-10', relation: 'defines the constraints on' },
+      { from: 'WK-LR-WB-04', to: 'WK-LR-14', relation: 'Saruman\'s betrayal is a failure of' },
+      { from: 'WK-LR-WB-05', to: 'WK-LR-09', relation: 'the Rangers are the military expression of' },
+      { from: 'WK-LR-WB-05', to: 'WK-LR-11', relation: 'Aragorn is the heir of' },
+      { from: 'WK-LR-WB-06', to: 'WK-LR-06', relation: 'the Third Age ending is the latest cycle of' },
+      { from: 'WK-LR-WB-06', to: 'WK-LR-05', relation: 'the fading of the Elves is part of' },
+      { from: 'WK-LR-WB-07', to: 'WK-LR-19', relation: 'their distrust is the obstacle to unity among' },
+      { from: 'WK-LR-WB-07', to: 'WK-LR-15', relation: 'hobbits are the least of' },
+      { from: 'WK-LR-WB-08', to: 'WK-LR-07', relation: 'Sauron is the chief surviving servant of' },
+      { from: 'WK-LR-WB-08', to: 'WK-LR-04', relation: 'the Ring\'s corruption is an echo of' },
+      { from: 'WK-LR-WB-09', to: 'WK-LR-WB-03', relation: 'the separation of the mortal and immortal worlds deepens' },
+      { from: 'WK-LR-WB-09', to: 'WK-LR-05', relation: 'the Elves\' departure follows' },
+    ],
+  },
+    worldSummary: 'Middle-earth stands at the end of its Third Age. The Dark Lord Sauron, defeated but not destroyed, rebuilds his strength in Mordor and reaches for the One Ring — the master weapon he forged to dominate all life. The Ring has surfaced in the most unlikely place: the pocket of a hobbit in the Shire, passed from Bilbo to Frodo Baggins. Gandalf the Grey suspects the truth and has begun to confirm it. Black riders have been seen on the roads. The Shire is still green, still peaceful, still ignorant of the wider darkness — but the edges are fraying. Frodo carries the Ring east with his gardener Sam, not yet understanding the full weight of what he bears. The great alliances have not yet been called. The Fellowship has not yet been formed. The story is still in its first breath, and the world holds its shape — for now.',
   rules: [
     'The One Ring corrupts all who bear it — no one, however noble, is immune to its influence',
     'The Ring cannot be used for good; any attempt to wield it against Sauron will fail and corrupt the wielder',
@@ -751,7 +1040,7 @@ export const seedLOTR: NarrativeState = {
   ],
   controlMode: 'auto',
   imageStyle: 'Epic high fantasy oil painting, luminous golden-hour light, sweeping landscapes, Pre-Raphaelite detail, Alan Lee and John Howe inspired, mythic grandeur with earthy natural tones',
-  activeForces: { payoff: 0, change: 0, variety: 0 },
+  activeForces: { payoff: 0, change: 0, knowledge: 0 },
   coverImageUrl: '/covers/lotr.jpg',
   createdAt: Date.now() - 86400000,
   updatedAt: Date.now(),

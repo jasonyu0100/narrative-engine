@@ -6,8 +6,8 @@ const OPENROUTER_URL = 'https://openrouter.ai/api/v1/chat/completions';
 const REPLICATE_URL = 'https://api.replicate.com/v1/models/bytedance/seedream-4.5/predictions';
 
 type ImageRequest =
-  | { type: 'character'; name: string; role: string; worldSummary: string; knowledgeHints: string[]; imagePrompt?: string; imageStyle?: string }
-  | { type: 'location'; name: string; parentName?: string; worldSummary: string; knowledgeHints: string[]; imagePrompt?: string; imageStyle?: string }
+  | { type: 'character'; name: string; role: string; worldSummary: string; continuityHints: string[]; imagePrompt?: string; imageStyle?: string }
+  | { type: 'location'; name: string; parentName?: string; worldSummary: string; continuityHints: string[]; imagePrompt?: string; imageStyle?: string }
   | { type: 'scene'; summary: string; locationName: string; characterDescriptions: { name: string; visualDescription: string }[]; worldSummary: string; imageStyle?: string };
 
 /** Use LLM to craft a rich visual description for image generation */
@@ -25,10 +25,10 @@ async function describeVisually(openrouterKey: string, request: ImageRequest): P
 
   let userPrompt: string;
   if (request.type === 'character') {
-    userPrompt = `Create a character portrait prompt for "${request.name}" (role: ${request.role}) in this world: ${request.worldSummary}. Context clues: ${request.knowledgeHints.join('; ') || 'none'}. IMPORTANT: Single character only, one person, head and shoulders portrait.`;
+    userPrompt = `Create a character portrait prompt for "${request.name}" (role: ${request.role}) in this world: ${request.worldSummary}. Context clues: ${request.continuityHints.join('; ') || 'none'}. IMPORTANT: Single character only, one person, head and shoulders portrait.`;
   } else if (request.type === 'location') {
     const parent = request.parentName ? ` (inside ${request.parentName})` : '';
-    userPrompt = `Create an establishing shot prompt for the location "${request.name}"${parent} in this world: ${request.worldSummary}. Context clues: ${request.knowledgeHints.join('; ') || 'none'}.`;
+    userPrompt = `Create an establishing shot prompt for the location "${request.name}"${parent} in this world: ${request.worldSummary}. Context clues: ${request.continuityHints.join('; ') || 'none'}.`;
   } else {
     const charDescs = request.characterDescriptions
       .map((c) => `${c.name}: ${c.visualDescription}`)

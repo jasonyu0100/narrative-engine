@@ -6,11 +6,11 @@ import type { SlidesData, TroughInfo } from '@/lib/slides-data';
 const FORCE_COLORS: Record<string, string> = {
   payoff: '#EF4444',
   change: '#22C55E',
-  variety: '#3B82F6',
+  knowledge: '#3B82F6',
 };
 
 export function TroughSlide({ data, trough, rank }: { data: SlidesData; trough: TroughInfo; rank: number }) {
-  const forces = ['payoff', 'change', 'variety'] as const;
+  const forces = ['payoff', 'change', 'knowledge'] as const;
   const maxForce = Math.max(...forces.map((f) => Math.abs(trough.forces[f])), 0.5);
 
   return (

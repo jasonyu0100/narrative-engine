@@ -3,11 +3,11 @@
 import { useState } from 'react';
 import { useStore } from '@/lib/store';
 import {
-  getKnowledgeNodesAtScene,
+  getContinuityNodesAtScene,
   getRelationshipsAtScene,
   getThreadIdsAtScene,
 } from '@/lib/scene-filter';
-import type { CharacterRole, KnowledgeNodeType } from '@/types/narrative';
+import type { CharacterRole, ContinuityNodeType } from '@/types/narrative';
 import { CollapsibleSection } from './CollapsibleSection';
 import { INSPECTOR_PAGE_SIZE } from '@/lib/constants';
 
@@ -21,7 +21,7 @@ const roleClasses: Record<CharacterRole, string> = {
   transient: 'text-text-dim',
 };
 
-const knowledgeDotColors: Record<KnowledgeNodeType, string> = {
+const continuityDotColors: Record<ContinuityNodeType, string> = {
   knows: 'bg-white',
   believes: 'bg-white/40',
   secret: 'bg-[#F59E0B]',
@@ -62,7 +62,7 @@ function Paginator({ page, totalPages, onPage }: { page: number; totalPages: num
 export default function CharacterDetail({ characterId }: Props) {
   const { state, dispatch } = useStore();
   const narrative = state.activeNarrative;
-  const [knowledgePage, setKnowledgePage] = useState(0);
+  const [continuityPage, setContinuityPage] = useState(0);
   const [threadPage, setThreadPage] = useState(0);
   const [relPage, setRelPage] = useState(0);
   const [lifecyclePage, setLifecyclePage] = useState(0);
@@ -74,8 +74,8 @@ export default function CharacterDetail({ characterId }: Props) {
   const sceneKeysUpToCurrent = state.resolvedSceneKeys.slice(0, state.currentSceneIndex + 1);
 
   // Knowledge filtered to current scene
-  const knowledgeNodes = getKnowledgeNodesAtScene(
-    character.knowledge.nodes,
+  const continuityNodes = getContinuityNodesAtScene(
+    character.continuity.nodes,
     characterId,
     narrative.scenes,
     state.resolvedSceneKeys,
@@ -103,15 +103,15 @@ export default function CharacterDetail({ characterId }: Props) {
     .filter((s) => s && s.participantIds.includes(characterId))
     .map((s) => ({
       sceneId: s.id,
-      knowledgeMuts: s.knowledgeMutations.filter((km) => km.characterId === characterId),
+      continuityMuts: s.continuityMutations.filter((km) => km.characterId === characterId),
       relationshipMuts: s.relationshipMutations.filter(
         (rm) => rm.from === characterId || rm.to === characterId,
       ),
       movement: s.characterMovements?.[characterId] ?? null,
     }))
     .filter(
-      ({ knowledgeMuts, relationshipMuts, movement }) =>
-        knowledgeMuts.length > 0 || relationshipMuts.length > 0 || movement !== null,
+      ({ continuityMuts, relationshipMuts, movement }) =>
+        continuityMuts.length > 0 || relationshipMuts.length > 0 || movement !== null,
     );
 
   return (
@@ -144,19 +144,19 @@ export default function CharacterDetail({ characterId }: Props) {
       )}
 
       {/* Knowledge — paginated, most recent first */}
-      {knowledgeNodes.length > 0 && (() => {
-        const { pageItems, totalPages, safePage } = paginateRecent(knowledgeNodes, knowledgePage);
+      {continuityNodes.length > 0 && (() => {
+        const { pageItems, totalPages, safePage } = paginateRecent(continuityNodes, continuityPage);
         return (
-          <CollapsibleSection title="Knowledge" count={knowledgeNodes.length}>
+          <CollapsibleSection title="Knowledge" count={continuityNodes.length}>
             <ul className="flex flex-col gap-1">
               {pageItems.map((node, i) => (
                 <li key={`${node.id}-${i}`} className="flex items-start gap-2">
-                  <span className={`mt-1 h-2 w-2 shrink-0 rounded-full ${knowledgeDotColors[node.type] ?? 'bg-white/40'}`} />
+                  <span className={`mt-1 h-2 w-2 shrink-0 rounded-full ${continuityDotColors[node.type] ?? 'bg-white/40'}`} />
                   <span className="text-xs text-text-primary">{node.content}</span>
                 </li>
               ))}
             </ul>
-            <Paginator page={safePage} totalPages={totalPages} onPage={setKnowledgePage} />
+            <Paginator page={safePage} totalPages={totalPages} onPage={setContinuityPage} />
           </CollapsibleSection>
         );
       })()}
@@ -240,7 +240,7 @@ export default function CharacterDetail({ characterId }: Props) {
         return (
           <CollapsibleSection title="Lifecycle" count={lifecycle.length} defaultOpen>
             <ul className="flex flex-col gap-2">
-              {pageItems.map(({ sceneId, knowledgeMuts, relationshipMuts, movement }) => (
+              {pageItems.map(({ sceneId, continuityMuts, relationshipMuts, movement }) => (
                 <li key={sceneId} className="flex flex-col gap-0.5">
                   <button
                     type="button"
@@ -249,7 +249,7 @@ export default function CharacterDetail({ characterId }: Props) {
                   >
                     {sceneId}
                   </button>
-                  {knowledgeMuts.map((km, kmIdx) => (
+                  {continuityMuts.map((km, kmIdx) => (
                     <span key={`${km.nodeId}-${kmIdx}`} className="text-xs text-text-secondary">
                       <span className={km.action === 'added' ? 'text-change' : 'text-payoff'}>
                         {km.action === 'added' ? '+' : '−'}

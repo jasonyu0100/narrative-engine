@@ -7,7 +7,8 @@ import type { SlidesData } from '@/lib/slides-data';
 const FORCE_COLORS = {
   payoff: '#EF4444',
   change: '#22C55E',
-  variety: '#3B82F6',
+  knowledge: '#3B82F6',
+  swing: '#FACC15',
 };
 
 export function ForcesOverviewSlide({ data }: { data: SlidesData }) {
@@ -26,11 +27,12 @@ export function ForcesOverviewSlide({ data }: { data: SlidesData }) {
 
     const g = svg.append('g').attr('transform', `translate(${center},${center})`);
 
-    // Axes: P, C, V at 120 degree intervals
+    // Axes: P, C, K, S at 90 degree intervals
     const axes = [
       { key: 'payoff' as const, label: 'Payoff', angle: -Math.PI / 2 },
-      { key: 'change' as const, label: 'Change', angle: -Math.PI / 2 + (2 * Math.PI) / 3 },
-      { key: 'variety' as const, label: 'Variety', angle: -Math.PI / 2 + (4 * Math.PI) / 3 },
+      { key: 'change' as const, label: 'Change', angle: 0 },
+      { key: 'knowledge' as const, label: 'Knowledge', angle: Math.PI / 2 },
+      { key: 'swing' as const, label: 'Swing', angle: Math.PI },
     ];
 
     // Grid rings
@@ -59,11 +61,12 @@ export function ForcesOverviewSlide({ data }: { data: SlidesData }) {
         .text(a.label);
     }
 
-    // Normalize grades to 0-1 (grade is 0-20)
+    // Normalize grades to 0-1 (grade is 0-25)
     const values = {
-      payoff: data.overallGrades.payoff / 20,
-      change: data.overallGrades.change / 20,
-      variety: data.overallGrades.variety / 20,
+      payoff: data.overallGrades.payoff / 25,
+      change: data.overallGrades.change / 25,
+      knowledge: data.overallGrades.knowledge / 25,
+      swing: data.overallGrades.swing / 25,
     };
 
     // Data polygon with animation
@@ -94,25 +97,25 @@ export function ForcesOverviewSlide({ data }: { data: SlidesData }) {
   }, [data]);
 
   // Determine dominant force
-  const forces = ['payoff', 'change', 'variety'] as const;
+  const forces = ['payoff', 'change', 'knowledge', 'swing'] as const;
   const avgRaw = {
     payoff: data.rawForces.payoff.reduce((s, v) => s + v, 0) / data.sceneCount,
     change: data.rawForces.change.reduce((s, v) => s + v, 0) / data.sceneCount,
-    variety: data.rawForces.variety.reduce((s, v) => s + v, 0) / data.sceneCount,
+    knowledge: data.rawForces.knowledge.reduce((s, v) => s + v, 0) / data.sceneCount,
   };
   const dominant = forces.reduce((a, b) => data.overallGrades[a] > data.overallGrades[b] ? a : b);
 
   const forceDescriptions: Record<string, string> = {
     payoff: 'Thread resolutions and relationship shifts carry the narrative weight',
     change: 'Character transformation and knowledge mutations drive the story forward',
-    variety: 'Fresh cast combinations and new locations keep the reader engaged',
+    knowledge: 'World-building density — new concepts, systems, and connections expand the reader\'s understanding',
   };
 
   return (
     <div className="flex flex-col h-full px-12 py-8">
       <h2 className="text-2xl font-bold text-text-primary mb-2">Forces At Play</h2>
       <p className="text-sm text-text-secondary mb-6">
-        Three narrative forces graded against literary reference benchmarks.
+        Four narrative forces graded against literary reference benchmarks.
       </p>
 
       <div className="flex-1 flex items-center gap-12">
@@ -130,14 +133,14 @@ export function ForcesOverviewSlide({ data }: { data: SlidesData }) {
                 <div className="flex items-center justify-between mb-1">
                   <span className="text-sm font-medium capitalize" style={{ color: FORCE_COLORS[f] }}>{f}</span>
                   <span className="text-sm font-mono font-semibold text-text-primary">
-                    {data.overallGrades[f]}<span className="text-xs text-text-dim">/20</span>
+                    {data.overallGrades[f]}<span className="text-xs text-text-dim">/25</span>
                   </span>
                 </div>
                 <div className="h-2 rounded-full bg-white/5 overflow-hidden">
                   <div
                     className="h-full rounded-full transition-all duration-1000"
                     style={{
-                      width: `${(data.overallGrades[f] / 20) * 100}%`,
+                      width: `${(data.overallGrades[f] / 25) * 100}%`,
                       backgroundColor: FORCE_COLORS[f],
                       opacity: 0.7,
                     }}
@@ -147,18 +150,7 @@ export function ForcesOverviewSlide({ data }: { data: SlidesData }) {
             </div>
           ))}
 
-          {/* Swing + Streak */}
           <div className="flex items-center gap-6 pt-3 border-t border-white/8">
-            <div className="flex items-center gap-2">
-              <span className="w-2 h-2 rounded-full bg-yellow-400" />
-              <span className="text-xs text-text-dim">Swing</span>
-              <span className="text-sm font-mono font-semibold text-text-primary">{data.overallGrades.swing}/20</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <span className="w-2 h-2 rounded-full bg-violet-400" />
-              <span className="text-xs text-text-dim">Streak</span>
-              <span className="text-sm font-mono font-semibold text-text-primary">{data.overallGrades.streak}/20</span>
-            </div>
             <div className="ml-auto text-lg font-mono font-bold text-text-primary">
               {data.overallGrades.overall}<span className="text-xs text-text-dim">/100</span>
             </div>

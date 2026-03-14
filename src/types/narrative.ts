@@ -30,23 +30,23 @@ export type Thread = {
 // ── Character ────────────────────────────────────────────────────────────────
 export type CharacterRole = 'anchor' | 'recurring' | 'transient';
 
-export type KnowledgeNodeType = string;
+export type ContinuityNodeType = string;
 
-export type KnowledgeNode = {
+export type ContinuityNode = {
   id: string;
-  type: KnowledgeNodeType;
+  type: ContinuityNodeType;
   content: string;
 };
 
-export type KnowledgeGraph = {
-  nodes: KnowledgeNode[];
+export type ContinuityGraph = {
+  nodes: ContinuityNode[];
 };
 
 export type Character = {
   id: string;
   name: string;
   role: CharacterRole;
-  knowledge: KnowledgeGraph;
+  continuity: ContinuityGraph;
   threadIds: string[];
   /** AI-generated visual description used as image prompt seed */
   imagePrompt?: string;
@@ -59,7 +59,7 @@ export type Location = {
   name: string;
   parentId: string | null;
   threadIds: string[];
-  knowledge: KnowledgeGraph;
+  continuity: ContinuityGraph;
   /** AI-generated visual description used as image prompt seed */
   imagePrompt?: string;
   imageUrl?: string;
@@ -79,12 +79,12 @@ export type ThreadMutation = {
   to: string;
 };
 
-export type KnowledgeMutation = {
+export type ContinuityMutation = {
   characterId: string;
   nodeId: string;
   action: 'added' | 'removed';
   content: string;
-  /** LLM-suggested type describing this specific knowledge (e.g. "tactical_insight", "betrayal_discovered") */
+  /** LLM-suggested type describing this specific continuity (e.g. "tactical_insight", "betrayal_discovered") */
   nodeType?: string;
 };
 
@@ -95,20 +95,51 @@ export type RelationshipMutation = {
   valenceDelta: number;
 };
 
+// ── World Knowledge Graph ───────────────────────────────────────────────────
+
+/** Node types define the abstraction level of world knowledge:
+ *  - law: A governing truth — something always true in this world. Creates consistency.
+ *  - system: An organized process, institution, or mechanism. Creates reality.
+ *  - concept: A named abstract idea, phenomenon, or category. Creates richness.
+ *  - tension: A contradiction or unresolved force in the world's logic. Creates life. */
+export type WorldKnowledgeNodeType = 'law' | 'system' | 'concept' | 'tension';
+
+export type WorldKnowledgeNode = {
+  id: string;
+  concept: string;
+  type: WorldKnowledgeNodeType;
+};
+
+export type WorldKnowledgeEdge = {
+  from: string;
+  to: string;
+  relation: string;
+};
+
+export type WorldKnowledgeGraph = {
+  nodes: Record<string, WorldKnowledgeNode>;
+  edges: WorldKnowledgeEdge[];
+};
+
+export type WorldKnowledgeMutation = {
+  addedNodes: { id: string; concept: string; type: WorldKnowledgeNodeType }[];
+  addedEdges: { from: string; to: string; relation: string }[];
+};
+
 /** Force values are z-score normalized (mean = 0, units = standard deviations).
  *  0 = average moment, positive = above average, negative = below average.
  *  - payoff:  thread phase transitions (weighted by jump magnitude) + relationship valence deltas
- *  - change:  mutation reach (log₂ depth per character) + knowledge turbulence (fraction of cast affected, scaled by cast size)
- *  - variety: how novel the cast/setting is — computed from character/location usage frequency + compositional novelty
+ *  - change:  mutation reach (log₂ depth per character) + continuity turbulence (fraction of cast affected, scaled by cast size)
+ *  - knowledge: world knowledge graph complexity delta (new nodes + new edges per scene)
  */
 export type ForceSnapshot = {
   payoff: number;
   change: number;
-  variety: number;
+  knowledge: number;
 };
 
-// ── Narrative Cube (Payoff · Change · Variety) ──────────────────────────────
-// The three forces (P·C·V) define a cube. Each corner is a recognisable narrative state.
+// ── Narrative Cube (Payoff · Change · Knowledge) ────────────────────────────
+// The three forces (P·C·K) define a cube. Each corner is a recognisable narrative state.
 export type CubeCornerKey =
   | 'HHH' | 'HHL' | 'HLH' | 'HLL'
   | 'LHH' | 'LHL' | 'LLH' | 'LLL';
@@ -123,51 +154,51 @@ export type CubeCorner = {
 export const NARRATIVE_CUBE: Record<CubeCornerKey, CubeCorner> = {
   HHH: {
     key: 'HHH',
-    name: 'Convergence',
-    description: 'Thread phases advance, many characters gain knowledge and shift relationships, with fresh cast and setting. Maximum narrative density.',
-    forces: { payoff: 1, change: 1, variety: 1 },
+    name: 'Epoch',
+    description: 'Everything converges — threads resolve, characters transform, and the world\'s rules expand. A defining moment that reshapes the narrative landscape.',
+    forces: { payoff: 1, change: 1, knowledge: 1 },
   },
   HHL: {
     key: 'HHL',
     name: 'Climax',
-    description: 'Thread phases advance and characters transform through knowledge and relationship shifts, but with the established cast and familiar setting.',
-    forces: { payoff: 1, change: 1, variety: -1 },
+    description: 'Threads resolve and characters transform within established world rules. The payoff of what\'s already been built — no new lore needed.',
+    forces: { payoff: 1, change: 1, knowledge: -1 },
   },
   HLH: {
     key: 'HLH',
-    name: 'Reveal',
-    description: 'Thread phases advance in new territory with unfamiliar faces, but few characters are personally affected. A landscape-shifting revelation.',
-    forces: { payoff: 1, change: -1, variety: 1 },
+    name: 'Revelation',
+    description: 'Threads pay off through world-building. The world\'s rules explain why things happened — lore unlocks resolution without personal transformation.',
+    forces: { payoff: 1, change: -1, knowledge: 1 },
   },
   HLL: {
     key: 'HLL',
     name: 'Closure',
-    description: 'Thread phases advance quietly with the familiar cast, few personal transformations. Tying up loose ends in known territory.',
-    forces: { payoff: 1, change: -1, variety: -1 },
+    description: 'Quiet resolution within established world rules. Tying up loose ends — conversations that needed to happen, debts paid, promises kept or broken.',
+    forces: { payoff: 1, change: -1, knowledge: -1 },
   },
   LHH: {
     key: 'LHH',
     name: 'Discovery',
-    description: 'No thread advancement, but many characters gain new knowledge and shift relationships in unfamiliar territory. Exploration and world-building.',
-    forces: { payoff: -1, change: 1, variety: 1 },
+    description: 'Characters transform through encountering new world systems. No threads resolve — pure exploration, world-building, and possibility.',
+    forces: { payoff: -1, change: 1, knowledge: 1 },
   },
   LHL: {
     key: 'LHL',
     name: 'Growth',
-    description: 'No thread advancement, but characters transform through knowledge and relationship shifts with the established cast. Internal development.',
-    forces: { payoff: -1, change: 1, variety: -1 },
+    description: 'Internal character development within established world rules. Characters train, bond, argue, and change through interaction — no new lore.',
+    forces: { payoff: -1, change: 1, knowledge: -1 },
   },
   LLH: {
     key: 'LLH',
-    name: 'Wandering',
-    description: 'No thread advancement, few personal changes, but new faces and unfamiliar places. Transitional — drifting through uncharted territory.',
-    forces: { payoff: -1, change: -1, variety: 1 },
+    name: 'Lore',
+    description: 'Pure world-building without resolution or transformation. Establishing rules, systems, cultures, and connections for future payoff. Seeds planted in the world\'s structure.',
+    forces: { payoff: -1, change: -1, knowledge: 1 },
   },
   LLL: {
     key: 'LLL',
     name: 'Rest',
-    description: 'No thread advancement, no character transformation, familiar cast and setting. Recovery and seed-planting — breathing room.',
-    forces: { payoff: -1, change: -1, variety: -1 },
+    description: 'Nothing resolves, no one transforms, no new world concepts. Recovery and breathing room — quiet character beats and seed-planting.',
+    forces: { payoff: -1, change: -1, knowledge: -1 },
   },
 };
 
@@ -207,8 +238,10 @@ export type Scene = {
   characterMovements?: Record<string, CharacterMovement>;
   events: string[];
   threadMutations: ThreadMutation[];
-  knowledgeMutations: KnowledgeMutation[];
+  continuityMutations: ContinuityMutation[];
   relationshipMutations: RelationshipMutation[];
+  /** World knowledge graph mutations — new concepts and connections about how the world works */
+  worldKnowledgeMutations?: WorldKnowledgeMutation;
   /** Beat-by-beat scene blueprint — generated before prose to detail HOW mutations unfold */
   plan?: string;
   prose?: string;
@@ -223,6 +256,8 @@ export type WorldBuildCommit = {
   id: string;
   summary: string;
   expansionManifest: ExpansionManifest;
+  /** World knowledge introduced by this world-building commit */
+  worldKnowledgeMutations?: WorldKnowledgeMutation;
 };
 
 /** A timeline entry is either a narrative scene or a world-building commit */
@@ -269,7 +304,7 @@ export type Commit = {
   arcId: string;
   diffName: string;
   threadMutations: ThreadMutation[];
-  knowledgeMutations: KnowledgeMutation[];
+  continuityMutations: ContinuityMutation[];
   relationshipMutations: RelationshipMutation[];
   authorOverride: string | null;
   createdAt: number;
@@ -291,6 +326,8 @@ export type NarrativeState = {
   branches: Record<string, Branch>;
   commits: Commit[];
   relationships: RelationshipEdge[];
+  /** Cumulative world knowledge graph — abstract concepts, rules, systems, and their connections */
+  worldKnowledge: WorldKnowledgeGraph;
   worldSummary: string;
   /** World rules / commandments that the narrative must follow */
   rules: string[];
@@ -435,16 +472,20 @@ export type ApiLogEntry = {
 
 export type AnalysisChunkResult = {
   chapterSummary: string;
-  characters: { name: string; role: string; firstAppearance: boolean; imagePrompt?: string; knowledge: { type: string; content: string }[] }[];
+  characters: { name: string; role: string; firstAppearance: boolean; imagePrompt?: string; continuity: { type: string; content: string }[] }[];
   locations: { name: string; parentName: string | null; description: string; imagePrompt?: string; lore: string[] }[];
   threads: { description: string; anchorNames: string[]; statusAtStart: string; statusAtEnd: string; development: string }[];
   scenes: {
     locationName: string; povName: string; participantNames: string[]; events: string[];
     summary: string; sections: number[]; prose?: string;
     threadMutations: { threadDescription: string; from: string; to: string }[];
-    knowledgeMutations: { characterName: string; action: string; content: string; type: string }[];
+    continuityMutations: { characterName: string; action: string; content: string; type: string }[];
     relationshipMutations: { from: string; to: string; type: string; valenceDelta: number }[];
     characterMovements?: { characterName: string; locationName: string; transition: string }[];
+    worldKnowledgeMutations?: {
+      addedNodes: { concept: string; type: string }[];
+      addedEdges: { fromConcept: string; toConcept: string; relation: string }[];
+    };
   }[];
   relationships: { from: string; to: string; type: string; valence: number }[];
 };
@@ -495,7 +536,7 @@ export type WizardData = {
   rules: string[];
 };
 
-export type GraphViewMode = 'scene' | 'overview' | 'prose';
+export type GraphViewMode = 'spatial' | 'overview' | 'prose' | 'spark' | 'codex';
 
 export type AppState = {
   narratives: NarrativeEntry[];

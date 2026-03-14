@@ -55,16 +55,16 @@ function ForcesTab() {
       <S title="Change" analogy="How many lives were touched? A scene where five characters learn something new ripples wider than one where a single character reflects alone.">
         <Block tex="C = \sum_{c \,\in\, \text{cast}} \log_2(1 + m_c)" />
         <p className="text-[10px] text-text-dim">
-          <Tex>{'m_c'}</Tex>: total mutations (knowledge + relationship + thread) for character <Tex>{'c'}</Tex>.
+          <Tex>{'m_c'}</Tex>: total mutations (continuity + relationship + thread) for character <Tex>{'c'}</Tex>.
           Log scale: diminishing returns per character, rewards breadth.
         </p>
       </S>
 
-      <S title="Variety" analogy="Is the reader seeing something new? Fresh faces, an unfamiliar setting.">
-        <Block tex="V = \sum_{c \in A} r(g_c) \;+\; r(g_\ell)" />
-        <Block tex="r(g) = \frac{g}{1 + g}" />
+      <S title="Knowledge" analogy="Is the world growing richer? New concepts matter more than new links.">
+        <Block tex={String.raw`K = \Delta N + \tfrac{1}{2}\,\Delta E`} />
         <p className="text-[10px] text-text-dim">
-          <Tex>{'r'}</Tex>: recency over the full series (1 on first appearance, decays toward 0 for recent repeats).
+          <Tex>{String.raw`\Delta N`}</Tex>: new world concepts (weight 1). <Tex>{String.raw`\Delta E`}</Tex>: new connections (weight ½).
+          The exponent rewards dense graphs — 5 edges scores 11.2, not 5.
         </p>
       </S>
     </div>
@@ -79,7 +79,7 @@ function DynamicsTab() {
       </p>
 
       <S title="Engagement" analogy="The heartbeat of the story — where peaks are climaxes and valleys are the quiet before the storm.">
-        <Block tex="z_i^{(k)} = \frac{x_i^{(k)} - \bar{x}^{(k)}}{\sigma^{(k)}}, \qquad E_i = \frac{z_i^P + z_i^C + z_i^V}{3}" />
+        <Block tex="z_i^{(k)} = \frac{x_i^{(k)} - \bar{x}^{(k)}}{\sigma^{(k)}}, \qquad E_i = \frac{z_i^P + z_i^C + z_i^K}{3}" />
         <p className="text-[10px] text-text-dim">
           Each force is z-score normalized, then engagement is their mean.
           Gaussian-smoothed (σ=1.5) for display.
@@ -87,7 +87,7 @@ function DynamicsTab() {
       </S>
 
       <S title="Swing" analogy="Is the story breathing? A quiet scene after an explosion, a tense pause before the climax — great stories alternate intensity.">
-        <Block tex="S_i = \left\|\, \frac{\mathbf{f}_i - \mathbf{f}_{i-1}}{\boldsymbol{\mu}} \,\right\|_2 = \sqrt{\left(\frac{\Delta P}{\mu_P}\right)^{\!2} + \left(\frac{\Delta C}{\mu_C}\right)^{\!2} + \left(\frac{\Delta V}{\mu_V}\right)^{\!2}}" />
+        <Block tex="S_i = \left\|\, \frac{\mathbf{f}_i - \mathbf{f}_{i-1}}{\boldsymbol{\mu}} \,\right\|_2 = \sqrt{\left(\frac{\Delta P}{\mu_P}\right)^{\!2} + \left(\frac{\Delta C}{\mu_C}\right)^{\!2} + \left(\frac{\Delta K}{\mu_K}\right)^{\!2}}" />
         <p className="text-[10px] text-text-dim">
           Normalized by reference means so each force contributes equally. High swing = dynamic pacing.
         </p>
@@ -115,19 +115,10 @@ function ScoringTab() {
 
       <S title="Grading" analogy="How does this story compare to great literature? Scores are calibrated so HP, Gatsby, and Crime & Punishment land at 88–93.">
         <Block tex="\tilde{x} = \frac{\bar{x}}{\mu_{\text{ref}}}, \qquad g(\tilde{x}) = 20\!\left(1 - e^{-2\tilde{x}}\right)" />
-        <Block tex="\text{Overall}_{\text{arc}} = \frac{100}{80}\sum_k g_k, \qquad \text{Overall}_{\text{series}} = \sum_k g_k + g_{\text{streak}}" />
+        <Block tex="\text{Overall} = \sum_k g_k \quad (k \in \{P, C, K, S\})" />
         <p className="text-[10px] text-text-dim">
-          Reference means <Tex>{'\\mu'}</Tex>: P=1.75, C=7, V=4.5, S=1.2. Calibrated from literary works.
-          At <Tex>{'\\tilde{x}=1'}</Tex> (matching reference), grade <Tex>{'\\approx'}</Tex> 17/20.
-        </p>
-      </S>
-
-      <S title="Streak" analogy="Consistency over time — a single weak arc is forgiven, but a run of them signals the story losing its way.">
-        <Block tex="g_{\text{streak}} = 20 \;\cdot\; \bar{\kappa} \;\cdot\; \frac{1}{1 + \pi\,/\,15n}" />
-        <Block tex="\pi = \sum_{\text{runs}} \sum_{j=1}^{L} w_j \cdot \sqrt{j}" />
-        <p className="text-[10px] text-text-dim">
-          <Tex>{'\\kappa'}</Tex>: zone credit per arc — <span className="text-green-400">green</span>=1, <span className="text-lime-400">lime</span>=0.9, <span className="text-yellow-400">yellow</span>=0.7, <span className="text-orange-400">orange</span>=0.5, <span className="text-red-400">red</span>=0.3.
-          {' '}<Tex>{'\\pi'}</Tex>: streak penalty — consecutive sub-80 arcs compound by zone weight (<Tex>{'w'}</Tex>: yellow=1×, orange=2×, red=3×) × <Tex>{'\\sqrt{\\text{position}}'}</Tex>.
+          Reference means <Tex>{'\\mu'}</Tex>: P=1.5, C=5.5, K=4.5, S=1.5. Calibrated from literary works.
+          At <Tex>{'\\tilde{x}=1'}</Tex> (matching reference), grade <Tex>{'\\approx'}</Tex> 22/25.
         </p>
       </S>
     </div>

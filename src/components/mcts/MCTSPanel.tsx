@@ -840,7 +840,7 @@ function NodeInspector({ node, tree }: { node: MCTSNode; tree: MCTSTree }) {
           .map((k) => node.virtualNarrative.scenes[k])
           .filter((s): s is Scene => !!s);
         const forceMap = computeForceSnapshots(allScenes);
-        const forces = forceMap[scene.id] ?? { payoff: 0, change: 0, variety: 0 };
+        const forces = forceMap[scene.id] ?? { payoff: 0, change: 0, knowledge: 0 };
         const corner = detectCubeCorner(forces);
         const loc = node.virtualNarrative.locations[scene.locationId];
         const pov = scene.povId ? node.virtualNarrative.characters[scene.povId] : null;
@@ -921,7 +921,7 @@ function NodeInspector({ node, tree }: { node: MCTSNode; tree: MCTSTree }) {
               {([
                 { label: 'Payoff', value: forces.payoff, color: '#EF4444' },
                 { label: 'Change', value: forces.change, color: '#22C55E' },
-                { label: 'Variety', value: forces.variety, color: '#3B82F6' },
+                { label: 'Knowledge', value: forces.knowledge, color: '#3B82F6' },
               ] as const).map(({ label, value, color }) => (
                 <div key={label} className="flex flex-1 flex-col gap-1">
                   <span className="text-[10px] uppercase text-text-dim">{label}</span>
@@ -987,10 +987,10 @@ function NodeInspector({ node, tree }: { node: MCTSNode; tree: MCTSTree }) {
           )}
 
           {/* Knowledge Mutations */}
-          {scene.knowledgeMutations.length > 0 && (
+          {scene.continuityMutations.length > 0 && (
             <div className="flex flex-col gap-1.5">
               <h3 className="text-[10px] uppercase tracking-widest text-text-dim">Knowledge</h3>
-              {scene.knowledgeMutations.map((km, j) => {
+              {scene.continuityMutations.map((km, j) => {
                 const charName = node.virtualNarrative.characters[km.characterId]?.name ?? km.characterId;
                 return (
                   <div key={j} className="flex flex-col gap-0.5 text-xs">
@@ -1373,7 +1373,7 @@ export function MCTSPanel({ isOpen, onClose, mcts }: { isOpen: boolean; onClose:
                       <input type="radio" name="directionMode" checked={config.directionMode === 'cube'} onChange={() => setConfig((c) => ({ ...c, directionMode: 'cube', branchingFactor: DEFAULT_BRANCHING.cube }))} className="accent-blue-500 mt-0.5" />
                       <div>
                         <div className="text-xs text-text-primary font-medium">Cube Positions</div>
-                        <div className="text-[9px] text-text-dim">8 moves per node — every combination of <span style={{color:'#EF4444'}}>Payoff</span>, <span style={{color:'#22C55E'}}>Change</span>, and <span style={{color:'#3B82F6'}}>Variety</span> at high or low. Derived from the narrative cube model.</div>
+                        <div className="text-[9px] text-text-dim">8 moves per node — every combination of <span style={{color:'#EF4444'}}>Payoff</span>, <span style={{color:'#22C55E'}}>Change</span>, and <span style={{color:'#3B82F6'}}>Knowledge</span> at high or low. Derived from the narrative cube model.</div>
                       </div>
                     </label>
                   </div>

@@ -6,7 +6,7 @@ import type { SlidesData } from '@/lib/slides-data';
 const FORCE_COLORS: Record<string, string> = {
   payoff: '#EF4444',
   change: '#22C55E',
-  variety: '#3B82F6',
+  knowledge: '#3B82F6',
 };
 
 function ForceBar({ force, value, maxForce }: { force: string; value: number; maxForce: number }) {
@@ -43,20 +43,20 @@ export function KeyMomentsSlide({ data, sceneIdx, kind }: { data: SlidesData; sc
   const scene = data.scenes[sceneIdx];
   if (!scene) return null;
 
-  const forces = peakInfo?.forces ?? troughInfo?.forces ?? { payoff: 0, change: 0, variety: 0 };
+  const forces = peakInfo?.forces ?? troughInfo?.forces ?? { payoff: 0, change: 0, knowledge: 0 };
   const engagement = peakInfo?.engagement ?? troughInfo?.engagement;
   const cubeCorner = peakInfo?.cubeCorner ?? troughInfo?.cubeCorner;
   const threadChanges = peakInfo?.threadChanges ?? scene.threadMutations?.map((tm) => ({ threadId: tm.threadId, from: tm.from, to: tm.to })) ?? [];
   const relationshipChanges = peakInfo?.relationshipChanges ?? scene.relationshipMutations?.map((rm) => ({ from: rm.from, to: rm.to, type: rm.type, delta: rm.valenceDelta })) ?? [];
 
-  const maxForce = Math.max(Math.abs(forces.payoff), Math.abs(forces.change), Math.abs(forces.variety), 0.5);
+  const maxForce = Math.max(Math.abs(forces.payoff), Math.abs(forces.change), Math.abs(forces.knowledge), 0.5);
   const povName = data.characterNames[scene.povId] ?? scene.povId;
   const locationName = data.locationNames[scene.locationId] ?? scene.locationId;
   const participants = scene.participantIds
     .filter((id) => id !== scene.povId)
     .map((id) => data.characterNames[id] ?? id);
 
-  const knowledgeGains = scene.knowledgeMutations?.filter((km) => km.action === 'added') ?? [];
+  const knowledgeGains = scene.continuityMutations?.filter((km) => km.action === 'added') ?? [];
 
   return (
     <div className="flex flex-col h-full px-12 py-8">
@@ -153,7 +153,7 @@ export function KeyMomentsSlide({ data, sceneIdx, kind }: { data: SlidesData; sc
             <div className="space-y-2">
               <ForceBar force="payoff" value={forces.payoff} maxForce={maxForce} />
               <ForceBar force="change" value={forces.change} maxForce={maxForce} />
-              <ForceBar force="variety" value={forces.variety} maxForce={maxForce} />
+              <ForceBar force="knowledge" value={forces.knowledge} maxForce={maxForce} />
             </div>
           </div>
 

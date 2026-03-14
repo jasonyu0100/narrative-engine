@@ -115,7 +115,7 @@ CORE PRINCIPLES:
 4. Use ONLY the character, location, and thread IDs provided. Never invent new ones.
 
 WRITING LIKE A NOVELIST — every scene should leave a mark:
-- Characters are always learning. In every scene, someone notices something, overhears a detail, forms an impression, recalls a memory, or pieces together a clue. Track these as knowledgeMutations — they are the fabric of dramatic irony and character interiority.
+- Characters are always learning. In every scene, someone notices something, overhears a detail, forms an impression, recalls a memory, or pieces together a clue. Track these as continuityMutations — they are the fabric of dramatic irony and character interiority.
 - Relationships shift constantly. When characters interact, their dynamics evolve — trust deepens, suspicion grows, respect is earned or lost. Even a shared glance or an awkward silence shifts something. Track these as relationshipMutations with appropriate valenceDelta.
 - Events ground scenes in concrete happenings. Tag what actually occurs: "ambush", "confession", "storm_arrival", "treaty_signed", "duel", "feast", "betrayal_revealed". These make scenes feel like real narrative moments, not abstract summaries.
 - Thread advancement is dynamic — a quiet scene may touch no threads, while a pivotal scene might advance several at once. Only include mutations where the status actually changes. Padding with no-op mutations is worse than no mutation at all.`;

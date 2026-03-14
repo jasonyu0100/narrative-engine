@@ -2,8 +2,8 @@
 
 import { useState } from 'react';
 import { useStore } from '@/lib/store';
-import { getKnowledgeNodesAtScene, getThreadIdsAtScene } from '@/lib/scene-filter';
-import type { KnowledgeNodeType } from '@/types/narrative';
+import { getContinuityNodesAtScene, getThreadIdsAtScene } from '@/lib/scene-filter';
+import type { ContinuityNodeType } from '@/types/narrative';
 import { CollapsibleSection } from './CollapsibleSection';
 import { INSPECTOR_PAGE_SIZE } from '@/lib/constants';
 
@@ -41,7 +41,7 @@ type Props = {
   locationId: string;
 };
 
-const knowledgeDotColors: Record<KnowledgeNodeType, string> = {
+const continuityDotColors: Record<ContinuityNodeType, string> = {
   lore: 'bg-[#8B5CF6]',
   secret: 'bg-[#F59E0B]',
   danger: 'bg-[#EF4444]',
@@ -51,7 +51,7 @@ const knowledgeDotColors: Record<KnowledgeNodeType, string> = {
 export default function LocationDetail({ locationId }: Props) {
   const { state, dispatch } = useStore();
   const narrative = state.activeNarrative;
-  const [knowledgePage, setKnowledgePage] = useState(0);
+  const [continuityPage, setContinuityPage] = useState(0);
   const [threadPage, setThreadPage] = useState(0);
   const [scenesPage, setScenesPage] = useState(0);
   if (!narrative) return null;
@@ -66,8 +66,8 @@ export default function LocationDetail({ locationId }: Props) {
   // Knowledge filtered to current scene (location knowledge uses locationId as characterId
   // in the mutation replay — location-specific knowledge nodes aren't mutated by scenes,
   // so we pass the locationId and any matching mutations will be respected)
-  const knowledgeNodes = getKnowledgeNodesAtScene(
-    location.knowledge.nodes,
+  const continuityNodes = getContinuityNodesAtScene(
+    location.continuity.nodes,
     locationId,
     narrative.scenes,
     state.resolvedSceneKeys,
@@ -94,15 +94,15 @@ export default function LocationDetail({ locationId }: Props) {
     .map((s) => ({
       sceneId: s.id,
       threadMuts: s.threadMutations.filter((tm) => locationThreadIds.has(tm.threadId)),
-      knowledgeMuts: s.knowledgeMutations.filter((km) =>
+      continuityMuts: s.continuityMutations.filter((km) =>
         km.content.toLowerCase().includes(location.name.toLowerCase()),
       ),
       arrivals: Object.entries(s.characterMovements ?? {})
         .filter(([, mv]) => mv.locationId === locationId)
         .map(([charId]) => charId),
     }))
-    .filter(({ threadMuts, knowledgeMuts, arrivals }) =>
-      threadMuts.length > 0 || knowledgeMuts.length > 0 || arrivals.length > 0,
+    .filter(({ threadMuts, continuityMuts, arrivals }) =>
+      threadMuts.length > 0 || continuityMuts.length > 0 || arrivals.length > 0,
     );
 
   return (
@@ -147,19 +147,19 @@ export default function LocationDetail({ locationId }: Props) {
       )}
 
       {/* Knowledge — paginated, most recent first */}
-      {knowledgeNodes.length > 0 && (() => {
-        const { pageItems, totalPages, safePage } = paginateRecent(knowledgeNodes, knowledgePage);
+      {continuityNodes.length > 0 && (() => {
+        const { pageItems, totalPages, safePage } = paginateRecent(continuityNodes, continuityPage);
         return (
-          <CollapsibleSection title="Knowledge" count={knowledgeNodes.length}>
+          <CollapsibleSection title="Knowledge" count={continuityNodes.length}>
             <ul className="flex flex-col gap-1">
               {pageItems.map((node, i) => (
                 <li key={`${node.id}-${i}`} className="flex items-start gap-2">
-                  <span className={`mt-1 h-2 w-2 shrink-0 rounded-full ${knowledgeDotColors[node.type] ?? 'bg-white/40'}`} />
+                  <span className={`mt-1 h-2 w-2 shrink-0 rounded-full ${continuityDotColors[node.type] ?? 'bg-white/40'}`} />
                   <span className="text-xs text-text-primary">{node.content}</span>
                 </li>
               ))}
             </ul>
-            <Paginator page={safePage} totalPages={totalPages} onPage={setKnowledgePage} />
+            <Paginator page={safePage} totalPages={totalPages} onPage={setContinuityPage} />
           </CollapsibleSection>
         );
       })()}
@@ -197,7 +197,7 @@ export default function LocationDetail({ locationId }: Props) {
           <CollapsibleSection title="Scenes" count={totalSceneCount} defaultOpen>
             {pageItems.length > 0 && (
               <ul className="flex flex-col gap-2">
-                {pageItems.map(({ sceneId, threadMuts, knowledgeMuts, arrivals }) => (
+                {pageItems.map(({ sceneId, threadMuts, continuityMuts, arrivals }) => (
                   <li key={sceneId} className="flex flex-col gap-0.5">
                     <button
                       type="button"
@@ -211,7 +211,7 @@ export default function LocationDetail({ locationId }: Props) {
                         {tm.threadId}: {tm.from} &rarr; {tm.to}
                       </span>
                     ))}
-                    {knowledgeMuts.map((km, kmIdx) => {
+                    {continuityMuts.map((km, kmIdx) => {
                       const charName = narrative.characters[km.characterId]?.name ?? km.characterId;
                       return (
                         <span key={`${km.characterId}-${km.nodeId}-${kmIdx}`} className="text-xs text-text-secondary">

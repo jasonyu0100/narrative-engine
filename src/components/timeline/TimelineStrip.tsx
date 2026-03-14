@@ -76,7 +76,7 @@ export default function TimelineStrip() {
     const rawForces = raw.payoff.map((_, i) => ({
       payoff: raw.payoff[i],
       change: raw.change[i],
-      variety: raw.variety[i],
+      knowledge: raw.knowledge[i],
     }));
     const swings = computeSwingMagnitudes(rawForces, FORCE_REFERENCE_MEANS);
 
@@ -92,7 +92,7 @@ export default function TimelineStrip() {
       if (forceIndices.length === 0) continue;
       const arcPayoffs = forceIndices.map((i) => raw.payoff[i]);
       const arcChanges = forceIndices.map((i) => raw.change[i]);
-      const arcVarieties = forceIndices.map((i) => raw.variety[i]);
+      const arcVarieties = forceIndices.map((i) => raw.knowledge[i]);
       const arcSwingVals = forceIndices.map((i, idx) => idx === 0 ? 0 : swings[i]);
       const { overall } = gradeForces(arcPayoffs, arcChanges, arcVarieties, arcSwingVals);
       grades.set(band.arc.id, overall);

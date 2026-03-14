@@ -148,17 +148,17 @@ export async function scoreAndRewriteSceneProse(
 
 export type ChartAnnotation = {
   sceneIndex: number;
-  force: 'payoff' | 'change' | 'variety';
+  force: 'payoff' | 'change' | 'knowledge';
   label: string;
 };
 
 export async function generateChartAnnotations(
   narrative: NarrativeState,
-  forceData: { sceneIndex: number; sceneId: string; arcName: string; forces: { payoff: number; change: number; variety: number }; corner: string; summary: string; threadChanges: string[]; location: string; participants: string[] }[],
+  forceData: { sceneIndex: number; sceneId: string; arcName: string; forces: { payoff: number; change: number; knowledge: number }; corner: string; summary: string; threadChanges: string[]; location: string; participants: string[] }[],
 ): Promise<ChartAnnotation[]> {
   const trajectoryLines = forceData.map((d) => {
     const tc = d.threadChanges.length > 0 ? ` | ${d.threadChanges.join('; ')}` : '';
-    return `[${d.sceneIndex + 1}] ${d.arcName} | ${d.corner} | P:${d.forces.payoff.toFixed(2)} C:${d.forces.change.toFixed(2)} V:${d.forces.variety.toFixed(2)} | @${d.location} | ${d.participants.join(', ')} | "${d.summary.slice(0, 80)}"${tc}`;
+    return `[${d.sceneIndex + 1}] ${d.arcName} | ${d.corner} | P:${d.forces.payoff.toFixed(2)} C:${d.forces.change.toFixed(2)} V:${d.forces.knowledge.toFixed(2)} | @${d.location} | ${d.participants.join(', ')} | "${d.summary.slice(0, 80)}"${tc}`;
   }).join('\n');
 
   const systemPrompt = `You are a narrative analyst annotating force trajectory charts. Return ONLY valid JSON — no markdown, no code fences, no commentary.`;
@@ -180,12 +180,12 @@ Rules:
 - Never use generic labels like "high tension" or "calm period"
 - Payoff peaks: danger, threats, betrayals. Troughs: safety, calm
 - Change peaks: action bursts, dense reveals. Troughs: breathing room, reflection
-- Variety peaks: new locations or characters (check @location and participants for first appearances). Troughs: same familiar cast/setting recurring
+- Knowledge peaks: new locations or characters (check @location and participants for first appearances). Troughs: same familiar cast/setting recurring
 
 Return a JSON array:
 [{"sceneIndex": 0, "force": "payoff", "label": "short annotation"}, ...]
 
-sceneIndex is 0-based. force is one of: "payoff", "change", "variety".`;
+sceneIndex is 0-based. force is one of: "payoff", "change", "knowledge".`;
 
   const raw = await callGenerate(prompt, SYSTEM_PROMPT, 4000, 'generateChartAnnotations', ANALYSIS_MODEL);
 
@@ -198,7 +198,7 @@ sceneIndex is 0-based. force is one of: "payoff", "change", "variety".`;
       typeof a === 'object' && a !== null &&
       'sceneIndex' in a && 'force' in a && 'label' in a &&
       typeof (a as ChartAnnotation).sceneIndex === 'number' &&
-      ['payoff', 'change', 'variety'].includes((a as ChartAnnotation).force) &&
+      ['payoff', 'change', 'knowledge'].includes((a as ChartAnnotation).force) &&
       typeof (a as ChartAnnotation).label === 'string'
   );
 }

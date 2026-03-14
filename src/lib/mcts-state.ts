@@ -11,6 +11,7 @@ function applySceneMutations(n: NarrativeState, scenes: Scene[]): NarrativeState
   let relationships = [...n.relationships];
   const characters = { ...n.characters };
   const threads = { ...n.threads };
+  const worldKnowledge = { nodes: { ...n.worldKnowledge?.nodes }, edges: [...(n.worldKnowledge?.edges ?? [])] };
 
   for (const scene of scenes) {
     for (const rm of scene.relationshipMutations) {
@@ -26,24 +27,37 @@ function applySceneMutations(n: NarrativeState, scenes: Scene[]): NarrativeState
         relationships.push({ from: rm.from, to: rm.to, type: rm.type, valence: Math.max(-1, Math.min(1, rm.valenceDelta)) });
       }
     }
-    for (const km of scene.knowledgeMutations) {
+    for (const km of scene.continuityMutations) {
       const char = characters[km.characterId];
       if (!char) continue;
       if (km.action === 'added') {
-        if (!char.knowledge.nodes.some((kn) => kn.id === km.nodeId)) {
-          characters[km.characterId] = { ...char, knowledge: { ...char.knowledge, nodes: [...char.knowledge.nodes, { id: km.nodeId, type: km.nodeType ?? 'learned', content: km.content }] } };
+        if (!char.continuity.nodes.some((kn) => kn.id === km.nodeId)) {
+          characters[km.characterId] = { ...char, continuity: { ...char.continuity, nodes: [...char.continuity.nodes, { id: km.nodeId, type: km.nodeType ?? 'learned', content: km.content }] } };
         }
       } else if (km.action === 'removed') {
-        characters[km.characterId] = { ...char, knowledge: { ...char.knowledge, nodes: char.knowledge.nodes.filter((kn) => kn.id !== km.nodeId) } };
+        characters[km.characterId] = { ...char, continuity: { ...char.continuity, nodes: char.continuity.nodes.filter((kn) => kn.id !== km.nodeId) } };
       }
     }
     for (const tm of scene.threadMutations) {
       const thread = threads[tm.threadId];
       if (thread) threads[tm.threadId] = { ...thread, status: tm.to };
     }
+    const wkm = scene.worldKnowledgeMutations;
+    if (wkm) {
+      for (const node of wkm.addedNodes ?? []) {
+        if (!worldKnowledge.nodes[node.id]) {
+          worldKnowledge.nodes[node.id] = { id: node.id, concept: node.concept, type: node.type };
+        }
+      }
+      for (const edge of wkm.addedEdges ?? []) {
+        if (!worldKnowledge.edges.some((e: { from: string; to: string; relation: string }) => e.from === edge.from && e.to === edge.to && e.relation === edge.relation)) {
+          worldKnowledge.edges.push({ from: edge.from, to: edge.to, relation: edge.relation });
+        }
+      }
+    }
   }
 
-  return { ...n, relationships, characters, threads };
+  return { ...n, relationships, characters, threads, worldKnowledge };
 }
 
 // ── Virtual State Construction ───────────────────────────────────────────────
@@ -117,21 +131,21 @@ export function buildVirtualState(
  * Returns the per-arc overall score (0-100, from 4 force metrics scaled up).
  *
  * @param arcScenes - The scenes in this arc
- * @param priorScenes - All scenes before this arc (for variety/recency context)
+ * @param priorScenes - All scenes before this arc (for knowledge/recency context)
  */
 export function scoreArc(arcScenes: Scene[], priorScenes: Scene[]): number {
   if (arcScenes.length === 0) return 0;
 
-  const raw = computeRawForcetotals(arcScenes, priorScenes);
+  const raw = computeRawForcetotals(arcScenes);
   const forces = raw.payoff.map((_, i) => ({
     payoff: raw.payoff[i],
     change: raw.change[i],
-    variety: raw.variety[i],
+    knowledge: raw.knowledge[i],
   }));
   const swings = computeSwingMagnitudes(forces, FORCE_REFERENCE_MEANS);
 
-  // Per-arc grading (no arcOveralls → 4 metrics scaled to 0-100)
-  const grades = gradeForces(raw.payoff, raw.change, raw.variety, swings);
+  // Grade 4 forces → 0-100
+  const grades = gradeForces(raw.payoff, raw.change, raw.knowledge, swings);
   return grades.overall;
 }
 

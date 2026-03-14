@@ -1,4 +1,4 @@
-import type { Branch, NarrativeState, Scene, ThreadStatus, ForceSnapshot, CubeCornerKey, CubeCorner } from '@/types/narrative';
+import type { Branch, NarrativeState, Scene, ThreadStatus, ForceSnapshot, CubeCornerKey, CubeCorner, WorldKnowledgeGraph, WorldKnowledgeNode, WorldKnowledgeMutation } from '@/types/narrative';
 import { NARRATIVE_CUBE } from '@/types/narrative';
 import { FORCE_WINDOW_SIZE } from '@/lib/constants';
 
@@ -108,7 +108,7 @@ function forceDistance(a: ForceSnapshot, b: ForceSnapshot): number {
   return Math.sqrt(
     (a.payoff - b.payoff) ** 2 +
     (a.change - b.change) ** 2 +
-    (a.variety - b.variety) ** 2,
+    (a.knowledge - b.knowledge) ** 2,
   );
 }
 
@@ -140,16 +140,16 @@ export function cubeCornerProximity(forces: ForceSnapshot, cornerKey: CubeCorner
  *  dimension contributes equally regardless of natural scale. */
 export function computeSwingMagnitudes(
   forceSnapshots: ForceSnapshot[],
-  refMeans?: { payoff: number; change: number; variety: number },
+  refMeans?: { payoff: number; change: number; knowledge: number },
 ): number[] {
   const rp = refMeans?.payoff ?? 1;
   const rc = refMeans?.change ?? 1;
-  const rv = refMeans?.variety ?? 1;
+  const rv = refMeans?.knowledge ?? 1;
   const swings: number[] = [0];
   for (let i = 1; i < forceSnapshots.length; i++) {
     const dp = (forceSnapshots[i].payoff - forceSnapshots[i - 1].payoff) / rp;
     const dc = (forceSnapshots[i].change - forceSnapshots[i - 1].change) / rc;
-    const dv = (forceSnapshots[i].variety - forceSnapshots[i - 1].variety) / rv;
+    const dv = (forceSnapshots[i].knowledge - forceSnapshots[i - 1].knowledge) / rv;
     swings.push(Math.sqrt(dp * dp + dc * dc + dv * dv));
   }
   return swings;
@@ -243,7 +243,7 @@ function computeRawPayoff(scene: Scene): number {
  */
 function rawChange(scene: Scene): number {
   const charMutations: Record<string, number> = {};
-  for (const km of scene.knowledgeMutations) {
+  for (const km of scene.continuityMutations) {
     charMutations[km.characterId] = (charMutations[km.characterId] ?? 0) + 1;
   }
   for (const rm of scene.relationshipMutations) {
@@ -258,31 +258,77 @@ function rawChange(scene: Scene): number {
   );
 }
 
-/** Raw variety: V = Σr(g_c) + r(g_ℓ)
+/** Raw knowledge: K = ΔN + 0.5 · ΔE
  *
- *  - Σr(g_c): sum of recency across participants (scales with cast size)
- *  - r(g_ℓ): location recency [0, 1]
+ *  World knowledge graph complexity delta per scene.
+ *  Nodes contribute linearly — each new concept is worth 1.
+ *  Edges contribute at half weight — connections matter but
+ *  a new concept is worth more than a new link between existing ones.
  *
- *  Recency: r(g) = g / (1 + g). First appearance → r = 1. */
-function rawVariety(
-  scene: Scene,
-  charLastSeen: Record<string, number>,
-  locLastSeen: Record<string, number>,
-  sceneIdx: number,
-): number {
-  const recency = (lastSeen: number | undefined) => {
-    if (lastSeen === undefined) return 1;
-    const g = sceneIdx - lastSeen;
-    return g / (1 + g);
+ *  Examples:
+ *    3 nodes, 0 edges → K = 3        (isolated concepts)
+ *    2 nodes, 3 edges → K = 3.5      (connected)
+ *    3 nodes, 5 edges → K = 5.5      (dense)
+ *    1 node,  4 edges → K = 3        (hub integration)
+ *    0 nodes, 3 edges → K = 1.5      (pure reconnection) */
+function rawKnowledge(scene: Scene): number {
+  const wkm = scene.worldKnowledgeMutations;
+  if (!wkm) return 0;
+  const n = wkm.addedNodes?.length ?? 0;
+  const e = wkm.addedEdges?.length ?? 0;
+  return n + 0.5 * e;
+}
+
+// ── World Knowledge Graph Utilities ─────────────────────────────────────────
+
+/** Compute degree centrality for each node in the world knowledge graph.
+ *  More edges = more significant concept. Returns sorted by relevance descending. */
+export function rankWorldKnowledgeNodes(graph: WorldKnowledgeGraph): { node: WorldKnowledgeNode; degree: number }[] {
+  const degree = new Map<string, number>();
+  for (const edge of graph.edges) {
+    degree.set(edge.from, (degree.get(edge.from) ?? 0) + 1);
+    degree.set(edge.to, (degree.get(edge.to) ?? 0) + 1);
+  }
+  return Object.values(graph.nodes)
+    .map((node) => ({ node, degree: degree.get(node.id) ?? 0 }))
+    .sort((a, b) => b.degree - a.degree);
+}
+
+/** Build the cumulative world knowledge graph up to a given scene index
+ *  by replaying worldKnowledgeMutations from both scenes and world build commits. */
+export function buildCumulativeWorldKnowledge(
+  scenes: Record<string, Scene>,
+  resolvedKeys: string[],
+  upToIndex: number,
+  baseGraph?: WorldKnowledgeGraph,
+  worldBuilds?: Record<string, import('@/types/narrative').WorldBuildCommit>,
+): WorldKnowledgeGraph {
+  const nodes: Record<string, WorldKnowledgeNode> = { ...(baseGraph?.nodes ?? {}) };
+  const edges = [...(baseGraph?.edges ?? [])];
+
+  const applyMutation = (wkm: WorldKnowledgeMutation) => {
+    for (const n of wkm.addedNodes ?? []) {
+      if (!nodes[n.id]) nodes[n.id] = { id: n.id, concept: n.concept, type: n.type };
+    }
+    for (const e of wkm.addedEdges ?? []) {
+      if (!edges.some((x) => x.from === e.from && x.to === e.to && x.relation === e.relation)) {
+        edges.push({ from: e.from, to: e.to, relation: e.relation });
+      }
+    }
   };
 
-  // Character recency: sum (not mean) so larger fresh casts produce stronger signal
-  const charRecency = scene.participantIds.reduce((sum, id) => sum + recency(charLastSeen[id]), 0);
-
-  // Location recency → [0, 1]
-  const locRecency = recency(locLastSeen[scene.locationId]);
-
-  return charRecency + locRecency;
+  for (let i = 0; i <= upToIndex && i < resolvedKeys.length; i++) {
+    const key = resolvedKeys[i];
+    const scene = scenes[key];
+    if (scene?.worldKnowledgeMutations) {
+      applyMutation(scene.worldKnowledgeMutations);
+    }
+    const wb = worldBuilds?.[key];
+    if (wb?.worldKnowledgeMutations) {
+      applyMutation(wb.worldKnowledgeMutations);
+    }
+  }
+  return { nodes, edges };
 }
 
 /**
@@ -291,7 +337,7 @@ function rawVariety(
  *
  * - **Payoff**: phase transitions — thread status changes (weighted by jump magnitude) and relationship valence deltas
  * - **Change**: mutation reach — sum of log₂(1 + mutations) per affected character
- * - **Variety**: Σr_char + r_loc — character and location recency
+ * - **Knowledge**: Σr_char + r_loc — character and location recency
  *
  * @param scenes - Ordered list of scenes to compute forces for
  * @param priorScenes - Scenes before this batch (for usage tracking). Empty for initial generation.
@@ -303,42 +349,27 @@ export function computeForceSnapshots(
   const result: Record<string, ForceSnapshot> = {};
   if (scenes.length === 0) return result;
 
-  // Build last-seen indices from prior scenes
-  const charLastSeen: Record<string, number> = {};
-  const locLastSeen: Record<string, number> = {};
-  for (let i = 0; i < priorScenes.length; i++) {
-    const s = priorScenes[i];
-    for (const pid of s.participantIds) charLastSeen[pid] = i;
-    locLastSeen[s.locationId] = i;
-  }
-
-  // Compute raw values, updating last-seen as we go
+  // Compute raw values per scene
   const rawPayoffs: number[] = [];
   const rawChanges: number[] = [];
-  const rawVarieties: number[] = [];
-  const baseIdx = priorScenes.length;
+  const rawKnowledges: number[] = [];
 
-  for (let si = 0; si < scenes.length; si++) {
-    const scene = scenes[si];
-    const globalIdx = baseIdx + si;
+  for (const scene of scenes) {
     rawPayoffs.push(computeRawPayoff(scene));
     rawChanges.push(rawChange(scene));
-    rawVarieties.push(rawVariety(scene, charLastSeen, locLastSeen, globalIdx));
-    // Update last-seen for subsequent scenes
-    for (const pid of scene.participantIds) charLastSeen[pid] = globalIdx;
-    locLastSeen[scene.locationId] = globalIdx;
+    rawKnowledges.push(rawKnowledge(scene));
   }
 
   // Z-score normalize each dimension (mean = 0, units = std deviations)
   const normPayoffs = zScoreNormalize(rawPayoffs);
   const normChanges = zScoreNormalize(rawChanges);
-  const normVarieties = zScoreNormalize(rawVarieties);
+  const normKnowledges = zScoreNormalize(rawKnowledges);
 
   for (let i = 0; i < scenes.length; i++) {
     result[scenes[i].id] = {
       payoff: normPayoffs[i],
       change: normChanges[i],
-      variety: normVarieties[i],
+      knowledge: normKnowledges[i],
     };
   }
   return result;
@@ -350,34 +381,20 @@ export function computeForceSnapshots(
  */
 export function computeRawForcetotals(
   scenes: Scene[],
-  priorScenes: Scene[] = [],
-): { payoff: number[]; change: number[]; variety: number[] } {
-  if (scenes.length === 0) return { payoff: [], change: [], variety: [] };
-
-  const charLastSeen: Record<string, number> = {};
-  const locLastSeen: Record<string, number> = {};
-  for (let i = 0; i < priorScenes.length; i++) {
-    const s = priorScenes[i];
-    for (const pid of s.participantIds) charLastSeen[pid] = i;
-    locLastSeen[s.locationId] = i;
-  }
+): { payoff: number[]; change: number[]; knowledge: number[] } {
+  if (scenes.length === 0) return { payoff: [], change: [], knowledge: [] };
 
   const payoff: number[] = [];
   const change: number[] = [];
-  const variety: number[] = [];
-  const baseIdx = priorScenes.length;
+  const knowledge: number[] = [];
 
-  for (let si = 0; si < scenes.length; si++) {
-    const scene = scenes[si];
-    const globalIdx = baseIdx + si;
+  for (const scene of scenes) {
     payoff.push(computeRawPayoff(scene));
     change.push(rawChange(scene));
-    variety.push(rawVariety(scene, charLastSeen, locLastSeen, globalIdx));
-    for (const pid of scene.participantIds) charLastSeen[pid] = globalIdx;
-    locLastSeen[scene.locationId] = globalIdx;
+    knowledge.push(rawKnowledge(scene));
   }
 
-  return { payoff, change, variety };
+  return { payoff, change, knowledge };
 }
 
 /** Compute a simple moving average over a data series.
@@ -481,11 +498,11 @@ export interface EngagementPoint {
   /** Scene index (0-based) */
   index: number;
   /**
-   * Composite engagement score: equal-weighted mean of payoff, change, and variety,
+   * Composite engagement score: equal-weighted mean of payoff, change, and knowledge,
    * amplified by an anticipation factor when prior scenes had high emotional change.
    */
   engagement: number;
-  /** Tension buildup: change + variety − payoff. High when energy accumulates without release. */
+  /** Tension buildup: change + knowledge − payoff. High when energy accumulates without release. */
   tension: number;
   /** Gaussian-smoothed engagement (σ=1.5) — local curve shape for display. */
   smoothed: number;
@@ -508,8 +525,8 @@ export function computeEngagementCurve(snapshots: ForceSnapshot[]): EngagementPo
   if (snapshots.length === 0) return [];
   const n = snapshots.length;
 
-  const engValues = snapshots.map(({ payoff, change, variety }) =>
-    (payoff + change + variety) / 3,
+  const engValues = snapshots.map(({ payoff, change, knowledge }) =>
+    (payoff + change + knowledge) / 3,
   );
 
   const smoothed = gaussianSmooth(engValues, 1.5);
@@ -525,10 +542,10 @@ export function computeEngagementCurve(snapshots: ForceSnapshot[]): EngagementPo
 
   const { peaks, valleys } = detectPeaksAndValleys(smoothed, minProminence, windowR);
 
-  return snapshots.map(({ payoff, change, variety }, i) => ({
+  return snapshots.map(({ payoff, change, knowledge }, i) => ({
     index: i,
     engagement: engValues[i],
-    tension: change + variety - payoff,
+    tension: change + knowledge - payoff,
     smoothed: smoothed[i],
     macroTrend: macroTrend[i],
     isPeak: peaks.has(i),
@@ -735,7 +752,7 @@ export type WindowedForceResult = {
 /**
  * Compute forces normalized within a rolling window around the current scene.
  * The window is the last `windowSize` scenes ending at `currentIndex`.
- * Variety usage is seeded from scenes before the window so novelty is still relative.
+ * Knowledge usage is seeded from scenes before the window so novelty is still relative.
  */
 export function computeWindowedForces(
   scenes: Scene[],
@@ -762,9 +779,8 @@ export function computeWindowedForces(
 export type ForceGrades = {
   payoff: number;
   change: number;
-  variety: number;
+  knowledge: number;
   swing: number;
-  streak: number;
   overall: number;
 };
 
@@ -774,98 +790,37 @@ const avg = (arr: number[]) => arr.length > 0 ? arr.reduce((s, v) => s + v, 0) /
  *  Raw force values are divided by these to produce a unit-free normalized value
  *  (x̃ = x̄ / μ_ref). At x̃ = 1 the grade reaches ~86%.
  *  Calibrated from literary works (HP, Gatsby, Crime & Punishment, Coiling Dragon). */
-export const FORCE_REFERENCE_MEANS = { payoff: 1.75, change: 7, variety: 4.5, swing: 1.2 } as const;
+export const FORCE_REFERENCE_MEANS = { payoff: 1.5, change: 5.5, knowledge: 4.5, swing: 1.5 } as const;
 
-/** Grade a mean-normalized force value 0→20: g(x̃) = 20(1 - e^{-2x̃}).
- *  x̃ = x̄ / μ_ref. At x̃ = 1 (matching reference), grade ≈ 17/20 (86%). */
+/** Grade a mean-normalized force value 0→25: g(x̃) = 25(1 - e^{-2x̃}).
+ *  x̃ = x̄ / μ_ref. At x̃ = 1 (matching reference), grade ≈ 22/25 (86%). */
 export function gradeForce(normalizedMean: number): number {
-  return Math.min(20, 20 * (1 - Math.exp(-2 * Math.max(0, normalizedMean))));
-}
-
-/** Streak: zone-based consistency with compounding streak penalties.
- *
- *  Each arc earns credit based on its color zone:
- *    green (≥90) = 1.0, lime (80-89) = 0.9, yellow (70-79) = 0.7,
- *    orange (60-69) = 0.5, red (<60) = 0.3
- *
- *  The average credit forms the base score. A streak penalty then reduces
- *  it when below-green arcs (<80) cluster into prolonged low periods.
- *  Each arc in a streak is penalized by zone weight × √(streak position):
- *    yellow = 1×, orange = 2×, red = 3×
- *  so a red streak compounds faster than a yellow one, but √ keeps
- *  long streaks from blowing up quadratically. */
-function consistencyFactor(arr: number[]): number {
-  const n = arr.length;
-  if (n < 2) return 1;
-
-  // Zone credit: maps arc score to color-zone reward [0, 1]
-  const credit = (s: number) => {
-    if (s >= 90) return 1.0;   // green
-    if (s >= 80) return 0.9;   // lime
-    if (s >= 70) return 0.7;   // yellow
-    if (s >= 60) return 0.5;   // orange
-    return 0.3;                // red
-  };
-
-  // Zone weight for streak penalty: worse zones compound faster
-  const zoneWeight = (s: number) => {
-    if (s >= 70) return 1;     // yellow
-    if (s >= 60) return 2;     // orange
-    return 3;                  // red
-  };
-
-  // Average zone credit across all arcs
-  const avgCredit = avg(arr.map(credit));
-
-  // Streak penalty: consecutive below-green arcs, weighted by zone severity
-  if (n < 3) return avgCredit;
-  let penalty = 0;
-  let pos = 0;
-  for (let i = 0; i <= n; i++) {
-    if (i < n && arr[i] < 80) {
-      pos++;
-      penalty += zoneWeight(arr[i]) * Math.sqrt(pos);
-    } else {
-      pos = 0;
-    }
-  }
-  const streakFactor = 1 / (1 + penalty / (n * 15));
-
-  return avgCredit * streakFactor;
+  return Math.min(25, 25 * (1 - Math.exp(-2 * Math.max(0, normalizedMean))));
 }
 
 /**
- * Grade narrative forces (0–20 each, 0–100 overall).
- * Each force is mean-normalized then graded: g(x̃) = 20(1 - e^{-2x̃}), μ = {2, 7, 4.5, 1.2}.
- * Series-level includes a 5th metric (streak/consistency).
+ * Grade narrative forces (0–25 each, 0–100 overall).
+ * Each force is mean-normalized then graded: g(x̃) = 25(1 - e^{-2x̃}).
  */
 export function gradeForces(
   payoff: number[],
   change: number[],
-  variety: number[],
+  knowledge: number[],
   swing: number[],
-  arcOveralls?: number[],
 ): ForceGrades {
   const R = FORCE_REFERENCE_MEANS;
   const payoffGrade = gradeForce(avg(payoff) / R.payoff);
   const changeGrade = gradeForce(avg(change) / R.change);
-  const varietyGrade = gradeForce(avg(variety) / R.variety);
+  const knowledgeGrade = gradeForce(avg(knowledge) / R.knowledge);
   const swingGrade = gradeForce(avg(swing) / R.swing);
 
-  const hasStreak = arcOveralls && arcOveralls.length >= 2;
-  const streakGrade = hasStreak ? 20 * consistencyFactor(arcOveralls) : 0;
-
-  const coreSum = payoffGrade + changeGrade + varietyGrade + swingGrade;
-  const overall = hasStreak
-    ? coreSum + streakGrade
-    : coreSum * (100 / 80);
+  const overall = payoffGrade + changeGrade + knowledgeGrade + swingGrade;
 
   return {
     payoff: Math.round(payoffGrade),
     change: Math.round(changeGrade),
-    variety: Math.round(varietyGrade),
+    knowledge: Math.round(knowledgeGrade),
     swing: Math.round(swingGrade),
-    streak: Math.round(streakGrade),
     overall: Math.round(overall),
   };
 }

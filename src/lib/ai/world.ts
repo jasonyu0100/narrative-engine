@@ -1,6 +1,6 @@
-import type { NarrativeState, Character, Location, Thread, RelationshipEdge } from '@/types/narrative';
+import type { NarrativeState, Character, Location, Thread, RelationshipEdge, WorldKnowledgeNode, WorldKnowledgeEdge, WorldKnowledgeMutation } from '@/types/narrative';
 import { THREAD_ACTIVE_STATUSES } from '@/types/narrative';
-import { nextId } from '@/lib/narrative-utils';
+import { nextId, nextIds } from '@/lib/narrative-utils';
 import { callGenerate, SYSTEM_PROMPT } from './api';
 import { parseJson } from './json';
 import { branchContext, THREAD_LIFECYCLE_DOC } from './context';
@@ -10,6 +10,7 @@ export type WorldExpansion = {
   locations: Location[];
   threads: Thread[];
   relationships: RelationshipEdge[];
+  worldKnowledgeMutations?: WorldKnowledgeMutation;
 };
 
 export type DirectionSuggestion = {
@@ -165,8 +166,8 @@ export async function expandWorld(
   const nextLocId = nextId('L', Object.keys(narrative.locations));
   const nextThreadId = nextId('T', Object.keys(narrative.threads));
   const existingKIds = [
-    ...Object.values(narrative.characters).flatMap((c) => c.knowledge.nodes.map((n) => n.id)),
-    ...Object.values(narrative.locations).flatMap((l) => l.knowledge.nodes.map((n) => n.id)),
+    ...Object.values(narrative.characters).flatMap((c) => c.continuity.nodes.map((n) => n.id)),
+    ...Object.values(narrative.locations).flatMap((l) => l.continuity.nodes.map((n) => n.id)),
   ];
   const nextKId = nextId('K', existingKIds);
 
@@ -232,7 +233,11 @@ Return JSON with this exact structure:
   ],
   "relationships": [
     {"from": "character ID", "to": "character ID", "type": "description", "valence": 0.0}
-  ]
+  ],
+  "worldKnowledgeMutations": {
+    "addedNodes": [{"id": "WK-GEN-001", "concept": "foundational world concept", "type": "law|system|concept|tension"}],
+    "addedEdges": [{"from": "WK-GEN-001", "to": "existing-WK-ID", "relation": "relationship"}]
+  }
 }
 
 ID RULES:
@@ -256,19 +261,57 @@ CONTENT RULES:
 - Location knowledge should describe lore, dangers, secrets, or resources specific to that place (3-4 nodes per location)
 - Threads should introduce DIFFERENT types of open questions than existing ones — if current threads are about conflict, add threads about mystery, loyalty, or forbidden knowledge.
 - ALL new threads MUST have status "dormant" — they are seeds for future arcs, not active storylines yet
-- Generate the exact counts specified above (${EXPANSION_SIZE_CONFIG[size].characters} characters, ${EXPANSION_SIZE_CONFIG[size].locations} locations, ${EXPANSION_SIZE_CONFIG[size].threads} threads)`;
+- Generate the exact counts specified above (${EXPANSION_SIZE_CONFIG[size].characters} characters, ${EXPANSION_SIZE_CONFIG[size].locations} locations, ${EXPANSION_SIZE_CONFIG[size].threads} threads)
+
+WORLD KNOWLEDGE MUTATIONS:
+worldKnowledgeMutations define the FOUNDATIONAL abstractions this expansion establishes — the rules, systems, concepts, and tensions that the new characters, locations, and threads operate within. These are intentional world-building, not incidental discovery.
+- Use "law" for governing truths and hard constraints, "system" for institutions/processes, "concept" for named ideas/phenomena, "tension" for contradictions or unresolved forces.
+- Node IDs should be WK-GEN-001, WK-GEN-002, etc. (they will be re-mapped to real IDs).
+- Edges can reference both new WK-GEN-* IDs and existing world knowledge IDs already in the narrative.
+- Generate 3-8 world knowledge nodes depending on expansion size, with edges connecting related concepts.
+- Focus on the structural WHY behind the expansion — what abstract rules, power structures, or tensions make these new entities meaningful?`;
 
   const raw = await callGenerate(prompt, SYSTEM_PROMPT, undefined, 'expandWorld');
-  const parsed = parseJson(raw, 'expandWorld') as WorldExpansion;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const parsed = parseJson(raw, 'expandWorld') as any;
 
   // Force all world-build threads to dormant — they're seeds, not active storylines
   const threads = (parsed.threads ?? []).map((t: Thread) => ({ ...t, status: THREAD_ACTIVE_STATUSES[0] }));
+
+  // Process worldKnowledgeMutations: assign real WK-XX IDs
+  let worldKnowledgeMutations: WorldKnowledgeMutation | undefined;
+  const rawWKM = parsed.worldKnowledgeMutations;
+  if (rawWKM && Array.isArray(rawWKM.addedNodes) && rawWKM.addedNodes.length > 0) {
+    // Collect existing WK IDs from the narrative's world knowledge graph
+    const existingWkIds = Object.keys(narrative.worldKnowledge?.nodes ?? {});
+    const realIds = nextIds('WK', existingWkIds, rawWKM.addedNodes.length);
+    const wkIdMap: Record<string, string> = {};
+
+    const addedNodes = rawWKM.addedNodes.map((node: { id: string; concept: string; type: string }, i: number) => {
+      const realId = realIds[i];
+      wkIdMap[node.id] = realId;
+      return { id: realId, concept: node.concept, type: node.type as 'law' | 'system' | 'concept' | 'tension' };
+    });
+
+    // Remap edge references — edges can point to new WK-GEN-* IDs or existing WK-XX IDs
+    const validWKIds = new Set([...existingWkIds, ...realIds]);
+    const addedEdges = (rawWKM.addedEdges ?? [])
+      .map((edge: { from: string; to: string; relation: string }) => ({
+        from: wkIdMap[edge.from] ?? edge.from,
+        to: wkIdMap[edge.to] ?? edge.to,
+        relation: edge.relation,
+      }))
+      .filter((edge: { from: string; to: string }) => validWKIds.has(edge.from) && validWKIds.has(edge.to));
+
+    worldKnowledgeMutations = { addedNodes, addedEdges };
+  }
 
   return {
     characters: parsed.characters ?? [],
     locations: parsed.locations ?? [],
     threads,
     relationships: parsed.relationships ?? [],
+    worldKnowledgeMutations,
   };
 }
 
@@ -305,8 +348,9 @@ Return JSON with this exact structure:
       "participantIds": ["C-01"],
       "events": ["event_tag"],
       "threadMutations": [{"threadId": "T-01", "from": "dormant", "to": "active"}],
-      "knowledgeMutations": [{"characterId": "C-XX", "nodeId": "K-GEN-001", "action": "added", "content": "what they learned", "nodeType": "a descriptive type for this knowledge"}],
+      "continuityMutations": [{"characterId": "C-XX", "nodeId": "K-GEN-001", "action": "added", "content": "what they learned", "nodeType": "a descriptive type for this knowledge"}],
       "relationshipMutations": [],
+      "worldKnowledgeMutations": {"addedNodes": [{"id": "WK-GEN-001", "concept": "name of a world concept, rule, system, or structure", "type": "law|system|concept|tension"}], "addedEdges": [{"from": "WK-GEN-001", "to": "WK-GEN-002", "relation": "typed relationship: enables, requires, governs, opposes, created_by, extends, etc."}]},
       "summary": "REQUIRED: 2-4 sentence vivid narrative summary of the scene"
     }
   ],
@@ -323,6 +367,12 @@ Generate a world with enough CRITICAL MASS to sustain a long-running story:
 - 8-10 relationships between characters. Relationships should be asymmetric (A→B differs from B→A) with specific, character-voice descriptions. Use valence to show warmth vs hostility.
 - 15-25 scenes across 2-3 arcs. Each arc should have 5-10 scenes.
 
+POV DISCIPLINE:
+- POV should come in STREAKS — stay with one POV character for 2-4 consecutive scenes before switching. An ABABA pattern is disorienting — prefer AAABBA or AAABBCCC.
+- A POV switch is a cost. Only switch when the new perspective offers something the current POV cannot: a different location, access to hidden information, or an emotional angle.
+- Within an arc, anchor on one or two POV characters. Save breadth for later arcs.
+- A single POV for the entire opening arc is often the strongest choice — it grounds the reader before introducing complexity.
+
 PACING IS CRITICAL:
 - Do NOT rush through major plot beats. A story needs breathing room.
 - Not every scene should advance the main plot. Include quiet scenes: character conversations, world exploration, daily life, travel, reflection.
@@ -336,7 +386,9 @@ PACING IS CRITICAL:
 
 Knowledge types must be SPECIFIC and CONTEXTUAL to the world — not generic labels like "knows" or "secret". Use types that describe exactly what kind of knowledge or lore this is (e.g. "cultivation_technique", "blood_debt", "prophecy_fragment", "territorial_claim", "hidden_identity"). Knowledge edge types should also be contextual: "enables", "contradicts", "unlocks", "corrupts", "conceals", "depends_on", etc.
 
-Scene knowledgeMutations track what characters LEARN during a scene. Each mutation MUST have: characterId (who learned it), nodeId (unique ID like K-GEN-001), action ("added"), content (what they learned), nodeType (specific contextual type). The characterId must reference an existing character ID (C-XX).
+Scene continuityMutations track what characters LEARN during a scene. Each mutation MUST have: characterId (who learned it), nodeId (unique ID like K-GEN-001), action ("added"), content (what they learned), nodeType (specific contextual type). The characterId must reference an existing character ID (C-XX).
+
+Scene worldKnowledgeMutations track the world's abstract structure — rules, systems, ideas, and tensions that define the world characters inhabit. World knowledge exists in every genre: fantasy has magic systems, literary fiction has class structures and social norms, historical fiction has period customs, crime has institutional hierarchies. Four node types: "law" (governing truths — social rules, physical laws, cultural expectations), "system" (institutions, processes, hierarchies), "concept" (named ideas, symbolic motifs, places-as-concepts), "tension" (contradictions, unresolved social forces). Node IDs must be unique: WK-GEN-001, WK-GEN-002, etc. Add nodes when a scene reveals a world concept. Add edges (addedEdges) when it connects concepts. How much depends on the scene — world-building scenes may have several nodes, quiet character scenes may have none. Let the narrative guide you.
 
 WORLD RULES: Generate 4-6 world rules — absolute constraints that every scene must obey. These define the physics, magic system limits, social rules, or thematic laws of the world.${rules.length > 0 ? ` The user has already provided these rules — include them as-is and add more if appropriate:\n${rules.map((r, i) => `${i + 1}. ${r}`).join('\n')}` : ''}`;
 
@@ -377,7 +429,47 @@ WORLD RULES: Generate 4-6 world rules — absolute constraints that every scene 
     },
   };
 
+  // Sanitize and re-ID world knowledge mutations, then build cumulative graph
   const sceneList = Object.values(scenes);
+  const totalWKNodes = sceneList.reduce((sum, s) => sum + (s.worldKnowledgeMutations?.addedNodes?.length ?? 0), 0);
+  const wkIds = nextIds('WK', [], totalWKNodes);
+  let wkIdx = 0;
+  const wkIdMap: Record<string, string> = {};
+  const worldKnowledgeNodes: Record<string, WorldKnowledgeNode> = {};
+  const worldKnowledgeEdges: WorldKnowledgeEdge[] = [];
+
+  for (const scene of sceneList) {
+    if (!scene.worldKnowledgeMutations) {
+      scene.worldKnowledgeMutations = { addedNodes: [], addedEdges: [] };
+      continue;
+    }
+    scene.worldKnowledgeMutations.addedNodes = scene.worldKnowledgeMutations.addedNodes ?? [];
+    scene.worldKnowledgeMutations.addedEdges = scene.worldKnowledgeMutations.addedEdges ?? [];
+
+    // Assign real IDs to new nodes
+    for (const node of scene.worldKnowledgeMutations.addedNodes) {
+      const oldId = node.id;
+      node.id = wkIds[wkIdx++];
+      wkIdMap[oldId] = node.id;
+      worldKnowledgeNodes[node.id] = { id: node.id, concept: node.concept, type: node.type };
+    }
+
+    // Remap edge references and accumulate
+    const validWKIds = new Set(Object.keys(worldKnowledgeNodes));
+    scene.worldKnowledgeMutations.addedEdges = scene.worldKnowledgeMutations.addedEdges
+      .map((edge) => ({
+        from: wkIdMap[edge.from] ?? edge.from,
+        to: wkIdMap[edge.to] ?? edge.to,
+        relation: edge.relation,
+      }))
+      .filter((edge) => validWKIds.has(edge.from) && validWKIds.has(edge.to));
+
+    for (const edge of scene.worldKnowledgeMutations.addedEdges) {
+      if (!worldKnowledgeEdges.some((e) => e.from === edge.from && e.to === edge.to && e.relation === edge.relation)) {
+        worldKnowledgeEdges.push({ from: edge.from, to: edge.to, relation: edge.relation });
+      }
+    }
+  }
 
   const commits = sceneList.map((scene, i) => ({
     id: `CM-${String(i + 1).padStart(3, '0')}`,
@@ -386,7 +478,7 @@ WORLD RULES: Generate 4-6 world rules — absolute constraints that every scene 
     arcId: scene.arcId,
     diffName: scene.events[0] ?? 'scene',
     threadMutations: scene.threadMutations,
-    knowledgeMutations: scene.knowledgeMutations,
+    continuityMutations: scene.continuityMutations,
     relationshipMutations: scene.relationshipMutations,
     authorOverride: null,
     createdAt: now - (sceneList.length - i) * 3600000,
@@ -405,10 +497,11 @@ WORLD RULES: Generate 4-6 world rules — absolute constraints that every scene 
     branches,
     commits,
     relationships: parsed.relationships ?? [],
+    worldKnowledge: { nodes: worldKnowledgeNodes, edges: worldKnowledgeEdges },
     worldSummary: parsed.worldSummary ?? premise,
     rules: Array.isArray(parsed.rules) ? parsed.rules.filter((r: unknown) => typeof r === 'string') : rules,
     controlMode: 'auto',
-    activeForces: { payoff: 0, change: 0, variety: 0 },
+    activeForces: { payoff: 0, change: 0, knowledge: 0 },
     createdAt: now,
     updatedAt: now,
   };

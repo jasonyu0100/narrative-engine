@@ -3,8 +3,9 @@
 import { useRef, useEffect, useCallback, useMemo, useState } from 'react';
 import * as d3 from 'd3';
 import { useStore } from '@/lib/store';
-import { GRAPH_KNOWLEDGE_LIMIT } from '@/lib/constants';
-import { getKnowledgeNodesAtScene, getRelationshipsAtScene } from '@/lib/scene-filter';
+import { GRAPH_CONTINUITY_LIMIT } from '@/lib/constants';
+import { getContinuityNodesAtScene, getRelationshipsAtScene } from '@/lib/scene-filter';
+import { buildCumulativeWorldKnowledge } from '@/lib/narrative-utils';
 import type {
   Character,
   Location,
@@ -28,7 +29,7 @@ interface GraphNode extends d3.SimulationNodeDatum {
   /** Thread count badge */
   threadCount?: number;
   /** Only for knowledge nodes */
-  knowledgeType?: string;
+  continuityType?: string;
   /** Parent character id for knowledge nodes */
   parentCharacterId?: string;
   /** Usage count for overview mode */
@@ -107,9 +108,9 @@ const LOCATION_FILL = '#333333';
 
 /** Interpolate from cool (blue) to hot (red) matching force graph colors */
 function heatColor(t: number): string {
-  // variety (blue) → change (green) → payoff (red)
+  // knowledge (blue) → change (green) → payoff (red)
   const stops = [
-    [59, 130, 246],   // #3B82F6 variety blue
+    [59, 130, 246],   // #3B82F6 knowledge blue
     [34, 197, 94],    // #22C55E change green
     [239, 68, 68],    // #EF4444 payoff red
   ];
@@ -123,7 +124,7 @@ function heatColor(t: number): string {
   return `rgb(${r},${g},${b})`;
 }
 
-const KNOWLEDGE_FILL: Record<string, string> = {
+const CONTINUITY_FILL: Record<string, string> = {
   knows: '#FFFFFF',
   believes: '#FFFFFF',
   secret: '#F59E0B',
@@ -137,7 +138,7 @@ const KNOWLEDGE_OPACITY: Record<string, number> = {
   goal: 1,
 };
 
-const DEFAULT_KNOWLEDGE_FILL = '#FFFFFF';
+const DEFAULT_CONTINUITY_FILL = '#FFFFFF';
 const DEFAULT_KNOWLEDGE_OPACITY = 0.7;
 
 // ── Helper: build graph data from narrative state ───────────────────────────
@@ -384,6 +385,333 @@ function FullscreenButton() {
 }
 
 // ── Component ───────────────────────────────────────────────────────────────
+
+// ── Knowledge Graph Views (Insight + Nexus) ─────────────────────────────────
+
+const WK_TYPE_COLORS: Record<string, string> = {
+  law: '#FBBF24',      // vivid gold
+  system: '#38BDF8',   // vivid sky blue
+  concept: '#A78BFA',  // vivid violet
+  tension: '#FB7185',  // vivid rose
+};
+
+const WK_TYPE_GLOW: Record<string, string> = {
+  law: '0 0 12px #FBBF2480, 0 0 4px #FBBF2440',
+  system: '0 0 12px #38BDF880, 0 0 4px #38BDF840',
+  concept: '0 0 12px #A78BFA80, 0 0 4px #A78BFA40',
+  tension: '0 0 12px #FB718580, 0 0 4px #FB718540',
+};
+
+type WKNode = d3.SimulationNodeDatum & { id: string; concept: string; type: string; degree: number };
+type WKLink = d3.SimulationLinkDatum<WKNode> & { relation: string };
+
+function KnowledgeGraphView({ narrative, resolvedKeys, currentIndex, mode }: {
+  narrative: import('@/types/narrative').NarrativeState;
+  resolvedKeys: string[];
+  currentIndex: number;
+  mode: 'spark' | 'codex';
+}) {
+  const svgRef = useRef<SVGSVGElement | null>(null);
+  const simRef = useRef<d3.Simulation<WKNode, WKLink> | null>(null);
+  const gRef = useRef<d3.Selection<SVGGElement, unknown, null, undefined> | null>(null);
+  const nodesRef = useRef<WKNode[]>([]);
+  const [showLabels, setShowLabels] = useState(true);
+  const [showRelations, setShowRelations] = useState(false);
+  const [showTypes, setShowTypes] = useState(true);
+  const [tooltip, setTooltip] = useState<{ x: number; y: number; concept: string; type: string; degree: number; connections: string[] } | null>(null);
+
+  const graphData = useMemo(() => {
+    if (mode === 'spark') {
+      const key = resolvedKeys[currentIndex];
+      const scene = narrative.scenes[key];
+      const wb = narrative.worldBuilds[key];
+      const wkm = scene?.worldKnowledgeMutations ?? wb?.worldKnowledgeMutations;
+      if (!wkm) return { nodes: {}, edges: [] };
+      const nodes: Record<string, import('@/types/narrative').WorldKnowledgeNode> = {};
+      for (const n of wkm.addedNodes ?? []) {
+        nodes[n.id] = { id: n.id, concept: n.concept, type: n.type };
+      }
+      for (const e of wkm.addedEdges ?? []) {
+        if (!nodes[e.from] && narrative.worldKnowledge.nodes[e.from]) nodes[e.from] = narrative.worldKnowledge.nodes[e.from];
+        if (!nodes[e.to] && narrative.worldKnowledge.nodes[e.to]) nodes[e.to] = narrative.worldKnowledge.nodes[e.to];
+      }
+      return { nodes, edges: wkm.addedEdges ?? [] };
+    }
+    return buildCumulativeWorldKnowledge(narrative.scenes, resolvedKeys, currentIndex, undefined, narrative.worldBuilds);
+  }, [narrative, resolvedKeys, currentIndex, mode]);
+
+  // Scene-added node IDs for highlight in nexus mode
+  const sceneNodeIds = useMemo(() => {
+    const ids = new Set<string>();
+    if (mode === 'codex') {
+      const key = resolvedKeys[currentIndex];
+      const scene = narrative.scenes[key];
+      const wb = narrative.worldBuilds[key];
+      const wkm = scene?.worldKnowledgeMutations ?? wb?.worldKnowledgeMutations;
+      for (const n of wkm?.addedNodes ?? []) ids.add(n.id);
+    }
+    return ids;
+  }, [narrative, resolvedKeys, currentIndex, mode]);
+
+  // Adjacency map for tooltips
+  const adjMap = useMemo(() => {
+    const m = new Map<string, string[]>();
+    for (const e of graphData.edges) {
+      const fc = graphData.nodes[e.from]?.concept;
+      const tc = graphData.nodes[e.to]?.concept;
+      if (!fc || !tc) continue;
+      m.set(e.from, [...(m.get(e.from) ?? []), tc]);
+      m.set(e.to, [...(m.get(e.to) ?? []), fc]);
+    }
+    return m;
+  }, [graphData]);
+
+  // ── Initial setup: create SVG structure, zoom, glow filters (once) ──
+  useEffect(() => {
+    const svgEl = svgRef.current;
+    if (!svgEl) return;
+    const svg = d3.select(svgEl);
+    svg.selectAll('*').remove();
+
+    const g = svg.append('g');
+    gRef.current = g;
+
+    // Glow filters
+    const defs = svg.append('defs');
+    for (const [type, color] of Object.entries(WK_TYPE_COLORS)) {
+      const filter = defs.append('filter').attr('id', `glow-${type}`).attr('x', '-50%').attr('y', '-50%').attr('width', '200%').attr('height', '200%');
+      filter.append('feGaussianBlur').attr('stdDeviation', '4').attr('result', 'blur');
+      filter.append('feFlood').attr('flood-color', color).attr('flood-opacity', '0.6').attr('result', 'color');
+      filter.append('feComposite').attr('in', 'color').attr('in2', 'blur').attr('operator', 'in').attr('result', 'glow');
+      const merge = filter.append('feMerge');
+      merge.append('feMergeNode').attr('in', 'glow');
+      merge.append('feMergeNode').attr('in', 'SourceGraphic');
+    }
+
+    // Zoom
+    const zoom = d3.zoom<SVGSVGElement, unknown>()
+      .scaleExtent([0.3, 4])
+      .on('zoom', (event) => g.attr('transform', event.transform));
+    svg.call(zoom);
+    const width = svgEl.clientWidth ?? 800;
+    const height = svgEl.clientHeight ?? 600;
+    svg.call(zoom.transform, d3.zoomIdentity.translate(width / 2, height / 2).scale(0.9));
+
+    // Create link and node groups (order matters for layering)
+    g.append('g').attr('class', 'wk-links');
+    g.append('g').attr('class', 'wk-nodes');
+    g.append('g').attr('class', 'wk-labels');
+
+    // Simulation
+    const sim = d3.forceSimulation<WKNode, WKLink>()
+      .force('link', d3.forceLink<WKNode, WKLink>([]).id((d) => d.id).distance(140))
+      .force('charge', d3.forceManyBody().strength(-500))
+      .force('center', d3.forceCenter(0, 0))
+      .force('collide', d3.forceCollide<WKNode>().radius(40));
+    simRef.current = sim;
+
+    return () => { sim.stop(); simRef.current = null; gRef.current = null; };
+  }, []); // Only on mount
+
+  // ── Data update: merge nodes/links into persistent simulation ──
+  useEffect(() => {
+    const sim = simRef.current;
+    const g = gRef.current;
+    if (!sim || !g) return;
+
+    const nodeList = Object.values(graphData.nodes);
+    const degreeMap = new Map<string, number>();
+    for (const e of graphData.edges) {
+      degreeMap.set(e.from, (degreeMap.get(e.from) ?? 0) + 1);
+      degreeMap.set(e.to, (degreeMap.get(e.to) ?? 0) + 1);
+    }
+    const maxDegree = Math.max(...nodeList.map((n) => degreeMap.get(n.id) ?? 0), 1);
+    const nodeRadius = (d: WKNode) => 5 + (d.degree / maxDegree) * 20;
+
+    // Preserve positions of existing nodes
+    const prevPos = new Map(nodesRef.current.map((n) => [n.id, { x: n.x, y: n.y }]));
+    const simNodes: WKNode[] = nodeList.map((n) => {
+      const prev = prevPos.get(n.id);
+      return { id: n.id, concept: n.concept, type: n.type, degree: degreeMap.get(n.id) ?? 0, ...(prev ?? {}) };
+    });
+    nodesRef.current = simNodes;
+    const nodeMap = new Map(simNodes.map((n) => [n.id, n]));
+    const simLinks: WKLink[] = graphData.edges
+      .filter((e) => nodeMap.has(e.from) && nodeMap.has(e.to))
+      .map((e) => ({ source: nodeMap.get(e.from)!, target: nodeMap.get(e.to)!, relation: e.relation }));
+
+    // Update links
+    const linkSel = g.select<SVGGElement>('g.wk-links')
+      .selectAll<SVGLineElement, WKLink>('line')
+      .data(simLinks, (d) => `${(d.source as WKNode).id}-${(d.target as WKNode).id}`);
+    linkSel.exit().remove();
+    const linkEnter = linkSel.enter().append('line');
+    const linkAll = linkEnter.merge(linkSel);
+    linkAll
+      .attr('stroke', (d) => {
+        if (mode === 'codex' && sceneNodeIds.size > 0) {
+          return sceneNodeIds.has((d.source as WKNode).id) || sceneNodeIds.has((d.target as WKNode).id) ? '#ffffff40' : '#ffffff10';
+        }
+        return '#ffffff20';
+      })
+      .attr('stroke-width', (d) => {
+        const srcDeg = (d.source as WKNode).degree;
+        const tgtDeg = (d.target as WKNode).degree;
+        return Math.max(0.5, 0.5 + ((srcDeg + tgtDeg) / (maxDegree * 2)) * 3);
+      });
+
+    // Update nodes
+    const nodeSel = g.select<SVGGElement>('g.wk-nodes')
+      .selectAll<SVGCircleElement, WKNode>('circle')
+      .data(simNodes, (d) => d.id);
+    nodeSel.exit().remove();
+    const nodeEnter = nodeSel.enter().append('circle').style('cursor', 'pointer');
+    const nodeAll = nodeEnter.merge(nodeSel);
+    nodeAll
+      .attr('r', nodeRadius)
+      .attr('fill', (d) => showTypes ? (WK_TYPE_COLORS[d.type] ?? '#888') : '#888')
+      .attr('filter', (d) => showTypes ? `url(#glow-${d.type})` : 'none')
+      .attr('opacity', (d) => mode === 'codex' && sceneNodeIds.size > 0 ? (sceneNodeIds.has(d.id) ? 1 : 0.35) : 0.9)
+      .attr('stroke', (d) => mode === 'codex' && sceneNodeIds.has(d.id) ? '#fff' : 'transparent')
+      .attr('stroke-width', 2);
+
+    // Tooltip + drag events
+    const drag = d3.drag<SVGCircleElement, WKNode>()
+      .on('start', (event, d) => {
+        if (!event.active) sim.alphaTarget(0.3).restart();
+        d.fx = d.x; d.fy = d.y;
+        setTooltip(null);
+      })
+      .on('drag', (event, d) => { d.fx = event.x; d.fy = event.y; })
+      .on('end', (event, d) => {
+        if (!event.active) sim.alphaTarget(0);
+        d.fx = null; d.fy = null;
+      });
+    nodeAll.call(drag);
+
+    nodeAll
+      .on('mouseenter', (event, d) => {
+        const rect = svgRef.current?.getBoundingClientRect();
+        if (!rect) return;
+        setTooltip({ x: event.clientX - rect.left, y: event.clientY - rect.top - 10, concept: d.concept, type: d.type, degree: d.degree, connections: adjMap.get(d.id) ?? [] });
+      })
+      .on('mouseleave', () => setTooltip(null));
+
+    // Update labels
+    const labelSel = g.select<SVGGElement>('g.wk-labels')
+      .selectAll<SVGTextElement, WKNode>('text')
+      .data(simNodes, (d) => d.id);
+    labelSel.exit().remove();
+    const labelEnter = labelSel.enter().append('text').attr('text-anchor', 'middle');
+    const labelAll = labelEnter.merge(labelSel);
+    labelAll
+      .attr('fill', (d) => showTypes ? (WK_TYPE_COLORS[d.type] ?? '#ccc') : '#ccc')
+      .attr('font-size', (d) => `${Math.max(9, 9 + (d.degree / maxDegree) * 4)}px`)
+      .attr('font-weight', (d) => d.degree >= maxDegree * 0.5 ? '600' : '400')
+      .attr('display', showLabels ? 'block' : 'none')
+      .attr('opacity', (d) => {
+        if (mode === 'spark') return 0.95;
+        if (mode === 'codex' && sceneNodeIds.size > 0) return sceneNodeIds.has(d.id) ? 1 : (d.degree >= 2 ? 0.6 : 0.25);
+        return d.degree >= 2 ? 0.85 : 0.45;
+      })
+      .text((d) => {
+        // Truncate at em dash or long descriptions for clean graph labels
+        const dash = d.concept.indexOf(' — ');
+        return dash > 0 ? d.concept.slice(0, dash) : d.concept.slice(0, 40) + (d.concept.length > 40 ? '…' : '');
+      });
+
+    // Relation labels on edges
+    const relGroup = g.selectAll<SVGGElement, unknown>('g.wk-relations').data([0]);
+    const relGroupEnter = relGroup.enter().append('g').attr('class', 'wk-relations');
+    const relGroupAll = relGroupEnter.merge(relGroup);
+    const relSel = relGroupAll
+      .selectAll<SVGTextElement, WKLink>('text')
+      .data(simLinks, (d) => `${(d.source as WKNode).id}-${(d.target as WKNode).id}-rel`);
+    relSel.exit().remove();
+    const relEnter = relSel.enter().append('text').attr('text-anchor', 'middle').attr('font-size', '8px');
+    const relAll = relEnter.merge(relSel);
+    relAll
+      .attr('fill', '#ffffff30')
+      .attr('display', showRelations ? 'block' : 'none')
+      .text((d) => d.relation);
+
+    // Update simulation
+    sim.nodes(simNodes);
+    (sim.force('link') as d3.ForceLink<WKNode, WKLink>).links(simLinks);
+    (sim.force('collide') as d3.ForceCollide<WKNode>).radius((d) => nodeRadius(d) + 30);
+    sim.on('tick', () => {
+      linkAll
+        .attr('x1', (d) => (d.source as WKNode).x ?? 0)
+        .attr('y1', (d) => (d.source as WKNode).y ?? 0)
+        .attr('x2', (d) => (d.target as WKNode).x ?? 0)
+        .attr('y2', (d) => (d.target as WKNode).y ?? 0);
+      nodeAll
+        .attr('cx', (d) => d.x ?? 0)
+        .attr('cy', (d) => d.y ?? 0);
+      labelAll
+        .attr('x', (d) => d.x ?? 0)
+        .attr('y', (d) => d.y ?? 0)
+        .attr('dy', (d) => -(nodeRadius(d) + 5));
+      relAll
+        .attr('x', (d) => ((d.source as WKNode).x! + (d.target as WKNode).x!) / 2)
+        .attr('y', (d) => ((d.source as WKNode).y! + (d.target as WKNode).y!) / 2);
+    });
+    sim.alpha(0.5).restart();
+  }, [graphData, mode, sceneNodeIds, showLabels, showRelations, showTypes, adjMap]);
+
+  const nodeCount = Object.keys(graphData.nodes).length;
+  const edgeCount = graphData.edges.length;
+
+  return (
+    <div className="absolute inset-0 z-20">
+      <svg ref={svgRef} className="h-full w-full" style={{ background: 'transparent' }} />
+      {/* Controls (top-left) */}
+      <div className="absolute top-2 left-2 z-30 flex items-center gap-0">
+        <label className="flex items-center gap-1.5 px-2 py-1.5 rounded bg-bg-surface text-[11px] leading-none text-text-dim hover:text-text-default cursor-pointer select-none">
+          <input type="checkbox" checked={showLabels} onChange={() => setShowLabels((v) => !v)} className="accent-accent-cta w-3 h-3" />
+          Labels
+        </label>
+        <label className="flex items-center gap-1.5 px-2 py-1.5 rounded bg-bg-surface text-[11px] leading-none text-text-dim hover:text-text-default cursor-pointer select-none">
+          <input type="checkbox" checked={showRelations} onChange={() => setShowRelations((v) => !v)} className="accent-accent-cta w-3 h-3" />
+          Relations
+        </label>
+        <label className="flex items-center gap-1.5 px-2 py-1.5 rounded bg-bg-surface text-[11px] leading-none text-text-dim hover:text-text-default cursor-pointer select-none">
+          <input type="checkbox" checked={showTypes} onChange={() => setShowTypes((v) => !v)} className="accent-accent-cta w-3 h-3" />
+          Types
+        </label>
+      </div>
+      {/* Legend (bottom-right) */}
+      <div className="absolute bottom-4 right-2 z-30 flex flex-col gap-1 bg-bg-surface/80 rounded px-2.5 py-2">
+        <span className="text-[9px] text-text-dim uppercase tracking-widest">{mode === 'spark' ? 'Spark' : 'Codex'} · {nodeCount} concepts · {edgeCount} connections</span>
+        <div className="flex gap-3">
+          {Object.entries(WK_TYPE_COLORS).map(([type, color]) => (
+            <span key={type} className="flex items-center gap-1.5">
+              <span className="w-2.5 h-2.5 rounded-full" style={{ background: color, boxShadow: `0 0 6px ${color}80` }} />
+              <span className="text-[10px] text-text-secondary capitalize">{type}</span>
+            </span>
+          ))}
+        </div>
+      </div>
+      {/* Tooltip */}
+      {tooltip && (
+        <div
+          className="absolute z-40 pointer-events-none bg-bg-elevated border border-border rounded-lg px-3 py-2 shadow-xl"
+          style={{ left: tooltip.x, top: tooltip.y, transform: 'translate(-50%, -100%)' }}
+        >
+          <div className="flex items-center gap-2 mb-1">
+            <span className="w-2.5 h-2.5 rounded-full" style={{ background: WK_TYPE_COLORS[tooltip.type] ?? '#888', boxShadow: `0 0 6px ${WK_TYPE_COLORS[tooltip.type] ?? '#888'}80` }} />
+            <span className="text-xs font-semibold text-text-primary">{tooltip.concept}</span>
+            <span className="text-[10px] text-text-dim capitalize">({tooltip.type})</span>
+          </div>
+          <div className="text-[10px] text-text-secondary">{tooltip.degree} connection{tooltip.degree !== 1 ? 's' : ''}</div>
+          {tooltip.connections.length > 0 && (
+            <div className="text-[10px] text-text-dim mt-0.5">↔ {tooltip.connections.join(', ')}</div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
 
 export default function WorldGraph() {
   const { state, dispatch } = useStore();
@@ -901,8 +1229,8 @@ export default function WorldGraph() {
       .filter((d) => d.kind === 'knowledge')
       .append('circle')
       .attr('r', 8)
-      .attr('fill', (d) => KNOWLEDGE_FILL[d.knowledgeType ?? 'knows'] ?? DEFAULT_KNOWLEDGE_FILL)
-      .attr('opacity', (d) => KNOWLEDGE_OPACITY[d.knowledgeType ?? 'knows'] ?? DEFAULT_KNOWLEDGE_OPACITY);
+      .attr('fill', (d) => CONTINUITY_FILL[d.continuityType ?? 'knows'] ?? DEFAULT_CONTINUITY_FILL)
+      .attr('opacity', (d) => KNOWLEDGE_OPACITY[d.continuityType ?? 'knows'] ?? DEFAULT_KNOWLEDGE_OPACITY);
 
     // Character / location labels
     nodeGroup
@@ -1028,7 +1356,7 @@ export default function WorldGraph() {
     g.select('g.link-labels').selectAll<SVGTextElement, GraphLink>('text')
       .filter((d) => d.linkKind === 'knowledge')
       .remove();
-    g.select('.knowledge-hull').remove();
+    g.select('.continuity-hull').remove();
 
     // Remove knowledge nodes/links from simulation
     const baseNodes = nodesRef.current.filter((n) => n.kind !== 'knowledge');
@@ -1052,36 +1380,36 @@ export default function WorldGraph() {
     if (!parentNode) return;
 
     // Filter knowledge nodes to only those active at current scene
-    const filteredKgNodes = getKnowledgeNodesAtScene(
-      entity.knowledge.nodes,
+    const filteredKgNodes = getContinuityNodesAtScene(
+      entity.continuity.nodes,
       eid,
       narrative.scenes,
       resolvedSceneKeys,
       state.currentSceneIndex,
     );
-    const visibleKnowledgeNodes = filteredKgNodes.slice(-GRAPH_KNOWLEDGE_LIMIT);
+    const visibleContinuityNodes = filteredKgNodes.slice(-GRAPH_CONTINUITY_LIMIT);
 
     // Create knowledge nodes
-    const knowledgeNodes: GraphNode[] = visibleKnowledgeNodes.map((kn) => ({
+    const continuityNodes: GraphNode[] = visibleContinuityNodes.map((kn) => ({
       id: `k-${eid}-${kn.id}`,
       kind: 'knowledge' as NodeKind,
       label: kn.content,
-      knowledgeType: kn.type,
+      continuityType: kn.type,
       parentCharacterId: eid,
       x: (parentNode.x ?? 0) + (Math.random() - 0.5) * 60,
       y: (parentNode.y ?? 0) + (Math.random() - 0.5) * 60,
     }));
 
-    const allNodes = [...baseNodes, ...knowledgeNodes];
+    const allNodes = [...baseNodes, ...continuityNodes];
     nodesRef.current = allNodes;
 
     // Create knowledge links — each node connects directly to its parent entity
-    const knowledgeLinks: GraphLink[] = [];
+    const continuityLinks: GraphLink[] = [];
 
-    for (const kn of visibleKnowledgeNodes) {
-      const target = knowledgeNodes.find((n) => n.id === `k-${eid}-${kn.id}`);
+    for (const kn of visibleContinuityNodes) {
+      const target = continuityNodes.find((n) => n.id === `k-${eid}-${kn.id}`);
       if (target) {
-        knowledgeLinks.push({
+        continuityLinks.push({
           id: `klink-${eid}-${kn.id}`,
           source: parentNode,
           target,
@@ -1092,9 +1420,9 @@ export default function WorldGraph() {
 
     // Add knowledge link elements
     const linksGroup = g.select<SVGGElement>('g.links');
-    const knowledgeLinkEls = linksGroup
-      .selectAll<SVGLineElement, GraphLink>('line.knowledge')
-      .data(knowledgeLinks, (d) => d.id)
+    const continuityLinkEls = linksGroup
+      .selectAll<SVGLineElement, GraphLink>('line.continuity')
+      .data(continuityLinks, (d) => d.id)
       .join('line')
       .attr('class', 'graph-edge knowledge')
       .attr('stroke', 'rgba(255, 255, 255, 0.35)')
@@ -1103,19 +1431,19 @@ export default function WorldGraph() {
 
     // Add knowledge node elements
     const nodesGroup = g.select<SVGGElement>('g.nodes');
-    const knowledgeNodeEls = nodesGroup
-      .selectAll<SVGGElement, GraphNode>('g.knowledge-node')
-      .data(knowledgeNodes, (d) => d.id)
+    const continuityNodeEls = nodesGroup
+      .selectAll<SVGGElement, GraphNode>('g.continuity-node')
+      .data(continuityNodes, (d) => d.id)
       .join('g')
       .attr('class', 'graph-node knowledge-node');
 
-    knowledgeNodeEls
+    continuityNodeEls
       .append('circle')
       .attr('r', 8)
-      .attr('fill', (d) => KNOWLEDGE_FILL[d.knowledgeType ?? 'knows'] ?? DEFAULT_KNOWLEDGE_FILL)
-      .attr('opacity', (d) => KNOWLEDGE_OPACITY[d.knowledgeType ?? 'knows'] ?? DEFAULT_KNOWLEDGE_OPACITY);
+      .attr('fill', (d) => CONTINUITY_FILL[d.continuityType ?? 'knows'] ?? DEFAULT_CONTINUITY_FILL)
+      .attr('opacity', (d) => KNOWLEDGE_OPACITY[d.continuityType ?? 'knows'] ?? DEFAULT_KNOWLEDGE_OPACITY);
 
-    knowledgeNodeEls
+    continuityNodeEls
       .append('text')
       .attr('class', 'graph-label')
       .attr('text-anchor', 'middle')
@@ -1126,9 +1454,9 @@ export default function WorldGraph() {
 
     // Add curved convex hull "net" behind knowledge subgraph
     const hullPadding = 30;
-    const hullAllNodes = [parentNode, ...knowledgeNodes];
+    const hullAllNodes = [parentNode, ...continuityNodes];
     const hullPath = g.insert('path', 'g.links')
-      .attr('class', 'knowledge-hull')
+      .attr('class', 'continuity-hull')
       .attr('fill', 'rgba(245, 158, 11, 0.04)')
       .attr('stroke', 'rgba(245, 158, 11, 0.25)')
       .attr('stroke-width', 1.5)
@@ -1212,18 +1540,18 @@ export default function WorldGraph() {
     // Update simulation
     simulation.nodes(allNodes);
     (simulation.force('link') as d3.ForceLink<GraphNode, GraphLink>)
-      .links([...baseLinks, ...knowledgeLinks]);
+      .links([...baseLinks, ...continuityLinks]);
     simulation.alpha(0.5).restart();
 
     // Tick handler for knowledge elements
-    simulation.on('tick.knowledge', () => {
-      knowledgeLinkEls
+    simulation.on('tick.continuity', () => {
+      continuityLinkEls
         .attr('x1', (d) => ((d.source as GraphNode).x ?? 0))
         .attr('y1', (d) => ((d.source as GraphNode).y ?? 0))
         .attr('x2', (d) => ((d.target as GraphNode).x ?? 0))
         .attr('y2', (d) => ((d.target as GraphNode).y ?? 0));
 
-      knowledgeNodeEls.attr('transform', (d) => `translate(${d.x ?? 0},${d.y ?? 0})`);
+      continuityNodeEls.attr('transform', (d) => `translate(${d.x ?? 0},${d.y ?? 0})`);
 
       updateHull();
     });
@@ -1376,8 +1704,8 @@ export default function WorldGraph() {
 
   return (
     <div className="relative h-full w-full overflow-hidden">
-      {/* Controls (top-left) — hidden in prose mode */}
-      {graphViewMode !== 'prose' && <div className="absolute top-2 left-2 z-10 flex flex-col gap-1">
+      {/* Controls (top-left) — contextual per graph view mode */}
+      {(graphViewMode === 'spatial' || graphViewMode === 'overview') && <div className="absolute top-2 left-2 z-10 flex flex-col gap-1">
         {showHeatmap && (
           <div className="flex items-center gap-1.5 px-2 py-1 rounded bg-bg-surface text-[10px] leading-none text-text-dim">
             <span>Low</span>
@@ -1413,16 +1741,22 @@ export default function WorldGraph() {
       </div>}
       {/* Graph view mode toggle (top-right) */}
       <div className="absolute top-2 right-2 z-30 flex items-center rounded bg-bg-surface text-[11px] leading-none">
-        {(['scene', 'overview', 'prose'] as const).map((mode, i) => (
+        {([
+          { mode: 'spatial' as const, label: 'Spatial' },
+          { mode: 'overview' as const, label: 'World' },
+          { mode: 'prose' as const, label: 'Prose' },
+          { mode: 'spark' as const, label: 'Spark' },
+          { mode: 'codex' as const, label: 'Codex' },
+        ]).map(({ mode, label }, i, arr) => (
           <span key={mode} className="contents">
             {i > 0 && <div className="w-px h-3.5 bg-border" />}
             <button
-              className={`px-2 py-1.5 ${i === 0 ? 'rounded-l' : ''} ${i === 2 ? 'rounded-r' : ''} transition-colors ${
+              className={`px-2 py-1.5 ${i === 0 ? 'rounded-l' : ''} ${i === arr.length - 1 ? 'rounded-r' : ''} transition-colors ${
                 graphViewMode === mode ? 'text-accent-cta' : 'text-text-dim hover:text-text-default'
               }`}
               onClick={() => dispatch({ type: 'SET_GRAPH_VIEW_MODE', mode })}
             >
-              {mode === 'scene' ? 'Scene' : mode === 'overview' ? 'World' : 'Prose'}
+              {label}
             </button>
           </span>
         ))}
@@ -1441,6 +1775,13 @@ export default function WorldGraph() {
             )}
           </div>
         </div>
+      ) : graphViewMode === 'spark' || graphViewMode === 'codex' ? (
+        <KnowledgeGraphView
+          narrative={narrative!}
+          resolvedKeys={state.resolvedSceneKeys}
+          currentIndex={state.currentSceneIndex}
+          mode={graphViewMode}
+        />
       ) : (
         <svg
           ref={svgRef}
