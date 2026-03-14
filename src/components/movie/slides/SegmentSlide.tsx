@@ -103,12 +103,28 @@ export function SegmentSlide({ data, segment }: { data: MovieData; segment: Segm
     g.append('path').datum(segEngData).attr('d', line)
       .attr('fill', 'none').attr('stroke', '#F59E0B').attr('stroke-width', 2);
 
-    // Peak/valley markers
-    for (const e of segEngData.filter((e) => e.isPeak)) {
+    // Peak/valley markers — always show at least one of each
+    const detectedPeaks = segEngData.filter((e) => e.isPeak);
+    const detectedValleys = segEngData.filter((e) => e.isValley);
+
+    const peakPoints = detectedPeaks.length > 0
+      ? detectedPeaks
+      : segEngData.length > 0
+        ? [segEngData.reduce((a, b) => (b.smoothed > a.smoothed ? b : a), segEngData[0])]
+        : [];
+    const valleyPoints = detectedValleys.length > 0
+      ? detectedValleys
+      : segEngData.length > 1
+        ? [segEngData.reduce((a, b) => (b.smoothed < a.smoothed ? b : a), segEngData[0])]
+        : [];
+
+    for (const e of peakPoints) {
       g.append('path').attr('d', d3.symbol().type(d3.symbolTriangle).size(30)())
         .attr('transform', `translate(${x(e.index)},${y(e.smoothed) - 6})`).attr('fill', '#FCD34D');
     }
-    for (const e of segEngData.filter((e) => e.isValley)) {
+    for (const e of valleyPoints) {
+      // Don't overlap with peak if it's the same point
+      if (peakPoints.some((p) => p.index === e.index)) continue;
       g.append('path').attr('d', d3.symbol().type(d3.symbolTriangle).size(30)())
         .attr('transform', `translate(${x(e.index)},${y(e.smoothed) + 6}) rotate(180)`).attr('fill', '#93C5FD');
     }

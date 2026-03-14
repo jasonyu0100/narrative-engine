@@ -188,8 +188,35 @@ export function computeMovieData(
     }];
   }
 
-  // Trough info
-  const troughs = buildTroughInfos(scenes, engagementCurve, forceSnapshots, peakIndices, narrative);
+  // Trough info — fall back to absolute min engagement if no valleys detected
+  let troughs = buildTroughInfos(scenes, engagementCurve, forceSnapshots, peakIndices, narrative);
+  if (troughs.length === 0 && engagementCurve.length > 1) {
+    const minPoint = engagementCurve.reduce((best, e) => (e.engagement < best.engagement ? e : best), engagementCurve[0]);
+    const scene = scenes[minPoint.index];
+    const f = forceSnapshots[minPoint.index];
+    const corner = detectCubeCorner(f);
+    const nextPeak = peakIndices.find((pi) => pi > minPoint.index);
+    const scenesToNextPeak = nextPeak !== undefined ? nextPeak - minPoint.index : scenes.length - minPoint.index;
+    let recoveryForce: TroughInfo['recoveryForce'] = null;
+    if (minPoint.index + 3 < forceSnapshots.length) {
+      const dp = forceSnapshots[minPoint.index + 3].payoff - f.payoff;
+      const dc = forceSnapshots[minPoint.index + 3].change - f.change;
+      const dv = forceSnapshots[minPoint.index + 3].variety - f.variety;
+      const maxDelta = Math.max(dp, dc, dv);
+      if (maxDelta > 0) {
+        recoveryForce = dp === maxDelta ? 'payoff' : dc === maxDelta ? 'change' : 'variety';
+      }
+    }
+    troughs = [{
+      sceneIdx: minPoint.index,
+      scene,
+      engagement: minPoint,
+      forces: f,
+      cubeCorner: { key: corner.key, name: corner.name, description: corner.description },
+      scenesToNextPeak,
+      recoveryForce,
+    }];
+  }
 
   // Cube distribution & transitions
   const corners = forceSnapshots.map((f) => detectCubeCorner(f));

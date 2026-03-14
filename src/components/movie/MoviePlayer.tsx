@@ -60,16 +60,30 @@ function buildSlideList(data: MovieData): SlideSpec[] {
   for (let i = 0; i < data.segments.length; i++) {
     const seg = data.segments[i];
     slides.push({ type: 'segment', index: i });
-    // Insert moments that fall within this segment
+
+    // Collect detected moments within this segment
     const segMoments = allMoments.filter((m) => m.sceneIdx >= seg.startIdx && m.sceneIdx <= seg.endIdx);
-    if (segMoments.length > 0) {
-      for (const m of segMoments) {
-        slides.push({ type: 'moment', sceneIdx: m.sceneIdx, kind: m.kind });
+    const hasPeak = segMoments.some((m) => m.kind === 'peak');
+    const hasValley = segMoments.some((m) => m.kind === 'valley');
+
+    // Synthesize missing peak/valley from smoothed engagement (matches segment chart y-axis)
+    const segEng = data.engagementCurve.slice(seg.startIdx, seg.endIdx + 1);
+    if (!hasPeak && segEng.length > 0) {
+      const best = segEng.reduce((a, b) => (b.smoothed > a.smoothed ? b : a), segEng[0]);
+      segMoments.push({ sceneIdx: best.index, kind: 'peak' });
+    }
+    if (!hasValley && segEng.length > 1) {
+      const worst = segEng.reduce((a, b) => (b.smoothed < a.smoothed ? b : a), segEng[0]);
+      // Skip if same scene as the synthetic peak
+      if (!segMoments.some((m) => m.sceneIdx === worst.index)) {
+        segMoments.push({ sceneIdx: worst.index, kind: 'valley' });
       }
-    } else if (seg.keyScenes.length > 0) {
-      // Fallback: analyse the highest-engagement scene in this segment
-      const best = seg.keyScenes.reduce((a, b) => (b.engagement > a.engagement ? b : a), seg.keyScenes[0]);
-      slides.push({ type: 'moment', sceneIdx: best.idx, kind: 'peak' });
+    }
+
+    // Sort all moments chronologically, then add slides
+    segMoments.sort((a, b) => a.sceneIdx - b.sceneIdx);
+    for (const m of segMoments) {
+      slides.push({ type: 'moment', sceneIdx: m.sceneIdx, kind: m.kind });
     }
   }
 
