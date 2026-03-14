@@ -253,12 +253,14 @@ export function useMCTS() {
       if (!parentNarrative || !parentKeys || parentIndex == null) return null;
 
       const siblingIds = isRoot ? tree.rootChildIds : (parentNode?.childIds ?? []);
-      const existingGoals = siblingIds.map((id) => {
+      const siblingGoals = siblingIds.map((id) => {
         const n = tree.nodes[id];
         return (n?.cubeGoal ?? n?.beatGoal ?? null);
       });
       const currentInFlight = inFlightGoals.get(targetId) ?? [];
-      const allUsedGoals = [...existingGoals, ...currentInFlight];
+      const ancestorChain = isRoot ? [] : getAncestorChain(tree, targetId);
+      const ancestorGoals = ancestorChain.map((n) => n.cubeGoal ?? n.beatGoal ?? null);
+      const allUsedGoals = [...siblingGoals, ...currentInFlight, ...ancestorGoals];
 
       const { direction, cubeGoal, beatGoal } = pickNextDirection(
         allUsedGoals,
@@ -272,8 +274,6 @@ export function useMCTS() {
         .map((id) => tree.nodes[id])
         .filter(Boolean)
         .map((n) => ({ name: n.arc.name, summary: n.scenes.map((s) => s.summary).join(' ') }));
-
-      const ancestorChain = isRoot ? [] : getAncestorChain(tree, targetId);
       const allPriorScenes = extractOrderedScenes(parentNarrative, parentKeys);
 
       return { targetId, direction, cubeGoal, beatGoal, parentNarrative, parentKeys, parentIndex, ancestorChain, allPriorScenes, existingSiblings };
@@ -411,11 +411,11 @@ export function useMCTS() {
         if (!layerMet) break;
       }
 
-    } else if (config.fullTree) {
-      // ── Full-tree mode: exhaustively expand every node at each depth ──
+    } else if (config.searchMode === 'constrained') {
+      // ── Constrained mode: exhaustively expand every node at each depth ──
       // For each depth 0..maxDepth-1, collect all nodes (or root) at the current
       // frontier and generate exactly branchingFactor children for each, using
-      // parallel workers. Incompatible with baseline (enforced in UI).
+      // parallel workers. Branching factor = direction count.
 
       for (let depth = 0; depth < config.maxDepth; depth++) {
         if (shouldStop()) break;
@@ -495,7 +495,7 @@ export function useMCTS() {
       }
 
     } else {
-      // ── Standard MCTS (exploit/explore): parallel sliding window ─────
+      // ── Freedom mode: parallel sliding window with dynamic UCB1 allocation ─
       // Maintain `parallelism` concurrent generation slots. Each slot independently
       // selects the most promising unexpanded node via UCB1, generates one arc,
       // and immediately feeds the result back into the tree. When a slot finishes,
@@ -681,18 +681,19 @@ export function useMCTS() {
         if (!parentNarrative || !parentKeys || parentIndex == null) return false;
 
         const siblingIds = isRoot ? tree.rootChildIds : (parentNode?.childIds ?? []);
-        const existingGoals = siblingIds.map((id) => {
+        const siblingGoals = siblingIds.map((id) => {
           const n = tree.nodes[id];
           return (n?.cubeGoal ?? n?.beatGoal ?? null);
         });
         const currentInFlight = inFlightGoals.get(targetId) ?? [];
+        const ancestorChain = isRoot ? [] : getAncestorChain(tree, targetId);
+        const ancestorGoals = ancestorChain.map((n) => n.cubeGoal ?? n.beatGoal ?? null);
         const { direction, cubeGoal, beatGoal } = pickNextDirection(
-          [...existingGoals, ...currentInFlight], runState.config.searchMode, runState.config.directionMode,
+          [...siblingGoals, ...currentInFlight, ...ancestorGoals], runState.config.searchMode, runState.config.directionMode,
           parentNode?.cubeGoal ?? null, runState.config.randomDirections,
         );
         const existingSiblings = siblingIds.map((id) => tree.nodes[id]).filter(Boolean)
           .map((n) => ({ name: n.arc.name, summary: n.scenes.map((s) => s.summary).join(' ') }));
-        const ancestorChain = isRoot ? [] : getAncestorChain(tree, targetId);
         const allPriorScenes = extractOrderedScenes(parentNarrative, parentKeys);
 
         const goal = cubeGoal ?? beatGoal;
@@ -829,18 +830,19 @@ export function useMCTS() {
         if (!parentNarrative || !parentKeys || parentIndex == null) return false;
 
         const siblingIds = isRoot ? tree.rootChildIds : (parentNode?.childIds ?? []);
-        const existingGoals = siblingIds.map((id) => {
+        const siblingGoals = siblingIds.map((id) => {
           const n = tree.nodes[id];
           return (n?.cubeGoal ?? n?.beatGoal ?? null);
         });
         const currentInFlight = inFlightGoals.get(targetId) ?? [];
+        const ancestorChain = isRoot ? [] : getAncestorChain(tree, targetId);
+        const ancestorGoals = ancestorChain.map((n) => n.cubeGoal ?? n.beatGoal ?? null);
         const { direction, cubeGoal, beatGoal } = pickNextDirection(
-          [...existingGoals, ...currentInFlight], updatedConfig.searchMode, updatedConfig.directionMode,
+          [...siblingGoals, ...currentInFlight, ...ancestorGoals], updatedConfig.searchMode, updatedConfig.directionMode,
           parentNode?.cubeGoal ?? null, updatedConfig.randomDirections,
         );
         const existingSiblings = siblingIds.map((id) => tree.nodes[id]).filter(Boolean)
           .map((n) => ({ name: n.arc.name, summary: n.scenes.map((s) => s.summary).join(' ') }));
-        const ancestorChain = isRoot ? [] : getAncestorChain(tree, targetId);
         const allPriorScenes = extractOrderedScenes(parentNarrative, parentKeys);
 
         const goal = cubeGoal ?? beatGoal;

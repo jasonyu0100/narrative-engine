@@ -46,25 +46,48 @@ function ucb1(node: MCTSNode, parentVisits: number, C: number): number {
 }
 
 /**
+ * Compute the maximum number of children (slots) a node is allowed to have.
+ *
+ * Unified slot model across all three search modes:
+ * - **Baseline**: Infinity — unlimited children, depth advances when baseline met.
+ * - **Constrained**: branchingFactor — fixed, complete tree.
+ * - **Freedom**: Slots grow with exploration. More visits = more slots earned.
+ *   Root is special: gets `parallelism` slots to jumpstart all workers.
+ *   Non-root: min(branchingFactor, 1 + floor(sqrt(visitCount))).
+ */
+function maxSlots(
+  id: MCTSNodeId | 'root',
+  config: MCTSConfig,
+  tree: MCTSTree,
+): number {
+  if (config.searchMode === 'baseline') return Infinity;
+  if (config.searchMode === 'constrained') return config.branchingFactor;
+
+  // Freedom mode
+  if (id === 'root') return config.parallelism;
+  const node = tree.nodes[id];
+  if (!node) return 1;
+  return Math.min(config.branchingFactor, 1 + Math.floor(Math.sqrt(node.visitCount)));
+}
+
+/**
  * Select the next parent node to expand (add one child to).
  *
  * Walk from root using UCB1. At each level, if the current node has available
- * child slots (< MAX_NODE_CHILDREN, accounting for in-flight expansions), return
- * it for expansion. Otherwise descend to the best child.
+ * child slots (accounting for in-flight expansions), return it for expansion.
+ * Otherwise descend to the best child.
  *
  * inFlightCounts: how many slots are currently generating children for each node.
- * Baseline mode has no child limit (will keep trying until quality threshold met).
  */
 export function selectNode(
   tree: MCTSTree,
   config: MCTSConfig,
   inFlightCounts: Map<MCTSNodeId | 'root', number> = new Map(),
 ): MCTSNodeId | null {
-  const maxChildren = config.searchMode === 'baseline' && !config.fullTree ? Infinity : config.branchingFactor;
   const C = SEARCH_MODE_C[config.searchMode];
 
   const slotsAvailable = (id: MCTSNodeId | 'root', childCount: number): boolean =>
-    childCount + (inFlightCounts.get(id) ?? 0) < maxChildren;
+    childCount + (inFlightCounts.get(id) ?? 0) < maxSlots(id, config, tree);
 
   // Root: if it has available slots, expand here
   if (slotsAvailable('root', tree.rootChildIds.length)) return 'root';
@@ -117,11 +140,10 @@ function findExpandableNode(
   config: MCTSConfig,
   inFlightCounts: Map<MCTSNodeId | 'root', number>,
 ): MCTSNodeId | null {
-  const maxChildren = config.searchMode === 'baseline' && !config.fullTree ? Infinity : config.branchingFactor;
   for (const node of Object.values(tree.nodes)) {
     if (node.depth < config.maxDepth - 1) {
       const inFlight = inFlightCounts.get(node.id) ?? 0;
-      if (node.childIds.length + inFlight < maxChildren) {
+      if (node.childIds.length + inFlight < maxSlots(node.id, config, tree)) {
         return node.id;
       }
     }
@@ -192,12 +214,7 @@ export function pickNextDirection(
   } else {
     const existing = existingGoals.filter((g): g is CubeCornerKey => g !== null);
 
-    if (searchMode === 'exploit' && parentCubeGoal) {
-      // Exploit: try corners closest to the parent's direction first (narrative continuity)
-      chosen = pool.reduce((best, c) =>
-        hammingDistance(c, parentCubeGoal) < hammingDistance(best, parentCubeGoal) ? c : best
-      );
-    } else if (existing.length === 0) {
+    if (existing.length === 0) {
       // No siblings yet: start from first in canonical order
       chosen = pool[0];
     } else {

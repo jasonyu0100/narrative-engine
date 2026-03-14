@@ -47,12 +47,17 @@ export type MCTSTree = {
 
 /**
  * Search mode — determines how the tree is expanded.
- * - exploit: Low UCB1 C — focus on known-good branches
- * - explore: High UCB1 C — aggressively try new branches
- * - baseline: Layer-by-layer greedy — keep branching at each depth
- *   until a node meets the baseline score, then go deeper
+ * - freedom: Dynamic UCB1 allocation (high C). Tree shape is organic —
+ *   promising nodes get more children, dead ends are abandoned early.
+ *   Branching factor is a soft cap (direction count), not a target.
+ * - constrained: Complete tree. Every node at each depth gets exactly
+ *   directionCount children (4 for beats, 8 for cube) before going deeper.
+ *   Branching factor is locked to the number of available directions.
+ * - baseline: Unlimited children per node. Keep generating at each depth
+ *   until a node meets the target score, then descend the optimal path
+ *   and continue expanding until baseline is met again.
  */
-export type SearchMode = 'exploit' | 'explore' | 'baseline';
+export type SearchMode = 'freedom' | 'constrained' | 'baseline';
 
 /** How the recommended path is selected after search completes */
 export type PathStrategy = 'best_score' | 'most_explored';
@@ -141,8 +146,7 @@ export type MCTSConfig = {
   baselineScore: number;      // Target score per layer (baseline mode)
   randomDirections: boolean;  // If true, pick next cube corner randomly (ignores mode-based ordering)
   directionMode: DirectionMode; // Whether to use cube corners or engagement arc directions
-  branchingFactor: number;    // Max children per node (hard limit on tree width)
-  fullTree: boolean;          // If true, exhaustively expand every node at each depth before going deeper
+  branchingFactor: number;    // Max children per node (derived from mode: direction count for freedom/constrained, Infinity for baseline)
   worldBuildFocusId?: string; // Optional world build commit to seed all generations with
   northStarPrompt?: string;   // Optional high-level guidance that steers every generation in the search
 };
@@ -151,7 +155,7 @@ export const DEFAULT_MCTS_CONFIG: MCTSConfig = {
   parallelism: 8,
   maxDepth: 5,
   maxNodes: 20,
-  searchMode: 'exploit',
+  searchMode: 'freedom',
   pathStrategy: 'best_score',
   stopMode: 'timer',
   timeLimitSeconds: 60,
@@ -159,7 +163,6 @@ export const DEFAULT_MCTS_CONFIG: MCTSConfig = {
   randomDirections: false,
   directionMode: 'beats',
   branchingFactor: 4,
-  fullTree: false,
 };
 
 /** Default branching factor per direction mode */
@@ -168,10 +171,10 @@ export const DEFAULT_BRANCHING: Record<DirectionMode, number> = {
   cube: 8,
 };
 
-/** UCB1 exploration constant per mode (baseline uses exploit-level C) */
+/** UCB1 exploration constant per mode */
 export const SEARCH_MODE_C: Record<SearchMode, number> = {
-  exploit: 0.5,
-  explore: 2.5,
+  freedom: 2.5,
+  constrained: 0.5,
   baseline: 0.5,
 };
 
