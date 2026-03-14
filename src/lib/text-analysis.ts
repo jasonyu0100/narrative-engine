@@ -428,7 +428,7 @@ HOW MUTATIONS ARE MEASURED — every choice feeds into three narrative forces th
 - PAYOFF: threadMutations (status transition magnitude) + relationshipMutations (valenceDelta). Bigger thread jumps and relationship shifts = higher Payoff. Terminal transitions are the highest value.
 - CHANGE: How many characters are affected and how deeply. continuityMutations and threadMutations count 1 each. relationshipMutations are weighted by |valenceDelta|. Breadth (many characters touched) scores higher than depth.
 - KNOWLEDGE: worldKnowledgeMutations — nodes (weight 1) + edges (weight ½). New concepts are valued higher than new links between existing ones.
-- A scene should contribute to at least one force. Quiet scenes contribute through subtle continuity shifts or thread pulses. Dense scenes contribute across all three. The best narratives vary their force profile across scenes — rhythm matters.
+- Scale mutations to match the scene's weight: scenes with many characters naturally touch more relationships and knowledge; high-stakes scenes produce denser thread jumps and continuity shifts. Quiet scenes still have internal life but fewer mutations is natural. The best narratives vary their force profile — rhythm matters.
 ${cumulativeCtx ? `
 CUMULATIVE CONTINUITY:
 - Thread "statusAtStart" MUST match the thread's current status from the THREADS section above
@@ -609,7 +609,7 @@ HOW MUTATIONS ARE MEASURED — every choice feeds into three narrative forces th
 - PAYOFF: threadMutations (status transition magnitude) + relationshipMutations (valenceDelta). Bigger jumps = higher Payoff.
 - CHANGE: How many characters are affected. continuityMutations and threadMutations count 1 each. relationshipMutations weighted by |valenceDelta|. Breadth scores higher than depth.
 - KNOWLEDGE: worldKnowledgeMutations — nodes (weight 1) + edges (weight ½). New concepts matter more than new links.
-- A scene should contribute to at least one force. Vary force profiles across scenes — rhythm matters.
+- Scale mutations to the scene's weight: more characters → more relationships and continuity shifts; higher stakes → denser thread jumps. Vary force profiles across scenes — rhythm matters.
 
 THREAD LIFECYCLE:
 - Active statuses: ${THREAD_ACTIVE_STATUSES.map((s: string) => `"${s}"`).join(', ')}

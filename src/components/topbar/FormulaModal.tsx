@@ -117,7 +117,7 @@ function ScoringTab() {
         <Block tex="\tilde{x} = \frac{\bar{x}}{\mu_{\text{ref}}}, \qquad g(\tilde{x}) = 20\!\left(1 - e^{-2\tilde{x}}\right)" />
         <Block tex="\text{Overall} = \sum_k g_k \quad (k \in \{P, C, K, S\})" />
         <p className="text-[10px] text-text-dim">
-          Reference means <Tex>{'\\mu'}</Tex>: P=1.5, C=5.5, K=4.5, S=1.5. Calibrated from literary works.
+          Reference means <Tex>{'\\mu'}</Tex>: P=1.5, C=7.0, K=2.5, S=1.5. Calibrated from literary works.
           At <Tex>{'\\tilde{x}=1'}</Tex> (matching reference), grade <Tex>{'\\approx'}</Tex> 22/25.
         </p>
       </S>

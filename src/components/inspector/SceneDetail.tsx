@@ -3,7 +3,7 @@
 import { useMemo } from 'react';
 import { useStore } from '@/lib/store';
 import { resolveEntry, isScene, type Scene } from '@/types/narrative';
-import { computeForceSnapshots, detectCubeCorner } from '@/lib/narrative-utils';
+import { computeForceSnapshots, computeSwingMagnitudes, detectCubeCorner } from '@/lib/narrative-utils';
 
 type Props = {
   sceneId: string;
@@ -12,13 +12,18 @@ type Props = {
 export default function SceneDetail({ sceneId }: Props) {
   const { state, dispatch } = useStore();
   const narrative = state.activeNarrative;
-  const forceSnapshot = useMemo(() => {
-    if (!narrative) return { payoff: 0, change: 0, knowledge: 0 };
+  const { forceSnapshot, swing } = useMemo(() => {
+    if (!narrative) return { forceSnapshot: { payoff: 0, change: 0, knowledge: 0 }, swing: 0 };
     const allScenes = state.resolvedSceneKeys
       .map((k) => resolveEntry(narrative, k))
       .filter((e): e is Scene => !!e && isScene(e));
     const forceMap = computeForceSnapshots(allScenes);
-    return forceMap[sceneId] ?? { payoff: 0, change: 0, knowledge: 0 };
+    const snap = forceMap[sceneId] ?? { payoff: 0, change: 0, knowledge: 0 };
+    // Compute swing for this scene from ordered snapshots
+    const orderedSnapshots = allScenes.map((s) => forceMap[s.id] ?? { payoff: 0, change: 0, knowledge: 0 });
+    const swings = computeSwingMagnitudes(orderedSnapshots);
+    const idx = allScenes.findIndex((s) => s.id === sceneId);
+    return { forceSnapshot: snap, swing: idx >= 0 ? swings[idx] : 0 };
   }, [narrative, state.resolvedSceneKeys, sceneId]);
 
   if (!narrative) return null;
@@ -246,6 +251,7 @@ export default function SceneDetail({ sceneId }: Props) {
           <ForceBar label="Payoff" value={payoff} color="#EF4444" />
           <ForceBar label="Change" value={change} color="#22C55E" />
           <ForceBar label="Knowledge" value={knowledge} color="#3B82F6" />
+          <ForceBar label="Swing" value={swing} color="#FACC15" />
         </div>
       </div>
 

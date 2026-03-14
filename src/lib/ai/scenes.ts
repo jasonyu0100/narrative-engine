@@ -114,8 +114,8 @@ Rules:
 - Thread mutations should reflect the direction — escalate relevant threads, surface dormant ones when appropriate
 - relationshipMutations track how character dynamics shift. Include them when interactions change — trust gained, betrayal discovered, alliance forming, rivalry deepening. valenceDelta ranges from -0.5 (major damage) to +0.5 (major bonding). Most interactions are ±0.1 to ±0.2.
 - continuityMutations track what characters learn. Include them when a character gains or loses information — secrets revealed, lies uncovered, skills observed, intel gathered.
-- events capture concrete narrative happenings. Use specific, descriptive tags: "ambush_at_dawn", "secret_pact_formed", "duel_of_wits", "storm_breaks", "letter_intercepted". Aim for 2-4 events per scene. Events contribute to the Change force — more events = higher narrative momentum.
-- worldKnowledgeMutations track the world's abstract structure — rules, systems, ideas, and tensions that define the world characters inhabit. NOT character knowledge (that's continuityMutations). World knowledge exists in every genre: fantasy has magic systems, literary fiction has class structures and social norms, historical fiction has period customs, crime has institutional hierarchies. Four node types: "law" (governing truths), "system" (institutions, processes), "concept" (named ideas, symbolic motifs, places-as-concepts), "tension" (contradictions, unresolved forces). Add nodes when a scene reveals a world concept. Add edges when it connects concepts — edges can reference existing world knowledge node IDs from the context above OR newly created WK-GEN-XXX IDs. How much depends on the scene: world-building scenes may have 3-5 nodes with edges, quiet character scenes may have none. Let the narrative guide you.
+- events capture concrete narrative happenings. Use specific, descriptive tags: "ambush_at_dawn", "secret_pact_formed", "duel_of_wits", "storm_breaks", "letter_intercepted". Aim for 2-4 events per scene.
+- worldKnowledgeMutations track the world's abstract structure — rules, systems, ideas, and tensions that define the world characters inhabit. NOT character knowledge (that's continuityMutations). World knowledge exists in every genre: fantasy has magic systems, literary fiction has class structures and social norms, historical fiction has period customs, crime has institutional hierarchies. Four node types: "law" (governing truths), "system" (institutions, processes), "concept" (named ideas, symbolic motifs, places-as-concepts), "tension" (contradictions, unresolved forces). Add nodes when a scene reveals, reinforces, or tests a world concept. Add edges when it connects concepts — edges can reference existing world knowledge node IDs from the context above OR newly created WK-GEN-XXX IDs. Most scenes touch the world in some way — a conversation reveals social norms, a fight tests power hierarchies, a journey exposes geography or customs. Aim for at least 1 world knowledge node per scene; world-building scenes may have 3-5 with edges.
 - World knowledge node IDs must be unique: WK-GEN-001, WK-GEN-002, etc.
 - characterMovements track when characters physically relocate to a different location during the scene. Only include characters whose location CHANGES — omit characters who stay put. The "transition" field should be a vivid, specific description of HOW they traveled (e.g. "Fled through the sewers beneath the city", "Sailed upriver on a merchant barge"). The "locationId" MUST be a valid location ID from the narrative. Do NOT include movements where the destination is the same as the scene's locationId.
 
@@ -135,13 +135,14 @@ CHANGE (mutation depth across characters):
 KNOWLEDGE (world complexity delta):
 - Each worldKnowledgeMutation node added contributes 1 to Knowledge. Each edge added contributes ½. New concepts are valued higher than new links between existing ones.
 - Scenes that connect new concepts to EXISTING world knowledge (via edges to existing WK node IDs) build a denser, more valuable knowledge graph.
-- A scene with no world knowledge mutations scores zero on Knowledge — and that's fine for quiet character scenes.
+- Most scenes reveal something about the world — social dynamics, power structures, environmental details, cultural norms. Look for what each scene teaches the reader about how this world works.
 
-NARRATIVE RICHNESS (what separates good scenes from flat ones):
-- Every scene should contribute to at least one force. A scene with zero mutations across all types reads as filler.
-- Quiet/reflective scenes still have internal life: a character notices something (continuity), a relationship subtly shifts, a thread pulses at its current status.
-- Intense scenes should be dense across multiple forces: threads advance, characters learn things, relationships crack, and world rules are revealed or tested.
-- The best narratives have varied force profiles across scenes — not every scene maxes all three forces. Rhythm matters.
+MUTATION DENSITY GUIDELINES — scale mutations to match the scene's weight:
+- A scene with many participants naturally involves more relationships shifting, more characters learning things, and more threads being touched. Let the cast size guide mutation count.
+- Scenes with high narrative stakes (confrontations, revelations, betrayals) tend to produce denser mutations — threads jump phases, relationships crack or form, and characters gain critical knowledge.
+- Quieter scenes (reflection, travel, rest) still have internal life — a character notices something (continuity), a relationship subtly shifts, a thread pulses — but fewer mutations is natural.
+- Every scene exists in a world — even quiet character moments reveal social norms, power dynamics, or environmental truths. Look for the world knowledge each scene implicitly or explicitly conveys and capture it as worldKnowledgeMutations.
+- The best narratives vary their force profiles across scenes — not every scene maxes all three forces. Rhythm matters.
 
 POV DISCIPLINE:
 - POV should come in STREAKS, not rapid alternation. Stay with one POV character for 2-4 consecutive scenes before switching. An ABABA pattern is disorienting — prefer AAABBA or AAABBCCC.
@@ -158,7 +159,7 @@ SPATIAL CONTINUITY:
 PACING:
 - Not every scene should be a major plot event. Include quieter scenes: character moments, travel, reflection, relationship building.
 - Only 1 in 3 scenes should be a significant plot beat. Others build atmosphere, deepen character, or plant seeds.
-- Even quiet scenes MUST have mutations — a character noticing tension, recalling a memory, warming to an ally, or growing suspicious all count.
+- Even quiet scenes benefit from small mutations — a character noticing tension, recalling a memory, warming to an ally, or growing suspicious all count.
 - Threads evolve gradually — a dormant thread surfaces over several scenes, not in one jump. But don't be afraid to escalate when the story demands it.
 - When a thread's storyline has concluded (conflict resolved, mystery answered, goal achieved or failed), transition it to a terminal status: ${THREAD_TERMINAL_STATUSES.map((s) => `"${s}"`).join(', ')}. Choose the terminal status that best fits HOW the thread ended.
 - Threads can move BACKWARDS (e.g. "escalating" → "active" when tension temporarily eases, or "critical" → "escalating" after a partial resolution). Use regression when the story calls for it — not every scene ratchets tension upward.

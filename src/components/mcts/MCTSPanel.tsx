@@ -1007,6 +1007,51 @@ function NodeInspector({ node, tree }: { node: MCTSNode; tree: MCTSTree }) {
               })}
             </div>
           )}
+
+          {/* World Knowledge Mutations */}
+          {scene.worldKnowledgeMutations && (scene.worldKnowledgeMutations.addedNodes?.length > 0 || scene.worldKnowledgeMutations.addedEdges?.length > 0) && (
+            <div className="flex flex-col gap-1.5">
+              <h3 className="text-[10px] uppercase tracking-widest text-text-dim">World Knowledge</h3>
+              {scene.worldKnowledgeMutations.addedNodes?.map((wkn, j) => (
+                <div key={`wkn-${j}`} className="flex items-center gap-1.5 text-xs">
+                  <span className="text-change">+</span>
+                  <span className="text-text-primary">{wkn.concept}</span>
+                  <span className="text-[10px] text-text-dim">({wkn.type})</span>
+                </div>
+              ))}
+              {scene.worldKnowledgeMutations.addedEdges?.map((wke, j) => {
+                const fromNode = node.virtualNarrative.worldKnowledge?.nodes?.[wke.from];
+                const toNode = node.virtualNarrative.worldKnowledge?.nodes?.[wke.to];
+                const shortName = (concept: string) => { const d = concept.indexOf(' — '); return d > 0 ? concept.slice(0, d) : concept; };
+                return (
+                  <div key={`wke-${j}`} className="text-xs pl-3 text-text-dim">
+                    {shortName(fromNode?.concept ?? wke.from)} <span className="italic">{wke.relation}</span> {shortName(toNode?.concept ?? wke.to)}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
+          {/* Character Movements */}
+          {scene.characterMovements && Object.keys(scene.characterMovements).length > 0 && (
+            <div className="flex flex-col gap-1.5">
+              <h3 className="text-[10px] uppercase tracking-widest text-text-dim">Movements</h3>
+              {Object.entries(scene.characterMovements).map(([charId, mv]) => {
+                const charName = node.virtualNarrative.characters[charId]?.name ?? charId;
+                const locName = node.virtualNarrative.locations[mv.locationId]?.name ?? mv.locationId;
+                return (
+                  <div key={charId} className="flex flex-col gap-0.5 text-xs">
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-text-primary">{charName}</span>
+                      <span className="text-text-dim">&rarr;</span>
+                      <span className="text-text-secondary">{locName}</span>
+                    </div>
+                    {mv.transition && <span className="text-[10px] text-text-dim italic pl-2">{mv.transition}</span>}
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </div>
         );
       })()}

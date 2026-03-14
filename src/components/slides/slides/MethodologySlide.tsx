@@ -237,8 +237,8 @@ function GradingPage() {
           <div className="grid grid-cols-4 gap-4">
             {[
               { label: 'Payoff', symbol: '\\mu_P', value: '1.5', color: '#EF4444' },
-              { label: 'Change', symbol: '\\mu_C', value: '5.5', color: '#22C55E' },
-              { label: 'Knowledge', symbol: '\\mu_K', value: '4.5', color: '#38BDF8' },
+              { label: 'Change', symbol: '\\mu_C', value: '7.0', color: '#22C55E' },
+              { label: 'Knowledge', symbol: '\\mu_K', value: '2.5', color: '#38BDF8' },
               { label: 'Swing', symbol: '\\mu_S', value: '1.5', color: '#FACC15' },
             ].map((ref) => (
               <div key={ref.label} className="text-center">

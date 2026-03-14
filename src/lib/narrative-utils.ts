@@ -195,7 +195,7 @@ export function zScoreNormalize(values: number[]): number[] {
 //
 // S = ‖f_i - f_{i-1}‖₂                   (Euclidean distance in PCV space)
 // E = (P + C + V) / 3                    (engagement, Gaussian smoothed)
-// g(x̃) = 25(1 - e^{-2x̃}), x̃ = x̄/μ     (grade, μ = {1.5, 5.5, 4.5, 1.5})
+// g(x̃) = 25(1 - e^{-2x̃}), x̃ = x̄/μ     (grade, μ = {1.5, 7.0, 2.5, 1.5})
 //
 
 /** Phase index — distance between indices = magnitude of the phase jump.
@@ -791,17 +791,17 @@ const avg = (arr: number[]) => arr.length > 0 ? arr.reduce((s, v) => s + v, 0) /
  *  Raw force values are divided by these to produce a unit-free normalized value
  *  (x̃ = x̄ / μ_ref). At x̃ = 1 the grade reaches ~86%.
  *  Calibrated from literary works (HP, Gatsby, Crime & Punishment, Coiling Dragon). */
-export const FORCE_REFERENCE_MEANS = { payoff: 1.5, change: 5.5, knowledge: 4.5, swing: 1.5 } as const;
+export const FORCE_REFERENCE_MEANS = { payoff: 1.5, change: 7.0, knowledge: 2.5, swing: 1.5 } as const;
 
-/** Grade a mean-normalized force value 0→25: g(x̃) = 25(1 - e^{-2x̃}).
- *  x̃ = x̄ / μ_ref. At x̃ = 1 (matching reference), grade ≈ 22/25 (86%). */
-export function gradeForce(normalizedMean: number): number {
-  return Math.min(25, 25 * (1 - Math.exp(-2 * Math.max(0, normalizedMean))));
+/** Grade a z-score normalised force value 0→25: g(z) = 25(1 - e^{-2z}).
+ *  z > 0 = above series average; z = 1 (one σ above) → grade ≈ 22/25 (86%). */
+export function gradeForce(zMean: number): number {
+  return Math.min(25, 25 * (1 - Math.exp(-2 * Math.max(0, zMean))));
 }
 
 /**
  * Grade narrative forces (0–25 each, 0–100 overall).
- * Each force is mean-normalized then graded: g(x̃) = 25(1 - e^{-2x̃}).
+ * Expects z-score normalised inputs — no further normalisation applied.
  */
 export function gradeForces(
   payoff: number[],
@@ -809,11 +809,10 @@ export function gradeForces(
   knowledge: number[],
   swing: number[],
 ): ForceGrades {
-  const R = FORCE_REFERENCE_MEANS;
-  const payoffGrade = gradeForce(avg(payoff) / R.payoff);
-  const changeGrade = gradeForce(avg(change) / R.change);
-  const knowledgeGrade = gradeForce(avg(knowledge) / R.knowledge);
-  const swingGrade = gradeForce(avg(swing) / R.swing);
+  const payoffGrade = gradeForce(avg(payoff));
+  const changeGrade = gradeForce(avg(change));
+  const knowledgeGrade = gradeForce(avg(knowledge));
+  const swingGrade = gradeForce(avg(swing));
 
   const overall = payoffGrade + changeGrade + knowledgeGrade + swingGrade;
 
