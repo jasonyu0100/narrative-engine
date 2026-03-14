@@ -335,6 +335,10 @@ export type StorySettings = {
   storyDirection: string;
   /** Target arc length in scenes */
   targetArcLength: number;
+  /** Prose voice/style the AI should mimic when writing */
+  proseVoice: string;
+  /** Guidance for how scene plans should be structured */
+  planGuidance: string;
 };
 
 export const DEFAULT_STORY_SETTINGS: StorySettings = {
@@ -342,6 +346,8 @@ export const DEFAULT_STORY_SETTINGS: StorySettings = {
   povCharacterIds: [],
   storyDirection: '',
   targetArcLength: 4,
+  proseVoice: '',
+  planGuidance: '',
 };
 
 // ── Auto Mode ───────────────────────────────────────────────────────────────

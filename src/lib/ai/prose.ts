@@ -106,7 +106,10 @@ Voice & style for the rewrite:
 - Match the tone and genre of the world: ${narrative.worldSummary.slice(0, 200)}.
 - Use straight quotes (" and '), never smart/curly quotes.
 - CRITICAL: Do NOT open with weather, atmosphere, scent, or environmental description.
-- Do NOT end with philosophical musings, rhetorical questions, or atmospheric fade-outs.`;
+- Do NOT end with philosophical musings, rhetorical questions, or atmospheric fade-outs.`
+  + (narrative.storySettings?.proseVoice?.trim()
+    ? `\n\nAUTHOR VOICE (mimic this style — it overrides the defaults above):\n${narrative.storySettings.proseVoice.trim()}`
+    : '');
 
   const prompt = `SCENE CONTEXT:
 ${sceneBlock}

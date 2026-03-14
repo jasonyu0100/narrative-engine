@@ -5,12 +5,14 @@ import { useStore } from '@/lib/store';
 import type { StorySettings, POVMode } from '@/types/narrative';
 import { DEFAULT_STORY_SETTINGS } from '@/types/narrative';
 
-type Tab = 'pov' | 'direction' | 'structure';
+type Tab = 'pov' | 'direction' | 'structure' | 'prose' | 'plan';
 
 const TABS: { label: string; value: Tab }[] = [
   { label: 'POV', value: 'pov' },
   { label: 'Direction', value: 'direction' },
   { label: 'Structure', value: 'structure' },
+  { label: 'Prose', value: 'prose' },
+  { label: 'Plan', value: 'plan' },
 ];
 
 const POV_MODES: { value: POVMode; label: string; desc: string }[] = [
@@ -194,6 +196,45 @@ export function StorySettingsModal({ onClose }: { onClose: () => void }) {
                     {settings.targetArcLength} scenes
                   </span>
                 </div>
+              </div>
+            </>
+          )}
+
+          {tab === 'prose' && (
+            <>
+              <div>
+                <label className="text-[10px] text-text-dim uppercase tracking-wider block mb-2">
+                  Voice & Style
+                </label>
+                <textarea
+                  value={settings.proseVoice}
+                  onChange={(e) => update({ proseVoice: e.target.value })}
+                  placeholder="e.g. &quot;Terse, Hemingway-esque. Short declarative sentences. Sparse dialogue. Emotion through physical action, never named. Dry humour buried in understatement.&quot;"
+                  className="w-full bg-bg-elevated border border-white/10 rounded-lg px-3 py-2 text-[11px] text-text-primary placeholder:text-text-dim/40 outline-none focus:border-blue-500/40 resize-none h-32"
+                />
+                <p className="text-[9px] text-text-dim/50 mt-1">
+                  Describe the prose voice you want the AI to mimic. This shapes all prose generation and rewrites.
+                </p>
+              </div>
+
+            </>
+          )}
+
+          {tab === 'plan' && (
+            <>
+              <div>
+                <label className="text-[10px] text-text-dim uppercase tracking-wider block mb-2">
+                  Plan Guidance
+                </label>
+                <textarea
+                  value={settings.planGuidance}
+                  onChange={(e) => update({ planGuidance: e.target.value })}
+                  placeholder="e.g. &quot;Plans should emphasize character interiority over plot mechanics. Include specific dialogue seeds. Each beat should have a clear emotional shift.&quot;"
+                  className="w-full bg-bg-elevated border border-white/10 rounded-lg px-3 py-2 text-[11px] text-text-primary placeholder:text-text-dim/40 outline-none focus:border-blue-500/40 resize-none h-32"
+                />
+                <p className="text-[9px] text-text-dim/50 mt-1">
+                  Shape how scene plans are structured. Plans are beat-by-beat blueprints that guide prose generation.
+                </p>
               </div>
             </>
           )}

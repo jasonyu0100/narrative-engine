@@ -358,7 +358,10 @@ Rules:
 - Be specific and concrete. "A tense exchange" is useless. "She asks about the missing shipment; he deflects by mentioning the festival" is useful.
 - Include spatial blocking: who is where, who moves, sightlines, physical proximity.
 - The plan must cover ALL events, thread mutations, knowledge mutations, relationship mutations, and character movements listed in the scene data. Missing any is a failure.
-- Output ONLY the plan text. No JSON, no markdown fences, no commentary.`;
+- Output ONLY the plan text. No JSON, no markdown fences, no commentary.`
+  + (narrative.storySettings?.planGuidance?.trim()
+    ? `\n\nPLAN GUIDANCE (follow these instructions when structuring your plan):\n${narrative.storySettings.planGuidance.trim()}`
+    : '');
 
   const prompt = `BRANCH CONTEXT (for continuity — do not repeat):
 ${fullContext}
@@ -497,7 +500,10 @@ Strict output rules:
 - Use straight quotes (" and '), never smart/curly quotes or other typographic substitutions.
 - Do not begin with a character name as the first word.
 - CRITICAL: Do NOT open with weather, atmosphere, air quality, scent, temperature, or environmental description. These are the most overused openings in fiction. Instead, choose from techniques like: mid-dialogue, a character's body in motion, a close-up on an object, an internal thought, a sound, a question, a tactile sensation, noticing someone's expression, or a punchy declarative sentence.
-- Do NOT end with philosophical musings, rhetorical questions, or atmospheric fade-outs. Instead end with: a character leaving, a sharp line of dialogue, a decision made in silence, an interruption, a physical gesture, or a thought that reframes the scene.`;
+- Do NOT end with philosophical musings, rhetorical questions, or atmospheric fade-outs. Instead end with: a character leaving, a sharp line of dialogue, a decision made in silence, an interruption, a physical gesture, or a thought that reframes the scene.`
+  + (narrative.storySettings?.proseVoice?.trim()
+    ? `\n\nAUTHOR VOICE (mimic this style — it overrides the defaults above):\n${narrative.storySettings.proseVoice.trim()}`
+    : '');
 
   const sceneBlock = sceneContext(narrative, scene);
 
