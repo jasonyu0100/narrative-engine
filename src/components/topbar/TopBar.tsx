@@ -398,12 +398,12 @@ export default function TopBar() {
             <span className="text-[11px]">Score</span>
           </button>
           {scorecardOpen && !scorecard && (
-            <div className="absolute top-full right-0 mt-1 z-50 bg-bg-base border border-white/10 rounded-lg shadow-2xl p-5 w-[460px]">
+            <div className="absolute top-full right-0 mt-1 z-50 bg-bg-base border border-white/10 rounded-lg shadow-2xl p-5 w-[420px]">
               <p className="text-[12px] text-text-dim text-center py-4">No scenes yet — generate some arcs to see scores.</p>
             </div>
           )}
           {scorecardOpen && scorecard && (
-            <div className="absolute top-full right-0 mt-1 z-50 bg-bg-base border border-white/10 rounded-lg shadow-2xl p-5 w-[460px]">
+            <div className="absolute top-full right-0 mt-1 z-50 bg-bg-base border border-white/10 rounded-lg shadow-2xl p-5 w-[420px]">
               {/* Series header */}
               <div className="flex items-center justify-between mb-1">
                 <h2 className="text-[13px] font-semibold text-text-primary truncate max-w-[280px]">{scorecard.title}</h2>
@@ -424,12 +424,12 @@ export default function TopBar() {
               </div>
 
               {/* Force table */}
-              <div className="grid grid-cols-5 gap-px bg-white/5 rounded overflow-hidden">
+              <div className="grid grid-cols-6 gap-px bg-white/5 rounded overflow-hidden">
                 {/* Header row */}
                 <div className="bg-bg-base p-2" />
-                {['Avg', 'Peak', 'Total', 'Grade'].map((col) => (
+                {['Avg', 'σ', 'Peak', 'Total', 'Grade'].map((col) => (
                   <div key={col} className="bg-bg-base p-2 text-center">
-                    <span className="text-[9px] uppercase tracking-wider text-text-dim font-mono">{col}</span>
+                    <span className={`text-[9px] tracking-wider text-text-dim font-mono ${col === 'σ' ? '' : 'uppercase'}`}>{col}</span>
                   </div>
                 ))}
                 {/* Force rows */}
@@ -449,6 +449,9 @@ export default function TopBar() {
                       </div>
                       <div className="bg-bg-base p-2 text-center">
                         <span className="text-[12px] font-mono text-text-primary font-semibold">{s.avg.toFixed(2)}</span>
+                      </div>
+                      <div className="bg-bg-base p-2 text-center">
+                        <span className="text-[12px] font-mono text-text-dim">{s.std.toFixed(2)}</span>
                       </div>
                       <div className="bg-bg-base p-2 text-center">
                         <span className="text-[12px] font-mono text-text-secondary">{s.max.toFixed(2)}</span>
@@ -472,6 +475,9 @@ export default function TopBar() {
                   <div className="bg-bg-base p-2 flex items-center gap-2">
                     <div className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: '#a78bfa' }} />
                     <span className="text-[10px] font-medium" style={{ color: '#a78bfa' }}>Streak</span>
+                  </div>
+                  <div className="bg-bg-base p-2 text-center">
+                    <span className="text-[12px] font-mono text-text-dim">&mdash;</span>
                   </div>
                   <div className="bg-bg-base p-2 text-center">
                     <span className="text-[12px] font-mono text-text-dim">&mdash;</span>
@@ -514,26 +520,11 @@ export default function TopBar() {
                 <span className="text-[10px] text-text-dim leading-snug">{scorecard.shape.description}</span>
               </div>
 
-              {/* Std dev footer */}
-              <div className="mt-3 flex items-center gap-4">
-                {([
-                  { key: 'payoff' as const, label: 'P', color: '#EF4444' },
-                  { key: 'change' as const, label: 'C', color: '#22C55E' },
-                  { key: 'variety' as const, label: 'V', color: '#3B82F6' },
-                  { key: 'swing' as const, label: 'S', color: '#facc15' },
-                ]).map((row) => (
-                  <div key={row.key} className="flex items-center gap-1.5">
-                    <span className="text-[9px] font-mono" style={{ color: row.color }}>{row.label}</span>
-                    <span className="text-[9px] text-text-dim font-mono">&sigma;{scorecard[row.key].std.toFixed(2)}</span>
-                  </div>
-                ))}
-              </div>
-
               {/* Per-arc score graph / engagement graph */}
               {scorecard.perArc.length > 1 && (() => {
                 const arcs = scorecard.perArc;
                 const dense = arcs.length >= 15;
-                const W = 420;
+                const W = 500;
                 const H = dense ? 80 : 110;
                 const PAD = { top: dense ? 8 : 16, right: 12, bottom: dense ? 8 : 28, left: 28 };
                 const cw = W - PAD.left - PAD.right;

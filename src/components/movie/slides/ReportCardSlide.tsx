@@ -26,11 +26,15 @@ export function ReportCardSlide({ data }: { data: MovieData }) {
 
   const raw = data.rawForces;
   const n = data.sceneCount;
+  const stdDev = (arr: number[]) => {
+    const mean = arr.reduce((s, v) => s + v, 0) / arr.length;
+    return Math.sqrt(arr.reduce((s, v) => s + (v - mean) ** 2, 0) / arr.length);
+  };
   const stats = {
-    payoff: { avg: raw.payoff.reduce((s, v) => s + v, 0) / n, peak: Math.max(...raw.payoff), total: raw.payoff.reduce((s, v) => s + v, 0) },
-    change: { avg: raw.change.reduce((s, v) => s + v, 0) / n, peak: Math.max(...raw.change), total: raw.change.reduce((s, v) => s + v, 0) },
-    variety: { avg: raw.variety.reduce((s, v) => s + v, 0) / n, peak: Math.max(...raw.variety), total: raw.variety.reduce((s, v) => s + v, 0) },
-    swing: { avg: data.swings.reduce((s, v) => s + v, 0) / data.swings.length, peak: Math.max(...data.swings), total: data.swings.reduce((s, v) => s + v, 0) },
+    payoff: { avg: raw.payoff.reduce((s, v) => s + v, 0) / n, peak: Math.max(...raw.payoff), total: raw.payoff.reduce((s, v) => s + v, 0), sd: stdDev(raw.payoff) },
+    change: { avg: raw.change.reduce((s, v) => s + v, 0) / n, peak: Math.max(...raw.change), total: raw.change.reduce((s, v) => s + v, 0), sd: stdDev(raw.change) },
+    variety: { avg: raw.variety.reduce((s, v) => s + v, 0) / n, peak: Math.max(...raw.variety), total: raw.variety.reduce((s, v) => s + v, 0), sd: stdDev(raw.variety) },
+    swing: { avg: data.swings.reduce((s, v) => s + v, 0) / data.swings.length, peak: Math.max(...data.swings), total: data.swings.reduce((s, v) => s + v, 0), sd: stdDev(data.swings) },
   };
 
   // Arc score chart
@@ -83,7 +87,7 @@ export function ReportCardSlide({ data }: { data: MovieData }) {
   }, [data]);
 
   return (
-    <div className="flex flex-col h-full px-12 py-8">
+    <div className="flex flex-col h-full px-20 py-8 max-w-5xl mx-auto w-full">
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div>
@@ -107,6 +111,7 @@ export function ReportCardSlide({ data }: { data: MovieData }) {
             <tr className="border-b border-white/8">
               <th className="text-left py-2 pr-4 w-28" />
               <th className="text-right py-2 px-4 text-[10px] uppercase tracking-widest text-text-dim font-mono font-normal w-24">Avg</th>
+              <th className="text-right py-2 px-4 text-[10px] tracking-widest text-text-dim font-mono font-normal w-24">σ</th>
               <th className="text-right py-2 px-4 text-[10px] uppercase tracking-widest text-text-dim font-mono font-normal w-24">Peak</th>
               <th className="text-right py-2 px-4 text-[10px] uppercase tracking-widest text-text-dim font-mono font-normal w-24">Total</th>
               <th className="text-right py-2 pl-4 text-[10px] uppercase tracking-widest text-text-dim font-mono font-normal w-24">Grade</th>
@@ -127,6 +132,9 @@ export function ReportCardSlide({ data }: { data: MovieData }) {
                   </td>
                   <td className="text-right py-3 px-4 text-sm font-mono font-bold text-text-primary">
                     {s ? s.avg.toFixed(2) : '—'}
+                  </td>
+                  <td className="text-right py-3 px-4 text-sm font-mono text-text-dim">
+                    {s ? s.sd.toFixed(2) : '—'}
                   </td>
                   <td className="text-right py-3 px-4 text-sm font-mono text-text-secondary">
                     {s ? s.peak.toFixed(2) : '—'}
