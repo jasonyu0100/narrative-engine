@@ -16,7 +16,10 @@ export function onApiLogUpdate(listener: UpdateListener) {
   updateListener = listener;
 }
 
-export function logApiCall(caller: string, promptLength: number, promptPreview: string): string {
+/** Estimate token count from character length (~4 chars per token for English) */
+const estimateTokens = (chars: number) => Math.ceil(chars / 4);
+
+export function logApiCall(caller: string, promptChars: number, promptPreview: string): string {
   const id = `api-${Date.now()}-${counter++}`;
   const entry: ApiLogEntry = {
     id,
@@ -24,8 +27,8 @@ export function logApiCall(caller: string, promptLength: number, promptPreview: 
     caller,
     status: 'pending',
     durationMs: null,
-    promptLength,
-    responseLength: null,
+    promptTokens: estimateTokens(promptChars),
+    responseTokens: null,
     error: null,
     promptPreview: promptPreview,
     responsePreview: null,
@@ -34,6 +37,12 @@ export function logApiCall(caller: string, promptLength: number, promptPreview: 
   return id;
 }
 
-export function updateApiLog(id: string, updates: Partial<ApiLogEntry>) {
-  updateListener?.(id, updates);
+/** Callers pass responseLength in chars — converted to tokens here */
+type ApiLogUpdate = Omit<Partial<ApiLogEntry>, 'responseTokens'> & { responseLength?: number };
+
+export function updateApiLog(id: string, updates: ApiLogUpdate) {
+  const { responseLength, ...rest } = updates;
+  const mapped: Partial<ApiLogEntry> = { ...rest };
+  if (responseLength != null) mapped.responseTokens = estimateTokens(responseLength);
+  updateListener?.(id, mapped);
 }

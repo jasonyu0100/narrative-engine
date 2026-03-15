@@ -49,8 +49,8 @@ function LogDetail({ entry, onClose }: { entry: ApiLogEntry; onClose: () => void
 
       {/* Meta */}
       <div className="flex items-center gap-4 px-4 py-2 border-b border-white/5 text-[10px] text-text-dim shrink-0">
-        <span>Prompt: {entry.promptLength.toLocaleString()} chars</span>
-        {entry.responseLength != null && <span>Response: {entry.responseLength.toLocaleString()} chars</span>}
+        <span>Prompt: ~{(entry.promptTokens ?? 0).toLocaleString()} tokens</span>
+        {entry.responseTokens != null && <span>Response: ~{entry.responseTokens.toLocaleString()} tokens</span>}
         <span>{new Date(entry.timestamp).toLocaleTimeString()}</span>
       </div>
 
@@ -161,7 +161,7 @@ export function ApiLogsModal({ onClose }: { onClose: () => void }) {
                         <div className="flex items-center gap-2">
                           <span className="text-[12px] text-text-primary font-medium">{entry.caller}</span>
                           <span className="text-[10px] text-text-dim">
-                            {entry.promptLength.toLocaleString()} chars
+                            ~{(entry.promptTokens ?? 0).toLocaleString()} tokens
                           </span>
                         </div>
                         {entry.error && (

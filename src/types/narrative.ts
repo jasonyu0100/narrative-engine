@@ -459,8 +459,8 @@ export type ApiLogEntry = {
   caller: string;
   status: 'pending' | 'success' | 'error';
   durationMs: number | null;
-  promptLength: number;
-  responseLength: number | null;
+  promptTokens: number;
+  responseTokens: number | null;
   error: string | null;
   /** Truncated prompt preview */
   promptPreview: string;
