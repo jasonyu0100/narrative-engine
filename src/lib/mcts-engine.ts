@@ -183,15 +183,28 @@ export function pickNextDirection(
 ): { direction: string; cubeGoal: CubeCornerKey | null; deliveryGoal: DeliveryDirection | null } {
   if (directionMode === 'delivery') {
     const usedSet = new Set(existingGoals.filter((g): g is string => g !== null));
-    let pool = ALL_DELIVERY_DIRECTIONS.filter((d) => !usedSet.has(d));
-    if (pool.length === 0) pool = [...ALL_DELIVERY_DIRECTIONS];
+    const pool = ALL_DELIVERY_DIRECTIONS.filter((d) => !usedSet.has(d));
 
     let chosen: DeliveryDirection;
-    if (randomDirections) {
-      chosen = pool[Math.floor(Math.random() * pool.length)];
+    if (pool.length > 0) {
+      // Unused directions available — pick from them
+      chosen = randomDirections
+        ? pool[Math.floor(Math.random() * pool.length)]
+        : pool[0];
     } else {
-      // Deterministic: cycle in canonical order
-      chosen = pool[0];
+      // All 4 used — round-robin by count to keep distribution even
+      const counts = new Map<DeliveryDirection, number>();
+      for (const g of existingGoals) {
+        if (g && ALL_DELIVERY_DIRECTIONS.includes(g as DeliveryDirection)) {
+          const d = g as DeliveryDirection;
+          counts.set(d, (counts.get(d) ?? 0) + 1);
+        }
+      }
+      const minCount = Math.min(...ALL_DELIVERY_DIRECTIONS.map((d) => counts.get(d) ?? 0));
+      const leastUsed = ALL_DELIVERY_DIRECTIONS.filter((d) => (counts.get(d) ?? 0) === minCount);
+      chosen = randomDirections
+        ? leastUsed[Math.floor(Math.random() * leastUsed.length)]
+        : leastUsed[0];
     }
 
     return { direction: DELIVERY_DIRECTIONS[chosen].prompt, cubeGoal: null, deliveryGoal: chosen };

@@ -36,6 +36,8 @@ interface GraphNode extends d3.SimulationNodeDatum {
   usageCount?: number;
   /** Image URL for character portrait or location photo */
   imageUrl?: string;
+  /** AI-generated visual description */
+  imagePrompt?: string;
 }
 
 interface GraphLink extends d3.SimulationLinkDatum<GraphNode> {
@@ -186,6 +188,7 @@ function buildGraphData(
       role: char.role,
       threadCount: char.threadIds.length,
       imageUrl: char.imageUrl,
+      imagePrompt: char.imagePrompt,
     });
   }
 
@@ -197,6 +200,7 @@ function buildGraphData(
       label: loc.name,
       threadCount: loc.threadIds.length,
       imageUrl: loc.imageUrl,
+      imagePrompt: loc.imagePrompt,
     });
   }
 
@@ -295,6 +299,7 @@ function buildOverviewGraphData(
       threadCount: char.threadIds.length,
       usageCount: charUsage[char.id],
       imageUrl: char.imageUrl,
+      imagePrompt: char.imagePrompt,
     });
   }
 
@@ -307,6 +312,7 @@ function buildOverviewGraphData(
       threadCount: loc.threadIds.length,
       usageCount: locUsage[loc.id],
       imageUrl: loc.imageUrl,
+      imagePrompt: loc.imagePrompt,
     });
   }
 
@@ -695,18 +701,23 @@ function KnowledgeGraphView({ narrative, resolvedKeys, currentIndex, mode }: {
       {/* Tooltip */}
       {tooltip && (
         <div
-          className="absolute z-40 pointer-events-none bg-bg-elevated border border-border rounded-lg px-3 py-2 shadow-xl"
-          style={{ left: tooltip.x, top: tooltip.y, transform: 'translate(-50%, -100%)' }}
+          className="absolute z-40 pointer-events-none"
+          style={{ left: tooltip.x, top: tooltip.y - 12, transform: 'translate(-50%, -100%)' }}
         >
-          <div className="flex items-center gap-2 mb-1">
-            <span className="w-2.5 h-2.5 rounded-full" style={{ background: WK_TYPE_COLORS[tooltip.type] ?? '#888', boxShadow: `0 0 6px ${WK_TYPE_COLORS[tooltip.type] ?? '#888'}80` }} />
-            <span className="text-xs font-semibold text-text-primary">{tooltip.concept}</span>
-            <span className="text-[10px] text-text-dim capitalize">({tooltip.type})</span>
+          <div className="bg-bg-elevated border border-border rounded-lg px-3 py-2 shadow-xl w-72">
+            <div className="flex items-start gap-2 mb-1">
+              <span className="w-2.5 h-2.5 rounded-full shrink-0 mt-0.5" style={{ background: WK_TYPE_COLORS[tooltip.type] ?? '#888', boxShadow: `0 0 6px ${WK_TYPE_COLORS[tooltip.type] ?? '#888'}80` }} />
+              <div>
+                <span className="text-xs font-semibold text-text-primary">{tooltip.concept}</span>
+                <span className="text-[10px] text-text-dim capitalize ml-1">({tooltip.type})</span>
+              </div>
+            </div>
+            <div className="text-[10px] text-text-secondary">{tooltip.degree} connection{tooltip.degree !== 1 ? 's' : ''}</div>
+            {tooltip.connections.length > 0 && (
+              <div className="text-[10px] text-text-dim mt-0.5">↔ {tooltip.connections.join(', ')}</div>
+            )}
           </div>
-          <div className="text-[10px] text-text-secondary">{tooltip.degree} connection{tooltip.degree !== 1 ? 's' : ''}</div>
-          {tooltip.connections.length > 0 && (
-            <div className="text-[10px] text-text-dim mt-0.5">↔ {tooltip.connections.join(', ')}</div>
-          )}
+          <div className="flex justify-center"><div className="w-2.5 h-2.5 bg-bg-elevated border-r border-b border-border rotate-45 -mt-1.5" /></div>
         </div>
       )}
     </div>
@@ -726,6 +737,7 @@ export default function WorldGraph() {
   const [showHeatmap, setShowHeatmap] = useState(false);
   const [groups, setGroups] = useState<GraphNode[][]>([]);
   const [focusedGroupIndex, setFocusedGroupIndex] = useState<number | null>(null);
+  const [nodeTooltip, setNodeTooltip] = useState<{ x: number; y: number; label: string; kind: string; imagePrompt: string } | null>(null);
   const zoomRef = useRef<d3.ZoomBehavior<SVGSVGElement, unknown> | null>(null);
 
   const narrative = state.activeNarrative;
@@ -1134,6 +1146,14 @@ export default function WorldGraph() {
         if (d.kind === 'character') handleCharacterClickRef.current(d.id);
         if (d.kind === 'location') handleLocationClickRef.current(d.id);
       })
+      .on('mouseenter', (event, d) => {
+        if ((d.kind === 'character' || d.kind === 'location') && d.imagePrompt) {
+          const rect = svgRef.current?.getBoundingClientRect();
+          if (!rect) return;
+          setNodeTooltip({ x: event.clientX - rect.left, y: event.clientY - rect.top - 10, label: d.label, kind: d.kind, imagePrompt: d.imagePrompt });
+        }
+      })
+      .on('mouseleave', () => setNodeTooltip(null))
       .call(
         d3
           .drag<SVGGElement, GraphNode>()
@@ -1827,6 +1847,19 @@ export default function WorldGraph() {
       )}
       {/* Fullscreen toggle */}
       <FullscreenButton />
+      {/* Character/location image prompt tooltip */}
+      {nodeTooltip && (
+        <div
+          className="absolute z-40 pointer-events-none"
+          style={{ left: nodeTooltip.x, top: nodeTooltip.y - 12, transform: 'translate(-50%, -100%)' }}
+        >
+          <div className="bg-bg-elevated border border-border rounded-lg px-3 py-2 shadow-xl w-72">
+            <div className="text-xs font-semibold text-text-primary mb-1">{nodeTooltip.label}</div>
+            <div className="text-[10px] text-text-dim leading-relaxed">{nodeTooltip.imagePrompt}</div>
+          </div>
+          <div className="flex justify-center"><div className="w-2.5 h-2.5 bg-bg-elevated border-r border-b border-border rotate-45 -mt-1.5" /></div>
+        </div>
+      )}
     </div>
   );
 }
