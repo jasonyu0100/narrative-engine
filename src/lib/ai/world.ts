@@ -2,6 +2,7 @@ import type { NarrativeState, Character, Location, Thread, RelationshipEdge, Wor
 import { THREAD_ACTIVE_STATUSES } from '@/types/narrative';
 import { nextId, nextIds } from '@/lib/narrative-utils';
 import { callGenerate, SYSTEM_PROMPT } from './api';
+import { MAX_TOKENS_LARGE } from '@/lib/constants';
 import { parseJson } from './json';
 import { branchContext, THREAD_LIFECYCLE_DOC } from './context';
 
@@ -393,7 +394,7 @@ Scene worldKnowledgeMutations track the world's abstract structure — rules, sy
 
 WORLD RULES: Generate 4-6 world rules — absolute constraints that every scene must obey. These define the physics, magic system limits, social rules, or thematic laws of the world.${rules.length > 0 ? ` The user has already provided these rules — include them as-is and add more if appropriate:\n${rules.map((r, i) => `${i + 1}. ${r}`).join('\n')}` : ''}`;
 
-  const raw = await callGenerate(prompt, SYSTEM_PROMPT, 60000, 'generateNarrative');
+  const raw = await callGenerate(prompt, SYSTEM_PROMPT, MAX_TOKENS_LARGE, 'generateNarrative');
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const parsed = parseJson(raw, 'generateNarrative') as any;
   console.log('[generateNarrative] parsed keys:', Object.keys(parsed));

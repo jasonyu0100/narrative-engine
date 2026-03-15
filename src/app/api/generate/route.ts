@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { resolveKey } from '@/lib/resolve-api-key';
-import { DEFAULT_MODEL } from '@/lib/constants';
+import { DEFAULT_MODEL, MAX_TOKENS_DEFAULT } from '@/lib/constants';
 
 const OPENROUTER_URL = 'https://openrouter.ai/api/v1/chat/completions';
 
@@ -35,7 +35,7 @@ export async function POST(req: NextRequest) {
           { role: 'user' as const, content: prompt },
         ],
         temperature: 0.8,
-        max_tokens: maxTokens || 32000,
+        max_tokens: maxTokens || MAX_TOKENS_DEFAULT,
         ...(stream ? { stream: true } : {}),
       }),
     });

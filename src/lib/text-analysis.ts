@@ -13,7 +13,7 @@ import type {
   WorldBuildCommit, Branch, Commit,
 } from '@/types/narrative';
 import { THREAD_ACTIVE_STATUSES, THREAD_TERMINAL_STATUSES, THREAD_STATUS_LABELS } from '@/types/narrative';
-import { ANALYSIS_TARGET_SECTIONS_PER_CHUNK, ANALYSIS_TARGET_CHUNK_WORDS, ANALYSIS_MODEL } from '@/lib/constants';
+import { ANALYSIS_TARGET_SECTIONS_PER_CHUNK, ANALYSIS_TARGET_CHUNK_WORDS, ANALYSIS_MODEL, MAX_TOKENS_DEFAULT } from '@/lib/constants';
 
 // ── Text Splitting ───────────────────────────────────────────────────────────
 
@@ -208,7 +208,7 @@ async function callAnalysis(prompt: string, systemPrompt: string, onToken?: (tok
     const res = await fetch('/api/generate', {
       method: 'POST',
       headers: apiHeaders(),
-      body: JSON.stringify({ prompt, systemPrompt, maxTokens: 32000, stream: useStream, model: ANALYSIS_MODEL }),
+      body: JSON.stringify({ prompt, systemPrompt, maxTokens: MAX_TOKENS_DEFAULT, stream: useStream, model: ANALYSIS_MODEL }),
     });
     if (!res.ok) {
       const err = await res.json();

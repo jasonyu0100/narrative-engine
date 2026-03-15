@@ -37,6 +37,14 @@ export const ANALYSIS_MODEL = 'google/gemini-2.5-flash';
 /** Model for scene generation — MCTS, auto mode, manual */
 export const GENERATE_MODEL = 'google/gemini-2.5-flash';
 
+// ── AI Token Limits ─────────────────────────────────────────────────────────
+
+/** Max output tokens for large structured generation (scenes, narratives, analysis) */
+export const MAX_TOKENS_LARGE = 65000;
+
+/** Max output tokens for the /api/generate route when no explicit limit is passed */
+export const MAX_TOKENS_DEFAULT = 32000;
+
 // ── AI Context ───────────────────────────────────────────────────────────────
 
 /** Max scenes included in branchContext — defines the time horizon.
