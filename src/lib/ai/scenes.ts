@@ -60,13 +60,13 @@ ${cubeGoal ? (() => {
   // Per-corner narrative instructions — each combination gets a distinct creative brief
   const CORNER_INSTRUCTIONS: Record<CubeCornerKey, string> = {
     HHH: `This is an EPOCH arc — everything converges. Threads should reach critical turning points or resolve. Characters undergo meaningful transformation. The world's rules expand — introduce new concepts that connect to existing knowledge and reshape understanding. This is the narrative crescendo — stakes are real, consequences are permanent, and the world's structure deepens. Maintain POV streaks (2-4 scenes per perspective).`,
-    HHL: `This is a CLIMAX arc — the established cast faces their reckoning within known world rules. Drive threads to critical/terminal statuses with the core characters the reader knows well. Characters change profoundly through intense interactions. No new world concepts needed — this is about payoff for what's already been built. Anchor on one POV for most of the arc.`,
-    HLH: `This is a REVELATION arc — threads pay off through world-building. The world's rules explain why things happened — new concepts and connections unlock resolution. Characters witness rather than transform — they're processing revelations about how the world works. Think: a hidden system is exposed, a rule of magic is understood, a political structure is laid bare. Keep POV changes purposeful.`,
-    HLL: `This is a CLOSURE arc — tying up loose ends within established world rules. Threads reach resolution quietly — not with a bang but with acceptance. No new world concepts, no character transformation. Conversations that needed to happen finally do. Stay with one POV and familiar settings.`,
-    LHH: `This is a DISCOVERY arc — characters grow rapidly through encountering new world systems. No threads need to resolve — this is about exploration and world-building. Introduce new concepts, rules, and connections that expand the knowledge graph. Characters are learning, adapting, being changed by encountering how the world works. Think: discovering a magic system, entering a new culture, uncovering ancient history. Maintain POV streaks.`,
-    LHL: `This is a GROWTH arc — the familiar cast evolves through internal development within established world rules. No plot payoffs needed — threads stay active but don't resolve. No new world concepts. Characters train, bond, argue, process, and change through interaction. Think: training montages, heart-to-heart conversations, mentorship. Anchor on one POV.`,
-    LLH: `This is a LORE arc — pure world-building without resolution or personal transformation. Establish new rules, systems, cultures, and connections in the world knowledge graph. Threads simmer without advancing. Think: a sage explains the magic system, a journey through lands with distinct customs, the narrator establishes world context through action and observation. Use one POV throughout.`,
-    LLL: `This is a REST arc — recovery and seed-planting. Nothing resolves, no one transforms, no new world concepts. Quiet character deliveries, domestic scenes with undercurrents. Subtle foreshadowing through small details. Stay with one POV and one location.`,
+    HHL: `This is a CLIMAX arc — the established cast faces their reckoning. Drive threads to critical/terminal statuses with the core characters. Characters change profoundly through intense interactions — relationship valence shifts of ±0.3 to ±0.5 as alliances break and form under pressure. Everyone learns something (continuityMutations for all participants). World knowledge emerges through crisis — power structures are tested, rules are broken, systems fail or hold. Reuse existing WK nodes via edges. Anchor on one POV for most of the arc.`,
+    HLH: `This is a REVELATION arc — threads pay off through world-building. New concepts and connections unlock resolution — 3-5 WK nodes per scene revealing hidden systems, rules, or structures. Characters witness and absorb these revelations (continuityMutations). Relationships shift as shared knowledge changes power dynamics. Think: a hidden system is exposed, a rule of magic is understood, a political structure is laid bare. Keep POV changes purposeful.`,
+    HLL: `This is a CLOSURE arc — tying up loose ends with finality. Threads reach terminal statuses (resolved/subverted/abandoned) — conversations that needed to happen finally do. Relationships settle into new equilibria with meaningful valence shifts. Characters learn final truths about each other (continuityMutations). The world's established concepts are reaffirmed or seen in new light — reuse existing WK node IDs via edges. Stay with one POV and familiar settings.`,
+    LHH: `This is a DISCOVERY arc — characters grow rapidly through encountering new world systems. Threads pulse without major resolution but stay active. Introduce 3-5 WK nodes per scene with dense edge connections. Characters are learning, adapting, being transformed — continuityMutations for every participant as they absorb new knowledge. Relationships shift as shared discovery bonds or creates tension (±0.2 per interaction). Think: discovering a magic system, entering a new culture, uncovering ancient history. Maintain POV streaks.`,
+    LHL: `This is a GROWTH arc — the familiar cast evolves through internal development. Threads pulse and simmer without major resolution, but characters transform through training, bonding, arguing, processing. Relationship valence shifts are the primary engine — ±0.2 to ±0.3 per interaction. Characters learn about each other (continuityMutations for every participant). World knowledge still emerges through the lens of character growth — training reveals how systems work, conversations expose social dynamics. Anchor on one POV.`,
+    LLH: `This is a LORE arc — world-building is the primary engine. Establish new rules, systems, cultures, and connections in the world knowledge graph (3-5 nodes per scene). Threads simmer via pulses. Characters observe and learn (continuityMutations as they absorb world knowledge). Relationships shift subtly as shared discovery bonds or divides characters. Think: a journey through lands with distinct customs, discovering how a system works, uncovering history through action. Use one POV throughout.`,
+    LLL: `This is a REST arc — recovery and seed-planting with subtle undercurrents. Threads pulse and simmer without major resolution. Characters process recent events — they reflect, confide, and notice details that reveal character depth. The world shows its quieter systems — domestic routines, social customs, environmental rhythms. Stay with one POV and let scenes breathe. Even rest scenes have life: relationships shift through intimate conversation, characters learn about each other, and the world's texture is revealed.`,
   };
   return `
 NARRATIVE CUBE GOAL — "${cube.name}" (${cubeGoal}: Payoff ${p ? 'High' : 'Low'}, Change ${c ? 'High' : 'Low'}, Knowledge ${k ? 'High' : 'Low'}):
@@ -107,65 +107,48 @@ Rules:
 - Use ONLY existing character IDs and location IDs from the narrative context above
 - Thread statuses follow a lifecycle. ${THREAD_LIFECYCLE_DOC}
 - Threads that have reached their narrative conclusion MUST be transitioned to a terminal status. Do not leave threads stuck in active states when their story is over. When a mystery is solved, a conflict is won/lost, a goal is achieved or failed — close the thread.
-- Each thread must be DISTINCT — if two threads describe the same underlying tension, they should be merged. Only mutate threads whose status actually changes in this scene.
+- Each thread must be DISTINCT — if two threads describe the same underlying tension, they should be merged. Include thread mutations when a thread's status changes OR when a scene meaningfully engages with a thread (pulse: same→same). Prefer real transitions over pulses.
 - Scene IDs must be unique: S-GEN-001, S-GEN-002, etc.
 - Knowledge node IDs must be unique: K-GEN-001, K-GEN-002, etc.
 - continuityMutations.nodeType should be a specific, contextual label for what kind of knowledge this is — NOT limited to a fixed set. Examples: "tactical_insight", "betrayal_discovered", "forbidden_technique", "political_leverage", "hidden_lineage", "oath_sworn". Choose the type that best describes the specific knowledge gained.
-- Thread mutations should reflect the direction — escalate relevant threads, surface dormant ones when appropriate
-- relationshipMutations track how character dynamics shift. Include them when interactions change — trust gained, betrayal discovered, alliance forming, rivalry deepening. valenceDelta ranges from -0.5 (major damage) to +0.5 (major bonding). Most interactions are ±0.1 to ±0.2.
-- continuityMutations track what characters learn. Include them when a character gains or loses information — secrets revealed, lies uncovered, skills observed, intel gathered.
+- Thread mutations should reflect the direction — escalate relevant threads, surface dormant ones aggressively. Every scene should advance 2-4 threads. Dormant threads should be surfaced to active or escalating, not left dormant indefinitely
+- relationshipMutations track how character dynamics shift. Include them whenever characters interact meaningfully — trust gained, betrayal discovered, alliance forming, rivalry deepening. valenceDelta ranges from -0.5 (major damage) to +0.5 (major bonding). Use ±0.2 to ±0.3 for most meaningful interactions. Reserve ±0.1 for truly subtle shifts and ±0.4-0.5 for dramatic moments.
+- continuityMutations track what characters learn. Include them liberally — every participant should gain at least one piece of knowledge per scene. Secrets revealed, lies uncovered, skills observed, intel gathered, emotional realisations, tactical observations, social dynamics noticed. Characters are always learning from their environment and interactions.
 - events capture concrete narrative happenings. Use specific, descriptive tags: "ambush_at_dawn", "secret_pact_formed", "duel_of_wits", "storm_breaks", "letter_intercepted". Aim for 2-4 events per scene.
-- worldKnowledgeMutations track the world's abstract structure — rules, systems, ideas, and tensions that define the world characters inhabit. NOT character knowledge (that's continuityMutations). World knowledge exists in every genre: fantasy has magic systems, literary fiction has class structures and social norms, historical fiction has period customs, crime has institutional hierarchies. Four node types: "law" (governing truths), "system" (institutions, processes), "concept" (named ideas, symbolic motifs, places-as-concepts), "tension" (contradictions, unresolved forces). Add nodes when a scene reveals, reinforces, or tests a world concept. Add edges when it connects concepts — edges can reference existing world knowledge node IDs from the context above OR newly created WK-GEN-XXX IDs. Most scenes touch the world in some way — a conversation reveals social norms, a fight tests power hierarchies, a journey exposes geography or customs. Aim for at least 1 world knowledge node per scene; world-building scenes may have 3-5 with edges.
+- worldKnowledgeMutations track the world's abstract structure — rules, systems, ideas, and tensions that define the world characters inhabit. NOT character knowledge (that's continuityMutations). World knowledge exists in every genre: fantasy has magic systems, literary fiction has class structures and social norms, historical fiction has period customs, crime has institutional hierarchies. Four node types: "law" (governing truths), "system" (institutions, processes), "concept" (named ideas, symbolic motifs, places-as-concepts), "tension" (contradictions, unresolved forces). Add nodes when a scene reveals, reinforces, or tests a world concept. Add edges when it connects concepts — edges can reference existing world knowledge node IDs from the context above OR newly created WK-GEN-XXX IDs. EVERY scene touches the world — a conversation reveals social norms, a fight tests power hierarchies, a journey exposes geography or customs. Aim for 2-3 world knowledge nodes per scene with connecting edges; world-building scenes should have 3-5+ with dense edge connections.
 - REUSING existing world knowledge nodes is encouraged. If a scene reinforces, deepens, or tests an existing concept, reference the existing node ID in addedNodes with the same ID — this signals that the scene engages with established world knowledge rather than inventing something new. Similarly, re-adding an existing edge reinforces that connection. Only create new WK-GEN-XXX IDs for genuinely new concepts. A scene that ties into the existing knowledge graph (via reused nodes and edges to existing IDs) is more valuable than one that creates isolated new concepts.
 - World knowledge node IDs for NEW concepts must be unique: WK-GEN-001, WK-GEN-002, etc. Reused nodes should keep their original ID.
 - characterMovements track when characters physically relocate to a different location during the scene. Only include characters whose location CHANGES — omit characters who stay put. The "transition" field should be a vivid, specific description of HOW they traveled (e.g. "Fled through the sewers beneath the city", "Sailed upriver on a merchant barge"). The "locationId" MUST be a valid location ID from the narrative. Do NOT include movements where the destination is the same as the scene's locationId.
 
-HOW YOUR CHOICES ARE MEASURED — every mutation feeds into three narrative forces that grade the story:
+FORCE SCORING — every mutation feeds three forces. These are the MINIMUM STANDARDS for an 80+ arc:
 
-PAYOFF (thread resolution + relationship shifts):
-- Each threadMutation contributes to Payoff based on the magnitude of the status transition. A jump from "dormant" to "escalating" scores higher than "active" to "active" (a pulse).
-- Each relationshipMutation contributes its valenceDelta to Payoff. Bigger shifts (±0.3) matter more than subtle ones (±0.1).
-- Terminal thread transitions (to resolved/subverted/abandoned) are the highest-value Payoff moments.
-- A scene with no thread mutations and no relationship shifts scores zero on Payoff.
+PAYOFF ≥ ~1.2 avg raw per scene:
+- ~1 real thread status transition per scene (active→escalating = 1pt, active→resolved = 3pt). Pulses (same→same) only give 0.25 — you need actual movement.
+- OR a mix of smaller transitions + relationship |Δv| shifts. Scenes with zero thread/relationship mutations score ZERO.
 
-CHANGE (mutation depth across characters):
-- Change measures how many characters are affected and how deeply. It sums log₂(1 + mutations) per character — diminishing returns per character, rewards breadth.
-- continuityMutations and threadMutations count 1 each per character. relationshipMutations are weighted by |valenceDelta| — a big relationship shift (0.8) counts far more than a subtle one (0.1).
-- A scene where 5 characters each have 1 mutation scores higher on Change than a scene where 1 character has 5 mutations.
+CHANGE ≥ ~5.6 avg raw per scene:
+- 3-4 characters meaningfully affected per scene (each with 2-3 mutations gives log₂(3-4) ≈ 1.6-2.0 per character).
+- A scene touching only 1-2 characters needs deeper mutations to compensate. Spread across the cast.
 
-KNOWLEDGE (world complexity delta):
-- Each worldKnowledgeMutation node added contributes 1 to Knowledge. Each edge added contributes ½. New concepts are valued higher than new links between existing ones.
-- Scenes that connect new concepts to EXISTING world knowledge (via edges to existing WK node IDs) build a denser, more valuable knowledge graph.
-- Most scenes reveal something about the world — social dynamics, power structures, environmental details, cultural norms. Look for what each scene teaches the reader about how this world works.
+KNOWLEDGE ≥ ~2.0 avg raw per scene:
+- ~2 new world knowledge nodes per scene, or 1 node + 2 edges. Scenes adding no world concepts drag this down fast.
 
-MUTATION DENSITY GUIDELINES — scale mutations to match the scene's weight:
-- A scene with many participants naturally involves more relationships shifting, more characters learning things, and more threads being touched. Let the cast size guide mutation count.
-- Scenes with high narrative stakes (confrontations, revelations, betrayals) tend to produce denser mutations — threads jump phases, relationships crack or form, and characters gain critical knowledge.
-- Quieter scenes (reflection, travel, rest) still have internal life — a character notices something (continuity), a relationship subtly shifts, a thread pulses — but fewer mutations is natural.
-- Every scene exists in a world — even quiet character moments reveal social norms, power dynamics, or environmental truths. Look for the world knowledge each scene implicitly or explicitly conveys and capture it as worldKnowledgeMutations.
-- The best narratives vary their force profiles across scenes — not every scene maxes all three forces. Rhythm matters.
+SWING ≥ ~1.2 normalized avg:
+- Consecutive scenes must DIFFER in force profile — a high-payoff scene followed by a high-knowledge scene creates swing. Repetitive mutation patterns kill swing.
 
 POV DISCIPLINE:
-- POV should come in STREAKS, not rapid alternation. Stay with one POV character for 2-4 consecutive scenes before switching. An ABABA pattern is disorienting — prefer AAABBA or AAABBCCC.
-- When switching POV, the transition must be motivated: the new POV character has just learned something, arrived somewhere, or faces an urgent situation that demands the reader's attention.
-- A POV switch is a cost — it breaks immersion. Only switch when the new perspective offers something the current POV cannot: a different location, access to hidden information, or an emotional angle the current character lacks.
-- Within an arc, prefer to anchor on one or two POV characters rather than cycling through many. Save POV breadth for later arcs.
+- POV should come in STREAKS of 2-4 consecutive scenes before switching. Prefer AAABBA or AAABBCCC.
+- Within an arc, anchor on one or two POV characters. Switch only when a different perspective unlocks something the current POV cannot access.
 
 SPATIAL CONTINUITY:
-- Location changes should be purposeful, not decorative. Characters move because the plot demands it.
-- Consecutive scenes in the SAME location are often stronger than constant switching. Let scenes breathe in a space.
-- When a location change IS needed, ground it with a characterMovement that describes the journey.
-- Prefer to revisit established locations over introducing new ones. Familiar spaces accumulate meaning.
+- Consecutive scenes in the same location build atmosphere. Location changes should be purposeful and grounded with characterMovements.
+- Prefer revisiting established locations over introducing new ones.
 
-PACING:
-- Not every scene should be a major plot event. Include quieter scenes: character moments, travel, reflection, relationship building.
-- Only 1 in 3 scenes should be a significant plot delivery. Others build atmosphere, deepen character, or plant seeds.
-- Even quiet scenes benefit from small mutations — a character noticing tension, recalling a memory, warming to an ally, or growing suspicious all count.
-- Threads evolve gradually — a dormant thread surfaces over several scenes, not in one jump. But don't be afraid to escalate when the story demands it.
-- When a thread's storyline has concluded (conflict resolved, mystery answered, goal achieved or failed), transition it to a terminal status: ${THREAD_TERMINAL_STATUSES.map((s) => `"${s}"`).join(', ')}. Choose the terminal status that best fits HOW the thread ended.
-- Threads can move BACKWARDS (e.g. "escalating" → "active" when tension temporarily eases, or "critical" → "escalating" after a partial resolution). Use regression when the story calls for it — not every scene ratchets tension upward.
-- Include "pulse" mutations where a thread's status stays the same (e.g. "active" → "active") when the scene meaningfully engages with that thread without shifting its phase. A conversation that deepens a mystery without escalating it, or a scene that sustains tension at its current level, should still be tracked.
-- Most scenes should touch 2-4 threads. Threads left unmentioned for many consecutive scenes feel abandoned — keep them pulsing even when they're not the focus.
+THREAD LIFECYCLE:
+- When a thread's storyline concludes, transition it to a terminal status: ${THREAD_TERMINAL_STATUSES.map((s) => `"${s}"`).join(', ')}.
+- Threads can regress (escalating→active) when tension eases. Not every scene ratchets upward.
+- Dormant threads should be surfaced — transition them to active or escalating. Don't let threads sit dormant for the whole arc.
+- Touch 3-5 threads per scene. Threads unmentioned for multiple scenes feel abandoned.
 
 CRITICAL ID CONSTRAINT (re-stated for emphasis):
 You MUST use ONLY these exact IDs. Do NOT invent new character, location, or thread IDs.

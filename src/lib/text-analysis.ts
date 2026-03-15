@@ -426,11 +426,11 @@ RULES:
   * A quiet scene with no world context → none.
   * Let the prose guide you — extract what's there, don't invent what isn't.
 
-HOW MUTATIONS ARE MEASURED — every choice feeds into three narrative forces that evaluate the story:
-- PAYOFF: threadMutations (status transition magnitude) + relationshipMutations (valenceDelta). Bigger thread jumps and relationship shifts = higher Payoff. Terminal transitions are the highest value.
-- CHANGE: How many characters are affected and how deeply. continuityMutations and threadMutations count 1 each. relationshipMutations are weighted by |valenceDelta|. Breadth (many characters touched) scores higher than depth.
-- KNOWLEDGE: worldKnowledgeMutations — nodes (weight 1) + edges (weight ½). New concepts are valued higher than new links between existing ones.
-- Scale mutations to match the scene's weight: scenes with many characters naturally touch more relationships and knowledge; high-stakes scenes produce denser thread jumps and continuity shifts. Quiet scenes still have internal life but fewer mutations is natural. The best narratives vary their force profile — rhythm matters.
+FORCE SCORING — extract mutations that reflect what ACTUALLY happens in the prose:
+- PAYOFF (≥ ~1.2 avg/scene): thread transitions (active→escalating = 1pt, active→resolved = 3pt) + relationship |Δv|. Pulses give only 0.25. Extract real transitions when the text supports them.
+- CHANGE (≥ ~5.6 avg/scene): 3-4 characters affected per scene with 2-3 mutations each. Breadth over depth. Every character who acts, reacts, or learns something in the text should have mutations.
+- KNOWLEDGE (≥ ~2.0 avg/scene): ~2 world knowledge nodes per scene, or 1 node + 2 edges. Extract the world concepts the prose reveals — social norms, power structures, systems, tensions.
+- Vary force profiles across scenes — scenes naturally differ in which force dominates. Extract what's there faithfully.
 ${cumulativeCtx ? `
 CUMULATIVE CONTINUITY:
 - Thread "statusAtStart" MUST match the thread's current status from the THREADS section above
@@ -608,11 +608,11 @@ RULES:
 - REUSE existing node IDs when a scene reinforces or tests an already-established concept — don't create duplicates. Only create new IDs for genuinely new concepts. Re-adding existing edges reinforces those connections.
 - How much depends on the prose: scenes establishing social rules, institutional dynamics, cultural expectations → several nodes. Scenes reinforcing existing concepts → reuse existing IDs. Quiet scenes with no world context → none. Let the prose guide you.
 
-HOW MUTATIONS ARE MEASURED — every choice feeds into three narrative forces that evaluate the story:
-- PAYOFF: threadMutations (status transition magnitude) + relationshipMutations (valenceDelta). Bigger jumps = higher Payoff.
-- CHANGE: How many characters are affected. continuityMutations and threadMutations count 1 each. relationshipMutations weighted by |valenceDelta|. Breadth scores higher than depth.
-- KNOWLEDGE: worldKnowledgeMutations — nodes (weight 1) + edges (weight ½). New concepts matter more than new links.
-- Scale mutations to the scene's weight: more characters → more relationships and continuity shifts; higher stakes → denser thread jumps. Vary force profiles across scenes — rhythm matters.
+FORCE SCORING — extract mutations that reflect what ACTUALLY happens in the prose:
+- PAYOFF (≥ ~1.2 avg/scene): thread transitions (active→escalating = 1pt, active→resolved = 3pt) + relationship |Δv|. Pulses give only 0.25. Extract real transitions when the text supports them.
+- CHANGE (≥ ~5.6 avg/scene): 3-4 characters affected per scene with 2-3 mutations each. Breadth over depth.
+- KNOWLEDGE (≥ ~2.0 avg/scene): ~2 world knowledge nodes per scene, or 1 node + 2 edges. Extract world concepts the prose reveals.
+- Vary force profiles across scenes — extract what's there faithfully.
 
 THREAD LIFECYCLE:
 - Active statuses: ${THREAD_ACTIVE_STATUSES.map((s: string) => `"${s}"`).join(', ')}

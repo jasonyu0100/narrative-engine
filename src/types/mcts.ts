@@ -74,81 +74,47 @@ export const DELIVERY_DIRECTIONS: Record<DeliveryDirection, { name: string; desc
     name: 'Escalate',
     description: 'Rising deliveries — each scene raises the stakes',
     prompt: `Structure this arc so each scene raises the stakes higher than the last.
-
-THREADS (primary driver):
-- Advance threads progressively — dormant tensions become active, active ones escalate toward crisis points
-- Each scene should push at least one thread forward. Do NOT resolve or close threads — leave them open and climbing at the arc's end
-- Widen the circle of consequence: early scenes affect one or two characters, later scenes draw more people in
-
-CONTINUITY:
-- Characters should learn things that raise the stakes — discoveries that complicate their situation
-- Knowledge asymmetries should deepen: some characters learn things others don't, creating dramatic irony
-- Relationships should be tested and shifted: alliances strained, loyalties questioned
-
-KNOWLEDGE:
-- Reveal world concepts that raise the stakes — rules that constrain, systems that threaten, tensions that have no easy resolution
-- Connect new concepts to existing knowledge graph — the world should feel like it's tightening around the characters
-- Maintain POV streaks (2-4 scenes per perspective)`,
+- THREADS: Advance progressively — dormant→active, active→escalating, escalating→critical. Each scene pushes at least one thread forward. Widen the circle of consequence across scenes.
+- RELATIONSHIPS: Test alliances and loyalties — shifts of ±0.2 to ±0.3 as pressure mounts. Knowledge asymmetries deepen between characters.
+- WORLD: Reveal concepts that raise stakes — rules that constrain, systems that threaten, tensions with no easy resolution. 2+ nodes per scene connecting to existing graph.
+- Maintain POV streaks (2-4 scenes per perspective).`,
   },
   release: {
     name: 'Release',
-    description: 'Falling deliveries — tension dissolves into stillness',
+    description: 'Falling deliveries — tension dissolves into processing',
     prompt: `Structure this arc as a gradual exhale — the aftermath of intensity.
-
-THREADS:
-- No thread phase changes — the plot pauses while characters process what happened
-- Threads pulse at their current status, maintaining presence without advancing
-
-CONTINUITY:
-- Characters reflect on what they already know rather than learning new things
-- Relationship dynamics hold steady — no betrayals, no revelations, no valence shifts
-- Keep the same small intimate group throughout in familiar settings
-
-KNOWLEDGE:
-- No new world concepts — the codex pauses. Characters operate within established rules
-- The arc should feel like the quiet after a storm: emotionally resonant but structurally still
-- Stay with one POV throughout`,
+- THREADS: Pulse at current status rather than advancing — but every scene MUST still touch 2-3 threads. Use same→same pulses (0.25 each) to show threads simmering.
+- RELATIONSHIPS: Subtle recalibration — characters process what happened THROUGH each other. Shifts of ±0.1 to ±0.2 as bonds deepen or strain reveals itself quietly.
+- CONTINUITY: Characters reflect and notice things they missed during intensity — 2-3 continuity mutations per scene. Realisations, not revelations.
+- WORLD: The world's quieter systems emerge — domestic customs, social rituals, environmental rhythms. 1-2 WK nodes per scene showing the world at rest.
+- Stay with one POV in familiar settings.`,
   },
   surge: {
     name: 'Surge',
     description: 'Peak then fall — a single climactic moment',
-    prompt: `Structure this arc around one explosive peak scene, bookended by restraint.
-
+    prompt: `Structure this arc around one explosive peak scene, bookended by build-up and aftermath.
 BUILD (early scenes):
-- THREADS: Small advances, minor tensions surfacing — pressure accumulating
-- CONTINUITY: Characters notice small things, suspicions forming, pieces assembling
-- KNOWLEDGE: One or two new world concepts planted as seeds — rules or systems mentioned but not yet tested
+- Small thread advances (dormant→active, pulses on active threads), characters noticing details (2-3 continuity mutations), 1-2 world concepts planted as seeds.
 
-PEAK (one defining scene):
-- THREADS: Reach critical/terminal phases — this is the turning point
-- CONTINUITY: Multiple characters learn critical information simultaneously — knowledge gaps collapse
-- KNOWLEDGE: World rules are TESTED — established concepts prove true or false under pressure. New connections between existing knowledge are forged through action
+PEAK (one defining scene — load it with mutations):
+- THREADS reach critical/terminal phases. Multiple relationship shifts ±0.3-0.5. All participants learn critical information. World rules are TESTED — connections forged through action. This scene should be the densest in the arc.
 
 AFTERMATH (final scenes):
-- All three pillars go quiet: no thread changes, no new continuity, no world knowledge reveals
-- The same small group absorbing what happened. Stay with one POV
-- The contrast between the peak and the stillness makes the climax land harder`,
+- Threads pulse at their new statuses. Characters process what happened — continuity mutations capturing realisations. Relationships settle into new equilibria with small shifts. The world's established concepts are reaffirmed. Every scene still needs mutations — just quieter ones.`,
   },
   rebound: {
     name: 'Rebound',
     description: 'Fall then rise — stillness gives way to momentum',
     prompt: `Structure this arc as a valley that builds into forward momentum.
-
 OPENING (quiet scenes):
-- THREADS: No advancement — stasis or waiting
-- CONTINUITY: Characters sit with what they know. No new discoveries
-- KNOWLEDGE: No new world concepts. Familiar ground, familiar rules
+- Threads pulse at current status (2-3 pulses per scene). Characters process and reflect (2-3 continuity mutations). Relationships hold or shift subtly (±0.1). World's quiet systems revealed (1 WK node per scene).
 
 TURN (middle):
-- THREADS: One thread stirs — a status change that breaks the stillness
-- CONTINUITY: A character learns one crucial thing — the catalyst
-- KNOWLEDGE: One world concept is revealed or connected that changes the calculus
+- One thread breaks the stillness with a real phase transition. A character learns something crucial — the catalyst. One world concept is revealed that changes the calculus.
 
 RISE (late scenes):
-- THREADS: Begin advancing again — momentum building
-- CONTINUITY: Characters discover new truths, relationships are tested
-- KNOWLEDGE: New world concepts connect to existing ones — the codex expands as the story accelerates
-- End with clear upward momentum across all three pillars. Maintain POV streaks`,
+- Threads advance progressively — momentum building. Characters discover new truths and relationships are tested (±0.2-0.3). World concepts connect to existing graph. End with clear upward momentum.
+- Maintain POV streaks.`,
   },
 };
 

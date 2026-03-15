@@ -373,16 +373,17 @@ POV DISCIPLINE:
 - Within an arc, anchor on one or two POV characters. Save breadth for later arcs.
 - A single POV for the entire opening arc is often the strongest choice — it grounds the reader before introducing complexity.
 
-PACING IS CRITICAL:
-- Do NOT rush through major plot deliveries. A story needs breathing room.
-- Not every scene should advance the main plot. Include quiet scenes: character conversations, world exploration, daily life, travel, reflection.
-- Only 1 in 3-4 scenes should be a significant plot event. The rest should build atmosphere, deepen relationships, or reveal character.
-- Threads should stay dormant or slowly surface over multiple scenes before escalating. A thread going from dormant to escalating in 2 scenes is too fast.
-- Think of pacing like a novel: setup → slow build → complication → breathing room → escalation. Not: event → event → event → event.
-- Early scenes should establish normalcy and stakes before disrupting them.
-- Thread statuses follow a lifecycle. ${THREAD_LIFECYCLE_DOC} When a thread's story reaches its conclusion, transition it to the appropriate terminal status.
-- Threads can regress (e.g. "escalating" → "active" when tension temporarily eases). Not every scene ratchets tension upward — setbacks, breathing room, and partial resolutions are natural.
-- Include "pulse" mutations (same from/to status, e.g. "active" → "active") when a scene engages a thread without shifting its phase. Most scenes should touch 2-4 threads.
+FORCE TARGETS — every scene is scored. These are MINIMUMS for an 80+ grade:
+- PAYOFF ≥ ~1.2 avg/scene: ~1 real thread transition per scene (active→escalating = 1pt, active→resolved = 3pt). Pulses (same→same) only give 0.25. Mix in relationship |Δv| ≥ 0.2.
+- CHANGE ≥ ~5.6 avg/scene: 3-4 characters affected per scene, each with 2-3 mutations. Breadth over depth.
+- KNOWLEDGE ≥ ~2.0 avg/scene: ~2 world knowledge nodes per scene or 1 node + 2 edges.
+- SWING ≥ ~1.2 avg: Consecutive scenes must differ in force profile. Vary which force dominates scene to scene.
+
+PACING:
+- Vary scene intensity — some scenes are high-payoff (thread resolutions), some are high-knowledge (world reveals), some are high-change (broad cast interactions). This variation creates swing.
+- Thread lifecycle: ${THREAD_LIFECYCLE_DOC}. Threads can regress. Include pulses when a scene engages a thread without shifting phase, but prefer real transitions.
+- Touch 2-4 threads per scene. Dormant threads should surface within a few scenes — don't leave them dormant long.
+- Early scenes establish the world and cast while still generating mutations — every scene must earn its force scores.
 
 Knowledge types must be SPECIFIC and CONTEXTUAL to the world — not generic labels like "knows" or "secret". Use types that describe exactly what kind of knowledge or lore this is (e.g. "cultivation_technique", "blood_debt", "prophecy_fragment", "territorial_claim", "hidden_identity"). Knowledge edge types should also be contextual: "enables", "contradicts", "unlocks", "corrupts", "conceals", "depends_on", etc.
 
