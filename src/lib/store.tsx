@@ -211,7 +211,7 @@ export type Action =
   | { type: 'SWITCH_BRANCH'; branchId: string }
   // CRUD
   | { type: 'UPDATE_NARRATIVE_META'; title?: string; description?: string; worldSummary?: string }
-  | { type: 'UPDATE_SCENE'; sceneId: string; updates: Partial<Pick<Scene, 'summary' | 'prose' | 'proseScore' | 'plan' | 'events' | 'locationId' | 'participantIds'>> }
+  | { type: 'UPDATE_SCENE'; sceneId: string; updates: Partial<Pick<Scene, 'summary' | 'prose' | 'proseScore' | 'plan' | 'events' | 'locationId' | 'participantIds' | 'povId' | 'threadMutations' | 'continuityMutations' | 'relationshipMutations' | 'worldKnowledgeMutations' | 'characterMovements' | 'arcId' | 'locked'>> }
   | { type: 'CREATE_SCENE'; scene: Scene; branchId: string }
   | { type: 'DELETE_SCENE'; sceneId: string; branchId: string }
   | { type: 'UPDATE_ARC'; arcId: string; updates: Partial<Pick<Arc, 'name' | 'develops' | 'locationIds' | 'activeCharacterIds'>> }

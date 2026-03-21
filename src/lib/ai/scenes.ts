@@ -2,7 +2,7 @@ import type { NarrativeState, Scene, Arc, CubeCornerKey, WorldBuildCommit, Story
 import { resolveEntry, NARRATIVE_CUBE, THREAD_TERMINAL_STATUSES, DEFAULT_STORY_SETTINGS } from '@/types/narrative';
 import { nextId, nextIds } from '@/lib/narrative-utils';
 import { callGenerate, callGenerateStream, SYSTEM_PROMPT } from './api';
-import { WRITING_MODEL, ANALYSIS_MODEL, GENERATE_MODEL, MAX_TOKENS_LARGE } from '@/lib/constants';
+import { WRITING_MODEL, ANALYSIS_MODEL, GENERATE_MODEL, MAX_TOKENS_LARGE, PLAN_PROSE_LOOKBACK } from '@/lib/constants';
 import { parseJson } from './json';
 import { branchContext, sceneContext, deriveLogicRules, sceneScale, THREAD_LIFECYCLE_DOC } from './context';
 
@@ -364,6 +364,22 @@ export async function generateScenePlan(
     ? `\nLOGICAL CONSTRAINTS (the plan must satisfy all of these):\n${logicRules.map((r) => `  - ${r}`).join('\n')}\n`
     : '';
 
+  // Recent scene prose for continuity — the planner needs to know what was actually written
+  const recentProseBlocks: string[] = [];
+  for (let i = 1; i <= PLAN_PROSE_LOOKBACK; i++) {
+    const pIdx = sceneIdx - i;
+    if (pIdx < 0) break;
+    const pKey = resolvedKeys[pIdx];
+    const pScene = pKey ? narrative.scenes[pKey] : null;
+    if (!pScene?.prose) continue;
+    const pov = narrative.characters[pScene.povId]?.name ?? pScene.povId;
+    const loc = narrative.locations[pScene.locationId]?.name ?? pScene.locationId;
+    recentProseBlocks.unshift(`--- SCENE ${pIdx + 1} (POV: ${pov}, @${loc}) ---\n${pScene.summary}\n\n${pScene.prose}`);
+  }
+  const recentProseBlock = recentProseBlocks.length > 0
+    ? `RECENT PROSE (${recentProseBlocks.length} scene${recentProseBlocks.length > 1 ? 's' : ''} before this one — read carefully for character state, injuries, emotional beats, spatial positions, and unresolved tension that your plan must carry forward):\n\n${recentProseBlocks.join('\n\n')}`
+    : '';
+
   // Adjacent scene plans for flow continuity
   const prevSceneKey = sceneIdx > 0 ? resolvedKeys[sceneIdx - 1] : null;
   const prevScene = prevSceneKey ? narrative.scenes[prevSceneKey] : null;
@@ -440,10 +456,10 @@ Rules:
 
   const prompt = `BRANCH CONTEXT (for continuity — do not repeat):
 ${fullContext}
-
+${recentProseBlock ? `\n${recentProseBlock}\n` : ''}
 ${adjacentBlock ? `${adjacentBlock}\n\n` : ''}${sceneBlock}
 ${logicBlock}
-Create a detailed staging plan for this scene. Every structural mutation must have a concrete mechanism. Be specific about HOW things happen, not just WHAT happens.`;
+Create a detailed staging plan for this scene. Every structural mutation must have a concrete mechanism. Be specific about HOW things happen, not just WHAT happens.${recentProseBlock ? ' Your OPENING STATE must directly continue from the physical, emotional, and spatial reality established in the recent prose above — characters carry their wounds, knowledge, and positions forward.' : ''}`;
 
   if (onToken) {
     return await callGenerateStream(prompt, systemPrompt, onToken, Math.ceil(scale.proseTokens * 0.6), 'generateScenePlan', WRITING_MODEL);

@@ -47,12 +47,11 @@ export const MAX_TOKENS_DEFAULT = 32000;
 
 // ── AI Context ───────────────────────────────────────────────────────────────
 
-/** Default time horizon for branchContext (scenes).
- *  Overridden per-story via storySettings.branchTimeHorizon. */
-export const DEFAULT_CONTEXT_SCENES = 50;
-
 /** Rolling window size for force computation & normalization */
 export const FORCE_WINDOW_SIZE = 10;
+
+/** Number of past scenes whose full prose is included in plan generation context */
+export const PLAN_PROSE_LOOKBACK = 5;
 
 // ── Generation ───────────────────────────────────────────────────────────────
 

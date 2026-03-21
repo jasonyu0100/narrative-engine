@@ -206,7 +206,7 @@ export function StoryReader({
 
   // Align — sliding window audit, auto-builds continuity plan on completion
   const runAlignPhase = useCallback(async () => {
-    const scenesWithProse = scenes.filter((s) => !!s.prose);
+    const scenesWithProse = scenes.filter((s) => !!s.prose && !s.locked);
     if (scenesWithProse.length < 2) return;
     alignmentCancelledRef.current = false;
     setContinuityPlan(null);
@@ -579,6 +579,9 @@ export function StoryReader({
                   {fixSummary && fixSummary.some((e) => e.sceneId === s.id) && (
                     <span className="text-[8px] text-emerald-400/70" title="Continuity fixed">&#10003;</span>
                   )}
+                  {s.locked && (
+                    <span className="text-[8px] text-text-dim/40" title="Locked — skipped by alignment">&#128274;</span>
+                  )}
                 </div>
               </button>
             );
@@ -699,6 +702,13 @@ export function StoryReader({
                     className="text-[9px] px-2 py-1 rounded text-text-dim/50 hover:text-red-400/80 hover:bg-red-500/5 transition"
                   >
                     Clear
+                  </button>
+                  <button
+                    onClick={() => dispatch({ type: 'UPDATE_SCENE', sceneId: scene.id, updates: { locked: !scene.locked } })}
+                    className={`text-[9px] px-2 py-1 rounded transition ${scene.locked ? 'text-amber-400 bg-amber-500/10' : 'text-text-dim/40 hover:text-text-dim hover:bg-white/5'}`}
+                    title={scene.locked ? 'Unlock — include in alignment' : 'Lock — skip during alignment'}
+                  >
+                    {scene.locked ? 'Locked' : 'Lock'}
                   </button>
                 </div>
               )}

@@ -249,6 +249,8 @@ export type Scene = {
   proseScore?: ProseScore;
   summary: string;
   imageUrl?: string;
+  /** When true, alignment and fix operations skip this scene */
+  locked?: boolean;
 };
 
 export type WorldBuildCommit = {

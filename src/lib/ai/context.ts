@@ -1,7 +1,7 @@
 import type { NarrativeState, Scene, StorySettings } from '@/types/narrative';
 import { resolveEntry, THREAD_ACTIVE_STATUSES, THREAD_TERMINAL_STATUSES, THREAD_STATUS_LABELS, DEFAULT_STORY_SETTINGS } from '@/types/narrative';
 import { computeForceSnapshots, computeSwingMagnitudes, detectCubeCorner, movingAverage, FORCE_WINDOW_SIZE, computeDeliveryCurve, classifyCurrentPosition, buildCumulativeWorldKnowledge, rankWorldKnowledgeNodes } from '@/lib/narrative-utils';
-import { DEFAULT_CONTEXT_SCENES, SCENE_CONTEXT_RECENT_CONTINUITY } from '@/lib/constants';
+import { SCENE_CONTEXT_RECENT_CONTINUITY } from '@/lib/constants';
 
 // Build thread lifecycle documentation from canonical status lists
 export const THREAD_LIFECYCLE_DOC = (() => {
@@ -48,8 +48,8 @@ export function branchContext(
   resolvedKeys: string[],
   currentIndex: number,
 ): string {
-  // Apply time horizon: use per-story setting, falling back to global constant
-  const horizon = n.storySettings?.branchTimeHorizon ?? DEFAULT_CONTEXT_SCENES;
+  // Apply time horizon from story settings (default: 50)
+  const horizon = n.storySettings?.branchTimeHorizon ?? DEFAULT_STORY_SETTINGS.branchTimeHorizon;
   const allKeysUpToCurrent = resolvedKeys.slice(0, currentIndex + 1);
   const horizonStart = Math.max(0, allKeysUpToCurrent.length - horizon);
   const keysUpToCurrent = allKeysUpToCurrent.slice(horizonStart);
