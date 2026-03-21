@@ -47,10 +47,9 @@ export const MAX_TOKENS_DEFAULT = 32000;
 
 // ── AI Context ───────────────────────────────────────────────────────────────
 
-/** Max scenes included in branchContext — defines the time horizon.
- *  Only entities referenced within this window appear in context,
- *  and only knowledge nodes added during this window are included. */
-export const MAX_CONTEXT_SCENES = 50;
+/** Default time horizon for branchContext (scenes).
+ *  Overridden per-story via storySettings.branchTimeHorizon. */
+export const DEFAULT_CONTEXT_SCENES = 50;
 
 /** Rolling window size for force computation & normalization */
 export const FORCE_WINDOW_SIZE = 10;

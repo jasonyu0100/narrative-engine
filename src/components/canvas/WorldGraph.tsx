@@ -423,6 +423,7 @@ function KnowledgeGraphView({ narrative, resolvedKeys, currentIndex, mode }: {
   const simRef = useRef<d3.Simulation<WKNode, WKLink> | null>(null);
   const gRef = useRef<d3.Selection<SVGGElement, unknown, null, undefined> | null>(null);
   const nodesRef = useRef<WKNode[]>([]);
+  const zoomRef = useRef<d3.ZoomBehavior<SVGSVGElement, unknown> | null>(null);
   const [showLabels, setShowLabels] = useState(true);
   const [showRelations, setShowRelations] = useState(false);
   const [showTypes, setShowTypes] = useState(true);
@@ -502,6 +503,7 @@ function KnowledgeGraphView({ narrative, resolvedKeys, currentIndex, mode }: {
       .scaleExtent([0.3, 4])
       .on('zoom', (event) => g.attr('transform', event.transform));
     svg.call(zoom);
+    zoomRef.current = zoom;
     const width = svgEl.clientWidth ?? 800;
     const height = svgEl.clientHeight ?? 600;
     svg.call(zoom.transform, d3.zoomIdentity.translate(width / 2, height / 2).scale(0.9));
@@ -608,6 +610,7 @@ function KnowledgeGraphView({ narrative, resolvedKeys, currentIndex, mode }: {
       .on('click', (_event, d) => {
         _event.stopPropagation();
         dispatch({ type: 'SET_INSPECTOR', context: { type: 'knowledge', nodeId: d.id } });
+        window.dispatchEvent(new CustomEvent('focus-knowledge-node', { detail: { nodeId: d.id } }));
       });
 
     // Update labels
@@ -672,6 +675,30 @@ function KnowledgeGraphView({ narrative, resolvedKeys, currentIndex, mode }: {
     sim.alpha(0.5).restart();
   }, [graphData, mode, sceneNodeIds, showLabels, showRelations, showTypes, adjMap]);
 
+  // Listen for focus-knowledge-node events and zoom to the target
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const nodeId = (e as CustomEvent).detail?.nodeId;
+      if (!nodeId) return;
+      const target = nodesRef.current.find((n) => n.id === nodeId);
+      const svgEl = svgRef.current;
+      const zoom = zoomRef.current;
+      if (!target || !svgEl || !zoom || target.x == null || target.y == null) return;
+      const svg = d3.select(svgEl);
+      const width = svgEl.clientWidth ?? 800;
+      const height = svgEl.clientHeight ?? 600;
+      const scale = 2;
+      const transform = d3.zoomIdentity
+        .translate(width / 2 - target.x * scale, height / 2 - target.y * scale)
+        .scale(scale);
+      svg.transition().duration(600).call(
+        zoom.transform as unknown as (t: d3.Transition<SVGSVGElement, unknown, null, undefined>) => void,
+        transform,
+      );
+    };
+    window.addEventListener('focus-knowledge-node', handler);
+    return () => window.removeEventListener('focus-knowledge-node', handler);
+  }, []);
 
   return (
     <div className="absolute inset-0 z-20">

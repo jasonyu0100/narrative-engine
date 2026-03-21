@@ -3,16 +3,15 @@
 import { useState } from 'react';
 import { useStore } from '@/lib/store';
 import type { StorySettings, POVMode } from '@/types/narrative';
-import { DEFAULT_STORY_SETTINGS } from '@/types/narrative';
+import { DEFAULT_STORY_SETTINGS, BRANCH_TIME_HORIZON_OPTIONS } from '@/types/narrative';
 
-type Tab = 'pov' | 'direction' | 'structure' | 'prose' | 'plan';
+type Tab = 'pov' | 'direction' | 'structure' | 'memory';
 
 const TABS: { label: string; value: Tab }[] = [
   { label: 'POV', value: 'pov' },
   { label: 'Direction', value: 'direction' },
   { label: 'Structure', value: 'structure' },
-  { label: 'Prose', value: 'prose' },
-  { label: 'Plan', value: 'plan' },
+  { label: 'Memory', value: 'memory' },
 ];
 
 const POV_MODES: { value: POVMode; label: string; desc: string }[] = [
@@ -200,40 +199,29 @@ export function StorySettingsModal({ onClose }: { onClose: () => void }) {
             </>
           )}
 
-          {tab === 'prose' && (
+          {tab === 'memory' && (
             <>
               <div>
                 <label className="text-[10px] text-text-dim uppercase tracking-wider block mb-2">
-                  Voice & Style
+                  Branch Time Horizon
                 </label>
-                <textarea
-                  value={settings.proseVoice}
-                  onChange={(e) => update({ proseVoice: e.target.value })}
-                  placeholder="e.g. &quot;Terse, Hemingway-esque. Short declarative sentences. Sparse dialogue. Emotion through physical action, never named. Dry humour buried in understatement.&quot;"
-                  className="w-full bg-bg-elevated border border-white/10 rounded-lg px-3 py-2 text-[11px] text-text-primary placeholder:text-text-dim/40 outline-none focus:border-blue-500/40 resize-none h-32"
-                />
-                <p className="text-[9px] text-text-dim/50 mt-1">
-                  Describe the prose voice you want the AI to mimic. This shapes all prose generation and rewrites.
-                </p>
-              </div>
-
-            </>
-          )}
-
-          {tab === 'plan' && (
-            <>
-              <div>
-                <label className="text-[10px] text-text-dim uppercase tracking-wider block mb-2">
-                  Plan Guidance
-                </label>
-                <textarea
-                  value={settings.planGuidance}
-                  onChange={(e) => update({ planGuidance: e.target.value })}
-                  placeholder="e.g. &quot;Plans should emphasize character interiority over plot mechanics. Include specific dialogue seeds. Each delivery should have a clear emotional shift.&quot;"
-                  className="w-full bg-bg-elevated border border-white/10 rounded-lg px-3 py-2 text-[11px] text-text-primary placeholder:text-text-dim/40 outline-none focus:border-blue-500/40 resize-none h-32"
-                />
-                <p className="text-[9px] text-text-dim/50 mt-1">
-                  Shape how scene plans are structured. Plans are delivery-by-delivery blueprints that guide prose generation.
+                <div className="space-y-1.5">
+                  {BRANCH_TIME_HORIZON_OPTIONS.map((v) => (
+                    <button
+                      key={v}
+                      onClick={() => update({ branchTimeHorizon: v })}
+                      className={`w-full text-left px-3 py-2.5 rounded-lg border transition-colors ${
+                        settings.branchTimeHorizon === v
+                          ? 'border-blue-500/50 bg-blue-500/10'
+                          : 'border-white/5 bg-white/2 hover:bg-white/5'
+                      }`}
+                    >
+                      <span className="text-[11px] font-semibold text-text-primary">{v} scenes</span>
+                    </button>
+                  ))}
+                </div>
+                <p className="text-[9px] text-text-dim/50 mt-2">
+                  How many recent scenes the AI sees when generating. Lower values reduce cost and keep focus tight. Higher values give the AI more narrative history to draw from.
                 </p>
               </div>
             </>

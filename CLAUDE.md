@@ -127,6 +127,6 @@ Key tuning values:
 - `PROSE_CONCURRENCY = 10` — parallel prose generation
 - `PLAN_CONCURRENCY = 10` — parallel plan generation
 - `ANALYSIS_CONCURRENCY = 20` — parallel text analysis chunks
-- `MAX_CONTEXT_SCENES = 50` — sliding window for LLM context
+- `DEFAULT_CONTEXT_SCENES = 50` — default branch time horizon (overridden per-story in settings)
 - `MCTS_MAX_NODE_CHILDREN = 8` — MCTS branching factor
 - `AUTO_STOP_CYCLE_LENGTH = 25` — auto-engine arc limit

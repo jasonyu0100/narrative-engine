@@ -66,31 +66,49 @@ export default function KnowledgeDetail({ nodeId }: Props) {
     return Array.from(map.entries()).sort((a, b) => b[1].relations.length - a[1].relations.length);
   }, [connections]);
 
-  // Node IDs visible in spark view (current scene's mutations only)
-  const sparkNodeIds = useMemo(() => {
-    const ids = new Set<string>();
-    const key = state.resolvedSceneKeys[state.currentSceneIndex];
-    const scene = narrative.scenes[key];
-    const wb = narrative.worldBuilds?.[key];
-    const wkm = scene?.worldKnowledgeMutations ?? wb?.worldKnowledgeMutations;
-    if (wkm) {
+  // Build index: for each knowledge node, which scene indices mention it
+  const nodeSceneIndex = useMemo(() => {
+    const map = new Map<string, number[]>();
+    for (let i = 0; i <= state.currentSceneIndex && i < state.resolvedSceneKeys.length; i++) {
+      const key = state.resolvedSceneKeys[i];
+      const scene = narrative.scenes[key];
+      const wb = narrative.worldBuilds?.[key];
+      const wkm = scene?.worldKnowledgeMutations ?? wb?.worldKnowledgeMutations;
+      if (!wkm) continue;
+      const ids = new Set<string>();
       for (const n of wkm.addedNodes ?? []) ids.add(n.id);
-      for (const e of wkm.addedEdges ?? []) {
-        ids.add(e.from);
-        ids.add(e.to);
+      for (const e of wkm.addedEdges ?? []) { ids.add(e.from); ids.add(e.to); }
+      for (const id of ids) {
+        if (!map.has(id)) map.set(id, []);
+        map.get(id)!.push(i);
       }
     }
-    return ids;
+    return map;
   }, [narrative, state.resolvedSceneKeys, state.currentSceneIndex]);
 
-  // Navigate to a knowledge node, switching to codex if it's not in the current spark view
+  // Navigate to a knowledge node:
+  // - Spark mode: jump to the nearest scene that mentions it, then zoom in
+  // - Codex mode: just zoom in on the node
   const navigateToNode = useCallback((targetId: string) => {
-    const inSpark = sparkNodeIds.has(targetId);
-    if (!inSpark && state.graphViewMode === 'spark') {
-      dispatch({ type: 'SET_GRAPH_VIEW_MODE', mode: 'codex' });
+    if (state.graphViewMode === 'spark') {
+      // Find nearest scene that mentions this node
+      const sceneIndices = nodeSceneIndex.get(targetId) ?? [];
+      if (sceneIndices.length > 0) {
+        const current = state.currentSceneIndex;
+        let nearest = sceneIndices[0];
+        let minDist = Math.abs(current - nearest);
+        for (const idx of sceneIndices) {
+          const dist = Math.abs(current - idx);
+          if (dist < minDist) { nearest = idx; minDist = dist; }
+        }
+        dispatch({ type: 'SET_SCENE_INDEX', index: nearest });
+      }
     }
     dispatch({ type: 'SET_INSPECTOR', context: { type: 'knowledge', nodeId: targetId } });
-  }, [sparkNodeIds, state.graphViewMode, dispatch]);
+    setTimeout(() => {
+      window.dispatchEvent(new CustomEvent('focus-knowledge-node', { detail: { nodeId: targetId } }));
+    }, 150);
+  }, [nodeSceneIndex, state.graphViewMode, state.currentSceneIndex, dispatch]);
 
   // Scenes where this node was introduced
   const introScenes = useMemo(() => {
@@ -143,9 +161,15 @@ export default function KnowledgeDetail({ nodeId }: Props) {
                       {other.type}
                     </span>
                   )}
-                  {!sparkNodeIds.has(otherId) && state.graphViewMode === 'spark' && (
-                    <span className="text-[8px] text-text-dim/40 ml-auto">codex</span>
-                  )}
+                  {state.graphViewMode === 'spark' && (() => {
+                    const indices = nodeSceneIndex.get(otherId);
+                    if (!indices || indices.length === 0) return null;
+                    const current = state.currentSceneIndex;
+                    const nearest = indices.reduce((a, b) => Math.abs(b - current) < Math.abs(a - current) ? b : a);
+                    if (nearest === current) return null;
+                    const delta = nearest - current;
+                    return <span className="text-[8px] text-text-dim/40 ml-auto">{delta > 0 ? '+' : ''}{delta}</span>;
+                  })()}
                 </button>
                 {relations.map((r, i) => (
                   <span key={i} className="text-[10px] text-text-dim ml-4 flex items-center gap-1">

@@ -1,8 +1,8 @@
 'use client';
 
 import { useState, useCallback, useRef, useEffect } from 'react';
-import type { NarrativeState, Scene } from '@/types/narrative';
-import { resolveEntry, isScene } from '@/types/narrative';
+import type { NarrativeState, Scene, StorySettings } from '@/types/narrative';
+import { resolveEntry, isScene, DEFAULT_STORY_SETTINGS } from '@/types/narrative';
 import { generateSceneProse, generateScenePlan, reconcileScenePlans, scoreSceneProse, rewriteSceneProse, type ReconcileRevision } from '@/lib/ai';
 import { useStore } from '@/lib/store';
 import { exportEpub } from '@/lib/epub-export';
@@ -54,6 +54,12 @@ export function StoryReader({
   const [reconcileResults, setReconcileResults] = useState<{ sceneId: string; reason: string }[]>([]);
   const bulkCancelledRef = useRef(false);
   const [copied, setCopied] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [settingsDraft, setSettingsDraft] = useState<StorySettings>({
+    ...DEFAULT_STORY_SETTINGS,
+    ...narrative.storySettings,
+  });
+  const [settingsTab, setSettingsTab] = useState<'prose' | 'plan'>('prose');
 
   const scene = scenes[currentIndex];
   const arc = scene ? Object.values(narrative.arcs).find((a) => a.sceneIds.includes(scene.id)) : null;
@@ -415,6 +421,21 @@ export function StoryReader({
           )}
 
           <span className="text-[10px] text-text-dim font-mono">{currentIndex + 1} / {scenes.length}</span>
+          <button
+            onClick={() => {
+              setSettingsDraft({ ...DEFAULT_STORY_SETTINGS, ...narrative.storySettings });
+              setSettingsTab('prose');
+              setSettingsOpen(true);
+            }}
+            className="px-2 py-1 rounded hover:bg-white/10 transition-colors text-text-dim hover:text-text-primary flex items-center gap-1"
+            title="Prose & Plan settings"
+          >
+            <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="12" cy="12" r="3" />
+              <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
+            </svg>
+            <span className="text-[10px]">Settings</span>
+          </button>
           <button onClick={onClose} className="text-text-dim hover:text-text-primary text-lg leading-none transition">&times;</button>
         </div>
       </div>
@@ -899,6 +920,98 @@ export function StoryReader({
           <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6" /></svg>
         </button>
       </div>
+
+      {/* Settings modal (nested inside StoryReader) */}
+      {settingsOpen && (
+        <div className="fixed inset-0 bg-black/70 z-[60] flex items-center justify-center" onClick={() => setSettingsOpen(false)}>
+          <div className="glass max-w-md w-full rounded-2xl p-6 relative max-h-[70vh] flex flex-col" onClick={(e) => e.stopPropagation()}>
+            <button
+              onClick={() => setSettingsOpen(false)}
+              className="absolute top-4 right-4 text-text-dim hover:text-text-primary text-lg leading-none"
+            >
+              &times;
+            </button>
+
+            <h2 className="text-sm font-semibold text-text-primary mb-1">Prose & Plan Settings</h2>
+            <p className="text-[10px] text-text-dim uppercase tracking-wider mb-3">
+              Shape how prose and plans are generated
+            </p>
+
+            {/* Tabs */}
+            <div className="flex gap-1 bg-bg-elevated rounded-lg p-0.5 mb-4 shrink-0">
+              {(['prose', 'plan'] as const).map((t) => (
+                <button
+                  key={t}
+                  onClick={() => setSettingsTab(t)}
+                  className={`flex-1 text-[11px] py-1.5 rounded-md transition-colors capitalize ${
+                    settingsTab === t
+                      ? 'bg-white/10 text-text-primary font-semibold'
+                      : 'text-text-dim hover:text-text-secondary'
+                  }`}
+                >
+                  {t}
+                </button>
+              ))}
+            </div>
+
+            {/* Tab content */}
+            <div className="flex-1 overflow-y-auto min-h-0 space-y-4 pr-1">
+              {settingsTab === 'prose' && (
+                <div>
+                  <label className="text-[10px] text-text-dim uppercase tracking-wider block mb-2">
+                    Voice & Style
+                  </label>
+                  <textarea
+                    value={settingsDraft.proseVoice}
+                    onChange={(e) => setSettingsDraft((s) => ({ ...s, proseVoice: e.target.value }))}
+                    placeholder='e.g. "Terse, Hemingway-esque. Short declarative sentences. Sparse dialogue. Emotion through physical action, never named. Dry humour buried in understatement."'
+                    className="w-full bg-bg-elevated border border-white/10 rounded-lg px-3 py-2 text-[11px] text-text-primary placeholder:text-text-dim/40 outline-none focus:border-blue-500/40 resize-none h-32"
+                  />
+                  <p className="text-[9px] text-text-dim/50 mt-1">
+                    Describe the prose voice you want the AI to mimic. This shapes all prose generation and rewrites.
+                  </p>
+                </div>
+              )}
+
+              {settingsTab === 'plan' && (
+                <div>
+                  <label className="text-[10px] text-text-dim uppercase tracking-wider block mb-2">
+                    Plan Guidance
+                  </label>
+                  <textarea
+                    value={settingsDraft.planGuidance}
+                    onChange={(e) => setSettingsDraft((s) => ({ ...s, planGuidance: e.target.value }))}
+                    placeholder='e.g. "Plans should emphasize character interiority over plot mechanics. Include specific dialogue seeds. Each delivery should have a clear emotional shift."'
+                    className="w-full bg-bg-elevated border border-white/10 rounded-lg px-3 py-2 text-[11px] text-text-primary placeholder:text-text-dim/40 outline-none focus:border-blue-500/40 resize-none h-32"
+                  />
+                  <p className="text-[9px] text-text-dim/50 mt-1">
+                    Shape how scene plans are structured. Plans are delivery-by-delivery blueprints that guide prose generation.
+                  </p>
+                </div>
+              )}
+            </div>
+
+            {/* Footer */}
+            <div className="flex justify-end gap-2 mt-4 pt-3 border-t border-white/5 shrink-0">
+              <button
+                onClick={() => setSettingsOpen(false)}
+                className="text-[10px] px-3 py-1.5 rounded-md bg-white/5 text-text-dim hover:text-text-secondary transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => {
+                  dispatch({ type: 'SET_STORY_SETTINGS', settings: settingsDraft });
+                  setSettingsOpen(false);
+                }}
+                className="text-[10px] px-3 py-1.5 rounded-md bg-blue-500/20 text-blue-300 hover:bg-blue-500/30 transition-colors font-semibold"
+              >
+                Save
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
