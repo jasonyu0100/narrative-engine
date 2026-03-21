@@ -15,6 +15,7 @@ import type {
   Scene,
   WorldBuildCommit,
 } from '@/types/narrative';
+import EvalBar from '@/components/timeline/EvalBar';
 
 // ── Graph node / link types ─────────────────────────────────────────────────
 
@@ -424,6 +425,7 @@ function KnowledgeGraphView({ narrative, resolvedKeys, currentIndex, mode }: {
   const [showLabels, setShowLabels] = useState(true);
   const [showRelations, setShowRelations] = useState(false);
   const [showTypes, setShowTypes] = useState(true);
+  const [showEval, setShowEval] = useState(true);
   const [tooltip, setTooltip] = useState<{ x: number; y: number; concept: string; type: string; degree: number; connections: string[] } | null>(null);
 
   const graphData = useMemo(() => {
@@ -665,8 +667,6 @@ function KnowledgeGraphView({ narrative, resolvedKeys, currentIndex, mode }: {
     sim.alpha(0.5).restart();
   }, [graphData, mode, sceneNodeIds, showLabels, showRelations, showTypes, adjMap]);
 
-  const nodeCount = Object.keys(graphData.nodes).length;
-  const edgeCount = graphData.edges.length;
 
   return (
     <div className="absolute inset-0 z-20">
@@ -685,19 +685,12 @@ function KnowledgeGraphView({ narrative, resolvedKeys, currentIndex, mode }: {
           <input type="checkbox" checked={showTypes} onChange={() => setShowTypes((v) => !v)} className="accent-accent-cta w-3 h-3" />
           Types
         </label>
+        <label className="flex items-center gap-1.5 px-2 py-1.5 rounded bg-bg-surface text-[11px] leading-none text-text-dim hover:text-text-default cursor-pointer select-none">
+          <input type="checkbox" checked={showEval} onChange={() => setShowEval((v) => !v)} className="accent-accent-cta w-3 h-3" />
+          Eval
+        </label>
       </div>
-      {/* Legend (bottom-right) */}
-      <div className="absolute bottom-4 right-2 z-30 flex flex-col gap-1 bg-bg-surface/80 rounded px-2.5 py-2">
-        <span className="text-[9px] text-text-dim uppercase tracking-widest">{mode === 'spark' ? 'Spark' : 'Codex'} · {nodeCount} concepts · {edgeCount} connections</span>
-        <div className="flex gap-3">
-          {Object.entries(WK_TYPE_COLORS).map(([type, color]) => (
-            <span key={type} className="flex items-center gap-1.5">
-              <span className="w-2.5 h-2.5 rounded-full" style={{ background: color, boxShadow: `0 0 6px ${color}80` }} />
-              <span className="text-[10px] text-text-secondary capitalize">{type}</span>
-            </span>
-          ))}
-        </div>
-      </div>
+      {showEval && <EvalBar />}
       {/* Tooltip */}
       {tooltip && (
         <div
@@ -735,6 +728,7 @@ export default function WorldGraph() {
 
   const [showEdgeLabels, setShowEdgeLabels] = useState(false);
   const [showHeatmap, setShowHeatmap] = useState(false);
+  const [showEval, setShowEval] = useState(true);
   const [groups, setGroups] = useState<GraphNode[][]>([]);
   const [focusedGroupIndex, setFocusedGroupIndex] = useState<number | null>(null);
   const [nodeTooltip, setNodeTooltip] = useState<{ x: number; y: number; label: string; kind: string; imagePrompt: string } | null>(null);
@@ -1757,8 +1751,18 @@ export default function WorldGraph() {
             />
             Heat
           </label>
+          <label className="flex items-center gap-1.5 px-2 py-1.5 rounded bg-bg-surface text-[11px] leading-none text-text-dim hover:text-text-default cursor-pointer select-none">
+            <input
+              type="checkbox"
+              checked={showEval}
+              onChange={() => setShowEval((v) => !v)}
+              className="accent-accent-cta w-3 h-3"
+            />
+            Eval
+          </label>
         </div>
       </div>}
+      {showEval && <EvalBar />}
       {/* Graph view mode toggle (top-right) */}
       <div className="absolute top-2 right-2 z-30 flex items-center rounded bg-bg-surface text-[11px] leading-none">
         {([
