@@ -861,6 +861,7 @@ export default function WorldGraph() {
   const inspectorContext = state.inspectorContext;
   const selectedKnowledgeEntity = state.selectedKnowledgeEntity;
   const graphViewMode = state.graphViewMode;
+  const [sceneFocus, setSceneFocus] = useState(true);
 
   const resolvedSceneKeys = state.resolvedSceneKeys;
 
@@ -1021,7 +1022,36 @@ export default function WorldGraph() {
           state.currentSceneIndex,
         );
 
-        if (activeArc) {
+        if (sceneFocus && currentScene && activeArc) {
+          // Scene focus: show scene location + POV character's location (if different)
+          // and all characters at either location
+          const charPositions = computeCharacterPositions(activeArc, narrative.scenes, state.currentSceneIndex, resolvedSceneKeys);
+
+          const sceneLocId = currentScene.locationId;
+          const povLocId = charPositions[currentScene.povId] ?? sceneLocId;
+          const focusLocIds = new Set([sceneLocId, povLocId]);
+          // Include parent locations for hierarchy context
+          for (const locId of [...focusLocIds]) {
+            const loc = narrative.locations[locId];
+            if (loc?.parentId) focusLocIds.add(loc.parentId);
+          }
+
+          // Characters: scene participants + anyone positioned at either location
+          const focusCharIds = new Set([currentScene.povId, ...currentScene.participantIds]);
+          for (const [charId, locId] of Object.entries(charPositions)) {
+            if (focusLocIds.has(locId)) focusCharIds.add(charId);
+          }
+
+          filteredCharacters = Object.fromEntries(
+            Object.entries(narrative.characters).filter(([id]) => focusCharIds.has(id)),
+          );
+          filteredLocations = Object.fromEntries(
+            Object.entries(narrative.locations).filter(([id]) => focusLocIds.has(id)),
+          );
+          filteredRelationships = sceneRelationships.filter(
+            (r) => focusCharIds.has(r.from) && focusCharIds.has(r.to),
+          );
+        } else if (activeArc) {
           const activeCharIds = new Set(activeArc.activeCharacterIds);
           const activeLocIds = new Set(activeArc.locationIds);
 
@@ -1034,7 +1064,6 @@ export default function WorldGraph() {
           filteredRelationships = sceneRelationships.filter(
             (r) => activeCharIds.has(r.from) && activeCharIds.has(r.to),
           );
-
         } else {
           filteredCharacters = narrative.characters;
           filteredLocations = narrative.locations;
@@ -1431,7 +1460,7 @@ export default function WorldGraph() {
       gRef.current = null;
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [narrative, activeArcId, graphViewMode, currentWorldBuildId, showHeatmap]);
+  }, [narrative, activeArcId, graphViewMode, currentWorldBuildId, showHeatmap, sceneFocus, currentScene]);
 
   // ── Lightweight: update selected node highlight + relationship edges ──
   useEffect(() => {
@@ -1883,6 +1912,17 @@ export default function WorldGraph() {
             />
             Eval
           </label>
+          {graphViewMode === 'spatial' && (
+            <label className="flex items-center gap-1.5 px-2 py-1.5 rounded bg-bg-surface text-[11px] leading-none text-text-dim hover:text-text-default cursor-pointer select-none">
+              <input
+                type="checkbox"
+                checked={sceneFocus}
+                onChange={() => setSceneFocus((v) => !v)}
+                className="accent-accent-cta w-3 h-3"
+              />
+              Focus
+            </label>
+          )}
         </div>
       </div>}
       {showEval && <EvalBar />}
