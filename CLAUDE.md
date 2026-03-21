@@ -90,7 +90,7 @@ src/
 Three force dimensions derived from knowledge graph mutations, all **z-score normalised** (mean=0, units=standard deviations):
 
 - **Payoff (P)** — thread phase transitions weighted by jump magnitude, plus relationship valence deltas. Formula: `Σ |φ_to - φ_from| + Σ |Δv|`. Phase indices: dormant(0) → active(1) → escalating(2) → critical(3) → resolved/subverted/abandoned(4). Small pulse reward (0.25) for same-status mentions.
-- **Change (C)** — mutation reach per character with logarithmic scaling. Formula: `Σ_c log₂(1 + m_c)` where m_c = continuity + relationship + event mutations per character. Rewards breadth (characters affected) over depth (mutations per character).
+- **Change (C)** — mutation reach per character with logarithmic scaling. Formula: `Σ_c log₂(1 + m_c) + log₂(1 + |events|)` where m_c = continuity + relationship (|Δv| weighted) mutations per character. Events contribute as a separate log term. Rewards breadth over depth.
 - **Knowledge (K)** — world knowledge graph complexity delta per scene. Formula: `K = ΔN + 0.5 · ΔE`. Nodes weighted 1x, edges 0.5x.
 
 Derived metrics:

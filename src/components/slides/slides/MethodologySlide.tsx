@@ -51,7 +51,7 @@ function ForcesPage({ data }: { data: SlidesData }) {
           <span className="text-[10px] text-text-dim mb-3">How many lives were touched?</span>
           <Tex display>{String.raw`C = \sum_{c \,\in\, \text{cast}} \log_2(1 + m_c)`}</Tex>
           <p className="text-[10px] text-text-dim leading-relaxed mt-3 max-w-lg">
-            <Tex>{'m_c'}</Tex> = continuity + relationship (<Tex>{'|\\Delta v|'}</Tex> weighted) + event mutations per character. Log scale gives diminishing returns per character, rewarding breadth — a scene that ripples across many lives scores higher than one focused on a single character.
+            <Tex>{'m_c'}</Tex> = continuity + relationship (<Tex>{'|\\Delta v|'}</Tex> weighted) mutations per character. Events contribute as a separate log term. Log scale gives diminishing returns, rewarding breadth — a scene that ripples across many lives scores higher than one focused on a single character.
           </p>
         </div>
 

@@ -236,7 +236,9 @@ function computeRawPayoff(scene: Scene): number {
 }
 
 /** Raw change: mutation reach across affected characters.
- *  C = Σ_c log₂(1 + m_c) where m_c = continuity + relationship (|Δv| weighted) + event mutations per character.
+ *  C = Σ_c log₂(1 + m_c) + log₂(1 + |events|)
+ *  m_c = continuity + relationship (|Δv| weighted) mutations per character.
+ *  Events contribute as their own log term — not attributed to any character.
  *  Rewards breadth (many characters affected) over depth (many mutations on one). */
 function rawChange(scene: Scene): number {
   const charMutations: Record<string, number> = {};
@@ -248,12 +250,9 @@ function rawChange(scene: Scene): number {
     charMutations[rm.from] = (charMutations[rm.from] ?? 0) + weight;
     charMutations[rm.to] = (charMutations[rm.to] ?? 0) + weight;
   }
-  for (const _ev of scene.events) {
-    charMutations[scene.povId] = (charMutations[scene.povId] ?? 0) + 1;
-  }
   return Object.values(charMutations).reduce(
     (sum, count) => sum + Math.log2(1 + count), 0,
-  );
+  ) + Math.log2(1 + scene.events.length);
 }
 
 /** Raw knowledge: K = ΔN + 0.5 · ΔE

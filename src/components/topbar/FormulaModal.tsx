@@ -55,7 +55,7 @@ function ForcesTab() {
       <S title="Change" analogy="How many lives were touched? A scene where five characters learn something new ripples wider than one where a single character reflects alone.">
         <Block tex={String.raw`C = \sum_{c \,\in\, \text{cast}} \log_2(1 + m_c)`} />
         <p className="text-[10px] text-text-dim">
-          <Tex>{'m_c'}</Tex>: continuity + relationship (<Tex>{'|\\Delta v|'}</Tex> weighted) + event mutations per character.
+          <Tex>{'m_c'}</Tex>: continuity + relationship (<Tex>{'|\\Delta v|'}</Tex> weighted) mutations per character. Events contribute as a separate log term.
           Log scale gives diminishing returns per character, rewarding breadth — a scene that ripples across many lives scores higher than one focused on a single character.
         </p>
       </S>
