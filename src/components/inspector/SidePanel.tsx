@@ -8,6 +8,7 @@ import CharacterDetail from './CharacterDetail';
 import LocationDetail from './LocationDetail';
 import ThreadDetail from './ThreadDetail';
 import ArcDetail from './ArcDetail';
+import KnowledgeDetail from './KnowledgeDetail';
 import ChatPanel from '@/components/chat/ChatPanel';
 
 type Tab = 'inspector' | 'chat';
@@ -31,6 +32,8 @@ export default function SidePanel() {
         return <ThreadDetail threadId={ctx.threadId} />;
       case 'arc':
         return <ArcDetail arcId={ctx.arcId} />;
+      case 'knowledge':
+        return <KnowledgeDetail nodeId={ctx.nodeId} />;
       default:
         return <EmptyState />;
     }

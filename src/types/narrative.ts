@@ -376,7 +376,11 @@ export type StorySettings = {
   proseVoice: string;
   /** Guidance for how scene plans should be structured */
   planGuidance: string;
+  /** How many recent scenes the LLM sees when building context (time horizon) */
+  branchTimeHorizon: number;
 };
+
+export const BRANCH_TIME_HORIZON_OPTIONS = [25, 50, 100, 200] as const;
 
 export const DEFAULT_STORY_SETTINGS: StorySettings = {
   povMode: 'free',
@@ -385,6 +389,7 @@ export const DEFAULT_STORY_SETTINGS: StorySettings = {
   targetArcLength: 4,
   proseVoice: '',
   planGuidance: '',
+  branchTimeHorizon: 50,
 };
 
 // ── Auto Mode ───────────────────────────────────────────────────────────────
@@ -513,7 +518,8 @@ export type InspectorContext =
   | { type: 'character'; characterId: string }
   | { type: 'location'; locationId: string }
   | { type: 'thread'; threadId: string }
-  | { type: 'arc'; arcId: string };
+  | { type: 'arc'; arcId: string }
+  | { type: 'knowledge'; nodeId: string };
 
 export type WizardStep = 'form' | 'details' | 'generate';
 

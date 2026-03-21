@@ -418,6 +418,7 @@ function KnowledgeGraphView({ narrative, resolvedKeys, currentIndex, mode }: {
   currentIndex: number;
   mode: 'spark' | 'codex';
 }) {
+  const { dispatch } = useStore();
   const svgRef = useRef<SVGSVGElement | null>(null);
   const simRef = useRef<d3.Simulation<WKNode, WKLink> | null>(null);
   const gRef = useRef<d3.Selection<SVGGElement, unknown, null, undefined> | null>(null);
@@ -603,7 +604,11 @@ function KnowledgeGraphView({ narrative, resolvedKeys, currentIndex, mode }: {
         if (!rect) return;
         setTooltip({ x: event.clientX - rect.left, y: event.clientY - rect.top - 10, concept: d.concept, type: d.type, degree: d.degree, connections: adjMap.get(d.id) ?? [] });
       })
-      .on('mouseleave', () => setTooltip(null));
+      .on('mouseleave', () => setTooltip(null))
+      .on('click', (_event, d) => {
+        _event.stopPropagation();
+        dispatch({ type: 'SET_INSPECTOR', context: { type: 'knowledge', nodeId: d.id } });
+      });
 
     // Update labels
     const labelSel = g.select<SVGGElement>('g.wk-labels')
