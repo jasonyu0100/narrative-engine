@@ -487,29 +487,6 @@ export function sceneContext(narrative: NarrativeState, scene: Scene): string {
       `MOVEMENTS:`,
       ...movementLines,
     ] : []),
-    // Established world knowledge — top concepts for grounding
-    ...(() => {
-      const wkg = narrative.worldKnowledge;
-      if (!wkg || Object.keys(wkg.nodes).length === 0) return [];
-      const ranked = rankWorldKnowledgeNodes(wkg);
-      const top = ranked;
-      if (top.length === 0) return [];
-      // Build adjacency for compact display
-      const adj = new Map<string, string[]>();
-      for (const e of wkg.edges) {
-        const fc = wkg.nodes[e.from]?.concept;
-        const tc = wkg.nodes[e.to]?.concept;
-        if (fc && tc) {
-          adj.set(e.from, [...(adj.get(e.from) ?? []), tc]);
-        }
-      }
-      const lines = top.map(({ node }) => {
-        const conns = adj.get(node.id);
-        const connStr = conns && conns.length > 0 ? ` → ${conns.slice(0, 3).join(', ')}` : '';
-        return `  [${node.type}] ${node.concept}${connStr}`;
-      });
-      return [``, SEP, `ESTABLISHED WORLD (reference relevant concepts — these are the rules, systems, and tensions characters live within):`, ...lines];
-    })(),
   ].join('\n');
 }
 
