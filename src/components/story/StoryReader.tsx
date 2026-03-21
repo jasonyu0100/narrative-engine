@@ -3,7 +3,7 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
 import type { NarrativeState, Scene, StorySettings } from '@/types/narrative';
 import { resolveEntry, isScene, DEFAULT_STORY_SETTINGS } from '@/types/narrative';
-import { generateSceneProse, generateScenePlan, reconcileScenePlans, scoreSceneProse, rewriteSceneProse, type ReconcileRevision } from '@/lib/ai';
+import { generateSceneProse, generateScenePlan, scoreSceneProse, rewriteSceneProse } from '@/lib/ai';
 import { useStore } from '@/lib/store';
 import { exportEpub } from '@/lib/epub-export';
 import { PROSE_CONCURRENCY, PLAN_CONCURRENCY } from '@/lib/constants';
@@ -50,8 +50,6 @@ export function StoryReader({
   const activeSceneRef = useRef<HTMLButtonElement>(null);
   const [proseBulk, setProseBulk] = useState<BulkState>(null);
   const [planBulk, setPlanBulk] = useState<BulkState>(null);
-  const [reconcileState, setReconcileState] = useState<'idle' | 'running' | 'done'>('idle');
-  const [reconcileResults, setReconcileResults] = useState<{ sceneId: string; reason: string }[]>([]);
   const bulkCancelledRef = useRef(false);
   const [copied, setCopied] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -189,30 +187,6 @@ export function StoryReader({
     }, setProseBulk);
   }, [scenes, planCache, proseCache, resolvedKeys, generateProse, runBulk]);
 
-  const reconcile = useCallback(async () => {
-    const plans: { sceneId: string; plan: string }[] = [];
-    for (const s of scenes) {
-      const plan = planCache[s.id]?.status === 'ready' ? planCache[s.id].text : s.plan;
-      if (plan) plans.push({ sceneId: s.id, plan });
-    }
-    if (plans.length < 2) return;
-    setReconcileState('running');
-    setReconcileResults([]);
-    try {
-      const revised = await reconcileScenePlans(narrative, plans);
-      const results: { sceneId: string; reason: string }[] = [];
-      for (const [sceneId, rev] of Object.entries(revised)) {
-        setPlanCache((prev) => ({ ...prev, [sceneId]: { text: rev.plan, status: 'ready' } }));
-        dispatch({ type: 'UPDATE_SCENE', sceneId, updates: { plan: rev.plan } });
-        results.push({ sceneId, reason: rev.reason });
-      }
-      setReconcileResults(results);
-      setReconcileState('done');
-    } catch (err) {
-      console.error('[reconcile] failed:', err);
-      setReconcileState('idle');
-    }
-  }, [scenes, planCache, narrative, dispatch]);
 
   const cancelBulk = useCallback(() => {
     bulkCancelledRef.current = true;
@@ -327,50 +301,6 @@ export function StoryReader({
                 ) : null;
               })()}
 
-              {/* Reconcile */}
-              {(() => {
-                const plannedCount = scenes.filter((s) => s.plan || planCache[s.id]?.status === 'ready').length;
-                if (plannedCount < 2) return null;
-
-                if (reconcileState === 'done' && reconcileResults.length > 0) {
-                  return (
-                    <div className="relative flex items-center gap-2">
-                      <span className="text-[10px] text-sky-400/70">{reconcileResults.length} plan{reconcileResults.length !== 1 ? 's' : ''} revised</span>
-                      <button
-                        onClick={() => setReconcileState('idle')}
-                        className="text-[9px] text-text-dim hover:text-text-secondary transition"
-                        title="Dismiss"
-                      >
-                        &times;
-                      </button>
-                    </div>
-                  );
-                }
-                if (reconcileState === 'done' && reconcileResults.length === 0) {
-                  return (
-                    <div className="flex items-center gap-2">
-                      <span className="text-[10px] text-emerald-400/60">Plans are coherent</span>
-                      <button onClick={() => setReconcileState('idle')} className="text-[9px] text-text-dim hover:text-text-secondary transition">&times;</button>
-                    </div>
-                  );
-                }
-
-                return (
-                  <button
-                    onClick={reconcile}
-                    disabled={reconcileState === 'running'}
-                    className="text-[10px] px-2.5 py-1 rounded-full border border-white/10 text-text-dim hover:text-sky-400 hover:border-sky-400/20 transition flex items-center gap-1.5 disabled:opacity-30"
-                    title="Reconcile plans for cross-scene coherence"
-                  >
-                    {reconcileState === 'running' ? (
-                      <div className="w-3 h-3 border-2 border-sky-400/30 border-t-sky-400/80 rounded-full animate-spin" />
-                    ) : (
-                      <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="16 3 21 3 21 8" /><line x1="4" y1="20" x2="21" y2="3" /><polyline points="21 16 21 21 16 21" /><line x1="15" y1="15" x2="21" y2="21" /><line x1="4" y1="4" x2="9" y2="9" /></svg>
-                    )}
-                    Reconcile
-                  </button>
-                );
-              })()}
 
               {/* Write All — only available when all scenes have plans */}
               {(() => {
@@ -791,19 +721,6 @@ export function StoryReader({
 
                 {hasPlan && !isPlanLoading && !hasPlanError && (
                   <>
-                  {/* Reconciliation note */}
-                  {(() => {
-                    const rev = reconcileResults.find((r) => r.sceneId === scene.id);
-                    if (!rev) return null;
-                    return (
-                      <div className="mb-6 px-4 py-3 rounded-lg bg-sky-500/5 border border-sky-500/10">
-                        <div className="flex items-center gap-2 mb-1">
-                          <span className="text-[9px] uppercase tracking-widest text-sky-400/60">Reconciled</span>
-                        </div>
-                        <p className="text-[11px] text-text-secondary leading-relaxed">{rev.reason}</p>
-                      </div>
-                    );
-                  })()}
                   <div
                     className="text-[13px] text-text-secondary leading-[1.8] whitespace-pre-wrap outline-none"
                     contentEditable
