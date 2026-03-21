@@ -374,11 +374,11 @@ POV DISCIPLINE:
 - Within an arc, anchor on one or two POV characters. Save breadth for later arcs.
 - A single POV for the entire opening arc is often the strongest choice — it grounds the reader before introducing complexity.
 
-FORCE TARGETS — every scene is scored. These are MINIMUMS for an 80+ grade:
-- PAYOFF ≥ ~1.2 avg/scene: ~1 real thread transition per scene (active→escalating = 1pt, active→resolved = 3pt). Pulses (same→same) only give 0.25. Mix in relationship |Δv| ≥ 0.2.
-- CHANGE ≥ ~5.6 avg/scene: 3-4 characters affected per scene, each with 2-3 mutations. Breadth over depth.
-- KNOWLEDGE ≥ ~2.0 avg/scene: ~2 world knowledge nodes per scene or 1 node + 2 edges.
-- SWING ≥ ~1.2 avg: Consecutive scenes must differ in force profile. Vary which force dominates scene to scene.
+FORCE SCORING — every scene is scored across three forces. The numbers below are MINIMUM FLOORS for a passing grade (~80). These are not targets — they're the bare minimum. Exceptional scenes naturally exceed these when the narrative calls for it. A climactic reveal might spike payoff to 5+, a lore-heavy discovery scene might push knowledge to 6+. Don't write to the floor; write the scene the story needs and let the forces reflect its richness.
+- PAYOFF floor ≥ ~1.2 avg/scene: ~1 real thread transition per scene (active→escalating = 1pt, active→resolved = 3pt). Pulses (same→same) only give 0.25. Climaxes and confrontations should far exceed this.
+- CHANGE floor ≥ ~5.6 avg/scene: 3-4 characters affected per scene, each with 2-3 mutations. Ensemble scenes with more characters score higher naturally.
+- KNOWLEDGE floor ≥ ~2.0 avg/scene: ~2 world knowledge nodes per scene or 1 node + 2 edges. World-building scenes should aim for 4-6+.
+- SWING floor ≥ ~1.2 avg: Consecutive scenes must differ in force profile. Vary which force dominates scene to scene.
 
 PACING:
 - Vary scene intensity — some scenes are high-payoff (thread resolutions), some are high-knowledge (world reveals), some are high-change (broad cast interactions). This variation creates swing.

@@ -84,3 +84,6 @@ export const DENSE_ARC_THRESHOLD = 20;
 
 /** Default sliding window size for home-page ForceCharts */
 export const FORCE_CHARTS_WINDOW_DEFAULT = 100;
+
+/** Max recent continuity nodes shown per entity in sceneContext */
+export const SCENE_CONTEXT_RECENT_CONTINUITY = 25;

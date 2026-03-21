@@ -28,7 +28,13 @@ export async function generateScenes(
   const arcInstruction = existingArc
     ? `CONTINUE the existing arc "${existingArc.name}" (${arcId}) which already has ${existingArc.sceneIds.length} scenes. Add ${sceneCountInstruction} that naturally extend this arc.`
     : `Generate a NEW ARC with ${sceneCountInstruction}. Give the arc a short, evocative name (2-4 words) that reads like a chapter title — specific to the story, not generic.`;
+  // Unique seed to ensure divergent narrative directions across parallel generations
+  const seed = Math.random().toString(36).slice(2, 10) + '-' + Date.now().toString(36);
+
   const prompt = `${ctx}
+
+NARRATIVE SEED: ${seed}
+Use this seed to differentiate your choices from other generations at this branch point. Each seed should produce a distinct narrative direction — different character focus, different thread priorities, different locations, different emotional register. Avoid converging on the same "obvious" next step.
 
 ${arcInstruction}
 DIRECTION (this takes priority over any patterns in the scene history below):
@@ -121,20 +127,22 @@ Rules:
 - World knowledge node IDs for NEW concepts must be unique: WK-GEN-001, WK-GEN-002, etc. Reused nodes should keep their original ID.
 - characterMovements track when characters physically relocate to a different location during the scene. Only include characters whose location CHANGES — omit characters who stay put. The "transition" field should be a vivid, specific description of HOW they traveled (e.g. "Fled through the sewers beneath the city", "Sailed upriver on a merchant barge"). The "locationId" MUST be a valid location ID from the narrative. Do NOT include movements where the destination is the same as the scene's locationId.
 
-FORCE SCORING — every mutation feeds three forces. These are the MINIMUM STANDARDS for an 80+ arc:
+FORCE SCORING — every mutation feeds three forces. The numbers below are MINIMUM FLOORS for a passing arc (~80). Exceptional scenes will naturally exceed these when the narrative demands it — a climactic thread resolution earns far more payoff than the floor, a scene introducing a rich magic system earns far more knowledge. Don't aim for the minimums; aim for what the scene NEEDS and the scores will follow. The best arcs have scenes that spike dramatically in one or two forces while others provide contrast.
 
-PAYOFF ≥ ~1.2 avg raw per scene:
+PAYOFF floor ≥ ~1.2 avg raw per scene:
 - ~1 real thread status transition per scene (active→escalating = 1pt, active→resolved = 3pt). Pulses (same→same) only give 0.25 — you need actual movement.
 - OR a mix of smaller transitions + relationship |Δv| shifts. Scenes with zero thread/relationship mutations score ZERO.
+- High-payoff scenes (climaxes, confrontations, reveals) should far exceed this — 3-5+ raw payoff is achievable.
 
-CHANGE ≥ ~5.6 avg raw per scene:
+CHANGE floor ≥ ~5.6 avg raw per scene:
 - 3-4 characters meaningfully affected per scene (each with 2-3 mutations gives log₂(3-4) ≈ 1.6-2.0 per character).
-- A scene touching only 1-2 characters needs deeper mutations to compensate. Spread across the cast.
+- Ensemble scenes with 5-6+ characters can score much higher. Let the cast density match the scene's needs.
 
-KNOWLEDGE ≥ ~2.0 avg raw per scene:
-- ~2 new world knowledge nodes per scene, or 1 node + 2 edges. Scenes adding no world concepts drag this down fast.
+KNOWLEDGE floor ≥ ~2.0 avg raw per scene:
+- ~2 new world knowledge nodes per scene, or 1 node + 2 edges.
+- World-building scenes, discovery sequences, or lore-heavy moments should aim for 4-6+ nodes with connecting edges.
 
-SWING ≥ ~1.2 normalized avg:
+SWING floor ≥ ~1.2 normalized avg:
 - Consecutive scenes must DIFFER in force profile — a high-payoff scene followed by a high-knowledge scene creates swing. Repetitive mutation patterns kill swing.
 
 POV DISCIPLINE:

@@ -1,7 +1,7 @@
 import type { NarrativeState, Scene, StorySettings } from '@/types/narrative';
 import { resolveEntry, THREAD_ACTIVE_STATUSES, THREAD_TERMINAL_STATUSES, THREAD_STATUS_LABELS, DEFAULT_STORY_SETTINGS } from '@/types/narrative';
 import { computeForceSnapshots, computeSwingMagnitudes, detectCubeCorner, movingAverage, FORCE_WINDOW_SIZE, computeDeliveryCurve, classifyCurrentPosition, buildCumulativeWorldKnowledge, rankWorldKnowledgeNodes } from '@/lib/narrative-utils';
-import { DEFAULT_CONTEXT_SCENES } from '@/lib/constants';
+import { DEFAULT_CONTEXT_SCENES, SCENE_CONTEXT_RECENT_CONTINUITY } from '@/lib/constants';
 
 // Build thread lifecycle documentation from canonical status lists
 export const THREAD_LIFECYCLE_DOC = (() => {
@@ -138,10 +138,10 @@ export function branchContext(
       const continuityLines = relevantNodes.map((kn) => `    (${kn.type}) ${kn.content}`);
       const omitted = c.continuity.nodes.length - relevantNodes.length;
       const truncated = omitted > 0
-        ? `\n  (${omitted} knowledge items outside time horizon omitted)`
+        ? `\n  (${omitted} continuity items outside time horizon omitted)`
         : '';
       const continuityBlock = continuityLines.length > 0
-        ? `\n  Knowledge (${relevantNodes.length} in scope):${truncated}\n${continuityLines.join('\n')}`
+        ? `\n  Continuity — what this character knows, has experienced, or possesses (${relevantNodes.length} in scope):${truncated}\n${continuityLines.join('\n')}`
         : '';
       return `- ${c.id}: ${c.name} (${c.role})${continuityBlock}`;
     })
@@ -150,7 +150,7 @@ export function branchContext(
     .map((l) => {
       const continuityLines = l.continuity.nodes.map((kn) => `    (${kn.type}) ${kn.content}`);
       const continuityBlock = continuityLines.length > 0
-        ? `\n  Knowledge (${l.continuity.nodes.length}):\n${continuityLines.join('\n')}`
+        ? `\n  Continuity — established facts, conditions, and state of this place (${l.continuity.nodes.length}):\n${continuityLines.join('\n')}`
         : '';
       return `- ${l.id}: ${l.name}${l.parentId ? ` (inside ${n.locations[l.parentId]?.name ?? l.parentId})` : ''}${continuityBlock}`;
     })
@@ -196,13 +196,13 @@ export function branchContext(
     const loc = `${s.locationId} (${n.locations[s.locationId]?.name ?? 'unknown'})`;
     const participants = s.participantIds.map((pid) => `${pid} (${n.characters[pid]?.name ?? 'unknown'})`).join(', ');
     const threadChanges = s.threadMutations.map((tm) => `${tm.threadId}: ${tm.from}->${tm.to}`).join('; ');
-    const knowledgeChanges = s.continuityMutations.map((km) => `${km.characterId} learned [${km.nodeType}]: ${km.content}`).join('; ');
+    const continuityChanges = s.continuityMutations.map((km) => `${km.characterId} learned [${km.nodeType}]: ${km.content}`).join('; ');
     const relChanges = s.relationshipMutations.map((rm) => {
       const fromName = n.characters[rm.from]?.name ?? rm.from;
       const toName = n.characters[rm.to]?.name ?? rm.to;
       return `${fromName}->${toName}: ${rm.type} (${rm.valenceDelta >= 0 ? '+' : ''}${Math.round(rm.valenceDelta * 100) / 100})`;
     }).join('; ');
-    return `[${globalIdx}] ${s.id} @ ${loc} | ${participants}${threadChanges ? ` | Threads: ${threadChanges}` : ''}${knowledgeChanges ? ` | Knowledge: ${knowledgeChanges}` : ''}${relChanges ? ` | Relationships: ${relChanges}` : ''}
+    return `[${globalIdx}] ${s.id} @ ${loc} | ${participants}${threadChanges ? ` | Threads: ${threadChanges}` : ''}${continuityChanges ? ` | Continuity: ${continuityChanges}` : ''}${relChanges ? ` | Relationships: ${relChanges}` : ''}
    ${s.summary}`;
   }).filter(Boolean).join('\n');
 
@@ -244,19 +244,18 @@ export function branchContext(
     ? `\nCURRENT NARRATIVE STATE:\n  Cube position: ${currentCube.name} (P:${currentForces!.payoff >= 0 ? 'Hi' : 'Lo'} C:${currentForces!.change >= 0 ? 'Hi' : 'Lo'} V:${currentForces!.knowledge >= 0 ? 'Hi' : 'Lo'}) — ${currentCube.description}\n  Delivery position: ${localPos?.name ?? 'Stable'} — ${localPos?.description ?? 'deliveries are holding steady'}\n`
     : '';
 
-  // ── World Knowledge Graph ──────────────────────────────────────────
-  const horizonEndIndex = horizonStart + keysUpToCurrent.length - 1;
-  const cumulativeWorldKnowledge = buildCumulativeWorldKnowledge(
-    n.scenes, resolvedKeys, horizonEndIndex, n.worldKnowledge, n.worldBuilds,
+  // ── World Knowledge Graph (scoped to time horizon) ─────────────────
+  const horizonWorldKnowledge = buildCumulativeWorldKnowledge(
+    n.scenes, keysUpToCurrent, keysUpToCurrent.length - 1, undefined, n.worldBuilds,
   );
-  const rankedWorldNodes = rankWorldKnowledgeNodes(cumulativeWorldKnowledge);
+  const rankedWorldNodes = rankWorldKnowledgeNodes(horizonWorldKnowledge);
   let worldKnowledgeBlock = '';
   if (rankedWorldNodes.length > 0) {
     // Build adjacency map for each node → connected concepts
     const adjacency = new Map<string, string[]>();
-    for (const e of cumulativeWorldKnowledge.edges) {
-      const fromConcept = cumulativeWorldKnowledge.nodes[e.from]?.concept;
-      const toConcept = cumulativeWorldKnowledge.nodes[e.to]?.concept;
+    for (const e of horizonWorldKnowledge.edges) {
+      const fromConcept = horizonWorldKnowledge.nodes[e.from]?.concept;
+      const toConcept = horizonWorldKnowledge.nodes[e.to]?.concept;
       if (!fromConcept || !toConcept) continue;
       adjacency.set(e.from, [...(adjacency.get(e.from) ?? []), toConcept]);
       adjacency.set(e.to, [...(adjacency.get(e.to) ?? []), fromConcept]);
@@ -271,8 +270,8 @@ export function branchContext(
       return `  [${node.type}] ${node.concept}${connStr}`;
     });
 
-    const totalNodes = Object.keys(cumulativeWorldKnowledge.nodes).length;
-    const totalEdges = cumulativeWorldKnowledge.edges.length;
+    const totalNodes = Object.keys(horizonWorldKnowledge.nodes).length;
+    const totalEdges = horizonWorldKnowledge.edges.length;
     worldKnowledgeBlock = `\n────────────────────────────────────────
 WORLD KNOWLEDGE GRAPH (${totalNodes} concepts, ${totalEdges} relationships):
 The established rules, systems, concepts, and tensions of this world. Edges describe how concepts relate (enables, governs, opposes, etc.) — they make the world coherent. New scenes should reference existing concepts when relevant and add new ones with edges showing how they relate to what's established.
@@ -344,28 +343,28 @@ export function sceneContext(narrative: NarrativeState, scene: Scene): string {
   const participantIdSet = new Set(scene.participantIds);
 
   // ── Characters: full knowledge graph for each participant ──────────
-  const RECENT_KNOWLEDGE = 5; // only most recent nodes to avoid context bloat
+  const RECENT_CONTINUITY = SCENE_CONTEXT_RECENT_CONTINUITY;
 
   const characterBlocks = participants.map((p) => {
-    const recentNodes = p.continuity.nodes.slice(-RECENT_KNOWLEDGE);
+    const recentNodes = p.continuity.nodes.slice(-RECENT_CONTINUITY);
     const omitted = p.continuity.nodes.length - recentNodes.length;
     const knLines = recentNodes.map((kn) => `    (${kn.type}) ${kn.content}`);
     const omittedNote = omitted > 0 ? `\n    (${omitted} earlier items omitted)` : '';
     const knBlock = knLines.length > 0
-      ? `\n  Knowledge (${recentNodes.length} recent):${omittedNote}\n${knLines.join('\n')}`
+      ? `\n  Continuity (${recentNodes.length} recent):${omittedNote}\n${knLines.join('\n')}`
       : '';
     return `  - ${p.id}: ${p.name} (${p.role})${knBlock}`;
   });
 
-  // ── Location: recent knowledge ─────────────────────────────────────
+  // ── Location: recent continuity ────────────────────────────────────
   const locationBlock = (() => {
     if (!location) return '  - Unknown';
-    const recentNodes = location.continuity.nodes.slice(-RECENT_KNOWLEDGE);
+    const recentNodes = location.continuity.nodes.slice(-RECENT_CONTINUITY);
     const omitted = location.continuity.nodes.length - recentNodes.length;
     const knLines = recentNodes.map((kn) => `    (${kn.type}) ${kn.content}`);
     const omittedNote = omitted > 0 ? `\n    (${omitted} earlier items omitted)` : '';
     const knBlock = knLines.length > 0
-      ? `\n  Knowledge (${recentNodes.length} recent):${omittedNote}\n${knLines.join('\n')}`
+      ? `\n  Continuity (${recentNodes.length} recent):${omittedNote}\n${knLines.join('\n')}`
       : '';
     const parent = location.parentId ? ` (inside ${narrative.locations[location.parentId]?.name ?? location.parentId})` : '';
     return `  - ${location.id}: ${location.name}${parent}${knBlock}`;
@@ -459,7 +458,7 @@ export function sceneContext(narrative: NarrativeState, scene: Scene): string {
     ...(continuityMutationLines.length > 0 ? [
       ``,
       SEP,
-      `KNOWLEDGE CHANGES:`,
+      `CONTINUITY CHANGES:`,
       ...continuityMutationLines,
     ] : []),
     ...(relationshipMutationLines.length > 0 ? [
@@ -493,7 +492,7 @@ export function sceneContext(narrative: NarrativeState, scene: Scene): string {
       const wkg = narrative.worldKnowledge;
       if (!wkg || Object.keys(wkg.nodes).length === 0) return [];
       const ranked = rankWorldKnowledgeNodes(wkg);
-      const top = ranked.slice(0, 8);
+      const top = ranked;
       if (top.length === 0) return [];
       // Build adjacency for compact display
       const adj = new Map<string, string[]>();
@@ -593,10 +592,8 @@ export function deriveLogicRules(narrative: NarrativeState, scene: Scene): strin
     );
 
     // Summarize what POV knows at scene start (cap to avoid bloat)
-    const MAX_POV_KNOWLEDGE_RULES = 8;
-    const continuitySummary = povStartKnowledge.slice(-MAX_POV_KNOWLEDGE_RULES);
-    if (continuitySummary.length > 0) {
-      rules.push(`${pov.name}'s knowledge at scene start (narration is limited to this): ${continuitySummary.map((kn) => `"${kn.content}"`).join(', ')}${povStartKnowledge.length > MAX_POV_KNOWLEDGE_RULES ? ` (and ${povStartKnowledge.length - MAX_POV_KNOWLEDGE_RULES} earlier items)` : ''}. The narrator must NOT reference, explain, or frame events using information outside this set.`);
+    if (povStartKnowledge.length > 0) {
+      rules.push(`${pov.name}'s knowledge at scene start (narration is limited to this): ${povStartKnowledge.map((kn) => `"${kn.content}"`).join(', ')}. The narrator must NOT reference, explain, or frame events using information outside this set.`);
     }
 
     // Flag knowledge that other participants have but POV does NOT
