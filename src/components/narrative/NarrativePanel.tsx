@@ -2,7 +2,6 @@
 
 import { useStore } from '@/lib/store';
 import { resolveEntry } from '@/types/narrative';
-import CubeCornerBadge from '@/components/topbar/CubeCornerBadge';
 
 export default function NarrativePanel() {
   const { state, dispatch } = useStore();
@@ -108,7 +107,6 @@ export default function NarrativePanel() {
             </>
           )}
         </div>
-        <CubeCornerBadge />
       </div>
       <p className="text-sm leading-relaxed text-text-primary">{scene.summary || 'No summary available.'}</p>
     </div>
