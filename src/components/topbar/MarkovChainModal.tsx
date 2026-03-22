@@ -71,13 +71,27 @@ function cornerSequence(scenes: { id: string; forces: ForceSnapshot }[]): CubeCo
 }
 
 function stationaryDistribution(matrix: TransitionMatrix, iterations = 100): Record<CubeCornerKey, number> {
+  // Pre-compute normalized rows; unvisited states get uniform distribution
+  // so they don't act as probability sinks during iteration
+  const uniform = 1 / CORNERS.length;
+  const rows = {} as Record<CubeCornerKey, Record<CubeCornerKey, number>>;
+  for (const from of CORNERS) {
+    const total = Object.values(matrix[from]).reduce((s, v) => s + v, 0);
+    if (total === 0) {
+      rows[from] = {} as Record<CubeCornerKey, number>;
+      for (const to of CORNERS) rows[from][to] = uniform;
+    } else {
+      rows[from] = normalizeRow(matrix[from]);
+    }
+  }
+
   let dist = {} as Record<CubeCornerKey, number>;
-  for (const c of CORNERS) dist[c] = 1 / CORNERS.length;
+  for (const c of CORNERS) dist[c] = uniform;
   for (let iter = 0; iter < iterations; iter++) {
     const next = {} as Record<CubeCornerKey, number>;
     for (const to of CORNERS) {
       let sum = 0;
-      for (const from of CORNERS) sum += dist[from] * normalizeRow(matrix[from])[to];
+      for (const from of CORNERS) sum += dist[from] * rows[from][to];
       next[to] = sum;
     }
     dist = next;
@@ -85,57 +99,107 @@ function stationaryDistribution(matrix: TransitionMatrix, iterations = 100): Rec
   return dist;
 }
 
-// ── Rhythm Diagnosis ─────────────────────────────────────────────────────────
+// ── Matrix Metrics ───────────────────────────────────────────────────────────
 
-function diagnoseRhythm(
+type MatrixMetrics = {
+  entropy: number;
+  maxEntropy: number;
+  selfLoopRate: number;
+  payoffFrac: number;
+  buildupFrac: number;
+  observations: string[];
+  oscillationPairs: { a: CubeCornerKey; b: CubeCornerKey; strength: number }[];
+};
+
+function computeMatrixMetrics(
+  matrix: TransitionMatrix,
   stationary: Record<CubeCornerKey, number>,
   sequence: CubeCornerKey[],
-): string[] {
-  const insights: string[] = [];
-  if (sequence.length < 3) return ['Too few scenes to analyse rhythm.'];
+): MatrixMetrics {
+  // Entropy
+  const entropy = -CORNERS.reduce((s, c) => {
+    const p = stationary[c] ?? 0;
+    return s + (p > 0.001 ? p * Math.log2(p) : 0);
+  }, 0);
+  const maxEntropy = Math.log2(8);
 
-  const sorted = CORNERS
-    .filter((c) => stationary[c] > 0.01)
-    .sort((a, b) => stationary[b] - stationary[a]);
-
-  const top = sorted[0];
-  const topPct = stationary[top] * 100;
-
-  if (topPct > 40) {
-    insights.push(`Dominated by ${NARRATIVE_CUBE[top].name} (${topPct.toFixed(0)}%). The story circles a single mode — consider breaking the pattern.`);
-  }
-
-  const absent = CORNERS.filter((c) => stationary[c] < 0.02);
-  if (absent.length >= 4) {
-    const names = absent.map((c) => NARRATIVE_CUBE[c].name).join(', ');
-    insights.push(`Never visits: ${names}. A narrow range — the rhythm has limited variety.`);
-  }
-
-  const payoffModes: CubeCornerKey[] = ['HHH', 'HHL', 'HLH', 'HLL'];
-  const payoffPct = payoffModes.reduce((s, c) => s + stationary[c], 0) * 100;
-  if (payoffPct < 15 && sequence.length > 10) {
-    insights.push(`Only ${payoffPct.toFixed(0)}% payoff modes. Threads may be building without release.`);
-  }
-
-  const restPct = (stationary['LLL'] + stationary['LLH']) * 100;
-  if (restPct < 5 && sequence.length > 10) {
-    insights.push('Almost no Rest or Lore. The story may feel exhausting without breathing room.');
-  }
-
-  let repeats = 0;
+  // Self-loop rate
+  let selfLoops = 0;
   for (let i = 1; i < sequence.length; i++) {
-    if (sequence[i] === sequence[i - 1]) repeats++;
+    if (sequence[i] === sequence[i - 1]) selfLoops++;
   }
-  const repeatPct = (repeats / Math.max(sequence.length - 1, 1)) * 100;
-  if (repeatPct > 50) {
-    insights.push(`${repeatPct.toFixed(0)}% of transitions are self-loops. The story tends to stay in the same mode.`);
+  const selfLoopRate = selfLoops / Math.max(sequence.length - 1, 1);
+
+  // Payoff vs buildup
+  const payoffModes: CubeCornerKey[] = ['HHH', 'HHL', 'HLH', 'HLL'];
+  const buildupModes: CubeCornerKey[] = ['LHH', 'LHL', 'LLH', 'LLL'];
+  const payoffFrac = payoffModes.reduce((s, c) => s + (stationary[c] ?? 0), 0);
+  const buildupFrac = buildupModes.reduce((s, c) => s + (stationary[c] ?? 0), 0);
+
+  // Oscillation pairs
+  const bigrams: Record<string, number> = {};
+  for (let i = 0; i < sequence.length - 1; i++) {
+    const key = `${sequence[i]}|${sequence[i + 1]}`;
+    bigrams[key] = (bigrams[key] || 0) + 1;
+  }
+  const oscillationPairs: { a: CubeCornerKey; b: CubeCornerKey; strength: number }[] = [];
+  const seen = new Set<string>();
+  for (const key of Object.keys(bigrams)) {
+    const [a, b] = key.split('|') as [CubeCornerKey, CubeCornerKey];
+    if (a === b) continue;
+    const rev = `${b}|${a}`;
+    const canonical = a < b ? `${a}|${b}` : `${b}|${a}`;
+    if (seen.has(canonical)) continue;
+    seen.add(canonical);
+    const fwd = bigrams[key] || 0;
+    const bwd = bigrams[rev] || 0;
+    if (fwd > 0 && bwd > 0) {
+      oscillationPairs.push({ a, b, strength: fwd + bwd });
+    }
+  }
+  oscillationPairs.sort((x, y) => y.strength - x.strength);
+
+  // Factual observations
+  const observations: string[] = [];
+
+  const sortedDist = CORNERS.slice().sort((a, b) => (stationary[b] ?? 0) - (stationary[a] ?? 0));
+  const topPct = (stationary[sortedDist[0]] ?? 0) * 100;
+
+  if (topPct > 35) {
+    observations.push(`${NARRATIVE_CUBE[sortedDist[0]].name} dominant at ${topPct.toFixed(0)}%.`);
   }
 
-  if (insights.length === 0) {
-    insights.push('Balanced rhythm with good variety across narrative modes.');
+  if (selfLoopRate > 0.25) {
+    observations.push(`${(selfLoopRate * 100).toFixed(0)}% self-loop rate — tends to stay in modes.`);
   }
 
-  return insights;
+  const absent = CORNERS.filter((c) => (stationary[c] ?? 0) < 0.02);
+  if (absent.length > 0) {
+    observations.push(`Absent: ${absent.map((c) => NARRATIVE_CUBE[c].name).join(', ')}.`);
+  }
+
+  // Absorbing states
+  const visitCounts: Record<CubeCornerKey, number> = {} as Record<CubeCornerKey, number>;
+  for (const c of CORNERS) visitCounts[c] = 0;
+  for (const c of sequence) visitCounts[c]++;
+  const absorbing = CORNERS.filter((c) => {
+    const row = normalizeRow(matrix[c]);
+    return row[c] > 0.4 && visitCounts[c] > 3;
+  });
+  if (absorbing.length > 0) {
+    observations.push(`Absorbing: ${absorbing.map((c) => NARRATIVE_CUBE[c].name).join(', ')}.`);
+  }
+
+  if (oscillationPairs.length > 0 && oscillationPairs[0].strength >= 4) {
+    const p = oscillationPairs[0];
+    observations.push(`${NARRATIVE_CUBE[p.a].name} ↔ ${NARRATIVE_CUBE[p.b].name} oscillation (${p.strength}×).`);
+  }
+
+  return {
+    entropy, maxEntropy, selfLoopRate, payoffFrac, buildupFrac,
+    observations,
+    oscillationPairs: oscillationPairs.slice(0, 3),
+  };
 }
 
 // ── Graph Layout ─────────────────────────────────────────────────────────────
@@ -433,23 +497,6 @@ function FocusPanel({
   );
 }
 
-// ── Sequence Strip ───────────────────────────────────────────────────────────
-
-function SequenceStrip({ sequence }: { sequence: CubeCornerKey[] }) {
-  return (
-    <div className="flex gap-px items-center h-5 overflow-x-auto">
-      {sequence.map((c, i) => (
-        <div
-          key={i}
-          className="shrink-0 w-2 h-full rounded-sm"
-          style={{ backgroundColor: CORNER_COLORS[c], opacity: 0.5 + 0.5 * (i / Math.max(sequence.length - 1, 1)) }}
-          title={`Scene ${i + 1}: ${NARRATIVE_CUBE[c].name}`}
-        />
-      ))}
-    </div>
-  );
-}
-
 // ── Transition Table ─────────────────────────────────────────────────────────
 
 function TransitionTable({
@@ -612,14 +659,16 @@ export function MarkovChainModal({ narrative, resolvedKeys, currentSceneIndex, o
       .filter((e): e is Scene => !!e && isScene(e));
     if (scenes.length === 0) {
       const emptyMatrix = {} as TransitionMatrix;
-      for (const from of CORNERS) {
-        emptyMatrix[from] = {} as Record<CubeCornerKey, number>;
-        for (const to of CORNERS) emptyMatrix[from][to] = 0;
+      const emptyStat = {} as Record<CubeCornerKey, number>;
+      for (const c of CORNERS) {
+        emptyMatrix[c] = {} as Record<CubeCornerKey, number>;
+        for (const to of CORNERS) emptyMatrix[c][to] = 0;
+        emptyStat[c] = 0;
       }
       return {
         matrix: emptyMatrix,
         sequence: [] as CubeCornerKey[],
-        stationary: {} as Record<CubeCornerKey, number>,
+        stationary: emptyStat,
         totalTransitions: 0,
       };
     }
@@ -641,7 +690,10 @@ export function MarkovChainModal({ narrative, resolvedKeys, currentSceneIndex, o
   }, [narrative, resolvedKeys]);
 
   const currentMode = cornerSeq.length > 0 ? cornerSeq[cornerSeq.length - 1] : null;
-  const diagnosis = useMemo(() => diagnoseRhythm(stationary, cornerSeq), [stationary, cornerSeq]);
+  const metrics = useMemo(
+    () => computeMatrixMetrics(matrix, stationary, cornerSeq),
+    [matrix, stationary, cornerSeq],
+  );
 
   return (
     <div className="fixed inset-0 bg-bg-base z-50">
@@ -692,24 +744,79 @@ export function MarkovChainModal({ narrative, resolvedKeys, currentSceneIndex, o
 
           {/* Sidebar */}
           <div className="w-96 border-l border-white/5 p-5 space-y-6 shrink-0 overflow-y-auto">
+            {/* Metrics */}
+            <div className="space-y-3">
+              <div className="text-[11px] text-text-dim uppercase tracking-wider font-medium">Metrics</div>
+              <div>
+                <div className="flex justify-between text-[12px] mb-0.5">
+                  <span className="text-text-secondary">Variety</span>
+                  <span className="text-text-primary tabular-nums font-medium">{metrics.entropy.toFixed(2)} / {metrics.maxEntropy.toFixed(2)}</span>
+                </div>
+                <div className="w-full h-1.5 rounded-full bg-white/5 overflow-hidden">
+                  <div className="h-full rounded-full bg-emerald-500/70" style={{ width: `${(metrics.entropy / metrics.maxEntropy) * 100}%` }} />
+                </div>
+                <p className="text-[10px] text-text-dim mt-1">How evenly the story uses all 8 modes. High = wide range, low = repetitive.</p>
+              </div>
+              <div>
+                <div className="flex justify-between text-[12px] mb-0.5">
+                  <span className="text-text-secondary">Self-loops</span>
+                  <span className="text-text-primary tabular-nums font-medium">{(metrics.selfLoopRate * 100).toFixed(0)}%</span>
+                </div>
+                <div className="w-full h-1.5 rounded-full bg-white/5 overflow-hidden">
+                  <div className="h-full rounded-full bg-amber-500/70" style={{ width: `${metrics.selfLoopRate * 100}%` }} />
+                </div>
+                <p className="text-[10px] text-text-dim mt-1">How often consecutive scenes stay in the same mode. High = sticky, low = every scene shifts.</p>
+              </div>
+              <div>
+                <div className="flex justify-between text-[12px] mb-0.5">
+                  <span className="text-text-secondary">Payoff / Buildup</span>
+                  <span className="text-text-primary tabular-nums font-medium">{(metrics.payoffFrac * 100).toFixed(0)}% / {(metrics.buildupFrac * 100).toFixed(0)}%</span>
+                </div>
+                <div className="w-full h-1.5 rounded-full bg-white/5 overflow-hidden flex">
+                  <div className="h-full bg-red-500/70" style={{ width: `${metrics.payoffFrac * 100}%` }} />
+                  <div className="h-full bg-blue-500/70" style={{ width: `${metrics.buildupFrac * 100}%` }} />
+                </div>
+                <p className="text-[10px] text-text-dim mt-1">
+                  <span className="text-red-400">Payoff</span> = Epoch, Climax, Revelation, Closure.{' '}
+                  <span className="text-blue-400">Buildup</span> = Discovery, Growth, Lore, Rest.
+                </p>
+              </div>
+            </div>
+
+            {/* Observations */}
+            {metrics.observations.length > 0 && (
+              <div>
+                <div className="text-[11px] text-text-dim uppercase tracking-wider mb-2 font-medium">Observations</div>
+                <div className="space-y-1">
+                  {metrics.observations.map((d: string, i: number) => (
+                    <p key={i} className="text-[11px] text-text-secondary leading-snug">{d}</p>
+                  ))}
+                </div>
+                {metrics.oscillationPairs.length > 0 && (
+                  <div className="mt-3 flex flex-wrap gap-1.5">
+                    {metrics.oscillationPairs.map(({ a, b, strength }: { a: CubeCornerKey; b: CubeCornerKey; strength: number }) => (
+                      <div key={`${a}-${b}`} className="flex items-center gap-1 px-2 py-0.5 rounded bg-white/5 text-[10px]">
+                        <span style={{ color: CORNER_COLORS[a] }}>{NARRATIVE_CUBE[a].name}</span>
+                        <span className="text-text-dim">↔</span>
+                        <span style={{ color: CORNER_COLORS[b] }}>{NARRATIVE_CUBE[b].name}</span>
+                        <span className="text-text-dim">{strength}×</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Prediction */}
             {currentMode && (
               <PredictionPanel currentMode={currentMode} matrix={matrix} />
             )}
 
+            {/* Equilibrium */}
             <div>
               <div className="text-[11px] text-text-dim uppercase tracking-wider mb-2 font-medium">Equilibrium</div>
               <StationaryBars stationary={stationary} />
             </div>
-
-            <div>
-              <div className="text-[11px] text-text-dim uppercase tracking-wider mb-2 font-medium">Rhythm</div>
-              <div className="space-y-1.5">
-                {diagnosis.map((d, i) => (
-                  <p key={i} className="text-[11px] text-text-secondary leading-snug">{d}</p>
-                ))}
-              </div>
-            </div>
-
           </div>
         </div>
 
