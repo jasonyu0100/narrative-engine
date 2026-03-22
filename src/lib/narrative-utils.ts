@@ -194,9 +194,9 @@ export function zScoreNormalize(values: number[]): number[] {
 //     where r(g) = g / (1 + g)            (parameter-free saturating decay)
 //
 // S = ‖f_i - f_{i-1}‖₂                   (Euclidean distance in PCV space)
-// E = 0.5P + 0.25C + 0.25K + α·contrast  (delivery, payoff-weighted + tension-release bonus)
-//     contrast = max(0, T_{i-1} - T_i)   (tension drop = release)
-//     T = C + K - P                       (tension: buildup without payoff)
+// E = 0.5P + 0.5·tanh(C/2) + 0.5·tanh(K/2) + 0.3·contrast  (delivery, C/K saturated via tanh)
+//     contrast = max(0, T[i-1] - T[i])                      (tension release bonus)
+//     T = C + K - P                                          (tension: buildup without payoff)
 // g(x̃) = 25(1 - e^{-2x̃}), x̃ = x̄/μ     (grade, μ = {1.5, 7.0, 2.5, 1.5})
 //
 
@@ -512,28 +512,35 @@ export interface DeliveryPoint {
 /**
  * Compute the delivery curve from z-score normalised force snapshots.
  *
- * Delivery is payoff-weighted (0.5P + 0.25C + 0.25K) with a contrast bonus
- * that rewards tension-release patterns. A payoff scene that follows sustained
- * buildup (high C+K, low P) gets a bonus proportional to the tension drop —
- * this models the dopamine spike from prediction error / earned resolution.
+ * Delivery = 0.5P + 0.5·tanh(C/2) + 0.5·tanh(K/2) + 0.3·contrast
+ *
+ * Payoff is linear — high payoff IS the climax signal and should not
+ * be dampened. Change and Knowledge pass through tanh(x/2) which
+ * smoothly saturates toward ±1, preventing ensemble/introduction scenes
+ * from dominating delivery through sheer breadth. tanh is differentiable
+ * everywhere and preserves negative values naturally.
+ *
+ * The contrast bonus (0.3 × max(0, T[i-1] - T[i])) rewards scenes where
+ * tension drops — buildup releasing into payoff.
  */
 export function computeDeliveryCurve(snapshots: ForceSnapshot[]): DeliveryPoint[] {
   if (snapshots.length === 0) return [];
   const n = snapshots.length;
+
+  const CONTRAST_WEIGHT = 0.3;
 
   // Tension per scene: buildup without release
   const tensions = snapshots.map(({ payoff, change, knowledge }) =>
     change + knowledge - payoff,
   );
 
-  // Contrast bonus: reward scenes where tension drops (= release)
-  const CONTRAST_WEIGHT = 0.3;
+  // Contrast: reward scenes where tension drops (= release)
   const contrasts = tensions.map((t, i) =>
     i === 0 ? 0 : Math.max(0, tensions[i - 1] - t),
   );
 
   const engValues = snapshots.map(({ payoff, change, knowledge }, i) =>
-    0.5 * payoff + 0.25 * change + 0.25 * knowledge + CONTRAST_WEIGHT * contrasts[i],
+    0.5 * payoff + 0.5 * Math.tanh(change / 2) + 0.5 * Math.tanh(knowledge / 2) + CONTRAST_WEIGHT * contrasts[i],
   );
 
   const smoothed = gaussianSmooth(engValues, 1.5);

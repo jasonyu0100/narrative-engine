@@ -287,9 +287,9 @@ export default function PaperPage() {
 
             <div className="mb-12">
               <h3 className="text-[15px] font-semibold text-white/80 mb-2">Delivery</h3>
-              <Eq tex="E_i = 0.5 P_i + 0.25 C_i + 0.25 K_i + 0.3 \cdot \text{contrast}_i" />
+              <Eq tex="E_i = 0.5 P_i + 0.5 \tanh\!\left(\tfrac{C_i}{2}\right) + 0.5 \tanh\!\left(\tfrac{K_i}{2}\right) + 0.3 \cdot \text{contrast}_i" />
               <P>
-                The dopamine hit. Payoff is weighted 2&times; because resolution drives satisfaction. The contrast term, <Tex>{'\\text{contrast}_i = \\max(0,\\; T_{i-1} - T_i)'}</Tex>, rewards tension-release patterns: the same payoff lands harder after sustained buildup than it does in isolation. Earned endings hit different.
+                The dopamine hit. Payoff is linear&mdash;high payoff IS the climax signal and should not be dampened. Change and Knowledge pass through <Tex>{'\\tanh(x/2)'}</Tex>, which smoothly saturates toward &plusmn;1, preventing ensemble scenes from inflating delivery through sheer breadth. The contrast term, <Tex>{'\\text{contrast}_i = \\max(0,\\; T_{i-1} - T_i)'}</Tex>, rewards tension-release patterns: the same payoff lands harder after buildup than it does in isolation.
               </P>
             </div>
 
