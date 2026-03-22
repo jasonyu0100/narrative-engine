@@ -6,6 +6,7 @@ import { MAX_TOKENS_LARGE, GENERATE_MODEL } from '@/lib/constants';
 import { parseJson } from './json';
 import { branchContext } from './context';
 import { PROMPT_FORCE_STANDARDS, PROMPT_PACING, PROMPT_MUTATIONS, PROMPT_POV, PROMPT_CONTINUITY, PROMPT_SUMMARY_REQUIREMENT } from './prompts';
+import { samplePacingSequence, buildSequencePrompt } from '@/lib/markov';
 
 export type WorldExpansion = {
   characters: Character[];
@@ -369,6 +370,8 @@ Generate a world with enough CRITICAL MASS to sustain a long-running story:
 - 5-8 threads representing major narrative tensions, mysteries, and conflicts. Threads should interlock — at least some threads should share dependents or anchors.
 - 8-10 relationships between characters. Relationships should be asymmetric (A→B differs from B→A) with specific, character-voice descriptions. Use valence to show warmth vs hostility.
 - 15-25 scenes across 2-3 arcs. Each arc should have 5-10 scenes.
+
+${buildSequencePrompt(samplePacingSequence('LLL', 20))}
 
 ${PROMPT_POV}
 ${PROMPT_FORCE_STANDARDS}

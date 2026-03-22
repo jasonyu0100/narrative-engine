@@ -1,18 +1,19 @@
-import type { NarrativeState, Scene, Arc, CubeCornerKey, WorldBuildCommit, StorySettings } from '@/types/narrative';
-import type { DeliveryDirection } from '@/types/mcts';
-import { DELIVERY_DIRECTIONS } from '@/types/mcts';
-import { resolveEntry, NARRATIVE_CUBE, DEFAULT_STORY_SETTINGS } from '@/types/narrative';
+import type { NarrativeState, Scene, Arc, WorldBuildCommit, StorySettings } from '@/types/narrative';
+import { resolveEntry, DEFAULT_STORY_SETTINGS } from '@/types/narrative';
 import { nextId, nextIds } from '@/lib/narrative-utils';
 import { callGenerate, callGenerateStream, SYSTEM_PROMPT } from './api';
 import { WRITING_MODEL, ANALYSIS_MODEL, GENERATE_MODEL, MAX_TOKENS_LARGE, PLAN_PROSE_LOOKBACK } from '@/lib/constants';
 import { parseJson } from './json';
 import { branchContext, sceneContext, deriveLogicRules, sceneScale } from './context';
 import { PROMPT_FORCE_STANDARDS, PROMPT_PACING, PROMPT_MUTATIONS, PROMPT_POV, PROMPT_CONTINUITY, PROMPT_SUMMARY_REQUIREMENT, promptThreadLifecycle } from './prompts';
+import { samplePacingSequence, buildSequencePrompt, detectCurrentMode, type PacingSequence, type TransitionMatrix } from '@/lib/markov';
 
 export type GenerateScenesOptions = {
   existingArc?: Arc;
-  cubeGoal?: CubeCornerKey;
-  deliveryGoal?: DeliveryDirection;
+  /** Override the transition matrix for sequence sampling */
+  transitionMatrix?: TransitionMatrix;
+  /** Pre-sampled sequence (skips automatic sampling) */
+  pacingSequence?: PacingSequence;
   worldBuildFocus?: WorldBuildCommit;
   onToken?: (token: string) => void;
 };
@@ -25,7 +26,7 @@ export async function generateScenes(
   direction: string,
   options: GenerateScenesOptions = {},
 ): Promise<{ scenes: Scene[]; arc: Arc }> {
-  const { existingArc, cubeGoal, deliveryGoal, worldBuildFocus, onToken } = options;
+  const { existingArc, transitionMatrix, pacingSequence: preSequence, worldBuildFocus, onToken } = options;
   const ctx = branchContext(narrative, resolvedKeys, currentIndex);
   const arcId = existingArc?.id ?? nextId('ARC', Object.keys(narrative.arcs));
   const storySettings: StorySettings = { ...DEFAULT_STORY_SETTINGS, ...narrative.storySettings };
@@ -38,6 +39,17 @@ export async function generateScenes(
     : `Generate a NEW ARC with ${sceneCountInstruction}. Give the arc a short, evocative name (2-4 words) that reads like a chapter title — specific to the story, not generic.`;
   // Unique seed to ensure divergent narrative directions across parallel generations
   const seed = Math.random().toString(36).slice(2, 10) + '-' + Date.now().toString(36);
+
+  // ── Markov sequence: determine pacing before generation ──────────────
+  const sceneCount = count > 0 ? count : targetLen;
+  let sequence: PacingSequence;
+  if (preSequence) {
+    sequence = preSequence;
+  } else {
+    const currentMode = detectCurrentMode(narrative, resolvedKeys);
+    sequence = samplePacingSequence(currentMode, sceneCount, transitionMatrix);
+  }
+  const sequencePrompt = buildSequencePrompt(sequence);
 
   const prompt = `${ctx}
 
@@ -65,36 +77,7 @@ ${worldBuildFocus ? (() => {
 })() : ''}
 The scenes must continue from the current point in the story (after scene index ${currentIndex + 1}).
 
-${cubeGoal ? (() => {
-  const cube = NARRATIVE_CUBE[cubeGoal];
-  const p = cube.forces.payoff > 0;
-  const c = cube.forces.change > 0;
-  const k = cube.forces.knowledge > 0;
-  // Per-corner narrative instructions — each combination gets a distinct creative brief
-  const CORNER_INSTRUCTIONS: Record<CubeCornerKey, string> = {
-    HHH: `This is an EPOCH arc — everything converges. Threads should reach critical turning points or resolve. Characters undergo meaningful transformation. The world's rules expand — introduce new concepts that connect to existing knowledge and reshape understanding. This is the narrative crescendo — stakes are real, consequences are permanent, and the world's structure deepens. Maintain POV streaks (2-4 scenes per perspective).`,
-    HHL: `This is a CLIMAX arc — the established cast faces their reckoning. Drive threads to critical/terminal statuses with the core characters. Characters change profoundly through intense interactions — relationship valence shifts of ±0.3 to ±0.5 as alliances break and form under pressure. Everyone learns something (continuityMutations for all participants). World knowledge emerges through crisis — power structures are tested, rules are broken, systems fail or hold. Reuse existing WK nodes via edges. Anchor on one POV for most of the arc.`,
-    HLH: `This is a REVELATION arc — threads pay off through world-building. New concepts and connections unlock resolution — 3-5 WK nodes per scene revealing hidden systems, rules, or structures. Characters witness and absorb these revelations (continuityMutations). Relationships shift as shared knowledge changes power dynamics. Think: a hidden system is exposed, a rule of magic is understood, a political structure is laid bare. Keep POV changes purposeful.`,
-    HLL: `This is a CLOSURE arc — tying up loose ends with finality. Threads reach terminal statuses (resolved/subverted/abandoned) — conversations that needed to happen finally do. Relationships settle into new equilibria with meaningful valence shifts. Characters learn final truths about each other (continuityMutations). The world's established concepts are reaffirmed or seen in new light — reuse existing WK node IDs via edges. Stay with one POV and familiar settings.`,
-    LHH: `This is a DISCOVERY arc — characters grow rapidly through encountering new world systems. Threads pulse without major resolution but stay active. Introduce 3-5 WK nodes per scene with edges showing how they relate. Characters are learning, adapting, being transformed — continuityMutations for every participant as they absorb new knowledge. Relationships shift as shared discovery bonds or creates tension (±0.2 per interaction). Think: discovering a magic system, entering a new culture, uncovering ancient history. Maintain POV streaks.`,
-    LHL: `This is a GROWTH arc — the familiar cast evolves through internal development. Threads pulse and simmer without major resolution, but characters transform through training, bonding, arguing, processing. Relationship valence shifts are the primary engine — ±0.2 to ±0.3 per interaction. Characters learn about each other (continuityMutations for every participant). World knowledge still emerges through the lens of character growth — training reveals how systems work, conversations expose social dynamics. Anchor on one POV.`,
-    LLH: `This is a LORE arc — world-building is the primary engine. Establish new rules, systems, cultures, and connections in the world knowledge graph (3-5 nodes per scene). Threads simmer via pulses. Characters observe and learn (continuityMutations as they absorb world knowledge). Relationships shift subtly as shared discovery bonds or divides characters. Think: a journey through lands with distinct customs, discovering how a system works, uncovering history through action. Use one POV throughout.`,
-    LLL: `This is a REST arc — recovery and seed-planting with subtle undercurrents. Threads pulse and simmer without major resolution. Characters process recent events — they reflect, confide, and notice details that reveal character depth. The world shows its quieter systems — domestic routines, social customs, environmental rhythms. Stay with one POV and let scenes breathe. Even rest scenes have life: relationships shift through intimate conversation, characters learn about each other, and the world's texture is revealed.`,
-  };
-  return `
-NARRATIVE CUBE GOAL — "${cube.name}" (${cubeGoal}: Payoff ${p ? 'High' : 'Low'}, Change ${c ? 'High' : 'Low'}, Knowledge ${k ? 'High' : 'Low'}):
-${CORNER_INSTRUCTIONS[cubeGoal]}
-
-This goal OVERRIDES any momentum from previous scenes. Write scenes that genuinely embody this corner's energy — don't default to generic action or generic rest.`;
-})() : ''}
-${deliveryGoal && !cubeGoal ? (() => {
-  const dd = DELIVERY_DIRECTIONS[deliveryGoal];
-  return `
-DELIVERY GOAL — "${dd.name}":
-${dd.prompt}
-
-This delivery shape takes priority — structure the arc's force profile to match this trajectory.`;
-})() : ''}
+${sequencePrompt}
 
 Return JSON with this exact structure:
 {

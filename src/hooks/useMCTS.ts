@@ -166,8 +166,6 @@ export function useMCTS() {
       effectiveDirection,
       {
         existingArc: moveType === 'scene' ? existingArc : undefined,
-        cubeGoal: cubeGoal ?? undefined,
-        deliveryGoal: deliveryGoal ?? undefined,
         worldBuildFocus,
         onToken,
       },
