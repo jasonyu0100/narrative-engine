@@ -47,9 +47,9 @@ export function BranchContextModal({ narrative, resolvedKeys, currentSceneIndex,
   };
 
   return (
-    <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4" onClick={onClose}>
+    <div className="fixed inset-0 bg-black z-50 flex items-center justify-center p-4" onClick={onClose}>
       <div
-        className="glass-panel rounded-2xl flex flex-col max-w-4xl w-full"
+        className="bg-bg-base border border-white/10 rounded-2xl flex flex-col max-w-4xl w-full"
         style={{ maxHeight: 'calc(100vh - 4rem)' }}
         onClick={(e) => e.stopPropagation()}
       >

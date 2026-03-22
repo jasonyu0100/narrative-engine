@@ -141,7 +141,7 @@ export function CubeExplorer({
     sortKey === key ? (sortAsc ? ' \u25B2' : ' \u25BC') : '';
 
   return (
-    <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center" onClick={onClose}>
+    <div className="fixed inset-0 bg-black z-50 flex items-center justify-center" onClick={onClose}>
       <div
         className="bg-bg-base border border-white/10 rounded-xl shadow-2xl w-[720px] max-h-[80vh] flex flex-col"
         onClick={(e) => e.stopPropagation()}

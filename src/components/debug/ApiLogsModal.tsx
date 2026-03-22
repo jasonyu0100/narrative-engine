@@ -101,7 +101,7 @@ export function ApiLogsModal({ onClose }: { onClose: () => void }) {
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center" onClick={onClose}>
-      <div className="absolute inset-0 bg-black/50" />
+      <div className="absolute inset-0 bg-black" />
       <div
         className="relative w-[700px] max-w-[90vw] h-[500px] max-h-[80vh] rounded-2xl border border-white/10 overflow-hidden flex flex-col"
         style={{ background: '#1a1a1a', boxShadow: '0 24px 80px rgba(0,0,0,0.7)' }}
