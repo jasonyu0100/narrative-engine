@@ -134,9 +134,9 @@ PAYOFF floor ≥ ~1.2 avg raw per scene:
 - OR a mix of smaller transitions + relationship |Δv| shifts. Scenes with zero thread/relationship mutations score ZERO.
 - High-payoff scenes (climaxes, confrontations, reveals) should far exceed this — 3-5+ raw payoff is achievable.
 
-CHANGE floor ≥ ~5.6 avg raw per scene:
-- 3-4 characters meaningfully affected per scene (each with 2-3 mutations gives log₂(3-4) ≈ 1.6-2.0 per character).
-- Ensemble scenes with 5-6+ characters can score much higher. Let the cast density match the scene's needs.
+CHANGE floor ≥ ~3.6 avg raw per scene:
+- 2 characters with 2 mutations each = log₂(3) × 2 ≈ 3.2, plus 1-2 events ≈ 1.0 → ~4.2. The floor is reachable with modest cast interaction.
+- Ensemble scenes with 3-4+ affected characters score much higher. Let the cast density match the scene's needs.
 
 KNOWLEDGE floor ≥ ~2.0 avg raw per scene:
 - ~2 new world knowledge nodes per scene, or 1 node + 2 edges.

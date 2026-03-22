@@ -355,7 +355,7 @@ export default function PaperPage() {
             <div className="mt-3 mb-4 grid grid-cols-3 gap-2 text-[11px] max-w-sm">
               {[
                 { force: 'Payoff', value: '1.5', color: '#EF4444' },
-                { force: 'Change', value: '7.0', color: '#22C55E' },
+                { force: 'Change', value: '4.5', color: '#22C55E' },
                 { force: 'Knowledge', value: '2.5', color: '#3B82F6' },
               ].map(({ force, value, color }) => (
                 <div key={force} className="flex items-center gap-2 px-3 py-2 rounded-lg border border-white/6 bg-white/2">

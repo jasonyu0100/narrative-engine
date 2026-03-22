@@ -123,7 +123,7 @@ function ScoringTab() {
         <div className="mt-2 flex gap-2 text-[10px]">
           {[
             { label: 'Payoff', value: '1.5', color: '#EF4444' },
-            { label: 'Change', value: '7.0', color: '#22C55E' },
+            { label: 'Change', value: '4.5', color: '#22C55E' },
             { label: 'Knowledge', value: '2.5', color: '#3B82F6' },
           ].map(({ label, value, color }) => (
             <div key={label} className="flex items-center gap-1.5 px-2 py-1 rounded bg-white/5 border border-white/8">

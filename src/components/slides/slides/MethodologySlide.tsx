@@ -156,7 +156,7 @@ function GradingPage({ data }: { data: SlidesData }) {
           <div className="flex items-center gap-10">
             {[
               { label: 'Payoff', symbol: '\\mu_P', ref: '1.5', actual: avgP },
-              { label: 'Change', symbol: '\\mu_C', ref: '7.0', actual: avgC },
+              { label: 'Change', symbol: '\\mu_C', ref: '4.5', actual: avgC },
               { label: 'Knowledge', symbol: '\\mu_K', ref: '2.5', actual: avgK },
             ].map((f) => (
               <div key={f.label} className="flex flex-col items-center">

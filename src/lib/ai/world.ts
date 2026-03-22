@@ -376,7 +376,7 @@ POV DISCIPLINE:
 
 FORCE SCORING — every scene is scored across three forces. The numbers below are MINIMUM FLOORS for a passing grade (~80). These are not targets — they're the bare minimum. Exceptional scenes naturally exceed these when the narrative calls for it. A climactic reveal might spike payoff to 5+, a lore-heavy discovery scene might push knowledge to 6+. Don't write to the floor; write the scene the story needs and let the forces reflect its richness.
 - PAYOFF floor ≥ ~1.2 avg/scene: ~1 real thread transition per scene (active→escalating = 1pt, active→resolved = 3pt). Pulses (same→same) only give 0.25. Climaxes and confrontations should far exceed this.
-- CHANGE floor ≥ ~5.6 avg/scene: 3-4 characters affected per scene, each with 2-3 mutations. Ensemble scenes with more characters score higher naturally.
+- CHANGE floor ≥ ~3.6 avg/scene: 2 characters with 2 mutations each + 1-2 events meets the floor. Ensemble scenes with 3-4+ affected characters score higher naturally.
 - KNOWLEDGE floor ≥ ~2.0 avg/scene: ~2 world knowledge nodes per scene or 1 node + 2 edges. World-building scenes should aim for 4-6+.
 - SWING floor ≥ ~1.2 avg: Consecutive scenes must differ in force profile. Vary which force dominates scene to scene.
 
