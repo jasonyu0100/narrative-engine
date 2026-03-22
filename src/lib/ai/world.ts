@@ -205,7 +205,7 @@ Return JSON with this exact structure:
       "role": "anchor|recurring|transient",
       "threadIds": [],
       "imagePrompt": "1-2 sentence visual description: physical appearance, clothing, distinguishing features. Used for portrait generation.",
-      "knowledge": {
+      "continuity": {
         "nodes": [{"id": "${nextKId}", "type": "contextual_type", "content": "string"}]
       }
     }
@@ -217,7 +217,7 @@ Return JSON with this exact structure:
       "parentId": "REQUIRED: existing location ID (e.g. L-01) to nest under, or null ONLY for top-level regions",
       "threadIds": [],
       "imagePrompt": "1-2 sentence visual description: architecture, landscape, atmosphere, lighting. Used for establishing shot generation.",
-      "knowledge": {
+      "continuity": {
         "nodes": [{"id": "K-next", "type": "contextual_type", "content": "string"}]
       }
     }
@@ -329,10 +329,10 @@ Return JSON with this exact structure:
 {
   "worldSummary": "2-3 sentence world description",
   "characters": [
-    {"id": "C-01", "name": "string", "role": "anchor|recurring|transient", "threadIds": ["T-01"], "imagePrompt": "1-2 sentence visual description of physical appearance, clothing, distinguishing features for portrait generation", "knowledge": {"nodes": [{"id": "K-01", "type": "specific_contextual_type", "content": "string"}]}}
+    {"id": "C-01", "name": "string", "role": "anchor|recurring|transient", "threadIds": ["T-01"], "imagePrompt": "1-2 sentence visual description of physical appearance, clothing, distinguishing features for portrait generation", "continuity": {"nodes": [{"id": "K-01", "type": "specific_contextual_type", "content": "string"}]}}
   ],
   "locations": [
-    {"id": "L-01", "name": "string", "parentId": null, "threadIds": [], "imagePrompt": "1-2 sentence visual description of architecture, landscape, atmosphere for establishing shot generation", "knowledge": {"nodes": [{"id": "LK-01", "type": "specific_contextual_type", "content": "string"}]}}
+    {"id": "L-01", "name": "string", "parentId": null, "threadIds": [], "imagePrompt": "1-2 sentence visual description of architecture, landscape, atmosphere for establishing shot generation", "continuity": {"nodes": [{"id": "LK-01", "type": "specific_contextual_type", "content": "string"}]}}
   ],
   "threads": [
     {"id": "T-01", "anchors": [{"id": "C-01", "type": "character"}], "description": "string", "status": "dormant", "openedAt": "S-001", "dependents": []}
