@@ -3,6 +3,7 @@
 import React, { createContext, useContext, useReducer, useEffect, useRef, useMemo, type ReactNode } from 'react';
 import type { AppState, ControlMode, InspectorContext, NarrativeState, NarrativeEntry, WizardStep, WizardData, Scene, Arc, Branch, Character, Location, Thread, RelationshipEdge, GraphViewMode, AutoConfig, AutoRunState, AutoRunLog, WorldBuildCommit } from '@/types/narrative';
 import { resolveSceneSequence, nextId, computeForceSnapshots, computeSwingMagnitudes, computeDeliveryCurve, classifyNarrativeShape, classifyArchetype, gradeForces, computeRawForcetotals, FORCE_REFERENCE_MEANS } from '@/lib/narrative-utils';
+import { initMatrixPresets } from '@/lib/markov';
 import { resolveEntry, isScene } from '@/types/narrative';
 import { loadNarratives, saveNarrative as persistNarrative, deleteNarrative as deletePersisted, loadNarrative, saveActiveNarrativeId, loadActiveNarrativeId, saveActiveBranchId, loadActiveBranchId, migrateFromLocalStorage, loadAnalysisJobs, saveAnalysisJobs } from '@/lib/persistence';
 import { analysisRunner as analysisRunnerRef } from '@/lib/analysis-runner';
@@ -1150,6 +1151,16 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       const userEntries = persisted
         .filter((n) => !SEED_IDS.has(n.id) && !PLAYGROUND_IDS.has(n.id) && !ANALYSIS_IDS.has(n.id))
         .map(narrativeToEntry);
+
+      // Initialize Markov chain presets from analysed works
+      const worksForPresets: { key: string; name: string; narrative: NarrativeState }[] = [];
+      for (const [id, narrative] of bundledNarratives) {
+        if (ANALYSIS_IDS.has(id)) {
+          const key = narrative.title.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/(^_|_$)/g, '');
+          worksForPresets.push({ key, name: narrative.title, narrative });
+        }
+      }
+      if (worksForPresets.length > 0) initMatrixPresets(worksForPresets);
 
       dispatch({ type: 'HYDRATE_NARRATIVES', entries: [...playgroundEntries, ...analysisEntries, ...userEntries] });
 

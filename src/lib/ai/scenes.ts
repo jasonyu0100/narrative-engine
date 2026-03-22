@@ -6,7 +6,7 @@ import { WRITING_MODEL, ANALYSIS_MODEL, GENERATE_MODEL, MAX_TOKENS_LARGE, PLAN_P
 import { parseJson } from './json';
 import { branchContext, sceneContext, deriveLogicRules, sceneScale } from './context';
 import { PROMPT_FORCE_STANDARDS, PROMPT_PACING, PROMPT_MUTATIONS, PROMPT_POV, PROMPT_CONTINUITY, PROMPT_SUMMARY_REQUIREMENT, promptThreadLifecycle } from './prompts';
-import { samplePacingSequence, buildSequencePrompt, detectCurrentMode, type PacingSequence, type TransitionMatrix } from '@/lib/markov';
+import { samplePacingSequence, buildSequencePrompt, detectCurrentMode, MATRIX_PRESETS, DEFAULT_TRANSITION_MATRIX, type PacingSequence, type TransitionMatrix } from '@/lib/markov';
 
 export type GenerateScenesOptions = {
   existingArc?: Arc;
@@ -47,7 +47,11 @@ export async function generateScenes(
     sequence = preSequence;
   } else {
     const currentMode = detectCurrentMode(narrative, resolvedKeys);
-    sequence = samplePacingSequence(currentMode, sceneCount, transitionMatrix);
+    // Resolve matrix: explicit override > story setting > default
+    const matrix = transitionMatrix
+      ?? MATRIX_PRESETS.find((p) => p.key === storySettings.rhythmPreset)?.matrix
+      ?? DEFAULT_TRANSITION_MATRIX;
+    sequence = samplePacingSequence(currentMode, sceneCount, matrix);
   }
   const sequencePrompt = buildSequencePrompt(sequence);
 

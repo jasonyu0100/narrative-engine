@@ -184,9 +184,16 @@ export function PacingStrip({
 
       {/* Pacing summary */}
       {settledCount >= sequence.steps.length && (
-        <p className="text-[10px] text-text-dim leading-snug">
-          {sequence.pacingDescription}
-        </p>
+        <div className="space-y-1.5">
+          <p className="text-[10px] text-text-dim leading-snug">
+            {sequence.pacingDescription}
+          </p>
+          {sequence.reasoning && (
+            <p className="text-[10px] text-text-secondary leading-snug italic">
+              {sequence.reasoning}
+            </p>
+          )}
+        </div>
       )}
     </div>
   );

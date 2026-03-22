@@ -32,14 +32,69 @@ export type PacingSequence = {
   steps: ModeStep[];
   /** Human-readable pacing description for the prompt */
   pacingDescription: string;
+  /** AI reasoning for why this sequence was chosen (only for optimized sequences) */
+  reasoning?: string;
 };
 
 // ── Constants ────────────────────────────────────────────────────────────────
 
 const CORNERS: CubeCornerKey[] = ['HHH', 'HHL', 'HLH', 'HLL', 'LHH', 'LHL', 'LLH', 'LLL'];
 
+// ── Matrix Computation ───────────────────────────────────────────────────────
+
+import { computeRawForcetotals, zScoreNormalize, resolveSceneSequence } from '@/lib/narrative-utils';
+
+/** Compute a transition matrix from a NarrativeState using the canon (root) branch. */
+export function computeMatrixFromNarrative(narrative: NarrativeState): TransitionMatrix {
+  // Find root branch
+  const rootBranch = Object.values(narrative.branches).find((b) => b.parentBranchId === null);
+  const keys = rootBranch
+    ? resolveSceneSequence(narrative.branches, rootBranch.id)
+    : Object.keys(narrative.scenes);
+
+  const scenes = keys
+    .map((k) => resolveEntry(narrative, k))
+    .filter((e): e is Scene => !!e && e.kind === 'scene');
+
+  if (scenes.length < 3) return emptyMatrix();
+
+  const raw = computeRawForcetotals(scenes);
+  const np = zScoreNormalize(raw.payoff);
+  const nc = zScoreNormalize(raw.change);
+  const nk = zScoreNormalize(raw.knowledge);
+
+  const sequence: CubeCornerKey[] = scenes.map((_, i) =>
+    detectCubeCorner({ payoff: np[i], change: nc[i], knowledge: nk[i] }).key
+  );
+
+  const counts = emptyMatrix();
+  for (let i = 0; i < sequence.length - 1; i++) {
+    counts[sequence[i]][sequence[i + 1]]++;
+  }
+
+  // Normalize rows
+  for (const from of CORNERS) {
+    const total = CORNERS.reduce((s, to) => s + counts[from][to], 0);
+    if (total > 0) {
+      for (const to of CORNERS) {
+        counts[from][to] = Math.round((counts[from][to] / total) * 1000) / 1000;
+      }
+    }
+  }
+
+  return counts;
+}
+
+function emptyMatrix(): TransitionMatrix {
+  const m = {} as TransitionMatrix;
+  for (const from of CORNERS) {
+    m[from] = {} as Record<CubeCornerKey, number>;
+    for (const to of CORNERS) m[from][to] = 0;
+  }
+  return m;
+}
+
 // ── Preset Matrices ──────────────────────────────────────────────────────────
-// Derived from structural analysis of published works in public/works/.
 
 export type MatrixPreset = {
   key: string;
@@ -48,79 +103,60 @@ export type MatrixPreset = {
   matrix: TransitionMatrix;
 };
 
-const HP_MATRIX: TransitionMatrix = {
-  'HHH': { 'HHH': 0.077, 'HHL': 0.0, 'HLH': 0.154, 'HLL': 0.154, 'LHH': 0.0, 'LHL': 0.154, 'LLH': 0.308, 'LLL': 0.154 },
-  'HHL': { 'HHH': 0.091, 'HHL': 0.091, 'HLH': 0.182, 'HLL': 0.0, 'LHH': 0.091, 'LHL': 0.0, 'LLH': 0.364, 'LLL': 0.182 },
-  'HLH': { 'HHH': 0.111, 'HHL': 0.111, 'HLH': 0.0, 'HLL': 0.0, 'LHH': 0.111, 'LHL': 0.333, 'LLH': 0.111, 'LLL': 0.222 },
-  'HLL': { 'HHH': 0.286, 'HHL': 0.143, 'HLH': 0.143, 'HLL': 0.143, 'LHH': 0.0, 'LHL': 0.0, 'LLH': 0.0, 'LLL': 0.286 },
-  'LHH': { 'HHH': 0.667, 'HHL': 0.333, 'HLH': 0.0, 'HLL': 0.0, 'LHH': 0.0, 'LHL': 0.0, 'LLH': 0.0, 'LLL': 0.0 },
-  'LHL': { 'HHH': 0.111, 'HHL': 0.0, 'HLH': 0.111, 'HLL': 0.0, 'LHH': 0.0, 'LHL': 0.222, 'LLH': 0.111, 'LLL': 0.444 },
-  'LLH': { 'HHH': 0.105, 'HHL': 0.211, 'HLH': 0.0, 'HLL': 0.053, 'LHH': 0.053, 'LHL': 0.158, 'LLH': 0.211, 'LLL': 0.211 },
-  'LLL': { 'HHH': 0.105, 'HHL': 0.158, 'HLH': 0.158, 'HLL': 0.158, 'LHH': 0.0, 'LHL': 0.0, 'LLH': 0.263, 'LLL': 0.158 },
-};
+/** Mutable preset list — populated at runtime from analysed works. */
+export let MATRIX_PRESETS: MatrixPreset[] = [];
 
-const NINETEEN84_MATRIX: TransitionMatrix = {
-  'HHH': { 'HHH': 0.111, 'HHL': 0.0, 'HLH': 0.111, 'HLL': 0.111, 'LHH': 0.111, 'LHL': 0.222, 'LLH': 0.222, 'LLL': 0.111 },
-  'HHL': { 'HHH': 0.167, 'HHL': 0.0, 'HLH': 0.0, 'HLL': 0.333, 'LHH': 0.167, 'LHL': 0.0, 'LLH': 0.0, 'LLL': 0.333 },
-  'HLH': { 'HHH': 0.0, 'HHL': 0.0, 'HLH': 0.0, 'HLL': 0.333, 'LHH': 0.667, 'LHL': 0.0, 'LLH': 0.0, 'LLL': 0.0 },
-  'HLL': { 'HHH': 0.125, 'HHL': 0.125, 'HLH': 0.0, 'HLL': 0.0, 'LHH': 0.125, 'LHL': 0.0, 'LLH': 0.125, 'LLL': 0.5 },
-  'LHH': { 'HHH': 0.0, 'HHL': 0.091, 'HLH': 0.0, 'HLL': 0.0, 'LHH': 0.091, 'LHL': 0.273, 'LLH': 0.091, 'LLL': 0.455 },
-  'LHL': { 'HHH': 0.125, 'HHL': 0.25, 'HLH': 0.0, 'HLL': 0.125, 'LHH': 0.0, 'LHL': 0.125, 'LLH': 0.25, 'LLL': 0.125 },
-  'LLH': { 'HHH': 0.167, 'HHL': 0.0, 'HLH': 0.0, 'HLL': 0.0, 'LHH': 0.167, 'LHL': 0.0, 'LLH': 0.0, 'LLL': 0.667 },
-  'LLL': { 'HHH': 0.174, 'HHL': 0.087, 'HLH': 0.043, 'HLL': 0.13, 'LHH': 0.174, 'LHL': 0.087, 'LLH': 0.043, 'LLL': 0.261 },
-};
+/** Default matrix — HP is the fallback until presets are loaded. */
+export let DEFAULT_TRANSITION_MATRIX: TransitionMatrix = emptyMatrix();
 
-const GATSBY_MATRIX: TransitionMatrix = {
-  'HHH': { 'HHH': 0.182, 'HHL': 0.0, 'HLH': 0.0, 'HLL': 0.0, 'LHH': 0.182, 'LHL': 0.091, 'LLH': 0.182, 'LLL': 0.364 },
-  'HHL': { 'HHH': 1.0, 'HHL': 0.0, 'HLH': 0.0, 'HLL': 0.0, 'LHH': 0.0, 'LHL': 0.0, 'LLH': 0.0, 'LLL': 0.0 },
-  'HLH': { 'HHH': 0.0, 'HHL': 0.0, 'HLH': 0.333, 'HLL': 0.333, 'LHH': 0.0, 'LHL': 0.333, 'LLH': 0.0, 'LLL': 0.0 },
-  'HLL': { 'HHH': 0.0, 'HHL': 0.25, 'HLH': 0.0, 'HLL': 0.25, 'LHH': 0.0, 'LHL': 0.0, 'LLH': 0.0, 'LLL': 0.5 },
-  'LHH': { 'HHH': 0.2, 'HHL': 0.0, 'HLH': 0.0, 'HLL': 0.0, 'LHH': 0.2, 'LHL': 0.0, 'LLH': 0.0, 'LLL': 0.6 },
-  'LHL': { 'HHH': 0.333, 'HHL': 0.0, 'HLH': 0.0, 'HLL': 0.667, 'LHH': 0.0, 'LHL': 0.0, 'LLH': 0.0, 'LLL': 0.0 },
-  'LLH': { 'HHH': 0.5, 'HHL': 0.0, 'HLH': 0.5, 'HLL': 0.0, 'LHH': 0.0, 'LHL': 0.0, 'LLH': 0.0, 'LLL': 0.0 },
-  'LLL': { 'HHH': 0.357, 'HHL': 0.071, 'HLH': 0.071, 'HLL': 0.0, 'LHH': 0.071, 'LHL': 0.071, 'LLH': 0.0, 'LLL': 0.357 },
-};
+/** Populate presets from loaded work narratives. Called once during hydration. */
+export function initMatrixPresets(works: { key: string; name: string; narrative: NarrativeState }[]) {
+  const presets: MatrixPreset[] = [];
 
-const ALICE_MATRIX: TransitionMatrix = {
-  'HHH': { 'HHH': 0.25, 'HHL': 0.25, 'HLH': 0.0, 'HLL': 0.0, 'LHH': 0.25, 'LHL': 0.25, 'LLH': 0.0, 'LLL': 0.0 },
-  'HHL': { 'HHH': 0.0, 'HHL': 0.0, 'HLH': 0.0, 'HLL': 0.0, 'LHH': 0.0, 'LHL': 0.0, 'LLH': 0.0, 'LLL': 1.0 },
-  'HLH': { 'HHH': 0.0, 'HHL': 0.0, 'HLH': 0.0, 'HLL': 1.0, 'LHH': 0.0, 'LHL': 0.0, 'LLH': 0.0, 'LLL': 0.0 },
-  'HLL': { 'HHH': 0.5, 'HHL': 0.5, 'HLH': 0.0, 'HLL': 0.0, 'LHH': 0.0, 'LHL': 0.0, 'LLH': 0.0, 'LLL': 0.0 },
-  'LHH': { 'HHH': 0.0, 'HHL': 0.0, 'HLH': 0.0, 'HLL': 0.0, 'LHH': 0.0, 'LHL': 0.0, 'LLH': 0.0, 'LLL': 1.0 },
-  'LHL': { 'HHH': 0.333, 'HHL': 0.0, 'HLH': 0.333, 'HLL': 0.0, 'LHH': 0.0, 'LHL': 0.0, 'LLH': 0.0, 'LLL': 0.333 },
-  'LLH': { 'HHH': 0.0, 'HHL': 0.0, 'HLH': 0.0, 'HLL': 0.0, 'LHH': 0.0, 'LHL': 0.0, 'LLH': 0.0, 'LLL': 1.0 },
-  'LLL': { 'HHH': 0.167, 'HHL': 0.0, 'HLH': 0.0, 'HLL': 0.167, 'LHH': 0.0, 'LHL': 0.167, 'LLH': 0.167, 'LLL': 0.333 },
-};
+  for (const work of works) {
+    const matrix = computeMatrixFromNarrative(work.narrative);
+    // Check it has enough data (at least some non-zero transitions)
+    const totalTransitions = CORNERS.reduce((s, from) =>
+      s + CORNERS.reduce((s2, to) => s2 + matrix[from][to], 0), 0);
+    if (totalTransitions < 0.5) continue; // empty matrix, skip
 
-export const MATRIX_PRESETS: MatrixPreset[] = [
-  {
-    key: 'harry_potter',
-    name: 'Harry Potter',
-    description: 'Balanced explorer — high variety, low self-loops, buildup-heavy (57%). Wide range of modes with Lore↔Rest oscillation.',
-    matrix: HP_MATRIX,
-  },
-  {
-    key: 'nineteen_eighty_four',
-    name: '1984',
-    description: 'Pressure cooker — buildup-dominant (66%), long dwelling in Rest/Growth then sudden Epoch eruptions.',
-    matrix: NINETEEN84_MATRIX,
-  },
-  {
-    key: 'great_gatsby',
-    name: 'Great Gatsby',
-    description: 'Pendulum — oscillates between Rest and Epoch. Strong self-loops (23%). Bipolar intensity.',
-    matrix: GATSBY_MATRIX,
-  },
-  {
-    key: 'alice',
-    name: 'Alice in Wonderland',
-    description: 'Episodic — spike-and-reset pattern. Climax always resets to Rest. Each episode is self-contained.',
-    matrix: ALICE_MATRIX,
-  },
-];
+    // Auto-generate description from matrix properties
+    const payoffFrac = CORNERS.filter((c) => c[0] === 'H')
+      .reduce((s, c) => {
+        // sum stationary-ish weight
+        let w = 0;
+        for (const from of CORNERS) w += matrix[from][c];
+        return s + w;
+      }, 0);
+    const totalWeight = CORNERS.reduce((s, c) => {
+      let w = 0;
+      for (const from of CORNERS) w += matrix[from][c];
+      return s + w;
+    }, 0);
+    const payoffPct = totalWeight > 0 ? Math.round((payoffFrac / totalWeight) * 100) : 50;
 
-/** Default matrix — Harry Potter (most balanced, best general-purpose). */
-export const DEFAULT_TRANSITION_MATRIX: TransitionMatrix = HP_MATRIX;
+    let selfLoops = 0;
+    let totalRows = 0;
+    for (const c of CORNERS) {
+      if (matrix[c][c] > 0) { selfLoops += matrix[c][c]; totalRows++; }
+      else totalRows++;
+    }
+
+    presets.push({
+      key: work.key,
+      name: work.name,
+      description: `${payoffPct}% payoff modes. Computed from ${work.name}.`,
+      matrix,
+    });
+  }
+
+  MATRIX_PRESETS = presets;
+
+  // Set default to first preset (usually HP based on alphabetical loading order)
+  // Prefer harry_potter if available
+  const hp = presets.find((p) => p.key.includes('harry_potter'));
+  DEFAULT_TRANSITION_MATRIX = hp?.matrix ?? presets[0]?.matrix ?? emptyMatrix();
+}
 
 /**
  * Force target ranges per cube corner.
@@ -329,11 +365,11 @@ Select exactly ${length} modes that best serve the DIRECTION above while followi
 - How much buildup is needed before payoff?
 - The sequence should feel like a natural story rhythm, not random.
 
-Return JSON: {"sequence": ["${CORNERS[0]}", ...]} — an array of exactly ${length} cube corner keys.`;
+Return JSON: {"sequence": ["${CORNERS[0]}", ...], "reasoning": "2-3 sentences explaining WHY you chose this sequence — what buildup structure serves the direction, where the peak lands and why, what the rhythm achieves."} — sequence is an array of exactly ${length} cube corner keys.`;
 
   try {
     const raw = await callGenerate(prompt, SYSTEM_PROMPT, 1000, 'optimizeSequence');
-    const parsed = parseJson(raw, 'optimizeSequence') as { sequence: string[] };
+    const parsed = parseJson(raw, 'optimizeSequence') as { sequence: string[]; reasoning?: string };
 
     if (Array.isArray(parsed.sequence) && parsed.sequence.length === length) {
       const validModes = new Set<string>(CORNERS);
@@ -348,7 +384,11 @@ Return JSON: {"sequence": ["${CORNERS[0]}", ...]} — an array of exactly ${leng
           description: NARRATIVE_CUBE[mode].description,
           forces: FORCE_TARGETS[mode],
         }));
-        return { steps, pacingDescription: buildPacingDescription(steps) };
+        return {
+          steps,
+          pacingDescription: buildPacingDescription(steps),
+          reasoning: parsed.reasoning,
+        };
       }
     }
   } catch (err) {

@@ -5,6 +5,7 @@ import { useStore } from '@/lib/store';
 import { apiHeaders } from '@/lib/api-headers';
 import type { StorySettings, POVMode } from '@/types/narrative';
 import { DEFAULT_STORY_SETTINGS, BRANCH_TIME_HORIZON_OPTIONS } from '@/types/narrative';
+import { MATRIX_PRESETS } from '@/lib/markov';
 
 type Tab = 'pov' | 'direction' | 'structure' | 'memory' | 'cover';
 
@@ -233,6 +234,37 @@ export function StorySettingsModal({ onClose }: { onClose: () => void }) {
                   <span className="text-[11px] text-text-primary font-mono w-16 text-right">
                     {settings.targetArcLength} scenes
                   </span>
+                </div>
+              </div>
+
+              {/* Rhythm Preset */}
+              <div>
+                <label className="text-[10px] text-text-dim uppercase tracking-wider block mb-2">
+                  Rhythm Profile
+                </label>
+                <p className="text-[10px] text-text-dim mb-3 leading-snug">
+                  Controls the Markov chain transition matrix used to sequence scene pacing. Each profile produces a different narrative rhythm.
+                </p>
+                <div className="flex flex-col gap-1.5">
+                  {MATRIX_PRESETS.map((preset) => {
+                    const isSelected = (settings.rhythmPreset || 'harry_potter') === preset.key;
+                    return (
+                      <button
+                        key={preset.key}
+                        onClick={() => update({ rhythmPreset: preset.key })}
+                        className={`px-3 py-2.5 rounded-lg text-left transition-colors border ${
+                          isSelected
+                            ? 'border-blue-500/40 bg-blue-500/10'
+                            : 'border-white/6 hover:border-white/12 hover:bg-white/3'
+                        }`}
+                      >
+                        <span className={`text-[11px] font-semibold ${isSelected ? 'text-text-primary' : 'text-text-secondary'}`}>
+                          {preset.name}
+                        </span>
+                        <p className="text-[10px] text-text-dim mt-0.5 leading-snug">{preset.description}</p>
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
             </>

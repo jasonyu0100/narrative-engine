@@ -79,10 +79,9 @@ export function useAutoPlay() {
         worldExpanded = true;
       }
 
-      // Generate arc toward the chosen cube corner
+      // Generate arc — pacing is handled by Markov chain sequencing inside generateScenes
       const directive = buildActionDirective(action, activeNarrative, autoConfig, directiveCtx);
       const sceneCount = pickArcLength(autoConfig, action);
-      const cubeGoal = pickCubeGoal(action, activeNarrative, resolvedSceneKeys, autoConfig);
       const { scenes, arc } = await generateScenes(
         activeNarrative,
         resolvedSceneKeys,

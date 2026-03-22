@@ -6,8 +6,10 @@ import { generateScenes, suggestArcDirection, expandWorld, suggestWorldExpansion
 import { resolveEntry, NARRATIVE_CUBE } from '@/types/narrative';
 import type { CubeCornerKey } from '@/types/narrative';
 import { nextId } from '@/lib/narrative-utils';
-import { samplePacingSequence, optimizeSequence, detectCurrentMode, type PacingSequence } from '@/lib/markov';
+import { samplePacingSequence, optimizeSequence, detectCurrentMode, MATRIX_PRESETS, DEFAULT_TRANSITION_MATRIX, type PacingSequence } from '@/lib/markov';
+import { DEFAULT_STORY_SETTINGS } from '@/types/narrative';
 import { PacingStrip, CubeBadge } from './PacingStrip';
+import { MarkovGraph } from './MarkovGraph';
 
 type Mode = 'continuation' | 'world';
 
@@ -52,7 +54,7 @@ export function GeneratePanel({ onClose }: { onClose: () => void }) {
   const [newArc, setNewArc] = useState(true);
   const [arcName, setArcName] = useState('');
   const [direction, setDirection] = useState('');
-  const [count, setCount] = useState(3);
+  const [count, setCount] = useState(5);
   const [worldBuildFocusId, setWorldBuildFocusId] = useState<string | null>(null);
   const [advancedOpen, setAdvancedOpen] = useState(false);
 
@@ -86,21 +88,25 @@ export function GeneratePanel({ onClose }: { onClose: () => void }) {
     [narrative, state.resolvedSceneKeys],
   );
 
+  const storyMatrix = useMemo(() => {
+    const presetKey = narrative.storySettings?.rhythmPreset ?? DEFAULT_STORY_SETTINGS.rhythmPreset;
+    return MATRIX_PRESETS.find((p) => p.key === presetKey)?.matrix ?? DEFAULT_TRANSITION_MATRIX;
+  }, [narrative.storySettings?.rhythmPreset]);
+
   const handleSample = useCallback(() => {
-    const seq = samplePacingSequence(currentMode, count);
+    const seq = samplePacingSequence(currentMode, count, storyMatrix);
     setPreviewSequence(seq);
     setAnimating(true);
-  }, [currentMode, count]);
+  }, [currentMode, count, storyMatrix]);
 
   const handleOptimize = useCallback(async () => {
     setOptimizing(true);
     try {
-      const seq = await optimizeSequence(currentMode, count, direction || 'Continue the narrative naturally based on unresolved threads and character tensions.');
+      const seq = await optimizeSequence(currentMode, count, direction || 'Continue the narrative naturally based on unresolved threads and character tensions.', storyMatrix);
       setPreviewSequence(seq);
       setAnimating(true);
     } catch {
-      // Fallback to random
-      const seq = samplePacingSequence(currentMode, count);
+      const seq = samplePacingSequence(currentMode, count, storyMatrix);
       setPreviewSequence(seq);
       setAnimating(true);
     } finally {
@@ -175,7 +181,7 @@ export function GeneratePanel({ onClose }: { onClose: () => void }) {
   const showPreview = !!previewSequence && mode === 'continuation' && !loading;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center">
+    <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center">
       <div className="bg-bg-base border border-white/10 max-w-xl w-full rounded-2xl p-6 relative max-h-[90vh] overflow-y-auto">
         <button onClick={onClose} className="absolute top-4 right-4 text-text-dim hover:text-text-primary text-lg leading-none">&times;</button>
 
@@ -205,38 +211,72 @@ export function GeneratePanel({ onClose }: { onClose: () => void }) {
         ) : showPreview ? (
           /* ── Pacing Preview ───────────────────────────────────── */
           <div className="flex flex-col gap-4">
+            {/* Graph centered */}
+            <div className="flex justify-center">
+              <MarkovGraph
+                sequence={previewSequence}
+                startMode={currentMode}
+                animating={animating}
+                onAnimationDone={() => setAnimating(false)}
+                width={240}
+                height={240}
+              />
+            </div>
+
+            {/* Strip below */}
             <PacingStrip
               sequence={previewSequence}
               animating={animating}
-              onAnimationDone={() => setAnimating(false)}
             />
 
+            {/* Actions */}
             <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={() => setPreviewSequence(null)}
-                  disabled={animating}
-                  className="text-[11px] text-text-dim hover:text-text-secondary transition disabled:opacity-30"
-                >
-                  &larr; Back
-                </button>
-              </div>
-              <div className="flex items-center gap-2">
+              <button
+                onClick={() => setPreviewSequence(null)}
+                disabled={animating || optimizing}
+                className="text-[11px] text-text-dim hover:text-text-secondary transition disabled:opacity-30"
+              >
+                &larr; Back
+              </button>
+              <div className="flex items-center gap-1.5">
+                {/* Resample */}
                 <button
                   onClick={handleSample}
-                  disabled={animating}
-                  className="text-[10px] px-3 py-1.5 rounded-lg border border-white/8 text-text-dim hover:text-text-primary hover:border-white/15 transition disabled:opacity-30 flex items-center gap-1.5"
+                  disabled={animating || optimizing}
+                  className="text-[10px] px-2.5 py-1.5 rounded-lg border border-white/8 text-text-dim hover:text-text-primary hover:border-white/15 transition disabled:opacity-30 flex items-center gap-1"
+                  title="Random sample from transition matrix"
                 >
                   <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <polyline points="1 4 1 10 7 10" />
-                    <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10" />
+                    <rect x="3" y="3" width="18" height="18" rx="3" />
+                    <circle cx="8.5" cy="8.5" r="1" fill="currentColor" />
+                    <circle cx="15.5" cy="8.5" r="1" fill="currentColor" />
+                    <circle cx="8.5" cy="15.5" r="1" fill="currentColor" />
+                    <circle cx="15.5" cy="15.5" r="1" fill="currentColor" />
+                    <circle cx="12" cy="12" r="1" fill="currentColor" />
                   </svg>
-                  Resample
+                  Reroll
                 </button>
+                {/* AI Suggest */}
+                <button
+                  onClick={handleOptimize}
+                  disabled={animating || optimizing}
+                  className="text-[10px] px-2.5 py-1.5 rounded-lg border border-amber-500/20 text-amber-400/70 hover:text-amber-400 hover:border-amber-500/30 hover:bg-amber-500/5 transition disabled:opacity-30 flex items-center gap-1"
+                  title="AI picks the best route for your direction"
+                >
+                  {optimizing ? (
+                    <div className="w-3 h-3 border-2 border-amber-400/20 border-t-amber-400/70 rounded-full animate-spin" />
+                  ) : (
+                    <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M12 2l2.4 7.2L22 12l-7.6 2.8L12 22l-2.4-7.2L2 12l7.6-2.8z" />
+                    </svg>
+                  )}
+                  Suggest Route
+                </button>
+                {/* Generate */}
                 <button
                   onClick={handleGenerateArc}
-                  disabled={animating}
-                  className="text-[12px] px-4 py-1.5 rounded-lg bg-white/10 hover:bg-white/16 text-text-primary font-semibold transition disabled:opacity-30"
+                  disabled={animating || optimizing}
+                  className="text-[11px] px-4 py-1.5 rounded-lg bg-white/10 hover:bg-white/16 text-text-primary font-semibold transition disabled:opacity-30"
                 >
                   Generate
                 </button>
@@ -347,10 +387,14 @@ export function GeneratePanel({ onClose }: { onClose: () => void }) {
                     className="flex-1 py-2.5 rounded-lg border border-white/8 hover:border-white/15 text-text-secondary hover:text-text-primary font-medium transition disabled:opacity-30 flex items-center justify-center gap-2 text-[12px]"
                   >
                     <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <polyline points="1 4 1 10 7 10" />
-                      <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10" />
+                      <rect x="3" y="3" width="18" height="18" rx="3" />
+                      <circle cx="8.5" cy="8.5" r="1.2" fill="currentColor" />
+                      <circle cx="15.5" cy="8.5" r="1.2" fill="currentColor" />
+                      <circle cx="8.5" cy="15.5" r="1.2" fill="currentColor" />
+                      <circle cx="15.5" cy="15.5" r="1.2" fill="currentColor" />
+                      <circle cx="12" cy="12" r="1.2" fill="currentColor" />
                     </svg>
-                    Sample
+                    Roll Route
                   </button>
                   <button
                     onClick={handleOptimize}
@@ -365,9 +409,9 @@ export function GeneratePanel({ onClose }: { onClose: () => void }) {
                     ) : (
                       <>
                         <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                          <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
+                          <path d="M12 2l2.4 7.2L22 12l-7.6 2.8L12 22l-2.4-7.2L2 12l7.6-2.8z" />
                         </svg>
-                        AI Guide
+                        Suggest Route
                       </>
                     )}
                   </button>

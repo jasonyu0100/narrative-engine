@@ -451,6 +451,8 @@ export type StorySettings = {
   storyDirection: string;
   /** Target arc length in scenes */
   targetArcLength: number;
+  /** Markov chain rhythm preset key (from MATRIX_PRESETS) */
+  rhythmPreset: string;
   /** Prose voice/style the AI should mimic when writing */
   proseVoice: string;
   /** Guidance for how scene plans should be structured */
@@ -467,7 +469,8 @@ export const DEFAULT_STORY_SETTINGS: StorySettings = {
   povMode: 'free',
   povCharacterIds: [],
   storyDirection: '',
-  targetArcLength: 4,
+  targetArcLength: 5,
+  rhythmPreset: 'harry_potter',
   proseVoice: '',
   planGuidance: '',
   branchTimeHorizon: 50,
