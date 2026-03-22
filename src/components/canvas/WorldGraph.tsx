@@ -969,8 +969,9 @@ export default function WorldGraph() {
         const expandedCharIds = new Set(manifest.characterIds);
         const expandedLocIds = new Set(manifest.locationIds);
 
-        // Include relationships that touch at least one new character
-        const filteredRels = narrative.relationships.filter(
+        // Relationships filtered to current timeline position, then to expansion entities
+        const timelineRels = getRelationshipsAtScene(narrative, resolvedSceneKeys, state.currentSceneIndex);
+        const filteredRels = timelineRels.filter(
           (r) => expandedCharIds.has(r.from) || expandedCharIds.has(r.to),
         );
 
