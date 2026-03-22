@@ -17,6 +17,7 @@ export function CreationWizard() {
   const isDetails = state.wizardStep === 'details';
 
   const [loading, setLoading] = useState(false);
+  const [streamText, setStreamText] = useState('');
   const [error, setError] = useState('');
   const [ruleDraft, setRuleDraft] = useState('');
   const [suggesting, setSuggesting] = useState(false);
@@ -130,9 +131,13 @@ export function CreationWizard() {
   async function handleGenerate() {
     if (loading) return;
     setLoading(true);
+    setStreamText('');
     setError('');
     try {
-      const narrative = await generateNarrative(wd.title, buildEnhancedPremise(), wd.rules);
+      const narrative = await generateNarrative(
+        wd.title, buildEnhancedPremise(), wd.rules,
+        (token) => setStreamText((prev) => prev + token),
+      );
       dispatch({ type: 'ADD_NARRATIVE', narrative });
       router.push(`/series/${narrative.id}`);
     } catch (err) {
@@ -159,15 +164,22 @@ export function CreationWizard() {
         <div className="glass max-w-2xl w-full rounded-2xl p-6 relative">
           <div className="flex flex-col gap-5">
             {loading ? (
-              <div className="flex flex-col gap-4">
-                <h2 className="text-sm font-semibold text-text-primary">Generating world&hellip;</h2>
-                <div className="flex flex-col gap-3">
-                  <div className="h-3 w-3/4 bg-white/6 rounded animate-pulse" />
-                  <div className="h-3 w-1/2 bg-white/6 rounded animate-pulse" />
-                  <div className="h-3 w-5/6 bg-white/6 rounded animate-pulse" />
-                  <div className="h-3 w-2/3 bg-white/6 rounded animate-pulse" />
-                  <div className="h-3 w-3/5 bg-white/6 rounded animate-pulse" />
+              <div className="flex flex-col gap-3">
+                <div className="flex items-center gap-2">
+                  <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                  <h2 className="text-sm font-semibold text-text-primary">Generating world&hellip;</h2>
                 </div>
+                {streamText ? (
+                  <pre className="text-[11px] text-text-dim font-mono whitespace-pre-wrap max-h-72 overflow-y-auto bg-white/3 rounded-lg p-3 leading-relaxed">
+                    {streamText}
+                  </pre>
+                ) : (
+                  <div className="flex flex-col gap-3">
+                    <div className="h-3 w-3/4 bg-white/6 rounded animate-pulse" />
+                    <div className="h-3 w-1/2 bg-white/6 rounded animate-pulse" />
+                    <div className="h-3 w-5/6 bg-white/6 rounded animate-pulse" />
+                  </div>
+                )}
               </div>
             ) : (
               <h2 className="text-sm font-semibold text-text-primary">Generation failed</h2>

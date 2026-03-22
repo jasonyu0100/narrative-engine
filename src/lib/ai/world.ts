@@ -1,8 +1,8 @@
 import type { NarrativeState, Character, Location, Thread, RelationshipEdge, WorldKnowledgeNode, WorldKnowledgeEdge, WorldKnowledgeMutation } from '@/types/narrative';
 import { THREAD_ACTIVE_STATUSES } from '@/types/narrative';
 import { nextId, nextIds } from '@/lib/narrative-utils';
-import { callGenerate, SYSTEM_PROMPT } from './api';
-import { MAX_TOKENS_LARGE } from '@/lib/constants';
+import { callGenerate, callGenerateStream, SYSTEM_PROMPT } from './api';
+import { MAX_TOKENS_LARGE, GENERATE_MODEL } from '@/lib/constants';
 import { parseJson } from './json';
 import { branchContext } from './context';
 import { PROMPT_FORCE_STANDARDS, PROMPT_PACING, PROMPT_MUTATIONS, PROMPT_POV, PROMPT_CONTINUITY, PROMPT_SUMMARY_REQUIREMENT } from './prompts';
@@ -321,6 +321,7 @@ export async function generateNarrative(
   title: string,
   premise: string,
   rules: string[] = [],
+  onToken?: (token: string) => void,
 ): Promise<NarrativeState> {
   const prompt = `Create a complete narrative world for:
 Title: "${title}"
@@ -378,7 +379,9 @@ ${PROMPT_SUMMARY_REQUIREMENT}
 
 WORLD RULES: Generate 4-6 world rules — absolute constraints that every scene must obey. These define the physics, magic system limits, social rules, or thematic laws of the world.${rules.length > 0 ? ` The user has already provided these rules — include them as-is and add more if appropriate:\n${rules.map((r, i) => `${i + 1}. ${r}`).join('\n')}` : ''}`;
 
-  const raw = await callGenerate(prompt, SYSTEM_PROMPT, MAX_TOKENS_LARGE, 'generateNarrative');
+  const raw = onToken
+    ? await callGenerateStream(prompt, SYSTEM_PROMPT, onToken, MAX_TOKENS_LARGE, 'generateNarrative', GENERATE_MODEL)
+    : await callGenerate(prompt, SYSTEM_PROMPT, MAX_TOKENS_LARGE, 'generateNarrative', GENERATE_MODEL);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const parsed = parseJson(raw, 'generateNarrative') as any;
   console.log('[generateNarrative] parsed keys:', Object.keys(parsed));

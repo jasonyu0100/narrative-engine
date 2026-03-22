@@ -61,16 +61,24 @@ function CubeIcon({ corner }: { corner: CubeCornerKey }) {
 
 // ── Skeleton ─────────────────────────────────────────────────────────────────
 
-function SkeletonLoading({ label }: { label: string }) {
+function StreamingOutput({ label, text }: { label: string; text: string }) {
   return (
-    <div className="flex flex-col gap-4">
-      <h2 className="text-sm font-semibold text-text-primary">{label}&hellip;</h2>
-      <div className="flex flex-col gap-3">
-        <div className="h-3 w-3/4 bg-white/6 rounded animate-pulse" />
-        <div className="h-3 w-1/2 bg-white/6 rounded animate-pulse" />
-        <div className="h-3 w-5/6 bg-white/6 rounded animate-pulse" />
-        <div className="h-3 w-2/3 bg-white/6 rounded animate-pulse" />
+    <div className="flex flex-col gap-3">
+      <div className="flex items-center gap-2">
+        <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+        <h2 className="text-sm font-semibold text-text-primary">{label}&hellip;</h2>
       </div>
+      {text ? (
+        <pre className="text-[11px] text-text-dim font-mono whitespace-pre-wrap max-h-60 overflow-y-auto bg-white/3 rounded-lg p-3 leading-relaxed">
+          {text}
+        </pre>
+      ) : (
+        <div className="flex flex-col gap-3">
+          <div className="h-3 w-3/4 bg-white/6 rounded animate-pulse" />
+          <div className="h-3 w-1/2 bg-white/6 rounded animate-pulse" />
+          <div className="h-3 w-5/6 bg-white/6 rounded animate-pulse" />
+        </div>
+      )}
     </div>
   );
 }
@@ -103,6 +111,7 @@ export function GeneratePanel({ onClose }: { onClose: () => void }) {
 
   // Shared
   const [loading, setLoading] = useState(false);
+  const [streamText, setStreamText] = useState('');
   const [suggesting, setSuggesting] = useState(false);
   const [error, setError] = useState('');
 
@@ -139,6 +148,7 @@ export function GeneratePanel({ onClose }: { onClose: () => void }) {
     if (!narrative) return;
     if (!newArc && !currentArc) return;
     setLoading(true);
+    setStreamText('');
     setError('');
     try {
       const existingArc = !newArc ? currentArc ?? undefined : undefined;
@@ -154,6 +164,7 @@ export function GeneratePanel({ onClose }: { onClose: () => void }) {
           cubeGoal: goalMode === 'cube' ? cubeGoal ?? undefined : undefined,
           deliveryGoal: goalMode === 'delivery' ? deliveryGoal ?? undefined : undefined,
           worldBuildFocus,
+          onToken: (token) => setStreamText((prev) => prev + token),
         },
       );
       dispatch({
@@ -245,7 +256,7 @@ export function GeneratePanel({ onClose }: { onClose: () => void }) {
         </div>
 
         {loading ? (
-          <SkeletonLoading label={mode === 'continuation' ? (newArc ? 'Generating arc' : 'Continuing arc') : 'Expanding world'} />
+          <StreamingOutput label={mode === 'continuation' ? (newArc ? 'Generating arc' : 'Continuing arc') : 'Expanding world'} text={streamText} />
         ) : (
         <div className="flex flex-col gap-4">
           {mode === 'continuation' ? (
