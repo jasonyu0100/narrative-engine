@@ -79,7 +79,7 @@ export function GeneratePanel({ onClose }: { onClose: () => void }) {
   }
 
   async function handleGenerateArc() {
-    if (!direction.trim() || !narrative) return;
+    if (!narrative) return;
     if (!newArc && !currentArc) return;
     setLoading(true);
     setError('');
@@ -132,7 +132,7 @@ export function GeneratePanel({ onClose }: { onClose: () => void }) {
   }
 
   async function handleExpandWorld() {
-    if (!worldDirective.trim() || !narrative) return;
+    if (!narrative) return;
     setLoading(true);
     setError('');
     try {
@@ -343,7 +343,7 @@ export function GeneratePanel({ onClose }: { onClose: () => void }) {
 
               <button
                 onClick={handleGenerateArc}
-                disabled={loading || !direction.trim() || (!newArc && !currentArc)}
+                disabled={loading || (!newArc && !currentArc)}
                 className="bg-white/10 hover:bg-white/16 text-text-primary font-semibold px-4 py-2.5 rounded-lg transition disabled:opacity-30 disabled:pointer-events-none"
               >
                 {loading ? 'Generating...' : newArc ? `Generate Arc (${count} scene${count > 1 ? 's' : ''})` : `Continue Arc (${count} scene${count > 1 ? 's' : ''})`}
@@ -403,7 +403,7 @@ export function GeneratePanel({ onClose }: { onClose: () => void }) {
 
               <button
                 onClick={handleExpandWorld}
-                disabled={loading || !worldDirective.trim()}
+                disabled={loading}
                 className="bg-white/10 hover:bg-white/16 text-text-primary font-semibold px-4 py-2.5 rounded-lg transition disabled:opacity-30 disabled:pointer-events-none"
               >
                 {loading ? 'Expanding...' : 'Expand World'}

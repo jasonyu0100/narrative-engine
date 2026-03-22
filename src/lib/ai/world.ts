@@ -179,7 +179,7 @@ export async function expandWorld(
 
   const prompt = `${ctx}
 
-EXPAND the world based on this directive: ${directive}
+${directive.trim() ? `EXPAND the world based on this directive: ${directive}` : 'EXPAND the world — analyze the current narrative state and add characters, locations, and threads that would create the most interesting new possibilities based on existing tensions and unexplored areas.'}
 
 This is ${EXPANSION_SIZE_CONFIG[size].label} (${EXPANSION_SIZE_CONFIG[size].total} total new entities). Generate:
 - ${EXPANSION_SIZE_CONFIG[size].characters} new characters

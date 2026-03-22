@@ -37,8 +37,7 @@ NARRATIVE SEED: ${seed}
 Use this seed to differentiate your choices from other generations at this branch point. Each seed should produce a distinct narrative direction — different character focus, different thread priorities, different locations, different emotional register. Avoid converging on the same "obvious" next step.
 
 ${arcInstruction}
-DIRECTION (this takes priority over any patterns in the scene history below):
-${direction}
+${direction.trim() ? `DIRECTION (this takes priority over any patterns in the scene history below):\n${direction}` : 'DIRECTION: Use your own judgment — analyze the branch context above and choose the most compelling next development based on unresolved threads, character tensions, and narrative momentum.'}
 ${worldBuildFocus ? (() => {
   const wb = worldBuildFocus;
   const chars = wb.expansionManifest.characterIds
