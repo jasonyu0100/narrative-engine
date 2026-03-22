@@ -103,13 +103,13 @@ Return JSON with this exact structure:
       "continuityMutations": [{"characterId": "C-XX", "nodeId": "K-GEN-001", "action": "added", "content": "what they learned", "nodeType": "a descriptive type for this knowledge"}],
       "relationshipMutations": [{"from": "C-XX", "to": "C-YY", "type": "description", "valenceDelta": 0.1}],
       "worldKnowledgeMutations": {"addedNodes": [{"id": "WK-GEN-001", "concept": "name of a world concept, rule, system, or structure", "type": "law|system|concept|tension"}], "addedEdges": [{"from": "WK-GEN-001", "to": "WK-XX", "relation": "typed relationship: enables, requires, governs, located_in, opposes, created_by, extends, etc."}]},
-      "summary": "REQUIRED: 2-4 sentence narrative summary written in vivid, character-driven prose. Describe what happens, who is involved, and the emotional stakes."
+      "summary": "REQUIRED: 3-5 sentence detailed narrative summary. Name characters and locations. Describe the key action, the consequence, and the tension it creates for what comes next. Example: 'Michael Corleone sits across from Sollozzo and McCluskey at the small Italian restaurant in the Bronx, listening to terms he has no intention of accepting. He excuses himself to the bathroom where a pistol has been planted behind the toilet tank. He returns to the table and shoots both men — Sollozzo first through the forehead, then McCluskey through the throat and skull. The gun clatters to the floor as Michael walks out in a daze to a waiting car. The killing severs him permanently from his civilian life and sets in motion a gang war that will consume every family in New York.'"
     }
   ]
 }
 
 Rules:
-- EVERY scene MUST have a non-empty "summary" field. This is critical — scenes without summaries are broken. Write 2-4 vivid sentences describing the scene's events, characters, and emotional stakes.
+- EVERY scene MUST have a non-empty "summary" field. Write 3-5 detailed sentences: name characters and locations, describe the key action and its consequence, and set up the tension for what follows. Summaries drive plan and prose quality — vague summaries produce vague stories.
 - Use ONLY existing character IDs and location IDs from the narrative context above
 - Thread statuses follow a lifecycle. ${THREAD_LIFECYCLE_DOC}
 - Threads that have reached their narrative conclusion MUST be transitioned to a terminal status. Do not leave threads stuck in active states when their story is over. When a mystery is solved, a conflict is won/lost, a goal is achieved or failed — close the thread.

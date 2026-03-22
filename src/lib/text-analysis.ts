@@ -381,7 +381,7 @@ Return a single JSON object with this exact structure:
       "povName": "Name of the POV character for this scene",
       "participantNames": ["Who is present"],
       "events": ["short_event_tag_1", "short_event_tag_2"],
-      "summary": "2-4 sentence vivid summary in present tense, literary style.",
+      "summary": "3-5 sentence detailed narrative summary. Name characters and locations. Describe the key action, the consequence, and the tension it creates for what comes next.",
       "sections": [1, 2, 3],
       "threadMutations": [
         { "threadDescription": "exact thread description", "from": "status", "to": "status" }
@@ -571,7 +571,7 @@ Return a single JSON object with this exact structure:
       "povName": "Name of the POV character for this scene",
       "participantNames": ["Who is present"],
       "events": ["short_event_tag_1", "short_event_tag_2"],
-      "summary": "2-4 sentence vivid summary in present tense, literary style.",
+      "summary": "3-5 sentence detailed narrative summary. Name characters and locations. Describe the key action, the consequence, and the tension it creates for what comes next.",
       "sections": [1, 2, 3],
       "threadMutations": [
         { "threadDescription": "exact thread description", "from": "status", "to": "status" }
