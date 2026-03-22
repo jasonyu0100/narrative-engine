@@ -527,6 +527,8 @@ export type ApiLogEntry = {
   id: string;
   timestamp: number;
   caller: string;
+  /** AI model used for this call */
+  model?: string;
   status: 'pending' | 'success' | 'error';
   durationMs: number | null;
   promptTokens: number;

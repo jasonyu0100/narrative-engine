@@ -19,12 +19,13 @@ export function onApiLogUpdate(listener: UpdateListener) {
 /** Estimate token count from character length (~4 chars per token for English) */
 const estimateTokens = (chars: number) => Math.ceil(chars / 4);
 
-export function logApiCall(caller: string, promptChars: number, promptPreview: string): string {
+export function logApiCall(caller: string, promptChars: number, promptPreview: string, model?: string): string {
   const id = `api-${Date.now()}-${counter++}`;
   const entry: ApiLogEntry = {
     id,
     timestamp: Date.now(),
     caller,
+    model,
     status: 'pending',
     durationMs: null,
     promptTokens: estimateTokens(promptChars),

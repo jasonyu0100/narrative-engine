@@ -9,7 +9,7 @@ export async function callGenerateStream(
   model?: string,
 ): Promise<string> {
   const { logApiCall, updateApiLog } = await import('@/lib/api-logger');
-  const logId = logApiCall(caller, prompt.length + (systemPrompt?.length ?? 0), prompt);
+  const logId = logApiCall(caller, prompt.length + (systemPrompt?.length ?? 0), prompt, model);
   const start = performance.now();
 
   try {
@@ -74,7 +74,7 @@ export async function callGenerateStream(
 
 export async function callGenerate(prompt: string, systemPrompt: string, maxTokens?: number, caller = 'callGenerate', model?: string): Promise<string> {
   const { logApiCall, updateApiLog } = await import('@/lib/api-logger');
-  const logId = logApiCall(caller, prompt.length + (systemPrompt?.length ?? 0), prompt);
+  const logId = logApiCall(caller, prompt.length + (systemPrompt?.length ?? 0), prompt, model);
   const start = performance.now();
 
   try {
