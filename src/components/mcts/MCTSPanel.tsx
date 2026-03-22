@@ -7,7 +7,7 @@ import type { useMCTS } from '@/hooks/useMCTS';
 import { treeSize, bestPath as computeBestPath } from '@/lib/mcts-engine';
 import { NARRATIVE_CUBE, type Scene, type CubeCornerKey } from '@/types/narrative';
 import { computeForceSnapshots, detectCubeCorner, computeDeliveryCurve, classifyCurrentPosition } from '@/lib/narrative-utils';
-import { suggestStoryDirection } from '@/lib/ai';
+import { suggestAutoDirection } from '@/lib/ai';
 import { useStore } from '@/lib/store';
 
 /** Hook that ticks every second while active, returning elapsed seconds since startedAt */
@@ -1138,7 +1138,7 @@ function NorthStarSuggestButton({
       onClick={async () => {
         setSuggesting(true);
         try {
-          const direction = await suggestStoryDirection(narrative, resolvedKeys, currentIndex);
+          const direction = await suggestAutoDirection(narrative, resolvedKeys, currentIndex);
           onSuggestion(direction);
         } catch (err) {
           console.error('[mcts] suggest direction failed:', err);

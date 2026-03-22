@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useStore } from '@/lib/store';
-import { suggestStoryDirection } from '@/lib/ai';
+import { suggestAutoDirection } from '@/lib/ai';
 import type { AutoConfig, AutoEndCondition, AutoObjective } from '@/types/narrative';
 
 type Tab = 'end' | 'objective' | 'direction';
@@ -320,7 +320,7 @@ export function AutoSettingsPanel({ onClose, onStart }: { onClose: () => void; o
                         if (!state.activeNarrative) return;
                         setSuggesting(true);
                         try {
-                          const direction = await suggestStoryDirection(
+                          const direction = await suggestAutoDirection(
                             state.activeNarrative,
                             state.resolvedSceneKeys,
                             state.currentSceneIndex,

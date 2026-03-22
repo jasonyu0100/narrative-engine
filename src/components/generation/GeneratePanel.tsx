@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useStore } from '@/lib/store';
-import { generateScenes, suggestDirection, expandWorld, suggestWorldExpansion, type WorldExpansionSize } from '@/lib/ai';
+import { generateScenes, suggestArcDirection, expandWorld, suggestWorldExpansion, type WorldExpansionSize } from '@/lib/ai';
 import { resolveEntry } from '@/types/narrative';
 import { nextId } from '@/lib/narrative-utils';
 
@@ -63,7 +63,7 @@ export function GeneratePanel({ onClose }: { onClose: () => void }) {
     setSuggesting(true);
     setError('');
     try {
-      const suggestion = await suggestDirection(
+      const suggestion = await suggestArcDirection(
         narrative,
         state.resolvedSceneKeys,
         headIndex,
@@ -363,7 +363,7 @@ export function GeneratePanel({ onClose }: { onClose: () => void }) {
                     disabled={suggesting || loading}
                     className="text-[10px] text-text-secondary hover:text-text-primary transition-colors disabled:opacity-30 uppercase tracking-wider"
                   >
-                    {suggesting ? 'Thinking...' : 'Suggest'}
+                    {suggesting ? 'Thinking...' : 'Suggest Expansion'}
                   </button>
                 </div>
                 <textarea

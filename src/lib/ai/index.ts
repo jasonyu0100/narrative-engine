@@ -5,7 +5,7 @@ export { branchContext, sceneContext } from './context';
 export { generateScenes, generateScenePlan, generateSceneProse } from './scenes';
 
 // World building & direction
-export { suggestDirection, suggestStoryDirection, suggestWorldExpansion, expandWorld, generateNarrative } from './world';
+export { suggestArcDirection, suggestAutoDirection, suggestWorldExpansion, expandWorld, generateNarrative } from './world';
 export type { WorldExpansion, WorldExpansionSize, DirectionSuggestion } from './world';
 
 // Prose scoring & rewriting

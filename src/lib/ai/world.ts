@@ -20,7 +20,7 @@ export type DirectionSuggestion = {
   suggestedSceneCount: number;
 };
 
-export async function suggestDirection(
+export async function suggestArcDirection(
   narrative: NarrativeState,
   resolvedKeys: string[],
   currentIndex: number,
@@ -60,7 +60,7 @@ suggestedSceneCount must be between 1 and 8.`;
 }
 
 
-export async function suggestStoryDirection(
+export async function suggestAutoDirection(
   narrative: NarrativeState,
   resolvedKeys: string[],
   currentIndex: number,
