@@ -6,7 +6,7 @@ import { generateScenes, suggestArcDirection, expandWorld, suggestWorldExpansion
 import { resolveEntry, NARRATIVE_CUBE } from '@/types/narrative';
 import type { CubeCornerKey } from '@/types/narrative';
 import { nextId } from '@/lib/narrative-utils';
-import { samplePacingSequence, optimizeSequence, detectCurrentMode, MATRIX_PRESETS, DEFAULT_TRANSITION_MATRIX, type PacingSequence } from '@/lib/markov';
+import { samplePacingSequence, detectCurrentMode, MATRIX_PRESETS, DEFAULT_TRANSITION_MATRIX, type PacingSequence } from '@/lib/markov';
 import { DEFAULT_STORY_SETTINGS } from '@/types/narrative';
 import { PacingStrip, CubeBadge } from './PacingStrip';
 import { MarkovGraph } from './MarkovGraph';
@@ -61,7 +61,6 @@ export function GeneratePanel({ onClose }: { onClose: () => void }) {
   // Pacing preview
   const [previewSequence, setPreviewSequence] = useState<PacingSequence | null>(null);
   const [animating, setAnimating] = useState(false);
-  const [optimizing, setOptimizing] = useState(false);
 
   // World state
   const [worldDirective, setWorldDirective] = useState('');
@@ -99,20 +98,6 @@ export function GeneratePanel({ onClose }: { onClose: () => void }) {
     setAnimating(true);
   }, [currentMode, count, storyMatrix]);
 
-  const handleOptimize = useCallback(async () => {
-    setOptimizing(true);
-    try {
-      const seq = await optimizeSequence(currentMode, count, direction || 'Continue the narrative naturally based on unresolved threads and character tensions.', storyMatrix);
-      setPreviewSequence(seq);
-      setAnimating(true);
-    } catch {
-      const seq = samplePacingSequence(currentMode, count, storyMatrix);
-      setPreviewSequence(seq);
-      setAnimating(true);
-    } finally {
-      setOptimizing(false);
-    }
-  }, [currentMode, count, direction, handleSample]);
 
   async function handleSuggestArc() {
     if (!narrative) return;
@@ -233,14 +218,14 @@ export function GeneratePanel({ onClose }: { onClose: () => void }) {
             <div className="flex items-center gap-2 pt-1">
               <button
                 onClick={() => setPreviewSequence(null)}
-                disabled={animating || optimizing}
+                disabled={animating}
                 className="text-[11px] text-text-dim hover:text-text-secondary transition disabled:opacity-30 mr-auto"
               >
                 &larr; Back
               </button>
               <button
                 onClick={handleSample}
-                disabled={animating || optimizing}
+                disabled={animating}
                 className="h-9 px-3 rounded-lg border border-white/8 text-text-dim hover:text-text-primary hover:border-white/15 transition disabled:opacity-30 flex items-center gap-1.5 text-[11px]"
                 title="Reroll from transition matrix"
               >
@@ -256,7 +241,7 @@ export function GeneratePanel({ onClose }: { onClose: () => void }) {
               </button>
               <button
                 onClick={handleGenerateArc}
-                disabled={animating || optimizing}
+                disabled={animating}
                 className="h-9 px-5 rounded-lg bg-white/10 hover:bg-white/16 text-text-primary font-semibold transition disabled:opacity-30 text-[12px]"
               >
                 Generate →

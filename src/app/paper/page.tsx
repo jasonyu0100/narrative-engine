@@ -103,6 +103,8 @@ const NAV = [
   { id: 'pipeline', label: 'Pipeline' },
   { id: 'grading', label: 'Grading' },
   { id: 'classification', label: 'Classification' },
+  { id: 'markov', label: 'Markov Chains' },
+  { id: 'mcts', label: 'MCTS' },
   { id: 'open-source', label: 'Open Source' },
 ];
 
@@ -404,6 +406,158 @@ export default function PaperPage() {
                     <span className="font-medium text-white/70">{name}</span>
                     <p className="text-white/35 mt-0.5">{desc}</p>
                   </div>
+                </div>
+              ))}
+            </div>
+          </Section>
+
+          {/* ── Markov Chains ─────────────────────────────────────────── */}
+          <Section id="markov" label="Markov Chains">
+            <P>
+              The eight cube corners form a finite state space. Every scene in a story occupies one corner, and the transition from scene N to scene N+1 is a state transition. Across an entire novel, these transitions form an empirical Markov chain&mdash;a transition matrix <Tex>{'T \\in \\mathbb{R}^{8 \\times 8}'}</Tex> where <Tex>{'T_{ij}'}</Tex> is the probability of moving from mode <Tex>{'i'}</Tex> to mode <Tex>{'j'}</Tex>.
+            </P>
+
+            <h3 className="text-[15px] font-semibold text-white/80 mt-8 mb-3">A Story&apos;s Fingerprint</h3>
+            <P>
+              Different stories produce radically different matrices. We computed transition matrices from several published works by classifying each scene into its nearest cube corner and counting consecutive transitions:
+            </P>
+
+            {/* HP State Graph — inline SVG */}
+            <div className="my-6 flex flex-col items-center gap-4">
+              <svg width="360" height="360" viewBox="0 0 360 360" className="select-none">
+                {/* Nodes in circle */}
+                {(() => {
+                  const corners = ['HHH','HHL','HLH','HLL','LHH','LHL','LLH','LLL'] as const;
+                  const names = ['Epoch','Climax','Revelation','Closure','Discovery','Growth','Lore','Rest'];
+                  const colors = ['#f59e0b','#ef4444','#a855f7','#6366f1','#22d3ee','#22c55e','#3b82f6','#6b7280'];
+                  const visits = [13,11,9,7,3,10,19,19];
+                  const cx = 180, cy = 180, r = 140;
+                  const maxV = Math.max(...visits);
+                  const positions = corners.map((_, i) => {
+                    const angle = (i / 8) * Math.PI * 2 - Math.PI / 2;
+                    return { x: cx + r * Math.cos(angle), y: cy + r * Math.sin(angle) };
+                  });
+                  // Top transitions (count >= 3)
+                  const edges: [number,number,number][] = [
+                    [0,6,4],[0,3,2],[0,5,2],[0,2,2], // Epoch→
+                    [1,6,4],[1,2,2],[1,7,2],           // Climax→
+                    [2,5,3],                            // Revelation→Growth
+                    [3,0,2],[3,7,2],                    // Closure→
+                    [5,7,4],                            // Growth→Rest
+                    [6,1,4],[6,5,3],[6,7,4],            // Lore→
+                    [7,6,5],[7,1,3],[7,2,3],[7,3,3],    // Rest→
+                  ];
+                  const maxE = 5;
+                  return (
+                    <>
+                      {edges.map(([fi,ti,count], ei) => {
+                        const p1 = positions[fi], p2 = positions[ti];
+                        const dx = p2.x-p1.x, dy = p2.y-p1.y;
+                        const len = Math.sqrt(dx*dx+dy*dy);
+                        const nx = -dy/len, ny = dx/len;
+                        const nr = 14 + (visits[ti]/maxV)*8;
+                        const ratio = Math.max(0,(len-nr-8)/len);
+                        return (
+                          <line key={ei}
+                            x1={p1.x+4*nx} y1={p1.y+4*ny}
+                            x2={p1.x+dx*ratio+4*nx} y2={p1.y+dy*ratio+4*ny}
+                            stroke="rgba(52,211,153,1)" strokeWidth={1+2*(count/maxE)}
+                            opacity={0.15+0.6*(count/maxE)} strokeLinecap="round"
+                          />
+                        );
+                      })}
+                      {corners.map((_, i) => {
+                        const p = positions[i];
+                        const nr = 14 + (visits[i]/maxV)*8;
+                        return (
+                          <g key={i}>
+                            <circle cx={p.x} cy={p.y} r={nr} fill={colors[i]} opacity={0.85} />
+                            <text x={p.x} y={p.y+1} fill="#fff" fontSize="9" fontWeight="600" textAnchor="middle" dominantBaseline="middle">{names[i]}</text>
+                            <text x={p.x} y={p.y+nr+12} fill="#9ca3af" fontSize="8" textAnchor="middle">{visits[i]}x</text>
+                          </g>
+                        );
+                      })}
+                    </>
+                  );
+                })()}
+              </svg>
+              <p className="text-[10px] text-white/30 text-center">
+                Harry Potter and the Sorcerer&apos;s Stone &mdash; 91 scenes, 90 transitions.
+                <br />Node size = visit frequency. Edge thickness = transition probability.
+              </p>
+            </div>
+
+            <P>
+              Harry Potter&apos;s matrix reveals a balanced explorer&mdash;high entropy (2.88/3.00), low self-loops (12%), and a 43/57 payoff-to-buildup ratio. Lore and Rest are the dominant modes (19 visits each), serving as the connective tissue between peaks. The story visits all eight modes regularly, with strong Lore&harr;Rest oscillation providing breathing room between dramatic moments.
+            </P>
+            <P>
+              By contrast, Nineteen Eighty-Four produces a pressure cooker&mdash;buildup-dominant (66%), with long dwelling in Rest and Growth before sudden Epoch eruptions. The Great Gatsby oscillates like a pendulum between Rest and Epoch. Each matrix is a structural fingerprint that captures the rhythm no single metric can express.
+            </P>
+
+            <h3 className="text-[15px] font-semibold text-white/80 mt-8 mb-3">Stationary Distribution</h3>
+            <P>
+              The stationary distribution <Tex>{'\\pi'}</Tex> of a transition matrix answers: if this story continued forever with its current patterns, what fraction of time would it spend in each mode? We compute it via power iteration:
+            </P>
+            <Eq tex={String.raw`\pi^{(t+1)}_j = \sum_i \pi^{(t)}_i \cdot T_{ij}`} />
+            <P>
+              This distribution is the story&apos;s gravitational center. A story with 40% Rest in its stationary distribution naturally orbits quiet moments. One with 30% Epoch is permanently intense. The distribution doesn&apos;t classify&mdash;it describes. Two stories can have the same overall score but completely different stationary distributions, revealing different structural personalities.
+            </P>
+
+            <h3 className="text-[15px] font-semibold text-white/80 mt-8 mb-3">Rhythm Profiles for Generation</h3>
+            <P>
+              The most powerful application of Markov chains is not analysis but generation. Before generating an arc, the engine samples a pacing sequence from the transition matrix: starting from the current mode (the last scene&apos;s cube corner), it walks the chain for N steps, producing a sequence like <span className="font-mono text-white/50">Growth &rarr; Lore &rarr; Climax &rarr; Rest &rarr; Growth</span>.
+            </P>
+            <P>
+              Each step in the sequence becomes a per-scene constraint: Scene 1 must have a Growth force profile (high Change, low Payoff), Scene 3 must spike all forces (Climax). This prevents the AI from defaulting to uniform density&mdash;the Markov chain forces variation by assigning different modes to different scenes.
+            </P>
+            <P>
+              Users select a <em>rhythm profile</em>&mdash;a transition matrix derived from a published work&mdash;to shape their story&apos;s pacing. A story using Harry Potter&apos;s matrix will breathe like Harry Potter: exploratory, varied, with regular returns to lore. A story using 1984&apos;s matrix will dwell in tension before erupting. The matrices are computed automatically from the analysed works in the system.
+            </P>
+          </Section>
+
+          {/* ── MCTS ──────────────────────────────────────────────────── */}
+          <Section id="mcts" label="MCTS">
+            <P>
+              Monte Carlo Tree Search adapts the game-playing algorithm to narrative space. Instead of board positions, nodes are narrative states&mdash;the full knowledge graph after a sequence of scenes. Instead of moves, edges are generated arcs. Instead of win/loss, the evaluation function is the force grading system.
+            </P>
+
+            <h3 className="text-[15px] font-semibold text-white/80 mt-8 mb-3">How It Works</h3>
+            <P>
+              <strong>Selection</strong>: Starting from the current narrative state, UCB1 selects which node to expand&mdash;balancing exploitation (high-scoring paths) against exploration (under-visited branches).
+            </P>
+            <Eq tex={String.raw`\text{UCB1}(n) = \frac{Q(n)}{N(n)} + C \sqrt{\frac{\ln N(\text{parent})}{N(n)}}`} />
+            <P>
+              <strong>Expansion</strong>: The selected node generates a new arc via the LLM. Each expansion is paced by a fresh Markov chain sample from the story&apos;s rhythm profile, ensuring every branch explores a different force trajectory. The narrative seed provides creative diversity&mdash;the Markov chain provides structural diversity.
+            </P>
+            <P>
+              <strong>Evaluation</strong>: The generated arc is scored using the force grading system&mdash;the same formulas applied to published literature. An arc scoring 85 has comparable structural density to the reference works.
+            </P>
+            <P>
+              <strong>Backpropagation</strong>: The score propagates up the tree. Paths that consistently produce high-scoring arcs accumulate visit counts, making them more likely to be selected for further expansion.
+            </P>
+
+            <h3 className="text-[15px] font-semibold text-white/80 mt-8 mb-3">Markov-Augmented Search</h3>
+            <P>
+              The integration of Markov chains with MCTS produces a search that is both structurally informed and creatively diverse. Each expansion samples a fresh pacing sequence from the transition matrix, meaning sibling nodes in the tree explore different force trajectories even when given similar creative direction. One sibling might sample <span className="font-mono text-white/50">Rest &rarr; Growth &rarr; Epoch</span> while another gets <span className="font-mono text-white/50">Lore &rarr; Lore &rarr; Climax &rarr; Closure</span>.
+            </P>
+            <P>
+              The rhythm profile acts as a structural prior&mdash;biasing the search toward transitions that produce good narratives (as observed in published works) without constraining the creative content. The LLM fills the <em>what</em>; the Markov chain shapes the <em>how much</em>.
+            </P>
+            <P>
+              After search completes, the best path is selected by either highest average score (hill-climbing) or most-visited path (robust MCTS). The user can inspect every branch, see the cube position sequence for each arc, and commit the chosen path to the story.
+            </P>
+
+            <h3 className="text-[15px] font-semibold text-white/80 mt-8 mb-3">Search Modes</h3>
+            <div className="mt-4 grid grid-cols-2 gap-2 text-[11px]">
+              {[
+                { name: 'Freedom', desc: 'Dynamic UCB1 allocation. Promising nodes earn more children; dead ends are abandoned early.' },
+                { name: 'Constrained', desc: 'Complete tree. Every node at each depth gets a fixed number of children before going deeper.' },
+                { name: 'Baseline', desc: 'Unlimited children per node. Keep generating until a target score is met, then descend.' },
+                { name: 'Greedy', desc: 'Depth-first. Generate children at the frontier, pick the best, descend immediately.' },
+              ].map(({ name, desc }) => (
+                <div key={name} className="flex flex-col gap-1 px-3 py-2.5 rounded-lg border border-white/6 bg-white/2">
+                  <span className="font-medium text-white/70">{name}</span>
+                  <p className="text-white/35">{desc}</p>
                 </div>
               ))}
             </div>

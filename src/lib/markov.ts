@@ -9,8 +9,6 @@
 import type { CubeCornerKey, NarrativeState, Scene } from '@/types/narrative';
 import { NARRATIVE_CUBE, resolveEntry } from '@/types/narrative';
 import { computeForceSnapshots, detectCubeCorner } from '@/lib/narrative-utils';
-import { callGenerate, SYSTEM_PROMPT } from '@/lib/ai/api';
-import { parseJson } from '@/lib/ai/json';
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -32,8 +30,6 @@ export type PacingSequence = {
   steps: ModeStep[];
   /** Human-readable pacing description for the prompt */
   pacingDescription: string;
-  /** AI reasoning for why this sequence was chosen (only for optimized sequences) */
-  reasoning?: string;
 };
 
 // ── Constants ────────────────────────────────────────────────────────────────
@@ -322,79 +318,3 @@ export function buildSequencePrompt(sequence: PacingSequence): string {
   return lines.join('\n');
 }
 
-// ── AI-Optimized Sequence ────────────────────────────────────────────────────
-
-/**
- * Ask an LLM to pick the optimal mode sequence given the user's direction
- * and the transition matrix probabilities. The LLM sees the available
- * transitions from each state and picks the path that best serves the
- * creative direction while respecting the matrix's structural patterns.
- */
-export async function optimizeSequence(
-  startMode: CubeCornerKey,
-  length: number,
-  direction: string,
-  matrix: TransitionMatrix = DEFAULT_TRANSITION_MATRIX,
-): Promise<PacingSequence> {
-  const modeNames: Record<CubeCornerKey, string> = {} as Record<CubeCornerKey, string>;
-  for (const c of CORNERS) modeNames[c] = NARRATIVE_CUBE[c].name;
-
-  // Build a readable transition table for the LLM
-  const transitionDesc = CORNERS.map((from) => {
-    const row = matrix[from];
-    const options = CORNERS
-      .filter((to) => (row[to] ?? 0) > 0.01)
-      .map((to) => `${modeNames[to]} (${Math.round((row[to] ?? 0) * 100)}%)`)
-      .join(', ');
-    return `From ${modeNames[from]}: ${options || 'no transitions'}`;
-  }).join('\n');
-
-  const prompt = `You are selecting a pacing sequence for a narrative arc. The story is currently in "${modeNames[startMode]}" mode.
-
-DIRECTION: ${direction}
-
-The 8 narrative modes and what they mean:
-${CORNERS.map((c) => `- ${modeNames[c]} (${c}): ${NARRATIVE_CUBE[c].description}`).join('\n')}
-
-Available transitions (probabilities from the story's rhythm profile):
-${transitionDesc}
-
-Select exactly ${length} modes that best serve the DIRECTION above while following natural transition paths. Consider:
-- Which modes build toward the direction's intent?
-- Where should the peak scene(s) land?
-- How much buildup is needed before payoff?
-- The sequence should feel like a natural story rhythm, not random.
-
-Return JSON: {"sequence": ["${CORNERS[0]}", ...], "reasoning": "2-3 sentences explaining WHY you chose this sequence — what buildup structure serves the direction, where the peak lands and why, what the rhythm achieves."} — sequence is an array of exactly ${length} cube corner keys.`;
-
-  try {
-    const raw = await callGenerate(prompt, SYSTEM_PROMPT, 1000, 'optimizeSequence');
-    const parsed = parseJson(raw, 'optimizeSequence') as { sequence: string[]; reasoning?: string };
-
-    if (Array.isArray(parsed.sequence) && parsed.sequence.length === length) {
-      const validModes = new Set<string>(CORNERS);
-      const modes = parsed.sequence
-        .map((s) => (validModes.has(s) ? s : null) as CubeCornerKey | null)
-        .filter((m): m is CubeCornerKey => m !== null);
-
-      if (modes.length === length) {
-        const steps: ModeStep[] = modes.map((mode) => ({
-          mode,
-          name: NARRATIVE_CUBE[mode].name,
-          description: NARRATIVE_CUBE[mode].description,
-          forces: FORCE_TARGETS[mode],
-        }));
-        return {
-          steps,
-          pacingDescription: buildPacingDescription(steps),
-          reasoning: parsed.reasoning,
-        };
-      }
-    }
-  } catch (err) {
-    console.warn('[optimizeSequence] LLM call failed, falling back to random sample:', err);
-  }
-
-  // Fallback to random sampling
-  return samplePacingSequence(startMode, length, matrix);
-}
