@@ -196,7 +196,7 @@ export default function PaperPage() {
           {/* ── Abstract ──────────────────────────────────────────────── */}
           <Section id="abstract" label="Abstract">
             <P>
-              Stories resist measurement. Most computational approaches settle for sentiment arcs or topic frequency&mdash;useful for search, less useful for understanding why a chapter lands or falls flat. We propose a different basis: model a narrative as a <B>knowledge graph that mutates scene by scene</B>, then derive three orthogonal forces&mdash;Payoff, Change, and Knowledge&mdash;from those mutations using deterministic formulas. The forces are z-score normalized, genre-agnostic, and composable into higher-order metrics like Tension and Delivery.
+              Stories resist measurement. Most computational approaches settle for sentiment arcs or topic frequency — useful for search, less useful for understanding why a chapter lands or falls flat. We propose a different basis: model a narrative as a <B>knowledge graph that mutates scene by scene</B>, then derive three orthogonal forces — Payoff, Change, and Knowledge — from those mutations using deterministic formulas. The forces are z-score normalized, genre-agnostic, and composable into higher-order metrics like Tension and Delivery.
             </P>
             <P>
               This paper describes the formulas, the pipeline that extracts them from raw text, and a grading system calibrated against published literature. The entire framework is open source. Every constant is tunable. We wrote it to be forked.
@@ -209,7 +209,7 @@ export default function PaperPage() {
               Sentiment analysis can tell you a chapter is &ldquo;positive.&rdquo; It cannot tell you that a betrayal scene reads warm because the narrator is unreliable, and that its structural role is the opposite of its surface tone. Topic modeling can tell you a chapter mentions &ldquo;war.&rdquo; It cannot tell you whether the war thread just escalated from dormant to critical, or resolved three scenes ago and this is an echo.
             </P>
             <P>
-              What readers actually experience&mdash;tension accumulating, threads paying off, the world clicking into focus&mdash;comes from <B>structural mutations</B>: which threads changed status, how many characters were affected, what new knowledge entered the world. We needed formulas that operate on those mutations directly, not on the words that describe them.
+              What readers actually experience — tension accumulating, threads paying off, the world clicking into focus — comes from <B>structural mutations</B>: which threads changed status, how many characters were affected, what new knowledge entered the world. We needed formulas that operate on those mutations directly, not on the words that describe them.
             </P>
           </Section>
 
@@ -221,19 +221,19 @@ export default function PaperPage() {
             <ul className="mt-3 space-y-2 text-[13px] text-white/50 leading-[1.85]">
               <li className="flex gap-2">
                 <span className="text-white/25 shrink-0">1.</span>
-                <span><B>Threads</B>&mdash;narrative tensions (a rivalry, a secret, a quest) that move through lifecycle phases: dormant, active, escalating, critical, resolved/subverted/abandoned.</span>
+                <span><B>Threads</B> — narrative tensions (a rivalry, a secret, a quest) that move through lifecycle phases: dormant, active, escalating, critical, resolved/subverted/abandoned.</span>
               </li>
               <li className="flex gap-2">
                 <span className="text-white/25 shrink-0">2.</span>
-                <span><B>Characters</B>&mdash;continuity mutations (what someone learns or becomes) and relationship valence shifts between characters.</span>
+                <span><B>Characters</B> — continuity mutations (what someone learns or becomes) and relationship valence shifts between characters.</span>
               </li>
               <li className="flex gap-2">
                 <span className="text-white/25 shrink-0">3.</span>
-                <span><B>World knowledge</B>&mdash;a graph of laws, systems, concepts, and tensions. Nodes are ideas; edges link them.</span>
+                <span><B>World knowledge</B> — a graph of laws, systems, concepts, and tensions. Nodes are ideas; edges link them.</span>
               </li>
             </ul>
             <P>
-              An LLM reads each scene and records these mutations as structured data. Then static formulas&mdash;no LLM in the loop&mdash;compute forces from the mutations. This separation matters: the LLM handles comprehension, but the math is deterministic and auditable. You can read the formulas, disagree with a weight, and change it.
+              An LLM reads each scene and records these mutations as structured data. Then static formulas — no LLM in the loop — compute forces from the mutations. This separation matters: the LLM handles comprehension, but the math is deterministic and auditable. You can read the formulas, disagree with a weight, and change it.
             </P>
           </Section>
 
@@ -243,22 +243,22 @@ export default function PaperPage() {
             <div className="mb-12">
               <h3 className="text-[15px] font-semibold text-white/80 mb-2">Payoff</h3>
               <P>
-                Did something permanent happen? Payoff measures thread phase transitions and relationship valence shifts&mdash;moments the story can&apos;t take back.
+                Did something permanent happen? Payoff measures thread phase transitions and relationship valence shifts — moments the story can&apos;t take back.
               </P>
               <Eq tex="P = \sum_{t} \left| \varphi_{\text{to}} - \varphi_{\text{from}} \right| + \sum_{r} \left| \Delta v_r \right|" />
               <P>
-                Threads carry a phase index: dormant (0), active (1), escalating (2), critical (3), resolved/subverted/abandoned (4). A thread jumping from active to critical contributes <Tex>{'|3 - 1| = 2'}</Tex>. Relationship valence deltas capture shifts like ally-to-enemy. Threads mentioned without transitioning earn a pulse of 0.25&mdash;enough to stay visible without inflating the score.
+                Threads carry a phase index: dormant (0), active (1), escalating (2), critical (3), resolved/subverted/abandoned (4). A thread jumping from active to critical contributes <Tex>{'|3 - 1| = 2'}</Tex>. Relationship valence deltas capture shifts like ally-to-enemy. Threads mentioned without transitioning earn a pulse of 0.25 — enough to stay visible without inflating the score.
               </P>
             </div>
 
             <div className="mb-12">
               <h3 className="text-[15px] font-semibold text-white/80 mb-2">Change</h3>
               <P>
-                How intensely did this scene transform? A tight two-character confrontation scores the same as a ten-character ensemble with equal total mutations&mdash;the formula is cast-blind.
+                How intensely did this scene transform? A tight two-character confrontation scores the same as a ten-character ensemble with equal total mutations — the formula is cast-blind.
               </P>
-              <Eq tex={String.raw`C = \sqrt{\Sigma m} + \sqrt{|\text{events}|}`} />
+              <Eq tex={String.raw`C = \sqrt{\,M_c + \!\sum_{r}\, 2\,|\Delta v_r|\,} \;+\; \sqrt{\,|\mathcal{E}|\,}`} />
               <P>
-                <Tex>{String.raw`\Sigma m`}</Tex> is the total continuity and relationship mutations (weighted by <Tex>{'|\\Delta v|'}</Tex>) across all characters. Square root scaling gives diminishing returns while preserving meaningful spikes&mdash;a dense confrontation with 8 mutations scores 2.8&times; a quiet scene with 1 mutation, producing visible peaks and valleys in the force graph.
+                <Tex>{String.raw`M_c`}</Tex> is the number of continuity mutations (what characters learn or forget), <Tex>{String.raw`|\Delta v_r|`}</Tex> weights each relationship shift by its intensity (counted twice — both sides change), and <Tex>{String.raw`|\mathcal{E}|`}</Tex> is the event count. Square root scaling gives diminishing returns while preserving meaningful spikes — a dense confrontation with 8 mutations scores 2.8&times; a quiet scene with 1 mutation, producing visible peaks and valleys in the force graph.
               </P>
             </div>
 
@@ -269,7 +269,7 @@ export default function PaperPage() {
               </P>
               <Eq tex={String.raw`K = \Delta N + \sqrt{\Delta E}`} />
               <P>
-                <Tex>{'\\Delta N'}</Tex> counts new nodes (laws, systems, concepts, tensions). <Tex>{'\\Delta E'}</Tex> counts new edges. Nodes contribute linearly&mdash;each new concept is genuinely new information. Edges use square root scaling&mdash;the first few connections between concepts matter more than the tenth, preventing bulk edge additions from inflating Knowledge. This applies to every genre&mdash;fantasy magic systems, literary class structures, crime world hierarchies.
+                <Tex>{'\\Delta N'}</Tex> counts new nodes (laws, systems, concepts, tensions). <Tex>{'\\Delta E'}</Tex> counts new edges. Nodes contribute linearly — each new concept is genuinely new information. Edges use square root scaling — the first few connections between concepts matter more than the tenth, preventing bulk edge additions from inflating Knowledge. This applies to every genre — fantasy magic systems, literary class structures, crime world hierarchies.
               </P>
             </div>
           </Section>
@@ -292,7 +292,7 @@ export default function PaperPage() {
               <h3 className="text-[15px] font-semibold text-white/80 mb-2">Delivery</h3>
               <Eq tex="E_i = 0.5 P_i + 0.5 \tanh\!\left(\tfrac{C_i}{2}\right) + 0.5 \tanh\!\left(\tfrac{K_i}{2}\right) + 0.3 \cdot \text{contrast}_i" />
               <P>
-                The dopamine hit. Payoff is linear&mdash;high payoff IS the climax signal and should not be dampened. Change and Knowledge pass through <Tex>{'\\tanh(x/2)'}</Tex>, which smoothly saturates toward &plusmn;1, preventing ensemble scenes from inflating delivery through sheer breadth. The contrast term, <Tex>{'\\text{contrast}_i = \\max(0,\\; T_{i-1} - T_i)'}</Tex>, rewards tension-release patterns: the same payoff lands harder after buildup than it does in isolation.
+                The dopamine hit. Payoff is linear — high payoff IS the climax signal and should not be dampened. Change and Knowledge pass through <Tex>{'\\tanh(x/2)'}</Tex>, which smoothly saturates toward &plusmn;1, preventing ensemble scenes from inflating delivery through sheer breadth. The contrast term, <Tex>{'\\text{contrast}_i = \\max(0,\\; T_{i-1} - T_i)'}</Tex>, rewards tension-release patterns: the same payoff lands harder after buildup than it does in isolation.
               </P>
             </div>
 
@@ -308,12 +308,14 @@ export default function PaperPage() {
           {/* ── Validation ──────────────────────────────────────────── */}
           <Section id="validation" label="Validation">
             <P>
-              Do the formulas capture what readers actually feel? We tested against <em>Harry Potter and the Sorcerer&apos;s Stone</em>&mdash;a novel whose dramatic peaks are well-established in popular memory. The delivery curve below is computed entirely from structural mutations with no human annotation.
+              Do the formulas capture what readers actually feel? We tested against <em>Harry Potter and the Sorcerer&apos;s Stone</em> — a novel whose dramatic peaks are well-established in popular memory. The delivery curve below is computed entirely from structural mutations with no human annotation.
             </P>
 
-            {/* Annotated Delivery Curve */}
+            {/* Annotated Delivery Curve — computed from /works/harry_potter JSON via the same formulas used in the app */}
             {(() => {
-              const delivery = [0.554,0.491,0.445,0.42,0.414,0.409,0.39,0.355,0.319,0.296,0.28,0.248,0.178,0.072,-0.044,-0.136,-0.177,-0.16,-0.095,-0.009,0.069,0.119,0.141,0.159,0.204,0.296,0.433,0.588,0.73,0.832,0.881,0.879,0.834,0.753,0.639,0.496,0.334,0.178,0.053,-0.019,-0.027,0.031,0.149,0.311,0.486,0.635,0.726,0.745,0.701,0.611,0.489,0.346,0.196,0.058,-0.051,-0.122,-0.159,-0.169,-0.165,-0.162,-0.174,-0.199,-0.219,-0.209,-0.153,-0.061,0.037,0.111,0.147,0.144,0.111,0.047,-0.047,-0.16,-0.262,-0.317,-0.31,-0.259,-0.206,-0.18,-0.177,-0.164,-0.105,0.01,0.159,0.306,0.416,0.475,0.488,0.469,0.434];
+              // Smoothed delivery values computed from the actual works JSON:
+              // raw forces → z-score normalise → delivery formula → Gaussian smooth (σ=1.5)
+              const delivery = [0.744,0.587,0.37,0.273,0.378,0.539,0.544,0.36,0.169,0.164,0.328,0.451,0.36,0.094,-0.16,-0.288,-0.317,-0.289,-0.18,0.017,0.209,0.277,0.191,0.049,0.004,0.14,0.395,0.649,0.841,0.976,1.031,0.96,0.84,0.797,0.765,0.596,0.32,0.072,-0.083,-0.157,-0.164,-0.103,0.022,0.225,0.524,0.844,0.993,0.886,0.705,0.635,0.593,0.421,0.147,-0.069,-0.152,-0.168,-0.208,-0.239,-0.186,-0.084,-0.05,-0.152,-0.332,-0.417,-0.299,-0.059,0.158,0.268,0.248,0.143,0.094,0.151,0.133,-0.114,-0.448,-0.61,-0.501,-0.215,0.022,0.008,-0.213,-0.385,-0.338,-0.104,0.203,0.459,0.588,0.6,0.522,0.393,0.278];
               const n = delivery.length;
               const W = 620, H = 200;
               const PAD = { top: 30, right: 20, bottom: 40, left: 40 };
@@ -329,21 +331,24 @@ export default function PaperPage() {
               const points = delivery.map((v, i) => `${toX(i)},${toY(v)}`).join(' ');
 
               const annotations = [
-                { scene: 2, label: 'Hagrid arrives', side: 'above' as const },
-                { scene: 18, label: 'Diagon Alley', side: 'below' as const },
+                { scene: 1, label: 'Dursleys\' ordinary day', side: 'above' as const },
+                { scene: 12, label: 'Hagrid reveals truth', side: 'above' as const },
+                { scene: 17, label: 'Diagon Alley', side: 'below' as const },
                 { scene: 31, label: 'Sorting Hat', side: 'above' as const },
                 { scene: 47, label: 'Troll fight', side: 'above' as const },
-                { scene: 59, label: 'Mirror of Erised', side: 'below' as const },
+                { scene: 51, label: 'First Quidditch', side: 'above' as const },
+                { scene: 64, label: 'Snape in the forest', side: 'below' as const },
+                { scene: 73, label: 'Forbidden Forest', side: 'above' as const },
                 { scene: 76, label: 'Quiet before storm', side: 'below' as const },
                 { scene: 86, label: 'Quirrell confrontation', side: 'above' as const },
-                { scene: 89, label: 'Dumbledore reveals truth', side: 'above' as const },
+                { scene: 88, label: 'Dumbledore reveals truth', side: 'above' as const },
               ];
 
               return (
                 <div className="my-8">
                   <svg width="100%" viewBox={`0 0 ${W} ${H}`} className="overflow-visible">
                     {/* Grid lines */}
-                    {[-0.2, 0, 0.2, 0.4, 0.6, 0.8].map((v) => (
+                    {[-0.6, -0.4, -0.2, 0, 0.2, 0.4, 0.6, 0.8, 1.0].map((v) => (
                       <g key={v}>
                         <line x1={PAD.left} y1={toY(v)} x2={PAD.left + cw} y2={toY(v)} stroke="white" strokeOpacity={v === 0 ? 0.15 : 0.05} />
                         <text x={PAD.left - 6} y={toY(v) + 3} textAnchor="end" fill="white" fillOpacity="0.2" fontSize="8" fontFamily="monospace">{v.toFixed(1)}</text>
@@ -393,21 +398,21 @@ export default function PaperPage() {
                     </text>
                   </svg>
                   <p className="text-[10px] text-white/30 text-center mt-2">
-                    Harry Potter and the Sorcerer&apos;s Stone &mdash; smoothed delivery curve with annotated peaks.
-                    <br />No human labeling. All peaks computed from structural mutations alone.
+                    Harry Potter and the Sorcerer&apos;s Stone  —  smoothed delivery curve with annotated peaks.
+                    <br />Computed from structural mutations in <code className="text-white/40">works/harry_potter_and_the_sorcerer_s_stone.json</code>.
                   </p>
                 </div>
               );
             })()}
 
             <P>
-              The three peaks correspond to moments any reader would identify: the Sorting Hat ceremony (entry into the magical world), the troll fight (the friendship-forging trial), and the climactic confrontation with Quirrell. The valleys&mdash;Diagon Alley shopping, the Mirror of Erised, the quiet realization before the finale&mdash;are exactly the buildup scenes that make the peaks feel earned.
+              The peaks correspond to moments any reader would identify: the Sorting Hat ceremony (entry into the magical world), the troll fight (the friendship-forging trial), the first Quidditch match, and the climactic confrontation with Quirrell followed by Dumbledore&apos;s revelations. The valleys — the journey to Diagon Alley, Snape&apos;s suspicious forest encounter, and the quiet dread before the finale — are exactly the buildup scenes that make the peaks feel earned.
             </P>
             <P>
               This is the core claim: <B>deterministic formulas applied to structural mutations recover the dramatic shape of a narrative without reading the prose</B>. The formulas don&apos;t know that Hagrid is a beloved character or that the Sorting Hat is a moment of belonging. They see thread transitions, relationship shifts, and knowledge graph expansion. The dramatic shape emerges from the mathematics.
             </P>
             <P>
-              The same formulas, applied to AI-generated narratives, reveal a consistent structural gap. Published literature scores 90+ with varied delivery curves&mdash;visible peaks and valleys. AI-generated text typically scores 70&ndash;80 with flatter curves: the mutations are structurally valid but uniformly dense, lacking the contrast between buildup and payoff that creates memorable moments. This gap motivated the Markov chain pacing system described below.
+              The same formulas, applied to AI-generated narratives, reveal a consistent structural gap. Published literature scores 90+ with varied delivery curves — visible peaks and valleys. AI-generated text typically scores 70&ndash;80 with flatter curves: the mutations are structurally valid but uniformly dense, lacking the contrast between buildup and payoff that creates memorable moments. This gap motivated the Markov chain pacing system described below.
             </P>
           </Section>
 
@@ -418,7 +423,7 @@ export default function PaperPage() {
             </P>
             <Eq tex="z_i = \frac{x_i - \mu}{\sigma}" />
             <P>
-              Zero is average. Positive is above; negative is below. Units are standard deviations. A &ldquo;high payoff scene&rdquo; in any story is simply one above its own mean&mdash;regardless of length, genre, or density.
+              Zero is average. Positive is above; negative is below. Units are standard deviations. A &ldquo;high payoff scene&rdquo; in any story is simply one above its own mean — regardless of length, genre, or density.
             </P>
           </Section>
 
@@ -439,7 +444,7 @@ export default function PaperPage() {
               </div>
               <div>
                 <h3 className="text-[13px] font-semibold text-white/70 mb-1">Reconciliation</h3>
-                <P>Entities merge across chunk boundaries&mdash;characters by identity, threads by description, knowledge nodes by concept. A concept in chapter 3 and chapter 17 reuses the same node ID, signaling reinforcement over novelty.</P>
+                <P>Entities merge across chunk boundaries — characters by identity, threads by description, knowledge nodes by concept. A concept in chapter 3 and chapter 17 reuses the same node ID, signaling reinforcement over novelty.</P>
               </div>
               <div>
                 <h3 className="text-[13px] font-semibold text-white/70 mb-1">Force computation</h3>
@@ -451,11 +456,11 @@ export default function PaperPage() {
           {/* ── Grading ───────────────────────────────────────────────── */}
           <Section id="grading" label="Grading">
             <P>
-              Stories receive a score out of 100&mdash;25 per force&mdash;on an exponential curve calibrated against reference works including <em>Harry Potter</em>, <em>The Great Gatsby</em>, <em>Crime and Punishment</em>, and <em>Coiling Dragon</em>.
+              Stories receive a score out of 100 — 25 per force — on an exponential curve calibrated against reference works including <em>Harry Potter</em>, <em>The Great Gatsby</em>, <em>Crime and Punishment</em>, and <em>Coiling Dragon</em>.
             </P>
             <Eq tex="g(\tilde{x}) = 25\left(1 - e^{-2\tilde{x}}\right) \qquad \text{where} \quad \tilde{x} = \frac{\bar{x}}{\mu_{\text{ref}}}" />
             <P>
-              At <Tex>{'\\tilde{x} = 1'}</Tex> (matching the reference mean), the grade is ~22/25. The curve is steep early&mdash;rewarding baseline competence&mdash;and flattens at high levels. Reference works land between 88 and 93.
+              At <Tex>{'\\tilde{x} = 1'}</Tex> (matching the reference mean), the grade is ~22/25. The curve is steep early — rewarding baseline competence — and flattens at high levels. Reference works land between 88 and 93.
             </P>
 
             <P>
@@ -478,7 +483,7 @@ export default function PaperPage() {
               Swing is already mean-normalized by the force reference means during computation, so it is graded directly without a separate reference. The overall score is the sum of all four sub-grades: <Tex>{'\\text{Overall} = g(\\tilde{P}) + g(\\tilde{C}) + g(\\tilde{K}) + g(\\tilde{S})'}</Tex>.
             </P>
             <P>
-              A consistent gap emerges between human and AI-generated texts. Published literature routinely scores 90+&mdash;dense thread lifecycles, earned payoffs, and layered world-building compound over hundreds of pages. AI-generated narratives typically land in the 70&ndash;80 range. The mutations are structurally valid but thinner: threads resolve too neatly, character change lacks accumulation, and knowledge graphs expand without the connective depth that human authors build instinctively. This gap is not a flaw in the grading&mdash;it reflects a real structural difference that the force formulas are designed to detect.
+              A consistent gap emerges between human and AI-generated texts. Published literature routinely scores 90+ — dense thread lifecycles, earned payoffs, and layered world-building compound over hundreds of pages. AI-generated narratives typically land in the 70&ndash;80 range. The mutations are structurally valid but thinner: threads resolve too neatly, character change lacks accumulation, and knowledge graphs expand without the connective depth that human authors build instinctively. This gap is not a flaw in the grading — it reflects a real structural difference that the force formulas are designed to detect.
             </P>
           </Section>
 
@@ -521,7 +526,7 @@ export default function PaperPage() {
           {/* ── Markov Chains ─────────────────────────────────────────── */}
           <Section id="markov" label="Markov Chains">
             <P>
-              The eight cube corners form a finite state space. Every scene in a story occupies one corner, and the transition from scene N to scene N+1 is a state transition. Across an entire novel, these transitions form an empirical Markov chain&mdash;a transition matrix <Tex>{'T \\in \\mathbb{R}^{8 \\times 8}'}</Tex> where <Tex>{'T_{ij}'}</Tex> is the probability of moving from mode <Tex>{'i'}</Tex> to mode <Tex>{'j'}</Tex>.
+              The eight cube corners form a finite state space. Every scene in a story occupies one corner, and the transition from scene N to scene N+1 is a state transition. Across an entire novel, these transitions form an empirical Markov chain — a transition matrix <Tex>{'T \\in \\mathbb{R}^{8 \\times 8}'}</Tex> where <Tex>{'T_{ij}'}</Tex> is the probability of moving from mode <Tex>{'i'}</Tex> to mode <Tex>{'j'}</Tex>.
             </P>
 
             <h3 className="text-[15px] font-semibold text-white/80 mt-8 mb-3">A Story&apos;s Fingerprint</h3>
@@ -589,16 +594,16 @@ export default function PaperPage() {
                 })()}
               </svg>
               <p className="text-[10px] text-white/30 text-center">
-                Harry Potter and the Sorcerer&apos;s Stone &mdash; 91 scenes, 90 transitions.
+                Harry Potter and the Sorcerer&apos;s Stone  —  91 scenes, 90 transitions.
                 <br />Node size = visit frequency. Edge thickness = transition probability.
               </p>
             </div>
 
             <P>
-              Harry Potter&apos;s matrix reveals a balanced explorer&mdash;high entropy (2.88/3.00), low self-loops (12%), and a 43/57 payoff-to-buildup ratio. Lore and Rest are the dominant modes (19 visits each), serving as the connective tissue between peaks. The story visits all eight modes regularly, with strong Lore&harr;Rest oscillation providing breathing room between dramatic moments.
+              Harry Potter&apos;s matrix reveals a balanced explorer — high entropy (2.88/3.00), low self-loops (12%), and a 43/57 payoff-to-buildup ratio. Lore and Rest are the dominant modes (19 visits each), serving as the connective tissue between peaks. The story visits all eight modes regularly, with strong Lore&harr;Rest oscillation providing breathing room between dramatic moments.
             </P>
             <P>
-              By contrast, Nineteen Eighty-Four produces a pressure cooker&mdash;buildup-dominant (66%), with long dwelling in Rest and Growth before sudden Epoch eruptions. The Great Gatsby oscillates like a pendulum between Rest and Epoch. Each matrix is a structural fingerprint that captures the rhythm no single metric can express.
+              By contrast, Nineteen Eighty-Four produces a pressure cooker — buildup-dominant (66%), with long dwelling in Rest and Growth before sudden Epoch eruptions. The Great Gatsby oscillates like a pendulum between Rest and Epoch. Each matrix is a structural fingerprint that captures the rhythm no single metric can express.
             </P>
 
             <h3 className="text-[15px] font-semibold text-white/80 mt-8 mb-3">Stationary Distribution</h3>
@@ -607,7 +612,7 @@ export default function PaperPage() {
             </P>
             <Eq tex={String.raw`\pi^{(t+1)}_j = \sum_i \pi^{(t)}_i \cdot T_{ij}`} />
             <P>
-              This distribution is the story&apos;s gravitational center. A story with 40% Rest in its stationary distribution naturally orbits quiet moments. One with 30% Epoch is permanently intense. The distribution doesn&apos;t classify&mdash;it describes. Two stories can have the same overall score but completely different stationary distributions, revealing different structural personalities.
+              This distribution is the story&apos;s gravitational center. A story with 40% Rest in its stationary distribution naturally orbits quiet moments. One with 30% Epoch is permanently intense. The distribution doesn&apos;t classify — it describes. Two stories can have the same overall score but completely different stationary distributions, revealing different structural personalities.
             </P>
 
             <h3 className="text-[15px] font-semibold text-white/80 mt-8 mb-3">Rhythm Profiles for Generation</h3>
@@ -615,29 +620,29 @@ export default function PaperPage() {
               The most powerful application of Markov chains is not analysis but generation. Before generating an arc, the engine samples a pacing sequence from the transition matrix: starting from the current mode (the last scene&apos;s cube corner), it walks the chain for N steps, producing a sequence like <span className="font-mono text-white/50">Growth &rarr; Lore &rarr; Climax &rarr; Rest &rarr; Growth</span>.
             </P>
             <P>
-              Each step in the sequence becomes a per-scene constraint: Scene 1 must have a Growth force profile (high Change, low Payoff), Scene 3 must spike all forces (Climax). This prevents the AI from defaulting to uniform density&mdash;the Markov chain forces variation by assigning different modes to different scenes.
+              Each step in the sequence becomes a per-scene constraint: Scene 1 must have a Growth force profile (high Change, low Payoff), Scene 3 must spike all forces (Climax). This prevents the AI from defaulting to uniform density — the Markov chain forces variation by assigning different modes to different scenes.
             </P>
             <P>
-              Users select a <em>rhythm profile</em>&mdash;a transition matrix derived from a published work&mdash;to shape their story&apos;s pacing. A story using Harry Potter&apos;s matrix will breathe like Harry Potter: exploratory, varied, with regular returns to lore. A story using 1984&apos;s matrix will dwell in tension before erupting. The matrices are computed automatically from the analysed works in the system.
+              Users select a <em>rhythm profile</em> — a transition matrix derived from a published work — to shape their story&apos;s pacing. A story using Harry Potter&apos;s matrix will breathe like Harry Potter: exploratory, varied, with regular returns to lore. A story using 1984&apos;s matrix will dwell in tension before erupting. The matrices are computed automatically from the analysed works in the system.
             </P>
           </Section>
 
           {/* ── MCTS ──────────────────────────────────────────────────── */}
           <Section id="mcts" label="MCTS">
             <P>
-              Monte Carlo Tree Search adapts the game-playing algorithm to narrative space. Instead of board positions, nodes are narrative states&mdash;the full knowledge graph after a sequence of scenes. Instead of moves, edges are generated arcs. Instead of win/loss, the evaluation function is the force grading system.
+              Monte Carlo Tree Search adapts the game-playing algorithm to narrative space. Instead of board positions, nodes are narrative states — the full knowledge graph after a sequence of scenes. Instead of moves, edges are generated arcs. Instead of win/loss, the evaluation function is the force grading system.
             </P>
 
             <h3 className="text-[15px] font-semibold text-white/80 mt-8 mb-3">How It Works</h3>
             <P>
-              <strong>Selection</strong>: Starting from the current narrative state, UCB1 selects which node to expand&mdash;balancing exploitation (high-scoring paths) against exploration (under-visited branches).
+              <strong>Selection</strong>: Starting from the current narrative state, UCB1 selects which node to expand — balancing exploitation (high-scoring paths) against exploration (under-visited branches).
             </P>
             <Eq tex={String.raw`\text{UCB1}(n) = \frac{Q(n)}{N(n)} + C \sqrt{\frac{\ln N(\text{parent})}{N(n)}}`} />
             <P>
-              <strong>Expansion</strong>: The selected node generates a new arc via the LLM. Each expansion is paced by a fresh Markov chain sample from the story&apos;s rhythm profile, ensuring every branch explores a different force trajectory. The narrative seed provides creative diversity&mdash;the Markov chain provides structural diversity.
+              <strong>Expansion</strong>: The selected node generates a new arc via the LLM. Each expansion is paced by a fresh Markov chain sample from the story&apos;s rhythm profile, ensuring every branch explores a different force trajectory. The narrative seed provides creative diversity — the Markov chain provides structural diversity.
             </P>
             <P>
-              <strong>Evaluation</strong>: The generated arc is scored using the force grading system&mdash;the same formulas applied to published literature. An arc scoring 85 has comparable structural density to the reference works.
+              <strong>Evaluation</strong>: The generated arc is scored using the force grading system — the same formulas applied to published literature. An arc scoring 85 has comparable structural density to the reference works.
             </P>
             <P>
               <strong>Backpropagation</strong>: The score propagates up the tree. Paths that consistently produce high-scoring arcs accumulate visit counts, making them more likely to be selected for further expansion.
@@ -648,7 +653,7 @@ export default function PaperPage() {
               The integration of Markov chains with MCTS produces a search that is both structurally informed and creatively diverse. Each expansion samples a fresh pacing sequence from the transition matrix, meaning sibling nodes in the tree explore different force trajectories even when given similar creative direction. One sibling might sample <span className="font-mono text-white/50">Rest &rarr; Growth &rarr; Epoch</span> while another gets <span className="font-mono text-white/50">Lore &rarr; Lore &rarr; Climax &rarr; Closure</span>.
             </P>
             <P>
-              The rhythm profile acts as a structural prior&mdash;biasing the search toward transitions that produce good narratives (as observed in published works) without constraining the creative content. The LLM fills the <em>what</em>; the Markov chain shapes the <em>how much</em>.
+              The rhythm profile acts as a structural prior — biasing the search toward transitions that produce good narratives (as observed in published works) without constraining the creative content. The LLM fills the <em>what</em>; the Markov chain shapes the <em>how much</em>.
             </P>
             <P>
               After search completes, the best path is selected by either highest average score (hill-climbing) or most-visited path (robust MCTS). The user can inspect every branch, see the cube position sequence for each arc, and commit the chosen path to the story.
@@ -676,10 +681,10 @@ export default function PaperPage() {
               Narrative Engine is fully open source. Every formula in this paper lives in the codebase. You can read it, run it, and change it.
             </P>
             <P>
-              We made this choice deliberately. Narrative analysis should be transparent&mdash;if you disagree with how we weight payoff against knowledge, change the constant. If your genre needs a fourth force, add it. The formulas are tools, not doctrine.
+              We made this choice deliberately. Narrative analysis should be transparent — if you disagree with how we weight payoff against knowledge, change the constant. If your genre needs a fourth force, add it. The formulas are tools, not doctrine.
             </P>
             <P>
-              We&apos;d especially love to see the community experiment with their own texts. Paste any corpus into the <Link href="/analysis" className="text-white/60 underline underline-offset-2 hover:text-white/80 transition-colors">analysis pipeline</Link>&mdash;novels, screenplays, web serials, fanfiction. See where the peaks land, what archetype emerges, and whether the force landscape matches your intuition. When it doesn&apos;t, that&apos;s interesting too. Pull requests welcome.
+              We&apos;d especially love to see the community experiment with their own texts. Paste any corpus into the <Link href="/analysis" className="text-white/60 underline underline-offset-2 hover:text-white/80 transition-colors">analysis pipeline</Link> — novels, screenplays, web serials, fanfiction. See where the peaks land, what archetype emerges, and whether the force landscape matches your intuition. When it doesn&apos;t, that&apos;s interesting too. Pull requests welcome.
             </P>
 
             <div className="mt-8">

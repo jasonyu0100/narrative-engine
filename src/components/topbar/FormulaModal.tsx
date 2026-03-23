@@ -51,9 +51,9 @@ function ForcesTab() {
       </S>
 
       <S title="Change" analogy="How intensely did this scene transform? A tight confrontation scores the same as an ensemble with equal total mutations.">
-        <Block tex={String.raw`C = \sqrt{\Sigma m} + \sqrt{|\text{events}|}`} />
+        <Block tex={String.raw`C = \sqrt{\,M_c + \!\sum_{r}\, 2\,|\Delta v_r|\,} \;+\; \sqrt{\,|\mathcal{E}|\,}`} />
         <p className="text-[10px] text-text-dim">
-          <Tex>{'\\Sigma m'}</Tex> = total continuity + relationship (<Tex>{'|\\Delta v|'}</Tex> weighted) mutations. Square root scaling — less compression than log, allowing dense scenes to spike meaningfully above sparse ones. Cast-blind.
+          <Tex>{String.raw`M_c`}</Tex> = continuity mutations, <Tex>{String.raw`|\Delta v_r|`}</Tex> = relationship intensity (counted twice — both sides), <Tex>{String.raw`|\mathcal{E}|`}</Tex> = events. Square root scaling — dense scenes spike meaningfully above sparse ones. Cast-blind.
         </p>
       </S>
 
