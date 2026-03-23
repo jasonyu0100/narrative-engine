@@ -63,6 +63,7 @@ export function GeneratePanel({ onClose }: { onClose: () => void }) {
   // Pacing preview
   const [previewSequence, setPreviewSequence] = useState<PacingSequence | null>(null);
   const [animating, setAnimating] = useState(false);
+  const [editingStep, setEditingStep] = useState<number | null>(null);
 
   // World state
   const [worldDirective, setWorldDirective] = useState('');
@@ -100,12 +101,12 @@ export function GeneratePanel({ onClose }: { onClose: () => void }) {
     setAnimating(true);
   }, [currentMode, count, storyMatrix]);
 
-  const handleCycleStep = useCallback((index: number, direction: 1 | -1) => {
+  const handleSetStep = useCallback((index: number, mode: CubeCornerKey) => {
     if (!previewSequence) return;
     const modes = previewSequence.steps.map((s) => s.mode);
-    const cur = ALL_CORNERS.indexOf(modes[index]);
-    modes[index] = ALL_CORNERS[(cur + direction + ALL_CORNERS.length) % ALL_CORNERS.length];
+    modes[index] = mode;
     setPreviewSequence(buildSequenceFromModes(modes));
+    setEditingStep(null);
   }, [previewSequence]);
 
   const handleAddStep = useCallback(() => {
@@ -121,6 +122,7 @@ export function GeneratePanel({ onClose }: { onClose: () => void }) {
     const modes = previewSequence.steps.map((s) => s.mode).filter((_, i) => i !== index);
     setPreviewSequence(buildSequenceFromModes(modes));
     setCount(modes.length);
+    setEditingStep(null);
   }, [previewSequence]);
 
   async function handleSuggestArc() {
@@ -242,30 +244,61 @@ export function GeneratePanel({ onClose }: { onClose: () => void }) {
               <div className="flex flex-col gap-2">
                 <div className="flex items-center flex-wrap gap-1.5">
                   {previewSequence.steps.map((step, i) => (
-                    <div key={i} className="group relative flex items-center">
+                    <div key={i} className="relative flex items-center">
                       {i > 0 && <span className="text-text-dim/30 text-[13px] font-light select-none mx-0.5">→</span>}
                       <button
-                        onClick={() => handleCycleStep(i, 1)}
-                        onContextMenu={(e) => { e.preventDefault(); handleCycleStep(i, -1); }}
-                        className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded transition-all hover:ring-1 hover:ring-white/20"
+                        data-step-idx={i}
+                        onClick={() => setEditingStep(editingStep === i ? null : i)}
+                        className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded transition-all ${editingStep === i ? 'ring-1 ring-white/30' : 'hover:ring-1 hover:ring-white/15'}`}
                         style={{ backgroundColor: `${CORNER_COLORS[step.mode]}15` }}
-                        title={`${NARRATIVE_CUBE[step.mode].name} — click to cycle, right-click to reverse`}
                       >
                         <CubeBadge mode={step.mode} size="sm" />
                         <span className="text-[10px] font-semibold leading-none whitespace-nowrap" style={{ color: CORNER_COLORS[step.mode] }}>
                           {NARRATIVE_CUBE[step.mode].name}
                         </span>
                       </button>
-                      {/* Remove button */}
-                      {previewSequence.steps.length > 1 && (
-                        <button
-                          onClick={() => handleRemoveStep(i)}
-                          className="absolute -top-1.5 -right-1.5 w-3.5 h-3.5 rounded-full bg-red-500/80 text-white text-[8px] leading-none flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
-                          title="Remove step"
-                        >
-                          ×
-                        </button>
-                      )}
+                      {/* Dropdown picker */}
+                      {editingStep === i && (() => {
+                        // Use a portal-style ref to position the dropdown in fixed space
+                        const btn = document.querySelector(`[data-step-idx="${i}"]`);
+                        const rect = btn?.getBoundingClientRect();
+                        return (
+                          <>
+                            {/* Backdrop to close on outside click */}
+                            <div className="fixed inset-0 z-60" onClick={() => setEditingStep(null)} />
+                            <div
+                              className="fixed z-61 bg-bg-base border border-white/10 rounded-lg shadow-xl p-1 w-36"
+                              style={rect ? { top: rect.bottom + 4, left: rect.left } : undefined}
+                            >
+                              {ALL_CORNERS.map((corner) => (
+                                <button
+                                  key={corner}
+                                  onClick={() => handleSetStep(i, corner)}
+                                  className={`w-full flex items-center gap-2 px-2 py-1.5 rounded text-left transition ${
+                                    corner === step.mode ? 'bg-white/10' : 'hover:bg-white/5'
+                                  }`}
+                                >
+                                  <CubeBadge mode={corner} size="sm" />
+                                  <span className="text-[10px] font-medium" style={{ color: CORNER_COLORS[corner] }}>
+                                    {NARRATIVE_CUBE[corner].name}
+                                  </span>
+                                </button>
+                              ))}
+                              {previewSequence.steps.length > 1 && (
+                                <>
+                                  <div className="h-px bg-white/6 my-1" />
+                                  <button
+                                    onClick={() => handleRemoveStep(i)}
+                                    className="w-full flex items-center gap-2 px-2 py-1.5 rounded text-left text-[10px] text-red-400/70 hover:bg-red-500/10 transition"
+                                  >
+                                    Remove step
+                                  </button>
+                                </>
+                              )}
+                            </div>
+                          </>
+                        );
+                      })()}
                     </div>
                   ))}
                   {/* Add step */}
