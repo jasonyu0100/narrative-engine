@@ -178,6 +178,54 @@ const FORCE_TARGETS: Record<CubeCornerKey, { payoff: [number, number]; change: [
   'LLL': { payoff: [0, 1], change: [0, 2], knowledge: [0, 1.5] },
 };
 
+// ── Pacing Presets ───────────────────────────────────────────────────────────
+
+export type PacingPreset = {
+  key: string;
+  name: string;
+  description: string;
+  /** Fixed sequence of cube corner modes — bypasses Markov sampling */
+  modes: CubeCornerKey[];
+};
+
+/**
+ * Curated pacing presets for manual generation.
+ * Each preset is a fixed sequence of cube positions designed to achieve
+ * a specific narrative purpose. Bypasses the randomised Markov chain.
+ */
+export const PACING_PRESETS: PacingPreset[] = [
+  // ── 3-scene arcs ───────────────────────────────────
+  { key: 'sucker-punch',   name: 'Sucker Punch',      description: 'Quiet calm, then everything hits at once',                                modes: ['LLL', 'LHL', 'HHH'] },
+  { key: 'quick-resolve',  name: 'Quick Resolve',     description: 'Set up the world, pay it off, tie it up',                                modes: ['LLH', 'HHL', 'HLL'] },
+  { key: 'crucible',       name: 'Crucible',          description: 'Discover, grow through it, earn the payoff',                              modes: ['LHH', 'LHL', 'HHL'] },
+
+  // ── 5-scene arcs ───────────────────────────────────
+  { key: 'classic-arc',    name: 'Classic Arc',        description: 'The workhorse — rest, build, build, climax, closure',                     modes: ['LLL', 'LHL', 'LHH', 'HHL', 'HLL'] },
+  { key: 'unravelling',    name: 'Unravelling',        description: 'Layer clues, connect them, then confront what they mean',                 modes: ['LLH', 'LHH', 'LHL', 'HLH', 'HLL'] },
+  { key: 'pressure',       name: 'Pressure Cooker',    description: 'Relentless buildup with no relief until the final scene',                modes: ['LHL', 'LHH', 'LHL', 'LHH', 'HHH'] },
+  { key: 'inversion',      name: 'Inversion',          description: 'Calm trust, deepening world, then everything flips',                     modes: ['LHL', 'LLL', 'LLH', 'HHL', 'HHH'] },
+  { key: 'deep-dive',      name: 'Deep Dive',          description: 'Enter the unknown, learn its rules, emerge changed',                    modes: ['LLH', 'LHH', 'LLH', 'LHL', 'HHL'] },
+
+  // ── 8-scene arcs ───────────────────────────────────
+  { key: 'full-arc',       name: 'Full Arc',           description: 'Complete cycle — setup, world, growth, discovery, escalation, climax, epoch, closure', modes: ['LLL', 'LLH', 'LHL', 'LHH', 'LHL', 'HHL', 'HHH', 'HLL'] },
+  { key: 'slow-burn',      name: 'Slow Burn',          description: 'Patient buildup across five quiet scenes before a three-scene storm',    modes: ['LLL', 'LLH', 'LHL', 'LLH', 'LHL', 'LHH', 'HHL', 'HHH'] },
+  { key: 'roller-coaster', name: 'Roller Coaster',     description: 'Alternating peaks and valleys — high swing, dynamic pacing',             modes: ['LHL', 'HHL', 'LLL', 'LHH', 'HHL', 'LHL', 'HHH', 'HLL'] },
+  { key: 'revelation-arc', name: 'Revelation Arc',     description: 'Layer knowledge scene by scene until the world clicks into focus',       modes: ['LLH', 'LLH', 'LHH', 'LLH', 'HLH', 'LHL', 'HLH', 'HHH'] },
+  { key: 'gauntlet',       name: 'Gauntlet',           description: 'Early challenge, regroup, sustained escalation, final reckoning',        modes: ['HHL', 'LLL', 'LHL', 'LHH', 'HHL', 'LHL', 'LHH', 'HHH'] },
+];
+
+/** Build a PacingSequence from a preset (bypasses Markov sampling). */
+export function buildPresetSequence(preset: PacingPreset): PacingSequence {
+  const steps: ModeStep[] = preset.modes.map((mode) => ({
+    mode,
+    name: NARRATIVE_CUBE[mode].name,
+    description: NARRATIVE_CUBE[mode].description,
+    forces: FORCE_TARGETS[mode],
+  }));
+
+  return { steps, pacingDescription: buildPacingDescription(steps) };
+}
+
 // ── Sampling ─────────────────────────────────────────────────────────────────
 
 /** Sample the next mode from a transition matrix row using weighted random. */
@@ -280,40 +328,58 @@ export function detectCurrentMode(
 // ── Prompt Generation ────────────────────────────────────────────────────────
 
 /**
+ * Mutation guidance per cube corner — tells the LLM exactly what kind of
+ * mutations each mode requires so the computed forces land where intended.
+ */
+const MODE_GUIDANCE: Record<CubeCornerKey, string> = {
+  HHH: `EPOCH — the densest scene in the arc. Multiple threads must transition (preferably to terminal statuses: resolved/subverted/abandoned). Many continuity mutations — characters learn, lose, or become something new. Introduce or heavily connect world knowledge nodes. Every force should spike. This is the scene readers remember.`,
+
+  HHL: `CLIMAX — threads pay off and characters transform, but within established world rules. Multiple thread transitions (2+ to terminal statuses). High continuity mutations — characters are permanently changed by what happens. Minimal or zero new world knowledge nodes — use what's already been established. The payoff comes from character action, not revelation.`,
+
+  HLH: `REVELATION — threads resolve through world-building, not character action. Thread transitions should come from discovering how the world works (a rule explains everything, a secret is unveiled). Few continuity mutations — characters observe more than they change. Add new world knowledge nodes and connect them to existing ones. The "aha" moment.`,
+
+  HLL: `CLOSURE — quiet resolution. Tie up loose ends: a conversation that needed to happen, a debt paid, a promise kept or broken. 1-2 thread transitions to terminal statuses. Few continuity mutations. No new world knowledge. This scene exhales — aftermath, not action.`,
+
+  LHH: `DISCOVERY — characters encounter something new and are changed by it. No thread transitions to terminal statuses (threads stay active or escalate at most). High continuity mutations — characters learn, are surprised, have their assumptions challenged. Add new world knowledge nodes — the world is expanding. Pure exploration and possibility.`,
+
+  LHL: `GROWTH — internal character development through interaction. No thread resolutions. High continuity mutations — characters train, argue, bond, confess, strategise. No new world knowledge — this takes place within established rules. Relationships may shift. The quiet scene where characters become who they need to be for what's coming.`,
+
+  LLH: `LORE — pure world-building. No thread transitions beyond minor pulses. Few continuity mutations. Add world knowledge nodes and edges — new rules, systems, cultures, factions, history. Plant seeds. The reader should feel the world getting deeper and more interconnected. Save the payoff for later.`,
+
+  LLL: `REST — minimal everything. 0-1 thread pulses (same-status mentions only). 1-3 continuity mutations at most. No new world knowledge. Characters reflect, recover, observe. Atmosphere and breathing room. This scene exists so the next peak feels earned.`,
+};
+
+/**
  * Build the per-scene pacing prompt block from a sequence.
- * This replaces the old cube goal and delivery direction prompts.
+ * Each scene gets its cube mode, a description of what that mode demands
+ * in terms of mutations, and target force ranges.
  */
 export function buildSequencePrompt(sequence: PacingSequence): string {
   const lines: string[] = [];
 
   lines.push(`PACING SEQUENCE (${sequence.pacingDescription})`);
   lines.push('');
-  lines.push('Each scene in this arc has a specific narrative mode assignment. The mode determines the scene\'s force profile — which forces should be HIGH and which should be LOW. Follow these assignments:');
+  lines.push('Each scene has a cube mode assignment that determines its force profile. The mode dictates what KIND of mutations the scene should have — thread transitions, continuity changes, world knowledge expansion — and how many. The formulas compute forces FROM these mutations, so if you want a scene to land at a specific cube corner, you must generate the right mutations.');
+  lines.push('');
+  lines.push('Force formulas (for reference):');
+  lines.push('  Payoff = Σ|phase_to - phase_from| per thread transition (same-status pulse = 0.25)');
+  lines.push('  Change = √(continuity_mutations) + √(events)');
+  lines.push('  Knowledge = new_world_nodes + √(new_world_edges)');
   lines.push('');
 
   for (let i = 0; i < sequence.steps.length; i++) {
     const step = sequence.steps[i];
-    const cube = NARRATIVE_CUBE[step.mode];
     const p = step.mode[0] === 'H' ? 'HIGH' : 'LOW';
     const c = step.mode[1] === 'H' ? 'HIGH' : 'LOW';
     const k = step.mode[2] === 'H' ? 'HIGH' : 'LOW';
 
-    lines.push(`SCENE ${i + 1} — ${cube.name} (Payoff: ${p}, Change: ${c}, Knowledge: ${k})`);
-    lines.push(`  ${cube.description}`);
-    lines.push(`  Target ranges: Payoff ${step.forces.payoff[0]}–${step.forces.payoff[1]}, Change ${step.forces.change[0]}–${step.forces.change[1]}, Knowledge ${step.forces.knowledge[0]}–${step.forces.knowledge[1]}`);
-
-    // Add specific behavioral guidance per mode
-    if (step.mode[0] === 'L') {
-      lines.push('  This is a BUILDUP scene — do NOT advance threads to terminal statuses. Pulses and minor transitions only. Focus on the HIGH dimensions.');
-    }
-    if (step.mode === 'LLL') {
-      lines.push('  REST scene — minimal mutations. Characters reflect, observe, exist in the world. Atmosphere over action.');
-    }
-
+    lines.push(`SCENE ${i + 1} — ${NARRATIVE_CUBE[step.mode].name} [P:${p} C:${c} K:${k}]`);
+    lines.push(`  ${MODE_GUIDANCE[step.mode]}`);
+    lines.push(`  Targets: Payoff ${step.forces.payoff[0]}–${step.forces.payoff[1]}, Change ${step.forces.change[0]}–${step.forces.change[1]}, Knowledge ${step.forces.knowledge[0]}–${step.forces.knowledge[1]}`);
     lines.push('');
   }
 
-  lines.push('CRITICAL: Scene force profiles MUST match their assignments. A scene assigned REST cannot have 4 thread transitions. A scene assigned EPOCH should be the densest in the arc. This variation creates the peaks and valleys that make a story breathe.');
+  lines.push('CRITICAL: The mutations you generate ARE the forces. A REST scene with 4 thread transitions will compute as a Climax — the formulas don\'t care what you call it. Match your mutation counts to the mode targets above. This variation between dense and sparse scenes creates the peaks and valleys that make a story breathe.');
 
   return lines.join('\n');
 }

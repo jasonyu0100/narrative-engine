@@ -6,7 +6,7 @@ import { generateScenes, suggestArcDirection, expandWorld, suggestWorldExpansion
 import { resolveEntry, NARRATIVE_CUBE } from '@/types/narrative';
 import type { CubeCornerKey } from '@/types/narrative';
 import { nextId } from '@/lib/narrative-utils';
-import { samplePacingSequence, detectCurrentMode, MATRIX_PRESETS, DEFAULT_TRANSITION_MATRIX, type PacingSequence } from '@/lib/markov';
+import { samplePacingSequence, detectCurrentMode, MATRIX_PRESETS, DEFAULT_TRANSITION_MATRIX, PACING_PRESETS, buildPresetSequence, type PacingSequence } from '@/lib/markov';
 import { DEFAULT_STORY_SETTINGS } from '@/types/narrative';
 import { PacingStrip, CubeBadge } from './PacingStrip';
 import { MarkovGraph } from './MarkovGraph';
@@ -311,38 +311,75 @@ export function GeneratePanel({ onClose }: { onClose: () => void }) {
                 </div>
 
                 {/* Advanced */}
-                {(() => {
-                  const resolvedSet = new Set(state.resolvedSceneKeys);
-                  const wbEntries = Object.values(narrative.worldBuilds).filter((wb) => resolvedSet.has(wb.id));
-                  if (wbEntries.length === 0) return null;
-                  return (
-                    <div>
-                      <button onClick={() => setAdvancedOpen((v) => !v)}
-                        className="flex items-center gap-1.5 text-[10px] uppercase tracking-widest text-text-dim hover:text-text-secondary transition-colors">
-                        <svg className={`w-3 h-3 transition-transform ${advancedOpen ? 'rotate-90' : ''}`}
-                          fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
-                        </svg>
-                        Advanced
-                      </button>
-                      {advancedOpen && (
-                        <div className="mt-3 flex flex-col gap-1 max-h-24 overflow-y-auto">
-                          {wbEntries.map((wb) => {
-                            const isSelected = worldBuildFocusId === wb.id;
-                            return (
-                              <button key={wb.id} type="button" onClick={() => setWorldBuildFocusId(isSelected ? null : wb.id)}
-                                className={`rounded-lg px-3 py-2 text-left transition border ${
-                                  isSelected ? 'bg-amber-500/10 border-amber-500/30' : 'bg-bg-elevated border-border hover:border-white/16'
-                                }`}>
-                                <p className={`text-xs line-clamp-1 ${isSelected ? 'text-amber-300' : 'text-text-primary'}`}>{wb.summary}</p>
-                              </button>
-                            );
-                          })}
+                <div>
+                  <button onClick={() => setAdvancedOpen((v) => !v)}
+                    className="flex items-center gap-1.5 text-[10px] uppercase tracking-widest text-text-dim hover:text-text-secondary transition-colors">
+                    <svg className={`w-3 h-3 transition-transform ${advancedOpen ? 'rotate-90' : ''}`}
+                      fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+                    </svg>
+                    Advanced
+                  </button>
+                  {advancedOpen && (
+                    <div className="mt-3 flex flex-col gap-3">
+                      {/* Pacing presets */}
+                      <div>
+                        <label className="text-[10px] uppercase tracking-widest text-text-dim block mb-1.5">Pacing Presets</label>
+                        <div className="flex flex-col gap-1 max-h-40 overflow-y-auto">
+                          {PACING_PRESETS.map((preset) => (
+                            <button
+                              key={preset.key}
+                              onClick={() => {
+                                setCount(preset.modes.length);
+                                const seq = buildPresetSequence(preset);
+                                setPreviewSequence(seq);
+                                setAnimating(true);
+                              }}
+                              disabled={!newArc && !currentArc}
+                              className="rounded-lg px-3 py-2 text-left transition border border-white/6 bg-white/2 hover:bg-white/6 hover:border-white/12 disabled:opacity-30 flex items-center gap-3"
+                            >
+                              <div className="flex gap-0.5 shrink-0">
+                                {preset.modes.map((m, i) => (
+                                  <div key={i} className="w-2 h-2 rounded-sm" style={{ backgroundColor: CORNER_COLORS[m] }} title={NARRATIVE_CUBE[m].name} />
+                                ))}
+                              </div>
+                              <div className="min-w-0">
+                                <span className="text-[11px] font-medium text-text-primary">{preset.name}</span>
+                                <span className="text-[10px] text-text-dim ml-1.5">{preset.modes.length}s</span>
+                                <p className="text-[10px] text-text-dim line-clamp-1">{preset.description}</p>
+                              </div>
+                            </button>
+                          ))}
                         </div>
-                      )}
+                      </div>
+
+                      {/* World build focus */}
+                      {(() => {
+                        const resolvedSet = new Set(state.resolvedSceneKeys);
+                        const wbEntries = Object.values(narrative.worldBuilds).filter((wb) => resolvedSet.has(wb.id));
+                        if (wbEntries.length === 0) return null;
+                        return (
+                          <div>
+                            <label className="text-[10px] uppercase tracking-widest text-text-dim block mb-1.5">World Build Focus</label>
+                            <div className="flex flex-col gap-1 max-h-24 overflow-y-auto">
+                              {wbEntries.map((wb) => {
+                                const isSelected = worldBuildFocusId === wb.id;
+                                return (
+                                  <button key={wb.id} type="button" onClick={() => setWorldBuildFocusId(isSelected ? null : wb.id)}
+                                    className={`rounded-lg px-3 py-2 text-left transition border ${
+                                      isSelected ? 'bg-amber-500/10 border-amber-500/30' : 'bg-bg-elevated border-border hover:border-white/16'
+                                    }`}>
+                                    <p className={`text-xs line-clamp-1 ${isSelected ? 'text-amber-300' : 'text-text-primary'}`}>{wb.summary}</p>
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        );
+                      })()}
                     </div>
-                  );
-                })()}
+                  )}
+                </div>
 
                 {/* Action buttons */}
                 <button
@@ -353,9 +390,9 @@ export function GeneratePanel({ onClose }: { onClose: () => void }) {
                   <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                     <rect x="3" y="3" width="18" height="18" rx="3" />
                     <circle cx="8.5" cy="8.5" r="1.2" fill="currentColor" />
-                    <circle cx="15.5" cy="8.5" r="1.2" fill="currentColor" />
-                    <circle cx="8.5" cy="15.5" r="1.2" fill="currentColor" />
                     <circle cx="15.5" cy="15.5" r="1.2" fill="currentColor" />
+                    <circle cx="8.5" cy="15.5" r="1.2" fill="currentColor" />
+                    <circle cx="15.5" cy="8.5" r="1.2" fill="currentColor" />
                     <circle cx="12" cy="12" r="1.2" fill="currentColor" />
                   </svg>
                   Roll Route
