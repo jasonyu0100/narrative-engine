@@ -24,29 +24,9 @@ import { THREAD_LIFECYCLE_DOC } from './context';
 // These are the values where the exponential grading curve scores ~86% (22/25).
 
 export const PROMPT_FORCE_STANDARDS = `
-FORCE STANDARDS — these are the reference means used by the grading system. They represent the average raw force values of well-structured narratives. Individual scenes naturally vary above and below — that variation is essential, not a flaw. The arc average should approximate these standards.
-
-How scoring works: each force is graded on an exponential curve where matching the reference mean scores ~86%. Higher is better but with diminishing returns. Crucially, forces are graded per-arc, not per-scene — a single high-payoff scene can carry several quiet buildup scenes.
-
-PAYOFF reference mean ~1.5 per scene:
-- Formula: Σ|phase_jump| for thread mutations.
-- Phase indices: dormant(0) → active(1) → escalating(2) → critical(3) → resolved/subverted/abandoned(4).
-- Examples: active→escalating = 1pt, dormant→critical = 3pt, active→resolved = 3pt. Pulses (same→same) = 0.25.
-- Some scenes will have 0 payoff (pure buildup). Others spike to 4-6+ (climaxes, reveals). Both are correct — the ARC average is what matters.
-
-CHANGE reference mean ~3.5 per scene:
-- Formula: √(continuityMutations) + √(eventCount). Cast-blind — total mutations matter, not character count.
-- Examples: 3 mutations + 2 events = √3 + √2 ≈ 3.1. A dense scene with 8 mutations + 3 events = √8 + √3 ≈ 4.6.
-- Quiet scenes with 0 mutations + 1 event score 1.0. Scenes with 1 mutation + 1 event score 2.0. This variation is essential.
-
-KNOWLEDGE reference mean ~2.5 per scene:
-- Formula: addedNodes count + √(addedEdges count). Nodes linear, edges sqrt.
-- Examples: 2 nodes + 1 edge = 3.0. 2 nodes + 4 edges = 4.0. 0 nodes + 10 edges = 3.2.
-- Some scenes add 0 nodes (pure character work). Lore/discovery scenes may add 4-6+.
-- REUSE existing node IDs when a scene reinforces an established concept — don't duplicate.
-
-SWING reference mean ~1.2 normalized:
-- Consecutive scenes should differ in force profile. A high-payoff scene followed by a high-knowledge scene creates swing. Repetitive force patterns kill swing.
+GRADING REFERENCE MEANS — the arc average should approximate these values. Individual scenes vary above and below; the variation is essential. Graded per-arc on an exponential curve where matching the reference mean scores ~86%.
+  Payoff ~1.5 | Change ~3.5 | Knowledge ~2.5
+REUSE existing world knowledge node IDs when a scene reinforces an established concept — don't duplicate.
 `;
 
 // ── Pacing ───────────────────────────────────────────────────────────────────
@@ -63,35 +43,13 @@ SWING reference mean ~1.2 normalized:
 // directly improve the delivery score of subsequent payoff scenes.
 
 export const PROMPT_PACING = `
-PACING — how to vary force profiles across scenes within an arc:
+PACING — common failure modes to avoid:
 
-The force standards above are ARC AVERAGES, not per-scene targets. Great stories breathe — individual scenes should vary dramatically.
+CHANGE MUST VARY. The most common AI failure is flat Change — every scene gets 3-4 continuity mutations and 2-3 events regardless of mode. A quiet scene with ONE character noticing ONE thing (Change ~1.0) is valid. The contrast between sparse and dense scenes creates swing. Without valleys, peaks don't register.
 
-THE DELIVERY FORMULA REWARDS CONTRAST. A payoff scene scores higher on delivery when preceded by buildup scenes that accumulated tension (Change + Knowledge without Payoff). Writing nothing but high-payoff scenes actually HURTS delivery scores because there's no tension to release. The math explicitly rewards the pattern: build tension → release it.
+REVEALS NEED ROOM. If a concept is important enough to create a world-knowledge node for, the scene should sit with it — show characters reacting, questioning, being changed. Stacking 3-4 major reveals in one scene dilutes all of them.
 
-AIM FOR ~55-60% BUILDUP, ~40-45% PAYOFF across the arc. There are 8 narrative modes, 4 buildup and 4 payoff:
-- BUILDUP (Low Payoff): Growth (High C — character development), Discovery (High C+K — exploration), Lore (High K — world texture), Rest (Low everything — reflection, atmosphere).
-- PAYOFF (High Payoff): Epoch (High P+C+K — everything converges), Climax (High P+C — threads resolve), Revelation (High P+K — knowledge unlocks resolution), Closure (High P — loose ends tied).
-- In a 4-scene arc: ~1 payoff scene + ~3 buildup is healthy. In a 6-scene arc: 2-3 payoff + 3-4 buildup.
-
-ALTERNATE INTENSITY. After a dense scene where all forces are high, the NEXT scene should pull back. Let characters process. Let the world breathe. The pattern is: buildup → buildup → peak → process → buildup → peak, not peak → peak → peak.
-
-CHANGE MUST VARY. The most common AI failure is flat Change — every scene has the same density of continuity mutations and events, producing a monotone graph with no swing. This happens because the AI packs every scene with 3-4 character learnings and 2-3 events regardless of whether the scene warrants it. Resist this:
-- A quiet scene where ONE character notices ONE thing is valid. Raw Change ~1.0.
-- A scene with no events — just two people talking — is valid. Raw Change from relationship mutations only.
-- A scene where nothing is "learned" — characters just exist in a space, experiencing atmosphere — is valid. 0 continuity mutations, 1 event. Raw Change ~1.0.
-- Dense scenes (confrontations, revelations, crises) earn high Change naturally. Don't inflate quiet scenes to match.
-- The CONTRAST between a Change-1 scene and a Change-8 scene creates swing. Without valleys, peaks don't register.
-
-REVEALS NEED ROOM. Major world-building concepts, new characters, and plot revelations each need space to develop weight. Don't introduce premise-level reveals as throwaway beats. If a concept is important enough to create a world-knowledge node for, the scene should sit with it — show characters reacting, questioning, or being changed by the revelation. Stacking 3-4 major reveals in a single scene dilutes all of them.
-
-VALID LOW-DENSITY SCENES — these are not failures, they are connective tissue:
-- A Growth scene: 0 thread transitions, 4 continuity mutations, 2 events, 0 WK nodes. Pure character development. Raw forces: P=0, C≈3.4, K=0.
-- A Lore scene: 0 thread transitions, 0 relationship mutations, 1 continuity mutation, 4 WK nodes + 2 edges. Pure world texture. Raw forces: P=0, C≈1, K=5.
-- A Rest scene: 2 thread pulses, 1 continuity mutation, 0 WK nodes, 1 event. Reflection. Raw forces: P=0.5, C≈2.0, K=0.
-- A Discovery scene: 1 thread pulse, 2 continuity mutations, 2 WK nodes + 1 edge, 1 event. Raw forces: P=0.25, C≈3, K=3.0.
-
-These scenes IMPROVE the delivery score of subsequent payoff scenes by building the tension that gets released. Skipping them makes every scene feel the same.
+The pacing sequence above assigns each scene a specific mode with mutation targets. Follow those assignments — they handle buildup/payoff balance and intensity variation.
 `;
 
 // ── Mutation Guidelines ──────────────────────────────────────────────────────

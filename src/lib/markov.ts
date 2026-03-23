@@ -193,6 +193,25 @@ export type PacingPreset = {
  * Each preset is a fixed sequence of cube positions designed to achieve
  * a specific narrative purpose. Bypasses the randomised Markov chain.
  */
+/**
+ * The introduction sequence used by the wizard for new story generation.
+ * Designed to showcase the world across varied locations, introduce the cast
+ * through natural interaction, plant threads as seeds, and build to a first
+ * climax that hooks the reader.
+ *
+ * Rest → Lore → Growth → Discovery → Lore → Growth → Discovery → Climax
+ *
+ * 1. Rest — establish the ordinary world, atmosphere, the protagonist's status quo
+ * 2. Lore — reveal the world's rules, systems, or history that will matter later
+ * 3. Growth — characters interact, bonds form, tensions surface
+ * 4. Discovery — something new enters the picture, characters are changed by it
+ * 5. Lore — deepen the world further, plant seeds for future payoff
+ * 6. Growth — relationships develop, alliances or rivalries crystallise
+ * 7. Discovery — the stakes become clear, the world expands again
+ * 8. Climax — threads converge for the first time, the story can't go back
+ */
+export const INTRODUCTION_SEQUENCE: CubeCornerKey[] = ['LLL', 'LLH', 'LHL', 'LHH', 'LLH', 'LHL', 'LHH', 'HHL'];
+
 export const PACING_PRESETS: PacingPreset[] = [
   // ── 3-scene arcs ───────────────────────────────────
   { key: 'sucker-punch',   name: 'Sucker Punch',      description: 'Quiet calm, then everything hits at once',                                modes: ['LLL', 'LHL', 'HHH'] },
@@ -207,6 +226,7 @@ export const PACING_PRESETS: PacingPreset[] = [
   { key: 'deep-dive',      name: 'Deep Dive',          description: 'Enter the unknown, learn its rules, emerge changed',                    modes: ['LLH', 'LHH', 'LLH', 'LHL', 'HHL'] },
 
   // ── 8-scene arcs ───────────────────────────────────
+  { key: 'introduction',   name: 'Introduction',       description: 'Establish the world, introduce the cast, plant threads, build to first climax', modes: INTRODUCTION_SEQUENCE },
   { key: 'full-arc',       name: 'Full Arc',           description: 'Complete cycle — setup, world, growth, discovery, escalation, climax, epoch, closure', modes: ['LLL', 'LLH', 'LHL', 'LHH', 'LHL', 'HHL', 'HHH', 'HLL'] },
   { key: 'slow-burn',      name: 'Slow Burn',          description: 'Patient buildup across five quiet scenes before a three-scene storm',    modes: ['LLL', 'LLH', 'LHL', 'LLH', 'LHL', 'LHH', 'HHL', 'HHH'] },
   { key: 'roller-coaster', name: 'Roller Coaster',     description: 'Alternating peaks and valleys — high swing, dynamic pacing',             modes: ['LHL', 'HHL', 'LLL', 'LHH', 'HHL', 'LHL', 'HHH', 'HLL'] },
@@ -224,6 +244,16 @@ export function buildPresetSequence(preset: PacingPreset): PacingSequence {
   }));
 
   return { steps, pacingDescription: buildPacingDescription(steps) };
+}
+
+/** Build the introduction sequence for new story generation (wizard). */
+export function buildIntroductionSequence(): PacingSequence {
+  return buildPresetSequence({
+    key: 'introduction',
+    name: 'Introduction',
+    description: 'Establish the world, introduce the cast, plant threads, build to first climax',
+    modes: INTRODUCTION_SEQUENCE,
+  });
 }
 
 // ── Sampling ─────────────────────────────────────────────────────────────────
