@@ -433,12 +433,6 @@ export function StorySettingsModal({ onClose }: { onClose: () => void }) {
         {/* Footer */}
         <div className="flex justify-end gap-2 mt-4 pt-3 border-t border-white/5 shrink-0">
           <button
-            onClick={() => setSettings({ ...DEFAULT_STORY_SETTINGS })}
-            className="text-[10px] px-3 py-1.5 rounded-md text-text-dim hover:text-text-secondary transition-colors"
-          >
-            Reset Defaults
-          </button>
-          <button
             onClick={onClose}
             className="text-[10px] px-3 py-1.5 rounded-md bg-white/5 text-text-dim hover:text-text-secondary transition-colors"
           >

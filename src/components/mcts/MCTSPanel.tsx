@@ -1472,46 +1472,38 @@ export function MCTSPanel({ isOpen, onClose, mcts }: { isOpen: boolean; onClose:
                   const worldBuildEntries = narrative
                     ? Object.values(narrative.worldBuilds).filter((wb) => resolvedSet.has(wb.id))
                     : [];
+                  if (worldBuildEntries.length === 0) return null;
                   return (
                     <div className="border-t border-border pt-4">
-                      <label className="text-[10px] uppercase tracking-widest text-text-dim block mb-1">World Build Focus</label>
-                      <p className="text-[9px] text-text-dim mb-3">Select a world build to seed every generation in this search.</p>
-                      {worldBuildEntries.length === 0 ? (
-                        <p className="text-[10px] text-text-dim italic">No world builds yet. Use Expand World in the Generate panel to introduce new entities.</p>
-                      ) : (
-                        <div className="flex flex-col gap-1.5">
-                          {worldBuildEntries.map((wb) => {
-                            const manifest = wb.expansionManifest;
-                            const chars = manifest.characterIds.map((id) => narrative!.characters[id]?.name).filter(Boolean);
-                            const locs = manifest.locationIds.map((id) => narrative!.locations[id]?.name).filter(Boolean);
-                            const threads = manifest.threadIds.map((id) => narrative!.threads[id]?.description).filter(Boolean);
-                            const isSelected = config.worldBuildFocusId === wb.id;
-                            return (
-                              <button
-                                key={wb.id}
-                                type="button"
-                                onClick={() => setConfig((c) => ({ ...c, worldBuildFocusId: isSelected ? undefined : wb.id }))}
-                                className={`rounded-lg px-3 py-2.5 text-left transition border ${
-                                  isSelected
-                                    ? 'bg-amber-500/10 border-amber-500/30 ring-1 ring-amber-500/20'
-                                    : 'bg-bg-elevated border-border hover:border-white/16'
-                                }`}
-                              >
-                                <div className="flex items-center justify-between gap-2 mb-1">
-                                  <p className={`text-xs font-medium line-clamp-1 ${isSelected ? 'text-amber-300' : 'text-text-primary'}`}>{wb.summary}</p>
-                                  {isSelected
-                                    ? <span className="text-[9px] text-amber-400 shrink-0 uppercase tracking-wider font-medium">Active</span>
-                                    : <span className="text-[9px] text-text-dim shrink-0">{wb.id}</span>
-                                  }
-                                </div>
-                                {chars.length > 0 && <p className="text-[9px] text-text-dim">Characters: {chars.join(', ')}</p>}
-                                {locs.length > 0 && <p className="text-[9px] text-text-dim">Locations: {locs.join(', ')}</p>}
-                                {threads.length > 0 && <p className="text-[9px] text-text-dim">Threads: {threads.join('; ')}</p>}
-                              </button>
-                            );
-                          })}
-                        </div>
-                      )}
+                      <label className="text-[10px] uppercase tracking-widest text-text-dim block mb-1.5">World Build Focus</label>
+                      <div className="flex flex-col gap-1 max-h-24 overflow-y-auto">
+                        {worldBuildEntries.map((wb) => {
+                          const manifest = wb.expansionManifest;
+                          const parts: string[] = [];
+                          if (manifest.characterIds.length > 0) parts.push(`${manifest.characterIds.length} char${manifest.characterIds.length > 1 ? 's' : ''}`);
+                          if (manifest.locationIds.length > 0) parts.push(`${manifest.locationIds.length} loc${manifest.locationIds.length > 1 ? 's' : ''}`);
+                          if (manifest.threadIds.length > 0) parts.push(`${manifest.threadIds.length} thread${manifest.threadIds.length > 1 ? 's' : ''}`);
+                          const isSelected = config.worldBuildFocusId === wb.id;
+                          return (
+                            <button
+                              key={wb.id}
+                              type="button"
+                              onClick={() => setConfig((c) => ({ ...c, worldBuildFocusId: isSelected ? undefined : wb.id }))}
+                              className={`rounded-lg px-3 py-2 text-left transition border ${
+                                isSelected
+                                  ? 'bg-amber-500/10 border-amber-500/30'
+                                  : 'bg-bg-elevated border-border hover:border-white/16'
+                              }`}
+                            >
+                              <div className="flex items-center justify-between gap-2">
+                                <p className={`text-xs line-clamp-1 ${isSelected ? 'text-amber-300' : 'text-text-primary'}`}>{wb.summary}</p>
+                                {isSelected && <span className="text-[9px] text-amber-400 shrink-0 uppercase tracking-wider">Focus</span>}
+                              </div>
+                              <p className="text-[10px] text-text-dim mt-0.5">{parts.join(', ')}</p>
+                            </button>
+                          );
+                        })}
+                      </div>
                     </div>
                   );
                 })()}
