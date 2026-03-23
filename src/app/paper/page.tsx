@@ -99,6 +99,7 @@ const NAV = [
   { id: 'approach', label: 'Approach' },
   { id: 'forces', label: 'Forces' },
   { id: 'derived', label: 'Derived Metrics' },
+  { id: 'validation', label: 'Validation' },
   { id: 'normalization', label: 'Normalization' },
   { id: 'pipeline', label: 'Pipeline' },
   { id: 'grading', label: 'Grading' },
@@ -302,6 +303,112 @@ export default function PaperPage() {
                 The story breathing. Normalized Euclidean distance between consecutive force snapshots. High swing means dynamic pacing; low swing means consecutive scenes land at similar intensities. Each delta is divided by its reference mean so all three forces contribute equally.
               </P>
             </div>
+          </Section>
+
+          {/* ── Validation ──────────────────────────────────────────── */}
+          <Section id="validation" label="Validation">
+            <P>
+              Do the formulas capture what readers actually feel? We tested against <em>Harry Potter and the Sorcerer&apos;s Stone</em>&mdash;a novel whose dramatic peaks are well-established in popular memory. The delivery curve below is computed entirely from structural mutations with no human annotation.
+            </P>
+
+            {/* Annotated Delivery Curve */}
+            {(() => {
+              const delivery = [0.554,0.491,0.445,0.42,0.414,0.409,0.39,0.355,0.319,0.296,0.28,0.248,0.178,0.072,-0.044,-0.136,-0.177,-0.16,-0.095,-0.009,0.069,0.119,0.141,0.159,0.204,0.296,0.433,0.588,0.73,0.832,0.881,0.879,0.834,0.753,0.639,0.496,0.334,0.178,0.053,-0.019,-0.027,0.031,0.149,0.311,0.486,0.635,0.726,0.745,0.701,0.611,0.489,0.346,0.196,0.058,-0.051,-0.122,-0.159,-0.169,-0.165,-0.162,-0.174,-0.199,-0.219,-0.209,-0.153,-0.061,0.037,0.111,0.147,0.144,0.111,0.047,-0.047,-0.16,-0.262,-0.317,-0.31,-0.259,-0.206,-0.18,-0.177,-0.164,-0.105,0.01,0.159,0.306,0.416,0.475,0.488,0.469,0.434];
+              const n = delivery.length;
+              const W = 620, H = 200;
+              const PAD = { top: 30, right: 20, bottom: 40, left: 40 };
+              const cw = W - PAD.left - PAD.right;
+              const ch = H - PAD.top - PAD.bottom;
+              const dMin = Math.min(...delivery);
+              const dMax = Math.max(...delivery);
+              const range = dMax - dMin;
+              const toX = (i: number) => PAD.left + (i / (n - 1)) * cw;
+              const toY = (v: number) => PAD.top + ch - ((v - dMin) / range) * ch;
+              const zeroY = toY(0);
+
+              const points = delivery.map((v, i) => `${toX(i)},${toY(v)}`).join(' ');
+
+              const annotations = [
+                { scene: 2, label: 'Hagrid arrives', side: 'above' as const },
+                { scene: 18, label: 'Diagon Alley', side: 'below' as const },
+                { scene: 31, label: 'Sorting Hat', side: 'above' as const },
+                { scene: 47, label: 'Troll fight', side: 'above' as const },
+                { scene: 59, label: 'Mirror of Erised', side: 'below' as const },
+                { scene: 76, label: 'Quiet before storm', side: 'below' as const },
+                { scene: 86, label: 'Quirrell confrontation', side: 'above' as const },
+                { scene: 89, label: 'Dumbledore reveals truth', side: 'above' as const },
+              ];
+
+              return (
+                <div className="my-8">
+                  <svg width="100%" viewBox={`0 0 ${W} ${H}`} className="overflow-visible">
+                    {/* Grid lines */}
+                    {[-0.2, 0, 0.2, 0.4, 0.6, 0.8].map((v) => (
+                      <g key={v}>
+                        <line x1={PAD.left} y1={toY(v)} x2={PAD.left + cw} y2={toY(v)} stroke="white" strokeOpacity={v === 0 ? 0.15 : 0.05} />
+                        <text x={PAD.left - 6} y={toY(v) + 3} textAnchor="end" fill="white" fillOpacity="0.2" fontSize="8" fontFamily="monospace">{v.toFixed(1)}</text>
+                      </g>
+                    ))}
+
+                    {/* Positive fill */}
+                    <path
+                      d={`M${toX(0)},${zeroY} ${delivery.map((v, i) => `L${toX(i)},${Math.min(toY(v), zeroY)}`).join(' ')} L${toX(n - 1)},${zeroY} Z`}
+                      fill="#F59E0B" fillOpacity="0.08"
+                    />
+                    {/* Negative fill */}
+                    <path
+                      d={`M${toX(0)},${zeroY} ${delivery.map((v, i) => `L${toX(i)},${Math.max(toY(v), zeroY)}`).join(' ')} L${toX(n - 1)},${zeroY} Z`}
+                      fill="#3B82F6" fillOpacity="0.06"
+                    />
+                    {/* Delivery line */}
+                    <polyline points={points} fill="none" stroke="#F59E0B" strokeWidth="1.5" strokeLinejoin="round" />
+
+                    {/* Annotations */}
+                    {annotations.map(({ scene, label, side }) => {
+                      const i = scene - 1;
+                      const x = toX(i);
+                      const y = toY(delivery[i]);
+                      const above = side === 'above';
+                      return (
+                        <g key={scene}>
+                          <line x1={x} y1={y} x2={x} y2={above ? y - 16 : y + 16} stroke="white" strokeOpacity="0.2" strokeDasharray="2 2" />
+                          <circle cx={x} cy={y} r={3} fill={delivery[i] > 0 ? '#FCD34D' : '#93C5FD'} opacity="0.9" />
+                          <text
+                            x={x} y={above ? y - 20 : y + 24}
+                            textAnchor="middle" fill="white" fillOpacity="0.5" fontSize="7"
+                            fontFamily="system-ui"
+                          >
+                            {label}
+                          </text>
+                        </g>
+                      );
+                    })}
+
+                    {/* X axis label */}
+                    <text x={PAD.left + cw / 2} y={H - 5} textAnchor="middle" fill="white" fillOpacity="0.2" fontSize="9" fontFamily="system-ui">
+                      Scene (1&ndash;{n})
+                    </text>
+                    <text x={8} y={PAD.top + ch / 2} textAnchor="middle" fill="white" fillOpacity="0.2" fontSize="9" fontFamily="system-ui" transform={`rotate(-90, 8, ${PAD.top + ch / 2})`}>
+                      Delivery
+                    </text>
+                  </svg>
+                  <p className="text-[10px] text-white/30 text-center mt-2">
+                    Harry Potter and the Sorcerer&apos;s Stone &mdash; smoothed delivery curve with annotated peaks.
+                    <br />No human labeling. All peaks computed from structural mutations alone.
+                  </p>
+                </div>
+              );
+            })()}
+
+            <P>
+              The three peaks correspond to moments any reader would identify: the Sorting Hat ceremony (entry into the magical world), the troll fight (the friendship-forging trial), and the climactic confrontation with Quirrell. The valleys&mdash;Diagon Alley shopping, the Mirror of Erised, the quiet realization before the finale&mdash;are exactly the buildup scenes that make the peaks feel earned.
+            </P>
+            <P>
+              This is the core claim: <B>deterministic formulas applied to structural mutations recover the dramatic shape of a narrative without reading the prose</B>. The formulas don&apos;t know that Hagrid is a beloved character or that the Sorting Hat is a moment of belonging. They see thread transitions, relationship shifts, and knowledge graph expansion. The dramatic shape emerges from the mathematics.
+            </P>
+            <P>
+              The same formulas, applied to AI-generated narratives, reveal a consistent structural gap. Published literature scores 90+ with varied delivery curves&mdash;visible peaks and valleys. AI-generated text typically scores 70&ndash;80 with flatter curves: the mutations are structurally valid but uniformly dense, lacking the contrast between buildup and payoff that creates memorable moments. This gap motivated the Markov chain pacing system described below.
+            </P>
           </Section>
 
           {/* ── Normalization ─────────────────────────────────────────── */}
