@@ -407,6 +407,8 @@ export type NarrativeState = {
   storySettings?: StorySettings;
   /** Chat threads keyed by thread ID — persisted with the narrative */
   chatThreads?: Record<string, ChatThread>;
+  /** Notes keyed by note ID — persisted with the narrative */
+  notes?: Record<string, Note>;
   createdAt: number;
   updatedAt: number;
 };
@@ -645,6 +647,15 @@ export type ChatThread = {
   updatedAt: number;
 };
 
+// ── Notes ─────────────────────────────────────────────────────────────────────
+export type Note = {
+  id: string;
+  title: string;
+  content: string;
+  createdAt: number;
+  updatedAt: number;
+};
+
 export type AppState = {
   narratives: NarrativeEntry[];
   activeNarrativeId: string | null;
@@ -667,4 +678,5 @@ export type AppState = {
   apiLogs: ApiLogEntry[];
   analysisJobs: AnalysisJob[];
   activeChatThreadId: string | null;
+  activeNoteId: string | null;
 };

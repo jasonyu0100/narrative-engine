@@ -298,9 +298,7 @@ export function useMCTS() {
       // cap, allowing unlimited children per parent to find the baseline.
       // Workers are bounded only by `parallelism` (all slots target the same parent).
 
-      for (let depth = 0; depth < config.maxDepth; depth++) {
-        if (shouldStop()) break;
-
+      for (let depth = 0; !shouldStop(); depth++) {
         let parentTarget: MCTSNodeId | 'root';
         if (depth === 0) {
           parentTarget = 'root';
@@ -425,12 +423,11 @@ export function useMCTS() {
 
     } else if (config.searchMode === 'constrained') {
       // ── Constrained mode: exhaustively expand every node at each depth ──
-      // For each depth 0..maxDepth-1, collect all nodes (or root) at the current
-      // frontier and generate exactly branchingFactor children for each, using
-      // parallel workers. Branching factor = direction count.
+      // For each depth, collect all nodes (or root) at the current frontier and
+      // generate exactly branchingFactor children for each, using parallel workers.
+      // Branching factor = direction count. Stops when shouldStop() triggers.
 
-      for (let depth = 0; depth < config.maxDepth; depth++) {
-        if (shouldStop()) break;
+      for (let depth = 0; !shouldStop(); depth++) {
 
         // Collect parents at this depth (depth 0 = root)
         const parents: (MCTSNodeId | 'root')[] = depth === 0

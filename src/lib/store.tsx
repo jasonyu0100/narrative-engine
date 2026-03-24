@@ -1,7 +1,7 @@
 'use client';
 
 import React, { createContext, useContext, useReducer, useEffect, useRef, useMemo, type ReactNode } from 'react';
-import type { AppState, ControlMode, InspectorContext, NarrativeState, NarrativeEntry, WizardStep, WizardData, Scene, Arc, Branch, Character, Location, Thread, RelationshipEdge, GraphViewMode, AutoConfig, AutoRunState, AutoRunLog, WorldBuildCommit, ChatThread, ChatMessage } from '@/types/narrative';
+import type { AppState, ControlMode, InspectorContext, NarrativeState, NarrativeEntry, WizardStep, WizardData, Scene, Arc, Branch, Character, Location, Thread, RelationshipEdge, GraphViewMode, AutoConfig, AutoRunState, AutoRunLog, WorldBuildCommit, ChatThread, ChatMessage, Note } from '@/types/narrative';
 import { resolveSceneSequence, nextId, computeForceSnapshots, computeSwingMagnitudes, computeDeliveryCurve, classifyNarrativeShape, classifyArchetype, gradeForces, computeRawForcetotals, FORCE_REFERENCE_MEANS } from '@/lib/narrative-utils';
 import { initMatrixPresets } from '@/lib/markov';
 import { resolveEntry, isScene } from '@/types/narrative';
@@ -226,6 +226,7 @@ const initialState: AppState = {
   apiLogs: [],
   analysisJobs: [],
   activeChatThreadId: null,
+  activeNoteId: null,
 };
 
 // ── Actions ──────────────────────────────────────────────────────────────────
@@ -305,7 +306,12 @@ export type Action =
   | { type: 'DELETE_CHAT_THREAD'; threadId: string }
   | { type: 'RENAME_CHAT_THREAD'; threadId: string; name: string }
   | { type: 'SET_ACTIVE_CHAT_THREAD'; threadId: string | null }
-  | { type: 'UPSERT_CHAT_THREAD'; threadId: string; messages: ChatMessage[]; name?: string };
+  | { type: 'UPSERT_CHAT_THREAD'; threadId: string; messages: ChatMessage[]; name?: string }
+  // Notes
+  | { type: 'CREATE_NOTE'; note: Note }
+  | { type: 'DELETE_NOTE'; noteId: string }
+  | { type: 'UPDATE_NOTE'; noteId: string; title?: string; content?: string }
+  | { type: 'SET_ACTIVE_NOTE'; noteId: string | null };
 
 function reducer(state: AppState, action: Action): AppState {
   switch (action.type) {
@@ -325,6 +331,7 @@ function reducer(state: AppState, action: Action): AppState {
         inspectorContext: null,
         selectedKnowledgeEntity: null,
         activeChatThreadId: null,
+        activeNoteId: null,
       };
     }
     case 'LOADED_NARRATIVE': {
@@ -1129,6 +1136,49 @@ function reducer(state: AppState, action: Action): AppState {
           },
         };
       });
+
+    case 'CREATE_NOTE': {
+      const withNote = updateNarrative(state, (n) => ({
+        ...n,
+        notes: { ...(n.notes ?? {}), [action.note.id]: action.note },
+      }));
+      return { ...withNote, activeNoteId: action.note.id };
+    }
+
+    case 'DELETE_NOTE': {
+      const withoutNote = updateNarrative(state, (n) => {
+        const { [action.noteId]: _, ...rest } = n.notes ?? {};
+        return { ...n, notes: rest };
+      });
+      let nextActiveNote = state.activeNoteId;
+      if (state.activeNoteId === action.noteId) {
+        const remaining = Object.values(withoutNote.activeNarrative?.notes ?? {});
+        remaining.sort((a, b) => b.updatedAt - a.updatedAt);
+        nextActiveNote = remaining[0]?.id ?? null;
+      }
+      return { ...withoutNote, activeNoteId: nextActiveNote };
+    }
+
+    case 'UPDATE_NOTE':
+      return updateNarrative(state, (n) => {
+        const note = n.notes?.[action.noteId];
+        if (!note) return n;
+        return {
+          ...n,
+          notes: {
+            ...(n.notes ?? {}),
+            [action.noteId]: {
+              ...note,
+              ...(action.title !== undefined ? { title: action.title } : {}),
+              ...(action.content !== undefined ? { content: action.content } : {}),
+              updatedAt: Date.now(),
+            },
+          },
+        };
+      });
+
+    case 'SET_ACTIVE_NOTE':
+      return { ...state, activeNoteId: action.noteId };
 
     default:
       return state;

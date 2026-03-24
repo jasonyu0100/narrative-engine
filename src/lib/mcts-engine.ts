@@ -111,8 +111,8 @@ export function selectNode(
     const node = tree.nodes[currentId];
     if (!node) return null;
 
-    // If this node can take more children and is within depth limit, expand here
-    if (node.depth < config.maxDepth - 1 && slotsAvailable(currentId, node.childIds.length)) {
+    // If this node can take more children, expand here
+    if (slotsAvailable(currentId, node.childIds.length)) {
       return currentId;
     }
 
@@ -135,18 +135,16 @@ export function selectNode(
   return findExpandableNode(tree, config, inFlightCounts);
 }
 
-/** Fallback: find any node within depth limit that still has available child slots */
+/** Fallback: find any node that still has available child slots */
 function findExpandableNode(
   tree: MCTSTree,
   config: MCTSConfig,
   inFlightCounts: Map<MCTSNodeId | 'root', number>,
 ): MCTSNodeId | null {
   for (const node of Object.values(tree.nodes)) {
-    if (node.depth < config.maxDepth - 1) {
-      const inFlight = inFlightCounts.get(node.id) ?? 0;
-      if (node.childIds.length + inFlight < maxSlots(node.id, config, tree)) {
-        return node.id;
-      }
+    const inFlight = inFlightCounts.get(node.id) ?? 0;
+    if (node.childIds.length + inFlight < maxSlots(node.id, config, tree)) {
+      return node.id;
     }
   }
   return null;

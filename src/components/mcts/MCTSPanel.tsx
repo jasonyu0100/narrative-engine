@@ -1351,7 +1351,7 @@ export function MCTSPanel({ isOpen, onClose, mcts }: { isOpen: boolean; onClose:
                       <input type="radio" name="searchMode" checked={config.searchMode === 'constrained'} onChange={() => setConfig((c) => ({ ...c, searchMode: 'constrained', branchingFactor: DEFAULT_BRANCHING[c.directionMode] }))} className="accent-blue-500 mt-0.5" />
                       <div>
                         <div className="text-xs text-text-primary font-medium">Constrained</div>
-                        <div className="text-[9px] text-text-dim">Complete tree. Every node at each depth gets exactly {config.directionMode === 'delivery' ? '4' : '8'} children ({config.directionMode === 'delivery' ? 'all delivery directions' : 'all cube corners'}) before going deeper. Generates {(() => { let total = 0; const bf = DEFAULT_BRANCHING[config.directionMode]; for (let d = 0; d < config.maxDepth; d++) total += Math.pow(bf, d + 1); return total; })()} total arcs for a {DEFAULT_BRANCHING[config.directionMode]}×{config.maxDepth} tree.</div>
+                        <div className="text-[9px] text-text-dim">Complete tree. Every node at each depth gets exactly {config.directionMode === 'delivery' ? '4' : '8'} children ({config.directionMode === 'delivery' ? 'all delivery directions' : 'all cube corners'}) before going deeper. Branching factor {DEFAULT_BRANCHING[config.directionMode]}. Depth grows until time or iteration limit is reached.</div>
                       </div>
                     </label>
                     <label className={`flex items-start gap-2 p-2 rounded-lg cursor-pointer transition-colors ${config.searchMode === 'freedom' ? 'bg-white/8' : 'hover:bg-white/4'}`}>

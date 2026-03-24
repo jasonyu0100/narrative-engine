@@ -130,7 +130,6 @@ RISE (late scenes):
 export type MCTSConfig = {
   moveType: MoveType;         // 'arc' = generate full arcs, 'scene' = generate individual scenes
   parallelism: number;        // Max concurrent generation slots in sliding window
-  maxDepth: number;           // Max tree depth (1-10, default 5)
   maxNodes: number;           // Max total nodes (LLM calls) in iterations mode
   searchMode: SearchMode;     // How the tree is expanded
   pathStrategy: PathStrategy; // How to pick the recommended path
@@ -147,7 +146,6 @@ export type MCTSConfig = {
 export const DEFAULT_MCTS_CONFIG: MCTSConfig = {
   moveType: 'arc',
   parallelism: 4,
-  maxDepth: 100,
   maxNodes: 20,
   searchMode: 'constrained',
   pathStrategy: 'best_score',
