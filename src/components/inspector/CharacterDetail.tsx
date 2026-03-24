@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import React, { useState } from 'react';
 import { useStore } from '@/lib/store';
 import {
   getContinuityNodesAtScene,
@@ -97,6 +97,25 @@ export default function CharacterDetail({ characterId }: Props) {
     state.currentSceneIndex,
   ).filter((r) => r.from === characterId || r.to === characterId);
 
+  // Current scene mutations for this character
+  const currentSceneKey = state.resolvedSceneKeys[state.currentSceneIndex];
+  const currentScene = currentSceneKey ? narrative.scenes[currentSceneKey] : null;
+  const recentContinuityMuts = currentScene
+    ? currentScene.continuityMutations.filter((m) => m.characterId === characterId)
+    : [];
+  const recentRelationshipMuts = currentScene
+    ? currentScene.relationshipMutations.filter((rm) => rm.from === characterId || rm.to === characterId)
+    : [];
+  const recentThreadMuts = currentScene
+    ? currentScene.threadMutations.filter((tm) => narrative.threads[tm.threadId]?.anchors?.some((a) => a.id === characterId))
+    : [];
+  const recentMovement = currentScene?.characterMovements?.[characterId] ?? null;
+  const recentEvents = currentScene && currentScene.participantIds.includes(characterId)
+    ? currentScene.events
+    : [];
+  const hasRecentActivity = recentContinuityMuts.length > 0 || recentRelationshipMuts.length > 0 ||
+    recentThreadMuts.length > 0 || recentMovement !== null || recentEvents.length > 0;
+
   // Lifecycle: only scenes up to current scene index
   const lifecycle = sceneKeysUpToCurrent
     .map((k) => narrative.scenes[k])
@@ -142,6 +161,107 @@ export default function CharacterDetail({ characterId }: Props) {
       {character.imagePrompt && (
         <p className="text-[10px] text-text-dim italic leading-relaxed">{character.imagePrompt}</p>
       )}
+
+      {/* Recent — current scene mutations, open by default */}
+      {hasRecentActivity && currentScene && (() => {
+        const totalCount = recentContinuityMuts.length + recentRelationshipMuts.length + recentThreadMuts.length + (recentMovement ? 1 : 0);
+        const groups: React.ReactNode[] = [];
+
+        if (recentEvents.length > 0) {
+          groups.push(
+            <ul key="events" className="flex flex-col gap-0.5">
+              {recentEvents.map((ev, i) => (
+                <li key={i} className="text-xs text-text-dim italic">{ev}</li>
+              ))}
+            </ul>
+          );
+        }
+        if (recentThreadMuts.length > 0) {
+          groups.push(
+            <ul key="threads" className="flex flex-col gap-0.5">
+              {recentThreadMuts.map((tm, i) => (
+                <li key={i} className="flex flex-col gap-0.5">
+                  <button
+                    type="button"
+                    onClick={() => dispatch({ type: 'SET_INSPECTOR', context: { type: 'thread', threadId: tm.threadId } })}
+                    className="font-mono text-[10px] text-text-dim transition-colors hover:text-text-secondary text-left"
+                  >
+                    {tm.threadId}
+                    {narrative.threads[tm.threadId] && (
+                      <span className="ml-1.5 font-sans text-text-dim">{narrative.threads[tm.threadId].description}</span>
+                    )}
+                  </button>
+                  <span className="text-xs text-text-secondary">
+                    <span className="text-text-dim">{tm.from}</span>
+                    {' \u2192 '}
+                    <span className="text-payoff">{tm.to}</span>
+                  </span>
+                </li>
+              ))}
+            </ul>
+          );
+        }
+        if (recentContinuityMuts.length > 0) {
+          groups.push(
+            <ul key="continuity" className="flex flex-col gap-0.5">
+              {recentContinuityMuts.map((km, kmIdx) => (
+                <li key={`${km.nodeId}-${kmIdx}`} className="flex items-start gap-1">
+                  <span className={`shrink-0 ${km.action === 'added' ? 'text-change' : 'text-payoff'}`}>
+                    {km.action === 'added' ? '+' : '\u2212'}
+                  </span>
+                  <span className="text-xs text-text-secondary">{km.content}</span>
+                </li>
+              ))}
+            </ul>
+          );
+        }
+        if (recentRelationshipMuts.length > 0) {
+          groups.push(
+            <ul key="relationships" className="flex flex-col gap-0.5">
+              {recentRelationshipMuts.map((rm, rmIdx) => {
+                const otherId = rm.from === characterId ? rm.to : rm.from;
+                const otherName = narrative.characters[otherId]?.name ?? otherId;
+                return (
+                  <li key={`${rm.from}-${rm.to}-${rmIdx}`} className="text-xs text-text-secondary">
+                    <span className={rm.valenceDelta >= 0 ? 'text-change' : 'text-payoff'}>
+                      {rm.valenceDelta > 0 ? '+' : ''}{rm.valenceDelta}
+                    </span>{' '}
+                    {otherName}: {rm.type}
+                  </li>
+                );
+              })}
+            </ul>
+          );
+        }
+        if (recentMovement) {
+          groups.push(
+            <span key="movement" className="text-xs text-text-secondary">
+              &rarr; {narrative.locations[recentMovement.locationId]?.name ?? recentMovement.locationId}
+              {recentMovement.transition && <span className="text-text-dim italic"> — {recentMovement.transition}</span>}
+            </span>
+          );
+        }
+
+        return (
+          <CollapsibleSection title="Recent" count={totalCount} defaultOpen>
+            <div className="flex flex-col gap-0.5">
+              <button
+                type="button"
+                onClick={() => dispatch({ type: 'SET_INSPECTOR', context: { type: 'scene', sceneId: currentScene.id } })}
+                className="font-mono text-[10px] text-text-dim transition-colors hover:text-text-secondary text-left mb-1"
+              >
+                {currentScene.id}
+              </button>
+              {groups.map((group, i) => (
+                <React.Fragment key={i}>
+                  {i > 0 && <div className="border-t border-white/5 my-1" />}
+                  {group}
+                </React.Fragment>
+              ))}
+            </div>
+          </CollapsibleSection>
+        );
+      })()}
 
       {/* Knowledge — paginated, most recent first */}
       {continuityNodes.length > 0 && (() => {
@@ -222,7 +342,7 @@ export default function CharacterDetail({ characterId }: Props) {
                         )}
                       </div>
                       <span className={`text-[10px] font-mono w-6 text-right ${isPositive ? 'text-change' : isNegative ? 'text-payoff' : 'text-text-dim'}`}>
-                        {rel.valence > 0 ? '+' : ''}{rel.valence}
+                        {rel.valence > 0 ? '+' : ''}{Number(rel.valence.toFixed(2))}
                       </span>
                     </div>
                   </li>
@@ -238,7 +358,7 @@ export default function CharacterDetail({ characterId }: Props) {
       {lifecycle.length > 0 && (() => {
         const { pageItems, totalPages, safePage } = paginateRecent(lifecycle, lifecyclePage);
         return (
-          <CollapsibleSection title="Lifecycle" count={lifecycle.length} defaultOpen>
+          <CollapsibleSection title="Lifecycle" count={lifecycle.length}>
             <ul className="flex flex-col gap-2">
               {pageItems.map(({ sceneId, continuityMuts, relationshipMuts, movement }) => (
                 <li key={sceneId} className="flex flex-col gap-0.5">
