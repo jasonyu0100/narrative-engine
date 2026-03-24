@@ -5,7 +5,7 @@ import type { MCTSConfig, MCTSNodeId, MCTSNode, MCTSTree, PendingExpansion } fro
 import { DEFAULT_MCTS_CONFIG, DEFAULT_BRANCHING } from '@/types/mcts';
 import type { useMCTS } from '@/hooks/useMCTS';
 import { treeSize, bestPath as computeBestPath } from '@/lib/mcts-engine';
-import type { Scene } from '@/types/narrative';
+import type { NarrativeState, Scene } from '@/types/narrative';
 import { computeForceSnapshots, detectCubeCorner, computeDeliveryCurve, classifyCurrentPosition } from '@/lib/narrative-utils';
 import { suggestAutoDirection } from '@/lib/ai';
 import { useStore } from '@/lib/store';
@@ -1108,7 +1108,7 @@ function NorthStarSuggestButton({
   currentIndex,
   onSuggestion,
 }: {
-  narrative: import('@/types/narrative').NarrativeState;
+  narrative: NarrativeState;
   resolvedKeys: string[];
   currentIndex: number;
   onSuggestion: (direction: string) => void;

@@ -5930,7 +5930,7 @@
         "threads": [
           {
             "id": "T-ALI-01",
-            "anchors": [
+            "participants": [
               {
                 "id": "C-ALI-01",
                 "type": "character"
@@ -5967,7 +5967,7 @@
           },
           {
             "id": "T-ALI-02",
-            "anchors": [
+            "participants": [
               {
                 "id": "C-ALI-03",
                 "type": "character"
@@ -5984,7 +5984,7 @@
           },
           {
             "id": "T-ALI-03",
-            "anchors": [
+            "participants": [
               {
                 "id": "C-ALI-01",
                 "type": "character"
@@ -6001,7 +6001,7 @@
           },
           {
             "id": "T-ALI-04",
-            "anchors": [
+            "participants": [
               {
                 "id": "C-ALI-01",
                 "type": "character"
@@ -6022,7 +6022,7 @@
           },
           {
             "id": "T-ALI-05",
-            "anchors": [
+            "participants": [
               {
                 "id": "C-ALI-05",
                 "type": "character"
@@ -6067,7 +6067,7 @@
           },
           {
             "id": "T-ALI-06",
-            "anchors": [
+            "participants": [
               {
                 "id": "C-ALI-05",
                 "type": "character"
@@ -6088,7 +6088,7 @@
           },
           {
             "id": "T-ALI-07",
-            "anchors": [
+            "participants": [
               {
                 "id": "C-ALI-01",
                 "type": "character"
@@ -6105,7 +6105,7 @@
           },
           {
             "id": "T-ALI-08",
-            "anchors": [
+            "participants": [
               {
                 "id": "C-ALI-26",
                 "type": "character"
@@ -6134,7 +6134,7 @@
           },
           {
             "id": "T-ALI-09",
-            "anchors": [
+            "participants": [
               {
                 "id": "C-ALI-26",
                 "type": "character"
@@ -6155,7 +6155,7 @@
           },
           {
             "id": "T-ALI-10",
-            "anchors": [
+            "participants": [
               {
                 "id": "C-ALI-30",
                 "type": "character"
@@ -6180,7 +6180,7 @@
           },
           {
             "id": "T-ALI-11",
-            "anchors": [
+            "participants": [
               {
                 "id": "C-ALI-01",
                 "type": "character"
@@ -7177,7 +7177,7 @@
         "threads": [
           {
             "id": "T-ALI-12",
-            "anchors": [
+            "participants": [
               {
                 "id": "C-ALI-29",
                 "type": "character"
@@ -7194,7 +7194,7 @@
           },
           {
             "id": "T-ALI-13",
-            "anchors": [
+            "participants": [
               {
                 "id": "C-ALI-42",
                 "type": "character"
@@ -7215,7 +7215,7 @@
           },
           {
             "id": "T-ALI-14",
-            "anchors": [
+            "participants": [
               {
                 "id": "C-ALI-38",
                 "type": "character"
@@ -7240,7 +7240,7 @@
           },
           {
             "id": "T-ALI-15",
-            "anchors": [
+            "participants": [
               {
                 "id": "C-ALI-01",
                 "type": "character"
@@ -7253,7 +7253,7 @@
           },
           {
             "id": "T-ALI-16",
-            "anchors": [
+            "participants": [
               {
                 "id": "C-ALI-39",
                 "type": "character"

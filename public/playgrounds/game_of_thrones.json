@@ -1688,7 +1688,7 @@
         "threads": [
           {
             "id": "T-GOT-01",
-            "anchors": [
+            "participants": [
               {
                 "id": "C-GOT-01",
                 "type": "character"
@@ -1708,7 +1708,7 @@
           },
           {
             "id": "T-GOT-02",
-            "anchors": [
+            "participants": [
               {
                 "id": "C-GOT-01",
                 "type": "character"
@@ -1721,7 +1721,7 @@
           },
           {
             "id": "T-GOT-03",
-            "anchors": [
+            "participants": [
               {
                 "id": "C-GOT-04",
                 "type": "character"
@@ -1734,7 +1734,7 @@
           },
           {
             "id": "T-GOT-04",
-            "anchors": [
+            "participants": [
               {
                 "id": "C-GOT-05",
                 "type": "character"
@@ -1751,7 +1751,7 @@
           },
           {
             "id": "T-GOT-05",
-            "anchors": [
+            "participants": [
               {
                 "id": "L-GOT-03",
                 "type": "location"
@@ -1770,7 +1770,7 @@
           },
           {
             "id": "T-GOT-06",
-            "anchors": [
+            "participants": [
               {
                 "id": "C-GOT-07",
                 "type": "character"
@@ -1785,7 +1785,7 @@
           },
           {
             "id": "T-GOT-07",
-            "anchors": [
+            "participants": [
               {
                 "id": "C-GOT-06",
                 "type": "character"

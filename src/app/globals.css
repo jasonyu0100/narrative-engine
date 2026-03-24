@@ -193,7 +193,7 @@ button, [role="button"] {
   animation: curtain-sway-5 16s ease-in-out infinite, curtain-shimmer 11s ease-in-out 1.5s infinite;
 }
 
-/* Secondary wisps — thin, fast-moving, varied colours */
+/* Secondary wisps — thin, fast-moving, varied colors */
 .aurora-wisp {
   position: absolute;
   top: 10%;

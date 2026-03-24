@@ -10,7 +10,7 @@ import type { Branch, NarrativeState } from '@/types/narrative';
 const BRANCH_COLORS = ['#60A5FA', '#A78BFA', '#34D399', '#F97316', '#F472B6', '#FBBF24'];
 const bColor = (ci: number) => BRANCH_COLORS[ci % BRANCH_COLORS.length];
 
-/** Stable colour index for a branch — based on its position in allBranches, not the grid column */
+/** Stable color index for a branch — based on its position in allBranches, not the grid column */
 function stableBranchColor(branchId: string, allBranches: Branch[]): string {
   const idx = allBranches.findIndex(b => b.id === branchId);
   return bColor(idx >= 0 ? idx : 0);

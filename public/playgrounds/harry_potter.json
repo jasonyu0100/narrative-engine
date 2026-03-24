@@ -1798,7 +1798,7 @@
         "threads": [
           {
             "id": "T-HP-01",
-            "anchors": [
+            "participants": [
               {
                 "id": "L-HP-06",
                 "type": "location"
@@ -1818,7 +1818,7 @@
           },
           {
             "id": "T-HP-02",
-            "anchors": [
+            "participants": [
               {
                 "id": "C-HP-01",
                 "type": "character"
@@ -1837,7 +1837,7 @@
           },
           {
             "id": "T-HP-03",
-            "anchors": [
+            "participants": [
               {
                 "id": "C-HP-05",
                 "type": "character"
@@ -1850,7 +1850,7 @@
           },
           {
             "id": "T-HP-04",
-            "anchors": [
+            "participants": [
               {
                 "id": "C-HP-01",
                 "type": "character"
@@ -1871,7 +1871,7 @@
           },
           {
             "id": "T-HP-05",
-            "anchors": [
+            "participants": [
               {
                 "id": "C-HP-08",
                 "type": "character"
@@ -1884,7 +1884,7 @@
           },
           {
             "id": "T-HP-06",
-            "anchors": [
+            "participants": [
               {
                 "id": "L-HP-03",
                 "type": "location"
@@ -1901,7 +1901,7 @@
           },
           {
             "id": "T-HP-07",
-            "anchors": [
+            "participants": [
               {
                 "id": "C-HP-07",
                 "type": "character"

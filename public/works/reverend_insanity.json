@@ -25619,7 +25619,7 @@
         "threads": [
           {
             "id": "T-REV-01",
-            "anchors": [
+            "participants": [
               {
                 "id": "C-REV-01",
                 "type": "character"
@@ -25644,7 +25644,7 @@
           },
           {
             "id": "T-REV-02",
-            "anchors": [
+            "participants": [
               {
                 "id": "C-REV-02",
                 "type": "character"
@@ -25765,7 +25765,7 @@
           },
           {
             "id": "T-REV-03",
-            "anchors": [
+            "participants": [
               {
                 "id": "C-REV-01",
                 "type": "character"
@@ -25830,7 +25830,7 @@
           },
           {
             "id": "T-REV-04",
-            "anchors": [
+            "participants": [
               {
                 "id": "C-REV-01",
                 "type": "character"
@@ -25863,7 +25863,7 @@
           },
           {
             "id": "T-REV-05",
-            "anchors": [
+            "participants": [
               {
                 "id": "C-REV-04",
                 "type": "character"
@@ -25880,7 +25880,7 @@
           },
           {
             "id": "T-REV-06",
-            "anchors": [
+            "participants": [
               {
                 "id": "C-REV-02",
                 "type": "character"
@@ -25917,7 +25917,7 @@
           },
           {
             "id": "T-REV-07",
-            "anchors": [
+            "participants": [
               {
                 "id": "C-REV-01",
                 "type": "character"
@@ -25930,7 +25930,7 @@
           },
           {
             "id": "T-REV-08",
-            "anchors": [
+            "participants": [
               {
                 "id": "C-REV-15",
                 "type": "character"
@@ -25947,7 +25947,7 @@
           },
           {
             "id": "T-REV-09",
-            "anchors": [
+            "participants": [
               {
                 "id": "C-REV-01",
                 "type": "character"
@@ -25976,7 +25976,7 @@
           },
           {
             "id": "T-REV-10",
-            "anchors": [
+            "participants": [
               {
                 "id": "C-REV-01",
                 "type": "character"
@@ -26009,7 +26009,7 @@
           },
           {
             "id": "T-REV-11",
-            "anchors": [
+            "participants": [
               {
                 "id": "C-REV-20",
                 "type": "character"
@@ -27744,7 +27744,7 @@
         "threads": [
           {
             "id": "T-REV-12",
-            "anchors": [
+            "participants": [
               {
                 "id": "C-REV-33",
                 "type": "character"
@@ -27765,7 +27765,7 @@
           },
           {
             "id": "T-REV-13",
-            "anchors": [
+            "participants": [
               {
                 "id": "C-REV-37",
                 "type": "character"
@@ -27786,7 +27786,7 @@
           },
           {
             "id": "T-REV-14",
-            "anchors": [
+            "participants": [
               {
                 "id": "C-REV-01",
                 "type": "character"
@@ -28039,7 +28039,7 @@
         "threads": [
           {
             "id": "T-REV-15",
-            "anchors": [
+            "participants": [
               {
                 "id": "C-REV-01",
                 "type": "character"
@@ -28088,7 +28088,7 @@
           },
           {
             "id": "T-REV-16",
-            "anchors": [
+            "participants": [
               {
                 "id": "C-REV-22",
                 "type": "character"
@@ -28105,7 +28105,7 @@
           },
           {
             "id": "T-REV-17",
-            "anchors": [
+            "participants": [
               {
                 "id": "C-REV-04",
                 "type": "character"
@@ -28162,7 +28162,7 @@
           },
           {
             "id": "T-REV-18",
-            "anchors": [
+            "participants": [
               {
                 "id": "C-REV-11",
                 "type": "character"
@@ -28195,7 +28195,7 @@
           },
           {
             "id": "T-REV-19",
-            "anchors": [
+            "participants": [
               {
                 "id": "C-REV-11",
                 "type": "character"
@@ -28677,7 +28677,7 @@
         "threads": [
           {
             "id": "T-REV-20",
-            "anchors": [
+            "participants": [
               {
                 "id": "C-REV-01",
                 "type": "character"
@@ -28702,7 +28702,7 @@
           },
           {
             "id": "T-REV-21",
-            "anchors": [
+            "participants": [
               {
                 "id": "L-REV-02",
                 "type": "location"
@@ -28755,7 +28755,7 @@
           },
           {
             "id": "T-REV-22",
-            "anchors": [
+            "participants": [
               {
                 "id": "C-REV-14",
                 "type": "character"
@@ -29080,7 +29080,7 @@
         "threads": [
           {
             "id": "T-REV-23",
-            "anchors": [
+            "participants": [
               {
                 "id": "C-REV-59",
                 "type": "character"
@@ -29097,7 +29097,7 @@
           },
           {
             "id": "T-REV-24",
-            "anchors": [
+            "participants": [
               {
                 "id": "C-REV-01",
                 "type": "character"
@@ -29142,7 +29142,7 @@
           },
           {
             "id": "T-REV-25",
-            "anchors": [
+            "participants": [
               {
                 "id": "C-REV-01",
                 "type": "character"
@@ -29179,7 +29179,7 @@
           },
           {
             "id": "T-REV-26",
-            "anchors": [
+            "participants": [
               {
                 "id": "C-REV-01",
                 "type": "character"
@@ -29204,7 +29204,7 @@
           },
           {
             "id": "T-REV-27",
-            "anchors": [
+            "participants": [
               {
                 "id": "C-REV-01",
                 "type": "character"
@@ -29229,7 +29229,7 @@
           },
           {
             "id": "T-REV-28",
-            "anchors": [
+            "participants": [
               {
                 "id": "C-REV-59",
                 "type": "character"
@@ -29254,7 +29254,7 @@
           },
           {
             "id": "T-REV-29",
-            "anchors": [
+            "participants": [
               {
                 "id": "C-REV-10",
                 "type": "character"
@@ -29279,7 +29279,7 @@
           },
           {
             "id": "T-REV-30",
-            "anchors": [
+            "participants": [
               {
                 "id": "C-REV-76",
                 "type": "character"
@@ -29703,7 +29703,7 @@
         "threads": [
           {
             "id": "T-REV-31",
-            "anchors": [
+            "participants": [
               {
                 "id": "C-REV-01",
                 "type": "character"
@@ -29720,7 +29720,7 @@
           },
           {
             "id": "T-REV-32",
-            "anchors": [
+            "participants": [
               {
                 "id": "C-REV-78",
                 "type": "character"
@@ -29737,7 +29737,7 @@
           },
           {
             "id": "T-REV-33",
-            "anchors": [
+            "participants": [
               {
                 "id": "C-REV-01",
                 "type": "character"
@@ -29762,7 +29762,7 @@
           },
           {
             "id": "T-REV-34",
-            "anchors": [
+            "participants": [
               {
                 "id": "C-REV-10",
                 "type": "character"
@@ -29795,7 +29795,7 @@
           },
           {
             "id": "T-REV-35",
-            "anchors": [
+            "participants": [
               {
                 "id": "C-REV-76",
                 "type": "character"
@@ -30060,7 +30060,7 @@
         "threads": [
           {
             "id": "T-REV-36",
-            "anchors": [
+            "participants": [
               {
                 "id": "C-REV-01",
                 "type": "character"
@@ -30081,7 +30081,7 @@
           },
           {
             "id": "T-REV-37",
-            "anchors": [
+            "participants": [
               {
                 "id": "C-REV-81",
                 "type": "character"
@@ -30102,7 +30102,7 @@
           },
           {
             "id": "T-REV-38",
-            "anchors": [
+            "participants": [
               {
                 "id": "C-REV-78",
                 "type": "character"
@@ -30227,7 +30227,7 @@
         "threads": [
           {
             "id": "T-REV-39",
-            "anchors": [
+            "participants": [
               {
                 "id": "C-REV-01",
                 "type": "character"
@@ -30252,7 +30252,7 @@
           },
           {
             "id": "T-REV-40",
-            "anchors": [
+            "participants": [
               {
                 "id": "C-REV-78",
                 "type": "character"
@@ -30277,7 +30277,7 @@
           },
           {
             "id": "T-REV-41",
-            "anchors": [
+            "participants": [
               {
                 "id": "C-REV-01",
                 "type": "character"
@@ -30306,7 +30306,7 @@
           },
           {
             "id": "T-REV-42",
-            "anchors": [
+            "participants": [
               {
                 "id": "C-REV-02",
                 "type": "character"
@@ -30548,7 +30548,7 @@
         "threads": [
           {
             "id": "T-REV-43",
-            "anchors": [
+            "participants": [
               {
                 "id": "C-REV-01",
                 "type": "character"
@@ -30561,7 +30561,7 @@
           },
           {
             "id": "T-REV-44",
-            "anchors": [
+            "participants": [
               {
                 "id": "C-REV-01",
                 "type": "character"
@@ -30955,7 +30955,7 @@
         "threads": [
           {
             "id": "T-REV-45",
-            "anchors": [
+            "participants": [
               {
                 "id": "C-REV-01",
                 "type": "character"
@@ -30980,7 +30980,7 @@
           },
           {
             "id": "T-REV-46",
-            "anchors": [
+            "participants": [
               {
                 "id": "C-REV-01",
                 "type": "character"
@@ -30993,7 +30993,7 @@
           },
           {
             "id": "T-REV-47",
-            "anchors": [
+            "participants": [
               {
                 "id": "C-REV-01",
                 "type": "character"
@@ -31202,7 +31202,7 @@
         "threads": [
           {
             "id": "T-REV-48",
-            "anchors": [
+            "participants": [
               {
                 "id": "C-REV-02",
                 "type": "character"
@@ -31547,7 +31547,7 @@
         "threads": [
           {
             "id": "T-REV-49",
-            "anchors": [
+            "participants": [
               {
                 "id": "C-REV-02",
                 "type": "character"

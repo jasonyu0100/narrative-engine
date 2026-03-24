@@ -404,7 +404,7 @@ Return a single JSON object with this exact structure:
 }
 
 RULES:
-- Break the chunk into 2-5 distinct scenes based on location shifts, time jumps, or major tonal changes
+- Break the chunk into 3-5 distinct scenes based on location shifts, time jumps, or major tonal changes
 - Every scene MUST have a non-empty "summary", at least one event tag, and a "povName"
 - "sections" is an array of section numbers (1-indexed) that this scene covers. Together, all scenes should cover all ${sections.length} sections.
 - characterMovements: only include characters who physically RELOCATE to a different location during the scene. The destination must differ from the scene's locationName. Omit characters who stay put.
@@ -594,7 +594,7 @@ Return a single JSON object with this exact structure:
 }
 
 RULES:
-- Break the chunk into 2-5 distinct scenes based on location shifts, time jumps, or major tonal changes
+- Break the chunk into 3-5 distinct scenes based on location shifts, time jumps, or major tonal changes
 - Every scene MUST have a non-empty "summary", at least one event tag, and a "povName"
 - "sections" is an array of section numbers (1-indexed) that this scene covers. Together, all scenes should cover all ${sections.length} sections.
 - characterMovements: only include characters who physically RELOCATE to a different location during the scene. The destination must differ from the scene's locationName. Omit characters who stay put.

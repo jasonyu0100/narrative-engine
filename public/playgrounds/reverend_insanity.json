@@ -1832,7 +1832,7 @@
         "threads": [
           {
             "id": "T-01",
-            "anchors": [
+            "participants": [
               {
                 "id": "C-01",
                 "type": "character"
@@ -1848,7 +1848,7 @@
           },
           {
             "id": "T-02",
-            "anchors": [
+            "participants": [
               {
                 "id": "L-03",
                 "type": "location"
@@ -1869,7 +1869,7 @@
           },
           {
             "id": "T-03",
-            "anchors": [
+            "participants": [
               {
                 "id": "C-02",
                 "type": "character"
@@ -1886,7 +1886,7 @@
           },
           {
             "id": "T-04",
-            "anchors": [
+            "participants": [
               {
                 "id": "L-04",
                 "type": "location"
@@ -1907,7 +1907,7 @@
           },
           {
             "id": "T-05",
-            "anchors": [
+            "participants": [
               {
                 "id": "C-04",
                 "type": "character"
@@ -1920,7 +1920,7 @@
           },
           {
             "id": "T-06",
-            "anchors": [
+            "participants": [
               {
                 "id": "L-08",
                 "type": "location"
@@ -1939,7 +1939,7 @@
           },
           {
             "id": "T-07",
-            "anchors": [
+            "participants": [
               {
                 "id": "C-08",
                 "type": "character"

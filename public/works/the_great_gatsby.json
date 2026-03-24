@@ -10453,7 +10453,7 @@
         "threads": [
           {
             "id": "T-THE-01",
-            "anchors": [
+            "participants": [
               {
                 "id": "C-THE-03",
                 "type": "character"
@@ -10494,7 +10494,7 @@
           },
           {
             "id": "T-THE-02",
-            "anchors": [
+            "participants": [
               {
                 "id": "C-THE-04",
                 "type": "character"
@@ -10515,7 +10515,7 @@
           },
           {
             "id": "T-THE-03",
-            "anchors": [
+            "participants": [
               {
                 "id": "C-THE-01",
                 "type": "character"
@@ -10536,7 +10536,7 @@
           },
           {
             "id": "T-THE-04",
-            "anchors": [
+            "participants": [
               {
                 "id": "L-THE-04",
                 "type": "location"
@@ -10577,7 +10577,7 @@
           },
           {
             "id": "T-THE-05",
-            "anchors": [
+            "participants": [
               {
                 "id": "C-THE-04",
                 "type": "character"
@@ -10602,7 +10602,7 @@
           },
           {
             "id": "T-THE-20",
-            "anchors": [
+            "participants": [
               {
                 "id": "C-THE-01",
                 "type": "character"
@@ -11687,7 +11687,7 @@
         "threads": [
           {
             "id": "T-THE-06",
-            "anchors": [
+            "participants": [
               {
                 "id": "C-THE-01",
                 "type": "character"
@@ -11704,7 +11704,7 @@
           },
           {
             "id": "T-THE-07",
-            "anchors": [
+            "participants": [
               {
                 "id": "C-THE-01",
                 "type": "character"
@@ -11737,7 +11737,7 @@
           },
           {
             "id": "T-THE-08",
-            "anchors": [
+            "participants": [
               {
                 "id": "C-THE-25",
                 "type": "character"
@@ -11790,7 +11790,7 @@
           },
           {
             "id": "T-THE-09",
-            "anchors": [
+            "participants": [
               {
                 "id": "C-THE-01",
                 "type": "character"
@@ -11815,7 +11815,7 @@
           },
           {
             "id": "T-THE-10",
-            "anchors": [
+            "participants": [
               {
                 "id": "C-THE-03",
                 "type": "character"
@@ -11836,7 +11836,7 @@
           },
           {
             "id": "T-THE-11",
-            "anchors": [
+            "participants": [
               {
                 "id": "C-THE-03",
                 "type": "character"
@@ -12032,7 +12032,7 @@
         "threads": [
           {
             "id": "T-THE-12",
-            "anchors": [
+            "participants": [
               {
                 "id": "C-THE-04",
                 "type": "character"
@@ -12053,7 +12053,7 @@
           },
           {
             "id": "T-THE-13",
-            "anchors": [
+            "participants": [
               {
                 "id": "C-THE-04",
                 "type": "character"
@@ -12070,7 +12070,7 @@
           },
           {
             "id": "T-THE-14",
-            "anchors": [
+            "participants": [
               {
                 "id": "C-THE-01",
                 "type": "character"
@@ -12236,7 +12236,7 @@
         "threads": [
           {
             "id": "T-THE-15",
-            "anchors": [
+            "participants": [
               {
                 "id": "C-THE-109",
                 "type": "character"
@@ -12277,7 +12277,7 @@
           },
           {
             "id": "T-THE-16",
-            "anchors": [
+            "participants": [
               {
                 "id": "C-THE-03",
                 "type": "character"
@@ -12294,7 +12294,7 @@
           },
           {
             "id": "T-THE-17",
-            "anchors": [
+            "participants": [
               {
                 "id": "C-THE-01",
                 "type": "character"
@@ -12311,7 +12311,7 @@
           },
           {
             "id": "T-THE-18",
-            "anchors": [
+            "participants": [
               {
                 "id": "C-THE-04",
                 "type": "character"
@@ -12332,7 +12332,7 @@
           },
           {
             "id": "T-THE-19",
-            "anchors": [
+            "participants": [
               {
                 "id": "C-THE-01",
                 "type": "character"
@@ -12365,7 +12365,7 @@
           },
           {
             "id": "T-THE-21",
-            "anchors": [
+            "participants": [
               {
                 "id": "C-THE-04",
                 "type": "character"

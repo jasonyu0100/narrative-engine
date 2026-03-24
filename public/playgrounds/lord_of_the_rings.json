@@ -1718,7 +1718,7 @@
         "threads": [
           {
             "id": "T-LOTR-01",
-            "anchors": [
+            "participants": [
               {
                 "id": "C-LOTR-01",
                 "type": "character"
@@ -1734,7 +1734,7 @@
           },
           {
             "id": "T-LOTR-02",
-            "anchors": [
+            "participants": [
               {
                 "id": "C-LOTR-01",
                 "type": "character"
@@ -1751,7 +1751,7 @@
           },
           {
             "id": "T-LOTR-03",
-            "anchors": [
+            "participants": [
               {
                 "id": "C-LOTR-03",
                 "type": "character"
@@ -1764,7 +1764,7 @@
           },
           {
             "id": "T-LOTR-04",
-            "anchors": [
+            "participants": [
               {
                 "id": "L-LOTR-03",
                 "type": "location"
@@ -1783,7 +1783,7 @@
           },
           {
             "id": "T-LOTR-05",
-            "anchors": [
+            "participants": [
               {
                 "id": "C-LOTR-08",
                 "type": "character"
@@ -1802,7 +1802,7 @@
           },
           {
             "id": "T-LOTR-06",
-            "anchors": [
+            "participants": [
               {
                 "id": "C-LOTR-05",
                 "type": "character"
@@ -1815,7 +1815,7 @@
           },
           {
             "id": "T-LOTR-07",
-            "anchors": [
+            "participants": [
               {
                 "id": "C-LOTR-01",
                 "type": "character"
