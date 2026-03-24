@@ -99,15 +99,55 @@ export type MatrixPreset = {
   matrix: TransitionMatrix;
 };
 
+/**
+ * Hand-tuned "Storyteller" matrix — designed from narrative principles rather
+ * than derived from any single work. Encodes:
+ *
+ *  1. Escalation ladder: Rest → Lore/Growth → Discovery → Climax/Revelation → Epoch
+ *  2. Recovery after peaks: Epoch/Climax always descend to Rest/Closure/Growth
+ *  3. Growth as hub: most modes reach Growth, Growth feeds into payoff
+ *  4. Lore feeds Discovery: world-building leads to exploration
+ *  5. No back-to-back Epoch; low self-loops throughout
+ *  6. ~35% payoff-mode steady state — earned, not inflated
+ */
+const STORYTELLER_MATRIX: TransitionMatrix = (() => {
+  const m = emptyMatrix();
+  //              HHH   HHL   HLH   HLL   LHH   LHL   LLH   LLL
+  // From Epoch — everything just converged, must recover
+  m.HHH = { HHH: 0,    HHL: 0.05, HLH: 0.05, HLL: 0.25, LHH: 0.05, LHL: 0.20, LLH: 0.10, LLL: 0.30 };
+  // From Climax — threads resolved, characters need to breathe
+  m.HHL = { HHH: 0.05, HHL: 0.05, HLH: 0.05, HLL: 0.20, LHH: 0.10, LHL: 0.20, LLH: 0.10, LLL: 0.25 };
+  // From Revelation — truth unlocked, characters must grapple with it
+  m.HLH = { HHH: 0.05, HHL: 0.20, HLH: 0.05, HLL: 0.10, LHH: 0.20, LHL: 0.25, LLH: 0.05, LLL: 0.10 };
+  // From Closure — loose ends tied, new chapter begins
+  m.HLL = { HHH: 0,    HHL: 0.05, HLH: 0,    HLL: 0.05, LHH: 0.15, LHL: 0.25, LLH: 0.25, LLL: 0.25 };
+  // From Discovery — encountered something new, process or escalate
+  m.LHH = { HHH: 0.10, HHL: 0.20, HLH: 0.15, HLL: 0,    LHH: 0.10, LHL: 0.20, LLH: 0.15, LLL: 0.10 };
+  // From Growth — character ready, can escalate or continue building
+  m.LHL = { HHH: 0.05, HHL: 0.20, HLH: 0.10, HLL: 0,    LHH: 0.20, LHL: 0.15, LLH: 0.15, LLL: 0.15 };
+  // From Lore — world expanded, explore or develop characters within it
+  m.LLH = { HHH: 0.05, HHL: 0.05, HLH: 0.15, HLL: 0,    LHH: 0.25, LHL: 0.20, LLH: 0.15, LLL: 0.15 };
+  // From Rest — calm before the storm, build outward
+  m.LLL = { HHH: 0,    HHL: 0,    HLH: 0.05, HLL: 0.10, LHH: 0.15, LHL: 0.30, LLH: 0.30, LLL: 0.10 };
+  return m;
+})();
+
+const STORYTELLER_PRESET: MatrixPreset = {
+  key: 'storyteller',
+  name: 'Storyteller',
+  description: 'Hand-tuned for strong pacing. Escalation ladders, earned payoffs, recovery after peaks.',
+  matrix: STORYTELLER_MATRIX,
+};
+
 /** Mutable preset list — populated at runtime from analysed works. */
 export let MATRIX_PRESETS: MatrixPreset[] = [];
 
-/** Default matrix — HP is the fallback until presets are loaded. */
-export let DEFAULT_TRANSITION_MATRIX: TransitionMatrix = emptyMatrix();
+/** Default matrix — Storyteller is the built-in default. */
+export let DEFAULT_TRANSITION_MATRIX: TransitionMatrix = STORYTELLER_MATRIX;
 
 /** Populate presets from loaded work narratives. Called once during hydration. */
 export function initMatrixPresets(works: { key: string; name: string; narrative: NarrativeState }[]) {
-  const presets: MatrixPreset[] = [];
+  const presets: MatrixPreset[] = [STORYTELLER_PRESET];
 
   for (const work of works) {
     const matrix = computeMatrixFromNarrative(work.narrative);
@@ -131,13 +171,6 @@ export function initMatrixPresets(works: { key: string; name: string; narrative:
     }, 0);
     const payoffPct = totalWeight > 0 ? Math.round((payoffFrac / totalWeight) * 100) : 50;
 
-    let selfLoops = 0;
-    let totalRows = 0;
-    for (const c of CORNERS) {
-      if (matrix[c][c] > 0) { selfLoops += matrix[c][c]; totalRows++; }
-      else totalRows++;
-    }
-
     presets.push({
       key: work.key,
       name: work.name,
@@ -147,11 +180,7 @@ export function initMatrixPresets(works: { key: string; name: string; narrative:
   }
 
   MATRIX_PRESETS = presets;
-
-  // Set default to first preset (usually HP based on alphabetical loading order)
-  // Prefer harry_potter if available
-  const hp = presets.find((p) => p.key.includes('harry_potter'));
-  DEFAULT_TRANSITION_MATRIX = hp?.matrix ?? presets[0]?.matrix ?? emptyMatrix();
+  DEFAULT_TRANSITION_MATRIX = STORYTELLER_MATRIX;
 }
 
 /**

@@ -136,7 +136,7 @@ export function StorySettingsModal({ onClose }: { onClose: () => void }) {
               HHH: '#f59e0b', HHL: '#ef4444', HLH: '#a855f7', HLL: '#6366f1',
               LHH: '#22d3ee', LHL: '#22c55e', LLH: '#3b82f6', LLL: '#6b7280',
             };
-            const resolvedKey = settings.rhythmPreset || MATRIX_PRESETS.find((p) => p.key.includes('harry_potter'))?.key || MATRIX_PRESETS[0]?.key || '';
+            const resolvedKey = settings.rhythmPreset || 'storyteller';
             const activePreset = MATRIX_PRESETS.find((p) => p.key === resolvedKey);
             const matrix: TransitionMatrix | null = activePreset?.matrix ?? null;
 
