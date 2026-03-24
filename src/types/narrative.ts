@@ -438,6 +438,8 @@ export type StorySettings = {
   povCharacterIds: string[];
   /** High-level story direction / north star prompt */
   storyDirection: string;
+  /** Negative prompt — things the AI should avoid */
+  storyConstraints: string;
   /** Target arc length in scenes */
   targetArcLength: number;
   /** Markov chain rhythm preset key (from MATRIX_PRESETS) */
@@ -458,8 +460,9 @@ export const DEFAULT_STORY_SETTINGS: StorySettings = {
   povMode: 'free',
   povCharacterIds: [],
   storyDirection: '',
+  storyConstraints: '',
   targetArcLength: 5,
-  rhythmPreset: 'harry_potter',
+  rhythmPreset: '',
   proseVoice: '',
   planGuidance: '',
   branchTimeHorizon: 50,

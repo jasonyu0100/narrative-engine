@@ -289,6 +289,7 @@ export type Action =
   | { type: 'UPDATE_API_LOG'; id: string; updates: Partial<ApiLogEntry> }
   | { type: 'CLEAR_API_LOGS' }
   | { type: 'SET_COVER_IMAGE'; narrativeId: string; imageUrl: string }
+  | { type: 'UPDATE_NARRATIVE_META'; narrativeId: string; title?: string; description?: string }
   | { type: 'SET_SCENE_IMAGE'; sceneId: string; imageUrl: string }
   | { type: 'SET_CHARACTER_IMAGE'; characterId: string; imageUrl: string }
   | { type: 'SET_LOCATION_IMAGE'; locationId: string; imageUrl: string }
@@ -785,6 +786,23 @@ function reducer(state: AppState, action: Action): AppState {
       loadNarrative(action.narrativeId).then((stored) => {
         if (stored) persistNarrative({ ...stored, coverImageUrl: action.imageUrl });
       }).catch((err) => console.error('[store] Failed to update cover image:', err));
+      return { ...state, narratives: updatedNarratives };
+    }
+
+    case 'UPDATE_NARRATIVE_META': {
+      const metaUpdates: Partial<{ title: string; description: string }> = {};
+      if (action.title !== undefined) metaUpdates.title = action.title;
+      if (action.description !== undefined) metaUpdates.description = action.description;
+      const updatedNarratives = state.narratives.map((e) =>
+        e.id === action.narrativeId ? { ...e, ...metaUpdates } : e,
+      );
+      if (state.activeNarrative && state.activeNarrative.id === action.narrativeId) {
+        const updatedActive = { ...state.activeNarrative, ...metaUpdates };
+        return { ...state, narratives: updatedNarratives, activeNarrative: updatedActive };
+      }
+      loadNarrative(action.narrativeId).then((stored) => {
+        if (stored) persistNarrative({ ...stored, ...metaUpdates });
+      }).catch((err) => console.error('[store] Failed to update narrative meta:', err));
       return { ...state, narratives: updatedNarratives };
     }
 

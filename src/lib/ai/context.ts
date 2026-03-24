@@ -39,6 +39,11 @@ export function buildStorySettingsBlock(n: NarrativeState): string {
     lines.push(`STORY DIRECTION (high-level north star): ${s.storyDirection.trim()}`);
   }
 
+  // Story constraints (negative prompt)
+  if (s.storyConstraints.trim()) {
+    lines.push(`STORY CONSTRAINTS (DO NOT do any of the following): ${s.storyConstraints.trim()}`);
+  }
+
   if (lines.length === 0) return '';
   return `\nSTORY SETTINGS (these shape all generation — respect them):\n${lines.join('\n')}\n`;
 }

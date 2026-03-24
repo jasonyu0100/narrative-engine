@@ -17,6 +17,8 @@ import { FormulaModal } from '@/components/topbar/FormulaModal';
 import { SlidesPlayer } from '@/components/slides/SlidesPlayer';
 import { MarkovChainModal } from '@/components/topbar/MarkovChainModal';
 import { ThreadLifecycleModal } from '@/components/topbar/ThreadLifecycleModal';
+import { NarrativeEditModal } from '@/components/topbar/NarrativeEditModal';
+import type { NarrativeEntry } from '@/types/narrative';
 
 
 function exportNarrative(narrative: NarrativeState) {
@@ -139,6 +141,7 @@ export default function TopBar() {
   const [selectorOpen, setSelectorOpen] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState('');
+  const [editingEntry, setEditingEntry] = useState<NarrativeEntry | null>(null);
   const [pickerSections, setPickerSections] = useState<Record<string, boolean>>({ projects: true, works: false, playground: false });
   const [openMenu, setOpenMenu] = useState<string | null>(null);
   const access = useFeatureAccess();
@@ -448,6 +451,20 @@ export default function TopBar() {
                 })()}
               </div>
               <div className="border-t border-white/8 py-1.5">
+                {narrative && (() => {
+                  const activeEntry = state.narratives.find((n) => n.id === narrative.id);
+                  return activeEntry ? (
+                    <button
+                      onClick={() => { setEditingEntry(activeEntry); setSelectorOpen(false); }}
+                      className="w-full flex items-center gap-2.5 px-4 py-2 text-[13px] text-text-secondary hover:text-text-primary hover:bg-white/5 transition-colors"
+                    >
+                      <span className="w-5 h-5 rounded-md bg-white/8 flex items-center justify-center">
+                        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+                      </span>
+                      Story Settings
+                    </button>
+                  ) : null;
+                })()}
                 <button
                   onClick={() => {
                     dispatch({ type: 'OPEN_WIZARD' });
@@ -893,6 +910,9 @@ export default function TopBar() {
           resolvedKeys={state.resolvedEntryKeys}
           onClose={() => setSlidesOpen(false)}
         />
+      )}
+      {editingEntry && (
+        <NarrativeEditModal entry={editingEntry} onClose={() => setEditingEntry(null)} />
       )}
     </div>
   );

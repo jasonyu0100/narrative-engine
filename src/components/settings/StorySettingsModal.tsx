@@ -2,22 +2,20 @@
 
 import { useState } from 'react';
 import { useStore } from '@/lib/store';
-import { apiHeaders } from '@/lib/api-headers';
 import type { StorySettings, POVMode } from '@/types/narrative';
 import { DEFAULT_STORY_SETTINGS, BRANCH_TIME_HORIZON_OPTIONS } from '@/types/narrative';
 import { NARRATIVE_CUBE } from '@/types/narrative';
 import type { CubeCornerKey } from '@/types/narrative';
 import { MATRIX_PRESETS, type TransitionMatrix } from '@/lib/markov';
 
-type Tab = 'pov' | 'direction' | 'rhythm' | 'structure' | 'memory' | 'cover';
+type Tab = 'direction' | 'constraints' | 'rhythm' | 'pov' | 'other';
 
 const TABS: { label: string; value: Tab }[] = [
-  { label: 'POV', value: 'pov' },
   { label: 'Direction', value: 'direction' },
+  { label: 'Constraints', value: 'constraints' },
   { label: 'Rhythm', value: 'rhythm' },
-  { label: 'Structure', value: 'structure' },
-  { label: 'Memory', value: 'memory' },
-  { label: 'Cover', value: 'cover' },
+  { label: 'POV', value: 'pov' },
+  { label: 'Other', value: 'other' },
 ];
 
 const POV_MODES: { value: POVMode; label: string; desc: string }[] = [
@@ -29,7 +27,7 @@ const POV_MODES: { value: POVMode; label: string; desc: string }[] = [
 export function StorySettingsModal({ onClose }: { onClose: () => void }) {
   const { state, dispatch } = useStore();
   const narrative = state.activeNarrative;
-  const [tab, setTab] = useState<Tab>('pov');
+  const [tab, setTab] = useState<Tab>('direction');
   const [settings, setSettings] = useState<StorySettings>({
     ...DEFAULT_STORY_SETTINGS,
     ...narrative?.storySettings,
@@ -39,47 +37,9 @@ export function StorySettingsModal({ onClose }: { onClose: () => void }) {
     setSettings((s) => ({ ...s, ...partial }));
   }
 
-  const [coverGenerating, setCoverGenerating] = useState(false);
-  const [coverError, setCoverError] = useState('');
-  const coverUrl = narrative?.coverImageUrl;
-
   function handleSave() {
     dispatch({ type: 'SET_STORY_SETTINGS', settings });
     onClose();
-  }
-
-  async function handleGenerateCover() {
-    if (!narrative) return;
-    setCoverGenerating(true);
-    setCoverError('');
-    try {
-      const res = await fetch('/api/generate-cover', {
-        method: 'POST',
-        headers: apiHeaders(),
-        body: JSON.stringify({
-          title: narrative.title,
-          description: narrative.description,
-          rules: narrative.rules,
-          imageStyle: narrative.imageStyle,
-          coverPrompt: settings.coverPrompt,
-        }),
-      });
-      if (!res.ok) {
-        const err = await res.json();
-        throw new Error(err.error || 'Cover generation failed');
-      }
-      const { imageUrl } = await res.json();
-      dispatch({ type: 'SET_COVER_IMAGE', narrativeId: narrative.id, imageUrl });
-    } catch (err) {
-      setCoverError(err instanceof Error ? err.message : String(err));
-    } finally {
-      setCoverGenerating(false);
-    }
-  }
-
-  function handleRemoveCover() {
-    if (!narrative) return;
-    dispatch({ type: 'SET_COVER_IMAGE', narrativeId: narrative.id, imageUrl: '' });
   }
 
   const allCharacters = narrative
@@ -132,73 +92,8 @@ export function StorySettingsModal({ onClose }: { onClose: () => void }) {
 
         {/* Tab content */}
         <div className="flex-1 overflow-y-auto min-h-0 space-y-4 pr-1">
-          {tab === 'pov' && (
-            <>
-              {/* POV Mode */}
-              <div>
-                <label className="text-[10px] text-text-dim uppercase tracking-wider block mb-2">
-                  POV Mode
-                </label>
-                <div className="space-y-1.5">
-                  {POV_MODES.map((m) => (
-                    <button
-                      key={m.value}
-                      onClick={() => {
-                        update({
-                          povMode: m.value,
-                          povCharacterIds: m.value === 'free' ? [] : settings.povCharacterIds,
-                        });
-                      }}
-                      className={`w-full text-left px-3 py-2.5 rounded-lg border transition-colors ${
-                        settings.povMode === m.value
-                          ? 'border-blue-500/50 bg-blue-500/10'
-                          : 'border-white/5 bg-white/2 hover:bg-white/5'
-                      }`}
-                    >
-                      <span className="text-[11px] font-semibold text-text-primary">{m.label}</span>
-                      <p className="text-[10px] text-text-dim mt-0.5 leading-snug">{m.desc}</p>
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* POV Character Picker */}
-              {showPovPicker && allCharacters.length > 0 && (
-                <div>
-                  <label className="text-[10px] text-text-dim uppercase tracking-wider block mb-2">
-                    POV Character{maxPovChars > 1 ? 's' : ''}{maxPovChars < allCharacters.length ? ` (select up to ${maxPovChars})` : ''}
-                  </label>
-                  <div className="flex flex-wrap gap-1.5">
-                    {allCharacters.map((c) => {
-                      const selected = settings.povCharacterIds.includes(c.id);
-                      return (
-                        <button
-                          key={c.id}
-                          onClick={() => togglePovCharacter(c.id)}
-                          className={`text-[11px] px-3 py-1.5 rounded-full border transition-colors ${
-                            selected
-                              ? 'border-blue-500/50 bg-blue-500/15 text-blue-300'
-                              : 'border-white/10 text-text-dim hover:text-text-secondary hover:bg-white/5'
-                          }`}
-                        >
-                          {c.name}
-                        </button>
-                      );
-                    })}
-                  </div>
-                  {settings.povCharacterIds.length === 0 && (
-                    <p className="text-[9px] text-amber-400/60 mt-1.5">
-                      No anchors selected — engine will choose the most prominent anchor.
-                    </p>
-                  )}
-                </div>
-              )}
-            </>
-          )}
-
           {tab === 'direction' && (
             <>
-              {/* Story Direction */}
               <div>
                 <label className="text-[10px] text-text-dim uppercase tracking-wider block mb-2">
                   Story Direction
@@ -213,7 +108,25 @@ export function StorySettingsModal({ onClose }: { onClose: () => void }) {
                   High-level guidance for where the story should go. Steers every arc.
                 </p>
               </div>
+            </>
+          )}
 
+          {tab === 'constraints' && (
+            <>
+              <div>
+                <label className="text-[10px] text-text-dim uppercase tracking-wider block mb-2">
+                  Story Constraints
+                </label>
+                <textarea
+                  value={settings.storyConstraints}
+                  onChange={(e) => update({ storyConstraints: e.target.value })}
+                  placeholder="e.g. &quot;No deus ex machina resolutions. Don't kill off the protagonist's mentor yet. Avoid romance subplots between the leads&quot;..."
+                  className="w-full bg-bg-elevated border border-white/10 rounded-lg px-3 py-2 text-[11px] text-text-primary placeholder:text-text-dim/40 outline-none focus:border-blue-500/40 resize-none h-24"
+                />
+                <p className="text-[9px] text-text-dim/50 mt-1">
+                  What the AI should avoid. Negative guardrails that steer generation away from unwanted directions.
+                </p>
+              </div>
             </>
           )}
 
@@ -223,7 +136,8 @@ export function StorySettingsModal({ onClose }: { onClose: () => void }) {
               HHH: '#f59e0b', HHL: '#ef4444', HLH: '#a855f7', HLL: '#6366f1',
               LHH: '#22d3ee', LHL: '#22c55e', LLH: '#3b82f6', LLL: '#6b7280',
             };
-            const activePreset = MATRIX_PRESETS.find((p) => p.key === (settings.rhythmPreset || 'harry_potter'));
+            const resolvedKey = settings.rhythmPreset || MATRIX_PRESETS.find((p) => p.key.includes('harry_potter'))?.key || MATRIX_PRESETS[0]?.key || '';
+            const activePreset = MATRIX_PRESETS.find((p) => p.key === resolvedKey);
             const matrix: TransitionMatrix | null = activePreset?.matrix ?? null;
 
             return (
@@ -231,7 +145,7 @@ export function StorySettingsModal({ onClose }: { onClose: () => void }) {
                 {/* Preset cards */}
                 <div className="flex gap-2 overflow-x-auto pb-2 -mx-1 px-1 mb-4">
                   {MATRIX_PRESETS.map((preset) => {
-                    const isSelected = preset.key === (settings.rhythmPreset || 'harry_potter');
+                    const isSelected = preset.key === resolvedKey;
                     return (
                       <button
                         key={preset.key}
@@ -317,7 +231,71 @@ export function StorySettingsModal({ onClose }: { onClose: () => void }) {
             );
           })()}
 
-          {tab === 'structure' && (
+          {tab === 'pov' && (
+            <>
+              {/* POV Mode */}
+              <div>
+                <label className="text-[10px] text-text-dim uppercase tracking-wider block mb-2">
+                  POV Mode
+                </label>
+                <div className="space-y-1.5">
+                  {POV_MODES.map((m) => (
+                    <button
+                      key={m.value}
+                      onClick={() => {
+                        update({
+                          povMode: m.value,
+                          povCharacterIds: m.value === 'free' ? [] : settings.povCharacterIds,
+                        });
+                      }}
+                      className={`w-full text-left px-3 py-2.5 rounded-lg border transition-colors ${
+                        settings.povMode === m.value
+                          ? 'border-blue-500/50 bg-blue-500/10'
+                          : 'border-white/5 bg-white/2 hover:bg-white/5'
+                      }`}
+                    >
+                      <span className="text-[11px] font-semibold text-text-primary">{m.label}</span>
+                      <p className="text-[10px] text-text-dim mt-0.5 leading-snug">{m.desc}</p>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* POV Character Picker */}
+              {showPovPicker && allCharacters.length > 0 && (
+                <div>
+                  <label className="text-[10px] text-text-dim uppercase tracking-wider block mb-2">
+                    POV Character{maxPovChars > 1 ? 's' : ''}{maxPovChars < allCharacters.length ? ` (select up to ${maxPovChars})` : ''}
+                  </label>
+                  <div className="flex flex-wrap gap-1.5">
+                    {allCharacters.map((c) => {
+                      const selected = settings.povCharacterIds.includes(c.id);
+                      return (
+                        <button
+                          key={c.id}
+                          onClick={() => togglePovCharacter(c.id)}
+                          className={`text-[11px] px-3 py-1.5 rounded-full border transition-colors ${
+                            selected
+                              ? 'border-blue-500/50 bg-blue-500/15 text-blue-300'
+                              : 'border-white/10 text-text-dim hover:text-text-secondary hover:bg-white/5'
+                          }`}
+                        >
+                          {c.name}
+                        </button>
+                      );
+                    })}
+                  </div>
+                  {settings.povCharacterIds.length === 0 && (
+                    <p className="text-[9px] text-amber-400/60 mt-1.5">
+                      No anchors selected — engine will choose the most prominent anchor.
+                    </p>
+                  )}
+                </div>
+              )}
+            </>
+          )}
+
+          {tab === 'other' && (
             <>
               {/* Target Arc Length */}
               <div>
@@ -339,70 +317,8 @@ export function StorySettingsModal({ onClose }: { onClose: () => void }) {
                   </span>
                 </div>
               </div>
-            </>
-          )}
 
-          {tab === 'cover' && (
-            <>
-              {/* Preview */}
-              <div className="flex justify-center">
-                <div className="w-36 rounded-lg overflow-hidden border border-white/10">
-                  {coverUrl ? (
-                    <img src={coverUrl} alt="Cover" className="w-full aspect-3/4 object-cover" />
-                  ) : (
-                    <div className="w-full aspect-3/4 bg-white/3 flex items-center justify-center">
-                      <span className="text-[9px] text-text-dim/30">No cover</span>
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              {/* Custom Prompt */}
-              <div>
-                <label className="text-[10px] text-text-dim uppercase tracking-wider block mb-1.5">
-                  Image Prompt <span className="normal-case tracking-normal text-text-dim/50">(optional)</span>
-                </label>
-                <textarea
-                  value={settings.coverPrompt}
-                  onChange={(e) => update({ coverPrompt: e.target.value })}
-                  placeholder="e.g. &quot;Dark fantasy oil painting of a lone figure standing before an enormous gate carved into a mountain, storm clouds above, warm light spilling from within&quot;"
-                  className="w-full bg-bg-elevated border border-white/10 rounded-lg px-3 py-2 text-[11px] text-text-primary placeholder:text-text-dim/40 outline-none focus:border-blue-500/40 resize-none h-20"
-                />
-                <p className="text-[9px] text-text-dim/50 mt-1">
-                  {settings.coverPrompt.trim()
-                    ? 'Your custom prompt will be used directly.'
-                    : 'Leave empty to auto-generate from title, description, and image style.'}
-                </p>
-              </div>
-
-              {/* Actions */}
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={handleGenerateCover}
-                  disabled={coverGenerating}
-                  className="flex-1 text-[11px] px-3 py-2 rounded-lg border border-blue-500/30 bg-blue-500/10 text-blue-300 hover:bg-blue-500/20 disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-semibold"
-                >
-                  {coverGenerating ? 'Generating…' : coverUrl ? 'Regenerate' : 'Generate Cover'}
-                </button>
-
-                {coverUrl && (
-                  <button
-                    onClick={handleRemoveCover}
-                    className="text-[10px] px-3 py-2 rounded-lg border border-white/5 text-text-dim hover:text-text-secondary hover:bg-white/5 transition-colors"
-                  >
-                    Remove
-                  </button>
-                )}
-              </div>
-
-              {coverError && (
-                <p className="text-[10px] text-red-400/80">{coverError}</p>
-              )}
-            </>
-          )}
-
-          {tab === 'memory' && (
-            <>
+              {/* Branch Time Horizon */}
               <div>
                 <label className="text-[10px] text-text-dim uppercase tracking-wider block mb-2">
                   Branch Time Horizon
