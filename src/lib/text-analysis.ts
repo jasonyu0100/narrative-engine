@@ -979,6 +979,11 @@ export async function assembleNarrative(
   // Track globally to deduplicate knowledge across chunks (same content for same entity)
   const seenCharKnowledge = new Map<string, Set<string>>(); // characterId → set of content
   const seenLocLore = new Map<string, Set<string>>(); // locationId → set of content
+  // Track which chunk each entity was first introduced in (for per-batch world commits)
+  const charFirstChunk = new Map<string, number>();
+  const locFirstChunk = new Map<string, number>();
+  const threadFirstChunk = new Map<string, number>();
+  const chunkFirstSceneId = new Map<number, string>(); // chunkIdx → first scene id
 
   for (let chunkIdx = 0; chunkIdx < results.length; chunkIdx++) {
     const ch = results[chunkIdx];
@@ -994,6 +999,7 @@ export async function assembleNarrative(
           continuity: { nodes: [] },
           ...(c.imagePrompt ? { imagePrompt: c.imagePrompt } : {}),
         };
+        charFirstChunk.set(id, chunkIdx);
       } else if (c.imagePrompt) {
         characters[id].imagePrompt = c.imagePrompt;
       }
@@ -1022,6 +1028,7 @@ export async function assembleNarrative(
           continuity: { nodes: [] },
           ...(loc.imagePrompt ? { imagePrompt: loc.imagePrompt } : {}),
         };
+        locFirstChunk.set(id, chunkIdx);
       } else if (loc.imagePrompt) {
         locations[id].imagePrompt = loc.imagePrompt;
       }
@@ -1048,6 +1055,7 @@ export async function assembleNarrative(
       });
       if (!threads[id]) {
         threads[id] = { id, anchors: newAnchors, description: t.description, status: t.statusAtEnd ?? 'dormant', openedAt: '', dependents: [] };
+        threadFirstChunk.set(id, chunkIdx);
       } else {
         threads[id].status = t.statusAtEnd ?? threads[id].status;
         // Accumulate anchors from later chunks
@@ -1132,6 +1140,7 @@ export async function assembleNarrative(
 
       scenes[sceneId] = scene;
       chScenes.push(scene);
+      if (!chunkFirstSceneId.has(chunkIdx)) chunkFirstSceneId.set(chunkIdx, sceneId);
     }
 
     // Distribute deferred knowledge across the chunk's scenes.
@@ -1273,19 +1282,56 @@ export async function assembleNarrative(
     createdAt: Date.now() - (sceneList.length - i) * 3600000,
   }));
 
-  // World build
-  const wxId = `WX-${PREFIX}-init`;
-  const worldBuild: WorldBuildCommit = {
-    kind: 'world_build',
-    id: wxId,
-    summary: `World analyzed: ${Object.keys(characters).length} characters, ${Object.keys(locations).length} locations, ${Object.keys(threads).length} threads, ${relationships.length} relationships`,
-    expansionManifest: {
-      characterIds: Object.keys(characters),
-      locationIds: Object.keys(locations),
-      threadIds: Object.keys(threads),
-      relationshipCount: relationships.length,
-    },
-  };
+  // World builds — one per 3-chunk batch, only when new entities are introduced.
+  // The first batch always gets a commit; later batches are skipped if nothing new appeared.
+  const WORLD_COMMIT_INTERVAL = 3;
+  const worldBuilds: Record<string, WorldBuildCommit> = {};
+  // Map from the first scene id of a batch → the world build commit to insert before it
+  const wxBeforeScene = new Map<string, string>(); // sceneId → wxId
+
+  for (let batchStart = 0; batchStart < results.length; batchStart += WORLD_COMMIT_INTERVAL) {
+    const batchEnd = Math.min(batchStart + WORLD_COMMIT_INTERVAL, results.length);
+    const batchChunkIndices = new Set(Array.from({ length: batchEnd - batchStart }, (_, i) => batchStart + i));
+    const isInitial = batchStart === 0;
+
+    const newCharIds = Object.keys(characters).filter((id) => batchChunkIndices.has(charFirstChunk.get(id) ?? 0));
+    const newLocIds = Object.keys(locations).filter((id) => batchChunkIndices.has(locFirstChunk.get(id) ?? 0));
+    const newThreadIds = Object.keys(threads).filter((id) => batchChunkIndices.has(threadFirstChunk.get(id) ?? 0));
+
+    if (!isInitial && newCharIds.length === 0 && newLocIds.length === 0 && newThreadIds.length === 0) continue;
+
+    const batchNum = Math.floor(batchStart / WORLD_COMMIT_INTERVAL) + 1;
+    const wxId = `WX-${PREFIX}-${String(batchNum).padStart(3, '0')}`;
+    const summary = isInitial
+      ? `Initial world: ${newCharIds.length} characters, ${newLocIds.length} locations, ${newThreadIds.length} threads`
+      : `Chunks ${batchStart + 1}–${batchEnd}: +${newCharIds.length} characters, +${newLocIds.length} locations, +${newThreadIds.length} threads`;
+
+    worldBuilds[wxId] = {
+      kind: 'world_build',
+      id: wxId,
+      summary,
+      expansionManifest: {
+        characterIds: newCharIds,
+        locationIds: newLocIds,
+        threadIds: newThreadIds,
+        relationshipCount: 0,
+      },
+    };
+
+    // Find the first scene of the first chunk in this batch
+    for (let ci = batchStart; ci < batchEnd; ci++) {
+      const firstScene = chunkFirstSceneId.get(ci);
+      if (firstScene) { wxBeforeScene.set(firstScene, wxId); break; }
+    }
+  }
+
+  // Build entryIds: world build commits interleaved before their batch's first scene
+  const entryIds: string[] = [];
+  for (const sceneId of Object.keys(scenes)) {
+    const wxId = wxBeforeScene.get(sceneId);
+    if (wxId) entryIds.push(wxId);
+    entryIds.push(sceneId);
+  }
 
   // Branch
   const branchId = `B-${PREFIX}-MAIN`;
@@ -1295,7 +1341,7 @@ export async function assembleNarrative(
       name: 'Canon Timeline',
       parentBranchId: null,
       forkEntryId: null,
-      entryIds: [wxId, ...Object.keys(scenes)],
+      entryIds,
       createdAt: Date.now() - 86400000,
     },
   };
@@ -1360,7 +1406,7 @@ Return JSON: { "rules": ["rule1", "rule2", ...], "imageStyle": "style directive"
     threads,
     arcs,
     scenes,
-    worldBuilds: { [wxId]: worldBuild },
+    worldBuilds,
     branches,
     commits,
     relationships,
