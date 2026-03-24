@@ -224,7 +224,7 @@ function computeRawPayoff(scene: Scene): number {
     } else {
       const fi = PHASE_INDEX[from];
       const ti = PHASE_INDEX[to];
-      score += fi !== undefined && ti !== undefined ? Math.abs(ti - fi) : 1;
+      score += fi !== undefined && ti !== undefined ? Math.max(0, ti - fi) : 1;
     }
   }
 

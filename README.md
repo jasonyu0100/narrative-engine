@@ -22,7 +22,7 @@ Each force is computed directly from one mutation type:
 
 | Force | Driven by | Formula |
 |-------|-----------|---------|
-| **Payoff** | Thread mutations — phase transitions weighted by jump distance | `P = Σ \|φ_to - φ_from\|` |
+| **Payoff** | Thread mutations — phase transitions weighted by jump distance | `P = Σ max(0, φ_to - φ_from)` |
 | **Change** | Continuity mutations + events — how intensely characters were affected | `C = √M_c + √\|E\|` |
 | **Knowledge** | World knowledge mutations — new nodes and edges in the world graph | `K = ΔN + √ΔE` |
 

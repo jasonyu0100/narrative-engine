@@ -397,7 +397,7 @@ export function buildSequencePrompt(sequence: PacingSequence): string {
   lines.push('Each scene has a cube mode assignment that determines its force profile. The mode dictates what KIND of mutations the scene should have — thread transitions, continuity changes, world knowledge expansion — and how many. The formulas compute forces FROM these mutations, so if you want a scene to land at a specific cube corner, you must generate the right mutations.');
   lines.push('');
   lines.push('Force formulas (for reference):');
-  lines.push('  Payoff = Σ|phase_to - phase_from| per thread transition (same-status pulse = 0.25)');
+  lines.push('  Payoff = Σ max(0, phase_to - phase_from) per thread transition (same-status pulse = 0.25). Reversions score 0.');
   lines.push('  Change = √(continuity_mutations) + √(events)');
   lines.push('  Knowledge = new_world_nodes + √(new_world_edges)');
   lines.push('');

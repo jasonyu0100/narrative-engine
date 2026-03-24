@@ -111,7 +111,7 @@ Relationship mutations (`{from, to, type, valenceDelta}`) track how connections 
 
 Three force dimensions derived from the mutations above, all **z-score normalised** (mean=0, units=standard deviations):
 
-- **Payoff (P)** — `Σ |φ_to - φ_from|` over thread mutations, plus 0.25 pulse per same-status mention
+- **Payoff (P)** — `Σ max(0, φ_to - φ_from)` over thread mutations, plus 0.25 pulse per same-status mention
 - **Change (C)** — `√M_c + √|E|` where M_c = continuity mutation count, |E| = event count. Cast-blind.
 - **Knowledge (K)** — `ΔN + √ΔE` where ΔN = new world knowledge nodes, ΔE = new world knowledge edges
 

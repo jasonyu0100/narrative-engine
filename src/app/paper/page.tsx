@@ -247,7 +247,7 @@ export default function PaperPage() {
               <P>
                 Did something permanent happen? Payoff measures thread phase transitions — moments the story can&apos;t take back.
               </P>
-              <Eq tex="P = \sum_{t} \left| \varphi_{\text{to}} - \varphi_{\text{from}} \right|" />
+              <Eq tex="P = \sum_{t} \max\left(0,\ \varphi_{\text{to}} - \varphi_{\text{from}}\right)"/>
               <P>
                 Threads carry a phase index: dormant (0), active (1), escalating (2), critical (3), resolved/subverted/abandoned (4). A thread jumping from active to critical contributes <Tex>{'|3 - 1| = 2'}</Tex>. Threads mentioned without transitioning earn a pulse of 0.25 — enough to stay visible without inflating the score.
               </P>

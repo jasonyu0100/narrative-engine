@@ -43,7 +43,7 @@ function ForcesTab() {
       </p>
 
       <S title="Payoff" analogy="Did something permanent happen? A betrayal, a death, a vow — moments that can't be undone.">
-        <Block tex="P = \sum_{t} \left| \varphi_{\text{to}} - \varphi_{\text{from}} \right|" />
+        <Block tex="P = \sum_{t} \max\left(0,\ \varphi_{\text{to}} - \varphi_{\text{from}}\right)" />
         <p className="text-[10px] text-text-dim">
           Phase index: dormant(0), active(1), escalating(2), critical(3), resolved/subverted/abandoned(4).
           Transitions score by distance. Same-status mentions earn a 0.25 pulse.
