@@ -30,7 +30,7 @@ function scoreColor(score: number): string {
 const ARCHETYPE_COLORS: Record<string, string> = {
   masterwork: '#f59e0b', epic: '#ef4444', chronicle: '#3b82f6',
   saga: '#8b5cf6', classic: '#10b981', anthology: '#ec4899',
-  atlas: '#06b6d4', emerging: '#6b7280',
+  tome: '#06b6d4', emerging: '#6b7280',
 };
 
 function StoryCard({ entry, index }: { entry: NarrativeEntry; index: number }) {

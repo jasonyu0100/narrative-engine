@@ -75,7 +75,7 @@ const ARCHETYPES = [
   { key: 'saga', name: 'Saga', desc: 'Change + Knowledge', color: '#8b5cf6' },
   { key: 'classic', name: 'Classic', desc: 'Payoff-driven', color: '#10b981' },
   { key: 'anthology', name: 'Anthology', desc: 'Change-driven', color: '#ec4899' },
-  { key: 'atlas', name: 'Atlas', desc: 'Knowledge-driven', color: '#06b6d4' },
+  { key: 'tome', name: 'Tome', desc: 'Knowledge-driven', color: '#06b6d4' },
   { key: 'emerging', name: 'Emerging', desc: 'Finding its voice', color: '#6b7280' },
 ] as const;
 

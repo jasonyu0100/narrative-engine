@@ -7,7 +7,7 @@ import React from 'react';
  * Maps force-dominance profiles to visually distinctive icons.
  */
 
-type ArchetypeKey = 'masterwork' | 'epic' | 'chronicle' | 'saga' | 'classic' | 'anthology' | 'atlas' | 'emerging';
+type ArchetypeKey = 'masterwork' | 'epic' | 'chronicle' | 'saga' | 'classic' | 'anthology' | 'tome' | 'emerging';
 
 interface ArchetypeIconProps {
   archetypeKey: string;
@@ -103,8 +103,8 @@ const SHAPES: Record<ArchetypeKey, (half: number, s: number, c: string) => React
     );
   },
 
-  // Atlas: single hexagon — structure
-  atlas: (half, s, c) => {
+  // tome: single hexagon — structure
+  tome: (half, s, c) => {
     const r = s * 0.36;
     const pts = Array.from({ length: 6 }, (_, i) => {
       const a = (Math.PI / 3) * i - Math.PI / 2;

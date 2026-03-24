@@ -709,7 +709,7 @@ const ARCHETYPES = {
   saga:        { key: 'saga',        name: 'Saga',        description: 'A rich world explored through many lives — expansive in both cast and ideas', dominant: ['change', 'knowledge'] as const },
   classic:     { key: 'classic',     name: 'Classic',     description: 'Driven by resolution — threads pay off and relationships shift decisively', dominant: ['payoff'] as const },
   anthology:   { key: 'anthology',   name: 'Anthology',   description: 'Many lives touched — the story weaves across a wide cast of characters', dominant: ['change'] as const },
-  atlas:       { key: 'atlas',       name: 'Atlas',       description: 'Dense with ideas and systems — the depth of the world itself is the draw', dominant: ['knowledge'] as const },
+  tome:       { key: 'tome',       name: 'Tome',       description: 'Dense with ideas and systems — the depth of the world itself is the draw', dominant: ['knowledge'] as const },
   emerging:    { key: 'emerging',    name: 'Emerging',    description: 'No single force has reached its potential yet — the story is still finding its voice', dominant: [] as const },
 } satisfies Record<string, NarrativeArchetype>;
 
@@ -741,7 +741,7 @@ export function classifyArchetype(grades: ForceGrades): NarrativeArchetype {
   if (cDom && kDom)         return ARCHETYPES.saga;
   if (pDom)                 return ARCHETYPES.classic;
   if (cDom)                 return ARCHETYPES.anthology;
-  if (kDom)                 return ARCHETYPES.atlas;
+  if (kDom)                 return ARCHETYPES.tome;
   return ARCHETYPES.emerging;
 }
 
@@ -851,7 +851,7 @@ const avg = (arr: number[]) => arr.length > 0 ? arr.reduce((s, v) => s + v, 0) /
  *  Raw force values are divided by these to produce a unit-free normalized value
  *  (x̃ = x̄ / μ_ref). At x̃ = 1 the grade reaches ~18/25 (73%).
  *  Calibrated from literary works (HP, Gatsby, Crime & Punishment, Coiling Dragon). */
-export const FORCE_REFERENCE_MEANS = { payoff: 1.5, change: 3.5, knowledge: 2.5 } as const;
+export const FORCE_REFERENCE_MEANS = { payoff: 1.5, change: 4, knowledge: 2.5 } as const;
 
 /** Grade a mean-normalized force value 0→25: g(x̃) = 25(1 - e^{-2x̃}).
  *  x̃ = x̄ / μ_ref. At x̃ = 1 (matching reference), grade ≈ 22/25 (86%). */

@@ -25,7 +25,7 @@ import { THREAD_LIFECYCLE_DOC } from './context';
 
 export const PROMPT_FORCE_STANDARDS = `
 GRADING REFERENCE MEANS — the arc average should approximate these values. Individual scenes vary above and below; the variation is essential. Graded per-arc on an exponential curve where matching the reference mean scores ~86%.
-  Payoff ~1.5 | Change ~3.5 | Knowledge ~2.5
+  Payoff ~1.5 | Change ~4 | Knowledge ~2.5
 REUSE existing world knowledge node IDs when a scene reinforces an established concept — don't duplicate.
 `;
 
