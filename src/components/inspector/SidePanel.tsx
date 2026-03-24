@@ -9,7 +9,7 @@ import LocationDetail from './LocationDetail';
 import ThreadDetail from './ThreadDetail';
 import ArcDetail from './ArcDetail';
 import KnowledgeDetail from './KnowledgeDetail';
-import ChatPanel from '@/components/chat/ChatPanel';
+import ChatPanel from '@/components/sidebar/ChatPanel';
 
 type Tab = 'inspector' | 'chat';
 

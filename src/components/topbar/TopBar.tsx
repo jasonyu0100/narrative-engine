@@ -2,7 +2,7 @@
 
 import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { useStore } from '@/lib/store';
+import { useStore, ANALYSIS_NARRATIVE_IDS, PLAYGROUND_NARRATIVE_IDS } from '@/lib/store';
 import { ArchetypeIcon } from '@/components/ArchetypeIcon';
 import type { NarrativeState } from '@/types/narrative';
 import { resolveEntry, isScene, type Scene } from '@/types/narrative';
@@ -137,6 +137,7 @@ export default function TopBar() {
   const [selectorOpen, setSelectorOpen] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState('');
+  const [pickerSections, setPickerSections] = useState<Record<string, boolean>>({ projects: true, works: false, playground: false });
   const [openMenu, setOpenMenu] = useState<string | null>(null);
 
   // Modal states
@@ -357,70 +358,84 @@ export default function TopBar() {
               <div className="max-h-80 overflow-y-auto py-1.5">
                 {state.narratives.length === 0 ? (
                   <p className="text-xs text-text-dim px-4 py-4 text-center">No narratives yet</p>
-                ) : (
-                  state.narratives.map((entry) => {
-                    const isActive = state.activeNarrativeId === entry.id;
-                    const isDeleting = deletingId === entry.id;
-                    return (
-                      <div key={entry.id}>
-                        <div className={`flex items-center mx-1.5 rounded-lg transition-colors ${
-                          isActive ? 'bg-white/8' : 'hover:bg-white/5'
-                        }`}>
-                          <button
-                            onClick={() => {
-                              setSelectorOpen(false);
-                              router.push(`/series/${entry.id}`);
-                            }}
-                            className="flex-1 text-left px-3 py-2.5 min-w-0"
-                          >
-                            <div className="text-[13px] text-text-primary truncate leading-snug">{entry.title}</div>
-                            <div className="text-[11px] text-text-dim truncate mt-0.5 leading-snug">{entry.description}</div>
-                          </button>
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setDeletingId(isDeleting ? null : entry.id);
-                              setDeleteConfirm('');
-                            }}
-                            className="px-2.5 py-1 mr-1.5 text-text-dim hover:text-payoff text-xs rounded transition-colors shrink-0 hover:bg-white/5"
-                            title="Delete narrative"
-                          >
-                            &times;
-                          </button>
-                        </div>
-                        {isDeleting && (
-                          <div className="mx-1.5 px-3 py-2.5 mb-1 rounded-lg" style={{ background: 'rgba(239,68,68,0.06)' }}>
-                            <p className="text-[10px] text-text-dim mb-1.5">
-                              Type <span className="text-text-secondary font-medium">{entry.title}</span> to confirm
-                            </p>
-                            <input
-                              type="text"
-                              value={deleteConfirm}
-                              onChange={(e) => setDeleteConfirm(e.target.value)}
-                              placeholder={entry.title}
-                              className="bg-white/5 border border-white/8 rounded-md px-2.5 py-1.5 text-xs text-text-primary w-full outline-none placeholder:text-text-dim/30 mb-2 focus:border-white/15 transition-colors"
-                              autoFocus
-                            />
-                            <button
-                              onClick={() => {
-                                if (deleteConfirm === entry.title) {
-                                  dispatch({ type: 'DELETE_NARRATIVE', id: entry.id });
-                                  setDeletingId(null);
-                                  setDeleteConfirm('');
-                                  if (isActive) router.push('/');
-                                }
-                              }}
-                              disabled={deleteConfirm !== entry.title}
-                              className="w-full text-xs font-medium py-1.5 rounded-md transition-colors bg-payoff/20 text-payoff hover:bg-payoff/30 disabled:opacity-30 disabled:pointer-events-none"
-                            >
-                              Delete permanently
-                            </button>
+                ) : (() => {
+                  const works = state.narratives.filter((n) => ANALYSIS_NARRATIVE_IDS.has(n.id));
+                  const playground = state.narratives.filter((n) => PLAYGROUND_NARRATIVE_IDS.has(n.id));
+                  const projects = state.narratives.filter((n) => !ANALYSIS_NARRATIVE_IDS.has(n.id) && !PLAYGROUND_NARRATIVE_IDS.has(n.id));
+                  const sections = [
+                    { key: 'projects', label: 'Projects', entries: projects },
+                    { key: 'works', label: 'Works', entries: works },
+                    { key: 'playground', label: 'Playground', entries: playground },
+                  ].filter((s) => s.entries.length > 0);
+
+                  return sections.map(({ key, label, entries }) => (
+                    <div key={key}>
+                      <button
+                        onClick={() => setPickerSections((s) => ({ ...s, [key]: !s[key] }))}
+                        className="flex items-center gap-1.5 w-full px-3 py-1.5 text-left group"
+                      >
+                        <svg width="7" height="7" viewBox="0 0 8 8" className={`shrink-0 text-text-dim transition-transform ${pickerSections[key] ? 'rotate-90' : ''}`}>
+                          <path d="M2 1l4 3-4 3" stroke="currentColor" strokeWidth="1.5" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+                        </svg>
+                        <span className="text-[10px] font-semibold text-text-dim uppercase tracking-widest group-hover:text-text-secondary transition-colors">{label}</span>
+                        <span className="text-[10px] text-text-dim ml-auto">{entries.length}</span>
+                      </button>
+                      {pickerSections[key] && entries.map((entry) => {
+                        const isActive = state.activeNarrativeId === entry.id;
+                        const isDeleting = deletingId === entry.id;
+                        return (
+                          <div key={entry.id}>
+                            <div className={`flex items-center mx-1.5 rounded-lg transition-colors ${isActive ? 'bg-white/8' : 'hover:bg-white/5'}`}>
+                              <button
+                                onClick={() => { setSelectorOpen(false); router.push(`/series/${entry.id}`); }}
+                                className="flex-1 text-left px-3 py-2 min-w-0"
+                              >
+                                <div className="text-[13px] text-text-primary truncate leading-snug">{entry.title}</div>
+                                <div className="text-[11px] text-text-dim truncate mt-0.5 leading-snug">{entry.description}</div>
+                              </button>
+                              <button
+                                onClick={(e) => { e.stopPropagation(); setDeletingId(isDeleting ? null : entry.id); setDeleteConfirm(''); }}
+                                className="px-2.5 py-1 mr-1.5 text-text-dim hover:text-payoff text-xs rounded transition-colors shrink-0 hover:bg-white/5"
+                                title="Delete narrative"
+                              >
+                                &times;
+                              </button>
+                            </div>
+                            {isDeleting && (
+                              <div className="mx-1.5 px-3 py-2.5 mb-1 rounded-lg" style={{ background: 'rgba(239,68,68,0.06)' }}>
+                                <p className="text-[10px] text-text-dim mb-1.5">
+                                  Type <span className="text-text-secondary font-medium">{entry.title}</span> to confirm
+                                </p>
+                                <input
+                                  type="text"
+                                  value={deleteConfirm}
+                                  onChange={(e) => setDeleteConfirm(e.target.value)}
+                                  placeholder={entry.title}
+                                  className="bg-white/5 border border-white/8 rounded-md px-2.5 py-1.5 text-xs text-text-primary w-full outline-none placeholder:text-text-dim/30 mb-2 focus:border-white/15 transition-colors"
+                                  autoFocus
+                                />
+                                <button
+                                  onClick={() => {
+                                    if (deleteConfirm === entry.title) {
+                                      dispatch({ type: 'DELETE_NARRATIVE', id: entry.id });
+                                      setDeletingId(null);
+                                      setDeleteConfirm('');
+                                      if (isActive) router.push('/');
+                                    }
+                                  }}
+                                  disabled={deleteConfirm !== entry.title}
+                                  className="w-full text-xs font-medium py-1.5 rounded-md transition-colors bg-payoff/20 text-payoff hover:bg-payoff/30 disabled:opacity-30 disabled:pointer-events-none"
+                                >
+                                  Delete permanently
+                                </button>
+                              </div>
+                            )}
                           </div>
-                        )}
-                      </div>
-                    );
-                  })
-                )}
+                        );
+                      })}
+                    </div>
+                  ));
+                })()}
               </div>
               <div className="border-t border-white/8 py-1.5">
                 <button
