@@ -139,6 +139,24 @@ const STORYTELLER_PRESET: MatrixPreset = {
   matrix: STORYTELLER_MATRIX,
 };
 
+/** Uniform transition matrix — every corner equally likely from every other. Pure chaos. */
+const RANDOM_MATRIX: TransitionMatrix = (() => {
+  const m = {} as TransitionMatrix;
+  const p = 1 / 8;
+  for (const from of CORNERS) {
+    m[from] = {} as Record<CubeCornerKey, number>;
+    for (const to of CORNERS) m[from][to] = p;
+  }
+  return m;
+})();
+
+const RANDOM_PRESET: MatrixPreset = {
+  key: 'random',
+  name: 'Random',
+  description: 'Uniform transitions — every narrative mode equally likely. Unpredictable, chaotic pacing.',
+  matrix: RANDOM_MATRIX,
+};
+
 /** Mutable preset list — populated at runtime from analysed works. */
 export let MATRIX_PRESETS: MatrixPreset[] = [];
 
@@ -147,7 +165,7 @@ export let DEFAULT_TRANSITION_MATRIX: TransitionMatrix = STORYTELLER_MATRIX;
 
 /** Populate presets from loaded work narratives. Called once during hydration. */
 export function initMatrixPresets(works: { key: string; name: string; narrative: NarrativeState }[]) {
-  const presets: MatrixPreset[] = [STORYTELLER_PRESET];
+  const presets: MatrixPreset[] = [STORYTELLER_PRESET, RANDOM_PRESET];
 
   for (const work of works) {
     const matrix = computeMatrixFromNarrative(work.narrative);
