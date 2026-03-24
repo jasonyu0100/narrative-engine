@@ -566,130 +566,194 @@ export interface NarrativeShape {
 }
 
 const SHAPES = {
-  rags_to_riches: {
-    key: 'rags_to_riches',
-    name: 'Escalating',
-    description: 'Deliveries climb continuously — momentum builds from start to finish',
-    curve: [[0,0.1],[0.2,0.25],[0.4,0.45],[0.6,0.65],[0.8,0.82],[1,1]] as [number,number][],
-  },
-  tragedy: {
-    key: 'tragedy',
-    name: 'Subsiding',
-    description: 'Deliveries fall throughout — intensity drains as the narrative progresses',
-    curve: [[0,1],[0.2,0.8],[0.4,0.6],[0.6,0.4],[0.8,0.22],[1,0.08]] as [number,number][],
-  },
-  man_in_hole: {
-    key: 'man_in_hole',
-    name: 'Rebounding',
-    description: 'Deliveries drop in the middle then climb back — low point followed by upswing',
-    curve: [[0,0.6],[0.2,0.35],[0.4,0.1],[0.6,0.3],[0.8,0.65],[1,0.9]] as [number,number][],
-  },
-  icarus: {
-    key: 'icarus',
-    name: 'Peaking',
-    description: 'Deliveries peak early then trail off — intensity concentrated at the opening',
-    curve: [[0,0.4],[0.2,0.85],[0.35,1],[0.55,0.65],[0.75,0.35],[1,0.15]] as [number,number][],
-  },
-  cinderella: {
-    key: 'cinderella',
-    name: 'Cyclical',
-    description: 'Two distinct rises separated by a trough — deliveries crest, fall, then crest again',
-    curve: [[0,0.3],[0.2,0.75],[0.35,0.9],[0.5,0.35],[0.65,0.2],[0.8,0.75],[1,1]] as [number,number][],
-  },
-  one_climax: {
-    key: 'one_climax',
+  climactic: {
+    key: 'climactic',
     name: 'Climactic',
-    description: 'Deliveries converge on one central high — build, climax, resolution',
+    description: 'Build, climax, release — one dominant peak defines the arc',
     curve: [[0,0.2],[0.25,0.5],[0.45,0.8],[0.5,1],[0.55,0.8],[0.75,0.5],[1,0.25]] as [number,number][],
-  },
-  slow_burn: {
-    key: 'slow_burn',
-    name: 'Slow Burn',
-    description: 'Deliveries stay low early then surge — intensity concentrated at the close',
-    curve: [[0,0.15],[0.2,0.2],[0.4,0.18],[0.6,0.35],[0.75,0.65],[0.9,0.9],[1,1]] as [number,number][],
   },
   episodic: {
     key: 'episodic',
     name: 'Episodic',
-    description: 'Multiple deliveries of similar weight — no single dominant high point',
+    description: 'Multiple peaks of similar weight — no single climax dominates',
     curve: [[0,0.3],[0.1,0.7],[0.2,0.3],[0.35,0.75],[0.5,0.25],[0.65,0.8],[0.8,0.3],[0.9,0.7],[1,0.35]] as [number,number][],
   },
-  plateau: {
-    key: 'plateau',
-    name: 'Uniform',
-    description: 'Deliveries show little structural variation — measured and consistent throughout',
+  rebounding: {
+    key: 'rebounding',
+    name: 'Rebounding',
+    description: 'A meaningful dip followed by strong recovery',
+    curve: [[0,0.6],[0.2,0.35],[0.4,0.1],[0.6,0.3],[0.8,0.65],[1,0.9]] as [number,number][],
+  },
+  peaking: {
+    key: 'peaking',
+    name: 'Peaking',
+    description: 'Dominant peak early or mid-arc, followed by decline',
+    curve: [[0,0.4],[0.2,0.85],[0.35,1],[0.55,0.65],[0.75,0.35],[1,0.15]] as [number,number][],
+  },
+  escalating: {
+    key: 'escalating',
+    name: 'Escalating',
+    description: 'Momentum rises overall — intensity concentrated toward the end',
+    curve: [[0,0.1],[0.2,0.2],[0.4,0.35],[0.6,0.55],[0.8,0.8],[1,1]] as [number,number][],
+  },
+  flat: {
+    key: 'flat',
+    name: 'Flat',
+    description: 'Too little structural variation — no meaningful peaks or valleys',
     curve: [[0,0.5],[0.25,0.52],[0.5,0.48],[0.75,0.51],[1,0.5]] as [number,number][],
   },
 } satisfies Record<string, NarrativeShape>;
 
+/** All shape keys for external use. */
+export type NarrativeShapeKey = keyof typeof SHAPES;
+
+/** Shape metrics computed from the delivery curve. */
+export interface ShapeMetrics {
+  overallSlope: number;
+  peakCount: number;
+  peakDominance: number;
+  peakPosition: number;
+  troughDepth: number;
+  recoveryStrength: number;
+  flatness: number;
+}
+
 /**
  * Classify the overall shape of a narrative based on its delivery curve.
  *
- * Accepts delivery values (one per scene), applies Gaussian smoothing
- * internally, and classifies the trajectory into a named archetype.
- * Uses delivery because it captures the full dopamine profile — payoff-weighted
- * force presence plus tension-release contrast.
+ * Accepts delivery values (one per scene), applies Gaussian smoothing,
+ * computes six core metrics, derives boolean conditions, and classifies
+ * into one of five shapes: Climactic, Episodic, Rebounding, Peaking, Escalating.
  *
- * Inspired by Vonnegut's story shapes and Reagan et al.'s arc research.
+ * curve → metrics → booleans → shape
  */
 export function classifyNarrativeShape(deliveries: number[]): NarrativeShape {
-  if (deliveries.length < 6) return SHAPES.plateau;
+  if (deliveries.length < 6) return SHAPES.flat;
   const n = deliveries.length;
   const smoothed = gaussianSmooth(deliveries, 1.5);
   const macro = gaussianSmooth(deliveries, 4);
 
-  // Variance of the smoothed curve — low means flat/plateau
-  const smMean = smoothed.reduce((s, v) => s + v, 0) / n;
-  const variance = Math.sqrt(smoothed.reduce((s, v) => s + (v - smMean) ** 2, 0) / n);
-  if (variance < 0.15) return SHAPES.plateau;
+  // ── Metrics ────────────────────────────────────────────────────────────
 
-  // Third-segment macro trend averages
+  // Flatness: std dev of smoothed curve
+  const smMean = smoothed.reduce((s, v) => s + v, 0) / n;
+  const flatness = Math.sqrt(smoothed.reduce((s, v) => s + (v - smMean) ** 2, 0) / n);
+
+  // Overall slope: macro end minus start
+  const overallSlope = macro[n - 1] - macro[0];
+
+  // Peak detection
+  const smStd = flatness;
+  const minProm = Math.max(0.1, 0.4 * smStd);
+  const windowR = Math.max(2, Math.floor(n / 25));
+  const { peaks, valleys } = detectPeaksAndValleys(smoothed, minProm, windowR);
+  const peakCount = peaks.size;
+
+  // Peak prominences
+  const peakIndices = Array.from(peaks).sort((a, b) => a - b);
+  const prominences = peakIndices.map((pi) => {
+    // Prominence: peak value minus the higher of the two nearest bases
+    let leftBase = smoothed[0];
+    for (let j = pi - 1; j >= 0; j--) {
+      if (smoothed[j] > smoothed[pi]) break;
+      leftBase = Math.min(leftBase, smoothed[j]);
+    }
+    let rightBase = smoothed[n - 1];
+    for (let j = pi + 1; j < n; j++) {
+      if (smoothed[j] > smoothed[pi]) break;
+      rightBase = Math.min(rightBase, smoothed[j]);
+    }
+    return smoothed[pi] - Math.max(leftBase, rightBase);
+  });
+  const totalProminence = prominences.reduce((s, v) => s + v, 0);
+  const maxPromIdx = prominences.length > 0 ? prominences.indexOf(Math.max(...prominences)) : 0;
+  const dominantPeakIdx = peakIndices[maxPromIdx] ?? Math.floor(n / 2);
+
+  // Peak dominance: largest prominence / total prominence
+  const peakDominance = totalProminence > 0 ? Math.max(...prominences) / totalProminence : 0;
+
+  // Peak position: 0..1
+  const peakPosition = dominantPeakIdx / (n - 1);
+
+  // Trough depth and recovery — only counts as a rebound if the trough
+  // is in the middle portion of the curve (not at edges) and significantly
+  // below the mean. A true V-shape has a concentrated central collapse.
+  const valleyIndices = Array.from(valleys).sort((a, b) => a - b);
+  let troughDepth = 0;
+  let recoveryStrength = 0;
+  let troughPosition = 0.5;
+  if (valleyIndices.length > 0) {
+    // Find deepest trough in the middle 60% of the curve (not edges)
+    const midStart = Math.floor(n * 0.2);
+    const midEnd = Math.floor(n * 0.8);
+    const midValleys = valleyIndices.filter((vi) => vi >= midStart && vi <= midEnd);
+    const searchValleys = midValleys.length > 0 ? midValleys : valleyIndices;
+
+    let deepestIdx = searchValleys[0];
+    let deepestVal = smoothed[deepestIdx];
+    for (const vi of searchValleys) {
+      if (smoothed[vi] < deepestVal) {
+        deepestVal = smoothed[vi];
+        deepestIdx = vi;
+      }
+    }
+    troughPosition = deepestIdx / (n - 1);
+
+    // Only count if below the mean and in the middle portion
+    if (deepestVal < smMean && troughPosition > 0.15 && troughPosition < 0.85) {
+      const leftHigh = Math.max(...smoothed.slice(0, deepestIdx + 1));
+      const rightHigh = Math.max(...smoothed.slice(deepestIdx));
+      troughDepth = Math.min(leftHigh, rightHigh) - deepestVal;
+      recoveryStrength = rightHigh - deepestVal;
+    }
+  }
+
+  // ── Boolean conditions ─────────────────────────────────────────────────
+
+  const isFlat = flatness < 0.15;
+  const hasManyPeaks = peakCount >= 4;
+  const hasDominantPeak = peakDominance > 0.40;
+  const hasEarlyPeak = peakPosition < 0.4;
+  const hasMidLatePeak = peakPosition >= 0.4;
+  // Rebounding requires a V-shaped macro curve: the middle third must be
+  // lower than both outer thirds, AND a deep central trough.
   const t1 = Math.floor(n / 3);
   const t2 = Math.floor(2 * n / 3);
   const segAvg = (a: number, b: number) => macro.slice(a, b).reduce((s, v) => s + v, 0) / (b - a);
   const avgQ1 = segAvg(0, t1);
   const avgQ2 = segAvg(t1, t2);
   const avgQ3 = segAvg(t2, n);
+  const hasMacroVShape = avgQ2 < avgQ1 - 0.1 && avgQ2 < avgQ3 - 0.1;
+  const hasDeepTrough = troughDepth > 1.5 * smStd && hasMacroVShape;
+  const hasStrongRecovery = recoveryStrength > 1.5 * smStd;
+  const isRisingOverall = overallSlope > 0.3;
+  const isFallingOverall = overallSlope < -0.3;
 
-  const overallSlope = macro[n - 1] - macro[0];
+  // ── Classification (priority order) ────────────────────────────────────
 
-  // Peak detection on the smoothed payoff curve
-  const smStd = Math.sqrt(smoothed.reduce((s, v) => s + (v - smMean) ** 2, 0) / n);
-  const minProm = Math.max(0.1, 0.4 * smStd);
-  const windowR = Math.max(2, Math.floor(n / 25));
-  const { peaks } = detectPeaksAndValleys(smoothed, minProm, windowR);
-  const peakCount = peaks.size;
+  // ── Classification (priority order) ────────────────────────────────────
 
-  // Episodic: four or more labeled peaks with no dominant direction
-  if (peakCount >= 4 && Math.abs(overallSlope) < 0.5) return SHAPES.episodic;
+  // Guard: too flat to classify meaningfully
+  if (isFlat) return SHAPES.flat;
 
-  // V-shape: middle third is lowest — dip then recovery
-  const midDip = avgQ2 < avgQ1 - 0.12 && avgQ2 < avgQ3 - 0.12;
-  // Λ-shape: middle third is highest — classic build and release
-  const midPeak = avgQ2 > avgQ1 + 0.12 && avgQ2 > avgQ3 + 0.12;
+  // Peaking: dominant early peak with decline — front-loaded intensity
+  if (hasDominantPeak && hasEarlyPeak && !isRisingOverall) return SHAPES.peaking;
 
-  if (midPeak) return SHAPES.one_climax;
+  // Escalating: clear rising trend wins over peak patterns
+  if (isRisingOverall && !isFallingOverall) return SHAPES.escalating;
 
-  if (midDip) {
-    return SHAPES.man_in_hole;
-  }
+  // Rebounding: exceptional collapse followed by strong recovery.
+  // Trough must be below the mean AND exceed 2x the curve's own std dev.
+  if (hasDeepTrough && hasStrongRecovery) return SHAPES.rebounding;
 
-  // Strong overall direction
-  if (overallSlope > 0.4) {
-    if (macro[0] < -0.2 && macro[n - 1] > 0.2) return SHAPES.slow_burn;
-    return SHAPES.rags_to_riches;
-  }
+  // Episodic: many peaks, none dominant, after directional shapes ruled out.
+  // Long-form narratives with repeated payoff cycles and no clear slope.
+  if (hasManyPeaks && !hasDominantPeak) return SHAPES.episodic;
 
-  if (overallSlope < -0.4) {
-    const maxIdx = smoothed.indexOf(Math.max(...smoothed));
-    if (maxIdx / n < 0.45) return SHAPES.icarus;
-    return SHAPES.tragedy;
-  }
+  // Climactic: dominant mid/late peak, or fallback
+  if (hasDominantPeak && hasMidLatePeak) return SHAPES.climactic;
 
-  // Two peaks with a rising end → Cinderella double arc
-  if (peakCount >= 2 && avgQ3 > avgQ1 + 0.15) return SHAPES.cinderella;
-
-  return SHAPES.one_climax;
+  return SHAPES.climactic;
 }
 
 // ── Narrative Archetype Classification ────────────────────────────────────────

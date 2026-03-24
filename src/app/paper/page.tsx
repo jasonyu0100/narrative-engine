@@ -80,15 +80,12 @@ const ARCHETYPES = [
 ] as const;
 
 const SHAPES = [
-  { name: 'Escalating', desc: 'Continuous climb', curve: [[0,0.1],[0.2,0.25],[0.4,0.45],[0.6,0.65],[0.8,0.82],[1,1]] as [number,number][] },
-  { name: 'Subsiding', desc: 'Continuous fall', curve: [[0,1],[0.2,0.8],[0.4,0.6],[0.6,0.4],[0.8,0.22],[1,0.08]] as [number,number][] },
+  { name: 'Climactic', desc: 'Build, climax, release', curve: [[0,0.2],[0.25,0.5],[0.45,0.8],[0.5,1],[0.55,0.8],[0.75,0.5],[1,0.25]] as [number,number][] },
+  { name: 'Episodic', desc: 'Multiple equal peaks', curve: [[0,0.3],[0.1,0.7],[0.2,0.3],[0.35,0.75],[0.5,0.25],[0.65,0.8],[0.8,0.3],[0.9,0.7],[1,0.35]] as [number,number][] },
   { name: 'Rebounding', desc: 'Dip then recovery', curve: [[0,0.6],[0.2,0.35],[0.4,0.1],[0.6,0.3],[0.8,0.65],[1,0.9]] as [number,number][] },
   { name: 'Peaking', desc: 'Early peak, trails off', curve: [[0,0.4],[0.2,0.85],[0.35,1],[0.55,0.65],[0.75,0.35],[1,0.15]] as [number,number][] },
-  { name: 'Cyclical', desc: 'Two crests, one trough', curve: [[0,0.3],[0.2,0.75],[0.35,0.9],[0.5,0.35],[0.65,0.2],[0.8,0.75],[1,1]] as [number,number][] },
-  { name: 'Climactic', desc: 'Single central peak', curve: [[0,0.2],[0.25,0.5],[0.45,0.8],[0.5,1],[0.55,0.8],[0.75,0.5],[1,0.25]] as [number,number][] },
-  { name: 'Slow Burn', desc: 'Low early, late surge', curve: [[0,0.15],[0.2,0.2],[0.4,0.18],[0.6,0.35],[0.75,0.65],[0.9,0.9],[1,1]] as [number,number][] },
-  { name: 'Episodic', desc: 'Multiple equal peaks', curve: [[0,0.3],[0.1,0.7],[0.2,0.3],[0.35,0.75],[0.5,0.25],[0.65,0.8],[0.8,0.3],[0.9,0.7],[1,0.35]] as [number,number][] },
-  { name: 'Uniform', desc: 'Little variation', curve: [[0,0.5],[0.25,0.52],[0.5,0.48],[0.75,0.51],[1,0.5]] as [number,number][] },
+  { name: 'Escalating', desc: 'Rising toward the end', curve: [[0,0.1],[0.2,0.2],[0.4,0.35],[0.6,0.55],[0.8,0.8],[1,1]] as [number,number][] },
+  { name: 'Flat', desc: 'Little variation', curve: [[0,0.5],[0.25,0.52],[0.5,0.48],[0.75,0.51],[1,0.5]] as [number,number][] },
 ] as const;
 
 /* ── Navigation items ────────────────────────────────────────────────────── */
@@ -626,7 +623,7 @@ export default function PaperPage() {
 
             <h3 className="text-[15px] font-semibold text-white/80 mt-10 mb-3">Narrative Shapes</h3>
             <P>
-              The Gaussian-smoothed delivery curve is classified into one of nine shapes using peak detection, slope analysis, and variance thresholds. Inspired by Vonnegut&apos;s story shapes and Reagan et al.&apos;s arc research.
+              The Gaussian-smoothed delivery curve is classified into one of five shapes using six core metrics: overall slope, peak count, peak dominance, peak position, trough depth, and recovery strength.
             </P>
             <div className="mt-4 grid grid-cols-3 gap-2 text-[11px]">
               {SHAPES.map(({ name, desc, curve }) => (
