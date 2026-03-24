@@ -197,7 +197,7 @@ export function zScoreNormalize(values: number[]): number[] {
 // E = 0.5P + 0.5·tanh(C/2) + 0.5·tanh(K/2) + 0.3·contrast  (delivery, C/K saturated via tanh)
 //     contrast = max(0, T[i-1] - T[i])                      (tension release bonus)
 //     T = C + K - P                                          (tension: buildup without payoff)
-// g(x̃) = 25(1 - e^{-2x̃}), x̃ = x̄/μ     (grade, μ = {1.5, 4.5, 2.5})
+// g(x̃) = 25(1 - e^{-2x̃}), x̃ = x̄/μ     (grade, μ = {1.5, 4, 3.5})
 //
 
 /** Phase index — distance between indices = magnitude of the phase jump.
@@ -851,7 +851,7 @@ const avg = (arr: number[]) => arr.length > 0 ? arr.reduce((s, v) => s + v, 0) /
  *  Raw force values are divided by these to produce a unit-free normalized value
  *  (x̃ = x̄ / μ_ref). At x̃ = 1 the grade reaches ~18/25 (73%).
  *  Calibrated from literary works (HP, Gatsby, Crime & Punishment, Coiling Dragon). */
-export const FORCE_REFERENCE_MEANS = { payoff: 1.5, change: 4, knowledge: 2.5 } as const;
+export const FORCE_REFERENCE_MEANS = { payoff: 1.5, change: 4, knowledge: 3.5 } as const;
 
 /** Grade a mean-normalized force value 0→25: g(x̃) = 25(1 - e^{-2x̃}).
  *  x̃ = x̄ / μ_ref. At x̃ = 1 (matching reference), grade ≈ 22/25 (86%). */

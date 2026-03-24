@@ -12,7 +12,7 @@
  *
  * When updating: check src/lib/narrative-utils.ts FORCE_REFERENCE_MEANS
  * to keep prompt numbers in sync with grading formulas.
- * Current: { payoff: 1.5, change: 3.5, knowledge: 2.5 }
+ * Current: { payoff: 1.5, change: 4, knowledge: 3.5 }
  */
 
 import { THREAD_TERMINAL_STATUSES } from '@/types/narrative';
@@ -20,12 +20,12 @@ import { THREAD_LIFECYCLE_DOC } from './context';
 
 // ── Force Standards ──────────────────────────────────────────────────────────
 // Numbers here MUST match FORCE_REFERENCE_MEANS in narrative-utils.ts:
-//   { payoff: 1.5, change: 4.5, knowledge: 2.5 }
+//   { payoff: 1.5, change: 4, knowledge: 3.5 }
 // These are the values where the exponential grading curve scores ~86% (22/25).
 
 export const PROMPT_FORCE_STANDARDS = `
 GRADING REFERENCE MEANS — the arc average should approximate these values. Individual scenes vary above and below; the variation is essential. Graded per-arc on an exponential curve where matching the reference mean scores ~86%.
-  Payoff ~1.5 | Change ~4 | Knowledge ~2.5
+  Payoff ~1.5 | Change ~4 | Knowledge ~3.5
 REUSE existing world knowledge node IDs when a scene reinforces an established concept — don't duplicate.
 `;
 
