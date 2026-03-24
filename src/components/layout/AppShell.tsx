@@ -115,14 +115,17 @@ export default function AppShell({ children, sidebar, sidepanel }: AppShellProps
           </div>
         )}
 
-        {/* Left toggle — full-height hit zone, no flex space, pill on hover */}
+        {/* Left toggle — pointer-events-none container (resize handle still works),
+            pill is pointer-events-auto with low resting opacity so it's always findable */}
         <div
-          className="absolute top-0 bottom-0 z-30 w-4 flex items-center justify-center cursor-pointer group"
+          className="absolute top-0 bottom-0 z-30 w-4 flex items-center justify-center pointer-events-none"
           style={{ left: left.collapsed ? 0 : left.width - 8 }}
-          onClick={left.toggle}
-          title={left.collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
         >
-          <span className="flex items-center justify-center w-5 h-9 rounded-full bg-bg-panel border border-border text-text-dim shadow-md opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+          <button
+            onClick={left.toggle}
+            title={left.collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+            className="pointer-events-auto flex items-center justify-center w-5 h-9 rounded-full bg-bg-panel border border-border text-text-dim shadow-md opacity-25 hover:opacity-100 transition-opacity cursor-pointer"
+          >
             <svg width="6" height="10" viewBox="0 0 6 10">
               {left.collapsed ? (
                 <path d="M1 1l4 4-4 4" stroke="currentColor" strokeWidth="1.5" fill="none" />
@@ -130,17 +133,19 @@ export default function AppShell({ children, sidebar, sidepanel }: AppShellProps
                 <path d="M5 1l-4 4 4 4" stroke="currentColor" strokeWidth="1.5" fill="none" />
               )}
             </svg>
-          </span>
+          </button>
         </div>
 
-        {/* Right toggle — full-height hit zone, no flex space, pill on hover */}
+        {/* Right toggle — same pattern */}
         <div
-          className="absolute top-0 bottom-0 z-30 w-4 flex items-center justify-center cursor-pointer group"
+          className="absolute top-0 bottom-0 z-30 w-4 flex items-center justify-center pointer-events-none"
           style={{ right: right.collapsed ? 0 : right.width - 8 }}
-          onClick={right.toggle}
-          title={right.collapsed ? 'Expand inspector' : 'Collapse inspector'}
         >
-          <span className="flex items-center justify-center w-5 h-9 rounded-full bg-bg-panel border border-border text-text-dim shadow-md opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+          <button
+            onClick={right.toggle}
+            title={right.collapsed ? 'Expand inspector' : 'Collapse inspector'}
+            className="pointer-events-auto flex items-center justify-center w-5 h-9 rounded-full bg-bg-panel border border-border text-text-dim shadow-md opacity-25 hover:opacity-100 transition-opacity cursor-pointer"
+          >
             <svg width="6" height="10" viewBox="0 0 6 10">
               {right.collapsed ? (
                 <path d="M5 1l-4 4 4 4" stroke="currentColor" strokeWidth="1.5" fill="none" />
@@ -148,7 +153,7 @@ export default function AppShell({ children, sidebar, sidepanel }: AppShellProps
                 <path d="M1 1l4 4-4 4" stroke="currentColor" strokeWidth="1.5" fill="none" />
               )}
             </svg>
-          </span>
+          </button>
         </div>
       </div>
     </div>
