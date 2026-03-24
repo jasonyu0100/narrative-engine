@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { resolveKey } from '@/lib/resolve-api-key';
-import { DEFAULT_MODEL, MAX_TOKENS_DEFAULT } from '@/lib/constants';
+import { DEFAULT_MODEL, MAX_TOKENS_DEFAULT, DEFAULT_TEMPERATURE } from '@/lib/constants';
 
 const OPENROUTER_URL = 'https://openrouter.ai/api/v1/chat/completions';
 
@@ -12,12 +12,13 @@ export async function POST(req: NextRequest) {
 
   try {
     const body = await req.json();
-    const { prompt, systemPrompt, model, maxTokens, stream } = body as {
+    const { prompt, systemPrompt, model, maxTokens, stream, temperature } = body as {
       prompt: string;
       systemPrompt?: string;
       model?: string;
       maxTokens?: number;
       stream?: boolean;
+      temperature?: number;
     };
 
     const response = await fetch(OPENROUTER_URL, {
@@ -34,7 +35,7 @@ export async function POST(req: NextRequest) {
           ...(systemPrompt ? [{ role: 'system' as const, content: systemPrompt }] : []),
           { role: 'user' as const, content: prompt },
         ],
-        temperature: 0.8,
+        temperature: temperature ?? DEFAULT_TEMPERATURE,
         max_tokens: maxTokens || MAX_TOKENS_DEFAULT,
         ...(stream ? { stream: true } : {}),
       }),

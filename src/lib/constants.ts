@@ -37,6 +37,14 @@ export const ANALYSIS_MODEL = 'google/gemini-2.5-flash';
 /** Model for scene generation — MCTS, auto mode, manual */
 export const GENERATE_MODEL = 'google/gemini-2.5-flash';
 
+// ── AI Temperature ───────────────────────────────────────────────────────────
+
+/** Temperature for creative generation — scenes, prose, wizard */
+export const DEFAULT_TEMPERATURE = 0.8;
+
+/** Temperature for structured extraction — analysis, scoring, reconciliation */
+export const ANALYSIS_TEMPERATURE = 0.1;
+
 // ── AI Token Limits ─────────────────────────────────────────────────────────
 
 /** Max output tokens for large structured generation (scenes, narratives, analysis) */
