@@ -342,7 +342,7 @@ export type Arc = {
   develops: string[];
   /** Locations this arc focuses on — determines the spatial graph shown */
   locationIds: string[];
-  /** Characters active in this arc — determined by location + thread anchors */
+  /** Characters active in this arc — determined by location + thread participants */
   activeCharacterIds: string[];
   /** Starting positions — characterId → locationId. Established at arc start. */
   initialCharacterLocations: Record<string, string>;

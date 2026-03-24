@@ -99,7 +99,7 @@ function computeDerivedEntities(
     }
   }
 
-  // Compute threadIds on characters from thread anchors
+  // Compute threadIds on characters from thread participants
   for (const thread of Object.values(threads)) {
     for (const anchor of thread.participants) {
       if (anchor.type === 'character' && characters[anchor.id]) {

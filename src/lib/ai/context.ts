@@ -385,12 +385,12 @@ export function sceneContext(narrative: NarrativeState, scene: Scene): string {
   const threadBlocks = [...threadIds].map((tid) => {
     const thread = narrative.threads[tid];
     if (!thread) return `  - ${tid}: unknown`;
-    const anchors = thread.participants.map((a) => {
+    const participants = thread.participants.map((a) => {
       if (a.type === 'character') return narrative.characters[a.id]?.name ?? a.id;
       if (a.type === 'location') return narrative.locations[a.id]?.name ?? a.id;
       return a.id;
     });
-    return `  - ${tid}: "${thread.description}" [${thread.status}] anchors: ${anchors.join(', ')}`;
+    return `  - ${tid}: "${thread.description}" [${thread.status}] participants: ${participants.join(', ')}`;
   });
 
   // ── Scene mutations ────────────────────────────────────────────────

@@ -139,7 +139,7 @@ Consider:
 - Where is the location hierarchy too flat? Which locations need sub-locations (districts, rooms, landmarks)?
 - Are there implied characters, factions, or organizations referenced in scenes but never created?
 - What contrasting environments would create richer scene variety (urban vs wild, sacred vs profane)?
-- Which threads need new anchors to develop? What new open questions would deepen the story?
+- Which threads need new participants to develop? What new open questions would deepen the story?
 - Are there power structures, social hierarchies, or institutional relationships missing?
 - Could adding characters from different social strata or factions create productive tension?
 
@@ -255,7 +255,7 @@ INTEGRATION RULES (most important):
 - Generate at MINIMUM ${EXPANSION_SIZE_CONFIG[size].characters === '1-2' ? '2' : EXPANSION_SIZE_CONFIG[size].characters === '3-5' ? '5' : '12'} relationships total. Most should connect new→existing characters. A few can connect new→new.
 - Include varied relationship valences: allies, rivals, mentors, debtors, enemies, kin. At least one relationship should have tension (negative or ambivalent valence).
 - EVERY new location SHOULD have a parentId referencing an existing location — build a deeper hierarchy. Only use null for truly independent top-level regions. If the world has cities, nest new locations inside them. If it has regions, place new settlements within them.
-- Thread anchors MUST include at least one existing character or location — threads that only reference new entities won't integrate.
+- Thread participants MUST include at least one existing character or location — threads that only reference new entities won't integrate.
 
 CONTENT RULES:
 - Characters should have meaningful knowledge (3-5 nodes). Give each character SECRETS or unique knowledge that only they possess — knowledge asymmetries drive narrative tension. Include at least one hidden or dangerous piece of knowledge per character.
@@ -371,7 +371,7 @@ Return JSON with this exact structure:
 Generate a world with enough CRITICAL MASS to sustain a long-running story:
 - 6-10 characters: at least 3 anchors, 3-4 recurring, 1-2 transient. Each with 4-8 knowledge nodes. Characters should have secrets, goals, beliefs, and tactical knowledge — not just surface-level facts.
 - 6-10 locations with hierarchy (parent/child nesting). Each with 2-4 knowledge nodes describing lore, dangers, secrets, or resources. Locations should feel lived-in.
-- 5-8 threads representing major narrative tensions, mysteries, and conflicts. Threads should interlock — at least some threads should share dependents or anchors.
+- 5-8 threads representing major narrative tensions, mysteries, and conflicts. Threads should interlock — at least some threads should share participants.
 - 8-10 relationships between characters. Relationships should be asymmetric (A→B differs from B→A) with specific, character-voice descriptions. Use valence to show warmth vs hostility.
 - Exactly 8 scenes in 1 arc, following the introduction pacing sequence below. Use varied locations — showcase the world's best settings across different scenes.
 

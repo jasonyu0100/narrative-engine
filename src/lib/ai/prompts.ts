@@ -31,8 +31,8 @@ REUSE existing world knowledge node IDs when a scene reinforces an established c
 
 // ── Pacing ───────────────────────────────────────────────────────────────────
 // Derived from Markov chain state machine analysis of published works vs
-// AI-generated series. HP: 57% buildup / 43% payoff, high variety (entropy 2.88).
-// AI default without guidance: 73% payoff / 27% buildup, low variety.
+// AI-generated series. HP: 57% buildup / 43% payoff, high mode diversity (entropy 2.88).
+// AI default without guidance: 73% payoff / 27% buildup, low mode diversity.
 //
 // The delivery formula rewards this balance directly:
 //   Tension = C + K - P (buildup without release)

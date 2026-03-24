@@ -20,6 +20,7 @@ export function CreationWizard() {
   const [streamText, setStreamText] = useState('');
   const [error, setError] = useState('');
   const [ruleDraft, setRuleDraft] = useState('');
+  const [addingRule, setAddingRule] = useState(false);
   const [suggesting, setSuggesting] = useState(false);
   const started = useRef(false);
 
@@ -67,6 +68,7 @@ export function CreationWizard() {
     if (!text) return;
     update({ rules: [...wd.rules, text] });
     setRuleDraft('');
+    setAddingRule(false);
   }
   function removeRule(i: number) {
     update({ rules: wd.rules.filter((_, idx) => idx !== i) });
@@ -324,40 +326,38 @@ export function CreationWizard() {
             <div>
               <div className="flex items-center justify-between mb-1.5">
                 <label className="text-[10px] uppercase tracking-[0.15em] text-text-dim font-mono">World Rules</label>
+                <button type="button" onClick={() => { setAddingRule(true); setRuleDraft(''); }} className="text-[10px] text-text-dim hover:text-text-secondary transition">+ Add</button>
               </div>
-              {wd.rules.length === 0 && (
-                <p className="text-[11px] text-text-dim/60 italic mb-2">No rules defined — the AI will generate rules from the premise.</p>
+              {wd.rules.length === 0 && !addingRule && (
+                <p className="text-[11px] text-text-dim/60 italic">No rules defined — the AI will generate rules from the premise.</p>
               )}
-              <div className="flex flex-col gap-1.5 mb-2">
+              <div className="flex flex-col gap-2">
                 {wd.rules.map((rule, i) => (
-                  <div key={i} className="flex items-start gap-2 group">
+                  <div key={i} className="flex gap-2 items-start bg-bg-elevated rounded-lg p-2.5 border border-border">
                     <span className="text-[10px] font-mono text-text-dim mt-0.5 shrink-0 w-4 text-right">{i + 1}.</span>
                     <p className="text-xs text-text-secondary leading-relaxed flex-1">{rule}</p>
-                    <button
-                      onClick={() => removeRule(i)}
-                      className="text-[10px] text-red-400/50 hover:text-red-400 opacity-0 group-hover:opacity-100 transition shrink-0 mt-0.5"
-                    >
-                      &times;
-                    </button>
+                    <button type="button" onClick={() => removeRule(i)} className="text-text-dim hover:text-text-secondary text-xs mt-0.5">&times;</button>
                   </div>
                 ))}
-              </div>
-              <div className="flex gap-2">
-                <input
-                  type="text"
-                  value={ruleDraft}
-                  onChange={(e) => setRuleDraft(e.target.value)}
-                  onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addRule(); } }}
-                  placeholder="Add a world rule..."
-                  className="flex-1 bg-bg-elevated border border-border rounded px-3 py-1.5 text-xs text-text-primary placeholder:text-text-dim focus:outline-none focus:border-white/20 transition-colors"
-                />
-                <button
-                  onClick={addRule}
-                  disabled={!ruleDraft.trim()}
-                  className="text-[10px] px-3 py-1.5 rounded bg-white/5 border border-border text-text-secondary hover:text-text-primary hover:border-white/20 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-                >
-                  Add
-                </button>
+                {addingRule && (
+                  <div className="flex gap-2 items-center bg-bg-elevated rounded-lg p-2.5 border border-border">
+                    <input
+                      // eslint-disable-next-line jsx-a11y/no-autofocus
+                      autoFocus
+                      type="text"
+                      value={ruleDraft}
+                      onChange={(e) => setRuleDraft(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') { e.preventDefault(); addRule(); }
+                        if (e.key === 'Escape') { setAddingRule(false); setRuleDraft(''); }
+                      }}
+                      placeholder="Describe the rule..."
+                      className="flex-1 bg-transparent border-b border-border text-xs text-text-primary outline-none placeholder:text-text-dim focus:border-white/20 transition pb-0.5"
+                    />
+                    <button type="button" onClick={addRule} disabled={!ruleDraft.trim()} className="text-[10px] text-text-dim hover:text-text-secondary disabled:opacity-30 transition shrink-0">Add</button>
+                    <button type="button" onClick={() => { setAddingRule(false); setRuleDraft(''); }} className="text-text-dim hover:text-text-secondary text-xs">&times;</button>
+                  </div>
+                )}
               </div>
             </div>
 

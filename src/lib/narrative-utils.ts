@@ -187,12 +187,11 @@ export function zScoreNormalize(values: number[]): number[] {
 // Three forces measure distinct dimensions of narrative movement per scene.
 // Raw values are z-score normalized: z = (x - μ) / σ.
 //
-// P = Σ |φ_to - φ_from| + Σ |Δv|          (phase distance + valence shifts)
-// C = log₂(1 + Σm) + log₂(1 + |events|) (total mutation mass + events; cast-blind)
-// V = Σr(g_c) + r(g_ℓ) + J̄               (cast recency + loc recency + ensemble)
-//     where r(g) = g / (1 + g)            (parameter-free saturating decay)
+// P = Σ max(0, φ_to - φ_from) + 0.25 per same-status mention  (phase distance)
+// C = √M_c + √|events|                   (continuity mutations + events; cast-blind)
+// K = ΔN + √ΔE                           (new world-knowledge nodes + sqrt edges)
 //
-// S = ‖f_i - f_{i-1}‖₂                   (Euclidean distance in PCV space)
+// S = ‖f_i - f_{i-1}‖₂                   (Euclidean distance in PCK space)
 // E = 0.5P + 0.5·tanh(C/2) + 0.5·tanh(K/2) + 0.3·contrast  (delivery, C/K saturated via tanh)
 //     contrast = max(0, T[i-1] - T[i])                      (tension release bonus)
 //     T = C + K - P                                          (tension: buildup without payoff)

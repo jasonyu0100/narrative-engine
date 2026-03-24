@@ -97,8 +97,8 @@ export function ForceDecompositionSlide({ data }: { data: SlidesData }) {
   for (let i = 0; i < data.sceneCount; i++) {
     const p = data.rawForces.payoff[i];
     const c = data.rawForces.change[i];
-    const v = data.rawForces.knowledge[i];
-    const dom = p >= c && p >= v ? 'Payoff' : c >= p && c >= v ? 'Change' : 'Knowledge';
+    const k = data.rawForces.knowledge[i];
+    const dom = p >= c && p >= k ? 'Payoff' : c >= p && c >= k ? 'Change' : 'Knowledge';
     if (prevDom && dom !== prevDom) {
       crossovers.push({ idx: i, from: prevDom, to: dom });
     }
