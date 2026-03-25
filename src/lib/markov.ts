@@ -445,7 +445,7 @@ export function buildSequencePrompt(sequence: PacingSequence): string {
   lines.push('');
   lines.push('Force formulas (for reference):');
   lines.push('  Payoff = Σ max(0, phase_to - phase_from) per thread transition (same-status pulse = 0.25). Reversions score 0.');
-  lines.push('  Change = √(continuity_mutations) + √(events)');
+  lines.push('  Change = √(continuity_mutations) + √(events) + √(Σ|valenceDelta|) — relationship shifts contribute directly to Change');
   lines.push('  Knowledge = new_world_nodes + √(new_world_edges)');
   lines.push('');
 
