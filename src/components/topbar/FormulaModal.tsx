@@ -83,10 +83,10 @@ function DynamicsTab() {
       </S>
 
       <S title="Delivery" analogy="The dopamine hit — earned resolution lands hardest.">
-        <Block tex={String.raw`E_i = 0.3 P_i + 0.4\,\tanh\!\left(\tfrac{C_i}{1.5}\right) + 0.4\,\tanh\!\left(\tfrac{K_i}{1.5}\right) + 0.1 \cdot \text{contrast}_i`} />
-        <Block tex={String.raw`\text{contrast}_i = \max(0,\; T_{i-1} - T_i)`} />
+        <Block tex={String.raw`E_i = w \sum_{f \in \{P,C,K\}} \tanh\!\left(\frac{f_i}{\alpha}\right) + \gamma \cdot \text{contrast}_i`} />
+        <Block tex={String.raw`w = 0.3 \qquad \alpha = 1.5 \qquad \gamma = 0.2 \qquad \text{contrast}_i = \max(0,\; T_{i-1} - T_i)`} />
         <p className="text-[10px] text-text-dim">
-          C and K weighted equally (0.4), P at 0.3. Low contrast (0.1) — raw forces already encode tension-release. tanh(x/1.5) saturates faster for cleaner peak separation. Calibrated across HP, 1984, Gatsby, RI.
+          All three forces treated symmetrically — same weight, same saturation. tanh compresses extremes while preserving relative ordering. Calibrated across HP, 1984, Gatsby, RI.
         </p>
       </S>
 

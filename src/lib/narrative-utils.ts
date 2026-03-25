@@ -192,7 +192,7 @@ export function zScoreNormalize(values: number[]): number[] {
 // K = ΔN + √ΔE                           (new world-knowledge nodes + sqrt edges)
 //
 // S = ‖f_i - f_{i-1}‖₂                   (Euclidean distance in PCK space)
-// E = 0.3P + 0.4·tanh(C/1.5) + 0.4·tanh(K/1.5) + 0.1·contrast  (delivery, C/K saturated via tanh)
+// E = 0.3·Σ tanh(f/1.5) + 0.2·contrast  (delivery, all forces symmetric via tanh)
 //     contrast = max(0, T[i-1] - T[i])                      (tension release bonus)
 //     T = C + K - P                                          (tension: buildup without payoff)
 // g(x̃) = 25(1 - e^{-2x̃}), x̃ = x̄/μ     (grade, μ = {1.5, 4, 3.5})
@@ -504,26 +504,24 @@ export interface DeliveryPoint {
 /**
  * Compute the delivery curve from z-score normalised force snapshots.
  *
- * Delivery = 0.3P + 0.4·tanh(C/1.5) + 0.4·tanh(K/1.5) + 0.1·contrast
+ * Delivery = w·[tanh(P/α) + tanh(C/α) + tanh(K/α)] + γ·contrast
+ *
+ * where w = 0.3, α = 1.5, γ = 0.2, contrast = max(0, T[i-1] - T[i]).
+ *
+ * All three forces are treated symmetrically — same weight, same saturation.
+ * tanh(x/1.5) compresses extreme values while preserving the sign and relative
+ * ordering of z-scored forces. The contrast bonus rewards tension-release.
  *
  * Calibrated against subjective peak/valley identification across Harry Potter,
- * Nineteen Eighty-Four, The Great Gatsby, and Reverend Insanity (89/101 alignment).
- *
- * Change and Knowledge weighted equally (0.4) — character transformation and
- * world-building are equally strong delivery signals. Payoff at 0.3 — thread
- * resolution contributes but doesn't dominate. Low contrast (0.1) — the raw
- * forces already encode tension-release; heavy contrast double-counts it and
- * distorts smaller peaks. tanh(x/1.5) saturates faster for cleaner separation.
+ * Nineteen Eighty-Four, The Great Gatsby, and Reverend Insanity.
  */
 export function computeDeliveryCurve(snapshots: ForceSnapshot[]): DeliveryPoint[] {
   if (snapshots.length === 0) return [];
   const n = snapshots.length;
 
-  const P_WEIGHT = 0.3;
-  const C_WEIGHT = 0.4;
-  const K_WEIGHT = 0.4;
-  const CONTRAST_WEIGHT = 0.1;
-  const TANH_DIVISOR = 1.5;
+  const W = 0.3;           // weight per force
+  const ALPHA = 1.5;       // tanh divisor — controls saturation speed
+  const GAMMA = 0.2;       // contrast weight
 
   // Tension per scene: buildup without release
   const tensions = snapshots.map(({ payoff, change, knowledge }) =>
@@ -536,7 +534,7 @@ export function computeDeliveryCurve(snapshots: ForceSnapshot[]): DeliveryPoint[
   );
 
   const engValues = snapshots.map(({ payoff, change, knowledge }, i) =>
-    P_WEIGHT * payoff + C_WEIGHT * Math.tanh(change / TANH_DIVISOR) + K_WEIGHT * Math.tanh(knowledge / TANH_DIVISOR) + CONTRAST_WEIGHT * contrasts[i],
+    W * (Math.tanh(payoff / ALPHA) + Math.tanh(change / ALPHA) + Math.tanh(knowledge / ALPHA)) + GAMMA * contrasts[i],
   );
 
   const smoothed = gaussianSmooth(engValues, 1.5);

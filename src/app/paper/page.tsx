@@ -354,7 +354,7 @@ export default function PaperPage() {
             {(() => {
               // Smoothed delivery values computed from the actual works JSON:
               // raw forces → z-score normalise → delivery formula → Gaussian smooth (σ=1.5)
-              const delivery = [0.724,0.493,0.248,0.133,0.194,0.305,0.302,0.177,0.063,0.061,0.132,0.163,0.086,-0.061,-0.189,-0.241,-0.229,-0.189,-0.122,-0.016,0.095,0.135,0.08,0,-0.02,0.06,0.212,0.38,0.533,0.668,0.741,0.683,0.536,0.409,0.301,0.167,0.04,-0.041,-0.098,-0.153,-0.19,-0.174,-0.103,0,0.151,0.344,0.47,0.451,0.356,0.269,0.182,0.067,-0.051,-0.12,-0.127,-0.111,-0.118,-0.114,-0.054,0.002,-0.045,-0.187,-0.312,-0.318,-0.201,-0.055,0.033,0.043,-0.004,-0.075,-0.103,-0.057,-0.044,-0.177,-0.374,-0.483,-0.461,-0.354,-0.237,-0.197,-0.248,-0.284,-0.214,-0.062,0.096,0.197,0.238,0.269,0.311,0.322,0.283];
+              const delivery = [0.46,0.329,0.197,0.145,0.194,0.273,0.294,0.226,0.131,0.095,0.127,0.155,0.121,0.037,-0.045,-0.092,-0.1,-0.07,0.001,0.108,0.207,0.232,0.165,0.069,0.027,0.078,0.202,0.349,0.472,0.559,0.608,0.592,0.519,0.436,0.344,0.23,0.135,0.082,0.041,-0.017,-0.071,-0.07,0.009,0.133,0.263,0.367,0.413,0.391,0.342,0.305,0.269,0.203,0.11,0.052,0.056,0.063,0.018,-0.03,-0.008,0.048,0.052,-0.018,-0.107,-0.129,-0.053,0.062,0.14,0.149,0.102,0.035,-0.004,0.006,0.005,-0.081,-0.211,-0.288,-0.278,-0.205,-0.118,-0.086,-0.126,-0.154,-0.097,0.019,0.132,0.204,0.251,0.308,0.356,0.339,0.265];
               const n = delivery.length;
               const W = 620, H = 200;
               const PAD = { top: 30, right: 20, bottom: 40, left: 40 };
@@ -370,17 +370,14 @@ export default function PaperPage() {
               const points = delivery.map((v, i) => `${toX(i)},${toY(v)}`).join(' ');
 
               const annotations = [
-                { scene: 1, label: 'Privet Drive' },
-                { scene: 6, label: 'Snake incident' },
-                { scene: 11, label: 'Hagrid arrives' },
+                { scene: 7, label: 'Letters arrive' },
+                { scene: 12, label: 'Hagrid reveals truth' },
                 { scene: 22, label: 'Diagon Alley' },
                 { scene: 31, label: 'Sorting Hat' },
                 { scene: 47, label: 'Troll fight' },
-                { scene: 56, label: 'Invisibility Cloak' },
-                { scene: 67, label: 'Norbert hatches' },
-                { scene: 73, label: 'Forbidden Forest' },
-                { scene: 85, label: 'Trapdoor' },
-                { scene: 90, label: 'Quirrell confrontation' },
+                { scene: 61, label: 'Flamel discovered' },
+                { scene: 68, label: 'Norbert aftermath' },
+                { scene: 89, label: 'Quirrell confrontation' },
               ];
 
               return (
@@ -444,13 +441,10 @@ export default function PaperPage() {
             })()}
 
             <P>
-              The peaks correspond to moments any reader would identify: the Sorting Hat ceremony (entry into the magical world), the troll fight (the friendship-forging trial), the first Quidditch match, and the climactic confrontation with Quirrell followed by Dumbledore&apos;s revelations. The valleys — the journey to Diagon Alley, Snape&apos;s suspicious forest encounter, and the quiet dread before the finale — are exactly the buildup scenes that make the peaks feel earned.
+              The peaks correspond to moments any reader would identify: Harry&apos;s letters arriving in impossible quantities, Hagrid revealing the truth on his birthday, the wonder of Diagon Alley, the Sorting Hat ceremony, the troll fight that forges a friendship, the discovery of Nicolas Flamel, the Norbert aftermath, and the climactic confrontation with Quirrell.
             </P>
             <P>
-              This is the core claim: <B>deterministic formulas applied to structural mutations recover the dramatic shape of a narrative without reading the prose</B>. The formulas don&apos;t know that Hagrid is a beloved character or that the Sorting Hat is a moment of belonging. They see thread transitions, relationship shifts, and knowledge graph expansion. The dramatic shape emerges from the mathematics.
-            </P>
-            <P>
-              The same formulas, applied to AI-generated narratives, reveal a consistent structural gap. Published literature scores 90+ with varied delivery curves — visible peaks and valleys. AI-generated text typically scores 70&ndash;80 with flatter curves: the mutations are structurally valid but uniformly dense, lacking the contrast between buildup and payoff that creates memorable moments. This gap motivated the Markov chain pacing system described below.
+              This is the core claim: <B>deterministic formulas applied to structural mutations recover the dramatic shape of a narrative without reading the prose</B>. The mutations are extracted by an LLM — the formulas are deterministic, their inputs are not. What we measure is a structured approximation, useful enough to act on. Applied to AI-generated narratives, the same formulas produce flatter delivery curves: mutations are structurally valid but uniformly dense, lacking the contrast that creates memorable moments.
             </P>
           </Section>
 
@@ -470,9 +464,9 @@ export default function PaperPage() {
 
             <div className="mb-12">
               <h3 className="text-[15px] font-semibold text-white/80 mb-2">Delivery</h3>
-              <Eq tex="E_i = 0.3 P_i + 0.4 \tanh\!\left(\tfrac{C_i}{1.5}\right) + 0.4 \tanh\!\left(\tfrac{K_i}{1.5}\right) + 0.1 \cdot \text{contrast}_i" />
+              <Eq tex={String.raw`E_i = w \sum_{f \,\in\, \{P,C,K\}} \tanh\!\left(\frac{f_i}{\alpha}\right) \;+\; \gamma \cdot \text{contrast}_i \qquad w{=}0.3,\;\; \alpha{=}1.5,\;\; \gamma{=}0.2`} />
               <P>
-                The dopamine hit. Change and Knowledge are weighted equally (0.4) — character transformation and world-building are equally strong delivery signals. Payoff contributes at 0.3 — thread resolution matters but doesn&apos;t dominate. All non-Payoff terms pass through <Tex>{'\\tanh(x/1.5)'}</Tex>, which saturates faster for cleaner separation between high and low intensity scenes. The contrast term, <Tex>{'\\text{contrast}_i = \\max(0,\\; T_{i-1} - T_i)'}</Tex>, is kept low (0.1) — the raw forces already encode tension-release, and heavy contrast distorts smaller peaks. Calibrated against <em>Harry Potter</em>, <em>Nineteen Eighty-Four</em>, <em>The Great Gatsby</em>, and <em>Reverend Insanity</em>.
+                The dopamine hit. All three forces are treated symmetrically — same weight, same saturation function. <Tex>{'\\tanh(f/\\alpha)'}</Tex> compresses extreme values while preserving the sign and relative ordering of z-scored forces. The contrast term, <Tex>{'\\text{contrast}_i = \\max(0,\\; T_{i-1} - T_i)'}</Tex>, rewards tension-release patterns. Calibrated against <em>Harry Potter</em>, <em>Nineteen Eighty-Four</em>, <em>The Great Gatsby</em>, and <em>Reverend Insanity</em>.
               </P>
             </div>
 

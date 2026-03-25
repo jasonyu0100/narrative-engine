@@ -117,7 +117,7 @@ Three force dimensions derived from the mutations above, all **z-score normalise
 
 Derived metrics:
 - **Tension** — `T = C + K - P`, buildup without release — the coiled spring
-- **Delivery** — `0.3P + 0.4·tanh(C/1.5) + 0.4·tanh(K/1.5) + 0.1·contrast`, C and K equally weighted (0.4), P at 0.3, low contrast (0.1). tanh(x/1.5) saturates faster for cleaner peak separation. Calibrated across HP, 1984, Gatsby, RI (89/101 peak/valley alignment). `contrast = max(0, T[i-1] - T[i])`
+- **Delivery** — `0.3·Σ tanh(f/1.5) + 0.2·contrast` where f ∈ {P,C,K}. All forces symmetric — same weight, same saturation. `contrast = max(0, T[i-1] - T[i])`. Calibrated across HP, 1984, Gatsby, RI.
 - **Swing** — Euclidean distance between consecutive force snapshots
 
 Formulas in `src/lib/narrative-utils.ts`, inspectable via `FormulaModal`. The **cube** model maps forces into 3D space for trajectory analysis.
