@@ -12,7 +12,7 @@
  *
  * When updating: check src/lib/narrative-utils.ts FORCE_REFERENCE_MEANS
  * to keep prompt numbers in sync with grading formulas.
- * Current: { payoff: 1.5, change: 4, knowledge: 3.5 }
+ * Current: { payoff: 1.3, change: 4, knowledge: 3.5 }
  */
 
 import { THREAD_TERMINAL_STATUSES } from '@/types/narrative';
@@ -20,12 +20,12 @@ import { THREAD_LIFECYCLE_DOC } from './context';
 
 // ── Force Standards ──────────────────────────────────────────────────────────
 // Numbers here MUST match FORCE_REFERENCE_MEANS in narrative-utils.ts:
-//   { payoff: 1.5, change: 4, knowledge: 3.5 }
+//   { payoff: 1.3, change: 4, knowledge: 3.5 }
 // These are the values where the exponential grading curve scores ~86% (22/25).
 
 export const PROMPT_FORCE_STANDARDS = `
 GRADING REFERENCE MEANS — the arc average should approximate these values. Individual scenes vary above and below; the variation is essential. Graded per-arc on an exponential curve where matching the reference mean scores ~86%.
-  Payoff ~1.5 | Change ~4 | Knowledge ~3.5
+  Payoff ~1.3 | Change ~4 | Knowledge ~3.5
 REUSE existing world knowledge node IDs when a scene reinforces an established concept — don't duplicate.
 `;
 
@@ -68,8 +68,9 @@ continuityMutations — track what characters learn:
 - Dense scenes (reveals, confrontations): 2-3 mutations per character. Normal scenes: 0-1 total. Quiet scenes: 0.
 - nodeType should be specific and contextual: "tactical_insight", "betrayal_discovered", "forbidden_technique", "political_leverage", "hidden_lineage", "oath_sworn".
 
-relationshipMutations — track how dynamics shift:
+relationshipMutations — track how dynamics shift (feeds Change via √Σ|valenceDelta|):
 - valenceDelta ranges: ±0.1 (subtle), ±0.2-0.3 (meaningful), ±0.4-0.5 (dramatic).
+- Larger valence swings produce more Change — a betrayal weighs more than a polite exchange.
 - Include whenever characters interact meaningfully. Omit in scenes where characters don't interact.
 
 worldKnowledgeMutations — track the world's abstract structure:

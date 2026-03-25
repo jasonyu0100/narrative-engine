@@ -230,14 +230,15 @@ function computeRawPayoff(scene: Scene): number {
 }
 
 /** Raw change: total mutation intensity with sqrt scaling.
- *  C = √|M_c| + √|events|
+ *  C = √|M_c| + √|events| + √Σ|valenceDelta|
  *  M_c = continuity mutations (what characters learn, lose, or become).
- *  Cast-blind — a tight 2-character confrontation scores the same as a 10-character
- *  ensemble with equal total mutations. Events contribute as a separate sqrt term. */
+ *  Relationship contribution is valence-based — a dramatic betrayal (±0.5)
+ *  weighs more than two polite exchanges (±0.1 each). */
 function rawChange(scene: Scene): number {
-  // sqrt for both — less aggressive compression than log₂,
-  // allows dense scenes to spike meaningfully above sparse ones.
-  return Math.sqrt(scene.continuityMutations.length) + Math.sqrt(scene.events.length);
+  const relIntensity = scene.relationshipMutations.reduce((sum, rm) => sum + Math.abs(rm.valenceDelta), 0);
+  return Math.sqrt(scene.continuityMutations.length)
+    + Math.sqrt(scene.events.length)
+    + Math.sqrt(relIntensity);
 }
 
 /** Raw knowledge: K = ΔN + √ΔE
@@ -789,9 +790,9 @@ export function classifyArchetype(grades: ForceGrades): NarrativeArchetype {
   const k = grades.knowledge;
   const max = Math.max(p, c, k);
   const gap = 5;
-  const floor = 20;
+  const floor = 21;
 
-  // A force must score ≥ 20 AND be within 5 of the max to be dominant
+  // A force must score ≥ 21 AND be within 5 of the max to be dominant
   const pDom = p >= floor && p >= max - gap;
   const cDom = c >= floor && c >= max - gap;
   const kDom = k >= floor && k >= max - gap;
@@ -912,7 +913,7 @@ const avg = (arr: number[]) => arr.length > 0 ? arr.reduce((s, v) => s + v, 0) /
  *  Raw force values are divided by these to produce a unit-free normalized value
  *  (x̃ = x̄ / μ_ref). At x̃ = 1 the grade reaches ~18/25 (73%).
  *  Calibrated from literary works (HP, Gatsby, Crime & Punishment, Coiling Dragon). */
-export const FORCE_REFERENCE_MEANS = { payoff: 1.5, change: 4, knowledge: 3.5 } as const;
+export const FORCE_REFERENCE_MEANS = { payoff: 1.3, change: 4, knowledge: 3.5 } as const;
 
 /** Grade a mean-normalized force value 0→25: g(x̃) = 25(1 - e^{-2x̃}).
  *  x̃ = x̄ / μ_ref. At x̃ = 1 (matching reference), grade ≈ 22/25 (86%). */

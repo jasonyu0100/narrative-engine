@@ -255,9 +255,9 @@ export default function PaperPage() {
               <P>
                 How intensely did this scene transform? A tight two-character confrontation scores the same as a ten-character ensemble with equal total mutations — the formula is cast-blind.
               </P>
-              <Eq tex={String.raw`C = \sqrt{\,M_c\,} \;+\; \sqrt{\,|\mathcal{E}|\,}`} />
+              <Eq tex={String.raw`C = \sqrt{\,M_c\,} \;+\; \sqrt{\,|\mathcal{E}|\,} \;+\; \sqrt{\,\textstyle\sum |\Delta v|\,}`} />
               <P>
-                <Tex>{String.raw`M_c`}</Tex> is the number of continuity mutations (what characters learn, lose, or become) and <Tex>{String.raw`|\mathcal{E}|`}</Tex> is the event count. Square root scaling gives diminishing returns while preserving meaningful spikes — a dense confrontation with 8 mutations scores 2.8&times; a quiet scene with 1 mutation, producing visible peaks and valleys in the force graph.
+                <Tex>{String.raw`M_c`}</Tex> is the number of continuity mutations (what characters learn, lose, or become), <Tex>{String.raw`|\mathcal{E}|`}</Tex> is the event count, and <Tex>{String.raw`\sum |\Delta v|`}</Tex> is the total relationship valence intensity — the sum of absolute valence shifts across all relationship mutations. A dramatic betrayal (<Tex>{String.raw`|\Delta v| = 0.5`}</Tex>) weighs more than a polite exchange (<Tex>{String.raw`|\Delta v| = 0.1`}</Tex>). Square root scaling on all three terms gives diminishing returns while preserving meaningful spikes.
               </P>
             </div>
 
@@ -422,7 +422,7 @@ export default function PaperPage() {
             </P>
             <Eq tex="g(\tilde{x}) = 25\left(1 - e^{-2\tilde{x}}\right) \qquad \text{where} \quad \tilde{x} = \frac{\bar{x}}{\mu_{\text{ref}}}" />
             <P>
-              At <Tex>{'\\tilde{x} = 1'}</Tex> (matching the reference mean), the grade is ~22/25. The curve is steep early — rewarding baseline competence — and flattens at high levels. Reference works land between 88 and 93.
+              At <Tex>{'\\tilde{x} = 1'}</Tex> (matching the reference mean), the grade is ~22/25. The curve is steep early — rewarding baseline competence — and flattens at high levels. Reference works land between 85 and 92.
             </P>
 
             <P>
@@ -430,7 +430,7 @@ export default function PaperPage() {
             </P>
             <div className="mt-3 mb-4 grid grid-cols-3 gap-2 text-[11px] max-w-sm">
               {[
-                { force: 'Payoff', value: '1.5', color: '#EF4444' },
+                { force: 'Payoff', value: '1.3', color: '#EF4444' },
                 { force: 'Change', value: '4', color: '#22C55E' },
                 { force: 'Knowledge', value: '3.5', color: '#3B82F6' },
               ].map(({ force, value, color }) => (

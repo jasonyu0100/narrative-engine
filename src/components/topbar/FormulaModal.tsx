@@ -51,9 +51,9 @@ function ForcesTab() {
       </S>
 
       <S title="Change" analogy="How intensely did this scene transform? A tight confrontation scores the same as an ensemble with equal total mutations.">
-        <Block tex={String.raw`C = \sqrt{\,M_c\,} \;+\; \sqrt{\,|\mathcal{E}|\,}`} />
+        <Block tex={String.raw`C = \sqrt{\,M_c\,} \;+\; \sqrt{\,|\mathcal{E}|\,} \;+\; \sqrt{\,\textstyle\sum |\Delta v|\,}`} />
         <p className="text-[10px] text-text-dim">
-          <Tex>{String.raw`M_c`}</Tex> = continuity mutations (what characters learn, lose, or become), <Tex>{String.raw`|\mathcal{E}|`}</Tex> = events. Square root scaling — dense scenes spike meaningfully above sparse ones. Cast-blind.
+          <Tex>{String.raw`M_c`}</Tex> = continuity mutations, <Tex>{String.raw`|\mathcal{E}|`}</Tex> = events, <Tex>{String.raw`\sum |\Delta v|`}</Tex> = relationship valence intensity. A betrayal (<Tex>{String.raw`|\Delta v|{=}0.5`}</Tex>) weighs more than a polite exchange (<Tex>{String.raw`|\Delta v|{=}0.1`}</Tex>). Cast-blind.
         </p>
       </S>
 

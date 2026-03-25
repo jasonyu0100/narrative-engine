@@ -99,20 +99,20 @@ Every scene records structural changes to the knowledge graph. These mutations a
 Threads are narrative tensions (a rivalry, a secret, a quest) with a lifecycle: `dormant → active → escalating → critical → resolved/subverted/abandoned`. Each scene records thread mutations as `{threadId, from, to}` status transitions. A thread jumping from `active` to `critical` contributes `|3 - 1| = 2` to Payoff. Threads mentioned without transitioning earn a pulse of 0.25.
 
 ### Continuity Mutations → Change
-Continuity mutations track what characters learn, lose, or become: `{characterId, nodeId, action, content, nodeType}`. Each mutation adds a knowledge node to a character's continuity graph. Events are tagged per scene. Both feed Change via square root scaling: `C = √M_c + √|E|`.
+Continuity mutations track what characters learn, lose, or become: `{characterId, nodeId, action, content, nodeType}`. Each mutation adds a knowledge node to a character's continuity graph. Events are tagged per scene. These feed Change alongside relationship valence intensity: `C = √M_c + √|E| + √Σ|valenceDelta|`.
 
 ### World Knowledge Mutations → Knowledge
 The world knowledge graph tracks laws, systems, concepts, and tensions as nodes with typed edges between them. Each scene can add nodes (`{id, concept, type}`) and edges (`{from, to, relation}`). Knowledge is computed as `K = ΔN + √ΔE` — nodes linear, edges sqrt.
 
-### Relationship Mutations (tracked, not scored)
-Relationship mutations (`{from, to, type, valenceDelta}`) track how connections between characters shift. These are recorded and displayed but do not feed into the force formulas — they exist for the user's reference and the LLM's context.
+### Relationship Mutations → Change
+Relationship mutations (`{from, to, type, valenceDelta}`) track how connections between characters shift. They feed Change via `√Σ|valenceDelta|` — a dramatic betrayal weighs more than a polite exchange.
 
 ## Narrative Forces & Formulas
 
 Three force dimensions derived from the mutations above, all **z-score normalised** (mean=0, units=standard deviations):
 
 - **Payoff (P)** — `Σ max(0, φ_to - φ_from)` over thread mutations, plus 0.25 pulse per same-status mention
-- **Change (C)** — `√M_c + √|E|` where M_c = continuity mutation count, |E| = event count. Cast-blind.
+- **Change (C)** — `√M_c + √|E| + √Σ|valenceDelta|` where M_c = continuity mutation count, |E| = event count, valenceDelta from relationship mutations.
 - **Knowledge (K)** — `ΔN + √ΔE` where ΔN = new world knowledge nodes, ΔE = new world knowledge edges
 
 Derived metrics:
