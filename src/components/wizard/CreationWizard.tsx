@@ -241,7 +241,6 @@ export function CreationWizard() {
     );
   }
 
-  const hasDetails = wd.characters.length > 0 || wd.locations.length > 0 || wd.threads.length > 0 || wd.rules.length > 0;
 
   // ── Step 2: Details view ───────────────────────────────────────────
   if (isDetails) {
@@ -524,7 +523,7 @@ export function CreationWizard() {
             <button
               onClick={() => {
                 dispatch({ type: 'CLOSE_WIZARD' });
-                router.push('/premise');
+                router.push('/discover');
               }}
               className="flex items-center gap-3 w-full rounded-lg border border-dashed border-white/8 hover:border-white/16 px-4 py-3 transition group"
             >
@@ -535,7 +534,7 @@ export function CreationWizard() {
               </svg>
               <div className="text-left">
                 <p className="text-[11px] text-white/50 group-hover:text-white/70 transition font-medium">Not sure where to start?</p>
-                <p className="text-[10px] text-white/25 group-hover:text-white/35 transition">Answer a few questions and we&rsquo;ll help you discover a world.</p>
+                <p className="text-[10px] text-white/25 group-hover:text-white/35 transition">Answer a few questions to discover and refine your world first.</p>
               </div>
               <svg className="w-3.5 h-3.5 text-white/15 group-hover:text-white/35 transition ml-auto shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M9 18l6-6-6-6" /></svg>
             </button>

@@ -7,7 +7,7 @@ const NAV_ITEMS = [
   { href: '/', label: 'Home' },
   { href: '/paper', label: 'Paper' },
   { href: '/case-analysis', label: 'Case Analysis' },
-  { href: '/premise', label: 'Premise' },
+  { href: '/discover', label: 'Discover' },
   { href: '/dashboard', label: 'Dashboard' },
 ];
 

@@ -205,11 +205,15 @@ function WorldGraph({ entities, edges }: { entities: PremiseEntity[]; edges: Pre
 
     nodeSel.attr('opacity', 0).transition().duration(400).attr('opacity', 1);
 
+    const pad = 40; // padding from edges for node labels
+
     const sim = d3.forceSimulation<GraphNode>(nodes)
-      .force('link', d3.forceLink<GraphNode, GraphLink>(links).id(d => d.id).distance(80))
-      .force('charge', d3.forceManyBody().strength(-200))
+      .force('link', d3.forceLink<GraphNode, GraphLink>(links).id(d => d.id).distance(70))
+      .force('charge', d3.forceManyBody().strength(-150))
       .force('center', d3.forceCenter(width / 2, height / 2))
-      .force('collide', d3.forceCollide(30))
+      .force('collide', d3.forceCollide(35))
+      .force('boundX', () => { for (const n of nodes) { n.x = Math.max(pad, Math.min(width - pad, n.x!)); } })
+      .force('boundY', () => { for (const n of nodes) { n.y = Math.max(pad, Math.min(height - pad, n.y!)); } })
       .on('tick', () => {
         linkSel
           .attr('x1', d => (d.source as GraphNode).x!)
@@ -221,6 +225,30 @@ function WorldGraph({ entities, edges }: { entities: PremiseEntity[]; edges: Pre
           .attr('y', d => ((d.source as GraphNode).y! + (d.target as GraphNode).y!) / 2);
         nodeSel.attr('transform', d => `translate(${d.x},${d.y})`);
       });
+
+    // Auto-fit: once simulation cools, zoom to fit all nodes within the viewport
+    sim.on('end', () => {
+      if (nodes.length < 2) return;
+      let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+      for (const n of nodes) {
+        if (n.x! < minX) minX = n.x!;
+        if (n.y! < minY) minY = n.y!;
+        if (n.x! > maxX) maxX = n.x!;
+        if (n.y! > maxY) maxY = n.y!;
+      }
+      const bw = maxX - minX + pad * 2;
+      const bh = maxY - minY + pad * 2;
+      const scale = Math.min(1, Math.min(width / bw, height / bh) * 0.9);
+      const cx = (minX + maxX) / 2;
+      const cy = (minY + maxY) / 2;
+      const tx = width / 2 - cx * scale;
+      const ty = height / 2 - cy * scale;
+      svg.transition().duration(400).call(
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        (d3.zoom<SVGSVGElement, unknown>() as any).transform,
+        d3.zoomIdentity.translate(tx, ty).scale(scale),
+      );
+    });
 
     simRef.current = sim;
     return () => { sim.stop(); };
@@ -268,7 +296,7 @@ function DecisionHistory({ decisions }: { decisions: PremiseDecision[] }) {
 
 // ── Main Component ───────────────────────────────────────────────────────────
 
-export function PremisePage() {
+export function DiscoverPage() {
   const { state: storeState, dispatch: storeDispatch } = useStore();
   const [state, dispatch] = useReducer(reducer, initialState);
   const [selectedChoice, setSelectedChoice] = useState<string | null>(null);
@@ -365,10 +393,10 @@ export function PremisePage() {
         </div>
 
         <div className="relative z-10 max-w-lg w-full">
-          <h1 className="text-3xl font-bold text-white/90 mb-2 tracking-tight">Build a premise.</h1>
+          <h1 className="text-3xl font-bold text-white/90 mb-2 tracking-tight">Discover your world.</h1>
           <p className="text-[13px] text-white/35 mb-8 leading-relaxed">
-            Answer questions to shape your world. Each choice deepens
-            characters, locations, threads, and rules until the concept is ready to become a story.
+            Answer questions to shape what your story is about. Each choice refines
+            characters, locations, threads, and rules until the concept is ready to write.
           </p>
 
           <div className="prompt-glow relative rounded-xl border border-white/8 focus-within:border-white/15 transition-colors duration-200">
@@ -403,7 +431,7 @@ export function PremisePage() {
           {/* Header */}
           <div className="mb-8">
             <h1 className="text-xl font-semibold text-white/90 tracking-tight">
-              {state.title || 'Premise'}
+              {state.title || 'Discover'}
             </h1>
             {state.worldSummary && (
               <p className="text-[12px] text-white/35 mt-1.5 leading-relaxed">{state.worldSummary}</p>
