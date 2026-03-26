@@ -2,7 +2,7 @@
 
 Knowledge-graph-based narrative analysis, generation, and revision platform. Derives **payoff**, **change**, and **knowledge** forces from scene-level mutations — then uses those forces to grade, search, generate, and iteratively refine stories.
 
-**[Read the paper →](/paper)** · **[Case analysis: Harry Potter →](/case-analysis)** · **[Try it →](/)**
+**[Read the paper →](https://narrative-engine-orcin.vercel.app/paper)** · **[Case analysis: Harry Potter →](https://narrative-engine-orcin.vercel.app/case-analysis)** · **[Try it →](https://narrative-engine-orcin.vercel.app/)**
 
 ## Setup
 
@@ -35,7 +35,7 @@ Every scene produces mutations across three structural layers. Deterministic for
 | Force | Formula | Measures |
 |-------|---------|----------|
 | **Payoff** | `P = Σ max(0, φ_to - φ_from) + 0.25 × pulses` | Thread phase transitions |
-| **Change** | `C = √M_c + √|E| + √Σ|Δv|` | Character transformation intensity |
+| **Change** | `C = √M_c + √E + √Σ Δv` | Character transformation intensity |
 | **Knowledge** | `K = ΔN + √ΔE` | World-building density |
 
 **Derived**: Tension (`C + K - P`), Delivery (`0.3·Σ tanh(f/1.5) + 0.2·contrast`), Swing (Euclidean distance in PCK space)
