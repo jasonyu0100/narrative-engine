@@ -2,6 +2,7 @@ import type { NarrativeState, Scene, StorySettings } from '@/types/narrative';
 import { resolveEntry, THREAD_ACTIVE_STATUSES, THREAD_TERMINAL_STATUSES, THREAD_STATUS_LABELS, DEFAULT_STORY_SETTINGS } from '@/types/narrative';
 import { computeForceSnapshots, computeSwingMagnitudes, detectCubeCorner, movingAverage, FORCE_WINDOW_SIZE, computeDeliveryCurve, classifyCurrentPosition, buildCumulativeWorldKnowledge, rankWorldKnowledgeNodes } from '@/lib/narrative-utils';
 import { SCENE_CONTEXT_RECENT_CONTINUITY } from '@/lib/constants';
+import { getIntroducedIds } from '@/lib/scene-filter';
 
 // Build thread lifecycle documentation from canonical status lists
 export const THREAD_LIFECYCLE_DOC = (() => {
@@ -136,7 +137,8 @@ export function branchContext(
   }
 
   // Knowledge: keep original (non-mutation) nodes + mutation nodes from the time horizon
-  const artifactEntries = Object.values(n.artifacts ?? {});
+  const introduced = getIntroducedIds(n.worldBuilds, resolvedKeys, currentIndex);
+  const artifactEntries = Object.values(n.artifacts ?? {}).filter((a) => introduced.artifactIds.has(a.id));
   const artifactsByOwner = new Map<string, typeof artifactEntries>();
   for (const a of artifactEntries) {
     const list = artifactsByOwner.get(a.parentId) ?? [];

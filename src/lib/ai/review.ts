@@ -1,6 +1,8 @@
 import type { NarrativeState, PlanningPhase } from '@/types/narrative';
+import { DEFAULT_STORY_SETTINGS } from '@/types/narrative';
 import { callGenerate, SYSTEM_PROMPT } from './api';
 import { branchContext } from './context';
+import { buildThreadHealthPrompt } from './prompts';
 import { parseJson } from './json';
 
 /**
@@ -41,7 +43,9 @@ ${phase.constraints ? `PHASE CONSTRAINTS: ${phase.constraints}` : ''}
 CURRENT DIRECTION: ${currentDirection || '(none set)'}
 CURRENT CONSTRAINTS: ${currentConstraints || '(none set)'}
 
-Review the scene history above through these five lenses:
+${buildThreadHealthPrompt(narrative, resolvedKeys, currentIndex, narrative.storySettings?.threadResolutionSpeed ?? DEFAULT_STORY_SETTINGS.threadResolutionSpeed)}
+
+Review the scene history above through these lenses:
 
 1. THREAD TENSION — Look at the active threads. Are any two on a collision course? If not, the next arc MUST force one. Name which threads should collide and how. If threads are already colliding, push the collision harder.
 

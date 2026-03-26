@@ -52,9 +52,21 @@ function computeDerivedEntities(
         const exists = relationships.some((x) => x.from === r.from && x.to === r.to);
         if (!exists) relationships.push({ ...r });
       }
-      // Collect artifacts
+      // Collect artifacts — merge continuity if artifact already exists
       for (const a of wb.expansionManifest.artifacts ?? []) {
-        artifacts[a.id] = { ...a, continuity: a.continuity ?? { nodes: [] } };
+        const existing = artifacts[a.id];
+        if (existing) {
+          // Merge: update fields, accumulate continuity nodes
+          const existingNodeIds = new Set(existing.continuity.nodes.map((n) => n.id));
+          const newNodes = (a.continuity?.nodes ?? []).filter((n) => !existingNodeIds.has(n.id));
+          artifacts[a.id] = {
+            ...existing,
+            ...a,
+            continuity: { nodes: [...existing.continuity.nodes, ...newNodes] },
+          };
+        } else {
+          artifacts[a.id] = { ...a, continuity: a.continuity ?? { nodes: [] } };
+        }
       }
       // Collect world knowledge
       applyWkMutation(wb.expansionManifest.worldKnowledge ?? { addedNodes: [], addedEdges: [] });

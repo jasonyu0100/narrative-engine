@@ -16,6 +16,7 @@
  */
 
 import { THREAD_TERMINAL_STATUSES } from '@/types/narrative';
+import type { NarrativeState, ThreadResolutionSpeed } from '@/types/narrative';
 import { THREAD_LIFECYCLE_DOC } from './context';
 
 // ── Force Standards ──────────────────────────────────────────────────────────
@@ -220,3 +221,134 @@ CHARACTER ARC DISCIPLINE:
 - Secondary characters must not be atmospheric props. If a character appears in multiple scenes with the same reaction (same fear, same loyalty, same suspicion), they must CHANGE or be removed from the scene.
 - Every arc should contain at least one moment where a character's action in Thread A creates an unintended consequence in Thread B. This is how threads collide.
 `;
+
+// ── Thread Health Analysis ──────────────────────────────────────────────────
+
+const PHASE_INDEX: Record<string, number> = { dormant: 0, active: 1, escalating: 2, critical: 3, resolved: 4, subverted: 4, abandoned: 4 };
+
+/** Resolution speed standards — guidelines, not mechanical rules.
+ *  Some threads naturally run longer (a rivalry across a novel) while
+ *  others resolve in a few scenes (a minor subplot). These standards
+ *  set expectations so the LLM can judge which threads need attention. */
+const SPEED_STANDARDS: Record<ThreadResolutionSpeed, { benchmark: number; label: string }> = {
+  slow: { benchmark: 10, label: 'Slow burn — threads develop gradually, ~10 scenes between transitions' },
+  moderate: { benchmark: 6, label: 'Balanced — steady progression, ~6 scenes between transitions' },
+  fast: { benchmark: 4, label: 'Thriller — threads escalate quickly, ~4 scenes between transitions' },
+};
+
+/**
+ * Build a data-driven thread health report for the LLM.
+ * Surfaces velocity metrics so the LLM can make intelligent decisions
+ * about which threads to accelerate, sustain, or abandon.
+ */
+export function buildThreadHealthPrompt(
+  narrative: NarrativeState,
+  resolvedKeys: string[],
+  currentIndex: number,
+  speed: ThreadResolutionSpeed,
+): string {
+  const standard = SPEED_STANDARDS[speed];
+  const terminalStatuses = new Set(THREAD_TERMINAL_STATUSES as readonly string[]);
+
+  // ── Compute per-thread metrics from scene history ──────────────────────
+  type ThreadMetrics = {
+    transitions: number;      // real status changes (not pulses)
+    pulses: number;           // same→same mentions
+    totalMutations: number;
+    scenesSinceLastTransition: number;
+    transitionHistory: string[]; // e.g. ["dormant→active (scene 5)", "active→escalating (scene 12)"]
+  };
+
+  const metrics: Record<string, ThreadMetrics> = {};
+  const threadFirstSeen: Record<string, number> = {};
+  let sceneCount = 0;
+
+  for (let i = 0; i <= currentIndex && i < resolvedKeys.length; i++) {
+    const scene = narrative.scenes[resolvedKeys[i]];
+    if (!scene) continue;
+    sceneCount++;
+
+    for (const tm of scene.threadMutations) {
+      if (!metrics[tm.threadId]) {
+        metrics[tm.threadId] = { transitions: 0, pulses: 0, totalMutations: 0, scenesSinceLastTransition: 0, transitionHistory: [] };
+      }
+      const m = metrics[tm.threadId];
+      m.totalMutations++;
+      if (threadFirstSeen[tm.threadId] === undefined) threadFirstSeen[tm.threadId] = sceneCount;
+
+      if (tm.from === tm.to) {
+        m.pulses++;
+      } else {
+        m.transitions++;
+        m.scenesSinceLastTransition = 0;
+        m.transitionHistory.push(`${tm.from}→${tm.to} (scene ${sceneCount})`);
+      }
+    }
+
+    // Increment scenes-since-last-transition for all tracked threads
+    for (const m of Object.values(metrics)) {
+      m.scenesSinceLastTransition++;
+    }
+  }
+
+  // ── Build per-thread report ────────────────────────────────────────────
+  const lines: string[] = [
+    `THREAD VELOCITY REPORT (resolution pace: ${speed.toUpperCase()})`,
+    `${standard.label}. Benchmark: ~${standard.benchmark} scenes between status transitions.`,
+    '',
+  ];
+
+  const allThreads = Object.values(narrative.threads);
+  const resolved = allThreads.filter((t) => terminalStatuses.has(t.status));
+  const active = allThreads.filter((t) => !terminalStatuses.has(t.status));
+
+  if (active.length === 0 && resolved.length === 0) return '';
+
+  // Sort active threads: longest since last transition first (most attention needed)
+  const sortedActive = active
+    .map((t) => {
+      const m = metrics[t.id] ?? { transitions: 0, pulses: 0, totalMutations: 0, scenesSinceLastTransition: 0, transitionHistory: [] };
+      const age = threadFirstSeen[t.id] !== undefined ? sceneCount - threadFirstSeen[t.id] + 1 : 0;
+      const pulseRatio = m.totalMutations > 0 ? m.pulses / m.totalMutations : 0;
+      const velocity = age > 0 ? m.transitions / age : 0; // transitions per scene
+      return { ...t, m, age, pulseRatio, velocity };
+    })
+    .sort((a, b) => b.m.scenesSinceLastTransition - a.m.scenesSinceLastTransition);
+
+  for (const t of sortedActive) {
+    const phaseIdx = PHASE_INDEX[t.status] ?? 0;
+    const statusLabel = `${t.status} (phase ${phaseIdx}/4)`;
+    const velocityLabel = t.velocity > 0 ? (t.velocity * 10).toFixed(1) + ' transitions per 10 scenes' : 'no transitions yet';
+    const pulseLabel = t.pulseRatio > 0.8 ? '⚠ HIGH PULSE RATIO — thread is being touched but not progressing' : '';
+    const sinceLabel = t.m.scenesSinceLastTransition > standard.benchmark
+      ? `⚠ ${t.m.scenesSinceLastTransition} scenes since last transition (benchmark: ${standard.benchmark})`
+      : `${t.m.scenesSinceLastTransition} scenes since last transition`;
+    const history = t.m.transitionHistory.length > 0
+      ? `History: ${t.m.transitionHistory.join(' → ')}`
+      : 'No transitions yet — still at initial status';
+
+    lines.push(`"${t.description}" [${t.id}]`);
+    lines.push(`  Status: ${statusLabel} | Age: ${t.age} scenes | Mutations: ${t.m.totalMutations} (${t.m.transitions} transitions, ${t.m.pulses} pulses)`);
+    lines.push(`  Velocity: ${velocityLabel} | ${sinceLabel}`);
+    if (pulseLabel) lines.push(`  ${pulseLabel}`);
+    lines.push(`  ${history}`);
+    lines.push('');
+  }
+
+  // Summary
+  lines.push(`RESOLUTION PROGRESS: ${resolved.length}/${allThreads.length} threads resolved, ${active.length} active.`);
+  if (resolved.length > 0) {
+    lines.push(`Resolved: ${resolved.map((t) => `"${t.description}" [${t.status}]`).join(', ')}`);
+  }
+
+  // Standards reminder
+  lines.push('');
+  lines.push('STANDARDS (guidelines, not rules — use judgment based on each thread\'s narrative weight):');
+  lines.push(`- Threads sitting at the same status for >${standard.benchmark} scenes need attention: transition, escalate, or abandon.`);
+  lines.push('- High pulse ratio (>80% pulses vs transitions) means a thread is being referenced but not progressing — push it forward or let it go.');
+  lines.push('- Major threads can run longer than the benchmark. Minor subplots should resolve faster.');
+  lines.push('- Every arc should advance at least one thread by one phase. Zero-progress arcs waste reader patience.');
+
+  return lines.join('\n');
+}
+

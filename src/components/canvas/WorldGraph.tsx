@@ -4,7 +4,7 @@ import { useRef, useEffect, useCallback, useMemo, useState } from 'react';
 import * as d3 from 'd3';
 import { useStore } from '@/lib/store';
 import { GRAPH_CONTINUITY_LIMIT } from '@/lib/constants';
-import { getContinuityNodesAtScene, getRelationshipsAtScene } from '@/lib/scene-filter';
+import { getContinuityNodesAtScene, getRelationshipsAtScene, getIntroducedIds } from '@/lib/scene-filter';
 import type {
   Character,
   Location,
@@ -137,6 +137,12 @@ export default function WorldGraph() {
     let nodes: GraphNode[];
     let links: GraphLink[];
 
+    // Filter artifacts to only those introduced by the current timeline position
+    const introduced = getIntroducedIds(narrative.worldBuilds, resolvedEntryKeys, state.currentSceneIndex);
+    const visibleArtifacts = Object.fromEntries(
+      Object.entries(narrative.artifacts ?? {}).filter(([id]) => introduced.artifactIds.has(id)),
+    );
+
     if (graphViewMode === 'overview') {
       // Overview mode: all characters/locations sized by usage
       const result = buildOverviewGraphData(
@@ -147,7 +153,7 @@ export default function WorldGraph() {
         narrative.worldBuilds,
         resolvedEntryKeys,
         resolvedEntryKeys.length - 1,
-        narrative.artifacts,
+        visibleArtifacts,
       );
       nodes = result.nodes;
       links = result.links;
@@ -196,7 +202,7 @@ export default function WorldGraph() {
           filteredLocs,
           filteredRels,
           {},
-          narrative.artifacts,
+          visibleArtifacts,
         );
         nodes = result.nodes;
         links = result.links;
@@ -274,7 +280,7 @@ export default function WorldGraph() {
           filteredLocations,
           filteredRelationships,
           characterPositions,
-          narrative.artifacts,
+          visibleArtifacts,
         );
         nodes = result.nodes;
         links = result.links;

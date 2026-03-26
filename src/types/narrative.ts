@@ -463,6 +463,10 @@ export type POVMode = 'single' | 'ensemble' | 'free';
 /** Which world commit to seed generations with */
 export type WorldFocusMode = 'latest' | 'custom' | 'none';
 
+/** How quickly threads should progress through their lifecycle to resolution.
+ *  Controls expected scenes-per-lifecycle-phase and prompts thread acceleration/deceleration. */
+export type ThreadResolutionSpeed = 'slow' | 'moderate' | 'fast';
+
 export type StorySettings = {
   /** How POV is distributed across the story */
   povMode: POVMode;
@@ -488,6 +492,8 @@ export type StorySettings = {
   worldFocus: WorldFocusMode;
   /** Specific WorldBuild ID when worldFocus is 'custom' */
   worldFocusId?: string;
+  /** How quickly threads progress through lifecycle phases to resolution */
+  threadResolutionSpeed: ThreadResolutionSpeed;
 };
 
 export const BRANCH_TIME_HORIZON_OPTIONS = [25, 50, 100, 200] as const;
@@ -504,6 +510,7 @@ export const DEFAULT_STORY_SETTINGS: StorySettings = {
   branchTimeHorizon: 50,
   coverPrompt: '',
   worldFocus: 'none',
+  threadResolutionSpeed: 'moderate',
 };
 
 // ── Planning Queue ──────────────────────────────────────────────────────────
