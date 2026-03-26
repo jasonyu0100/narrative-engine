@@ -31,15 +31,57 @@ Every scene produces mutations across three structural layers. Deterministic, z-
 
 Each force is graded 0–25 on an exponential curve (`g(x̃) = 25(1 - e^{-2x̃})`), 100 total. The **narrative cube** maps force combinations into 8 modes (Epoch, Climax, Revelation, Closure, Discovery, Growth, Lore, Rest) used for Markov pacing and MCTS search.
 
-## Generation & Revision
+## The Pipeline
 
-**Markov Chain Pacing** — Transition matrices from published works shape scene-by-scene rhythm. Before generating, sample a mode sequence and inject as per-scene direction. `src/lib/markov.ts`
+### 1. Markov Chain Pacing
 
-**MCTS Search** — Monte Carlo Tree Search over narrative branches. Each expansion gets a fresh Markov pacing sequence. UCB1 balances exploitation vs exploration. `src/lib/mcts-engine.ts`
+Scene-to-scene transitions in published works form empirical Markov chains over the 8 cube modes. We compute transition matrices from analysed corpora — Harry Potter's matrix captures its exploratory rhythm, 1984's captures sustained tension. Before generating an arc, the engine samples a pacing sequence from the active matrix:
 
-**Planning with Course Correction** — Direction and constraint vectors steer scene generation. After every arc, vectors are rewritten based on what actually happened. `src/lib/ai/review.ts`
+```
+current_mode = detect(last_scene)
+sequence = markov_walk(matrix, current_mode, n_scenes)
+# → Growth → Lore → Climax → Rest → Growth
+```
 
-**Iterative Revision** — Evaluate branches by scene summaries → per-scene verdicts (ok / edit / rewrite / cut) → reconstruct into versioned branches. Converges in 2–3 passes. Supports external guidance. `src/lib/ai/evaluate.ts`
+Each step becomes a per-scene directive injected into the LLM prompt — specifying which force profile the scene must produce. The LLM decides *what happens*; the Markov chain controls *how intense it is*. `src/lib/markov.ts`
+
+### 2. MCTS Narrative Search
+
+Monte Carlo Tree Search explores branching narrative paths. Nodes are full knowledge graph states. Edges are generated arcs. The evaluation function is the force grading system — no separate reward model.
+
+```
+Selection:    UCB1(n) = Q(n)/N(n) + C√(ln N(parent) / N(n))
+Expansion:    generate arc with fresh Markov pacing sequence
+Evaluation:   grade(payoff, change, knowledge, swing) → 0-100
+Backprop:     propagate score up the tree
+```
+
+Each expansion samples a different pacing sequence, so sibling nodes explore structurally different trajectories even from the same state — one gets `Rest → Growth → Epoch`, another gets `Lore → Lore → Climax → Closure`. The search naturally diversifies. `src/lib/mcts-engine.ts`
+
+### 3. Planning with Course Correction
+
+Long-form stories are divided into **phases** (structural chapters with objectives and scene allocations). When a phase activates, the system generates two vectors from the current narrative state:
+
+- **Direction vector** — which threads to push, what the reader should feel, what trajectory to follow
+- **Constraint vector** — what must *not* happen yet, protecting later phases from premature resolution
+
+After every arc, a **course correction** pass analyses the story through five lenses — thread tension, character cost, rhythm, freshness, momentum — and rewrites both vectors in place. The next arc generates under guidance that reflects what *actually happened*, not what was originally planned. At phase boundaries, world expansion introduces new entities seeded with knowledge asymmetries. `src/lib/ai/review.ts`
+
+### 4. Iterative Revision
+
+Generation produces a first draft. The revision pipeline improves it without starting over, using git-like versioned branches:
+
+```
+evaluate(branch)  → per-scene verdicts: ok | edit | rewrite | cut
+reconstruct(eval) → new branch (v2, v3, v4...) with changes applied
+```
+
+- **ok** — structurally sound, continuity intact. Kept as-is.
+- **edit** — right idea, tighten execution. POV/location/cast locked, summary and mutations adjusted.
+- **rewrite** — scene should exist but structure is wrong. Everything rebuilt from scratch.
+- **cut** — redundant or near-duplicate. Removed entirely.
+
+Edits and rewrites run in parallel (`PROSE_CONCURRENCY = 10`). World commits pass through at their original timeline positions. The original branch is never modified. Evaluations can be **guided** — paste external feedback from another AI or human editor, and the system incorporates it alongside its own structural analysis. The loop converges in 2–3 passes. `src/lib/ai/evaluate.ts` `src/lib/ai/reconstruct.ts`
 
 ## Tech
 
