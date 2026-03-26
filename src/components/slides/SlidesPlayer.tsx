@@ -194,119 +194,103 @@ export function SlidesPlayer({
           </span>
         </div>
 
-        {/* Center: playback controls */}
-        <div className="absolute left-1/2 -translate-x-1/2 flex items-center gap-1">
-          <button
-            onClick={prev}
-            disabled={currentIdx === 0}
-            className="w-7 h-7 rounded-full flex items-center justify-center text-white/30 hover:text-white/70 hover:bg-white/8 disabled:opacity-20 disabled:pointer-events-none transition-all"
-            title="Previous"
+        {/* Right: play/pause + speed */}
+        <div className="flex items-center gap-2">
+          <select
+            value={slideDuration}
+            onChange={(e) => setSlideDuration(Number(e.target.value))}
+            className="bg-transparent border border-white/8 rounded-full px-2.5 py-1 text-[10px] text-white/30 hover:text-white/50 hover:border-white/15 outline-none transition-colors cursor-pointer"
           >
-            <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-              <polyline points="15 18 9 12 15 6" />
-            </svg>
-          </button>
+            <option value={5000}>5s</option>
+            <option value={8000}>8s</option>
+            <option value={12000}>12s</option>
+            <option value={20000}>20s</option>
+          </select>
           <button
             onClick={() => setIsPlaying((v) => !v)}
-            className="w-8 h-8 rounded-full flex items-center justify-center text-white/50 hover:text-white/90 hover:bg-white/8 transition-all"
+            className={`w-7 h-7 rounded-full flex items-center justify-center border transition-all ${
+              isPlaying
+                ? 'bg-green-500/20 text-green-400 border-green-500/30 hover:bg-green-500/30'
+                : 'bg-green-500/10 text-green-400/70 border-green-500/15 hover:bg-green-500/20 hover:text-green-400'
+            }`}
             title={isPlaying ? 'Pause (P)' : 'Play (P)'}
           >
             {isPlaying ? (
-              <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
+              <svg className="w-3 h-3" viewBox="0 0 24 24" fill="currentColor">
                 <rect x="6" y="4" width="4" height="16" rx="1" /><rect x="14" y="4" width="4" height="16" rx="1" />
               </svg>
             ) : (
-              <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
+              <svg className="w-3 h-3 ml-0.5" viewBox="0 0 24 24" fill="currentColor">
                 <polygon points="6,3 20,12 6,21" />
               </svg>
             )}
           </button>
-          <button
-            onClick={next}
-            disabled={currentIdx === totalSlides - 1}
-            className="w-7 h-7 rounded-full flex items-center justify-center text-white/30 hover:text-white/70 hover:bg-white/8 disabled:opacity-20 disabled:pointer-events-none transition-all"
-            title="Next"
-          >
-            <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-              <polyline points="9 18 15 12 9 6" />
-            </svg>
-          </button>
         </div>
-
-        {/* Right: speed */}
-        <select
-          value={slideDuration}
-          onChange={(e) => setSlideDuration(Number(e.target.value))}
-          className="bg-transparent border border-white/8 rounded-full px-2.5 py-1 text-[10px] text-white/30 hover:text-white/50 hover:border-white/15 outline-none transition-colors cursor-pointer"
-        >
-          <option value={5000}>5s</option>
-          <option value={8000}>8s</option>
-          <option value={12000}>12s</option>
-          <option value={20000}>20s</option>
-        </select>
       </div>
 
-      {/* Slide content with side navigation arrows */}
-      <div className="flex-1 flex items-stretch overflow-hidden relative">
-        {/* Left arrow */}
+      {/* Slide content with tap zones */}
+      <div className="flex-1 overflow-hidden relative">
+        {/* Slide area — scrollable */}
+        <div className={`h-full overflow-y-auto transition-opacity duration-200 ${transitioning ? 'opacity-0' : 'opacity-100'}`}>
+          {renderSlide(currentSlide, slidesData, onClose)}
+        </div>
+
+        {/* Tap zones — left half goes back, right half goes forward */}
+        {currentIdx > 0 && (
+          <div onClick={prev} className="absolute inset-y-0 left-0 w-1/2 z-10 cursor-w-resize" role="button" aria-label="Previous slide" />
+        )}
+        {currentIdx < totalSlides - 1 && (
+          <div onClick={next} className="absolute inset-y-0 right-0 w-1/2 z-10 cursor-e-resize" role="button" aria-label="Next slide" />
+        )}
+      </div>
+
+      {/* Bottom progress bar */}
+      <div className="h-12 px-4 border-t border-white/8 flex items-center justify-between shrink-0">
+        {/* Left nav */}
         <button
           onClick={prev}
           disabled={currentIdx === 0}
-          className="w-12 shrink-0 flex items-center justify-center text-text-dim hover:text-text-primary hover:bg-white/3 disabled:opacity-0 disabled:pointer-events-none transition-all z-10"
-          title="Previous (Left Arrow)"
+          className="w-7 h-7 rounded-full flex items-center justify-center text-white/30 hover:text-white/60 hover:bg-white/5 disabled:opacity-0 disabled:pointer-events-none transition-all"
+          title="Previous"
         >
-          <svg className="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
             <polyline points="15 18 9 12 15 6" />
           </svg>
         </button>
 
-        {/* Slide area — scrollable */}
-        <div className={`flex-1 overflow-y-auto transition-opacity duration-200 ${transitioning ? 'opacity-0' : 'opacity-100'}`}>
-          {renderSlide(currentSlide, slidesData, onClose)}
+        {/* Center: page number + progress dots */}
+        <div className="flex items-center gap-3">
+          <span className="text-[10px] font-mono text-text-dim">
+            {currentIdx + 1}/{totalSlides}
+          </span>
+          <div className="flex items-center gap-1 overflow-x-auto py-1 max-w-[50vw]">
+            {slides.map((s, i) => (
+              <button
+                key={i}
+                onClick={() => goTo(i)}
+                className={`shrink-0 rounded-full transition-all ${
+                  i === currentIdx
+                    ? 'w-6 h-2 bg-amber-400'
+                    : i < currentIdx
+                      ? 'w-2 h-2 bg-white/30 hover:bg-white/50'
+                      : 'w-2 h-2 bg-white/10 hover:bg-white/20'
+                }`}
+                title={slideLabel(s)}
+              />
+            ))}
+          </div>
         </div>
 
-        {/* Right arrow */}
+        {/* Right nav */}
         <button
           onClick={next}
           disabled={currentIdx === totalSlides - 1}
-          className="w-12 shrink-0 flex items-center justify-center text-text-dim hover:text-text-primary hover:bg-white/3 disabled:opacity-0 disabled:pointer-events-none transition-all z-10"
-          title="Next (Right Arrow)"
+          className="w-7 h-7 rounded-full flex items-center justify-center text-white/30 hover:text-white/60 hover:bg-white/5 disabled:opacity-0 disabled:pointer-events-none transition-all"
+          title="Next"
         >
-          <svg className="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
             <polyline points="9 18 15 12 9 6" />
           </svg>
-        </button>
-      </div>
-
-      {/* Bottom progress bar */}
-      <div className="h-12 px-4 border-t border-white/8 flex items-center justify-center gap-2 shrink-0 relative">
-        {/* Page number */}
-        <span className="absolute left-4 text-[10px] font-mono text-text-dim">
-          {currentIdx + 1} / {totalSlides}
-        </span>
-
-        {/* Progress dots */}
-        <div className="flex items-center gap-1 overflow-x-auto py-1 max-w-[60%]">
-          {slides.map((s, i) => (
-            <button
-              key={i}
-              onClick={() => goTo(i)}
-              className={`shrink-0 rounded-full transition-all ${
-                i === currentIdx
-                  ? 'w-6 h-2 bg-amber-400'
-                  : i < currentIdx
-                    ? 'w-2 h-2 bg-white/30 hover:bg-white/50'
-                    : 'w-2 h-2 bg-white/10 hover:bg-white/20'
-              }`}
-              title={slideLabel(s)}
-            />
-          ))}
-        </div>
-
-        {/* Right arrow */}
-        <button onClick={next} disabled={currentIdx === totalSlides - 1}
-          className="absolute right-4 text-text-dim hover:text-text-primary disabled:opacity-20 transition-colors text-sm px-2">
-          &rarr;
         </button>
       </div>
 

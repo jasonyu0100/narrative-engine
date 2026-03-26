@@ -1,3 +1,5 @@
+![Narrative Engine](public/readme-banner.png)
+
 # Narrative Engine
 
 Knowledge-graph-based narrative analysis, generation, and revision platform. Derives **payoff**, **change**, and **knowledge** forces from scene-level mutations — then uses those forces to grade, search, generate, and iteratively refine stories.
