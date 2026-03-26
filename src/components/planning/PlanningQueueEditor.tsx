@@ -28,7 +28,6 @@ export function PlanningQueueEditor({ onClose, onStartAuto }: Props) {
   const [planDocument, setPlanDocument] = useState('');
   const [generating, setGenerating] = useState(false);
   const [regenerating, setRegenerating] = useState<'world' | 'direction' | null>(null);
-  const [showAutoPrompt, setShowAutoPrompt] = useState(false);
   const [createMode, setCreateMode] = useState<CreateMode>('templates');
 
   // ── Actions ─────────────────────────────────────────────────────────────
@@ -177,51 +176,65 @@ export function PlanningQueueEditor({ onClose, onStartAuto }: Props) {
 
   const [activating, setActivating] = useState(false);
   const [activatingStep, setActivatingStep] = useState<string | null>(null);
+  const [showModeChoice, setShowModeChoice] = useState(false);
 
-  async function handleSave() {
+  /** Save the queue to the store without running any generation */
+  function handleSave() {
     if (!branchId || !queue || queue.phases.length === 0) return;
+    dispatch({ type: 'SET_PLANNING_QUEUE', branchId, queue });
+    setShowModeChoice(true);
+  }
+
+  /** Run world expansion + direction generation for the first phase */
+  async function initFirstPhase() {
+    if (!branchId || !queue) return;
     const narrative = state.activeNarrative;
     if (!narrative) return;
 
-    dispatch({ type: 'SET_PLANNING_QUEUE', branchId, queue });
-
     const firstPhase = queue.phases[0];
-    if (firstPhase.status === 'active' && !firstPhase.direction) {
-      setActivating(true);
-      try {
-        const resolvedKeys = state.resolvedEntryKeys;
-        const currentIndex = state.currentSceneIndex;
+    if (!firstPhase || (firstPhase.status === 'active' && firstPhase.direction)) return;
 
-        if (firstPhase.worldExpansionHints) {
-          setActivatingStep('Expanding world...');
-          const expansion = await expandWorld(narrative, resolvedKeys, currentIndex, firstPhase.worldExpansionHints, 'medium');
-          dispatch({
-            type: 'EXPAND_WORLD',
-            worldBuildId: nextId('WB', Object.keys(narrative.worldBuilds), 3),
-            characters: expansion.characters, locations: expansion.locations, threads: expansion.threads,
-            relationships: expansion.relationships, worldKnowledgeMutations: expansion.worldKnowledgeMutations,
-            artifacts: expansion.artifacts, branchId,
-          });
-        }
+    setActivating(true);
+    try {
+      const resolvedKeys = state.resolvedEntryKeys;
+      const currentIndex = state.currentSceneIndex;
 
-        setActivatingStep('Generating direction...');
-        const { direction, constraints } = await generatePhaseDirection(narrative, resolvedKeys, currentIndex, firstPhase, queue);
-        dispatch({ type: 'UPDATE_PLANNING_PHASE', branchId, phaseIndex: 0, updates: { direction, constraints: constraints || firstPhase.constraints } });
-        const baseSettings = { ...DEFAULT_STORY_SETTINGS, ...narrative.storySettings };
-        dispatch({ type: 'SET_STORY_SETTINGS', settings: { ...baseSettings, storyDirection: direction, storyConstraints: constraints || firstPhase.constraints || baseSettings.storyConstraints, worldFocus: 'latest' } });
-      } catch (err) {
-        console.error('[planning-queue] first phase init failed:', err);
-      } finally {
-        setActivating(false);
-        setActivatingStep(null);
+      if (firstPhase.worldExpansionHints) {
+        setActivatingStep('Expanding world...');
+        const expansion = await expandWorld(narrative, resolvedKeys, currentIndex, firstPhase.worldExpansionHints, 'medium');
+        dispatch({
+          type: 'EXPAND_WORLD',
+          worldBuildId: nextId('WB', Object.keys(narrative.worldBuilds), 3),
+          characters: expansion.characters, locations: expansion.locations, threads: expansion.threads,
+          relationships: expansion.relationships, worldKnowledgeMutations: expansion.worldKnowledgeMutations,
+          artifacts: expansion.artifacts, branchId,
+        });
       }
-    }
 
-    if (onStartAuto) {
-      setShowAutoPrompt(true);
-    } else {
-      onClose();
+      setActivatingStep('Generating direction...');
+      const { direction, constraints } = await generatePhaseDirection(narrative, resolvedKeys, currentIndex, firstPhase, queue);
+      dispatch({ type: 'UPDATE_PLANNING_PHASE', branchId, phaseIndex: 0, updates: { direction, constraints: constraints || firstPhase.constraints } });
+      const baseSettings = { ...DEFAULT_STORY_SETTINGS, ...narrative.storySettings };
+      dispatch({ type: 'SET_STORY_SETTINGS', settings: { ...baseSettings, storyDirection: direction, storyConstraints: constraints || firstPhase.constraints || baseSettings.storyConstraints, worldFocus: 'latest' } });
+    } catch (err) {
+      console.error('[planning-queue] first phase init failed:', err);
+    } finally {
+      setActivating(false);
+      setActivatingStep(null);
     }
+  }
+
+  async function handleManualGenerate() {
+    setShowModeChoice(false);
+    await initFirstPhase();
+    onClose();
+  }
+
+  async function handleAutoMode() {
+    setShowModeChoice(false);
+    await initFirstPhase();
+    onStartAuto?.();
+    onClose();
   }
 
   function handleClear() {
@@ -239,15 +252,41 @@ export function PlanningQueueEditor({ onClose, onStartAuto }: Props) {
     return <PlanningLoadingModal step={activatingStep ?? 'Initializing...'} subtitle="Preparing the first phase" />;
   }
 
-  if (showAutoPrompt) {
+  if (showModeChoice) {
     return (
       <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center">
-        <div className="glass max-w-sm w-full rounded-2xl p-5 text-center">
-          <p className="text-sm text-text-primary font-medium mb-1">Queue activated</p>
-          <p className="text-[11px] text-text-dim mb-4">Run auto mode to complete the plan?</p>
-          <div className="flex gap-2 justify-center">
-            <button onClick={onClose} className="px-4 py-2 text-xs text-text-dim hover:text-text-secondary transition">Not now</button>
-            <button onClick={() => { onStartAuto?.(); onClose(); }} className="px-5 py-2 text-xs font-semibold rounded-lg bg-white/10 hover:bg-white/16 text-text-primary transition">Start Auto Mode</button>
+        <div className="glass max-w-md w-full rounded-2xl p-6">
+          <h2 className="text-sm font-semibold text-text-primary mb-1">Queue activated</h2>
+          <p className="text-[10px] text-text-dim uppercase tracking-wider mb-5">
+            Choose how to run the first phase
+          </p>
+
+          <div className="flex flex-col gap-2.5">
+            <button
+              onClick={handleManualGenerate}
+              className="w-full text-left rounded-lg border border-white/8 bg-white/3 hover:bg-white/6 hover:border-white/15 p-4 transition-colors group"
+            >
+              <p className="text-[12px] font-medium text-text-primary group-hover:text-white transition-colors">Manual Generate</p>
+              <p className="text-[11px] text-text-dim mt-0.5 leading-relaxed">
+                Prepare the world and direction, then generate scenes yourself. You control the pace.
+              </p>
+            </button>
+
+            <button
+              onClick={handleAutoMode}
+              className="w-full text-left rounded-lg border border-white/8 bg-white/3 hover:bg-white/6 hover:border-white/15 p-4 transition-colors group"
+            >
+              <p className="text-[12px] font-medium text-text-primary group-hover:text-white transition-colors">Auto Mode</p>
+              <p className="text-[11px] text-text-dim mt-0.5 leading-relaxed">
+                Prepare the world and direction, then auto-generate scenes through every phase until complete.
+              </p>
+            </button>
+          </div>
+
+          <div className="flex justify-end mt-4 pt-3 border-t border-white/5">
+            <button onClick={onClose} className="text-[10px] px-3 py-1.5 text-text-dim hover:text-text-secondary transition-colors">
+              Cancel
+            </button>
           </div>
         </div>
       </div>
