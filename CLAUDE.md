@@ -1,4 +1,4 @@
-# Narrative Engine
+# InkTide
 
 Knowledge-graph-based narrative analysis, generation, and revision platform. Derives **payoff**, **change**, and **knowledge** forces from scene-level mutations. Next.js 16 + React 19 + TypeScript.
 

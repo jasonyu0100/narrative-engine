@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Overlay "NARRATIVE ENGINE" text on the readme banner.
+ * Overlay "INKTIDE" text on the readme banner.
  * Uses sharp (already installed via Next.js).
  */
 
@@ -12,8 +12,8 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const INPUT = path.resolve(__dirname, "..", "public", "readme-banner.png");
 const OUTPUT = INPUT; // overwrite
 
-const TEXT = "NARRATIVE ENGINE";
-const SUBTEXT = "V1.1";
+const TEXT = "INKTIDE";
+const SUBTEXT = "ENGINE";
 const FONT_SIZE = 120;
 const PADDING_RIGHT = 80;
 const PADDING_BOTTOM = 60;

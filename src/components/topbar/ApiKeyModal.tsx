@@ -24,7 +24,7 @@ export default function ApiKeyModal({ access, onClose }: Props) {
       <div className="glass-panel border border-border rounded-xl w-full max-w-sm p-5 shadow-2xl">
         <h2 className="text-sm font-semibold text-text-primary mb-1">API Keys</h2>
         <p className="text-[11px] text-text-dim mb-3">
-          Narrative Engine uses AI models via OpenRouter to analyze, generate, and refine stories. You&apos;ll need an OpenRouter API key to get started.
+          InkTide uses AI models via OpenRouter to analyze, generate, and refine stories. You&apos;ll need an OpenRouter API key to get started.
         </p>
 
         <div className="space-y-3">

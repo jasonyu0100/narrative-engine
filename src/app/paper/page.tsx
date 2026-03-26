@@ -193,29 +193,20 @@ export default function PaperPage() {
           {/* ── Abstract ──────────────────────────────────────────────── */}
           <Section id="abstract" label="Abstract">
             <P>
-              A chapter lands. A reveal reframes everything before it. A quiet scene holds more weight than the battle it follows. Readers recognise these moments instantly — yet no existing metric captures why they work, and no generation system can reliably produce them.
+              Stories rise and fall like tides. Readers feel the peaks — yet no metric captures why they work, and no generation system reliably produces them. This paper makes narrative structure <B>computable and improvable</B>. We model stories as knowledge graphs that mutate scene by scene, then derive three forces (Payoff, Change, Knowledge) from those mutations using deterministic, z-score normalised formulas. Applied to <em>Harry Potter and the Sorcerer&apos;s Stone</em>, the delivery curve peaks at the Sorting Hat, troll fight, and Quirrell confrontation — without human labeling.
             </P>
             <P>
-              This paper introduces a framework that makes narrative structure both <B>computable and improvable</B>. We model a narrative as a knowledge graph that mutates scene by scene. From those mutations, we derive three forces — Payoff, Change, and Knowledge — plus a composite Delivery metric, using deterministic, z-score normalised, genre-agnostic formulas. Applied to <em>Harry Potter and the Sorcerer&apos;s Stone</em>, the delivery curve peaks at the Sorting Hat, the troll fight, and the Quirrell confrontation — without any human labeling. The math found them on its own.
-            </P>
-            <P>
-              But measurement alone doesn&apos;t create stories. We use these forces to <B>generate</B> — Markov chain pacing shapes scene-by-scene rhythm, MCTS explores branching narrative paths, and adaptive planning steers long-form arcs across hundreds of scenes. Then we <B>revise</B> — an evaluation pipeline reads scene summaries, assigns per-scene verdicts, and reconstructs improved branches while preserving the story&apos;s version history. Each pass tightens structure, eliminates repetition, and enforces continuity until the branch converges.
-            </P>
-            <P>
-              What follows is the full framework: force formulas, extraction pipeline, grading system, generation architecture, and revision methodology. Everything is open source, every constant is tunable, and the whole thing was written to be forked.
+              These metrics don't just measure — they guide. We use them to <B>generate</B> via Markov pacing, MCTS search, and adaptive planning, then <B>revise</B> through iterative evaluation and reconstruction. Published literature scores 81–93. Unguided AI lands at 68–81. The scoring gap reveals what's missing. The framework provides tools to close it. Everything is open source and tunable.
             </P>
           </Section>
 
           {/* ── The Problem ───────────────────────────────────────────── */}
           <Section id="problem" label="The Problem">
             <P>
-              Narrative AI faces two intertwined problems. The first is <B>measurement</B>: no existing metric captures story structure. Sentiment analysis tracks tone. Topic modelling tracks frequency. Neither can tell you whether a thread escalated or merely echoed, whether a relationship shifted or repeated, whether a world deepened or just expanded.
+              Narrative AI faces two problems: <B>measurement</B> and <B>generation quality</B>. Sentiment analysis tracks tone. Topic models track frequency. Neither distinguishes escalation from repetition, transformation from stasis, deepening from expansion. LLMs produce fluent prose but structurally thin stories — beats repeat without escalating, characters don't change, worlds expand without deepening.
             </P>
             <P>
-              The second is <B>generation quality</B>. LLMs produce fluent prose but structurally thin stories. They repeat beats without escalating. They introduce characters who never change. They build worlds that expand without deepening. A scene-by-scene reading may feel competent, but the arc — the accumulated shape of tension, payoff, and consequence — falls flat.
-            </P>
-            <P>
-              Both problems share a root cause: the structural patterns that make stories feel inevitable — threads tightening across chapters, reveals reframing prior events, quiet moments that hold more weight than the battles they follow — arise from <B>structural mutations</B> in a knowledge graph. Which threads changed status. How relationships shifted. What new knowledge entered the world. When we score published literature and AI-generated text with the same mutation-based formulas, a consistent gap emerges. Published works cluster between 81 and 93. Unguided AI-generated text — without course correction or structural metrics — lands between 68 and 81. The gap isn&apos;t in grammar or coherence. It&apos;s in thread lifecycle depth, relationship valence intensity, and world-knowledge density. With planning, course correction, and iterative revision, AI-generated narratives reach the <B>high 80s</B> — closing the gap significantly and producing structurally dense stories that hold up against published benchmarks.
+              Both stem from the same gap: readers feel structure, but no metric captures it. The patterns that make stories work arise from mutations in a knowledge graph — thread status changes, relationship shifts, new knowledge. Apply mutation-based formulas to published literature and AI-generated text, and the gap becomes visible. Published works: 81–93. Unguided AI: 68–81. The gap isn't grammar — it's thread lifecycle depth, relationship intensity, and world-knowledge density. <B>Turn the subjective into the objective</B>, and you can measure what makes stories work. Which means you can engineer it.
             </P>
 
             {/* ── Human vs AI gradient bar ──────────────────────────── */}
@@ -782,7 +773,7 @@ export default function PaperPage() {
           {/* ── Open Source ───────────────────────────────────────────── */}
           <Section id="open-source" label="Open Source">
             <P>
-              Narrative Engine is fully open source. Every formula in this paper lives in the codebase — you can read it, run it, and change it.
+              InkTide is fully open source. Every formula in this paper lives in the codebase — you can read it, run it, and change it.
             </P>
             <P>
               This is deliberate. Narrative analysis should be transparent. If you disagree with how we weight payoff against knowledge, change the constant. If your genre needs a fourth force, add it. The formulas are tools, not doctrine.
@@ -799,7 +790,7 @@ export default function PaperPage() {
                 See it in action: Harry Potter case analysis &rarr;
               </Link>
               <a
-                href="https://github.com/jasonyu0100/narrative-engine"
+                href="https://github.com/jasonyu0100/inktide"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="text-[11px] px-4 py-2 rounded-full border border-white/15 bg-white/3 text-white/50 hover:text-white/70 hover:border-white/25 hover:bg-white/5 transition-colors text-center"

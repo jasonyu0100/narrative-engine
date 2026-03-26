@@ -214,7 +214,7 @@ export default function SeriesPage() {
         <div className="fixed inset-0 z-9999 bg-black/80 backdrop-blur-sm flex flex-col items-center justify-center px-6 text-center">
           <p className="text-white/90 text-lg font-semibold mb-2">Desktop Only</p>
           <p className="text-white/40 text-sm leading-relaxed max-w-xs mb-6">
-            Narrative Engine is designed for desktop browsers. Please visit on a larger screen.
+            InkTide is designed for desktop browsers. Please visit on a larger screen.
           </p>
           <button
             onClick={() => router.push('/')}

@@ -16,8 +16,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Narrative Engine",
-  description: "Thread-first narrative simulation engine",
+  title: "InkTide",
+  description: "Where narrative forces rise and fall like tides. Generate and revise stories guided by computable structure.",
 };
 
 export default function RootLayout({

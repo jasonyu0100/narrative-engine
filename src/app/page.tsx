@@ -321,17 +321,17 @@ export default function HomePage() {
         {/* ── Hero ─────────────────────────────────────────────────────────── */}
         <div className="relative flex flex-col items-center pt-24 sm:pt-32 pb-10 px-4">
           <p className="animate-fade-up text-[10px] uppercase tracking-[0.3em] text-white/30 font-mono mb-8">
-            Narrative Engine
+            InkTide
           </p>
 
           <h1 className="animate-fade-up-delay-1 text-5xl sm:text-7xl font-bold tracking-[-0.03em] text-center leading-[1.05] max-w-160">
             <span className="text-white">Stories that </span>
-            <span className="glitch-wrapper text-white italic whitespace-nowrap" data-text="think."><MorphText text="think" />.</span>
+            <span className="glitch-wrapper text-white italic whitespace-nowrap" data-text="breathe."><MorphText text="breathe" />.</span>
           </h1>
 
           <p className="animate-fade-up-delay-2 text-[15px] text-white/40 mt-6 max-w-lg text-center leading-relaxed">
-            A knowledge graph lives beneath every scene. Threads escalate, characters transform, worlds expand.
-            Three forces measure exactly what the reader feels.
+            Where narrative forces ebb and flow like tides. Tension builds, payoff lands, the story breathes.
+            Three forces measure the rhythm—and guide what happens next.
           </p>
 
           {/* ── Analyze Corpus ─────────────────────────────────────────── */}
@@ -459,7 +459,7 @@ export default function HomePage() {
                 },
                 {
                   q: 'What does it cost?',
-                  a: 'Narrative Engine is free and open source. You bring your own API key (OpenRouter) which gives you access to any LLM — Gemini, GPT, Claude, Llama, and others. You pay only for the tokens you use at the provider\'s rates. No subscription, no platform fee.',
+                  a: 'InkTide is free and open source. You bring your own API key (OpenRouter) which gives you access to any LLM — Gemini, GPT, Claude, Llama, and others. You pay only for the tokens you use at the provider\'s rates. No subscription, no platform fee.',
                 },
               ].map(({ q, a }, i) => (
                 <details key={i} className="group">
@@ -477,7 +477,7 @@ export default function HomePage() {
         {/* ── Footer ───────────────────────────────────────────────────── */}
         <div className="relative px-4 sm:px-10 py-8 border-t border-white/6">
           <div className="max-w-5xl mx-auto flex items-center justify-between">
-            <p className="text-[11px] font-mono text-white/20 uppercase tracking-[0.2em]">Narrative Engine</p>
+            <p className="text-[11px] font-mono text-white/20 uppercase tracking-[0.2em]">InkTide</p>
             <div className="flex items-center gap-5">
               <a
                 href="https://x.com/_jason_y_"
