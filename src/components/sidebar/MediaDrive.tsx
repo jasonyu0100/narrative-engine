@@ -8,9 +8,9 @@ import { logApiCall, updateApiLog } from '@/lib/api-logger';
 import { useFeatureAccess } from '@/hooks/useFeatureAccess';
 import MediaPreview from '@/components/sidebar/MediaPreview';
 import type { MediaItem } from '@/components/sidebar/MediaPreview';
-import type { Scene, Character, Location } from '@/types/narrative';
+import type { Scene, Character, Location, Artifact } from '@/types/narrative';
 
-type AssetTab = 'characters' | 'locations' | 'scenes';
+type AssetTab = 'characters' | 'locations' | 'artifacts' | 'scenes';
 
 type SceneReadiness = {
   scene: Scene;
@@ -62,7 +62,7 @@ function GenerateButton({ onClick, disabled, generating }: { onClick: () => void
     <button
       onClick={onClick}
       disabled={disabled}
-      className="shrink-0 w-6 h-6 flex items-center justify-center rounded bg-white/[0.06] text-text-dim hover:text-accent hover:bg-accent/10 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+      className="shrink-0 w-6 h-6 flex items-center justify-center rounded bg-white/6 text-text-dim hover:text-accent hover:bg-accent/10 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
       title="Generate image"
     >
       {generating ? <Spinner /> : (
@@ -97,6 +97,11 @@ export default function MediaDrive() {
   const locations = useMemo(() => {
     if (!narrative) return [];
     return Object.values(narrative.locations);
+  }, [narrative]);
+
+  const artifacts = useMemo(() => {
+    if (!narrative) return [];
+    return Object.values(narrative.artifacts ?? {});
   }, [narrative]);
 
   const scenes = useMemo(() => {
@@ -145,6 +150,15 @@ export default function MediaDrive() {
         aspectClass: 'aspect-video',
       }));
     }
+    if (tab === 'artifacts') {
+      return artifacts.filter((a) => a.imageUrl).map((a) => ({
+        id: a.id,
+        imageUrl: a.imageUrl!,
+        label: a.name,
+        sublabel: a.significance,
+        aspectClass: 'aspect-square',
+      }));
+    }
     return scenes.filter((s) => s.imageUrl).map((s) => ({
       id: s.id,
       imageUrl: s.imageUrl!,
@@ -152,7 +166,7 @@ export default function MediaDrive() {
       sublabel: s.id,
       aspectClass: 'aspect-video',
     }));
-  }, [tab, characters, locations, scenes, narrative]);
+  }, [tab, characters, locations, artifacts, scenes, narrative]);
 
   const openPreview = useCallback((id: string) => {
     const idx = previewItems.findIndex((item) => item.id === id);
@@ -205,6 +219,30 @@ export default function MediaDrive() {
       dispatch({ type: 'SET_LOCATION_IMAGE', locationId: loc.id, imageUrl });
     } catch (err) {
       console.error('Failed to generate location image:', err);
+    } finally {
+      setGenerating(null);
+    }
+  }, [narrative, generating, dispatch, requireKeys]);
+
+  const generateArtifactImage = useCallback(async (artifact: Artifact) => {
+    if (!narrative || generating || requireKeys()) return;
+    setGenerating(artifact.id);
+    try {
+      const hints = artifact.continuity.nodes.map((n) => `${n.type}: ${n.content}`);
+      const ownerName = narrative.characters[artifact.parentId]?.name
+        ?? narrative.locations[artifact.parentId]?.name
+        ?? undefined;
+      const { imageUrl } = await generateImage('character', {
+        name: artifact.name,
+        role: `artifact (${artifact.significance})`,
+        worldSummary: narrative.worldSummary,
+        continuityHints: [`Owner: ${ownerName ?? 'unknown'}`, ...hints.slice(0, 4)],
+        imagePrompt: artifact.imagePrompt,
+        imageStyle: narrative.imageStyle,
+      });
+      dispatch({ type: 'SET_ARTIFACT_IMAGE', artifactId: artifact.id, imageUrl });
+    } catch (err) {
+      console.error('Failed to generate artifact image:', err);
     } finally {
       setGenerating(null);
     }
@@ -291,9 +329,7 @@ export default function MediaDrive() {
     );
   }
 
-  const charWithImage = characters.filter((c) => c.imageUrl).length;
-  const locWithImage = locations.filter((l) => l.imageUrl).length;
-  const sceneWithImage = scenes.filter((s) => s.imageUrl).length;
+
 
   return (
     <div className="flex-1 flex flex-col min-h-0">
@@ -339,9 +375,10 @@ export default function MediaDrive() {
       {/* Asset type tabs */}
       <div className="shrink-0 flex border-b border-border">
         {([
-          ['characters', `Cast ${charWithImage}/${characters.length}`],
-          ['locations', `Places ${locWithImage}/${locations.length}`],
-          ['scenes', `Stills ${sceneWithImage}/${scenes.length}`],
+          ['characters', 'Cast'],
+          ['locations', 'Places'],
+          ['artifacts', 'Items'],
+          ['scenes', 'Stills'],
         ] as [AssetTab, string][]).map(([key, label]) => (
           <button
             key={key}
@@ -366,7 +403,7 @@ export default function MediaDrive() {
                 <img src={char.imageUrl} alt={char.name} className="w-8 h-8 rounded-full object-cover border border-border hover:border-accent/50 transition-colors" />
               </button>
             ) : (
-              <div className="w-8 h-8 rounded-full bg-white/[0.06] shrink-0 flex items-center justify-center border border-border border-dashed">
+              <div className="w-8 h-8 rounded-full bg-white/6 shrink-0 flex items-center justify-center border border-border border-dashed">
                 <span className="text-[10px] text-text-dim">{char.name[0]}</span>
               </div>
             )}
@@ -389,7 +426,7 @@ export default function MediaDrive() {
                 <img src={loc.imageUrl} alt={loc.name} className="w-8 h-8 rounded object-cover border border-border hover:border-accent/50 transition-colors" />
               </button>
             ) : (
-              <div className="w-8 h-8 rounded bg-white/[0.06] shrink-0 flex items-center justify-center border border-border border-dashed">
+              <div className="w-8 h-8 rounded bg-white/6 shrink-0 flex items-center justify-center border border-border border-dashed">
                 <span className="text-[10px] text-text-dim">{loc.name[0]}</span>
               </div>
             )}
@@ -403,6 +440,29 @@ export default function MediaDrive() {
               )}
             </button>
             <GenerateButton onClick={() => generateLocationImage(loc)} disabled={generating !== null} generating={generating === loc.id} />
+          </div>
+        ))}
+
+        {/* ── Artifacts ── */}
+        {tab === 'artifacts' && artifacts.map((artifact) => (
+          <div key={artifact.id} className="flex items-center gap-2 rounded px-1.5 py-1 hover:bg-bg-elevated transition-colors">
+            {artifact.imageUrl ? (
+              <button onClick={() => openPreview(artifact.id)} className="shrink-0">
+                <img src={artifact.imageUrl} alt={artifact.name} className="w-8 h-8 rounded object-cover border border-border hover:border-accent/50 transition-colors" />
+              </button>
+            ) : (
+              <div className="w-8 h-8 rounded bg-white/6 shrink-0 flex items-center justify-center border border-border border-dashed">
+                <span className="text-[10px] text-text-dim">{artifact.name[0]}</span>
+              </div>
+            )}
+            <button
+              onClick={() => dispatch({ type: 'SET_INSPECTOR', context: { type: 'artifact', artifactId: artifact.id } })}
+              className="flex-1 text-left min-w-0"
+            >
+              <p className="text-xs text-text-primary truncate">{artifact.name}</p>
+              <p className="text-[10px] text-text-dim">{artifact.significance}</p>
+            </button>
+            <GenerateButton onClick={() => generateArtifactImage(artifact)} disabled={generating !== null} generating={generating === artifact.id} />
           </div>
         ))}
 
@@ -439,7 +499,7 @@ export default function MediaDrive() {
             ) : (
               <div className="px-2 py-1.5">
                 <div className="flex items-center gap-1.5 mb-1">
-                  <span className="font-mono text-[10px] bg-white/[0.06] text-text-secondary px-1.5 py-0.5 rounded shrink-0">
+                  <span className="font-mono text-[10px] bg-white/6 text-text-secondary px-1.5 py-0.5 rounded shrink-0">
                     {scene.id}
                   </span>
                   <span className="text-[10px] text-text-primary truncate flex-1">
