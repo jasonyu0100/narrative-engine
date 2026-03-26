@@ -22,6 +22,7 @@ import { NarrativeCubeViewer } from '@/components/timeline/NarrativeCubeViewer';
 import { useAutoPlay } from '@/hooks/useAutoPlay';
 import { ForceAnalytics } from '@/components/analytics/ForceAnalytics';
 import RulesPanel from '@/components/layout/RulesPanel';
+import WorldSystemsPanel from '@/components/layout/WorldSystemsPanel';
 import { MCTSPanel } from '@/components/mcts/MCTSPanel';
 import { MCTSControlBar } from '@/components/mcts/MCTSControlBar';
 import { useMCTS } from '@/hooks/useMCTS';
@@ -54,6 +55,7 @@ export default function SeriesPage() {
   const [cubeViewerOpen, setCubeViewerOpen] = useState(false);
   const [forceAnalyticsOpen, setForceAnalyticsOpen] = useState(false);
   const [rulesOpen, setRulesOpen] = useState(false);
+  const [worldSystemsOpen, setWorldSystemsOpen] = useState(false);
   const [mctsOpen, setMctsOpen] = useState(false);
   const [storySettingsOpen, setStorySettingsOpen] = useState(false);
   const [planningQueueOpen, setPlanningQueueOpen] = useState(false);
@@ -83,6 +85,7 @@ export default function SeriesPage() {
     function handleOpenCubeViewer() { setCubeViewerOpen(true); }
     function handleOpenForceAnalytics() { setForceAnalyticsOpen(true); }
     function handleOpenRules() { setRulesOpen(true); }
+    function handleOpenWorldSystems() { setWorldSystemsOpen(true); }
     function handleOpenMcts() { setMctsOpen(true); }
     function handleOpenStorySettings() { setStorySettingsOpen(true); }
     function handleOpenPlanningQueue() { setPlanningQueueOpen(true); }
@@ -92,6 +95,7 @@ export default function SeriesPage() {
     window.addEventListener('open-cube-viewer', handleOpenCubeViewer);
     window.addEventListener('open-force-analytics', handleOpenForceAnalytics);
     window.addEventListener('open-rules-panel', handleOpenRules);
+    window.addEventListener('open-world-systems-panel', handleOpenWorldSystems);
     window.addEventListener('open-mcts-panel', handleOpenMcts);
     window.addEventListener('open-story-settings', handleOpenStorySettings);
     window.addEventListener('open-planning-queue', handleOpenPlanningQueue);
@@ -102,6 +106,7 @@ export default function SeriesPage() {
       window.removeEventListener('open-cube-viewer', handleOpenCubeViewer);
       window.removeEventListener('open-force-analytics', handleOpenForceAnalytics);
       window.removeEventListener('open-rules-panel', handleOpenRules);
+      window.removeEventListener('open-world-systems-panel', handleOpenWorldSystems);
       window.removeEventListener('open-mcts-panel', handleOpenMcts);
       window.removeEventListener('open-story-settings', handleOpenStorySettings);
       window.removeEventListener('open-planning-queue', handleOpenPlanningQueue);
@@ -184,6 +189,7 @@ export default function SeriesPage() {
       )}
       {forceAnalyticsOpen && <ForceAnalytics onClose={() => setForceAnalyticsOpen(false)} />}
       {rulesOpen && <RulesPanel onClose={() => setRulesOpen(false)} />}
+      {worldSystemsOpen && <WorldSystemsPanel onClose={() => setWorldSystemsOpen(false)} />}
       {storySettingsOpen && <StorySettingsModal onClose={() => setStorySettingsOpen(false)} />}
       {planningQueueOpen && (
         <PlanningQueueEditor

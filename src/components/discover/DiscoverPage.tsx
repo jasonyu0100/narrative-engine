@@ -9,6 +9,7 @@ import {
   type PremiseEdge,
   type PremiseDecision,
   type PremiseQuestion,
+  type PremiseSystemSketch,
 } from '@/lib/ai/premise';
 import { CreationWizard } from '@/components/wizard/CreationWizard';
 import * as d3 from 'd3';
@@ -23,6 +24,7 @@ type PremiseState = {
   entities: PremiseEntity[];
   edges: PremiseEdge[];
   rules: string[];
+  systems: PremiseSystemSketch[];
   title: string;
   worldSummary: string;
   currentQuestion: PremiseQuestion | null;
@@ -37,7 +39,7 @@ type PremiseAction =
   | { type: 'SET_LOADING'; loading: boolean }
   | { type: 'SET_ERROR'; error: string | null }
   | { type: 'SET_QUESTION'; question: PremiseQuestion }
-  | { type: 'APPLY_ROUND'; decision: PremiseDecision; entities: PremiseEntity[]; edges: PremiseEdge[]; rules: string[]; title: string; worldSummary: string; question: PremiseQuestion }
+  | { type: 'APPLY_ROUND'; decision: PremiseDecision; entities: PremiseEntity[]; edges: PremiseEdge[]; rules: string[]; newSystems: PremiseSystemSketch[]; systemUpdates: { name: string; addPrinciples?: string[]; addConstraints?: string[]; addInteractions?: string[] }[]; title: string; worldSummary: string; question: PremiseQuestion }
   | { type: 'SET_TITLE'; title: string };
 
 const initialState: PremiseState = {
@@ -46,6 +48,7 @@ const initialState: PremiseState = {
   entities: [],
   edges: [],
   rules: [],
+  systems: [],
   title: '',
   worldSummary: '',
   currentQuestion: null,
@@ -53,6 +56,19 @@ const initialState: PremiseState = {
   loading: false,
   error: null,
 };
+
+function applySysUpdates(existing: PremiseSystemSketch[], newSystems: PremiseSystemSketch[], updates: { name: string; addPrinciples?: string[]; addConstraints?: string[]; addInteractions?: string[] }[]): PremiseSystemSketch[] {
+  const result = [...existing, ...newSystems];
+  for (const u of updates) {
+    const sys = result.find(s => s.name.toLowerCase() === u.name.toLowerCase());
+    if (sys) {
+      if (u.addPrinciples?.length) sys.principles = [...sys.principles, ...u.addPrinciples];
+      if (u.addConstraints?.length) sys.constraints = [...sys.constraints, ...u.addConstraints];
+      if (u.addInteractions?.length) sys.interactions = [...sys.interactions, ...u.addInteractions];
+    }
+  }
+  return result;
+}
 
 function reducer(state: PremiseState, action: PremiseAction): PremiseState {
   switch (action.type) {
@@ -69,6 +85,7 @@ function reducer(state: PremiseState, action: PremiseAction): PremiseState {
         entities: [...state.entities, ...action.entities],
         edges: [...state.edges, ...action.edges],
         rules: [...state.rules, ...action.rules],
+        systems: applySysUpdates(state.systems, action.newSystems, action.systemUpdates),
         title: action.title || state.title,
         worldSummary: action.worldSummary || state.worldSummary,
         currentQuestion: action.question,
@@ -309,7 +326,7 @@ export function DiscoverPage() {
     dispatch({ type: 'SET_LOADING', loading: true });
     dispatch({ type: 'SET_ERROR', error: null });
     try {
-      const result = await generatePremiseQuestion(state.seed, [], [], [], [], '');
+      const result = await generatePremiseQuestion(state.seed, [], [], [], [], '', []);
       dispatch({ type: 'SET_QUESTION', question: result.question });
       if (result.title) dispatch({ type: 'SET_TITLE', title: result.title });
     } catch (err) {
@@ -333,12 +350,14 @@ export function DiscoverPage() {
     try {
       const result = await generatePremiseQuestion(
         state.seed, [...state.decisions, decision],
-        state.entities, state.edges, state.rules, state.title,
+        state.entities, state.edges, state.rules, state.title, state.systems,
       );
       dispatch({
         type: 'APPLY_ROUND', decision,
         entities: result.newEntities, edges: result.newEdges,
-        rules: result.newRules, title: result.title,
+        rules: result.newRules, newSystems: result.newSystems,
+        systemUpdates: result.systemUpdates,
+        title: result.title,
         worldSummary: result.worldSummary, question: result.question,
       });
       setSelectedChoice(null);
@@ -357,8 +376,8 @@ export function DiscoverPage() {
   }, [state.currentQuestion]);
 
   const handleCreate = useCallback(() => {
-    const { premise, characters, locations, threads, rules } = buildPremiseText(
-      state.entities, state.rules, state.worldSummary,
+    const { premise, characters, locations, threads, rules, worldSystems } = buildPremiseText(
+      state.entities, state.rules, state.worldSummary, state.systems,
     );
     storeDispatch({
       type: 'OPEN_WIZARD',
@@ -369,6 +388,7 @@ export function DiscoverPage() {
         locations: locations.map(l => ({ name: l.name, description: l.description })),
         threads: threads.map(t => ({ description: t.description, participantNames: t.participantNames })),
         rules,
+        worldSystems,
       },
     });
   }, [state, storeDispatch]);
@@ -548,6 +568,9 @@ export function DiscoverPage() {
           {state.rules.length > 0 && (
             <span className="text-[10px] text-white/30">{state.rules.length} Rule{state.rules.length !== 1 ? 's' : ''}</span>
           )}
+          {state.systems.length > 0 && (
+            <span className="text-[10px] text-white/30">{state.systems.length} System{state.systems.length !== 1 ? 's' : ''}</span>
+          )}
         </div>
 
         {/* Graph */}
@@ -558,12 +581,41 @@ export function DiscoverPage() {
         {/* Rules */}
         {state.rules.length > 0 && (
           <div className="border-t border-white/6 px-4 py-3 max-h-36 overflow-y-auto">
-            <p className="text-[10px] uppercase tracking-[0.15em] text-white/20 font-mono mb-1.5">World Rules</p>
+            <p className="text-[10px] uppercase tracking-[0.15em] text-white/20 font-mono mb-1.5">Rules</p>
             <div className="flex flex-col gap-1">
               {state.rules.map((rule, i) => (
                 <p key={i} className="text-[11px] text-white/45 leading-snug">
                   <span className="text-white/20 mr-1.5">{i + 1}.</span>{rule}
                 </p>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* World Systems */}
+        {state.systems.length > 0 && (
+          <div className="border-t border-white/6 px-4 py-3 max-h-52 overflow-y-auto">
+            <p className="text-[10px] uppercase tracking-[0.15em] text-white/20 font-mono mb-1.5">Systems</p>
+            <div className="flex flex-col gap-2">
+              {state.systems.map((sys, i) => (
+                <div key={i}>
+                  <p className="text-[11px] text-white/60 font-medium">{sys.name}</p>
+                  <p className="text-[10px] text-white/30 leading-snug">{sys.description}</p>
+                  {sys.principles.length > 0 && (
+                    <div className="mt-0.5">
+                      {sys.principles.map((p, j) => (
+                        <p key={j} className="text-[10px] text-white/35 leading-snug pl-2">• {p}</p>
+                      ))}
+                    </div>
+                  )}
+                  {sys.constraints.length > 0 && (
+                    <div className="mt-0.5">
+                      {sys.constraints.map((c, j) => (
+                        <p key={j} className="text-[10px] text-amber-400/40 leading-snug pl-2">⚠ {c}</p>
+                      ))}
+                    </div>
+                  )}
+                </div>
               ))}
             </div>
           </div>

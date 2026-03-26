@@ -349,6 +349,7 @@ export async function generateNarrative(
   title: string,
   premise: string,
   rules: string[] = [],
+  systemSketches: { name: string; description: string; principles: string[]; constraints: string[]; interactions: string[] }[] = [],
   onToken?: (token: string) => void,
 ): Promise<NarrativeState> {
   const prompt = `Create a complete narrative world for:
@@ -391,7 +392,10 @@ Return JSON with this exact structure:
   "arcs": [
     {"id": "ARC-01", "name": "string", "sceneIds": ["S-001"], "develops": ["T-01"], "locationIds": ["L-01"], "activeCharacterIds": ["C-01"], "initialCharacterLocations": {"C-01": "L-01"}}
   ],
-  "rules": ["World rule 1", "World rule 2"]
+  "rules": ["World rule 1", "World rule 2"],
+  "worldSystems": [
+    {"id": "WS-01", "name": "System Name", "description": "One-line summary of what this system is", "principles": ["How it works"], "constraints": ["Hard limits and costs"], "interactions": ["How it connects to other systems"]}
+  ]
 }
 
 HARD MINIMUMS — the world MUST contain at least these counts. Generating fewer is a failure:
@@ -436,7 +440,24 @@ ${PROMPT_MUTATIONS}
 ${PROMPT_CONTINUITY}
 ${PROMPT_SUMMARY_REQUIREMENT}
 
-WORLD RULES: Generate 4-6 world rules — absolute constraints that every scene must obey. These define the physics, magic system limits, social rules, or thematic laws of the world.${rules.length > 0 ? ` The user has already provided these rules — include them as-is and add more if appropriate:\n${rules.map((r, i) => `${i + 1}. ${r}`).join('\n')}` : ''}`;
+WORLD RULES: Generate 4-6 world rules — absolute constraints that every scene must obey. These define the physics, magic system limits, social rules, or thematic laws of the world.${rules.length > 0 ? ` The user has already provided these rules — include them as-is and add more if appropriate:\n${rules.map((r, i) => `${i + 1}. ${r}`).join('\n')}` : ''}
+
+WORLD SYSTEMS: Generate 3-6 world systems that define how this world uniquely works. A system is any distinct mechanic, institution, force, or structure that shapes how the world operates. There are no fixed categories — define whatever systems make this world feel real and internally consistent.${systemSketches.length > 0 ? `\nThe user has already provided these systems — include them as-is and flesh them out with additional principles/constraints/interactions if appropriate:\n${systemSketches.map(s => {
+  const parts = [`- ${s.name}: ${s.description}`];
+  if (s.principles.length) parts.push(`  Principles: ${s.principles.join('; ')}`);
+  if (s.constraints.length) parts.push(`  Constraints: ${s.constraints.join('; ')}`);
+  if (s.interactions.length) parts.push(`  Interactions: ${s.interactions.join('; ')}`);
+  return parts.join('\n');
+}).join('\n')}` : ''}
+
+For each system, provide:
+- name: A clear label
+- description: One-line summary of what this system is
+- principles (2-4): HOW it works — the core mechanics
+- constraints (1-3): HARD LIMITS — costs, scarcity, failure modes
+- interactions (1-2): CROSS-SYSTEM connections — how this system amplifies, suppresses, or feeds into other systems
+
+The goal is to make the world feel like a coherent machine where systems interlock. Great worlds have systems that create emergent behavior — institutions that arise from mechanics, conflicts that emerge from scarcity, power that requires trade-offs.`;
 
   const raw = onToken
     ? await callGenerateStream(prompt, SYSTEM_PROMPT, onToken, MAX_TOKENS_LARGE, 'generateNarrative', GENERATE_MODEL)
@@ -536,6 +557,20 @@ WORLD RULES: Generate 4-6 world rules — absolute constraints that every scene 
     worldKnowledge: { nodes: worldKnowledgeNodes, edges: worldKnowledgeEdges },
     worldSummary: parsed.worldSummary ?? premise,
     rules: Array.isArray(parsed.rules) ? parsed.rules.filter((r: unknown) => typeof r === 'string') : rules,
+    worldSystems: Array.isArray(parsed.worldSystems) ? parsed.worldSystems.filter(
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (s: any) => s && typeof s.name === 'string'
+    ).map(
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (s: any) => ({
+        id: s.id ?? `WS-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+        name: s.name,
+        description: typeof s.description === 'string' ? s.description : '',
+        principles: Array.isArray(s.principles) ? s.principles.filter((p: unknown) => typeof p === 'string') : [],
+        constraints: Array.isArray(s.constraints) ? s.constraints.filter((c: unknown) => typeof c === 'string') : [],
+        interactions: Array.isArray(s.interactions) ? s.interactions.filter((x: unknown) => typeof x === 'string') : [],
+      })
+    ) : [],
     createdAt: now,
     updatedAt: now,
   };

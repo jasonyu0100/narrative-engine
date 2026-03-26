@@ -542,6 +542,7 @@ export default function TopBar() {
             { separator: true },
             { label: 'Formulas', onClick: () => setFormulaOpen(true) },
             { label: 'Rules', onClick: () => window.dispatchEvent(new Event('open-rules-panel')), disabled: !hasNarrative },
+            { label: 'Systems', onClick: () => window.dispatchEvent(new Event('open-world-systems-panel')), disabled: !hasNarrative },
           ]}
         />
 

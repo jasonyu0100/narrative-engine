@@ -38,11 +38,21 @@ export type PremiseDecision = {
   answer: string;
 };
 
+export type PremiseSystemSketch = {
+  name: string;
+  description: string;
+  principles: string[];
+  constraints: string[];
+  interactions: string[];
+};
+
 export type PremiseQuestionResult = {
   question: PremiseQuestion;
   newEntities: PremiseEntity[];
   newEdges: PremiseEdge[];
   newRules: string[];
+  newSystems: PremiseSystemSketch[];
+  systemUpdates: { name: string; addPrinciples?: string[]; addConstraints?: string[]; addInteractions?: string[] }[];
   title: string;
   worldSummary: string;
 };
@@ -57,7 +67,11 @@ Each question should:
 - Never repeat a topic already established
 - Each choice should be vivid and specific, not generic
 
-As you process each answer, extract concrete entities (characters, locations, narrative threads) that have been established or strongly implied. Build the world incrementally.`;
+As you process each answer, extract:
+- Concrete entities (characters, locations, narrative threads)
+- World systems — structured mechanics that define how the world works (power systems, economies, social structures, progression paths, combat logic, cosmic laws, etc.)
+
+Build the world incrementally. World systems should emerge naturally from decisions — when the writer establishes how magic works, how society is organized, how power is gained or lost, capture these as structured systems with principles, constraints, and cross-system interactions.`;
 
 // ── Generate next question ───────────────────────────────────────────────────
 
@@ -68,6 +82,7 @@ export async function generatePremiseQuestion(
   edges: PremiseEdge[],
   rules: string[],
   currentTitle: string,
+  systems: PremiseSystemSketch[] = [],
 ): Promise<PremiseQuestionResult> {
   const round = decisions.length + 1;
 
@@ -81,12 +96,23 @@ export async function generatePremiseQuestion(
   const locs = entities.filter(e => e.type === 'location');
   const threads = entities.filter(e => e.type === 'thread');
 
-  const inventoryBlock = entities.length > 0
+  const systemsBlock = systems.length > 0
+    ? `World Systems (${systems.length}):\n${systems.map(s => {
+      const parts = [`  - ${s.name}: ${s.description}`];
+      if (s.principles.length) parts.push(`    Principles: ${s.principles.join('; ')}`);
+      if (s.constraints.length) parts.push(`    Constraints: ${s.constraints.join('; ')}`);
+      if (s.interactions.length) parts.push(`    Interactions: ${s.interactions.join('; ')}`);
+      return parts.join('\n');
+    }).join('\n')}`
+    : 'World Systems: none';
+
+  const inventoryBlock = entities.length > 0 || systems.length > 0
     ? `CURRENT WORLD INVENTORY:
 Characters (${chars.length}): ${chars.map(c => `${c.name} — ${c.description}`).join('; ') || 'none'}
 Locations (${locs.length}): ${locs.map(l => `${l.name} — ${l.description}`).join('; ') || 'none'}
 Threads (${threads.length}): ${threads.map(t => `${t.name} — ${t.description}`).join('; ') || 'none'}
 Rules (${rules.length}): ${rules.join('; ') || 'none'}
+${systemsBlock}
 Edges: ${edges.map(e => `${e.from} → ${e.to}: ${e.label}`).join('; ') || 'none'}`
     : 'No entities established yet.';
 
@@ -105,6 +131,7 @@ Edges: ${edges.map(e => `${e.from} → ${e.to}: ${e.label}`).join('; ') || 'none
   if (locs.length < 2 && round > 3) gaps.push('Few locations — consider asking about geography');
   if (threads.length < 1 && round > 3) gaps.push('No narrative threads — consider asking about tensions or open questions');
   if (rules.length < 1 && round > 4) gaps.push('No world rules — consider asking about constraints or laws');
+  if (systems.length < 1 && round > 3) gaps.push('No world systems — consider asking about how the world\'s mechanics work');
 
   const prompt = `${seed ? `SEED CONCEPT: ${seed}\n\n` : ''}${historyBlock}
 
@@ -115,7 +142,7 @@ ${phaseGuidance}
 ${gaps.length > 0 ? `\nGAPS TO ADDRESS:\n${gaps.map(g => `- ${g}`).join('\n')}` : ''}
 ${currentTitle ? `WORKING TITLE: ${currentTitle}` : ''}
 
-Ask ONE question with 3-4 choices. Also extract any NEW entities, edges, and rules crystallized by the most recent answer (if any). Update the title and world summary.
+Ask ONE question with 3-4 choices. Also extract any NEW entities, edges, rules, and world systems crystallized by the most recent answer (if any). Update the title and world summary.
 
 Return JSON:
 {
@@ -137,6 +164,12 @@ Return JSON:
     {"from": "char-1", "to": "loc-1", "label": "lives in"}
   ],
   "newRules": ["rule text"],
+  "newSystems": [
+    {"name": "System Name", "description": "What this system is", "principles": ["How it works"], "constraints": ["Hard limits"], "interactions": ["How it connects to other systems"]}
+  ],
+  "systemUpdates": [
+    {"name": "Existing System Name", "addPrinciples": ["new principle"], "addConstraints": ["new constraint"], "addInteractions": ["new interaction"]}
+  ],
   "title": "Suggested Title",
   "worldSummary": "2-3 sentence world description incorporating all decisions so far"
 }
@@ -145,17 +178,33 @@ Rules for entities:
 - Only return NEW entities crystallized by the LATEST answer. Don't repeat existing ones.
 - Entity IDs: use char-N, loc-N, thread-N format, continuing from existing counts.
 - Edges can reference any entity ID (existing or new).
-- newRules, newEntities, newEdges can be empty arrays if the latest answer didn't crystallize anything concrete yet.
-- For round 1 (no decisions yet), return empty arrays for entities/edges/rules.`;
+- newRules, newEntities, newEdges, newSystems, systemUpdates can be empty arrays if the latest answer didn't crystallize anything concrete yet.
+- For round 1 (no decisions yet), return empty arrays for everything.
+
+Rules for world systems:
+- A world system is any distinct mechanic, institution, force, or structure that shapes how the world operates.
+- Use newSystems for entirely new systems the answer established.
+- Use systemUpdates to add principles/constraints/interactions to existing systems by matching their name.
+- Systems should emerge naturally — when the writer establishes how power works, how society is organized, what resources matter, capture those as systems.
+- Each system needs: name, description, at least 1 principle. Constraints and interactions can be empty initially.`;
 
   const raw = await callGenerate(prompt, PREMISE_SYSTEM, undefined, 'premiseQuestion', GENERATE_MODEL);
-  const parsed = parseJson(raw, 'premiseQuestion') as PremiseQuestionResult;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const parsed = parseJson(raw, 'premiseQuestion') as any;
 
   return {
     question: parsed.question,
     newEntities: parsed.newEntities ?? [],
     newEdges: parsed.newEdges ?? [],
     newRules: parsed.newRules ?? [],
+    newSystems: Array.isArray(parsed.newSystems) ? parsed.newSystems.filter(
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (s: any) => s && typeof s.name === 'string'
+    ) : [],
+    systemUpdates: Array.isArray(parsed.systemUpdates) ? parsed.systemUpdates.filter(
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (u: any) => u && typeof u.name === 'string'
+    ) : [],
     title: parsed.title ?? currentTitle,
     worldSummary: parsed.worldSummary ?? '',
   };
@@ -167,7 +216,8 @@ export function buildPremiseText(
   entities: PremiseEntity[],
   rules: string[],
   worldSummary: string,
-): { premise: string; characters: { name: string; role: string; description: string }[]; locations: { name: string; description: string }[]; threads: { description: string; participantNames: string[] }[]; rules: string[] } {
+  systems: PremiseSystemSketch[] = [],
+): { premise: string; characters: { name: string; role: string; description: string }[]; locations: { name: string; description: string }[]; threads: { description: string; participantNames: string[] }[]; rules: string[]; worldSystems: PremiseSystemSketch[] } {
   const chars = entities.filter(e => e.type === 'character');
   const locs = entities.filter(e => e.type === 'location');
   const threads = entities.filter(e => e.type === 'thread');
@@ -186,6 +236,15 @@ export function buildPremiseText(
   if (rules.length > 0) {
     parts.push(`\nWorld rules (absolute constraints the narrative must obey):\n${rules.map((r, i) => `  ${i + 1}. ${r}`).join('\n')}`);
   }
+  if (systems.length > 0) {
+    parts.push(`\nWorld systems:\n${systems.map(s => {
+      const lines = [`  - ${s.name}: ${s.description}`];
+      if (s.principles.length) lines.push(`    Principles: ${s.principles.join('; ')}`);
+      if (s.constraints.length) lines.push(`    Constraints: ${s.constraints.join('; ')}`);
+      if (s.interactions.length) lines.push(`    Interactions: ${s.interactions.join('; ')}`);
+      return lines.join('\n');
+    }).join('\n')}`);
+  }
 
   return {
     premise: parts.join('\n'),
@@ -193,5 +252,6 @@ export function buildPremiseText(
     locations: locs.map(l => ({ name: l.name, description: l.description })),
     threads: threads.map(t => ({ description: t.description, participantNames: t.participantNames ?? [] })),
     rules,
+    worldSystems: systems,
   };
 }

@@ -117,6 +117,20 @@ export type RelationshipMutation = {
   valenceDelta: number;
 };
 
+// ── World Systems ──────────────────────────────────────────────────────────
+
+export type WorldSystem = {
+  id: string;
+  name: string;
+  description: string;
+  /** Core principles — how this system works */
+  principles: string[];
+  /** Hard constraints — limits, costs, scarcity rules */
+  constraints: string[];
+  /** Cross-system interactions — how this connects to other systems */
+  interactions: string[];
+};
+
 // ── World Knowledge Graph ───────────────────────────────────────────────────
 
 /** Node types define the abstraction level of world knowledge:
@@ -442,6 +456,8 @@ export type NarrativeState = {
   worldSummary: string;
   /** World rules / commandments that the narrative must follow */
   rules: string[];
+  /** Structured world systems — layered mechanics that define how the world works */
+  worldSystems?: WorldSystem[];
   coverImageUrl?: string;
   /** Style directive appended to all image generation prompts for visual consistency */
   imageStyle?: string;
@@ -756,6 +772,14 @@ export type ThreadSketch = {
   participantNames: string[];
 };
 
+export type WorldSystemSketch = {
+  name: string;
+  description: string;
+  principles: string[];
+  constraints: string[];
+  interactions: string[];
+};
+
 export type WizardData = {
   title: string;
   premise: string;
@@ -763,6 +787,7 @@ export type WizardData = {
   locations: LocationSketch[];
   threads: ThreadSketch[];
   rules: string[];
+  worldSystems: WorldSystemSketch[];
 };
 
 export type GraphViewMode = 'spatial' | 'overview' | 'prose' | 'spark' | 'codex';

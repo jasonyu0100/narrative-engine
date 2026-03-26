@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useStore } from '@/lib/store';
 import { generateNarrative } from '@/lib/ai';
 import { logApiCall, updateApiLog } from '@/lib/api-logger';
-import type { CharacterSketch, LocationSketch, ThreadSketch } from '@/types/narrative';
+import type { CharacterSketch, LocationSketch, ThreadSketch, WorldSystemSketch } from '@/types/narrative';
 
 const ROLES: CharacterSketch['role'][] = ['anchor', 'recurring', 'transient'];
 
@@ -87,6 +87,42 @@ export function CreationWizard() {
     update({ rules: wd.rules.filter((_, idx) => idx !== i) });
   }
 
+  // ── World Systems ──────────────────────────────────────────────────
+  const [addingSystem, setAddingSystem] = useState(false);
+  const [systemDraft, setSystemDraft] = useState({ name: '', description: '' });
+  const [expandedSystem, setExpandedSystem] = useState<number | null>(null);
+  const [sysPropDrafts, setSysPropDrafts] = useState<Record<number, Record<string, string>>>({});
+
+  function addSystem() {
+    if (!systemDraft.name.trim()) return;
+    const sys: WorldSystemSketch = { name: systemDraft.name.trim(), description: systemDraft.description.trim(), principles: [], constraints: [], interactions: [] };
+    update({ worldSystems: [...wd.worldSystems, sys] });
+    setSystemDraft({ name: '', description: '' });
+    setAddingSystem(false);
+    setExpandedSystem(wd.worldSystems.length);
+  }
+  function removeSystem(i: number) {
+    update({ worldSystems: wd.worldSystems.filter((_, idx) => idx !== i) });
+    if (expandedSystem === i) setExpandedSystem(null);
+  }
+  function addSysProp(i: number, field: 'principles' | 'constraints' | 'interactions') {
+    const text = sysPropDrafts[i]?.[field]?.trim();
+    if (!text) return;
+    const sys = { ...wd.worldSystems[i], [field]: [...wd.worldSystems[i][field], text] };
+    const systems = [...wd.worldSystems];
+    systems[i] = sys;
+    update({ worldSystems: systems });
+    setSysPropDrafts(prev => ({ ...prev, [i]: { ...prev[i], [field]: '' } }));
+  }
+  function removeSysProp(i: number, field: 'principles' | 'constraints' | 'interactions', j: number) {
+    const sys = { ...wd.worldSystems[i], [field]: wd.worldSystems[i][field].filter((_: string, idx: number) => idx !== j) };
+    const systems = [...wd.worldSystems];
+    systems[i] = sys;
+    update({ worldSystems: systems });
+  }
+  function getSysDraft(i: number, field: string) { return sysPropDrafts[i]?.[field] ?? ''; }
+  function setSysDraft(i: number, field: string, value: string) { setSysPropDrafts(prev => ({ ...prev, [i]: { ...prev[i], [field]: value } })); }
+
   // ── Suggest ──────────────────────────────────────────────────────────
   async function handleSuggest() {
     if (suggesting) return;
@@ -145,6 +181,16 @@ export function CreationWizard() {
       details.push(`World rules (absolute constraints the narrative must obey):\n${wd.rules.map((r, i) => `  ${i + 1}. ${r}`).join('\n')}`);
     }
 
+    if (wd.worldSystems.length > 0) {
+      details.push(`World systems:\n${wd.worldSystems.map(s => {
+        const lines = [`  - ${s.name}: ${s.description}`];
+        if (s.principles.length) lines.push(`    Principles: ${s.principles.join('; ')}`);
+        if (s.constraints.length) lines.push(`    Constraints: ${s.constraints.join('; ')}`);
+        if (s.interactions.length) lines.push(`    Interactions: ${s.interactions.join('; ')}`);
+        return lines.join('\n');
+      }).join('\n')}`);
+    }
+
     if (details.length > 0) {
       parts.push('', ...details);
     }
@@ -159,7 +205,7 @@ export function CreationWizard() {
     setError('');
     try {
       const narrative = await generateNarrative(
-        wd.title, buildEnhancedPremise(), wd.rules,
+        wd.title, buildEnhancedPremise(), wd.rules, wd.worldSystems,
         (token) => setStreamText((prev) => prev + token),
       );
       dispatch({ type: 'ADD_NARRATIVE', narrative });
@@ -262,7 +308,7 @@ export function CreationWizard() {
               </div>
               <h2 className="text-sm font-semibold text-text-primary mb-1">Details (Optional)</h2>
               <p className="text-[11px] text-text-dim">
-                Add characters, locations, threads, or world rules — or skip and let the AI fill in everything.
+                Add characters, locations, threads, rules, or systems — or skip and let the AI fill in everything.
               </p>
             </div>
 
@@ -380,7 +426,7 @@ export function CreationWizard() {
             {/* World Rules */}
             <div>
               <div className="flex items-center justify-between mb-1.5">
-                <label className="text-[10px] uppercase tracking-[0.15em] text-text-dim font-mono">World Rules</label>
+                <label className="text-[10px] uppercase tracking-[0.15em] text-text-dim font-mono">Rules</label>
                 <button type="button" onClick={() => { setAddingRule(true); setRuleDraft(''); }} className="text-[10px] text-text-dim hover:text-text-secondary transition">+ Add</button>
               </div>
               {wd.rules.length === 0 && !addingRule && (
@@ -411,6 +457,96 @@ export function CreationWizard() {
                     />
                     <button type="button" onClick={addRule} disabled={!ruleDraft.trim()} className="text-[10px] text-text-dim hover:text-text-secondary disabled:opacity-30 transition shrink-0">Add</button>
                     <button type="button" onClick={() => { setAddingRule(false); setRuleDraft(''); }} className="text-text-dim hover:text-text-secondary text-xs">&times;</button>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* World Systems */}
+            <div>
+              <div className="flex items-center justify-between mb-1.5">
+                <label className="text-[10px] uppercase tracking-[0.15em] text-text-dim font-mono">Systems</label>
+                <button type="button" onClick={() => { setAddingSystem(true); setSystemDraft({ name: '', description: '' }); }} className="text-[10px] text-text-dim hover:text-text-secondary transition">+ Add</button>
+              </div>
+              {wd.worldSystems.length === 0 && !addingSystem && (
+                <p className="text-[11px] text-text-dim/60 italic">No systems defined — the AI will generate systems from the premise.</p>
+              )}
+              <div className="flex flex-col gap-2">
+                {wd.worldSystems.map((sys, i) => {
+                  const isExpanded = expandedSystem === i;
+                  const entryCount = sys.principles.length + sys.constraints.length + sys.interactions.length;
+                  return (
+                    <div key={i} className="bg-bg-elevated rounded-lg border border-border overflow-hidden">
+                      <div className="flex gap-2 items-center p-2.5 cursor-pointer" onClick={() => setExpandedSystem(isExpanded ? null : i)}>
+                        <span className="text-[10px] text-text-dim">{isExpanded ? '▾' : '▸'}</span>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-xs text-text-primary">{sys.name}</p>
+                          {sys.description && <p className="text-[10px] text-text-dim truncate">{sys.description}</p>}
+                        </div>
+                        {!isExpanded && entryCount > 0 && <span className="text-[10px] text-text-dim">{entryCount}</span>}
+                        <button type="button" onClick={(e) => { e.stopPropagation(); removeSystem(i); }} className="text-text-dim hover:text-text-secondary text-xs">&times;</button>
+                      </div>
+                      {isExpanded && (
+                        <div className="px-2.5 pb-2.5 space-y-2 border-t border-border/50">
+                          {(['principles', 'constraints', 'interactions'] as const).map(field => (
+                            <div key={field} className="pt-1.5">
+                              <label className="text-[9px] uppercase tracking-wider text-text-dim/60 font-mono mb-0.5 block">
+                                {field === 'principles' ? 'Principles' : field === 'constraints' ? 'Constraints' : 'Interactions'}
+                              </label>
+                              {sys[field].map((item: string, j: number) => (
+                                <div key={j} className="flex items-start gap-1 group">
+                                  <span className="text-[9px] text-text-dim mt-0.5">•</span>
+                                  <span className="text-[11px] text-text-secondary leading-snug flex-1">{item}</span>
+                                  <button type="button" onClick={() => removeSysProp(i, field, j)} className="text-[9px] text-red-400/40 hover:text-red-400 opacity-0 group-hover:opacity-100 transition">&times;</button>
+                                </div>
+                              ))}
+                              <div className="flex gap-1 mt-0.5">
+                                <input
+                                  type="text"
+                                  value={getSysDraft(i, field)}
+                                  onChange={(e) => setSysDraft(i, field, e.target.value)}
+                                  onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addSysProp(i, field); } }}
+                                  placeholder={field === 'principles' ? 'How it works...' : field === 'constraints' ? 'Hard limits...' : 'Cross-system connections...'}
+                                  className="flex-1 bg-transparent border-b border-border/50 text-[10px] text-text-primary outline-none placeholder:text-text-dim/40 focus:border-white/15 transition pb-0.5"
+                                />
+                                <button type="button" onClick={() => addSysProp(i, field)} disabled={!getSysDraft(i, field).trim()} className="text-[9px] text-text-dim hover:text-text-secondary disabled:opacity-20 transition">+</button>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+                {addingSystem && (
+                  <div className="bg-bg-elevated rounded-lg p-2.5 border border-border space-y-2">
+                    <input
+                      autoFocus
+                      type="text"
+                      value={systemDraft.name}
+                      onChange={(e) => setSystemDraft(prev => ({ ...prev, name: e.target.value }))}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') { e.preventDefault(); addSystem(); }
+                        if (e.key === 'Escape') { setAddingSystem(false); }
+                      }}
+                      placeholder="System name..."
+                      className="w-full bg-transparent border-b border-border text-xs text-text-primary outline-none placeholder:text-text-dim focus:border-white/20 transition pb-0.5"
+                    />
+                    <input
+                      type="text"
+                      value={systemDraft.description}
+                      onChange={(e) => setSystemDraft(prev => ({ ...prev, description: e.target.value }))}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') { e.preventDefault(); addSystem(); }
+                        if (e.key === 'Escape') { setAddingSystem(false); }
+                      }}
+                      placeholder="One-line description..."
+                      className="w-full bg-transparent border-b border-border text-[10px] text-text-dim outline-none placeholder:text-text-dim/40 focus:border-white/20 transition pb-0.5"
+                    />
+                    <div className="flex gap-2">
+                      <button type="button" onClick={addSystem} disabled={!systemDraft.name.trim()} className="text-[10px] text-text-dim hover:text-text-secondary disabled:opacity-30 transition">Add</button>
+                      <button type="button" onClick={() => setAddingSystem(false)} className="text-text-dim hover:text-text-secondary text-xs">&times;</button>
+                    </div>
                   </div>
                 )}
               </div>

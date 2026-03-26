@@ -1388,15 +1388,20 @@ export async function assembleNarrative(
 
   const worldSummary = results.map((ch) => ch.chapterSummary).join(' ');
 
-  // Generate rules and image style from the analyzed content
+  // Generate rules, systems, and image style from the analyzed content
   let rules: string[] = [];
+  let worldSystems: NarrativeState['worldSystems'] = [];
   let imageStyle: string | undefined;
 
   try {
     const metaResult = await callAnalysis(
       `Based on the following world summary and character/thread data, extract:
-1. 3-6 world rules — absolute constraints that this narrative universe follows (laws of magic, social structures, technological limits, etc.)
-2. An image style directive — a short (1-2 sentence) visual style description that would produce consistent imagery for this world (e.g. "Dark oil painting style with muted earth tones and dramatic chiaroscuro lighting" or "Clean cel animation with vibrant saturated colors and expressive linework")
+
+1. WORLD RULES (3-6): High-level absolute constraints that define this series — things that are ALWAYS true in this universe. Rules are broad laws, not mechanical details. For simple/realistic worlds based on our own, extract fewer rules since real-world physics are assumed. For complex fantasy/sci-fi worlds, extract more.
+
+2. WORLD SYSTEMS (0-6): Structured mechanics that define how this world uniquely operates. A system is any distinct mechanic, institution, force, or structure that shapes the world. For each system provide: name, description, principles (how it works), constraints (hard limits/costs), and interactions (cross-system connections). Simple/realistic worlds may have few or no systems — don't force them. Complex fantasy/sci-fi worlds with unique power systems, economies, or social structures should have several.
+
+3. IMAGE STYLE: A short (1-2 sentence) visual style description for consistent imagery.
 
 WORLD SUMMARY: ${worldSummary.slice(0, 2000)}
 
@@ -1406,15 +1411,33 @@ THREADS: ${Object.values(threads).map((t) => `"${t.description}" [${t.status}]`)
 
 LOCATIONS: ${Object.values(locations).map((l) => l.name).join(', ')}
 
-Return JSON: { "rules": ["rule1", "rule2", ...], "imageStyle": "style directive" }`,
-      'You are a world-building analyst. Extract the implicit rules and visual style of a narrative universe. Return only valid JSON.',
+Return JSON:
+{
+  "rules": ["rule1", "rule2"],
+  "worldSystems": [
+    {"name": "System Name", "description": "One-line summary", "principles": ["How it works"], "constraints": ["Hard limits"], "interactions": ["Cross-system connections"]}
+  ],
+  "imageStyle": "style directive"
+}`,
+      'You are a world-building analyst. Extract the implicit rules, mechanical systems, and visual style of a narrative universe. Return only valid JSON.',
       onToken,
     );
     const metaParsed = JSON.parse(extractJSON(metaResult));
     rules = metaParsed.rules ?? [];
     imageStyle = metaParsed.imageStyle;
+    if (Array.isArray(metaParsed.worldSystems)) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      worldSystems = metaParsed.worldSystems.filter((s: any) => s && typeof s.name === 'string').map((s: any) => ({
+        id: `WS-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+        name: s.name,
+        description: typeof s.description === 'string' ? s.description : '',
+        principles: Array.isArray(s.principles) ? s.principles.filter((p: unknown) => typeof p === 'string') : [],
+        constraints: Array.isArray(s.constraints) ? s.constraints.filter((c: unknown) => typeof c === 'string') : [],
+        interactions: Array.isArray(s.interactions) ? s.interactions.filter((x: unknown) => typeof x === 'string') : [],
+      }));
+    }
   } catch (err) {
-    console.error('[text-analysis] Rules/style extraction failed:', err);
+    console.error('[text-analysis] Rules/systems/style extraction failed:', err);
   }
 
   const narrative: NarrativeState = {
@@ -1433,6 +1456,7 @@ Return JSON: { "rules": ["rule1", "rule2", ...], "imageStyle": "style directive"
     worldKnowledge: { nodes: {}, edges: [] }, // derived — recomputed by withDerivedEntities on load
     worldSummary,
     rules,
+    worldSystems,
     imageStyle,
     createdAt: Date.now() - 86400000,
     updatedAt: Date.now(),

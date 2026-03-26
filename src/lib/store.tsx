@@ -1,7 +1,7 @@
 'use client';
 
 import React, { createContext, useContext, useReducer, useEffect, useRef, useMemo, type ReactNode } from 'react';
-import type { AppState, InspectorContext, NarrativeState, NarrativeEntry, WizardStep, WizardData, Scene, Arc, Branch, Character, Location, Thread, RelationshipEdge, GraphViewMode, AutoConfig, AutoRunLog, WorldBuild, WorldKnowledgeGraph, WorldKnowledgeNode, WorldKnowledgeEdge, WorldKnowledgeMutation, ApiLogEntry, StorySettings, AnalysisJob, ChatThread, ChatMessage, Note, PlanningQueue, PlanningPhase, Artifact, BranchEvaluation } from '@/types/narrative';
+import type { AppState, InspectorContext, NarrativeState, NarrativeEntry, WizardStep, WizardData, Scene, Arc, Branch, Character, Location, Thread, RelationshipEdge, GraphViewMode, AutoConfig, AutoRunLog, WorldBuild, WorldKnowledgeGraph, WorldKnowledgeNode, WorldKnowledgeEdge, WorldKnowledgeMutation, ApiLogEntry, StorySettings, AnalysisJob, ChatThread, ChatMessage, Note, PlanningQueue, PlanningPhase, Artifact, BranchEvaluation, WorldSystem } from '@/types/narrative';
 import { resolveEntrySequence, nextId, computeForceSnapshots, computeSwingMagnitudes, computeDeliveryCurve, classifyNarrativeShape, classifyArchetype, gradeForces, computeRawForceTotals, FORCE_REFERENCE_MEANS } from '@/lib/narrative-utils';
 import { initMatrixPresets } from '@/lib/markov';
 import { resolveEntry, isScene } from '@/types/narrative';
@@ -251,7 +251,7 @@ const initialState: AppState = {
   inspectorContext: null,
   wizardOpen: false,
   wizardStep: 'form',
-  wizardData: { title: '', premise: '', characters: [], locations: [], threads: [], rules: [] },
+  wizardData: { title: '', premise: '', characters: [], locations: [], threads: [], rules: [], worldSystems: [] },
   selectedKnowledgeEntity: null,
   graphViewMode: 'spatial',
   autoConfig: {
@@ -323,6 +323,7 @@ export type Action =
   | { type: 'SET_ARTIFACT_IMAGE'; artifactId: string; imageUrl: string }
   | { type: 'SET_IMAGE_STYLE'; style: string }
   | { type: 'SET_RULES'; rules: string[] }
+  | { type: 'SET_WORLD_SYSTEMS'; systems: WorldSystem[] }
   | { type: 'SET_STORY_SETTINGS'; settings: StorySettings }
   // Analysis
   | { type: 'ADD_ANALYSIS_JOB'; job: AnalysisJob }
@@ -409,7 +410,7 @@ function reducer(state: AppState, action: Action): AppState {
     case 'SET_INSPECTOR':
       return { ...state, inspectorContext: action.context };
     case 'OPEN_WIZARD':
-      return { ...state, wizardOpen: true, wizardStep: action.prefillData ? 'details' : 'form', wizardData: { title: '', premise: action.prefill ?? '', characters: [], locations: [], threads: [], rules: [], ...action.prefillData } };
+      return { ...state, wizardOpen: true, wizardStep: action.prefillData ? 'details' : 'form', wizardData: { title: '', premise: action.prefill ?? '', characters: [], locations: [], threads: [], rules: [], worldSystems: [], ...action.prefillData } };
     case 'CLOSE_WIZARD':
       return { ...state, wizardOpen: false };
     case 'SET_WIZARD_STEP':
@@ -962,6 +963,9 @@ function reducer(state: AppState, action: Action): AppState {
 
     case 'SET_RULES':
       return updateNarrative(state, (n) => ({ ...n, rules: action.rules }));
+
+    case 'SET_WORLD_SYSTEMS':
+      return updateNarrative(state, (n) => ({ ...n, worldSystems: action.systems }));
 
     case 'SET_STORY_SETTINGS':
       return updateNarrative(state, (n) => ({ ...n, storySettings: action.settings }));

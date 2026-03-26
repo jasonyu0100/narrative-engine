@@ -3,9 +3,9 @@
 import React, { useMemo, useState, useCallback } from 'react';
 import type { NarrativeState } from '@/types/narrative';
 import { resolveEntry, isScene } from '@/types/narrative';
-import { branchContext, sceneContext, worldContext } from '@/lib/ai';
+import { narrativeContext, sceneContext, outlineContext, worldContext } from '@/lib/ai';
 
-type ContextView = 'branch' | 'scene' | 'world';
+type ContextView = 'narrative' | 'scene' | 'outline' | 'world';
 
 type Props = {
   narrative: NarrativeState;
@@ -238,11 +238,11 @@ function XmlTreeView({ xml }: { xml: string }) {
 
 export function BranchContextModal({ narrative, resolvedKeys, currentSceneIndex, onClose }: Props) {
   const [copied, setCopied] = useState(false);
-  const [view, setView] = useState<ContextView>('branch');
+  const [view, setView] = useState<ContextView>('narrative');
   const [rawMode, setRawMode] = useState(false);
 
-  const branchCtx = useMemo(
-    () => branchContext(narrative, resolvedKeys, currentSceneIndex),
+  const narrativeCtx = useMemo(
+    () => narrativeContext(narrative, resolvedKeys, currentSceneIndex),
     [narrative, resolvedKeys, currentSceneIndex],
   );
 
@@ -255,12 +255,17 @@ export function BranchContextModal({ narrative, resolvedKeys, currentSceneIndex,
     [narrative, currentScene],
   );
 
+  const outlineCtx = useMemo(
+    () => outlineContext(narrative, resolvedKeys, currentSceneIndex),
+    [narrative, resolvedKeys, currentSceneIndex],
+  );
+
   const worldCtx = useMemo(
     () => worldContext(narrative, resolvedKeys, currentSceneIndex),
     [narrative, resolvedKeys, currentSceneIndex],
   );
 
-  const context = view === 'scene' && sceneCtx ? sceneCtx : view === 'world' ? worldCtx : branchCtx;
+  const context = view === 'scene' && sceneCtx ? sceneCtx : view === 'outline' ? outlineCtx : view === 'world' ? worldCtx : narrativeCtx;
 
   const wordCount = useMemo(() => context.split(/\s+/).length, [context]);
   const estimatedTokens = Math.round(context.length / 4);
@@ -288,21 +293,30 @@ export function BranchContextModal({ narrative, resolvedKeys, currentSceneIndex,
             <div className="flex items-center rounded bg-bg-elevated text-[11px] leading-none">
               <button
                 className={`px-2.5 py-1.5 rounded-l transition-colors ${
-                  view === 'branch' ? 'text-accent-cta' : 'text-text-dim hover:text-text-default'
-                }`}
-                onClick={() => setView('branch')}
-              >
-                Branch
-              </button>
-              <div className="w-px h-3.5 bg-border" />
-              <button
-                className={`px-2.5 py-1.5 transition-colors ${
                   view === 'scene' ? 'text-accent-cta' : 'text-text-dim hover:text-text-default'
                 } ${!sceneCtx ? 'opacity-30 pointer-events-none' : ''}`}
                 onClick={() => setView('scene')}
                 disabled={!sceneCtx}
               >
                 Scene
+              </button>
+              <div className="w-px h-3.5 bg-border" />
+              <button
+                className={`px-2.5 py-1.5 transition-colors ${
+                  view === 'outline' ? 'text-accent-cta' : 'text-text-dim hover:text-text-default'
+                }`}
+                onClick={() => setView('outline')}
+              >
+                Outline
+              </button>
+              <div className="w-px h-3.5 bg-border" />
+              <button
+                className={`px-2.5 py-1.5 transition-colors ${
+                  view === 'narrative' ? 'text-accent-cta' : 'text-text-dim hover:text-text-default'
+                }`}
+                onClick={() => setView('narrative')}
+              >
+                Narrative
               </button>
               <div className="w-px h-3.5 bg-border" />
               <button

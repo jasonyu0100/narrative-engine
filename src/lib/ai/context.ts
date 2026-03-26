@@ -1,4 +1,4 @@
-import type { NarrativeState, Scene, StorySettings } from '@/types/narrative';
+import type { NarrativeState, Scene, StorySettings, WorldSystem } from '@/types/narrative';
 import { resolveEntry, THREAD_ACTIVE_STATUSES, THREAD_TERMINAL_STATUSES, THREAD_STATUS_LABELS, DEFAULT_STORY_SETTINGS } from '@/types/narrative';
 import { computeForceSnapshots, computeSwingMagnitudes, detectCubeCorner, movingAverage, FORCE_WINDOW_SIZE, computeDeliveryCurve, classifyCurrentPosition, buildCumulativeWorldKnowledge, rankWorldKnowledgeNodes } from '@/lib/narrative-utils';
 import { SCENE_CONTEXT_RECENT_CONTINUITY } from '@/lib/constants';
@@ -12,6 +12,35 @@ export const THREAD_LIFECYCLE_DOC = (() => {
   ).join(', ');
   return `Active statuses: ${activeList}. Terminal/closed statuses: ${terminalList}.`;
 })();
+
+/** Build a structured world-systems block for prompts */
+function buildWorldSystemsBlock(systems?: WorldSystem[]): string {
+  if (!systems?.length) return '';
+
+  const systemLines = systems.map((sys) => {
+    const parts: string[] = [`<system name="${sys.name}">`];
+    if (sys.description) parts.push(`  <description>${sys.description}</description>`);
+    if (sys.principles.length > 0) {
+      parts.push(`  <principles hint="How it works">`);
+      for (const p of sys.principles) parts.push(`    - ${p}`);
+      parts.push(`  </principles>`);
+    }
+    if (sys.constraints.length > 0) {
+      parts.push(`  <constraints hint="Hard limits and costs">`);
+      for (const c of sys.constraints) parts.push(`    - ${c}`);
+      parts.push(`  </constraints>`);
+    }
+    if (sys.interactions.length > 0) {
+      parts.push(`  <interactions hint="Cross-system connections">`);
+      for (const ix of sys.interactions) parts.push(`    - ${ix}`);
+      parts.push(`  </interactions>`);
+    }
+    parts.push(`</system>`);
+    return parts.join('\n');
+  });
+
+  return `\n<world-systems hint="Structured mechanics that define how this world works. Scenes must operate within these systems — use them to drive conflict, constrain action, and reward preparation.">\n${systemLines.join('\n')}\n</world-systems>\n`;
+}
 
 /** Build a prompt block from story settings — returns empty string if all defaults */
 export function buildStorySettingsBlock(n: NarrativeState): string {
@@ -49,7 +78,7 @@ export function buildStorySettingsBlock(n: NarrativeState): string {
   return `\n<story-settings>\n${lines.join('\n')}\n</story-settings>\n`;
 }
 
-export function branchContext(
+export function narrativeContext(
   n: NarrativeState,
   resolvedKeys: string[],
   currentIndex: number,
@@ -327,6 +356,8 @@ ${nodeLines.join('\n')}
     ? `\n<world-rules hint="Absolute constraints — every scene MUST obey these.">\n${n.rules.map((r, i) => `${i + 1}. ${r}`).join('\n')}\n</world-rules>\n`
     : '';
 
+  const systemsBlock = buildWorldSystemsBlock(n.worldSystems);
+
   const storySettingsBlock = buildStorySettingsBlock(n);
 
   const historyNote = skippedCount > 0
@@ -335,7 +366,7 @@ ${nodeLines.join('\n')}
 
   return `<narrative title="${n.title}">
 <world>${n.worldSummary}</world>
-${rulesBlock}${storySettingsBlock}
+${rulesBlock}${systemsBlock}${storySettingsBlock}
 <characters hint="Continuity tracks what each character knows. Use this to determine what they can reference, discover, or be surprised by.">
 ${characters}
 </characters>
@@ -463,6 +494,11 @@ export function sceneContext(narrative: NarrativeState, scene: Scene): string {
     return `\n<world-knowledge-reveals>\n${lines.join('\n')}\n</world-knowledge-reveals>`;
   })();
 
+  // ── World rules & systems (compact) ──────────────────────────────
+  const rulesBlock = narrative.rules?.length
+    ? `\n<world-rules>\n${narrative.rules.map((r, i) => `${i + 1}. ${r}`).join('\n')}\n</world-rules>` : '';
+  const systemsBlock = buildWorldSystemsBlock(narrative.worldSystems);
+
   return `<scene id="${scene.id}" arc="${arc?.name ?? 'standalone'}" pov="${pov?.name ?? 'Unknown'}" pov-role="${pov?.role ?? 'unknown'}">
 <summary>${scene.summary}</summary>
 
@@ -482,7 +518,7 @@ ${scene.events.map((e) => `  <event>${e}</event>`).join('\n')}
 ${threadMutationLines.length > 0 ? `\n<thread-shifts>\n${threadMutationLines.join('\n')}\n</thread-shifts>` : ''}
 ${continuityMutationLines.length > 0 ? `\n<continuity-changes>\n${continuityMutationLines.join('\n')}\n</continuity-changes>` : ''}
 ${relationshipMutationLines.length > 0 ? `\n<relationship-shifts>\n${relationshipMutationLines.join('\n')}\n</relationship-shifts>` : ''}${wkmBlock}
-${movementLines.length > 0 ? `\n<movements>\n${movementLines.join('\n')}\n</movements>` : ''}
+${movementLines.length > 0 ? `\n<movements>\n${movementLines.join('\n')}\n</movements>` : ''}${rulesBlock}${systemsBlock}
 </scene>`;
 }
 
@@ -823,6 +859,79 @@ export function deriveLogicRules(narrative: NarrativeState, scene: Scene): strin
 }
 
 /**
+ * Summary context — a condensed running summary of the story up to the current scene.
+ * Shows scene summaries grouped by arc with POV, location, and key thread activity.
+ * Much lighter than branchContext — designed for quick orientation without full mutation detail.
+ */
+export function outlineContext(
+  n: NarrativeState,
+  resolvedKeys: string[],
+  currentIndex: number,
+): string {
+  const keysUpToCurrent = resolvedKeys.slice(0, currentIndex + 1);
+
+  // Group scenes by arc
+  const arcForScene = new Map<string, string>();
+  for (const arc of Object.values(n.arcs)) {
+    for (const sid of arc.sceneIds) arcForScene.set(sid, arc.id);
+  }
+
+  // Build scene entries grouped by arc, with world commits as top-level markers between arcs
+  type Section = { kind: 'arc'; arcName: string; entries: string[] } | { kind: 'world-commit'; line: string };
+  const sections: Section[] = [];
+  const arcGroupMap = new Map<string, Section & { kind: 'arc' }>();
+
+  let sceneNum = 0;
+  for (const k of keysUpToCurrent) {
+    const entry = resolveEntry(n, k);
+    if (!entry) continue;
+
+    if (entry.kind === 'world_build') {
+      sections.push({ kind: 'world-commit', line: `<world-commit>${entry.summary}</world-commit>` });
+      continue;
+    }
+
+    sceneNum++;
+    const arcId = arcForScene.get(entry.id);
+    const arc = arcId ? n.arcs[arcId] : null;
+
+    let group: Section & { kind: 'arc' };
+    if (arcId && arcGroupMap.has(arcId)) {
+      group = arcGroupMap.get(arcId)!;
+    } else {
+      const name = arc?.name ?? 'Standalone';
+      group = { kind: 'arc', arcName: name, entries: [] };
+      if (arcId) arcGroupMap.set(arcId, group);
+      sections.push(group);
+    }
+
+    const povName = n.characters[entry.povId]?.name ?? entry.povId;
+    const locName = n.locations[entry.locationId]?.name ?? entry.locationId;
+    const threadChanges = entry.threadMutations
+      .map((tm) => {
+        const t = n.threads[tm.threadId];
+        return t ? `${t.description.slice(0, 30)}: ${tm.from}→${tm.to}` : '';
+      })
+      .filter(Boolean)
+      .join('; ');
+
+    group.entries.push(
+      `  <scene index="${sceneNum}" pov="${povName}" location="${locName}"${threadChanges ? ` threads="${threadChanges}"` : ''}>${entry.summary}</scene>`,
+    );
+  }
+
+  // Format sections
+  const arcSections = sections.map((s) => {
+    if (s.kind === 'world-commit') return s.line;
+    return `<arc name="${s.arcName}">\n${s.entries.join('\n')}\n</arc>`;
+  }).join('\n\n');
+
+  return `<story-summary title="${n.title}" scenes="${sceneNum}" hint="Narrative recap — scene-by-scene progression grouped by arc.">
+${arcSections}
+</story-summary>`;
+}
+
+/**
  * World context — cumulative state of the world up to a given timeline index,
  * organised by world build commits so the LLM can see when each part was introduced.
  */
@@ -930,13 +1039,18 @@ export function worldContext(
     ? `<world-rules hint="Absolute constraints — every scene MUST obey these.">\n${n.rules.map((r, i) => `${i + 1}. ${r}`).join('\n')}\n</world-rules>\n`
     : '';
 
+  const systemsBlock = buildWorldSystemsBlock(n.worldSystems);
+
   const sceneCount = keysUpToCurrent.filter((k) => n.scenes[k]).length;
 
   return `<world-state title="${n.title}" scenes="${sceneCount}" commits="${wxKeys.length}">
 <summary>${n.worldSummary ?? ''}</summary>
-${rulesBlock}
+${rulesBlock}${systemsBlock}
 <world-commits hint="Chronological — each commit shows what was introduced to the world.">
 ${commitSections.join('\n\n')}
 </world-commits>
 ${wkBlock}</world-state>`;
 }
+
+/** @deprecated Use narrativeContext instead */
+export const branchContext = narrativeContext;

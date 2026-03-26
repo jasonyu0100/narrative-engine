@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { useStore } from '@/lib/store';
-import { branchContext, sceneContext, worldContext } from '@/lib/ai';
+import { narrativeContext, sceneContext, outlineContext, worldContext } from '@/lib/ai';
 import { resolveEntry } from '@/types/narrative';
 import { apiHeaders } from '@/lib/api-headers';
 import { logApiCall, updateApiLog } from '@/lib/api-logger';
@@ -13,7 +13,7 @@ export default function ChatPanel() {
   const access = useFeatureAccess();
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
-  const [contextMode, setContextMode] = useState<'scene' | 'branch' | 'world'>('scene');
+  const [contextMode, setContextMode] = useState<'scene' | 'outline' | 'narrative' | 'world'>('scene');
   const [threadPickerOpen, setThreadPickerOpen] = useState(false);
   const [renamingThreadId, setRenamingThreadId] = useState<string | null>(null);
   const [renameValue, setRenameValue] = useState('');
@@ -58,6 +58,7 @@ export default function ChatPanel() {
       const entry = key ? resolveEntry(state.activeNarrative, key) : null;
       if (entry?.kind === 'world_build') setContextMode('world');
       else setContextMode('scene');
+
     }
   }, [state.currentSceneIndex]);
 
@@ -75,6 +76,15 @@ Answer questions about this specific scene, its characters, location, and events
 ${ctx}`;
     }
 
+    if (contextMode === 'outline') {
+      const ctx = outlineContext(state.activeNarrative, state.resolvedEntryKeys, contextSceneIndex);
+      return `You are a narrative consultant for the story "${state.activeNarrative.title}". You have a condensed outline of the entire story up to scene ${contextSceneIndex + 1}.
+
+Answer questions about story progression, recap events, identify patterns, or discuss where the narrative stands. You see the arc structure and scene summaries but not full mutation detail. Be concise and specific.
+
+${ctx}`;
+    }
+
     if (contextMode === 'world') {
       const ctx = worldContext(state.activeNarrative, state.resolvedEntryKeys, contextSceneIndex);
       const currentKey = state.resolvedEntryKeys[contextSceneIndex];
@@ -87,7 +97,7 @@ Answer questions about the world's characters, locations, threads, and lore. Exp
 ${ctx}`;
     }
 
-    const ctx = branchContext(
+    const ctx = narrativeContext(
       state.activeNarrative,
       state.resolvedEntryKeys,
       contextSceneIndex,
@@ -389,7 +399,7 @@ ${ctx}`;
         {/* Context mode toggle row */}
         <div className="flex items-center gap-2">
           <div className="flex rounded-md border border-border overflow-hidden text-[10px] font-medium">
-            {(['scene', 'branch', 'world'] as const).map((mode, idx) => (
+            {(['scene', 'outline', 'narrative', 'world'] as const).map((mode, idx) => (
               <button
                 key={mode}
                 onClick={() => setContextMode(mode)}
