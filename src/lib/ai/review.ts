@@ -31,6 +31,30 @@ export async function refreshDirection(
   const ctx = branchContext(narrative, resolvedKeys, currentIndex);
 
   const scenesRemaining = phase.sceneAllocation - phase.scenesCompleted;
+  const speed = narrative.storySettings?.threadResolutionSpeed ?? DEFAULT_STORY_SETTINGS.threadResolutionSpeed;
+  const threadHealthBlock = buildThreadHealthPrompt(narrative, resolvedKeys, currentIndex, speed);
+
+  // Speed-specific pacing directives
+  const PACING_DIRECTIVES: Record<string, string> = {
+    fast: `PACING MODE: FAST — This is a thriller. The thread velocity report above is your dashboard.
+- Threads over the benchmark MUST transition or resolve in the next arc. No exceptions.
+- Every arc should push at least 2 threads forward by one phase. Zero-progress arcs are failures.
+- If a thread has a high pulse ratio (being touched but not transitioning), force a transition NOW — either escalate it or kill it.
+- Prioritise resolution: threads at "critical" should reach terminal status. Threads at "escalating" should hit "critical".
+- Name specific threads that need to transition and what their target status should be.`,
+
+    moderate: `PACING MODE: BALANCED — Steady progression matching published literature.
+- Threads over the benchmark need attention — push them forward or consciously let them breathe for one more arc with justification.
+- Each arc should advance at least 1 thread by one phase. Arcs that only pulse threads without transitions are losing momentum.
+- Balance development with payoff: if the last 2 arcs were buildup, the next should deliver at least one transition to a higher phase.
+- Name threads that are closest to their next transition and what should trigger it.`,
+
+    slow: `PACING MODE: SLOW BURN — Threads develop gradually but must still progress.
+- Threads well over the benchmark need a transition — even slow burns can't stagnate indefinitely.
+- Each arc should deepen at least 1-2 threads through meaningful interaction, even if the status doesn't change. But if a thread has gone 15+ scenes without a transition, push it.
+- Favour earned transitions over forced ones — the reader should feel the shift was inevitable, not arbitrary.
+- Name threads that are ripe for their next phase and what would make the transition feel organic.`,
+  };
 
   const prompt = `${ctx}
 
@@ -43,32 +67,34 @@ ${phase.constraints ? `PHASE CONSTRAINTS: ${phase.constraints}` : ''}
 CURRENT DIRECTION: ${currentDirection || '(none set)'}
 CURRENT CONSTRAINTS: ${currentConstraints || '(none set)'}
 
-${buildThreadHealthPrompt(narrative, resolvedKeys, currentIndex, narrative.storySettings?.threadResolutionSpeed ?? DEFAULT_STORY_SETTINGS.threadResolutionSpeed)}
+${threadHealthBlock}
 
-Review the scene history above through these lenses:
+${PACING_DIRECTIVES[speed] ?? PACING_DIRECTIVES.moderate}
 
-1. THREAD TENSION — Look at the active threads. Are any two on a collision course? If not, the next arc MUST force one. Name which threads should collide and how. If threads are already colliding, push the collision harder.
+Review the scene history and thread velocity report through these lenses:
 
-2. CHARACTER COST — Has the protagonist faced a genuine setback they didn't choose? Have secondary characters changed or are they stuck in loops? If anyone has appeared 3+ times with the same reaction, they need a turn or they need to disappear. Name who needs to change and how.
+1. THREAD VELOCITY — Study the velocity report above. Which threads are over the benchmark? Which have high pulse ratios? Which are closest to their next phase? Name specific threads, their current status, and what the next arc should do with them. The velocity data is your primary input — use it.
 
-3. RHYTHM — Were the recent scenes all the same density? The next arc needs contrast. If the last arc was dense and action-heavy, the next should open quiet before escalating. If the last was slow and observational, the next needs a sharp inciting moment early.
+2. CHARACTER COST — Has the protagonist faced a genuine setback they didn't choose? Have secondary characters changed or are they stuck in loops? Name who needs to change and how.
 
-4. FRESHNESS — Are any patterns repeating? Same locations revisited without new payoff? Same character doing the same thing? Same sentence structures in summaries? Name the stale patterns and explicitly ban them.
+3. RHYTHM — Were the recent scenes all the same density? The next arc needs contrast.
 
-5. MOMENTUM — With ${scenesRemaining} scenes left, what MUST happen before this phase ends? What can be cut? Are we on track for the phase objective or do we need to accelerate?
+4. FRESHNESS — Are any patterns repeating? Same locations, same character reactions, same beats? Name the stale patterns and ban them.
 
-6. ARTIFACTS — Are any existing artifacts being ignored? Should one change hands, get used, or become contested? If an artifact exists and nobody cares about it, flag it as stale.
+5. MOMENTUM — With ${scenesRemaining} scenes left, what MUST happen before this phase ends? Are we on track? If not, which threads can be accelerated and which can be abandoned?
 
-Write the updated direction and constraints as if you're briefing a writers' room:
-- Direction: What the next arc should DO. Which characters, which threads, which locations. If artifacts exist, who should pursue or use them. Specific enough to guide, open enough to surprise.
-- Constraints: What MUST NOT happen. Include stale patterns. Protect future phases.
+6. ARTIFACTS — Are any existing artifacts being ignored or underused? Should one change hands?
+
+Write the updated direction and constraints:
+- Direction (4-7 sentences): HOW the next arc should unfold — not what happens, but the specific mechanism. Bad: "The rivalry between X and Y escalates." Good: "X discovers Y's betrayal through the stolen letter and confronts them at the bridge — the confrontation must cost X something they can't take back." Name the character, the action, the location, the consequence. Reference specific threads from the velocity report and state what status they should reach. Every sentence should contain a verb that commits to a specific dramatic action.
+- Constraints (2-3 sentences): What MUST NOT happen. Ban stale patterns. Protect threads meant for later phases.
 
 Use character NAMES and thread DESCRIPTIONS, never IDs.
 
 Return JSON:
 {
-  "direction": "2-4 sentences",
-  "constraints": "1-2 sentences"
+  "direction": "4-7 sentences — reference specific threads and target statuses",
+  "constraints": "2-3 sentences"
 }`;
 
   const raw = await callGenerate(prompt, SYSTEM_PROMPT, 600, 'refreshDirection');

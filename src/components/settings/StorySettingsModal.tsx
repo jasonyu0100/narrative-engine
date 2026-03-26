@@ -327,7 +327,7 @@ export function StorySettingsModal({ onClose }: { onClose: () => void }) {
                   {([
                     { value: 'slow' as const, label: 'Slow Burn', desc: '~10 scenes between transitions — threads develop gradually with room to breathe' },
                     { value: 'moderate' as const, label: 'Balanced', desc: '~6 scenes between transitions — steady progression matching published literature' },
-                    { value: 'fast' as const, label: 'Thriller', desc: '~4 scenes between transitions — threads escalate and resolve quickly' },
+                    { value: 'fast' as const, label: 'Fast Paced', desc: '~4 scenes between transitions — threads escalate and resolve quickly, every arc must advance the plot' },
                   ]).map((opt) => (
                     <button
                       key={opt.value}

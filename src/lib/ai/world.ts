@@ -370,6 +370,9 @@ Return JSON with this exact structure:
   "relationships": [
     {"from": "C-01", "to": "C-02", "type": "description", "valence": 0.5}
   ],
+  "artifacts": [
+    {"id": "A-01", "name": "string", "significance": "key|notable|minor", "parentId": "character or location ID", "continuity": {"nodes": [{"id": "AK-01", "type": "specific_type", "content": "what it is, what it does, its history, its powers, its limitations"}]}, "imagePrompt": "1-2 sentence visual description"}
+  ],
   "scenes": [
     {
       "id": "S-001",
@@ -396,6 +399,7 @@ HARD MINIMUMS — the world MUST contain at least these counts. Generating fewer
 - EXACTLY 20 locations with parent/child hierarchy (at least 3 nesting levels)
 - EXACTLY 6 threads (interlocking — at least 3 must share participants)
 - EXACTLY 20 relationships (asymmetric, at least 3 hostile)
+- EXACTLY 3 artifacts (at least 1 key, 1 notable, 1 minor)
 - EXACTLY 10 world knowledge nodes with 6 edges
 - EXACTLY 8 scenes in 1 arc
 
@@ -414,6 +418,12 @@ RELATIONSHIPS:
 - Connect anchors to MANY characters (6+ relationships per anchor)
 - Asymmetric descriptions: "A admires B" while "B suspects A"
 - At least 2 hidden relationships (known to reader, not to characters)
+
+ARTIFACTS:
+- Key artifact (1): a plot-altering object that characters will scheme to acquire, protect, or destroy. 4-5 continuity nodes covering what it is, what it does, its history, and its limitations. Must be owned by a character or placed at a location where it can be discovered.
+- Notable artifact (1): a tool that grants a specific capability — a weapon, a key, a document. 2-3 continuity nodes. Owned by a character who uses it.
+- Minor artifact (1): a small object with narrative potential — a token, a letter, a trinket. 1-2 continuity nodes. Can be at a location.
+- Artifacts must feel integral to the world — not bolted on. The key artifact should connect to at least one thread.
 
 Every anchor must appear in at least 3 scenes. Use at least 6 different locations across the 8 scenes.
 

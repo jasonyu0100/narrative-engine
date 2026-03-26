@@ -205,10 +205,11 @@ THREAD LIFECYCLE:
 
 export const PROMPT_SUMMARY_REQUIREMENT = `
 SUMMARIES — EVERY scene MUST have a non-empty "summary" field:
-- Write 3-5 detailed sentences: name characters and locations, describe the key action and its consequence, and set up the tension for what follows.
-- SCALE THE SUMMARY TO THE SCENE'S WEIGHT. A pivotal confrontation deserves 5 rich sentences. A quiet transition needs 2-3. Not every scene is the same size.
-- Vague summaries produce vague stories. Be specific and cinematic.
-- NEVER use the phrase "observes and files away" or "notes for future leverage" — show characters ACTING on what they know, not passively cataloguing.
+- Write 3-5 detailed sentences that answer HOW things happen, not just WHAT happens.
+- Bad: "A confrontation occurs and tensions rise." Good: "Kael slams the forged treaty onto the table in front of the full council, forcing Mira to either deny her signature or admit the alliance was a trap. She chooses silence — which tells everyone in the room more than any denial could."
+- Every summary sentence should contain a specific action, a named character, and a consequence. Abstract descriptions ("tensions rise", "bonds deepen", "secrets emerge") are failures — replace them with the concrete mechanism.
+- SCALE THE SUMMARY TO THE SCENE'S WEIGHT. A pivotal confrontation deserves 5 rich sentences. A quiet transition needs 2-3.
+- NEVER use passive observation language ("observes and files away", "notes for future leverage", "begins to suspect"). Show characters ACTING — making choices, taking risks, paying costs.
 `;
 
 // ── Character Arc Discipline ─────────────────────────────────────────────────
