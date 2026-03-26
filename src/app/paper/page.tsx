@@ -748,7 +748,7 @@ export default function PaperPage() {
 
             <h3 className="text-[15px] font-semibold text-white/80 mb-3">Archetypes</h3>
             <P>
-              Each story is classified by which forces dominate its profile. A force is considered &ldquo;dominant&rdquo; if it scores &ge; 20 and falls within 5 points of the maximum.
+              Each story is classified by which forces dominate its profile. A force is considered &ldquo;dominant&rdquo; if it scores &ge; 21 and falls within 5 points of the maximum.
             </P>
             <div className="mt-4 grid grid-cols-2 sm:grid-cols-4 gap-2 text-[11px]">
               {ARCHETYPES.map(({ key, name, desc, color }) => (
@@ -791,13 +791,21 @@ export default function PaperPage() {
               We&apos;d especially love to see the community experiment with their own texts. Paste any corpus into the <Link href="/analysis" className="text-white/60 underline underline-offset-2 hover:text-white/80 transition-colors">analysis pipeline</Link> — novels, screenplays, web serials, fanfiction — and see where the peaks land, what archetype emerges, and whether the force landscape matches your intuition. When it doesn&apos;t, that&apos;s the interesting part. Pull requests welcome.
             </P>
 
-            <div className="mt-8">
+            <div className="mt-8 flex flex-wrap gap-3">
               <Link
                 href="/case-analysis"
                 className="text-[11px] px-4 py-2 rounded-full border border-amber-500/30 bg-amber-500/5 text-amber-400/80 hover:text-amber-300 hover:border-amber-500/50 hover:bg-amber-500/10 transition-colors"
               >
                 See it in action: Harry Potter case analysis &rarr;
               </Link>
+              <a
+                href="https://github.com/jasonyu0100/narrative-engine"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-[11px] px-4 py-2 rounded-full border border-white/15 bg-white/3 text-white/50 hover:text-white/70 hover:border-white/25 hover:bg-white/5 transition-colors"
+              >
+                View the repo on GitHub &rarr;
+              </a>
             </div>
           </Section>
 
