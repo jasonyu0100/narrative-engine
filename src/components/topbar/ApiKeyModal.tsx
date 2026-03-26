@@ -11,6 +11,7 @@ type Props = {
 export default function ApiKeyModal({ access, onClose }: Props) {
   const [orKey, setOrKey] = useState(access.openRouterKey);
   const [repKey, setRepKey] = useState(access.replicateKey);
+  const [showAdvanced, setShowAdvanced] = useState(!!access.replicateKey);
 
   function handleSave() {
     access.setOpenRouterKey(orKey.trim());
@@ -20,17 +21,16 @@ export default function ApiKeyModal({ access, onClose }: Props) {
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80">
-      <div className="glass-panel border border-border rounded-xl w-full max-w-md p-6 shadow-2xl">
+      <div className="glass-panel border border-border rounded-xl w-full max-w-sm p-5 shadow-2xl">
         <h2 className="text-sm font-semibold text-text-primary mb-1">API Keys</h2>
-        <p className="text-[11px] text-text-dim mb-4">
-          Enter your API keys to enable features. OpenRouter is required for generation and chat. Replicate is optional and enables image generation in Drive.
+        <p className="text-[11px] text-text-dim mb-3">
+          Narrative Engine uses AI models via OpenRouter to analyze, generate, and refine stories. You&apos;ll need an OpenRouter API key to get started.
         </p>
 
         <div className="space-y-3">
-          {/* OpenRouter key */}
           <div>
             <label className="block text-[10px] font-medium text-text-secondary mb-1">
-              OpenRouter API Key <span className="text-red-400">*</span>
+              OpenRouter <span className="text-red-400">*</span>
             </label>
             <input
               type="password"
@@ -39,61 +39,59 @@ export default function ApiKeyModal({ access, onClose }: Props) {
               placeholder="sk-or-..."
               className="w-full bg-white/5 border border-border rounded px-3 py-2 text-xs text-text-primary placeholder:text-text-dim focus:outline-none focus:border-white/20 transition-colors"
             />
-            <p className="text-[9px] text-text-dim mt-0.5">Required for Generate, Auto mode, and Chat.</p>
-            <a href="https://openrouter.ai/keys" target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 mt-1.5 text-[10px] font-medium text-accent bg-accent/10 hover:bg-accent/20 px-2 py-1 rounded transition-colors">
-              Get an OpenRouter key &rarr;
-            </a>
+            {!orKey.trim() && (
+              <a href="https://openrouter.ai/keys" target="_blank" rel="noopener noreferrer" className="text-[9px] text-text-dim hover:text-text-secondary mt-1 inline-block transition-colors">
+                Get a key &rarr;
+              </a>
+            )}
           </div>
 
-          {/* Replicate key */}
-          <div>
-            <label className="block text-[10px] font-medium text-text-secondary mb-1">
-              Replicate API Token <span className="text-text-dim">(optional)</span>
-            </label>
-            <input
-              type="password"
-              value={repKey}
-              onChange={(e) => setRepKey(e.target.value)}
-              placeholder="r8_..."
-              className="w-full bg-white/5 border border-border rounded px-3 py-2 text-xs text-text-primary placeholder:text-text-dim focus:outline-none focus:border-white/20 transition-colors"
-            />
-            <p className="text-[9px] text-text-dim mt-0.5">Required for Drive image generation and cover art.</p>
-            <a href="https://replicate.com/account/api-tokens" target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 mt-1.5 text-[10px] font-medium text-accent bg-accent/10 hover:bg-accent/20 px-2 py-1 rounded transition-colors">
-              Get a Replicate token &rarr;
-            </a>
-          </div>
+          <button
+            onClick={() => setShowAdvanced((s) => !s)}
+            className="text-[10px] text-text-dim hover:text-text-secondary transition-colors"
+          >
+            {showAdvanced ? '- Advanced' : '+ Advanced'}
+          </button>
+
+          {showAdvanced && (
+            <div className="border-t border-white/5 pt-2">
+              <label className="block text-[10px] font-medium text-text-secondary mb-1">
+                Replicate <span className="text-text-dim/60">optional</span>
+              </label>
+              <input
+                type="password"
+                value={repKey}
+                onChange={(e) => setRepKey(e.target.value)}
+                placeholder="r8_..."
+                className="w-full bg-white/5 border border-border rounded px-3 py-2 text-xs text-text-primary placeholder:text-text-dim focus:outline-none focus:border-white/20 transition-colors"
+              />
+              <p className="text-[9px] text-text-dim mt-0.5">Image generation</p>
+            </div>
+          )}
         </div>
 
-        <p className="text-[9px] text-text-dim mt-3">Keys are stored locally in your browser and never sent to our servers.</p>
-
-        <div className="flex items-center justify-between mt-3">
+        <div className="flex items-center justify-end gap-2 mt-4">
           {(access.hasOpenRouterKey || access.hasReplicateKey) && (
             <button
-              onClick={() => {
-                access.clearKeys();
-                setOrKey('');
-                setRepKey('');
-              }}
-              className="text-[10px] text-red-400/70 hover:text-red-400 transition-colors"
+              onClick={() => { access.clearKeys(); setOrKey(''); setRepKey(''); }}
+              className="text-[10px] text-red-400/60 hover:text-red-400 transition-colors mr-auto"
             >
-              Clear all keys
+              Clear
             </button>
           )}
-          <div className="flex items-center gap-2 ml-auto">
-            <button
-              onClick={onClose}
-              className="text-[11px] px-3 py-1.5 rounded text-text-dim hover:text-text-secondary transition-colors"
-            >
-              Cancel
-            </button>
-            <button
-              onClick={handleSave}
-              disabled={!orKey.trim()}
-              className="text-[11px] px-3 py-1.5 rounded bg-accent/20 text-accent hover:bg-accent/30 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-            >
-              Save
-            </button>
-          </div>
+          <button
+            onClick={onClose}
+            className="text-[11px] px-3 py-1.5 rounded text-text-dim hover:text-text-secondary transition-colors"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={handleSave}
+            disabled={!orKey.trim()}
+            className="text-[11px] px-3 py-1.5 rounded bg-accent/20 text-accent hover:bg-accent/30 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+          >
+            Save
+          </button>
         </div>
       </div>
     </div>
