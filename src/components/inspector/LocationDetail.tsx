@@ -183,6 +183,30 @@ export default function LocationDetail({ locationId }: Props) {
         );
       })()}
 
+      {/* Artifacts at this location */}
+      {(() => {
+        const owned = Object.values(narrative.artifacts ?? {}).filter((a) => a.parentId === locationId);
+        if (owned.length === 0) return null;
+        return (
+          <CollapsibleSection title="Artifacts" count={owned.length}>
+            <ul className="flex flex-col gap-1">
+              {owned.map((art) => (
+                <li key={art.id}>
+                  <button
+                    type="button"
+                    onClick={() => dispatch({ type: 'SET_INSPECTOR', context: { type: 'artifact', artifactId: art.id } })}
+                    className="text-xs text-amber-400 transition-colors hover:underline"
+                  >
+                    {art.name}
+                    <span className="ml-1.5 text-text-dim">({art.significance})</span>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </CollapsibleSection>
+        );
+      })()}
+
       {/* Scenes — paginated, most recent first */}
       {lifecycle.length > 0 && (() => {
         const { pageItems, totalPages, safePage } = paginateRecent(lifecycle, scenesPage);

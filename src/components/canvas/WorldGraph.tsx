@@ -147,6 +147,7 @@ export default function WorldGraph() {
         narrative.worldBuilds,
         resolvedEntryKeys,
         resolvedEntryKeys.length - 1,
+        narrative.artifacts,
       );
       nodes = result.nodes;
       links = result.links;
@@ -195,6 +196,7 @@ export default function WorldGraph() {
           filteredLocs,
           filteredRels,
           {},
+          narrative.artifacts,
         );
         nodes = result.nodes;
         links = result.links;
@@ -272,6 +274,7 @@ export default function WorldGraph() {
           filteredLocations,
           filteredRelationships,
           characterPositions,
+          narrative.artifacts,
         );
         nodes = result.nodes;
         links = result.links;
@@ -393,6 +396,7 @@ export default function WorldGraph() {
         'collide',
         d3.forceCollide<GraphNode>().radius((d) => {
           if (d.kind === 'knowledge') return 28;
+          if (d.kind === 'artifact') return 24;
           if (scaleByUsage) {
             if (d.kind === 'character') {
               const t = charRange > 0 ? ((d.usageCount ?? 1) - minCharUsage) / charRange : 0;
@@ -484,9 +488,10 @@ export default function WorldGraph() {
         _event.stopPropagation();
         if (d.kind === 'character') handleCharacterClickRef.current(d.id);
         if (d.kind === 'location') handleLocationClickRef.current(d.id);
+        if (d.kind === 'artifact') dispatch({ type: 'SET_INSPECTOR', context: { type: 'artifact', artifactId: d.id } });
       })
       .on('mouseenter', (event, d) => {
-        if ((d.kind === 'character' || d.kind === 'location') && d.imagePrompt) {
+        if ((d.kind === 'character' || d.kind === 'location' || d.kind === 'artifact') && d.imagePrompt) {
           const rect = svgRef.current?.getBoundingClientRect();
           if (!rect) return;
           setNodeTooltip({ x: event.clientX - rect.left, y: event.clientY - rect.top - 10, label: d.label, kind: d.kind, imagePrompt: d.imagePrompt });
@@ -590,6 +595,20 @@ export default function WorldGraph() {
       .attr('r', 8)
       .attr('fill', (d) => CONTINUITY_FILL[d.continuityType ?? 'knows'] ?? DEFAULT_CONTINUITY_FILL)
       .attr('opacity', (d) => KNOWLEDGE_OPACITY[d.continuityType ?? 'knows'] ?? DEFAULT_KNOWLEDGE_OPACITY);
+
+    // Artifact diamonds
+    const ARTIFACT_SIZE = 10;
+    nodeGroup
+      .filter((d) => d.kind === 'artifact')
+      .append('rect')
+      .attr('x', -ARTIFACT_SIZE)
+      .attr('y', -ARTIFACT_SIZE)
+      .attr('width', ARTIFACT_SIZE * 2)
+      .attr('height', ARTIFACT_SIZE * 2)
+      .attr('rx', 2)
+      .attr('transform', 'rotate(45)')
+      .attr('fill', '#F59E0B')
+      .attr('opacity', 0.85);
 
     // Character / location labels
     nodeGroup

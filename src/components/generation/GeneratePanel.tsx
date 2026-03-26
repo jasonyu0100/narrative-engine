@@ -181,7 +181,7 @@ export function GeneratePanel({ onClose }: { onClose: () => void }) {
         type: 'EXPAND_WORLD', worldBuildId: nextId('WB', Object.keys(narrative.worldBuilds), 3),
         characters: expansion.characters, locations: expansion.locations, threads: expansion.threads,
         relationships: expansion.relationships, worldKnowledgeMutations: expansion.worldKnowledgeMutations,
-        branchId: state.activeBranchId!,
+        artifacts: expansion.artifacts, branchId: state.activeBranchId!,
       });
       onClose();
     } catch (err) { setError(String(err)); } finally { setLoading(false); }

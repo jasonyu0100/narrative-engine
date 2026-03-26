@@ -1,4 +1,4 @@
-import type { NarrativeState, Character, Location, Thread, RelationshipEdge, WorldKnowledgeNode, WorldKnowledgeEdge, WorldKnowledgeMutation } from '@/types/narrative';
+import type { NarrativeState, Character, Location, Thread, RelationshipEdge, WorldKnowledgeNode, WorldKnowledgeEdge, WorldKnowledgeMutation, Artifact } from '@/types/narrative';
 import { THREAD_ACTIVE_STATUSES } from '@/types/narrative';
 import { nextId, nextIds } from '@/lib/narrative-utils';
 import { callGenerate, callGenerateStream, SYSTEM_PROMPT } from './api';
@@ -14,6 +14,7 @@ export type WorldExpansion = {
   threads: Thread[];
   relationships: RelationshipEdge[];
   worldKnowledgeMutations?: WorldKnowledgeMutation;
+  artifacts?: Artifact[];
 };
 
 export type DirectionSuggestion = {
@@ -171,6 +172,7 @@ export async function expandWorld(
   const nextCharId = nextId('C', Object.keys(narrative.characters));
   const nextLocId = nextId('L', Object.keys(narrative.locations));
   const nextThreadId = nextId('T', Object.keys(narrative.threads));
+  const nextArtifactId = nextId('A', Object.keys(narrative.artifacts ?? {}));
   const existingKIds = [
     ...Object.values(narrative.characters).flatMap((c) => (c.continuity?.nodes ?? []).map((n) => n.id)),
     ...Object.values(narrative.locations).flatMap((l) => (l.continuity?.nodes ?? []).map((n) => n.id)),
@@ -195,6 +197,7 @@ This is ${EXPANSION_SIZE_CONFIG[size].label} (${EXPANSION_SIZE_CONFIG[size].tota
 - ${EXPANSION_SIZE_CONFIG[size].locations} new locations
 - ${EXPANSION_SIZE_CONFIG[size].threads} new threads
 - Relationships connecting new characters to EXISTING characters (this is critical)
+- Artifacts if the directive or narrative calls for them — objects that grant characters capabilities and drive acquisition, conflict, or discovery. Not every expansion needs artifacts, but consider whether the new world elements would benefit from tangible tools, relics, or items that characters can use and fight over.
 
 EXISTING ENTITIES (you MUST reference these to integrate new content):
 Characters: ${existingCharList}
@@ -244,6 +247,16 @@ Return JSON with this exact structure:
   "relationships": [
     {"from": "character ID", "to": "character ID", "type": "description", "valence": 0.0}
   ],
+  "artifacts": [
+    {
+      "id": "${nextArtifactId}",
+      "name": "string",
+      "significance": "key|notable|minor",
+      "parentId": "owner — a character or location ID",
+      "continuity": {"nodes": [{"id": "K-next", "type": "contextual_type", "content": "what it is, what it does, its history, its powers, its limitations — everything about this artifact lives in its continuity"}]},
+      "imagePrompt": "1-2 sentence visual description"
+    }
+  ],
   "worldKnowledgeMutations": {
     "addedNodes": [{"id": "WK-GEN-001", "concept": "foundational world concept", "type": "law|system|concept|tension"}],
     "addedEdges": [{"from": "WK-GEN-001", "to": "existing-WK-ID", "relation": "relationship"}]
@@ -254,6 +267,7 @@ ID RULES:
 - Character IDs: continue sequentially from ${nextCharId} (e.g., ${nextCharId}, C-${String(parseInt(nextCharId.split('-').pop()!) + 1).padStart(2, '0')}, ...)
 - Location IDs: continue sequentially from ${nextLocId} (e.g., ${nextLocId}, L-${String(parseInt(nextLocId.split('-').pop()!) + 1).padStart(2, '0')}, ...)
 - Thread IDs: continue sequentially from ${nextThreadId} (e.g., ${nextThreadId}, T-${String(parseInt(nextThreadId.split('-').pop()!) + 1).padStart(2, '0')}, ...)
+- Artifact IDs: continue sequentially from ${nextArtifactId} (e.g., ${nextArtifactId}, A-${String(parseInt(nextArtifactId.split('-').pop()!) + 1).padStart(2, '0')}, ...)
 - Knowledge node IDs: continue sequentially from ${nextKId} (e.g., ${nextKId}, K-${String(parseInt(nextKId.split('-').pop()!) + 1).padStart(2, '0')}, ...)
 - ALL knowledge nodes (in both characters and locations) use the K- prefix and share one sequence
 
@@ -263,6 +277,7 @@ INTEGRATION RULES (most important):
 - Include varied relationship valences: allies, rivals, mentors, debtors, enemies, kin. At least one relationship should have tension (negative or ambivalent valence).
 - EVERY new location SHOULD have a parentId referencing an existing location — build a deeper hierarchy. Only use null for truly independent top-level regions. If the world has cities, nest new locations inside them. If it has regions, place new settlements within them.
 - Thread participants MUST include at least one existing character or location — threads that only reference new entities won't integrate.
+- Artifacts MUST have a parentId referencing a character or location. A character can possess an artifact from the start (a king's crown, a warrior's blade). Artifacts at locations are discoverable — visiting that place can trigger acquisition. Transferring an artifact to a DIFFERENT character must happen in a scene via ownershipMutation — that's the earned moment. Key artifacts should have 3-5 continuity nodes (what it is, what it does, its history, its limitations). Only create artifacts when they would meaningfully alter what characters can do. Not every expansion needs artifacts.
 
 CONTENT RULES:
 - Characters should have meaningful knowledge (3-5 nodes). Give each character SECRETS or unique knowledge that only they possess — knowledge asymmetries drive narrative tension. Include at least one hidden or dangerous piece of knowledge per character.
@@ -326,6 +341,7 @@ worldKnowledgeMutations define the FOUNDATIONAL abstractions this expansion esta
     threads,
     relationships: parsed.relationships ?? [],
     worldKnowledgeMutations,
+    artifacts: parsed.artifacts ?? [],
   };
 }
 
@@ -501,6 +517,7 @@ WORLD RULES: Generate 4-6 world rules — absolute constraints that every scene 
     characters,
     locations,
     threads,
+    artifacts: Object.fromEntries((parsed.artifacts ?? []).map((a: Artifact) => [a.id, a])),
     arcs,
     scenes,
     worldBuilds: {},

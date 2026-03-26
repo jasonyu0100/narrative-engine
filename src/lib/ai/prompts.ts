@@ -109,6 +109,14 @@ worldKnowledgeMutations — track the world's abstract structure:
 - World-building exists in every genre — social norms, class structures, institutional hierarchies, not just magic systems.
 - Let density match the scene: lore scenes 3-5+ nodes, character scenes 0-1 nodes.
 
+ownershipMutations — track artifacts changing owners:
+- fromId = current owner (character or location ID), toId = new owner (character or location ID).
+- Acquisition from a location: character finds, takes, or is given an artifact that was at a place.
+- Transfer between characters: gifted, stolen, traded, seized by force, surrendered under duress.
+- Deposit at a location: character leaves, hides, or stores an artifact somewhere.
+- Destruction: transfer to the location where it's destroyed, then add a continuityMutation on the artifact recording its destruction. Destroyed artifacts still exist as entities — their continuity tells the story.
+- NOT every scene has ownership changes. Only include when a transfer is narratively meaningful.
+
 events — concrete narrative happenings:
 - Use specific, descriptive tags: "ambush_at_dawn", "secret_pact_formed", "storm_breaks".
 - Match event count to the scene's actual action density. A conversation scene has 1 event ("tense_negotiation"). A battle has 4-5. A scene of quiet observation may have 1 ("watching_the_sunset"). Do NOT pad quiet scenes with extra events to inflate the Change score.
@@ -116,6 +124,31 @@ events — concrete narrative happenings:
 characterMovements — physical relocation:
 - Only include characters whose location CHANGES during the scene.
 - "transition" should be vivid: "Fled through the sewers", "Sailed upriver on a merchant barge".
+`;
+
+// ── Artifact Usage ──────────────────────────────────────────────────────────
+
+export const PROMPT_ARTIFACTS = `
+ARTIFACT USAGE:
+Artifacts are narrative tools — objects that grant characters capabilities they wouldn't otherwise have. A character WITH an artifact can do things they couldn't do WITHOUT it. This is what makes artifacts worth tracking.
+
+WHAT MAKES AN ARTIFACT:
+- It changes what a character can DO: a key opens a door, a sword wins a fight, a computer accesses information, a letter proves innocence, a ring grants invisibility.
+- It has VALUE that characters recognise: people scheme to acquire, protect, or destroy artifacts because of what they enable.
+- It accumulates HISTORY through its continuity: forged, enchanted, broken, reforged, cursed, purified. Each state change is a continuity mutation on the artifact.
+- In non-fiction: concrete examples, evidence, documents, tools, instruments — literal objects that enable or constrain what happens.
+
+HOW TO USE ARTIFACTS IN SCENES:
+- When a character uses an artifact, reference it in the scene summary and events. The artifact's continuity tells you what it can do.
+- Artifact use should create consequences: using a powerful artifact draws attention, depletes a resource, or creates dependency.
+- Characters should WANT artifacts and ACT to acquire them. An artifact sitting unused is a wasted narrative element.
+- Artifacts at locations are discoverable — a character visiting that location can acquire one. This creates exploration incentives.
+- When an artifact is destroyed or fundamentally altered, add a continuityMutation to the artifact (characterId = artifact ID, action = "added", content = what happened to it).
+
+DO NOT:
+- Create artifacts for mundane objects with no narrative function.
+- Let artifacts exist without anyone caring about them. If no character wants it, it shouldn't be an artifact.
+- Forget that artifacts have continuity — their state evolves. A broken sword is different from an intact one.
 `;
 
 // ── POV Discipline ───────────────────────────────────────────────────────────

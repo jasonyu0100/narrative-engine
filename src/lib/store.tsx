@@ -1,7 +1,7 @@
 'use client';
 
 import React, { createContext, useContext, useReducer, useEffect, useRef, useMemo, type ReactNode } from 'react';
-import type { AppState, InspectorContext, NarrativeState, NarrativeEntry, WizardStep, WizardData, Scene, Arc, Branch, Character, Location, Thread, RelationshipEdge, GraphViewMode, AutoConfig, AutoRunLog, WorldBuild, WorldKnowledgeGraph, WorldKnowledgeNode, WorldKnowledgeEdge, WorldKnowledgeMutation, ApiLogEntry, StorySettings, AnalysisJob, ChatThread, ChatMessage, Note, PlanningQueue, PlanningPhase } from '@/types/narrative';
+import type { AppState, InspectorContext, NarrativeState, NarrativeEntry, WizardStep, WizardData, Scene, Arc, Branch, Character, Location, Thread, RelationshipEdge, GraphViewMode, AutoConfig, AutoRunLog, WorldBuild, WorldKnowledgeGraph, WorldKnowledgeNode, WorldKnowledgeEdge, WorldKnowledgeMutation, ApiLogEntry, StorySettings, AnalysisJob, ChatThread, ChatMessage, Note, PlanningQueue, PlanningPhase, Artifact } from '@/types/narrative';
 import { resolveEntrySequence, nextId, computeForceSnapshots, computeSwingMagnitudes, computeDeliveryCurve, classifyNarrativeShape, classifyArchetype, gradeForces, computeRawForceTotals, FORCE_REFERENCE_MEANS } from '@/lib/narrative-utils';
 import { initMatrixPresets } from '@/lib/markov';
 import { resolveEntry, isScene } from '@/types/narrative';
@@ -15,10 +15,11 @@ function computeDerivedEntities(
   worldBuilds: Record<string, WorldBuild>,
   scenes: Record<string, Scene>,
   resolvedKeys: string[],
-): { characters: Record<string, Character>; locations: Record<string, Location>; threads: Record<string, Thread>; relationships: RelationshipEdge[]; worldKnowledge: WorldKnowledgeGraph } {
+): { characters: Record<string, Character>; locations: Record<string, Location>; threads: Record<string, Thread>; artifacts: Record<string, Artifact>; relationships: RelationshipEdge[]; worldKnowledge: WorldKnowledgeGraph } {
   const characters: Record<string, Character> = {};
   const locations: Record<string, Location> = {};
   const threads: Record<string, Thread> = {};
+  const artifacts: Record<string, Artifact> = {};
   let relationships: RelationshipEdge[] = [];
   const wkNodes: Record<string, WorldKnowledgeNode> = {};
   const wkEdges: WorldKnowledgeEdge[] = [];
@@ -51,27 +52,37 @@ function computeDerivedEntities(
         const exists = relationships.some((x) => x.from === r.from && x.to === r.to);
         if (!exists) relationships.push({ ...r });
       }
+      // Collect artifacts
+      for (const a of wb.expansionManifest.artifacts ?? []) {
+        artifacts[a.id] = { ...a, continuity: a.continuity ?? { nodes: [] } };
+      }
       // Collect world knowledge
       applyWkMutation(wb.expansionManifest.worldKnowledge ?? { addedNodes: [], addedEdges: [] });
     } else {
       const scene = scenes[key];
       if (!scene) continue;
       for (const km of scene.continuityMutations ?? []) {
+        // Continuity mutations can target characters or artifacts (same field: characterId)
         const char = characters[km.characterId];
-        if (!char) continue;
-        if (km.action === 'added') {
-          const exists = char.continuity.nodes.some((n) => n.id === km.nodeId);
-          if (!exists) {
-            characters[km.characterId] = {
-              ...char,
-              continuity: { nodes: [...char.continuity.nodes, { id: km.nodeId, type: km.nodeType ?? 'learned', content: km.content }] },
-            };
+        const art = artifacts[km.characterId];
+        if (!char && !art) continue;
+        const newNode = { id: km.nodeId, type: km.nodeType ?? 'learned', content: km.content };
+        if (char) {
+          if (km.action === 'added') {
+            if (!char.continuity.nodes.some((n) => n.id === km.nodeId)) {
+              characters[km.characterId] = { ...char, continuity: { nodes: [...char.continuity.nodes, newNode] } };
+            }
+          } else if (km.action === 'removed') {
+            characters[km.characterId] = { ...char, continuity: { nodes: char.continuity.nodes.filter((n) => n.id !== km.nodeId) } };
           }
-        } else if (km.action === 'removed') {
-          characters[km.characterId] = {
-            ...char,
-            continuity: { nodes: char.continuity.nodes.filter((n) => n.id !== km.nodeId) },
-          };
+        } else if (art) {
+          if (km.action === 'added') {
+            if (!art.continuity.nodes.some((n) => n.id === km.nodeId)) {
+              artifacts[km.characterId] = { ...art, continuity: { nodes: [...art.continuity.nodes, newNode] } };
+            }
+          } else if (km.action === 'removed') {
+            artifacts[km.characterId] = { ...art, continuity: { nodes: art.continuity.nodes.filter((n) => n.id !== km.nodeId) } };
+          }
         }
       }
       for (const tm of scene.threadMutations ?? []) {
@@ -96,6 +107,13 @@ function computeDerivedEntities(
       if (scene.worldKnowledgeMutations) {
         applyWkMutation(scene.worldKnowledgeMutations);
       }
+      // Apply ownership mutations from scene
+      for (const om of scene.ownershipMutations ?? []) {
+        const art = artifacts[om.artifactId];
+        if (art) {
+          artifacts[om.artifactId] = { ...art, parentId: om.toId };
+        }
+      }
     }
   }
 
@@ -111,12 +129,12 @@ function computeDerivedEntities(
     }
   }
 
-  return { characters, locations, threads, relationships, worldKnowledge: { nodes: wkNodes, edges: wkEdges } };
+  return { characters, locations, threads, artifacts, relationships, worldKnowledge: { nodes: wkNodes, edges: wkEdges } };
 }
 
 export function withDerivedEntities(n: NarrativeState, resolvedKeys: string[]): NarrativeState {
   const derived = computeDerivedEntities(n.worldBuilds, n.scenes, resolvedKeys);
-  return { ...n, characters: derived.characters, locations: derived.locations, threads: derived.threads, relationships: derived.relationships, worldKnowledge: derived.worldKnowledge };
+  return { ...n, characters: derived.characters, locations: derived.locations, threads: derived.threads, artifacts: derived.artifacts, relationships: derived.relationships, worldKnowledge: derived.worldKnowledge };
 }
 
 
@@ -272,7 +290,7 @@ export type Action =
   | { type: 'REMOVE_BRANCH_ENTRY'; entryId: string; branchId: string }
   // Bulk AI-generated content
   | { type: 'BULK_ADD_SCENES'; scenes: Scene[]; arc: Arc; branchId: string }
-  | { type: 'EXPAND_WORLD'; worldBuildId: string; characters: Character[]; locations: Location[]; threads: Thread[]; relationships: RelationshipEdge[]; branchId: string; worldKnowledgeMutations?: WorldKnowledgeMutation }
+  | { type: 'EXPAND_WORLD'; worldBuildId: string; characters: Character[]; locations: Location[]; threads: Thread[]; relationships: RelationshipEdge[]; branchId: string; worldKnowledgeMutations?: WorldKnowledgeMutation; artifacts?: Artifact[] }
   // Auto mode
   | { type: 'SET_AUTO_CONFIG'; config: AutoConfig }
   | { type: 'START_AUTO_RUN' }
@@ -289,6 +307,7 @@ export type Action =
   | { type: 'SET_SCENE_IMAGE'; sceneId: string; imageUrl: string }
   | { type: 'SET_CHARACTER_IMAGE'; characterId: string; imageUrl: string }
   | { type: 'SET_LOCATION_IMAGE'; locationId: string; imageUrl: string }
+  | { type: 'SET_ARTIFACT_IMAGE'; artifactId: string; imageUrl: string }
   | { type: 'SET_IMAGE_STYLE'; style: string }
   | { type: 'SET_RULES'; rules: string[] }
   | { type: 'SET_STORY_SETTINGS'; settings: StorySettings }
@@ -676,7 +695,9 @@ function reducer(state: AppState, action: Action): AppState {
       if (charNames.length > 0) parts.push(`${charNames.length} character${charNames.length > 1 ? 's' : ''} (${charNames.join(', ')})`);
       if (locNames.length > 0) parts.push(`${locNames.length} location${locNames.length > 1 ? 's' : ''} (${locNames.join(', ')})`);
       if (threadDescs.length > 0) parts.push(`${threadDescs.length} thread${threadDescs.length > 1 ? 's' : ''}`);
+      const artifactNames = (action.artifacts ?? []).map((a) => a.name);
       if (action.relationships.length > 0) parts.push(`${action.relationships.length} relationship${action.relationships.length > 1 ? 's' : ''}`);
+      if (artifactNames.length > 0) parts.push(`${artifactNames.length} artifact${artifactNames.length > 1 ? 's' : ''} (${artifactNames.join(', ')})`);
       if (wkNodeCount > 0) parts.push(`${wkNodeCount} knowledge node${wkNodeCount > 1 ? 's' : ''} (${action.worldKnowledgeMutations!.addedNodes.map((n) => n.concept).join(', ')})`);
       if (wkEdgeCount > 0) parts.push(`${wkEdgeCount} knowledge edge${wkEdgeCount > 1 ? 's' : ''}`);
       const worldBuildSummary = parts.length > 0 ? `World expanded: added ${parts.join(', ')}` : 'World expansion (no new elements)';
@@ -707,6 +728,7 @@ function reducer(state: AppState, action: Action): AppState {
           threads: action.threads.map((t) => ({ ...t, openedAt: worldBuildId })),
           relationships: action.relationships,
           worldKnowledge: manifestWK,
+          artifacts: action.artifacts ?? [],
         },
       };
 
@@ -878,6 +900,33 @@ function reducer(state: AppState, action: Action): AppState {
                 ...worldBuildEntry.expansionManifest,
                 locations: worldBuildEntry.expansionManifest.locations.map((l) =>
                   l.id === action.locationId ? { ...l, imageUrl: action.imageUrl } : l
+                ),
+              },
+            },
+          },
+        };
+      });
+      if (!afterUpdate.activeNarrative) return afterUpdate;
+      const derived = withDerivedEntities(afterUpdate.activeNarrative, afterUpdate.resolvedEntryKeys);
+      return { ...afterUpdate, activeNarrative: derived };
+    }
+
+    case 'SET_ARTIFACT_IMAGE': {
+      const afterUpdate = updateNarrative(state, (n) => {
+        const worldBuildEntry = Object.values(n.worldBuilds).find((wb) =>
+          (wb.expansionManifest.artifacts ?? []).some((a) => a.id === action.artifactId)
+        );
+        if (!worldBuildEntry) return n;
+        return {
+          ...n,
+          worldBuilds: {
+            ...n.worldBuilds,
+            [worldBuildEntry.id]: {
+              ...worldBuildEntry,
+              expansionManifest: {
+                ...worldBuildEntry.expansionManifest,
+                artifacts: (worldBuildEntry.expansionManifest.artifacts ?? []).map((a) =>
+                  a.id === action.artifactId ? { ...a, imageUrl: action.imageUrl } : a
                 ),
               },
             },

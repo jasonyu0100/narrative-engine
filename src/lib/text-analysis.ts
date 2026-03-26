@@ -1367,6 +1367,7 @@ Return JSON: { "rules": ["rule1", "rule2", ...], "imageStyle": "style directive"
     characters,
     locations,
     threads,
+    artifacts: {},
     arcs,
     scenes,
     worldBuilds,

@@ -9,6 +9,7 @@ import LocationDetail from './LocationDetail';
 import ThreadDetail from './ThreadDetail';
 import ArcDetail from './ArcDetail';
 import KnowledgeDetail from './KnowledgeDetail';
+import ArtifactDetail from './ArtifactDetail';
 import ChatPanel from '@/components/sidebar/ChatPanel';
 import NotesPanel from '@/components/sidebar/NotesPanel';
 import { isScene, type TimelineEntry } from '@/types/narrative';
@@ -90,6 +91,8 @@ export default function SidePanel() {
         return <ArcDetail arcId={ctx.arcId} />;
       case 'knowledge':
         return <KnowledgeDetail nodeId={ctx.nodeId} />;
+      case 'artifact':
+        return <ArtifactDetail artifactId={ctx.artifactId} />;
       default:
         return <EmptyState />;
     }

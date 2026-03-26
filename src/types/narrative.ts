@@ -72,6 +72,28 @@ export type RelationshipEdge = {
   valence: number;
 };
 
+// ── Artifact ────────────────────────────────────────────────────────────────
+export type ArtifactSignificance = 'key' | 'notable' | 'minor';
+
+export type Artifact = {
+  id: string;
+  name: string;
+  /** Narrative weight: key artifacts alter plots, notable ones recur, minor ones are set dressing */
+  significance: ArtifactSignificance;
+  /** Continuity graph — what is known about this artifact (lore, history, properties, state changes) */
+  continuity: Continuity;
+  /** Current owner — a character or location ID (like Location.parentId) */
+  parentId: string;
+  imagePrompt?: string;
+  imageUrl?: string;
+};
+
+export type OwnershipMutation = {
+  artifactId: string;
+  fromId: string;
+  toId: string;
+};
+
 // ── Scene & Arc ─────────────────────────────────────────────────────────────
 export type ThreadMutation = {
   threadId: string;
@@ -208,6 +230,7 @@ export type ExpansionManifest = {
   threads: Thread[];
   relationships: RelationshipEdge[];
   worldKnowledge: WorldKnowledgeMutation;
+  artifacts?: Artifact[];
 };
 
 export type ProseScore = {
@@ -243,6 +266,8 @@ export type Scene = {
   relationshipMutations: RelationshipMutation[];
   /** World knowledge graph mutations — new concepts and connections about how the world works */
   worldKnowledgeMutations?: WorldKnowledgeMutation;
+  /** Artifact ownership changes — objects changing hands between characters/locations */
+  ownershipMutations?: OwnershipMutation[];
   /** Delivery-by-delivery scene blueprint — generated before prose to detail HOW mutations unfold */
   plan?: string;
   prose?: string;
@@ -376,6 +401,8 @@ export type NarrativeState = {
   locations: Record<string, Location>;
   /** Derived cache — recomputed from world-build manifests + scene mutations via resolvedEntryKeys */
   threads: Record<string, Thread>;
+  /** Derived cache — recomputed from world-build manifests + scene ownership mutations */
+  artifacts: Record<string, Artifact>;
   arcs: Record<string, Arc>;
   scenes: Record<string, Scene>;
   worldBuilds: Record<string, WorldBuild>;
@@ -629,6 +656,7 @@ export type AnalysisChunkResult = {
   chapterSummary: string;
   characters: { name: string; role: string; firstAppearance: boolean; imagePrompt?: string; continuity: { type: string; content: string }[] }[];
   locations: { name: string; parentName: string | null; description: string; imagePrompt?: string; lore: string[] }[];
+  artifacts?: { name: string; significance: string; continuity: { type: string; content: string }[]; ownerName: string }[];
   threads: { description: string; participantNames: string[]; statusAtStart: string; statusAtEnd: string; development: string }[];
   scenes: {
     locationName: string; povName: string; participantNames: string[]; events: string[];
@@ -636,6 +664,7 @@ export type AnalysisChunkResult = {
     threadMutations: { threadDescription: string; from: string; to: string }[];
     continuityMutations: { characterName: string; action: string; content: string; type: string }[];
     relationshipMutations: { from: string; to: string; type: string; valenceDelta: number }[];
+    ownershipMutations?: { artifactName: string; fromName: string; toName: string }[];
     characterMovements?: { characterName: string; locationName: string; transition: string }[];
     worldKnowledgeMutations?: {
       addedNodes: { concept: string; type: string }[];
@@ -669,7 +698,8 @@ export type InspectorContext =
   | { type: 'location'; locationId: string }
   | { type: 'thread'; threadId: string }
   | { type: 'arc'; arcId: string }
-  | { type: 'knowledge'; nodeId: string };
+  | { type: 'knowledge'; nodeId: string }
+  | { type: 'artifact'; artifactId: string };
 
 export type WizardStep = 'form' | 'details' | 'generate';
 

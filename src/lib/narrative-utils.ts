@@ -230,10 +230,11 @@ function computeRawPayoff(scene: Scene): number {
 }
 
 /** Raw change: total mutation intensity with sqrt scaling.
- *  C = √|M_c| + √|events| + √Σ|valenceDelta|
- *  M_c = continuity mutations (what characters learn, lose, or become).
- *  Relationship contribution is valence-based — a dramatic betrayal (±0.5)
- *  weighs more than two polite exchanges (±0.1 each). */
+ *  C = √M + √E + √R
+ *  M = continuity mutations, E = events, R = relationship valence intensity.
+ *  Ownership mutations are structural bookkeeping (like character movements) —
+ *  their narrative impact is captured by the thread/continuity/relationship
+ *  mutations that accompany them. */
 function rawChange(scene: Scene): number {
   const relIntensity = scene.relationshipMutations.reduce((sum, rm) => sum + Math.abs(rm.valenceDelta), 0);
   return Math.sqrt(scene.continuityMutations.length)

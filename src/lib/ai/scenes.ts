@@ -5,7 +5,7 @@ import { callGenerate, callGenerateStream, SYSTEM_PROMPT } from './api';
 import { WRITING_MODEL, ANALYSIS_MODEL, GENERATE_MODEL, MAX_TOKENS_LARGE, PLAN_PROSE_LOOKBACK } from '@/lib/constants';
 import { parseJson } from './json';
 import { branchContext, sceneContext, deriveLogicRules, sceneScale } from './context';
-import { PROMPT_FORCE_STANDARDS, PROMPT_PACING, PROMPT_MUTATIONS, PROMPT_POV, PROMPT_CONTINUITY, PROMPT_SUMMARY_REQUIREMENT, PROMPT_CHARACTER_ARCS, PROMPT_THREAD_COLLISION, promptThreadLifecycle } from './prompts';
+import { PROMPT_FORCE_STANDARDS, PROMPT_PACING, PROMPT_MUTATIONS, PROMPT_ARTIFACTS, PROMPT_POV, PROMPT_CONTINUITY, PROMPT_SUMMARY_REQUIREMENT, PROMPT_CHARACTER_ARCS, PROMPT_THREAD_COLLISION, promptThreadLifecycle } from './prompts';
 import { samplePacingSequence, buildSequencePrompt, detectCurrentMode, MATRIX_PRESETS, DEFAULT_TRANSITION_MATRIX, type PacingSequence } from '@/lib/markov';
 
 export type GenerateScenesOptions = {
@@ -94,6 +94,7 @@ Return JSON with this exact structure:
       "continuityMutations": [{"characterId": "C-XX", "nodeId": "K-GEN-001", "action": "added", "content": "what they learned", "nodeType": "a descriptive type for this knowledge"}],
       "relationshipMutations": [{"from": "C-XX", "to": "C-YY", "type": "description", "valenceDelta": 0.1}],
       "worldKnowledgeMutations": {"addedNodes": [{"id": "WK-GEN-001", "concept": "name of a world concept, rule, system, or structure", "type": "law|system|concept|tension"}], "addedEdges": [{"from": "WK-GEN-001", "to": "WK-XX", "relation": "typed relationship: enables, requires, governs, located_in, opposes, created_by, extends, etc."}]},
+      "ownershipMutations": [{"artifactId": "A-XX", "fromId": "C-XX or L-XX", "toId": "C-YY or L-YY"}],
       "summary": "REQUIRED: 3-5 sentence detailed narrative summary. Use character NAMES and location NAMES — never raw IDs. Describe the key action, the consequence, and the tension it creates for what comes next. Example: 'Michael Corleone sits across from Sollozzo and McCluskey at the small Italian restaurant in the Bronx, listening to terms he has no intention of accepting. He excuses himself to the bathroom where a pistol has been planted behind the toilet tank. He returns to the table and shoots both men. The gun clatters to the floor as Michael walks out in a daze to a waiting car. The killing severs him permanently from his civilian life and sets in motion a gang war that will consume every family in New York.'"
     }
   ]
@@ -108,6 +109,7 @@ ${PROMPT_SUMMARY_REQUIREMENT}
 ${PROMPT_FORCE_STANDARDS}
 ${PROMPT_PACING}
 ${PROMPT_MUTATIONS}
+${Object.keys(narrative.artifacts ?? {}).length > 0 ? PROMPT_ARTIFACTS : ''}
 ${PROMPT_POV}
 ${PROMPT_CONTINUITY}
 ${PROMPT_CHARACTER_ARCS}
@@ -117,7 +119,7 @@ CRITICAL ID CONSTRAINT (re-stated for emphasis):
 You MUST use ONLY these exact IDs. Do NOT invent new character, location, or thread IDs.
   Characters: ${Object.entries(narrative.characters).map(([id, c]) => `${c.name} (${id})`).join(', ')}
   Locations: ${Object.entries(narrative.locations).map(([id, l]) => `${l.name} (${id})`).join(', ')}
-  Threads: ${Object.entries(narrative.threads).map(([id, t]) => `${t.description.slice(0, 40)} (${id})`).join(', ')}`;
+  Threads: ${Object.entries(narrative.threads).map(([id, t]) => `${t.description.slice(0, 40)} (${id})`).join(', ')}${Object.keys(narrative.artifacts ?? {}).length > 0 ? `\n  Artifacts: ${Object.entries(narrative.artifacts).map(([id, a]) => `${a.name} (${id})`).join(', ')}` : ''}`;
 
   // Retry on JSON parse failures (truncation, malformed output)
   const MAX_RETRIES = 2;
@@ -200,6 +202,18 @@ You MUST use ONLY these exact IDs. Do NOT invent new character, location, or thr
       stripped.push(`relationshipMutation "${rm.from}" -> "${rm.to}" in scene ${scene.id}`);
       return false;
     });
+    // Remove invalid ownershipMutations
+    const validArtifactIds = new Set(Object.keys(narrative.artifacts ?? {}));
+    const allEntityIds = new Set([...validCharIds, ...validLocIds]);
+    scene.ownershipMutations = (scene.ownershipMutations ?? []).filter((om) => {
+      const validArtifact = validArtifactIds.has(om.artifactId);
+      const validFrom = allEntityIds.has(om.fromId);
+      const validTo = allEntityIds.has(om.toId);
+      if (validArtifact && validFrom && validTo) return true;
+      stripped.push(`ownershipMutation "${om.artifactId}" in scene ${scene.id}`);
+      return false;
+    });
+    if (scene.ownershipMutations.length === 0) delete scene.ownershipMutations;
     // Sanitize characterMovements — remove invalid charId/locationId entries
     if (scene.characterMovements) {
       const sanitized: Record<string, { locationId: string; transition: string }> = {};

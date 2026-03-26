@@ -80,6 +80,7 @@ export function PlanningQueueEditor({ onClose, onStartAuto }: Props) {
         threads: expansion.threads,
         relationships: expansion.relationships,
         worldKnowledgeMutations: expansion.worldKnowledgeMutations,
+        artifacts: expansion.artifacts,
         branchId,
       });
       // Update world focus to latest

@@ -177,6 +177,7 @@ export function usePlanningQueue() {
             threads: expansion.threads,
             relationships: expansion.relationships,
             worldKnowledgeMutations: expansion.worldKnowledgeMutations,
+            artifacts: expansion.artifacts,
             branchId: bid,
           });
           worldExpanded = true;

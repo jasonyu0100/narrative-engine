@@ -76,8 +76,8 @@ ${completedSummary ? `COMPLETED PHASES:\n${completedSummary}\n` : ''}
 ${remaining ? `UPCOMING PHASES:\n${remaining}\n` : ''}
 
 Generate:
-1. A DIRECTION prompt (2-4 sentences) — advisory guidance, not a script. Describe the FEEL and TRAJECTORY of this phase: what kind of energy it should have, which threads are ripe for development, what the reader should experience. Name characters and threads that are ready to move, but leave room for emergent storytelling. The world will be expanded before generation — the direction should guide how the new and existing elements interact.
-2. A CONSTRAINTS prompt (1-2 sentences) — what must NOT happen yet. Protect threads and reveals that belong to later phases. Keep it to absolute prohibitions, not creative restrictions.
+1. A DIRECTION prompt (2-4 sentences) — advisory guidance, not a script. Describe the FEEL and TRAJECTORY of this phase: what kind of energy it should have, which threads are ripe for development, what the reader should experience. Name characters and threads that are ready to move, but leave room for emergent storytelling. If artifacts already exist in the world, note which ones are ripe — who should acquire, use, or lose them. The world will be expanded before generation — the direction should guide how the new and existing elements interact.
+2. A CONSTRAINTS prompt (1-2 sentences) — what must NOT happen yet. Protect threads, reveals, and artifact transfers that belong to later phases. Keep it to absolute prohibitions, not creative restrictions.
 
 Use character NAMES, location NAMES, and thread DESCRIPTIONS — never raw IDs.
 

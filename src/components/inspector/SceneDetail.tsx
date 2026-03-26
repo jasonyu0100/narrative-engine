@@ -411,6 +411,32 @@ export default function SceneDetail({ sceneId }: Props) {
         </div>
       )}
 
+      {/* Ownership Mutations */}
+      {(scene.ownershipMutations?.length ?? 0) > 0 && (
+        <div className="flex flex-col gap-1.5">
+          <h3 className="text-[10px] uppercase tracking-widest text-text-dim">
+            Artifact Transfers
+          </h3>
+          {scene.ownershipMutations!.map((om, i) => {
+            const artName = narrative.artifacts?.[om.artifactId]?.name ?? om.artifactId;
+            const fromName = narrative.characters[om.fromId]?.name ?? narrative.locations[om.fromId]?.name ?? om.fromId;
+            const toName = narrative.characters[om.toId]?.name ?? narrative.locations[om.toId]?.name ?? om.toId;
+            return (
+              <div key={`om-${om.artifactId}-${i}`} className="flex items-center gap-1.5 text-xs">
+                <button
+                  type="button"
+                  onClick={() => dispatch({ type: 'SET_INSPECTOR', context: { type: 'artifact', artifactId: om.artifactId } })}
+                  className="text-amber-400 transition-colors hover:underline"
+                >
+                  {artName}
+                </button>
+                <span className="text-text-dim">{fromName} → {toName}</span>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
       {/* World Knowledge Mutations */}
       {scene.worldKnowledgeMutations && (scene.worldKnowledgeMutations.addedNodes.length > 0 || scene.worldKnowledgeMutations.addedEdges.length > 0) && (
         <div className="flex flex-col gap-1.5">

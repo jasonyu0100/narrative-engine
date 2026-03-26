@@ -53,9 +53,11 @@ Review the scene history above through these five lenses:
 
 5. MOMENTUM — With ${scenesRemaining} scenes left, what MUST happen before this phase ends? What can be cut? Are we on track for the phase objective or do we need to accelerate?
 
+6. ARTIFACTS — Are any existing artifacts being ignored? Should one change hands, get used, or become contested? If an artifact exists and nobody cares about it, flag it as stale.
+
 Write the updated direction and constraints as if you're briefing a writers' room:
-- Direction: What the next arc should DO. Which characters, which threads, which locations. The energy and trajectory. Specific enough to guide, open enough to surprise.
-- Constraints: What MUST NOT happen. Include any patterns you identified as stale. Protect future phases.
+- Direction: What the next arc should DO. Which characters, which threads, which locations. If artifacts exist, who should pursue or use them. Specific enough to guide, open enough to surprise.
+- Constraints: What MUST NOT happen. Include stale patterns. Protect future phases.
 
 Use character NAMES and thread DESCRIPTIONS, never IDs.
 

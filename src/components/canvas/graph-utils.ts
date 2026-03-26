@@ -2,6 +2,7 @@ import * as d3 from 'd3';
 import type {
   Character,
   Location,
+  Artifact,
   RelationshipEdge,
   CharacterRole,
   Arc,
@@ -11,7 +12,7 @@ import type {
 
 // ── Graph node / link types ─────────────────────────────────────────────────
 
-export type NodeKind = 'character' | 'location' | 'knowledge';
+export type NodeKind = 'character' | 'location' | 'knowledge' | 'artifact';
 
 export interface GraphNode extends d3.SimulationNodeDatum {
   id: string;
@@ -35,7 +36,7 @@ export interface GraphNode extends d3.SimulationNodeDatum {
 
 export interface GraphLink extends d3.SimulationLinkDatum<GraphNode> {
   id: string;
-  linkKind: 'relationship' | 'spatial' | 'knowledge' | 'character-location';
+  linkKind: 'relationship' | 'spatial' | 'knowledge' | 'character-location' | 'ownership';
   label?: string;
   valence?: number;
   /** For bidirectional pairs: labels for each direction (sourceId → label) */
@@ -189,6 +190,7 @@ export function buildGraphData(
   locations: Record<string, Location>,
   relationships: RelationshipEdge[],
   characterPositions: Record<string, string>,
+  artifacts?: Record<string, Artifact>,
 ): { nodes: GraphNode[]; links: GraphLink[] } {
   const nodes: GraphNode[] = [];
   const links: GraphLink[] = [];
@@ -255,6 +257,26 @@ export function buildGraphData(
     }
   }
 
+  // Artifact nodes + ownership edges
+  for (const art of Object.values(artifacts ?? {})) {
+    nodes.push({
+      id: art.id,
+      kind: 'artifact',
+      label: art.name,
+      imageUrl: art.imageUrl,
+      imagePrompt: art.imagePrompt,
+    });
+    if (characters[art.parentId] || locations[art.parentId]) {
+      links.push({
+        id: `ownership-${art.id}-${art.parentId}`,
+        source: art.id,
+        target: art.parentId,
+        linkKind: 'ownership',
+        label: 'owned by',
+      });
+    }
+  }
+
   return { nodes, links };
 }
 
@@ -268,6 +290,7 @@ export function buildOverviewGraphData(
   worldBuilds: Record<string, WorldBuild>,
   resolvedEntryKeys: string[],
   currentSceneIndex: number,
+  artifacts?: Record<string, Artifact>,
 ): { nodes: GraphNode[]; links: GraphLink[] } {
   const nodes: GraphNode[] = [];
   const links: GraphLink[] = [];
@@ -354,6 +377,26 @@ export function buildOverviewGraphData(
         linkKind: 'spatial',
       });
     }
+  }
+
+  // Artifact nodes + ownership edges
+  for (const art of Object.values(artifacts ?? {})) {
+    const ownerActive = activeCharIds.has(art.parentId) || activeLocIds.has(art.parentId);
+    if (!ownerActive) continue;
+    nodes.push({
+      id: art.id,
+      kind: 'artifact',
+      label: art.name,
+      imageUrl: art.imageUrl,
+      imagePrompt: art.imagePrompt,
+    });
+    links.push({
+      id: `ownership-${art.id}-${art.parentId}`,
+      source: art.id,
+      target: art.parentId,
+      linkKind: 'ownership',
+      label: 'owned by',
+    });
   }
 
   return { nodes, links };

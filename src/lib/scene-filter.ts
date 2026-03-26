@@ -13,10 +13,11 @@ export function getIntroducedIds(
   worldBuilds: Record<string, WorldBuild>,
   resolvedEntryKeys: string[],
   currentSceneIndex: number,
-): { characterIds: Set<string>; locationIds: Set<string>; threadIds: Set<string> } {
+): { characterIds: Set<string>; locationIds: Set<string>; threadIds: Set<string>; artifactIds: Set<string> } {
   const characterIds = new Set<string>();
   const locationIds = new Set<string>();
   const threadIds = new Set<string>();
+  const artifactIds = new Set<string>();
 
   for (let i = 0; i <= currentSceneIndex && i < resolvedEntryKeys.length; i++) {
     const wb = worldBuilds[resolvedEntryKeys[i]];
@@ -24,9 +25,10 @@ export function getIntroducedIds(
     for (const c of wb.expansionManifest.characters) characterIds.add(c.id);
     for (const l of wb.expansionManifest.locations) locationIds.add(l.id);
     for (const t of wb.expansionManifest.threads) threadIds.add(t.id);
+    for (const a of wb.expansionManifest.artifacts ?? []) artifactIds.add(a.id);
   }
 
-  return { characterIds, locationIds, threadIds };
+  return { characterIds, locationIds, threadIds, artifactIds };
 }
 
 // ── Knowledge filtering ─────────────────────────────────────────────────────
