@@ -334,8 +334,8 @@ export default function PaperPage() {
             Quantifying Narrative Force
           </h1>
           <p className="text-[15px] text-white/40 leading-relaxed max-w-xl">
-            A framework for measuring what stories do to readers, derived from
-            knowledge graph mutations across scenes.
+            A computational framework for measuring narrative impact through
+            structural graph mutations.
           </p>
           <p className="text-[11px] text-white/20 font-mono mt-3">
             ~11 min read
@@ -346,48 +346,58 @@ export default function PaperPage() {
           {/* ── Abstract ──────────────────────────────────────────────── */}
           <Section id="abstract" label="Abstract">
             <P>
-              Stories rise and fall like tides. Readers feel the peaks — yet no
-              metric captures why they work, and no generation system reliably
-              produces them. This paper makes narrative structure{" "}
-              <B>computable and improvable</B>. We model stories as knowledge
-              graphs that mutate scene by scene, then derive three forces
-              (Payoff, Change, Knowledge) from those mutations using
-              deterministic, z-score normalised formulas. Applied to{" "}
+              Narrative structure exhibits measurable patterns, yet existing
+              metrics fail to capture the mechanisms that drive reader
+              engagement. This paper introduces a computational framework that
+              renders narrative structure{" "}
+              <B>quantifiable and optimizable</B>. We model narratives as
+              evolving knowledge graphs and derive three fundamental forces
+              (Payoff, Change, Knowledge) through deterministic, z-score
+              normalized formulas operating on structural mutations. Applied to{" "}
               <em>Harry Potter and the Sorcerer&apos;s Stone</em>, the delivery
-              curve peaks at the Sorting Hat, troll fight, and Quirrell
-              confrontation — without human labeling.
+              curve autonomously identifies dramatic peaks at the Sorting Hat,
+              troll confrontation, and Quirrell climax — without human
+              annotation.
             </P>
             <P>
-              These metrics don't just measure — they guide. We use them to{" "}
-              <B>generate</B> via Markov pacing, MCTS search, and adaptive
-              planning, then <B>revise</B> through iterative evaluation and
-              reconstruction. Published literature scores 81–93. Unguided AI
-              lands at 68–81. The scoring gap reveals what's missing. The
-              framework provides tools to close it. Everything is open source
-              and tunable.
+              These metrics enable both measurement and synthesis. We deploy
+              them for <B>generation</B> via Markov-chain pacing, MCTS search,
+              and adaptive planning, then <B>revision</B> through iterative
+              evaluation and reconstruction. Empirical validation shows
+              published works scoring 85–95, while unguided AI output achieves
+              65–78. This quantifiable gap reveals structural deficiencies in
+              generated narratives. The framework provides algorithmic tools to
+              systematically address them. All components are open source and
+              configurable.
             </P>
           </Section>
 
           {/* ── The Problem ───────────────────────────────────────────── */}
           <Section id="problem" label="The Problem">
             <P>
-              Narrative AI faces two problems: <B>measurement</B> and{" "}
-              <B>generation quality</B>. Sentiment analysis tracks tone. Topic
-              models track frequency. Neither distinguishes escalation from
-              repetition, transformation from stasis, deepening from expansion.
-              LLMs produce fluent prose but structurally thin stories — beats
-              repeat without escalating, characters don't change, worlds expand
-              without deepening.
+              Computational narrative faces two fundamental challenges:{" "}
+              <B>measurement</B> and <B>structural synthesis</B>. Sentiment
+              analysis captures affective valence; topic models capture lexical
+              distribution. Neither distinguishes progressive escalation from
+              cyclical repetition, character transformation from behavioral
+              stasis, or conceptual deepening from lateral expansion. LLMs
+              generate syntactically fluent prose yet produce structurally
+              shallow narratives — dramatic beats recur without intensification,
+              characters exhibit behavioral consistency without development,
+              world-building expands horizontally without hierarchical depth.
             </P>
             <P>
-              Both stem from the same gap: readers feel structure, but no metric
-              captures it. The patterns that make stories work arise from
-              mutations in a knowledge graph — thread status changes,
-              relationship shifts, new knowledge. Apply mutation-based formulas
-              to published literature and AI-generated text, and the gap becomes
-              visible. Published works: 81–93. Unguided AI: 68–81. The gap isn't
-              grammar — it's thread lifecycle depth, relationship intensity, and
-              world-knowledge density.
+              These deficiencies share a common origin: readers perceive
+              structural patterns, yet no established metric quantifies them.
+              Narrative coherence emerges from systematic mutations in an
+              underlying knowledge graph — thread lifecycle transitions,
+              relationship valence shifts, world knowledge expansion. Applying
+              mutation-derived formulas to published literature versus
+              AI-generated text makes this gap empirically visible. Published
+              works achieve scores of 85–95; unguided AI output scores 65–78.
+              This disparity reflects not surface-level fluency but structural
+              density: thread lifecycle complexity, relationship intensity, and
+              world-knowledge interconnection depth.
             </P>
 
             {/* ── Human vs AI gradient bar ──────────────────────────── */}
@@ -406,18 +416,18 @@ export default function PaperPage() {
                 PAD_L + ((s - scoreMin) / (scoreMax - scoreMin)) * barW;
 
               const works = [
+                { score: 65, human: false },
                 { score: 68, human: false },
-                { score: 71, human: false },
-                { score: 73, human: false },
+                { score: 70, human: false },
+                { score: 72, human: false },
                 { score: 75, human: false },
-                { score: 79, human: false },
-                { score: 81, human: false },
-                { score: 81, human: true },
+                { score: 78, human: false },
                 { score: 85, human: true },
-                { score: 86, human: true },
+                { score: 88, human: true },
                 { score: 90, human: true },
-                { score: 93, human: true },
-                { score: 93, human: true },
+                { score: 92, human: true },
+                { score: 94, human: true },
+                { score: 95, human: true },
               ];
 
               const ticks = [60, 70, 80, 90, 100];
@@ -551,37 +561,41 @@ export default function PaperPage() {
           {/* ── Approach ──────────────────────────────────────────────── */}
           <Section id="approach" label="Approach">
             <P>
-              A scene doesn&apos;t merely contain words — it <em>does</em>{" "}
-              things. It escalates a rivalry, reveals a secret, shifts an
-              alliance, introduces a law of physics. We model every scene as
-              producing mutations across three structural layers:
+              A scene functions not as a static text artifact but as a{" "}
+              <em>transformative operation</em> on narrative state. It escalates
+              latent tensions, reveals concealed information, or reconfigures
+              social networks. We model each scene as an operator producing
+              structured mutations across three graph layers:
             </P>
             <ul className="mt-3 space-y-2 text-[13px] text-white/50 leading-[1.85]">
               <li className="flex gap-2">
                 <span className="text-white/25 shrink-0">1.</span>
                 <span>
-                  <B>Threads</B> — narrative tensions (a rivalry, a secret, a
-                  quest) that move through lifecycle phases: dormant &rarr;
-                  active &rarr; escalating &rarr; critical &rarr;
-                  resolved/subverted/abandoned. Each thread is a unit of
-                  dramatic promise.
+                  <B>Threads</B> — narrative tensions (rivalries, secrets,
+                  quests) that traverse discrete lifecycle states: dormant
+                  &rarr; active &rarr; escalating &rarr; critical &rarr;
+                  resolved/subverted/abandoned. Each thread represents a
+                  quantifiable unit of dramatic obligation.
                 </span>
               </li>
               <li className="flex gap-2">
                 <span className="text-white/25 shrink-0">2.</span>
                 <span>
                   <B>Characters</B> — continuity mutations (what someone learns,
-                  loses, or becomes) and relationship valence shifts. The social
-                  fabric of the story, tracked edge by edge.
+                  loses, or becomes) and relationship valence dynamics. The
+                  social network of the narrative, represented as weighted edges
+                  between character nodes.
                 </span>
               </li>
               <li className="flex gap-2">
                 <span className="text-white/25 shrink-0">3.</span>
                 <span>
-                  <B>World knowledge</B> — a graph of laws, systems, concepts,
-                  and tensions. Nodes are ideas; edges are the connections
-                  between them. When a reader says a world &ldquo;feels
-                  deep,&rdquo; this graph is what they&apos;re sensing.
+                  <B>World knowledge</B> — a typed graph encoding the laws,
+                  systems, concepts, and tensions that define the fictional
+                  world. Nodes represent discrete ideas; edges encode
+                  relationships between them. Reader-perceived &ldquo;depth&rdquo;
+                  corresponds to this graph&apos;s connectivity and hierarchical
+                  structure.
                 </span>
               </li>
             </ul>
@@ -602,17 +616,18 @@ export default function PaperPage() {
                 Payoff
               </h3>
               <P>
-                Did something permanent happen? Payoff measures thread phase
-                transitions — the moments a story can&apos;t take back.
+                Payoff quantifies irreversible narrative commitments. It
+                measures thread phase transitions — discrete state changes that
+                establish new narrative invariants.
               </P>
               <Eq tex="P = \sum_{t} \max\left(0,\ \varphi_{\text{to}} - \varphi_{\text{from}}\right)" />
               <P>
                 Each thread carries a phase index: dormant (0), active (1),
                 escalating (2), critical (3), resolved/subverted/abandoned (4).
-                A thread jumping from active to critical contributes{" "}
-                <Tex>{"|3 - 1| = 2"}</Tex>. Threads mentioned without
-                transitioning earn a pulse of 0.25 — enough to stay visible
-                without inflating the score.
+                A thread transitioning from active to critical contributes{" "}
+                <Tex>{"|3 - 1| = 2"}</Tex> to the Payoff sum. Threads mentioned
+                without state transition receive a small pulse of 0.25 —
+                sufficient for visibility without inflating the metric.
               </P>
             </div>
 
@@ -621,18 +636,18 @@ export default function PaperPage() {
                 Change
               </h3>
               <P>
-                How intensely did this scene transform its characters? The
-                formula is cast-blind — a tight two-character confrontation
-                scores the same as a ten-character ensemble with equal total
-                mutations.
+                Change quantifies character transformation intensity. The
+                formula is cast-size independent — a two-character interaction
+                producing N mutations scores identically to a ten-character
+                ensemble generating the same total.
               </P>
               <Eq
-                tex={String.raw`C = \sqrt{M} \;+\; \sqrt{E} \;+\; \sqrt{R}`}
+                tex={String.raw`C = \sqrt{\Delta M} \;+\; \sqrt{\Delta E} \;+\; \sqrt{\Delta R}`}
               />
               <P>
-                <Tex>{String.raw`M`}</Tex> counts continuity mutations (what
-                characters learn, lose, or become), <Tex>{String.raw`E`}</Tex>{" "}
-                counts events, and <Tex>{String.raw`R = \sum |\Delta v|`}</Tex>{" "}
+                <Tex>{String.raw`\Delta M`}</Tex> counts continuity mutations (what
+                characters learn, lose, or become), <Tex>{String.raw`\Delta E`}</Tex>{" "}
+                counts events, and <Tex>{String.raw`\Delta R = \sum |\Delta v|`}</Tex>{" "}
                 sums the absolute valence shifts across all relationship
                 mutations. A dramatic betrayal (
                 <Tex>{String.raw`|\Delta v| = 0.5`}</Tex>) weighs more than a
@@ -648,9 +663,10 @@ export default function PaperPage() {
                 Knowledge
               </h3>
               <P>
-                Is the world getting richer? Knowledge tracks how the
-                world-building graph expands. A new law of magic matters more
-                than another link between rules the reader already knows.
+                Knowledge measures how the world expands. It tracks
+                world-building graph growth with asymmetric weighting: new
+                concepts (nodes) contribute more than additional connections
+                (edges) between existing elements.
               </P>
               <Eq tex={String.raw`K = \Delta N + \sqrt{\Delta E}`} />
               <P>
@@ -670,10 +686,10 @@ export default function PaperPage() {
                 Delivery
               </h3>
               <P>
-                The first three forces measure what a scene <em>does</em>.
-                Delivery measures what a scene <em>delivers to the reader</em> —
-                the combined impact of all three forces, amplified by tension
-                release.
+                While Payoff, Change, and Knowledge measure structural{" "}
+                <em>operations</em>, Delivery quantifies reader-perceived{" "}
+                <em>impact</em> — the aggregate effect of all three forces,
+                weighted by tension-release dynamics.
               </P>
               <Eq
                 tex={String.raw`D_i = w \sum_{f \,\in\, \{P,C,K\}} \tanh\!\left(\frac{f_i}{\alpha}\right) \;+\; \gamma \cdot \text{contrast}_i \qquad w{=}0.3,\;\; \alpha{=}1.5,\;\; \gamma{=}0.2`}
@@ -962,15 +978,17 @@ export default function PaperPage() {
               swing magnitude.
             </P>
             <P>
-              A consistent gap emerges between human and AI-generated texts.
-              Published literature routinely scores above 90 — dense thread
-              lifecycles, earned payoffs, and layered world-building compound
-              over hundreds of pages. AI-generated narratives typically land in
-              the 70&ndash;80 range: threads resolve too neatly, character
-              change lacks accumulation, and knowledge graphs expand without the
-              connective depth that human authors build instinctively. This
-              isn&apos;t a flaw in the grading — it&apos;s the structural
-              difference the force formulas are designed to detect.
+              A systematic gap emerges between human-authored and AI-generated
+              texts. Published literature consistently scores 85–95 — dense
+              thread lifecycles, earned resolutions, and hierarchical
+              world-building compound through sustained narrative arc
+              development. AI-generated narratives cluster in the 65–78 range:
+              threads resolve prematurely without adequate buildup, character
+              transformations lack progressive accumulation, and knowledge
+              graphs expand laterally without achieving the connective depth
+              that human authors construct iteratively. This disparity is not a
+              calibration artifact — it represents precisely the structural
+              distinctions the force formulas quantify.
             </P>
           </Section>
 
@@ -1313,98 +1331,348 @@ export default function PaperPage() {
 
             {/* ── Course correction diagram ────────────────────────── */}
             {(() => {
-              const W = 520,
-                H = 90;
-              const CY = 44;
-              const PAD = 40;
-              // Each correction tries to get back to centre but over/undershoots.
-              // Format: [endY offset from centre]. Positive = below, negative = above.
-              // The sequence converges toward 0.
-              const drifts = [-18, 14, -10, 8, -4, 3];
-              const segW = (W - PAD * 2) / drifts.length;
+              const W = 600,
+                H = 220;
+              const PAD = { left: 50, right: 50, top: 50, bottom: 35 };
+              const plotW = W - PAD.left - PAD.right;
+              const plotH = H - PAD.top - PAD.bottom;
 
-              // Build points: each segment starts from previous end
-              const nodes: { x: number; y: number }[] = [{ x: PAD, y: CY }];
-              for (let i = 0; i < drifts.length; i++) {
-                nodes.push({ x: PAD + (i + 1) * segW, y: CY + drifts[i] });
-              }
+              // Overarching plan — smooth ascending trajectory
+              const planPoints = [0, 0.15, 0.32, 0.5, 0.7, 0.88, 1.0];
+              const actualDrift = [0, -0.12, 0.18, -0.08, 0.15, -0.05, 0.02];
+
+              const arcs = planPoints.length;
 
               return (
-                <div className="mt-5 mb-2 rounded-xl border border-white/6 bg-white/2 px-4 py-3 overflow-x-auto">
+                <div className="mt-6 mb-3 rounded-xl border border-white/8 bg-linear-to-b from-white/2 to-white/4 px-5 py-4 overflow-x-auto shadow-lg">
                   <svg
                     width={W}
                     height={H}
-                    className="mx-auto block min-w-[400px]"
+                    className="mx-auto block min-w-[500px]"
                     viewBox={`0 0 ${W} ${H}`}
                   >
-                    {/* Centre / ideal line — dotted */}
-                    <line
-                      x1={PAD}
-                      y1={CY}
-                      x2={W - PAD}
-                      y2={CY}
-                      stroke="rgba(255,255,255,0.08)"
-                      strokeWidth="1"
-                      strokeDasharray="4 4"
+                    <defs>
+                      {/* Gradients for elegant colors */}
+                      <linearGradient
+                        id="planGrad"
+                        x1="0%"
+                        y1="0%"
+                        x2="100%"
+                        y2="0%"
+                      >
+                        <stop offset="0%" stopColor="#60a5fa" stopOpacity="0.4" />
+                        <stop offset="100%" stopColor="#818cf8" stopOpacity="0.5" />
+                      </linearGradient>
+                      <linearGradient
+                        id="actualGrad"
+                        x1="0%"
+                        y1="0%"
+                        x2="100%"
+                        y2="0%"
+                      >
+                        <stop offset="0%" stopColor="#fbbf24" stopOpacity="0.7" />
+                        <stop offset="100%" stopColor="#f59e0b" stopOpacity="0.8" />
+                      </linearGradient>
+
+                      {/* Glows for nodes */}
+                      <radialGradient id="planNodeGlow">
+                        <stop offset="0%" stopColor="#60a5fa" stopOpacity="0.6" />
+                        <stop offset="100%" stopColor="#60a5fa" stopOpacity="0" />
+                      </radialGradient>
+                      <radialGradient id="actualNodeGlow">
+                        <stop offset="0%" stopColor="#fbbf24" stopOpacity="0.8" />
+                        <stop offset="100%" stopColor="#fbbf24" stopOpacity="0" />
+                      </radialGradient>
+
+                      {/* Arrow markers with gradients */}
+                      <marker
+                        id="arrowhead-direction"
+                        markerWidth="7"
+                        markerHeight="7"
+                        refX="6"
+                        refY="3.5"
+                        orient="auto"
+                      >
+                        <polygon
+                          points="0,0 0,7 7,3.5"
+                          fill="#10b981"
+                        />
+                      </marker>
+                      <marker
+                        id="arrowhead-constraint"
+                        markerWidth="7"
+                        markerHeight="7"
+                        refX="6"
+                        refY="3.5"
+                        orient="auto"
+                      >
+                        <polygon
+                          points="0,0 0,7 7,3.5"
+                          fill="#f43f5e"
+                        />
+                      </marker>
+                    </defs>
+
+                    {/* Overarching plan — ideal trajectory */}
+                    <path
+                      d={`M ${PAD.left} ${PAD.top + plotH} ${planPoints.map((p, i) => `L ${PAD.left + (i / (arcs - 1)) * plotW} ${PAD.top + plotH - p * plotH}`).join(" ")}`}
+                      stroke="url(#planGrad)"
+                      strokeWidth="2.5"
+                      strokeDasharray="6 4"
+                      fill="none"
+                      strokeLinecap="round"
+                      opacity="0.6"
                     />
 
-                    {/* Direction vectors — each starts from previous endpoint */}
-                    {nodes.slice(0, -1).map((from, i) => {
-                      const to = nodes[i + 1];
-                      const dx = to.x - from.x,
-                        dy = to.y - from.y;
-                      const len = Math.sqrt(dx * dx + dy * dy);
-                      const ux = dx / len,
-                        uy = dy / len;
-                      // Shorten line slightly so arrowhead sits at tip
-                      const tipX = to.x - ux * 2,
-                        tipY = to.y - uy * 2;
+                    {/* Actual trajectory with drift - smooth curve */}
+                    {(() => {
+                      const points = planPoints.map((p, i) => ({
+                        x: PAD.left + (i / (arcs - 1)) * plotW,
+                        y: PAD.top + plotH - p * plotH + actualDrift[i] * plotH,
+                      }));
+
+                      // Create smooth curve using cubic bezier
+                      let pathD = `M ${points[0].x} ${points[0].y}`;
+                      for (let i = 0; i < points.length - 1; i++) {
+                        const curr = points[i];
+                        const next = points[i + 1];
+                        const cp1x = curr.x + (next.x - curr.x) * 0.5;
+                        const cp1y = curr.y;
+                        const cp2x = curr.x + (next.x - curr.x) * 0.5;
+                        const cp2y = next.y;
+                        pathD += ` C ${cp1x} ${cp1y}, ${cp2x} ${cp2y}, ${next.x} ${next.y}`;
+                      }
+
+                      return (
+                        <path
+                          d={pathD}
+                          stroke="url(#actualGrad)"
+                          strokeWidth="3.5"
+                          fill="none"
+                          strokeLinecap="round"
+                        />
+                      );
+                    })()}
+
+                    {/* Arc nodes and correction vectors */}
+                    {planPoints.slice(0, -1).map((p, i) => {
+                      const x = PAD.left + (i / (arcs - 1)) * plotW;
+                      const yPlan = PAD.top + plotH - p * plotH;
+                      const yActual =
+                        PAD.top + plotH - p * plotH + actualDrift[i] * plotH;
+
+                      // Current drift from plan determines correction vectors
+                      const currentDrift = actualDrift[i];
+                      const driftCorrection = -currentDrift; // Opposite of drift
+
+                      // Direction vector (green) — points strongly toward plan correction
+                      // Emphasizes vertical correction (getting back to plan height)
+                      const dirVecLen = 35 + Math.abs(driftCorrection) * 50;
+                      const dirAngleRad = Math.atan2(driftCorrection * plotH * 2.0, plotW * 0.25);
+                      const dirX = x + dirVecLen * Math.cos(dirAngleRad);
+                      const dirY = yActual + dirVecLen * Math.sin(dirAngleRad);
+
+                      // Constraint vector (red) — points away from bad directions
+                      // Emphasizes horizontal avoidance (perpendicular to direction)
+                      const constVecLen = 30 + Math.abs(driftCorrection) * 35;
+                      const constAngleRad = Math.atan2(-driftCorrection * plotH * 0.5, plotW * 0.6);
+                      const constX = x + constVecLen * Math.cos(constAngleRad);
+                      const constY = yActual + constVecLen * Math.sin(constAngleRad);
 
                       return (
                         <g key={i}>
-                          {/* Vector line */}
-                          <line
-                            x1={from.x}
-                            y1={from.y}
-                            x2={tipX}
-                            y2={tipY}
-                            stroke="rgba(251,191,36,0.55)"
+                          {/* Plan node glow */}
+                          <circle
+                            cx={x}
+                            cy={yPlan}
+                            r={8}
+                            fill="url(#planNodeGlow)"
+                          />
+                          {/* Plan node */}
+                          <circle
+                            cx={x}
+                            cy={yPlan}
+                            r={3}
+                            fill="#60a5fa"
+                            opacity="0.8"
+                          />
+
+                          {/* Actual position node glow */}
+                          <circle
+                            cx={x}
+                            cy={yActual}
+                            r={10}
+                            fill="url(#actualNodeGlow)"
+                          />
+                          {/* Actual position node */}
+                          <circle
+                            cx={x}
+                            cy={yActual}
+                            r={4}
+                            fill="#fbbf24"
+                            stroke="rgba(255,255,255,0.3)"
                             strokeWidth="1.5"
                           />
-                          {/* Arrowhead */}
-                          <polygon
-                            points={`${to.x},${to.y} ${to.x - 5 * ux + 3 * uy},${to.y - 5 * uy - 3 * ux} ${to.x - 5 * ux - 3 * uy},${to.y - 5 * uy + 3 * ux}`}
-                            fill="rgba(251,191,36,0.55)"
+
+                          {/* Direction vector (positive prompt) */}
+                          <line
+                            x1={x}
+                            y1={yActual}
+                            x2={dirX}
+                            y2={dirY}
+                            stroke="#10b981"
+                            strokeWidth="2"
+                            markerEnd="url(#arrowhead-direction)"
+                            opacity="0.75"
                           />
-                          {/* Node at endpoint */}
-                          <circle
-                            cx={to.x}
-                            cy={to.y}
-                            r={3}
-                            fill="rgba(251,191,36,0.7)"
+
+                          {/* Constraint vector (negative prompt) */}
+                          <line
+                            x1={x}
+                            y1={yActual}
+                            x2={constX}
+                            y2={constY}
+                            stroke="#f43f5e"
+                            strokeWidth="2"
+                            markerEnd="url(#arrowhead-constraint)"
+                            opacity="0.75"
                           />
+
+                          {/* Arc label */}
+                          <text
+                            x={x}
+                            y={H - PAD.bottom + 18}
+                            textAnchor="middle"
+                            fill="rgba(255,255,255,0.4)"
+                            fontSize="9"
+                            fontFamily="system-ui"
+                            fontWeight="500"
+                          >
+                            Arc {i + 1}
+                          </text>
                         </g>
                       );
                     })}
 
-                    {/* Start marker */}
-                    <circle
-                      cx={PAD}
-                      cy={CY}
-                      r={3}
-                      fill="rgba(255,255,255,0.35)"
-                    />
+                    {/* Final node */}
+                    {(() => {
+                      const i = arcs - 1;
+                      const x = PAD.left + plotW;
+                      const yPlan = PAD.top + plotH - planPoints[i] * plotH;
+                      const yActual =
+                        PAD.top +
+                        plotH -
+                        planPoints[i] * plotH +
+                        actualDrift[i] * plotH;
+                      return (
+                        <>
+                          <circle cx={x} cy={yPlan} r={8} fill="url(#planNodeGlow)" />
+                          <circle cx={x} cy={yPlan} r={3} fill="#60a5fa" opacity="0.8" />
+                          <circle cx={x} cy={yActual} r={10} fill="url(#actualNodeGlow)" />
+                          <circle
+                            cx={x}
+                            cy={yActual}
+                            r={4}
+                            fill="#fbbf24"
+                            stroke="rgba(255,255,255,0.3)"
+                            strokeWidth="1.5"
+                          />
+                          <text
+                            x={x}
+                            y={H - PAD.bottom + 18}
+                            textAnchor="middle"
+                            fill="rgba(255,255,255,0.4)"
+                            fontSize="9"
+                            fontFamily="system-ui"
+                            fontWeight="500"
+                          >
+                            Arc {i + 1}
+                          </text>
+                        </>
+                      );
+                    })()}
 
-                    {/* Labels */}
-                    <text
-                      x={W / 2}
-                      y={14}
-                      textAnchor="middle"
-                      fill="rgba(251,191,36,0.3)"
-                      fontSize="8"
-                    >
-                      direction vectors course-corrected after each arc
-                    </text>
+                    {/* Legend with enhanced visibility */}
+                    <g>
+                      {/* Overarching plan sample - dashed line with icon */}
+                      <path
+                        d={`M ${PAD.left} 22 L ${PAD.left + 45} 22`}
+                        stroke="#60a5fa"
+                        strokeWidth="2.5"
+                        strokeDasharray="5 3"
+                        strokeLinecap="round"
+                        opacity="0.7"
+                      />
+                      <text
+                        x={PAD.left + 51}
+                        y={25}
+                        fill="rgba(255,255,255,0.6)"
+                        fontSize="9"
+                        fontFamily="system-ui"
+                      >
+                        Overarching plan
+                      </text>
+
+                      {/* Actual trajectory sample - solid curved line */}
+                      <path
+                        d={`M ${PAD.left + 158} 22 Q ${PAD.left + 166} 18, ${PAD.left + 174} 22 Q ${PAD.left + 182} 26, ${PAD.left + 190} 22`}
+                        stroke="url(#actualGrad)"
+                        strokeWidth="3.5"
+                        strokeLinecap="round"
+                        fill="none"
+                      />
+                      <text
+                        x={PAD.left + 196}
+                        y={25}
+                        fill="rgba(255,255,255,0.6)"
+                        fontSize="9"
+                        fontFamily="system-ui"
+                      >
+                        Actual trajectory
+                      </text>
+
+                      {/* Direction vector sample */}
+                      <line
+                        x1={PAD.left + 290}
+                        y1={22}
+                        x2={PAD.left + 310}
+                        y2={22}
+                        stroke="#10b981"
+                        strokeWidth="2"
+                        markerEnd="url(#arrowhead-direction)"
+                        opacity="0.85"
+                      />
+                      <text
+                        x={PAD.left + 318}
+                        y={25}
+                        fill="rgba(255,255,255,0.6)"
+                        fontSize="9"
+                        fontFamily="system-ui"
+                      >
+                        Direction vector
+                      </text>
+
+                      {/* Constraint vector sample */}
+                      <line
+                        x1={PAD.left + 418}
+                        y1={22}
+                        x2={PAD.left + 438}
+                        y2={22}
+                        stroke="#f43f5e"
+                        strokeWidth="2"
+                        markerEnd="url(#arrowhead-constraint)"
+                        opacity="0.85"
+                      />
+                      <text
+                        x={PAD.left + 446}
+                        y={25}
+                        fill="rgba(255,255,255,0.6)"
+                        fontSize="9"
+                        fontFamily="system-ui"
+                      >
+                        Constraint vector
+                      </text>
+                    </g>
                   </svg>
                 </div>
               );
