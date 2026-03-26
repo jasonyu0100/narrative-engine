@@ -2,99 +2,48 @@
 
 # Narrative Engine
 
-Knowledge-graph-based narrative analysis, generation, and revision platform. Derives **payoff**, **change**, and **knowledge** forces from scene-level mutations — then uses those forces to grade, search, generate, and iteratively refine stories.
+Stories have structure that readers feel but metrics miss. A reveal reframes everything before it. Threads tighten across chapters. A quiet scene holds more weight than the battle it follows. Sentiment analysis sees tone but not architecture. Topic models see frequency but not momentum.
 
-**[Read the paper →](https://narrative-engine-orcin.vercel.app/paper)** · **[Case analysis: Harry Potter →](https://narrative-engine-orcin.vercel.app/case-analysis)** · **[Try it →](https://narrative-engine-orcin.vercel.app/)**
+Narrative Engine makes story structure computable. It models narratives as a **knowledge graph that mutates scene by scene** — tracking how threads escalate, characters transform, relationships shift, and worlds deepen. From those mutations, deterministic formulas derive three forces (**Payoff**, **Change**, **Knowledge**) that trace the shape of a story through time. Applied to Harry Potter, the delivery curve peaks at the Sorting Hat, the troll fight, and the Quirrell confrontation — without any human labeling.
+
+Then it uses those forces to **generate** (Markov pacing + MCTS search + planning with course correction) and **revise** (evaluate → reconstruct → converge) until AI-generated narratives score in the high 80s against a benchmark where published literature lands 81–93.
+
+**[Read the paper →](https://narrative-engine-orcin.vercel.app/paper)** · **[Case analysis →](https://narrative-engine-orcin.vercel.app/case-analysis)** · **[Try it →](https://narrative-engine-orcin.vercel.app/)**
 
 ## Setup
 
 ```bash
 npm install
-cp .env.example .env.local   # then add your OpenRouter key
+cp .env.example .env.local   # add your OpenRouter key
 npm run dev                   # http://localhost:3001
 ```
 
-| Variable | Required | Description |
-|----------|----------|-------------|
-| `OPENROUTER_API_KEY` | Yes | LLM access — [openrouter.ai/keys](https://openrouter.ai/keys) |
-| `REPLICATE_API_TOKEN` | No | Image generation via Seedream 4.5 — [replicate.com](https://replicate.com/account/api-tokens) |
-| `NEXT_PUBLIC_USER_API_KEYS` | No | Set `true` for hosted mode where users provide their own keys in the UI |
+You need an **OpenRouter API key** ([openrouter.ai/keys](https://openrouter.ai/keys)) for LLM access. Optionally add a **Replicate token** for image generation. See `.env.example` for all options.
 
-## Architecture
+## How It Works
 
-```
-Next.js 16 · React 19 · TypeScript · Tailwind v4 · D3.js
-OpenRouter (Gemini 2.5/3 Flash) · Replicate (Seedream 4.5)
-```
+Every scene produces mutations across three structural layers. Deterministic, z-score normalised formulas compute forces from those mutations — no LLM in the scoring loop:
 
-**State**: React Context + useReducer → localStorage persistence
-**AI**: Raw HTTP to OpenRouter (`/api/generate`), no SDK
-**Forces**: Deterministic formulas — no LLM in the scoring loop
+- **Payoff** — thread phase transitions (dormant → active → escalating → critical → resolved). The moments a story can't take back.
+- **Change** — how intensely characters were transformed. Continuity mutations, events, relationship valence shifts.
+- **Knowledge** — how much richer the world became. New concepts, systems, laws, and the edges connecting them.
+- **Swing** — Euclidean distance between consecutive force snapshots. The story breathing — dynamic vs flat pacing.
 
-## The Three Forces
+Each force is graded 0–25 on an exponential curve (`g(x̃) = 25(1 - e^{-2x̃})`), 100 total. The **narrative cube** maps force combinations into 8 modes (Epoch, Climax, Revelation, Closure, Discovery, Growth, Lore, Rest) used for Markov pacing and MCTS search.
 
-Every scene produces mutations across three structural layers. Deterministic formulas (z-score normalised, genre-agnostic) compute forces from those mutations:
+## Generation & Revision
 
-| Force | Formula | Measures |
-|-------|---------|----------|
-| **Payoff** | `P = Σ max(0, φ_to - φ_from) + 0.25 × pulses` | Thread phase transitions |
-| **Change** | `C = √M_c + √E + √Σ Δv` | Character transformation intensity |
-| **Knowledge** | `K = ΔN + √ΔE` | World-building density |
+**Markov Chain Pacing** — Transition matrices from published works shape scene-by-scene rhythm. Before generating, sample a mode sequence and inject as per-scene direction. `src/lib/markov.ts`
 
-**Derived**: Tension (`C + K - P`), Delivery (`0.3·Σ tanh(f/1.5) + 0.2·contrast`), Swing (Euclidean distance in PCK space)
+**MCTS Search** — Monte Carlo Tree Search over narrative branches. Each expansion gets a fresh Markov pacing sequence. UCB1 balances exploitation vs exploration. `src/lib/mcts-engine.ts`
 
-**Grading**: `g(x̃) = 25(1 - e^{-2x̃})` per force, 100 total. Published literature: 81–93. Course-corrected AI: high 80s.
+**Planning with Course Correction** — Direction and constraint vectors steer scene generation. After every arc, vectors are rewritten based on what actually happened. `src/lib/ai/review.ts`
 
-## The Narrative Cube
+**Iterative Revision** — Evaluate branches by scene summaries → per-scene verdicts (ok / edit / rewrite / cut) → reconstruct into versioned branches. Converges in 2–3 passes. Supports external guidance. `src/lib/ai/evaluate.ts`
 
-| Mode | P C K | Role |
-|------|-------|------|
-| Epoch | ↑ ↑ ↑ | Everything converges |
-| Climax | ↑ ↑ ↓ | Threads resolve, characters transform |
-| Revelation | ↑ ↓ ↑ | World-building unlocks resolution |
-| Closure | ↑ ↓ ↓ | Quiet resolution |
-| Discovery | ↓ ↑ ↑ | Transform through new systems |
-| Growth | ↓ ↑ ↓ | Internal development |
-| Lore | ↓ ↓ ↑ | Pure world-building |
-| Rest | ↓ ↓ ↓ | Breathing room |
+## Tech
 
-## Key Systems
-
-### Markov Chain Pacing
-Transition matrices computed from published works. Before generating an arc, sample a mode sequence (`Growth → Lore → Climax → Rest`) and inject as per-scene direction. See `src/lib/markov.ts`.
-
-### MCTS Narrative Search
-Monte Carlo Tree Search over narrative branches. Each expansion gets a fresh Markov pacing sequence. UCB1 balances exploitation vs exploration. Force grading is the evaluation function. See `src/lib/mcts-engine.ts`.
-
-### Planning with Course Correction
-Phases → direction + constraint vectors → scene generation. After every arc, vectors are rewritten based on thread tension, character cost, rhythm, freshness, momentum. See `src/lib/ai/review.ts`.
-
-### Iterative Revision
-Evaluate branch by scene summaries → per-scene verdicts (ok / edit / rewrite / cut) → reconstruct into versioned branch. Edits tighten within locked structure; rewrites rebuild; cuts remove. Converges in 2–3 passes. Supports external guidance. See `src/lib/ai/evaluate.ts`, `src/lib/ai/reconstruct.ts`.
-
-### Analysis Pipeline
-Paste any text → chunked window-function extraction → full knowledge graph, force decomposition, delivery curve, grade. See `src/lib/text-analysis.ts`.
-
-## Key Files
-
-| File | What |
-|------|------|
-| `src/lib/narrative-utils.ts` | Force formulas, cube logic, grading, delivery curve |
-| `src/lib/markov.ts` | Transition matrices, sequence sampling, presets |
-| `src/lib/mcts-engine.ts` | MCTS search over narrative branches |
-| `src/lib/auto-engine.ts` | Automated generation loop |
-| `src/lib/ai/evaluate.ts` | Branch evaluation (summary → verdicts) |
-| `src/lib/ai/reconstruct.ts` | Branch reconstruction from verdicts |
-| `src/lib/ai/scenes.ts` | Scene structure generation |
-| `src/lib/ai/prose.ts` | Prose generation and rewriting |
-| `src/lib/ai/review.ts` | Direction vector course correction |
-| `src/lib/store.tsx` | State management (Context + useReducer) |
-| `src/types/narrative.ts` | Domain types |
-| `src/app/paper/page.tsx` | Interactive whitepaper |
-
-## The Paper
-
-The whitepaper at `/paper` covers the full framework: force formulas, validation against published literature, Markov pacing, MCTS search, planning with course correction, and iterative revision. Every formula is open, every constant is tunable.
+Next.js 16 · React 19 · TypeScript · Tailwind v4 · D3.js · OpenRouter (Gemini 2.5/3 Flash) · Replicate (Seedream 4.5)
 
 ## License
 
