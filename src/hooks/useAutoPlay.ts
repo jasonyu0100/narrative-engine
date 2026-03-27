@@ -196,7 +196,6 @@ export function useAutoPlay() {
     } catch (err) {
       console.error('[auto-play] cycle error:', err);
       cycleError = err instanceof Error ? err.message : String(err);
-      dispatch({ type: 'SET_AUTO_STATUS', message: `Error: ${cycleError}` });
     }
 
     if (cancelledRef.current) return;
@@ -223,11 +222,16 @@ export function useAutoPlay() {
     };
     dispatch({ type: 'LOG_AUTO_CYCLE', entry: logEntry });
 
-    // Stop after 3 consecutive failures
+    // Update status with result
     const failures = (autoRunState.consecutiveFailures ?? 0) + (cycleError ? 1 : 0);
     if (cycleError && failures >= 3) {
+      dispatch({ type: 'SET_AUTO_STATUS', message: `Stopped — 3 consecutive failures: ${cycleError}` });
       dispatch({ type: 'STOP_AUTO_RUN' });
       return;
+    } else if (cycleError) {
+      dispatch({ type: 'SET_AUTO_STATUS', message: `Retry ${failures}/3 — ${cycleError}` });
+    } else if (scenesGenerated > 0) {
+      dispatch({ type: 'SET_AUTO_STATUS', message: `Generated ${scenesGenerated} scenes${arcName ? ` — ${arcName}` : ''}` });
     }
   }, [dispatch]);
 

@@ -155,8 +155,14 @@ export function AutoControlBar({
 
       {/* Contextual status below the pill */}
       {(isRunning || isPaused || stoppedByError) && statusMessage && (
-        <div className={`mt-1.5 text-[10px] text-center max-w-80 truncate ${
-          stoppedByError ? 'text-red-400' : hasError ? 'text-red-400/70' : 'text-text-dim'
+        <div className={`mt-1.5 text-[10px] text-center max-w-96 px-2 ${
+          stoppedByError
+            ? 'text-red-400'
+            : statusMessage.startsWith('Retry')
+            ? 'text-amber-400'
+            : statusMessage.startsWith('Error')
+            ? 'text-red-400/80'
+            : 'text-text-dim'
         }`}>
           {stoppedByError ? (
             <span className="flex items-center justify-center gap-1.5">
@@ -165,10 +171,20 @@ export function AutoControlBar({
                 <line x1="12" y1="8" x2="12" y2="12" />
                 <line x1="12" y1="16" x2="12.01" y2="16" />
               </svg>
-              3 consecutive failures —{' '}
-              <button onClick={onOpenLog} className="underline hover:text-red-300 transition-colors">check logs</button>
+              <span className="truncate">{statusMessage}</span>
+              <button onClick={onOpenLog} className="underline hover:text-red-300 transition-colors shrink-0">view logs</button>
             </span>
-          ) : statusMessage}
+          ) : statusMessage.startsWith('Retry') ? (
+            <span className="flex items-center justify-center gap-1.5">
+              <svg className="w-3 h-3 shrink-0 animate-pulse" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                <path d="M1 4v6h6" />
+                <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10" />
+              </svg>
+              <span className="truncate">{statusMessage}</span>
+            </span>
+          ) : (
+            <span className="truncate block">{statusMessage}</span>
+          )}
         </div>
       )}
     </div>
