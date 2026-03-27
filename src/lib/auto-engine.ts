@@ -335,6 +335,7 @@ export function checkEndConditions(
   config: AutoConfig,
   startingSceneCount = 0,
   startingArcCount = 0,
+  activeBranchId?: string,
 ): AutoEndCondition | null {
   for (const cond of config.endConditions) {
     switch (cond.type) {
@@ -354,9 +355,9 @@ export function checkEndConditions(
         break;
       }
       case 'planning_complete': {
-        // Check if all planning phases are completed
-        const branches = Object.values(narrative.branches);
-        const pq = branches.find((b) => b.planningQueue)?.planningQueue;
+        // Check if the ACTIVE branch's planning queue is fully completed
+        const activeBranch = activeBranchId ? narrative.branches[activeBranchId] : undefined;
+        const pq = activeBranch?.planningQueue;
         if (pq) {
           const allDone = pq.phases.every((p) => p.status === 'completed');
           if (allDone) return cond;

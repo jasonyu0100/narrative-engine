@@ -47,7 +47,7 @@ export function useAutoPlay() {
     }
 
     // Check end conditions
-    const endMet = checkEndConditions(activeNarrative, resolvedEntryKeys, autoConfig, autoRunState.startingSceneCount, autoRunState.startingArcCount);
+    const endMet = checkEndConditions(activeNarrative, resolvedEntryKeys, autoConfig, autoRunState.startingSceneCount, autoRunState.startingArcCount, activeBranchId);
     if (endMet) {
       dispatch({
         type: 'LOG_AUTO_CYCLE',
@@ -77,6 +77,7 @@ export function useAutoPlay() {
     );
     const chosen = weights[0];
     if (!chosen) {
+      dispatch({ type: 'SET_AUTO_STATUS', message: 'Stopped — no viable action found' });
       dispatch({ type: 'STOP_AUTO_RUN' });
       return;
     }

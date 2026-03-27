@@ -71,6 +71,21 @@ function bucketByHour(logs: ApiLogEntry[]): { label: string; shortLabel: string;
     .map(([label, entries]) => ({ label, shortLabel: label.slice(5), entries }));
 }
 
+/** Group entries by minute */
+function bucketByMinute(logs: ApiLogEntry[]): { label: string; shortLabel: string; entries: ApiLogEntry[] }[] {
+  const map = new Map<string, ApiLogEntry[]>();
+  for (const log of logs) {
+    if (log.status !== 'success') continue;
+    const d = new Date(log.timestamp);
+    const key = `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+    if (!map.has(key)) map.set(key, []);
+    map.get(key)!.push(log);
+  }
+  return [...map.entries()]
+    .sort((a, b) => a[0].localeCompare(b[0]))
+    .map(([label, entries]) => ({ label, shortLabel: label, entries }));
+}
+
 // ── SVG Bar Chart ────────────────────────────────────────────────────────────
 
 type BarDatum = { label: string; shortLabel: string; v1: number; v2: number };
@@ -190,7 +205,7 @@ function BarChart({
 
 export function UsageDropdown({ logs }: { logs: ApiLogEntry[] }) {
   const [view, setView] = useState<'cost' | 'tokens' | 'calls'>('cost');
-  const [granularity, setGranularity] = useState<'hour' | 'day'>('day');
+  const [granularity, setGranularity] = useState<'minute' | 'hour' | 'day'>('day');
 
   const successLogs = useMemo(() => logs.filter((l) => l.status === 'success'), [logs]);
 
@@ -224,7 +239,7 @@ export function UsageDropdown({ logs }: { logs: ApiLogEntry[] }) {
   }, [successLogs]);
 
   const chartData = useMemo(() => {
-    const buckets = granularity === 'hour' ? bucketByHour(logs) : bucketByDay(logs);
+    const buckets = granularity === 'minute' ? bucketByMinute(logs) : granularity === 'hour' ? bucketByHour(logs) : bucketByDay(logs);
     return buckets.map((b): BarDatum => {
       if (view === 'tokens') {
         let v1 = 0, v2 = 0;
@@ -272,7 +287,7 @@ export function UsageDropdown({ logs }: { logs: ApiLogEntry[] }) {
           ))}
         </div>
         <div className="flex items-center rounded border border-white/8 overflow-hidden">
-          {(['hour', 'day'] as const).map((g) => (
+          {(['minute', 'hour', 'day'] as const).map((g) => (
             <button
               key={g}
               onClick={() => setGranularity(g)}
@@ -280,7 +295,7 @@ export function UsageDropdown({ logs }: { logs: ApiLogEntry[] }) {
                 granularity === g ? 'bg-white/10 text-text-primary' : 'text-text-dim hover:text-text-secondary'
               }`}
             >
-              {g === 'hour' ? 'Hourly' : 'Daily'}
+              {g === 'minute' ? 'Minute' : g === 'hour' ? 'Hourly' : 'Daily'}
             </button>
           ))}
         </div>
