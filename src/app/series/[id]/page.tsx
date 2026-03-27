@@ -144,6 +144,7 @@ export default function SeriesPage() {
                 isPaused={autoPlay.isPaused}
                 currentCycle={autoPlay.currentCycle}
                 totalScenes={state.autoRunState?.totalScenesGenerated ?? 0}
+                statusMessage={state.autoRunState?.statusMessage ?? ''}
                 log={autoPlay.log}
                 onPause={autoPlay.pause}
                 onResume={autoPlay.resume}

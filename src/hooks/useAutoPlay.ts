@@ -66,6 +66,7 @@ export function useAutoPlay() {
     }
 
     // Evaluate and pick action
+    dispatch({ type: 'SET_AUTO_STATUS', message: 'Evaluating narrative state...' });
     const { weights, directiveCtx } = evaluateNarrativeState(
       activeNarrative,
       resolvedEntryKeys,
@@ -137,6 +138,7 @@ export function useAutoPlay() {
         }
       }
 
+      dispatch({ type: 'SET_AUTO_STATUS', message: `Generating ${sceneCount} scenes...` });
       let { scenes, arc } = await generateScenes(
         activeNarrative,
         resolvedEntryKeys,
@@ -164,6 +166,7 @@ export function useAutoPlay() {
 
       // Course-correct: refresh direction after each arc
       if (pq && scenesGenerated > 0) {
+        dispatch({ type: 'SET_AUTO_STATUS', message: 'Refreshing direction...' });
         const freshState = stateRef.current;
         const freshNarrative = freshState.activeNarrative;
         const freshBranch = freshNarrative?.branches[activeBranchId];
@@ -193,6 +196,7 @@ export function useAutoPlay() {
     } catch (err) {
       console.error('[auto-play] cycle error:', err);
       cycleError = err instanceof Error ? err.message : String(err);
+      dispatch({ type: 'SET_AUTO_STATUS', message: `Error: ${cycleError}` });
     }
 
     if (cancelledRef.current) return;
@@ -218,19 +222,48 @@ export function useAutoPlay() {
       error: cycleError || undefined,
     };
     dispatch({ type: 'LOG_AUTO_CYCLE', entry: logEntry });
+
+    // Stop after 3 consecutive failures
+    const failures = (autoRunState.consecutiveFailures ?? 0) + (cycleError ? 1 : 0);
+    if (cycleError && failures >= 3) {
+      dispatch({ type: 'STOP_AUTO_RUN' });
+      return;
+    }
   }, [dispatch]);
 
   // The loop: run a cycle, then immediately continue
+  const consecutiveTickErrors = useRef(0);
   const tick = useCallback(async () => {
     if (cancelledRef.current || !runningRef.current) return;
 
-    await runCycle();
+    try {
+      await runCycle();
+      consecutiveTickErrors.current = 0;
+    } catch (err) {
+      console.error('[auto-play] Unhandled error in runCycle:', err);
+      consecutiveTickErrors.current += 1;
+      if (consecutiveTickErrors.current >= 3) {
+        console.error('[auto-play] 3 consecutive unhandled errors — stopping auto mode');
+        dispatch({ type: 'LOG_AUTO_CYCLE', entry: {
+          cycle: (stateRef.current.autoRunState?.currentCycle ?? 0) + 1,
+          timestamp: Date.now(),
+          action: 'LLL',
+          reason: 'Auto mode stopped — 3 consecutive errors. Check API Logs for details.',
+          scenesGenerated: 0,
+          worldExpanded: false,
+          endConditionMet: null,
+          error: err instanceof Error ? err.message : String(err),
+        }});
+        dispatch({ type: 'STOP_AUTO_RUN' });
+        return;
+      }
+    }
 
     if (cancelledRef.current || !runningRef.current) return;
 
     // Continue immediately — no pause between cycles
     timeoutRef.current = setTimeout(() => tick(), 100);
-  }, [runCycle]);
+  }, [runCycle, dispatch]);
 
   const start = useCallback(() => {
     cancelledRef.current = false;

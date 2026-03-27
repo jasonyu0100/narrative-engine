@@ -185,6 +185,10 @@ You MUST use ONLY these exact IDs. Do NOT invent new character, location, or thr
     if (!scene.participantIds.includes(scene.povId)) {
       scene.povId = scene.participantIds[0] ?? fallbackCharId;
     }
+    // Ensure mutation arrays are actually arrays (LLM may return objects)
+    if (!Array.isArray(scene.threadMutations)) scene.threadMutations = [];
+    if (!Array.isArray(scene.continuityMutations)) scene.continuityMutations = [];
+    if (!Array.isArray(scene.relationshipMutations)) scene.relationshipMutations = [];
     // Remove invalid threadMutations
     scene.threadMutations = scene.threadMutations.filter((tm) => {
       if (validThreadIds.has(tm.threadId)) return true;

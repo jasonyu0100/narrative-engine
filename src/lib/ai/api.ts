@@ -1,4 +1,5 @@
 import { apiHeaders } from '@/lib/api-headers';
+import { DEFAULT_MODEL } from '@/lib/constants';
 
 export async function callGenerateStream(
   prompt: string,
@@ -8,8 +9,9 @@ export async function callGenerateStream(
   caller = 'callGenerateStream',
   model?: string,
 ): Promise<string> {
+  const resolvedModel = model ?? DEFAULT_MODEL;
   const { logApiCall, updateApiLog } = await import('@/lib/api-logger');
-  const logId = logApiCall(caller, prompt.length + (systemPrompt?.length ?? 0), prompt, model);
+  const logId = logApiCall(caller, prompt.length + (systemPrompt?.length ?? 0), prompt, resolvedModel);
   const start = performance.now();
 
   try {
@@ -73,8 +75,9 @@ export async function callGenerateStream(
 }
 
 export async function callGenerate(prompt: string, systemPrompt: string, maxTokens?: number, caller = 'callGenerate', model?: string): Promise<string> {
+  const resolvedModel = model ?? DEFAULT_MODEL;
   const { logApiCall, updateApiLog } = await import('@/lib/api-logger');
-  const logId = logApiCall(caller, prompt.length + (systemPrompt?.length ?? 0), prompt, model);
+  const logId = logApiCall(caller, prompt.length + (systemPrompt?.length ?? 0), prompt, resolvedModel);
   const start = performance.now();
 
   try {

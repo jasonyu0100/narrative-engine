@@ -310,6 +310,7 @@ export type Action =
   | { type: 'PAUSE_AUTO_RUN' }
   | { type: 'RESUME_AUTO_RUN' }
   | { type: 'STOP_AUTO_RUN' }
+  | { type: 'SET_AUTO_STATUS'; message: string }
   | { type: 'LOG_AUTO_CYCLE'; entry: AutoRunLog }
   // API Logs
   | { type: 'LOG_API_CALL'; entry: ApiLogEntry }
@@ -791,6 +792,8 @@ function reducer(state: AppState, action: Action): AppState {
           isRunning: true,
           isPaused: false,
           currentCycle: 0,
+          consecutiveFailures: 0,
+          statusMessage: 'Starting...',
           totalScenesGenerated: 0,
           totalWorldExpansions: 0,
           startingSceneCount: state.resolvedEntryKeys.length,
@@ -812,6 +815,11 @@ function reducer(state: AppState, action: Action): AppState {
     case 'STOP_AUTO_RUN':
       return { ...state, autoRunState: null };
 
+    case 'SET_AUTO_STATUS':
+      return state.autoRunState
+        ? { ...state, autoRunState: { ...state.autoRunState, statusMessage: action.message } }
+        : state;
+
     case 'LOG_AUTO_CYCLE':
       return state.autoRunState
         ? {
@@ -819,6 +827,9 @@ function reducer(state: AppState, action: Action): AppState {
             autoRunState: {
               ...state.autoRunState,
               currentCycle: state.autoRunState.currentCycle + 1,
+              consecutiveFailures: action.entry.error
+                ? state.autoRunState.consecutiveFailures + 1
+                : 0,
               totalScenesGenerated: state.autoRunState.totalScenesGenerated + action.entry.scenesGenerated,
               totalWorldExpansions: state.autoRunState.totalWorldExpansions + (action.entry.worldExpanded ? 1 : 0),
               log: [...state.autoRunState.log, action.entry],

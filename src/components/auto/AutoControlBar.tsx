@@ -7,6 +7,7 @@ type Props = {
   isPaused: boolean;
   currentCycle: number;
   totalScenes: number;
+  statusMessage: string;
   log: AutoRunLog[];
   onPause: () => void;
   onResume: () => void;
@@ -31,6 +32,7 @@ export function AutoControlBar({
   isPaused,
   currentCycle,
   totalScenes,
+  statusMessage,
   log,
   onPause,
   onResume,
@@ -39,22 +41,29 @@ export function AutoControlBar({
   onOpenLog,
 }: Props) {
   const lastEntry = log[log.length - 1];
+  const lastError = lastEntry?.error;
+  const stoppedByError = !isRunning && !isPaused && lastError;
+  const hasError = !!lastError;
 
   return (
-    <div className="absolute top-2 left-1/2 -translate-x-1/2 z-20">
-      <div className="glass-pill px-3 py-1.5 flex items-center gap-3">
+    <div className="absolute top-2 left-1/2 -translate-x-1/2 z-20 flex flex-col items-center">
+      <div className={`glass-pill px-3 py-1.5 flex items-center gap-3 ${stoppedByError ? 'ring-1 ring-red-400/40' : ''}`}>
         {/* Status indicator */}
         <div className="flex items-center gap-1.5">
-          {isRunning ? (
+          {isRunning && hasError ? (
+            <div className="w-2.5 h-2.5 rounded-full bg-red-400 animate-pulse" />
+          ) : isRunning ? (
             <svg className="w-3.5 h-3.5 text-yellow-400 animate-spin" viewBox="0 0 16 16" fill="none">
               <circle cx="8" cy="8" r="6" stroke="currentColor" strokeWidth="2" strokeOpacity="0.25" />
               <path d="M14 8a6 6 0 0 0-6-6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
             </svg>
+          ) : stoppedByError ? (
+            <div className="w-2 h-2 rounded-full bg-red-400" />
           ) : (
             <div className={`w-2 h-2 rounded-full ${isPaused ? 'bg-amber-400' : 'bg-text-dim'}`} />
           )}
-          <span className="text-[10px] text-text-dim uppercase tracking-wider">
-            {isRunning ? 'Running' : isPaused ? 'Paused' : 'Stopped'}
+          <span className={`text-[10px] uppercase tracking-wider ${stoppedByError ? 'text-red-400' : 'text-text-dim'}`}>
+            {stoppedByError ? 'Error' : isRunning && hasError ? 'Retrying' : isRunning ? 'Running' : isPaused ? 'Paused' : 'Stopped'}
           </span>
         </div>
 
@@ -143,6 +152,25 @@ export function AutoControlBar({
         </button>
 
       </div>
+
+      {/* Contextual status below the pill */}
+      {(isRunning || isPaused || stoppedByError) && statusMessage && (
+        <div className={`mt-1.5 text-[10px] text-center max-w-80 truncate ${
+          stoppedByError ? 'text-red-400' : hasError ? 'text-red-400/70' : 'text-text-dim'
+        }`}>
+          {stoppedByError ? (
+            <span className="flex items-center justify-center gap-1.5">
+              <svg className="w-3 h-3 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                <circle cx="12" cy="12" r="10" />
+                <line x1="12" y1="8" x2="12" y2="12" />
+                <line x1="12" y1="16" x2="12.01" y2="16" />
+              </svg>
+              3 consecutive failures —{' '}
+              <button onClick={onOpenLog} className="underline hover:text-red-300 transition-colors">check logs</button>
+            </span>
+          ) : statusMessage}
+        </div>
+      )}
     </div>
   );
 }

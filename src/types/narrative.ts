@@ -683,6 +683,9 @@ export type AutoRunState = {
   isRunning: boolean;
   isPaused: boolean;
   currentCycle: number;
+  consecutiveFailures: number;
+  /** Live status message shown in the control bar */
+  statusMessage: string;
   totalScenesGenerated: number;
   totalWorldExpansions: number;
   startingSceneCount: number;
