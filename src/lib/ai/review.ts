@@ -97,27 +97,21 @@ CRITICAL OUTPUT RULES:
 Write direction and constraints:
 - Direction (3-5 sentences): Imperative orders for the next arc. Each sentence: [Character] [does specific thing] [at specific place] [causing specific consequence] [thread target].
 
-BAD DIRECTION (vague, analytical, no mechanism):
-"The resource scarcity should push clan politics to critical. Fang Zheng's suspicion continues to deepen. Bai Ning Bing's research accelerates. Threads need to progress toward resolution."
+MODEL DIRECTION (each sentence: character + action + location + consequence + thread target):
+"Kael breaks the seal at the Sunken Vault, releasing the thing Mira spent three arcs trying to contain — forcing her to choose between hunting him or evacuating the Lowlands (T-12 → critical). Dara trades the cipher to the Voss Syndicate in exchange for passage across the Reach, not knowing the cipher is the key to the weapon Rhen is building (T-08 collides with T-15). Rhen's prototype detonates prematurely in the Foundry, killing two of his apprentices and destroying his credibility with the Council — his next move must be desperate, not calculated (T-15 → escalating, character cost). The grain shortage hits the Midwall district visibly: a riot, a child dead, a merchant hanged by a mob — making the resource thread impossible for any faction to ignore (T-03 → critical via civilian cost)."
 
-GOOD DIRECTION (specific actions, named characters, concrete mechanisms, thread targets):
-"Mo Bei Liu calls an emergency elder session at the Clan Hall and demands Gu Yue Bo account for the missing grain — Gu Yue Bo must either confess weakness or blame Gu Yue Qing, and either choice fractures his coalition (T-04 → critical). Fang Zheng follows Fang Yuan to the Mountain Wilderness at night and witnesses him extracting wild Gu in ways that contradict his C-grade talent — this shifts Fang Zheng from passive unease to active investigation (T-03 → escalating). Bai Ning Bing deciphers the Flower Wine Monk's symbol in the ancient texts and connects it to the granary's inventory anomalies, giving her a lead that pulls her toward Qing Mao Mountain (T-06 → active). Fang Yuan's manipulation of the grain records must produce an unintended consequence he didn't foresee — a guard notices the discrepancy, or a transient character suffers visibly — so his arrogance costs something concrete."
+- Constraints (3-5 sentences — equally important as direction): What MUST NOT happen. Reference the SPENT BEATS section above — explicitly ban re-staging, re-confirming, or re-witnessing any beat already delivered. Ban confirmation scenes (character reacts to known state without changing it). Ban stale patterns and protect threads meant for later phases. Each constraint must name a specific thread, character, or beat.
 
-- Constraints (2-4 sentences): What MUST NOT happen. Reference the SPENT BEATS section above — explicitly ban re-staging any beat that's already been delivered. Ban stale patterns and protect threads meant for later phases.
-
-BAD CONSTRAINTS (generic, no specifics):
-"Don't resolve major threads yet. Keep the pacing balanced."
-
-GOOD CONSTRAINTS (precise prohibitions referencing spent beats):
-"Do NOT restage the coup — Gu Yue Bo is already deposed, scenes must deal with the AFTERMATH. Fang Yuan's rebirth must remain secret — no character acquires concrete evidence of his past life. No repeat of the 'character overhears a conversation' beat — the last two arcs both used eavesdropping as a discovery mechanism. Bai Ning Bing's soul split has already been revealed — do not re-reveal it, show the consequences instead."
+MODEL CONSTRAINTS (each sentence: specific prohibition + what to do instead):
+"The seal is already broken — no more 'Kael investigates the vault' or 'tremors suggest the seal is weakening' scenes; the ONLY valid next beat is the consequence of what escaped (T-12). Mira's betrayal was revealed in scene 34 — do not write scenes where other characters discover or react to it unless their reaction triggers a new alliance or defection. No more 'Dara gathers information' scenes — she has the cipher, the next scene must show her USING it and paying a price. Rhen must not succeed at anything cleanly this arc — every action must have visible collateral that compounds his problems. No eavesdropping or overheard-conversation discoveries — the last three arcs used this mechanism; secrets must be revealed through action, confrontation, or evidence."
 
 Return JSON:
 {
   "direction": "3-5 imperative sentences with specific mechanisms and thread targets",
-  "constraints": "2-3 sentences"
+  "constraints": "3-5 sentences with specific prohibitions referencing spent beats"
 }`;
 
-  const raw = await callGenerate(prompt, SYSTEM_PROMPT, 600, 'refreshDirection');
+  const raw = await callGenerate(prompt, SYSTEM_PROMPT, 800, 'refreshDirection');
 
   try {
     const parsed = parseJson(raw, 'refreshDirection') as { direction?: string; constraints?: string };

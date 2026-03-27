@@ -56,6 +56,8 @@ NEVER REPEAT A BEAT. If a character has already "observed X and filed it away" i
 
 NO DUPLICATE SCENES. Before writing a scene, check the scene history. If a character has already visited a location and discovered something there, do NOT write another scene where they visit the same location and discover the same kind of thing. Every scene must advance — never re-establish.
 
+NO CONFIRMATION SCENES. A "confirmation scene" is one where the primary purpose is for a character to witness, react to, or validate something the reader already knows. These are the #1 source of bloat in long-form generation. Examples of confirmation scenes to AVOID: "Character B learns what Character A discovered 3 scenes ago." "Tremors intensify, confirming the spring is active." "Elder X grows more suspicious." If the reader already knows the state, showing another character arriving at the same knowledge is not advancement — it is padding. The only exception is when the discovery causes that character to take an ACTION that changes the state (not just "files it away" or "grows concerned").
+
 The pacing sequence above assigns each scene a specific mode with mutation targets. Follow those assignments — they handle buildup/payoff balance and intensity variation.
 `;
 
@@ -407,7 +409,10 @@ export function buildCompletedBeatsPrompt(
   if (threadIds.length === 0) return '';
 
   const lines: string[] = [
-    'SPENT BEATS — these state transitions have already occurred. Do NOT restage, re-discover, or re-reveal them. You may reference their CONSEQUENCES but the events themselves are closed territory:',
+    'SPENT BEATS — these state transitions have already occurred and their ENTIRE narrative territory is CLOSED.',
+    'This means: do NOT restage, re-discover, re-reveal, re-confirm, re-witness from another angle, or write "deepening" scenes that observe the same state without changing it.',
+    'A scene where a character reacts to a known state, confirms a known fact, or witnesses something the reader already knows is NOT advancement — it is repetition.',
+    'The ONLY valid next scene for a completed beat is one that CHANGES the state: a new complication, a reversal, a cost, an interference, a consequence that opens new territory.',
     '',
   ];
 
@@ -435,7 +440,11 @@ export function buildCompletedBeatsPrompt(
     lines.push('');
   }
 
-  lines.push('Each new scene MUST advance state BEYOND these completed positions. A scene that re-stages or re-discovers any beat listed above is a structural failure — find the NEXT thing that happens as a consequence.');
+  lines.push('ANTI-CONFIRMATION RULE: Once a beat is listed above, no further scenes may:');
+  lines.push('  - Show another character discovering/witnessing/reacting to the same event');
+  lines.push('  - Deepen or confirm the same state ("suspicion grows", "tremor intensifies", "alliance solidifies")');
+  lines.push('  - Reframe the same transition from a different POV');
+  lines.push('Instead, the NEXT scene involving this thread MUST introduce a NEW state variable: interference, cost, reversal, escalation to a genuinely new phase, or an unintended consequence that opens a different narrative lane.');
 
   return lines.join('\n');
 }
