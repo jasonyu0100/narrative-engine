@@ -2,7 +2,7 @@ import type { NarrativeState, PlanningPhase } from '@/types/narrative';
 import { DEFAULT_STORY_SETTINGS } from '@/types/narrative';
 import { callGenerate, SYSTEM_PROMPT } from './api';
 import { branchContext } from './context';
-import { buildThreadHealthPrompt } from './prompts';
+import { buildThreadHealthPrompt, buildCompletedBeatsPrompt } from './prompts';
 import { parseJson } from './json';
 
 /**
@@ -69,6 +69,8 @@ CURRENT CONSTRAINTS: ${currentConstraints || '(none set)'}
 
 ${threadHealthBlock}
 
+${buildCompletedBeatsPrompt(narrative, resolvedKeys, currentIndex)}
+
 ${PACING_DIRECTIVES[speed] ?? PACING_DIRECTIVES.moderate}
 
 Review the scene history and thread velocity report through these lenses:
@@ -101,13 +103,13 @@ BAD DIRECTION (vague, analytical, no mechanism):
 GOOD DIRECTION (specific actions, named characters, concrete mechanisms, thread targets):
 "Mo Bei Liu calls an emergency elder session at the Clan Hall and demands Gu Yue Bo account for the missing grain — Gu Yue Bo must either confess weakness or blame Gu Yue Qing, and either choice fractures his coalition (T-04 → critical). Fang Zheng follows Fang Yuan to the Mountain Wilderness at night and witnesses him extracting wild Gu in ways that contradict his C-grade talent — this shifts Fang Zheng from passive unease to active investigation (T-03 → escalating). Bai Ning Bing deciphers the Flower Wine Monk's symbol in the ancient texts and connects it to the granary's inventory anomalies, giving her a lead that pulls her toward Qing Mao Mountain (T-06 → active). Fang Yuan's manipulation of the grain records must produce an unintended consequence he didn't foresee — a guard notices the discrepancy, or a transient character suffers visibly — so his arrogance costs something concrete."
 
-- Constraints (2-3 sentences): What MUST NOT happen. Ban stale patterns. Protect threads meant for later phases.
+- Constraints (2-4 sentences): What MUST NOT happen. Reference the SPENT BEATS section above — explicitly ban re-staging any beat that's already been delivered. Ban stale patterns and protect threads meant for later phases.
 
 BAD CONSTRAINTS (generic, no specifics):
 "Don't resolve major threads yet. Keep the pacing balanced."
 
-GOOD CONSTRAINTS (precise prohibitions with reasons):
-"Fang Yuan's rebirth must remain secret — no character acquires concrete evidence of his past life. Bai Ning Bing's Northern Dark Ice Soul physique must not be cured or stabilized this phase. No repeat of the 'character overhears a conversation' beat — the last two arcs both used eavesdropping as a discovery mechanism."
+GOOD CONSTRAINTS (precise prohibitions referencing spent beats):
+"Do NOT restage the coup — Gu Yue Bo is already deposed, scenes must deal with the AFTERMATH. Fang Yuan's rebirth must remain secret — no character acquires concrete evidence of his past life. No repeat of the 'character overhears a conversation' beat — the last two arcs both used eavesdropping as a discovery mechanism. Bai Ning Bing's soul split has already been revealed — do not re-reveal it, show the consequences instead."
 
 Return JSON:
 {

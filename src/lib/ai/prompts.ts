@@ -320,7 +320,6 @@ export function buildThreadHealthPrompt(
     const phaseIdx = PHASE_INDEX[t.status] ?? 0;
     const statusLabel = `${t.status} (phase ${phaseIdx}/4)`;
     const velocityLabel = t.velocity > 0 ? (t.velocity * 10).toFixed(1) + ' transitions per 10 scenes' : 'no transitions yet';
-    const pulseLabel = t.pulseRatio > 0.8 ? '⚠ HIGH PULSE RATIO — thread is being touched but not progressing' : '';
     const sinceLabel = t.m.scenesSinceLastTransition > standard.benchmark
       ? `⚠ ${t.m.scenesSinceLastTransition} scenes since last transition (benchmark: ${standard.benchmark})`
       : `${t.m.scenesSinceLastTransition} scenes since last transition`;
@@ -328,10 +327,19 @@ export function buildThreadHealthPrompt(
       ? `History: ${t.m.transitionHistory.join(' → ')}`
       : 'No transitions yet — still at initial status';
 
+    // Strengthened pulse ratio warning with concrete details
+    let pulseBlock = '';
+    if (t.pulseRatio > 0.8 && t.m.totalMutations >= 3) {
+      const lastTransition = t.m.transitionHistory.length > 0
+        ? t.m.transitionHistory[t.m.transitionHistory.length - 1]
+        : 'none';
+      pulseBlock = `  ⚠ HIGH PULSE RATIO (${t.m.pulses} pulses, ${t.m.transitions} transitions) — touched ${t.m.totalMutations} times but barely progressing.\n    Last real change: ${lastTransition}. Since then, only pulsed ${t.m.pulses} times.\n    REQUIRED: Next mention MUST be a real transition. Either advance to next phase or resolve/abandon. No more pulses.`;
+    }
+
     lines.push(`"${t.description}" [${t.id}]`);
     lines.push(`  Status: ${statusLabel} | Age: ${t.age} scenes | Mutations: ${t.m.totalMutations} (${t.m.transitions} transitions, ${t.m.pulses} pulses)`);
     lines.push(`  Velocity: ${velocityLabel} | ${sinceLabel}`);
-    if (pulseLabel) lines.push(`  ${pulseLabel}`);
+    if (pulseBlock) lines.push(pulseBlock);
     lines.push(`  ${history}`);
     lines.push('');
   }
@@ -349,6 +357,85 @@ export function buildThreadHealthPrompt(
   lines.push('- High pulse ratio (>80% pulses vs transitions) means a thread is being referenced but not progressing — push it forward or let it go.');
   lines.push('- Major threads can run longer than the benchmark. Minor subplots should resolve faster.');
   lines.push('- Every arc should advance at least one thread by one phase. Zero-progress arcs waste reader patience.');
+
+  return lines.join('\n');
+}
+
+// ── Completed Beats (State-Locking) ─────────────────────────────────────────
+
+/**
+ * Extract irreversible state transitions from scene history and format them
+ * as a "SPENT BEATS" prompt section. This tells the LLM what narrative
+ * territory is already cashed in and must not be restaged.
+ *
+ * Extracts:
+ * - Thread transition chains (real status changes, not pulses)
+ * - Scene summaries at transition points (the concrete beats)
+ */
+export function buildCompletedBeatsPrompt(
+  narrative: NarrativeState,
+  resolvedKeys: string[],
+  currentIndex: number,
+): string {
+  const terminalStatuses = new Set(THREAD_TERMINAL_STATUSES as readonly string[]);
+
+  // ── Collect thread transitions with their scene summaries ──────────────
+  type Beat = { sceneIdx: number; from: string; to: string; summary: string; events: string[] };
+  const threadBeats: Record<string, Beat[]> = {};
+
+  let sceneIdx = 0;
+  for (let i = 0; i <= currentIndex && i < resolvedKeys.length; i++) {
+    const scene = narrative.scenes[resolvedKeys[i]];
+    if (!scene) continue;
+    sceneIdx++;
+
+    for (const tm of scene.threadMutations) {
+      if (tm.from === tm.to) continue; // pulse — not a beat
+      if (!threadBeats[tm.threadId]) threadBeats[tm.threadId] = [];
+      threadBeats[tm.threadId].push({
+        sceneIdx,
+        from: tm.from,
+        to: tm.to,
+        summary: scene.summary?.slice(0, 120) ?? '',
+        events: scene.events?.slice(0, 3) ?? [],
+      });
+    }
+  }
+
+  // ── Build the prompt block ─────────────────────────────────────────────
+  const threadIds = Object.keys(threadBeats).filter((id) => threadBeats[id].length > 0);
+  if (threadIds.length === 0) return '';
+
+  const lines: string[] = [
+    'SPENT BEATS — these state transitions have already occurred. Do NOT restage, re-discover, or re-reveal them. You may reference their CONSEQUENCES but the events themselves are closed territory:',
+    '',
+  ];
+
+  for (const tid of threadIds) {
+    const thread = narrative.threads[tid];
+    if (!thread) continue;
+    const beats = threadBeats[tid];
+
+    // Build transition chain: dormant→active (scene 6) → escalating (scene 15)
+    const chain = beats.map((b) => `${b.to} (scene ${b.sceneIdx})`).join(' → ');
+    const isTerminal = terminalStatuses.has(thread.status);
+    const label = isTerminal ? `[${thread.status.toUpperCase()}]` : `[current: ${thread.status}]`;
+
+    lines.push(`"${thread.description}" [${tid}] ${label}`);
+    lines.push(`  Chain: ${beats[0].from} → ${chain}`);
+
+    // Show the concrete beat at each transition (what actually happened)
+    for (const b of beats) {
+      const eventStr = b.events.length > 0 ? b.events.join(', ') : '';
+      const beatLine = b.summary
+        ? `  Scene ${b.sceneIdx} (${b.from}→${b.to}): ${b.summary}${eventStr ? ` [${eventStr}]` : ''}`
+        : `  Scene ${b.sceneIdx}: ${b.from}→${b.to}${eventStr ? ` [${eventStr}]` : ''}`;
+      lines.push(beatLine);
+    }
+    lines.push('');
+  }
+
+  lines.push('Each new scene MUST advance state BEYOND these completed positions. A scene that re-stages or re-discovers any beat listed above is a structural failure — find the NEXT thing that happens as a consequence.');
 
   return lines.join('\n');
 }
