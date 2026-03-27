@@ -1,5 +1,5 @@
-import type { NarrativeState, Character, Location, Thread, RelationshipEdge, WorldKnowledgeNode, WorldKnowledgeEdge, WorldKnowledgeMutation, Artifact } from '@/types/narrative';
-import { THREAD_ACTIVE_STATUSES } from '@/types/narrative';
+import type { NarrativeState, Scene, Character, Location, Thread, RelationshipEdge, WorldKnowledgeNode, WorldKnowledgeEdge, WorldKnowledgeMutation, Artifact } from '@/types/narrative';
+import { THREAD_ACTIVE_STATUSES, resolveEntry, isScene } from '@/types/narrative';
 import { nextId, nextIds } from '@/lib/narrative-utils';
 import { callGenerate, callGenerateStream, SYSTEM_PROMPT } from './api';
 import { MAX_TOKENS_LARGE, GENERATE_MODEL } from '@/lib/constants';
@@ -94,7 +94,163 @@ Return JSON: { "direction": "2-4 sentences describing the big-picture story dire
 }
 
 
+// ── World Metrics ────────────────────────────────────────────────────────────
+
+export type WorldMetrics = {
+  totalScenes: number;
+  /** Characters */
+  totalCharacters: number;
+  usedCharacters: number;
+  avgScenesPerCharacter: number;
+  /** Characters not seen in >30% of recent scenes */
+  staleCharacters: number;
+  /** % of scenes the most-used character appears in */
+  castConcentration: number;
+  /** Average knowledge nodes per character */
+  avgKnowledgePerCharacter: number;
+  /** Locations */
+  totalLocations: number;
+  usedLocations: number;
+  /** % of scenes in the most-used location */
+  locationConcentration: number;
+  staleLocations: number;
+  /** Max depth of location nesting */
+  locationDepth: number;
+  /** Avg sub-locations per used location */
+  avgChildrenPerLocation: number;
+  /** Relationships */
+  relationshipsPerCharacter: number;
+  orphanedCharacters: number;
+  /** Recommendation */
+  recommendation: 'depth' | 'breadth' | 'balanced';
+  reasoning: string;
+};
+
+/**
+ * Compute measurable world metrics from the narrative state to inform expansion strategy.
+ * Returns concrete numbers + a recommendation (depth/breadth/balanced) with reasoning.
+ */
+export function computeWorldMetrics(
+  narrative: NarrativeState,
+  resolvedKeys: string[],
+): WorldMetrics {
+  const allScenes: Scene[] = resolvedKeys
+    .map((k) => resolveEntry(narrative, k))
+    .filter((e): e is Scene => e !== null && isScene(e));
+
+  const totalScenes = allScenes.length;
+  const totalCharacters = Object.keys(narrative.characters).length;
+  const totalLocations = Object.keys(narrative.locations).length;
+
+  // ── Cast metrics ──────────────────────────────────────────────────
+  const charScenes = new Map<string, { count: number; last: number }>();
+  const locScenes = new Map<string, { count: number; last: number }>();
+
+  for (const [i, scene] of allScenes.entries()) {
+    for (const pid of scene.participantIds) {
+      const ex = charScenes.get(pid);
+      if (ex) { ex.count++; ex.last = i; }
+      else charScenes.set(pid, { count: 1, last: i });
+    }
+    const ex = locScenes.get(scene.locationId);
+    if (ex) { ex.count++; ex.last = i; }
+    else locScenes.set(scene.locationId, { count: 1, last: i });
+  }
+
+  const usedCharacters = charScenes.size;
+  const usedLocations = locScenes.size;
+
+  const charCounts = Array.from(charScenes.values()).map((c) => c.count);
+  const avgScenesPerCharacter = charCounts.length > 0 ? charCounts.reduce((a, b) => a + b, 0) / charCounts.length : 0;
+  const maxCharScenes = charCounts.length > 0 ? Math.max(...charCounts) : 0;
+  const castConcentration = totalScenes > 0 ? maxCharScenes / totalScenes : 0;
+
+  const staleThreshold = Math.max(5, totalScenes * 0.3);
+  const staleCharacters = Array.from(charScenes.values()).filter((c) => (totalScenes - 1 - c.last) > staleThreshold).length;
+
+  const avgKnowledgePerCharacter = totalCharacters > 0
+    ? Object.values(narrative.characters).reduce((sum, c) => sum + (c.continuity?.nodes?.length ?? 0), 0) / totalCharacters
+    : 0;
+
+  // ── Location metrics ──────────────────────────────────────────────
+  const locCounts = Array.from(locScenes.values()).map((l) => l.count);
+  const maxLocScenes = locCounts.length > 0 ? Math.max(...locCounts) : 0;
+  const locationConcentration = totalScenes > 0 ? maxLocScenes / totalScenes : 0;
+  const staleLocations = Array.from(locScenes.values()).filter((l) => (totalScenes - 1 - l.last) > staleThreshold).length;
+
+  // Location depth: max nesting level
+  function locDepth(locId: string, visited = new Set<string>()): number {
+    if (visited.has(locId)) return 0;
+    visited.add(locId);
+    const children = Object.values(narrative.locations).filter((l) => l.parentId === locId);
+    if (children.length === 0) return 1;
+    return 1 + Math.max(...children.map((c) => locDepth(c.id, visited)));
+  }
+  const rootLocs = Object.values(narrative.locations).filter((l) => !l.parentId);
+  const locationDepth = rootLocs.length > 0 ? Math.max(...rootLocs.map((l) => locDepth(l.id))) : 0;
+
+  const childCounts = Object.values(narrative.locations).map((l) =>
+    Object.values(narrative.locations).filter((c) => c.parentId === l.id).length
+  );
+  const avgChildrenPerLocation = childCounts.length > 0 ? childCounts.reduce((a, b) => a + b, 0) / childCounts.length : 0;
+
+  // ── Relationship metrics ──────────────────────────────────────────
+  const relCount = narrative.relationships.length;
+  const relationshipsPerCharacter = totalCharacters > 0 ? (relCount * 2) / totalCharacters : 0;
+  const connectedChars = new Set(narrative.relationships.flatMap((r) => [r.from, r.to]));
+  const orphanedCharacters = Object.keys(narrative.characters).filter((id) => !connectedChars.has(id)).length;
+
+  // ── Recommendation ────────────────────────────────────────────────
+  const depthSignals: string[] = [];
+  const breadthSignals: string[] = [];
+
+  // Low knowledge density = depth needed
+  if (avgKnowledgePerCharacter < 3) depthSignals.push(`low knowledge density (${avgKnowledgePerCharacter.toFixed(1)} nodes/char)`);
+  // Shallow location hierarchy = depth needed
+  if (locationDepth <= 2 && totalLocations > 3) depthSignals.push(`shallow location hierarchy (max depth ${locationDepth})`);
+  // High cast concentration = depth needed (same few characters overused)
+  if (castConcentration > 0.6) depthSignals.push(`cast concentration high (top char in ${(castConcentration * 100).toFixed(0)}% of scenes)`);
+  // Low relationships = depth needed
+  if (relationshipsPerCharacter < 2) depthSignals.push(`sparse relationships (${relationshipsPerCharacter.toFixed(1)}/char)`);
+  // Orphaned characters = depth needed
+  if (orphanedCharacters > 2) depthSignals.push(`${orphanedCharacters} orphaned characters`);
+
+  // High location concentration = breadth needed (stuck in one place)
+  if (locationConcentration > 0.5) breadthSignals.push(`scene concentration high (top location: ${(locationConcentration * 100).toFixed(0)}%)`);
+  // Many stale characters = breadth needed (cast exhausted)
+  if (staleCharacters > totalCharacters * 0.4) breadthSignals.push(`${staleCharacters}/${totalCharacters} characters are stale`);
+  // Many stale locations = breadth needed
+  if (staleLocations > totalLocations * 0.4) breadthSignals.push(`${staleLocations}/${totalLocations} locations are stale`);
+  // Few locations relative to cast = breadth needed
+  if (totalLocations < totalCharacters * 0.3) breadthSignals.push(`location count low relative to cast (${totalLocations} locs / ${totalCharacters} chars)`);
+
+  let recommendation: 'depth' | 'breadth' | 'balanced';
+  let reasoning: string;
+  if (depthSignals.length > breadthSignals.length + 1) {
+    recommendation = 'depth';
+    reasoning = `Depth recommended: ${depthSignals.join('; ')}`;
+  } else if (breadthSignals.length > depthSignals.length + 1) {
+    recommendation = 'breadth';
+    reasoning = `Breadth recommended: ${breadthSignals.join('; ')}`;
+  } else {
+    recommendation = 'balanced';
+    reasoning = depthSignals.length + breadthSignals.length > 0
+      ? `Balanced: depth signals (${depthSignals.join('; ') || 'none'}), breadth signals (${breadthSignals.join('; ') || 'none'})`
+      : 'World is balanced — no strong signals in either direction';
+  }
+
+  return {
+    totalScenes, totalCharacters, usedCharacters, avgScenesPerCharacter,
+    staleCharacters, castConcentration, avgKnowledgePerCharacter,
+    totalLocations, usedLocations, locationConcentration, staleLocations,
+    locationDepth, avgChildrenPerLocation,
+    relationshipsPerCharacter, orphanedCharacters,
+    recommendation, reasoning,
+  };
+}
+
 export type WorldExpansionSize = 'small' | 'medium' | 'large';
+export type WorldExpansionStrategy = 'breadth' | 'depth' | 'dynamic';
 
 const EXPANSION_SIZE_CONFIG: Record<WorldExpansionSize, { total: string; characters: string; locations: string; threads: string; label: string }> = {
   small:  { total: '3-6',   characters: '1-2',   locations: '1-2',   threads: '1-2',   label: 'a focused expansion (~5 total entities)' },
@@ -102,11 +258,27 @@ const EXPANSION_SIZE_CONFIG: Record<WorldExpansionSize, { total: string; charact
   large:  { total: '20-35', characters: '8-15',  locations: '6-10',  threads: '8-12',  label: 'a large-scale expansion (~30 total entities)' },
 };
 
+const EXPANSION_STRATEGY_PROMPTS: Record<WorldExpansionStrategy, string> = {
+  breadth: `STRATEGY: BREADTH — widen the world. Introduce new regions, factions, and characters that open up unexplored areas of the map. Focus on geographic and social variety. New locations should be INDEPENDENT zones (new settlements, distant regions, rival territories) rather than sub-locations of existing places. New characters should come from different backgrounds than existing ones. New threads should introduce entirely new conflicts, not deepen existing ones.`,
+
+  depth: `STRATEGY: DEPTH — deepen the existing world. Do NOT add new top-level regions or distant factions. Instead:
+- Add sub-locations WITHIN existing locations (rooms inside buildings, districts inside cities, hidden areas within known places)
+- Add characters who are ALREADY embedded in existing social structures (subordinates, rivals, mentors, family members of existing characters)
+- Add threads that complicate EXISTING tensions rather than introducing new ones
+- Add more knowledge nodes per entity (5-8 per character, 4-6 per location) — secrets, history, hidden agendas, resource details
+- Add artifacts that are locally relevant — tools, keys, resources that matter in the current sandbox
+- Focus world knowledge on the mechanics, economics, and power dynamics of the CURRENT setting
+The goal is to make the existing world feel richer, not bigger. One constrained sandbox with more detail beats a sprawling map.`,
+
+  dynamic: `STRATEGY: DYNAMIC — analyse the current world state and choose the right balance. If the world is broad but shallow (many locations, few details), go deep. If the world is deep but narrow (rich detail in one area, nothing beyond), go broad. If balanced, lean toward deepening the active area where scenes are happening while seeding one or two distant elements for future arcs. State your reasoning in a brief comment before generating.`,
+};
+
 export async function suggestWorldExpansion(
   narrative: NarrativeState,
   resolvedKeys: string[],
   currentIndex: number,
   size: WorldExpansionSize = 'medium',
+  strategy: WorldExpansionStrategy = 'dynamic',
 ): Promise<string> {
   const ctx = branchContext(narrative, resolvedKeys, currentIndex);
 
@@ -165,6 +337,7 @@ export async function expandWorld(
   currentIndex: number,
   directive: string,
   size: WorldExpansionSize = 'medium',
+  strategy: WorldExpansionStrategy = 'dynamic',
 ): Promise<WorldExpansion> {
   const ctx = branchContext(narrative, resolvedKeys, currentIndex);
 
@@ -188,9 +361,30 @@ export async function expandWorld(
     return `${fromName}→${toName}: ${r.type}`;
   }).join(', ');
 
+  // Build strategy prompt — for dynamic, compute metrics and inject data-driven guidance
+  let strategyBlock: string;
+  if (strategy === 'dynamic') {
+    const m = computeWorldMetrics(narrative, resolvedKeys.slice(0, currentIndex + 1));
+    strategyBlock = `STRATEGY: DYNAMIC (data-driven)
+WORLD METRICS:
+- Cast: ${m.usedCharacters}/${m.totalCharacters} characters used, ${m.avgScenesPerCharacter.toFixed(1)} avg scenes/char, ${m.staleCharacters} stale, concentration ${(m.castConcentration * 100).toFixed(0)}%
+- Knowledge: ${m.avgKnowledgePerCharacter.toFixed(1)} avg nodes/char
+- Locations: ${m.usedLocations}/${m.totalLocations} used, concentration ${(m.locationConcentration * 100).toFixed(0)}%, depth ${m.locationDepth}, ${m.staleLocations} stale
+- Relationships: ${m.relationshipsPerCharacter.toFixed(1)}/char, ${m.orphanedCharacters} orphaned
+
+ANALYSIS: ${m.reasoning}
+RECOMMENDATION: ${m.recommendation.toUpperCase()}
+
+${m.recommendation === 'depth' ? EXPANSION_STRATEGY_PROMPTS.depth : m.recommendation === 'breadth' ? EXPANSION_STRATEGY_PROMPTS.breadth : `Follow the balanced approach: deepen the active sandbox (more sub-locations, embedded characters, knowledge density) while introducing 1-2 new external elements to prevent stagnation.`}`;
+  } else {
+    strategyBlock = EXPANSION_STRATEGY_PROMPTS[strategy];
+  }
+
   const prompt = `${ctx}
 
 ${directive.trim() ? `EXPAND the world based on this directive: ${directive}` : 'EXPAND the world — analyze the current narrative state and add characters, locations, and threads that would create the most interesting new possibilities based on existing tensions and unexplored areas.'}
+
+${strategyBlock}
 
 This is ${EXPANSION_SIZE_CONFIG[size].label} (${EXPANSION_SIZE_CONFIG[size].total} total new entities). Generate:
 - ${EXPANSION_SIZE_CONFIG[size].characters} new characters

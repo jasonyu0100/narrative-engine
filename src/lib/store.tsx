@@ -638,7 +638,7 @@ function reducer(state: AppState, action: Action): AppState {
       if (newState.activeNarrative && newState.activeBranchId) {
         const resolved = getResolvedKeys(newState.activeNarrative, newState.activeBranchId);
         const derived = withDerivedEntities(newState.activeNarrative, resolved);
-        return { ...newState, activeNarrative: derived, resolvedEntryKeys: resolved, currentSceneIndex: Math.min(newState.currentSceneIndex, resolved.length - 1) };
+        return { ...newState, activeNarrative: derived, resolvedEntryKeys: resolved };
       }
       return newState;
     }
@@ -696,7 +696,7 @@ function reducer(state: AppState, action: Action): AppState {
       if (newState.activeNarrative && newState.activeBranchId) {
         const resolved = getResolvedKeys(newState.activeNarrative, newState.activeBranchId);
         const derived = withDerivedEntities(newState.activeNarrative, resolved);
-        return { ...newState, activeNarrative: derived, resolvedEntryKeys: resolved, currentSceneIndex: resolved.length - 1 };
+        return { ...newState, activeNarrative: derived, resolvedEntryKeys: resolved };
       }
       return newState;
     }
@@ -771,7 +771,7 @@ function reducer(state: AppState, action: Action): AppState {
       if (newState.activeNarrative && newState.activeBranchId) {
         const resolved = getResolvedKeys(newState.activeNarrative, newState.activeBranchId);
         const derived = withDerivedEntities(newState.activeNarrative, resolved);
-        return { ...newState, activeNarrative: derived, resolvedEntryKeys: resolved, currentSceneIndex: resolved.length - 1 };
+        return { ...newState, activeNarrative: derived, resolvedEntryKeys: resolved };
       }
       return newState;
     }

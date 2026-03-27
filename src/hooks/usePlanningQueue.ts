@@ -165,9 +165,10 @@ export function usePlanningQueue() {
         const freshNarrative1 = freshState1.activeNarrative ?? narrative;
         if (nextPhase.worldExpansionHints) {
           setTransitionStep('Expanding world...');
+          const strategy = freshNarrative1.storySettings?.expansionStrategy ?? 'dynamic';
           const expansion = await expandWorld(
             freshNarrative1, freshState1.resolvedEntryKeys, freshState1.currentSceneIndex,
-            nextPhase.worldExpansionHints, 'medium',
+            nextPhase.worldExpansionHints, 'medium', strategy,
           );
           dispatch({
             type: 'EXPAND_WORLD',

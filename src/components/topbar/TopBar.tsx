@@ -525,6 +525,7 @@ export default function TopBar() {
             { separator: true },
             { label: 'Scorecard', onClick: () => setScorecardOpen((v) => !v), disabled: !hasNarrative },
             { label: 'Force Analytics', onClick: () => window.dispatchEvent(new Event('open-force-analytics')), disabled: !hasNarrative },
+            { label: 'Cast & Locations', onClick: () => window.dispatchEvent(new Event('open-cast-analytics')), disabled: !hasNarrative },
             { label: 'Narrative Cube', onClick: () => window.dispatchEvent(new CustomEvent('open-cube-viewer')), disabled: !hasNarrative },
           ]}
         />

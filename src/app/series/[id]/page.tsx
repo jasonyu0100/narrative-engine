@@ -21,6 +21,7 @@ import { AutoLogModal } from '@/components/auto/AutoLogModal';
 import { NarrativeCubeViewer } from '@/components/timeline/NarrativeCubeViewer';
 import { useAutoPlay } from '@/hooks/useAutoPlay';
 import { ForceAnalytics } from '@/components/analytics/ForceAnalytics';
+import { CastAnalytics } from '@/components/analytics/CastAnalytics';
 import RulesPanel from '@/components/layout/RulesPanel';
 import WorldSystemsPanel from '@/components/layout/WorldSystemsPanel';
 import { MCTSPanel } from '@/components/mcts/MCTSPanel';
@@ -54,6 +55,7 @@ export default function SeriesPage() {
   const [autoLogOpen, setAutoLogOpen] = useState(false);
   const [cubeViewerOpen, setCubeViewerOpen] = useState(false);
   const [forceAnalyticsOpen, setForceAnalyticsOpen] = useState(false);
+  const [castAnalyticsOpen, setCastAnalyticsOpen] = useState(false);
   const [rulesOpen, setRulesOpen] = useState(false);
   const [worldSystemsOpen, setWorldSystemsOpen] = useState(false);
   const [mctsOpen, setMctsOpen] = useState(false);
@@ -84,6 +86,7 @@ export default function SeriesPage() {
     function handleOpenAutoSettings() { setAutoSettingsOpen(true); }
     function handleOpenCubeViewer() { setCubeViewerOpen(true); }
     function handleOpenForceAnalytics() { setForceAnalyticsOpen(true); }
+    function handleOpenCastAnalytics() { setCastAnalyticsOpen(true); }
     function handleOpenRules() { setRulesOpen(true); }
     function handleOpenWorldSystems() { setWorldSystemsOpen(true); }
     function handleOpenMcts() { setMctsOpen(true); }
@@ -94,6 +97,7 @@ export default function SeriesPage() {
     window.addEventListener('open-auto-settings', handleOpenAutoSettings);
     window.addEventListener('open-cube-viewer', handleOpenCubeViewer);
     window.addEventListener('open-force-analytics', handleOpenForceAnalytics);
+    window.addEventListener('open-cast-analytics', handleOpenCastAnalytics);
     window.addEventListener('open-rules-panel', handleOpenRules);
     window.addEventListener('open-world-systems-panel', handleOpenWorldSystems);
     window.addEventListener('open-mcts-panel', handleOpenMcts);
@@ -105,6 +109,7 @@ export default function SeriesPage() {
       window.removeEventListener('open-auto-settings', handleOpenAutoSettings);
       window.removeEventListener('open-cube-viewer', handleOpenCubeViewer);
       window.removeEventListener('open-force-analytics', handleOpenForceAnalytics);
+      window.removeEventListener('open-cast-analytics', handleOpenCastAnalytics);
       window.removeEventListener('open-rules-panel', handleOpenRules);
       window.removeEventListener('open-world-systems-panel', handleOpenWorldSystems);
       window.removeEventListener('open-mcts-panel', handleOpenMcts);
@@ -188,6 +193,7 @@ export default function SeriesPage() {
         <NarrativeCubeViewer onClose={() => setCubeViewerOpen(false)} />
       )}
       {forceAnalyticsOpen && <ForceAnalytics onClose={() => setForceAnalyticsOpen(false)} />}
+      {castAnalyticsOpen && <CastAnalytics onClose={() => setCastAnalyticsOpen(false)} />}
       {rulesOpen && <RulesPanel onClose={() => setRulesOpen(false)} />}
       {worldSystemsOpen && <WorldSystemsPanel onClose={() => setWorldSystemsOpen(false)} />}
       {storySettingsOpen && <StorySettingsModal onClose={() => setStorySettingsOpen(false)} />}

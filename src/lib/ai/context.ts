@@ -50,6 +50,7 @@ export function buildStorySettingsBlock(n: NarrativeState): string {
   // POV mode
   const povLabels: Record<string, string> = {
     single: 'SINGLE POV — every scene must use the same POV character.',
+    pareto: 'PARETO POV — the designated protagonist is POV in ~80% of scenes. The remaining ~20% may use other characters, but ONLY when they hold critical perspective the protagonist cannot access (a scene happening elsewhere, an antagonist\'s private moment, a reveal that requires a different vantage). Default to the protagonist unless there is a strong narrative reason not to. Never switch POV for variety alone — switch only for information the reader needs that the protagonist cannot provide.',
     dual: 'DUAL POV — use exactly two POV characters. POV should come in STREAKS (2-4 scenes per character before switching). An ABAB pattern is disorienting — prefer AAABBB or AAABB. Switch only when the other character has something urgent the current POV cannot access.',
     ensemble: 'ENSEMBLE POV — rotate POV among the designated characters. POV should come in STREAKS (2-4 scenes per character before switching). Do NOT cycle rapidly through characters — stay with one perspective long enough for the reader to settle in. Switch when a different character holds the key perspective for the next dramatic moment.',
     free: '', // no constraint
@@ -60,7 +61,11 @@ export function buildStorySettingsBlock(n: NarrativeState): string {
       const names = s.povCharacterIds
         .map((id) => n.characters[id] ? `${n.characters[id].name} (${id})` : id)
         .join(', ');
-      lines.push(`Designated POV character${s.povCharacterIds.length > 1 ? 's' : ''}: ${names}. Only these characters may appear in the "povId" field.`);
+      if (s.povMode === 'pareto') {
+        lines.push(`Protagonist: ${names}. Use this character as POV in ~80% of scenes. The remaining ~20% may use ANY other character when they hold a perspective the protagonist cannot access.`);
+      } else {
+        lines.push(`Designated POV character${s.povCharacterIds.length > 1 ? 's' : ''}: ${names}. Only these characters may appear in the "povId" field.`);
+      }
     }
   }
 
@@ -72,6 +77,11 @@ export function buildStorySettingsBlock(n: NarrativeState): string {
   // Story constraints (negative prompt)
   if (s.storyConstraints.trim()) {
     lines.push(`STORY CONSTRAINTS (DO NOT do any of the following): ${s.storyConstraints.trim()}`);
+  }
+
+  // Narrative guidance (editorial principles)
+  if (s.narrativeGuidance.trim()) {
+    lines.push(`NARRATIVE GUIDANCE (editorial principles that govern how this story is told — scope discipline, reveal pacing, tonal rules, structural philosophy. These override default instincts):\n${s.narrativeGuidance.trim()}`);
   }
 
   if (lines.length === 0) return '';

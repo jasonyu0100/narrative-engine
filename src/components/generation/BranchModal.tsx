@@ -412,7 +412,7 @@ export function BranchModal({ onClose }: { onClose: () => void }) {
         {/* ── Branch list ─────────────────────────────────────────────────── */}
         <div className="border-t border-border pt-4 mb-4">
           <p className="text-[10px] text-text-dim uppercase tracking-widest mb-2">All Branches</p>
-          <div className="flex flex-col gap-0.5">
+          <div className="flex flex-col gap-0.5 max-h-80 overflow-y-auto">
             {allBranches.map((b) => {
               const isActive = b.id === state.activeBranchId;
               const isRenaming = renamingId === b.id;

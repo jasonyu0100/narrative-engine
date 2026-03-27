@@ -2,7 +2,7 @@
 
 import { useState, useMemo, useCallback } from 'react';
 import { useStore } from '@/lib/store';
-import { generateScenes, expandWorld, suggestWorldExpansion, type WorldExpansionSize } from '@/lib/ai';
+import { generateScenes, expandWorld, suggestWorldExpansion, type WorldExpansionSize, type WorldExpansionStrategy } from '@/lib/ai';
 import { resolveEntry, NARRATIVE_CUBE } from '@/types/narrative';
 import type { CubeCornerKey } from '@/types/narrative';
 import { nextId } from '@/lib/narrative-utils';
@@ -71,6 +71,9 @@ export function GeneratePanel({ onClose }: { onClose: () => void }) {
   // World state
   const [worldDirective, setWorldDirective] = useState('');
   const [worldSize, setWorldSize] = useState<WorldExpansionSize>('medium');
+  const [worldStrategy, setWorldStrategy] = useState<WorldExpansionStrategy>(
+    state.activeNarrative?.storySettings?.expansionStrategy ?? 'dynamic'
+  );
 
   // Shared
   const [loading, setLoading] = useState(false);
@@ -166,7 +169,7 @@ export function GeneratePanel({ onClose }: { onClose: () => void }) {
     setSuggesting(true);
     setError('');
     try {
-      const suggestion = await suggestWorldExpansion(narrative, state.resolvedEntryKeys, headIndex, worldSize);
+      const suggestion = await suggestWorldExpansion(narrative, state.resolvedEntryKeys, headIndex, worldSize, worldStrategy);
       setWorldDirective(suggestion);
     } catch (err) { setError(String(err)); } finally { setSuggesting(false); }
   }
@@ -176,7 +179,7 @@ export function GeneratePanel({ onClose }: { onClose: () => void }) {
     setLoading(true);
     setError('');
     try {
-      const expansion = await expandWorld(narrative, state.resolvedEntryKeys, headIndex, worldDirective, worldSize);
+      const expansion = await expandWorld(narrative, state.resolvedEntryKeys, headIndex, worldDirective, worldSize, worldStrategy);
       dispatch({
         type: 'EXPAND_WORLD', worldBuildId: nextId('WB', Object.keys(narrative.worldBuilds), 3),
         characters: expansion.characters, locations: expansion.locations, threads: expansion.threads,
@@ -514,22 +517,42 @@ export function GeneratePanel({ onClose }: { onClose: () => void }) {
                     placeholder="Describe what to add to the world..."
                     className="bg-bg-elevated border border-border rounded-lg px-3 py-2 text-sm text-text-primary w-full h-28 resize-none outline-none placeholder:text-text-dim" />
                 </div>
-                <div>
-                  <label className="text-[10px] uppercase tracking-widest text-text-dim block mb-2">Size</label>
-                  <div className="flex gap-1.5">
-                    {([
-                      { value: 'small' as WorldExpansionSize, label: 'Small', desc: '~5' },
-                      { value: 'medium' as WorldExpansionSize, label: 'Medium', desc: '~12' },
-                      { value: 'large' as WorldExpansionSize, label: 'Large', desc: '~30' },
-                    ]).map((opt) => (
-                      <button key={opt.value} type="button" onClick={() => setWorldSize(opt.value)}
-                        className={`flex-1 px-2 py-2 rounded-lg text-left transition-colors ${
-                          worldSize === opt.value ? 'bg-white/10 ring-1 ring-white/20' : 'bg-white/3 hover:bg-white/6'
-                        }`}>
-                        <div className="text-xs text-text-primary font-medium">{opt.label}</div>
-                        <div className="text-[9px] text-text-dim">{opt.desc} entities</div>
-                      </button>
-                    ))}
+                <div className="flex gap-4">
+                  <div className="flex-1">
+                    <label className="text-[10px] uppercase tracking-widest text-text-dim block mb-2">Size</label>
+                    <div className="flex gap-1.5">
+                      {([
+                        { value: 'small' as WorldExpansionSize, label: 'Small', desc: '~5' },
+                        { value: 'medium' as WorldExpansionSize, label: 'Medium', desc: '~12' },
+                        { value: 'large' as WorldExpansionSize, label: 'Large', desc: '~30' },
+                      ]).map((opt) => (
+                        <button key={opt.value} type="button" onClick={() => setWorldSize(opt.value)}
+                          className={`flex-1 px-2 py-2 rounded-lg text-left transition-colors ${
+                            worldSize === opt.value ? 'bg-white/10 ring-1 ring-white/20' : 'bg-white/3 hover:bg-white/6'
+                          }`}>
+                          <div className="text-xs text-text-primary font-medium">{opt.label}</div>
+                          <div className="text-[9px] text-text-dim">{opt.desc} entities</div>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  <div className="flex-1">
+                    <label className="text-[10px] uppercase tracking-widest text-text-dim block mb-2">Strategy</label>
+                    <div className="flex gap-1.5">
+                      {([
+                        { value: 'depth' as WorldExpansionStrategy, label: 'Depth', desc: 'Deepen' },
+                        { value: 'breadth' as WorldExpansionStrategy, label: 'Breadth', desc: 'Widen' },
+                        { value: 'dynamic' as WorldExpansionStrategy, label: 'Dynamic', desc: 'Auto' },
+                      ]).map((opt) => (
+                        <button key={opt.value} type="button" onClick={() => setWorldStrategy(opt.value)}
+                          className={`flex-1 px-2 py-2 rounded-lg text-left transition-colors ${
+                            worldStrategy === opt.value ? 'bg-white/10 ring-1 ring-white/20' : 'bg-white/3 hover:bg-white/6'
+                          }`}>
+                          <div className="text-xs text-text-primary font-medium">{opt.label}</div>
+                          <div className="text-[9px] text-text-dim">{opt.desc}</div>
+                        </button>
+                      ))}
+                    </div>
                   </div>
                 </div>
                 <button onClick={handleExpandWorld} disabled={loading}

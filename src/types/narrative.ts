@@ -504,7 +504,7 @@ export type NarrativeEntry = {
 // ── Story Settings ──────────────────────────────────────────────────────────
 
 /** How many POV characters drive the narrative */
-export type POVMode = 'single' | 'ensemble' | 'free';
+export type POVMode = 'single' | 'pareto' | 'ensemble' | 'free';
 
 /** Which world commit to seed generations with */
 export type WorldFocusMode = 'latest' | 'custom' | 'none';
@@ -540,6 +540,10 @@ export type StorySettings = {
   worldFocusId?: string;
   /** How quickly threads progress through lifecycle phases to resolution */
   threadResolutionSpeed: ThreadResolutionSpeed;
+  /** Editorial guidance — storytelling principles that shape how the narrative is told (scope, pacing philosophy, reveal discipline, tonal rules) */
+  narrativeGuidance: string;
+  /** Default world expansion strategy — depth deepens the existing sandbox, breadth widens the map, dynamic auto-selects based on metrics */
+  expansionStrategy: 'depth' | 'breadth' | 'dynamic';
 };
 
 export const BRANCH_TIME_HORIZON_OPTIONS = [25, 50, 100, 200] as const;
@@ -557,6 +561,8 @@ export const DEFAULT_STORY_SETTINGS: StorySettings = {
   coverPrompt: '',
   worldFocus: 'none',
   threadResolutionSpeed: 'moderate',
+  narrativeGuidance: '',
+  expansionStrategy: 'dynamic',
 };
 
 // ── Planning Queue ──────────────────────────────────────────────────────────

@@ -8,11 +8,12 @@ import { NARRATIVE_CUBE } from '@/types/narrative';
 import type { CubeCornerKey } from '@/types/narrative';
 import { MATRIX_PRESETS, type TransitionMatrix } from '@/lib/markov';
 
-type Tab = 'direction' | 'constraints' | 'rhythm' | 'pov' | 'other';
+type Tab = 'direction' | 'guidance' | 'constraints' | 'rhythm' | 'pov' | 'other';
 
 const TABS: { label: string; value: Tab }[] = [
   { label: 'Direction', value: 'direction' },
   { label: 'Constraints', value: 'constraints' },
+  { label: 'Guidance', value: 'guidance' },
   { label: 'Rhythm', value: 'rhythm' },
   { label: 'POV', value: 'pov' },
   { label: 'Other', value: 'other' },
@@ -20,6 +21,7 @@ const TABS: { label: string; value: Tab }[] = [
 
 const POV_MODES: { value: POVMode; label: string; desc: string }[] = [
   { value: 'single', label: 'Single POV', desc: 'One protagonist drives every scene. Tight interiority, dramatic irony from limited knowledge.' },
+  { value: 'pareto', label: 'Pareto', desc: '~80% protagonist, ~20% other perspectives. Tight focus with occasional critical cuts to scenes the protagonist can\'t witness.' },
   { value: 'ensemble', label: 'Ensemble', desc: 'Multiple POV characters rotate. Wider world, more threads, epic scope.' },
   { value: 'free', label: 'Free (Default)', desc: 'Any character can be POV. The engine picks whoever fits the scene best.' },
 ];
@@ -47,7 +49,7 @@ export function StorySettingsModal({ onClose }: { onClose: () => void }) {
     : [];
 
   const showPovPicker = settings.povMode !== 'free';
-  const maxPovChars = settings.povMode === 'single' ? 1 : allCharacters.length;
+  const maxPovChars = settings.povMode === 'single' || settings.povMode === 'pareto' ? 1 : allCharacters.length;
 
   function togglePovCharacter(charId: string) {
     const current = settings.povCharacterIds;
@@ -108,6 +110,26 @@ export function StorySettingsModal({ onClose }: { onClose: () => void }) {
                   High-level guidance for where the story should go. Steers every arc.
                 </p>
               </div>
+            </>
+          )}
+
+          {tab === 'guidance' && (
+            <>
+              <div>
+                <label className="text-[10px] text-text-dim uppercase tracking-wider block mb-2">
+                  Narrative Guidance
+                </label>
+                <textarea
+                  value={settings.narrativeGuidance}
+                  onChange={(e) => update({ narrativeGuidance: e.target.value })}
+                  placeholder={"e.g. \"Keep the opening scope local — academy, village, immediate survival. Don't sprawl into multi-faction politics until the first arc has paid off.\n\nReveal only what is locally actionable. Keep the larger world latent.\n\nThe protagonist wins through knowledge and shamelessness, not hidden power.\n\nPolitics should appear as differential access, not speeches and coups.\n\nInheritances are strategic exploit nodes, not dungeon crawls.\""}
+                  className="w-full bg-bg-elevated border border-white/10 rounded-lg px-3 py-2 text-[11px] text-text-primary placeholder:text-text-dim/40 outline-none focus:border-blue-500/40 resize-none h-48"
+                />
+                <p className="text-[9px] text-text-dim/50 mt-1">
+                  Editorial principles that govern how the story is told — scope discipline, reveal pacing, tonal rules, structural philosophy. Paste feedback from another AI or write your own. These override default generation instincts.
+                </p>
+              </div>
+
             </>
           )}
 
@@ -392,6 +414,33 @@ export function StorySettingsModal({ onClose }: { onClose: () => void }) {
                     </div>
                   );
                 })()}
+              </div>
+
+              {/* Expansion Strategy */}
+              <div>
+                <label className="text-[10px] text-text-dim uppercase tracking-wider block mb-2">
+                  Expansion Strategy
+                </label>
+                <div className="space-y-1.5">
+                  {([
+                    { value: 'dynamic' as const, label: 'Dynamic', desc: 'Auto-selects based on cast staleness, location concentration, and knowledge density' },
+                    { value: 'depth' as const, label: 'Depth', desc: 'Deepen the existing sandbox — more detail, not more map' },
+                    { value: 'breadth' as const, label: 'Breadth', desc: 'Widen the world — new regions, factions, conflicts' },
+                  ]).map((opt) => (
+                    <button
+                      key={opt.value}
+                      onClick={() => update({ expansionStrategy: opt.value })}
+                      className={`w-full text-left px-3 py-2 rounded-lg border transition-colors ${
+                        settings.expansionStrategy === opt.value
+                          ? 'border-blue-500/50 bg-blue-500/10'
+                          : 'border-white/5 bg-white/2 hover:bg-white/5'
+                      }`}
+                    >
+                      <span className="text-[11px] font-semibold text-text-primary">{opt.label}</span>
+                      <span className="text-[10px] text-text-dim ml-2">{opt.desc}</span>
+                    </button>
+                  ))}
+                </div>
               </div>
 
               {/* Branch Time Horizon */}

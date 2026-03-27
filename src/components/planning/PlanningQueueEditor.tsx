@@ -201,7 +201,8 @@ export function PlanningQueueEditor({ onClose, onStartAuto }: Props) {
 
       if (firstPhase.worldExpansionHints) {
         setActivatingStep('Expanding world...');
-        const expansion = await expandWorld(narrative, resolvedKeys, currentIndex, firstPhase.worldExpansionHints, 'medium');
+        const strategy = narrative.storySettings?.expansionStrategy ?? 'dynamic';
+        const expansion = await expandWorld(narrative, resolvedKeys, currentIndex, firstPhase.worldExpansionHints, 'medium', strategy);
         dispatch({
           type: 'EXPAND_WORLD',
           worldBuildId: nextId('WB', Object.keys(narrative.worldBuilds), 3),

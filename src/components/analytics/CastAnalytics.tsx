@@ -1,0 +1,417 @@
+'use client';
+
+import { useMemo, useState } from 'react';
+import { useStore } from '@/lib/store';
+import { resolveEntry, isScene } from '@/types/narrative';
+import type { Scene, Character, Location } from '@/types/narrative';
+import { computeWorldMetrics, type WorldMetrics } from '@/lib/ai';
+
+type Props = { onClose: () => void };
+type View = 'cast' | 'locations' | 'metrics';
+
+// ── Types ────────────────────────────────────────────────────────────────────
+
+type CharacterStat = {
+  id: string;
+  name: string;
+  role: 'anchor' | 'recurring' | 'transient';
+  sceneCount: number;
+  povCount: number;
+  firstIndex: number;
+  lastIndex: number;
+  /** How many scenes since last appearance */
+  staleness: number;
+  /** Scene indices where this character participates */
+  presence: boolean[];
+};
+
+type LocationStat = {
+  id: string;
+  name: string;
+  parentName: string | null;
+  sceneCount: number;
+  firstIndex: number;
+  lastIndex: number;
+  staleness: number;
+  presence: boolean[];
+  /** Number of unique characters who have visited */
+  uniqueVisitors: number;
+};
+
+// ── Role colors ──────────────────────────────────────────────────────────────
+
+const ROLE_COLORS: Record<string, string> = {
+  anchor: '#f59e0b',
+  recurring: '#3b82f6',
+  transient: '#6b7280',
+};
+
+// ── Metric card ──────────────────────────────────────────────────────────────
+
+function MetricCard({ label, value, warn }: { label: string; value: string; warn?: boolean }) {
+  return (
+    <div className={`rounded-lg border p-2.5 ${warn ? 'border-amber-500/20 bg-amber-500/5' : 'border-white/6 bg-white/2'}`}>
+      <div className={`text-[12px] font-medium ${warn ? 'text-amber-400' : 'text-text-primary'}`}>{value}</div>
+      <div className="text-[10px] text-text-dim">{label}</div>
+    </div>
+  );
+}
+
+// ── Component ────────────────────────────────────────────────────────────────
+
+export function CastAnalytics({ onClose }: Props) {
+  const { state } = useStore();
+  const narrative = state.activeNarrative;
+  const [view, setView] = useState<View>('cast');
+  const [sortBy, setSortBy] = useState<'scenes' | 'staleness' | 'name'>('scenes');
+
+  // Resolve all scenes in order
+  const allScenes = useMemo(() => {
+    if (!narrative) return [];
+    return state.resolvedEntryKeys
+      .map((k) => resolveEntry(narrative, k))
+      .filter((e): e is Scene => e !== null && isScene(e));
+  }, [narrative, state.resolvedEntryKeys]);
+
+  // ── Character stats ──────────────────────────────────────────────────
+
+  const characterStats = useMemo((): CharacterStat[] => {
+    if (!narrative || allScenes.length === 0) return [];
+
+    const stats = new Map<string, { scenes: number; pov: number; first: number; last: number; presence: boolean[] }>();
+
+    for (const [i, scene] of allScenes.entries()) {
+      // POV
+      const existing = stats.get(scene.povId);
+      if (existing) {
+        existing.pov++;
+        existing.scenes++;
+        existing.last = i;
+        existing.presence[i] = true;
+      } else {
+        const presence = new Array(allScenes.length).fill(false);
+        presence[i] = true;
+        stats.set(scene.povId, { scenes: 1, pov: 1, first: i, last: i, presence });
+      }
+
+      // Participants (excluding POV to avoid double count)
+      for (const pid of scene.participantIds) {
+        if (pid === scene.povId) continue;
+        const ex = stats.get(pid);
+        if (ex) {
+          ex.scenes++;
+          ex.last = i;
+          ex.presence[i] = true;
+        } else {
+          const presence = new Array(allScenes.length).fill(false);
+          presence[i] = true;
+          stats.set(pid, { scenes: 1, pov: 0, first: i, last: i, presence });
+        }
+      }
+    }
+
+    const totalScenes = allScenes.length;
+    return Array.from(stats.entries())
+      .map(([id, s]) => {
+        const char = narrative.characters[id];
+        if (!char) return null;
+        return {
+          id,
+          name: char.name,
+          role: char.role as 'anchor' | 'recurring' | 'transient',
+          sceneCount: s.scenes,
+          povCount: s.pov,
+          firstIndex: s.first,
+          lastIndex: s.last,
+          staleness: totalScenes - 1 - s.last,
+          presence: s.presence,
+        };
+      })
+      .filter((s): s is CharacterStat => s !== null);
+  }, [narrative, allScenes]);
+
+  // ── Location stats ───────────────────────────────────────────────────
+
+  const locationStats = useMemo((): LocationStat[] => {
+    if (!narrative || allScenes.length === 0) return [];
+
+    const stats = new Map<string, { scenes: number; first: number; last: number; presence: boolean[]; visitors: Set<string> }>();
+
+    for (const [i, scene] of allScenes.entries()) {
+      const locId = scene.locationId;
+      const ex = stats.get(locId);
+      if (ex) {
+        ex.scenes++;
+        ex.last = i;
+        ex.presence[i] = true;
+        for (const pid of scene.participantIds) ex.visitors.add(pid);
+      } else {
+        const presence = new Array(allScenes.length).fill(false);
+        presence[i] = true;
+        stats.set(locId, { scenes: 1, first: i, last: i, presence, visitors: new Set(scene.participantIds) });
+      }
+    }
+
+    const totalScenes = allScenes.length;
+    return Array.from(stats.entries())
+      .map(([id, s]) => {
+        const loc = narrative.locations[id];
+        if (!loc) return null;
+        const parentName = loc.parentId ? narrative.locations[loc.parentId]?.name ?? null : null;
+        return {
+          id,
+          name: loc.name,
+          parentName,
+          sceneCount: s.scenes,
+          firstIndex: s.first,
+          lastIndex: s.last,
+          staleness: totalScenes - 1 - s.last,
+          presence: s.presence,
+          uniqueVisitors: s.visitors.size,
+        };
+      })
+      .filter((s): s is LocationStat => s !== null);
+  }, [narrative, allScenes]);
+
+  // ── World metrics ──────────────────────────────────────────────────
+
+  const worldMetrics = useMemo((): WorldMetrics | null => {
+    if (!narrative || allScenes.length === 0) return null;
+    return computeWorldMetrics(narrative, state.resolvedEntryKeys);
+  }, [narrative, allScenes, state.resolvedEntryKeys]);
+
+  // ── Sorting ──────────────────────────────────────────────────────────
+
+  const sortedChars = useMemo(() => {
+    const sorted = [...characterStats];
+    if (sortBy === 'scenes') sorted.sort((a, b) => b.sceneCount - a.sceneCount);
+    else if (sortBy === 'staleness') sorted.sort((a, b) => b.staleness - a.staleness);
+    else sorted.sort((a, b) => a.name.localeCompare(b.name));
+    return sorted;
+  }, [characterStats, sortBy]);
+
+  const sortedLocs = useMemo(() => {
+    const sorted = [...locationStats];
+    if (sortBy === 'scenes') sorted.sort((a, b) => b.sceneCount - a.sceneCount);
+    else if (sortBy === 'staleness') sorted.sort((a, b) => b.staleness - a.staleness);
+    else sorted.sort((a, b) => a.name.localeCompare(b.name));
+    return sorted;
+  }, [locationStats, sortBy]);
+
+  // ── Summary metrics ──────────────────────────────────────────────────
+
+  const castSummary = useMemo(() => {
+    if (characterStats.length === 0 || allScenes.length === 0) return null;
+    const totalChars = Object.keys(narrative?.characters ?? {}).length;
+    const usedChars = characterStats.length;
+    const avgScenes = characterStats.reduce((s, c) => s + c.sceneCount, 0) / characterStats.length;
+    const staleChars = characterStats.filter((c) => c.staleness > Math.max(5, allScenes.length * 0.3)).length;
+    const maxScenes = Math.max(...characterStats.map((c) => c.sceneCount));
+    const concentration = maxScenes / allScenes.length;
+    return { totalChars, usedChars, avgScenes: avgScenes.toFixed(1), staleChars, concentration: (concentration * 100).toFixed(0) };
+  }, [characterStats, allScenes, narrative]);
+
+  const locSummary = useMemo(() => {
+    if (locationStats.length === 0 || allScenes.length === 0) return null;
+    const totalLocs = Object.keys(narrative?.locations ?? {}).length;
+    const usedLocs = locationStats.length;
+    const maxScenes = Math.max(...locationStats.map((l) => l.sceneCount));
+    const concentration = maxScenes / allScenes.length;
+    const staleLocs = locationStats.filter((l) => l.staleness > Math.max(5, allScenes.length * 0.3)).length;
+    return { totalLocs, usedLocs, concentration: (concentration * 100).toFixed(0), staleLocs };
+  }, [locationStats, allScenes, narrative]);
+
+  const totalScenes = allScenes.length;
+
+  // ── Presence sparkline ───────────────────────────────────────────────
+
+  function Sparkline({ presence, color }: { presence: boolean[]; color: string }) {
+    if (presence.length === 0) return null;
+    // Bucket into ~40 columns
+    const buckets = Math.min(40, presence.length);
+    const bucketSize = presence.length / buckets;
+    const fills: number[] = [];
+    for (let i = 0; i < buckets; i++) {
+      const start = Math.floor(i * bucketSize);
+      const end = Math.floor((i + 1) * bucketSize);
+      let count = 0;
+      for (let j = start; j < end; j++) if (presence[j]) count++;
+      fills.push(end > start ? count / (end - start) : 0);
+    }
+    return (
+      <div className="flex gap-px h-2.5">
+        {fills.map((f, i) => (
+          <div
+            key={i}
+            className="flex-1 rounded-sm"
+            style={{ backgroundColor: f > 0 ? color : 'rgba(255,255,255,0.03)', opacity: f > 0 ? 0.25 + f * 0.75 : 1 }}
+          />
+        ))}
+      </div>
+    );
+  }
+
+  // ── Render ──────────────────────────────────────────────────────────
+
+  return (
+    <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center">
+      <div className="glass max-w-2xl w-full rounded-2xl p-6 relative max-h-[85vh] flex flex-col">
+        <button onClick={onClose} className="absolute top-4 right-4 text-text-dim hover:text-text-primary text-lg leading-none">&times;</button>
+
+        <h2 className="text-sm font-semibold text-text-primary mb-1">Usage Analytics</h2>
+        <p className="text-[10px] text-text-dim uppercase tracking-wider mb-3">
+          {totalScenes} scenes analysed
+        </p>
+
+        {/* View tabs */}
+        <div className="flex gap-1 bg-bg-elevated rounded-lg p-0.5 mb-4 shrink-0">
+          <button onClick={() => setView('cast')} className={`flex-1 text-[11px] py-1.5 rounded-md transition-colors ${view === 'cast' ? 'bg-white/10 text-text-primary font-semibold' : 'text-text-dim hover:text-text-secondary'}`}>
+            Cast
+          </button>
+          <button onClick={() => setView('locations')} className={`flex-1 text-[11px] py-1.5 rounded-md transition-colors ${view === 'locations' ? 'bg-white/10 text-text-primary font-semibold' : 'text-text-dim hover:text-text-secondary'}`}>
+            Locations
+          </button>
+          <button onClick={() => setView('metrics')} className={`flex-1 text-[11px] py-1.5 rounded-md transition-colors ${view === 'metrics' ? 'bg-white/10 text-text-primary font-semibold' : 'text-text-dim hover:text-text-secondary'}`}>
+            Expansion
+          </button>
+        </div>
+
+        {/* Summary strip */}
+        {view === 'cast' && castSummary && (
+          <div className="flex gap-4 mb-3 text-[10px] text-text-dim">
+            <span>{castSummary.usedChars}/{castSummary.totalChars} used</span>
+            <span>{castSummary.avgScenes} avg scenes</span>
+            <span>{castSummary.staleChars} stale</span>
+            <span>Top char: {castSummary.concentration}% of scenes</span>
+          </div>
+        )}
+        {view === 'locations' && locSummary && (
+          <div className="flex gap-4 mb-3 text-[10px] text-text-dim">
+            <span>{locSummary.usedLocs}/{locSummary.totalLocs} used</span>
+            <span>{locSummary.staleLocs} stale</span>
+            <span>Top location: {locSummary.concentration}% of scenes</span>
+          </div>
+        )}
+
+        {/* Sort controls */}
+        <div className="flex gap-1 mb-3 shrink-0">
+          {(['scenes', 'staleness', 'name'] as const).map((s) => (
+            <button key={s} onClick={() => setSortBy(s)}
+              className={`text-[10px] px-2.5 py-1 rounded-md transition-colors ${sortBy === s ? 'bg-white/10 text-text-primary' : 'text-text-dim hover:text-text-secondary'}`}>
+              {s === 'scenes' ? 'By Usage' : s === 'staleness' ? 'By Staleness' : 'By Name'}
+            </button>
+          ))}
+        </div>
+
+        {/* Content */}
+        <div className="flex-1 overflow-y-auto min-h-0 pr-1 space-y-1">
+          {view === 'cast' && sortedChars.map((char) => {
+            const pct = totalScenes > 0 ? (char.sceneCount / totalScenes) * 100 : 0;
+            const staleWarn = char.staleness > Math.max(5, totalScenes * 0.3);
+            const color = ROLE_COLORS[char.role] ?? '#6b7280';
+            return (
+              <div key={char.id} className="rounded-lg border border-white/6 p-2.5 space-y-1.5">
+                <div className="flex items-center gap-2">
+                  <div className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: color }} />
+                  <span className="text-[12px] font-medium text-text-primary flex-1">{char.name}</span>
+                  <span className="text-[9px] text-text-dim/50 uppercase">{char.role}</span>
+                  {staleWarn && <span className="text-[9px] text-amber-400/70 uppercase">stale</span>}
+                </div>
+                <Sparkline presence={char.presence} color={color} />
+                <div className="flex gap-3 text-[10px] text-text-dim">
+                  <span>{char.sceneCount} scene{char.sceneCount !== 1 ? 's' : ''} ({pct.toFixed(0)}%)</span>
+                  {char.povCount > 0 && <span>{char.povCount} POV</span>}
+                  <span>Last: scene {char.lastIndex + 1}</span>
+                  {char.staleness > 0 && <span className={staleWarn ? 'text-amber-400/70' : ''}>{char.staleness} ago</span>}
+                </div>
+              </div>
+            );
+          })}
+
+          {view === 'locations' && sortedLocs.map((loc) => {
+            const pct = totalScenes > 0 ? (loc.sceneCount / totalScenes) * 100 : 0;
+            const staleWarn = loc.staleness > Math.max(5, totalScenes * 0.3);
+            return (
+              <div key={loc.id} className="rounded-lg border border-white/6 p-2.5 space-y-1.5">
+                <div className="flex items-center gap-2">
+                  <div className="w-1.5 h-1.5 rounded-sm bg-amber-500/60 shrink-0" />
+                  <span className="text-[12px] font-medium text-text-primary">{loc.name}</span>
+                  {loc.parentName && <span className="text-[10px] text-text-dim/50">in {loc.parentName}</span>}
+                  <div className="flex-1" />
+                  {staleWarn && <span className="text-[9px] text-amber-400/70 uppercase">stale</span>}
+                </div>
+                <Sparkline presence={loc.presence} color="#f59e0b" />
+                <div className="flex gap-3 text-[10px] text-text-dim">
+                  <span>{loc.sceneCount} scene{loc.sceneCount !== 1 ? 's' : ''} ({pct.toFixed(0)}%)</span>
+                  <span>{loc.uniqueVisitors} visitor{loc.uniqueVisitors !== 1 ? 's' : ''}</span>
+                  <span>Last: scene {loc.lastIndex + 1}</span>
+                  {loc.staleness > 0 && <span className={staleWarn ? 'text-amber-400/70' : ''}>{loc.staleness} ago</span>}
+                </div>
+              </div>
+            );
+          })}
+
+          {view === 'metrics' && worldMetrics && (
+            <div className="space-y-4">
+              {/* Recommendation */}
+              <div className={`rounded-lg border p-3.5 ${
+                worldMetrics.recommendation === 'depth' ? 'border-blue-500/20 bg-blue-500/5'
+                  : worldMetrics.recommendation === 'breadth' ? 'border-amber-500/20 bg-amber-500/5'
+                  : 'border-white/10 bg-white/3'
+              }`}>
+                <div className="flex items-center gap-2 mb-1.5">
+                  <span className={`text-[12px] font-semibold ${
+                    worldMetrics.recommendation === 'depth' ? 'text-blue-400'
+                      : worldMetrics.recommendation === 'breadth' ? 'text-amber-400'
+                      : 'text-text-primary'
+                  }`}>
+                    {worldMetrics.recommendation === 'depth' ? 'Deepen' : worldMetrics.recommendation === 'breadth' ? 'Widen' : 'Balanced'}
+                  </span>
+                  <span className="text-[10px] text-text-dim uppercase">recommended</span>
+                </div>
+                <p className="text-[11px] text-text-secondary leading-relaxed">{worldMetrics.reasoning}</p>
+              </div>
+
+              {/* Cast metrics */}
+              <div>
+                <label className="text-[10px] text-text-dim uppercase tracking-wider block mb-2">Cast</label>
+                <div className="grid grid-cols-2 gap-2">
+                  <MetricCard label="Used" value={`${worldMetrics.usedCharacters}/${worldMetrics.totalCharacters}`} />
+                  <MetricCard label="Avg scenes/char" value={worldMetrics.avgScenesPerCharacter.toFixed(1)} />
+                  <MetricCard label="Stale" value={String(worldMetrics.staleCharacters)} warn={worldMetrics.staleCharacters > worldMetrics.totalCharacters * 0.3} />
+                  <MetricCard label="Top char concentration" value={`${(worldMetrics.castConcentration * 100).toFixed(0)}%`} warn={worldMetrics.castConcentration > 0.6} />
+                  <MetricCard label="Knowledge density" value={`${worldMetrics.avgKnowledgePerCharacter.toFixed(1)} nodes/char`} warn={worldMetrics.avgKnowledgePerCharacter < 3} />
+                  <MetricCard label="Relationships" value={`${worldMetrics.relationshipsPerCharacter.toFixed(1)}/char`} warn={worldMetrics.relationshipsPerCharacter < 2} />
+                  <MetricCard label="Orphaned" value={String(worldMetrics.orphanedCharacters)} warn={worldMetrics.orphanedCharacters > 2} />
+                </div>
+              </div>
+
+              {/* Location metrics */}
+              <div>
+                <label className="text-[10px] text-text-dim uppercase tracking-wider block mb-2">Locations</label>
+                <div className="grid grid-cols-2 gap-2">
+                  <MetricCard label="Used" value={`${worldMetrics.usedLocations}/${worldMetrics.totalLocations}`} />
+                  <MetricCard label="Top location concentration" value={`${(worldMetrics.locationConcentration * 100).toFixed(0)}%`} warn={worldMetrics.locationConcentration > 0.5} />
+                  <MetricCard label="Max depth" value={String(worldMetrics.locationDepth)} warn={worldMetrics.locationDepth <= 2 && worldMetrics.totalLocations > 3} />
+                  <MetricCard label="Stale" value={String(worldMetrics.staleLocations)} warn={worldMetrics.staleLocations > worldMetrics.totalLocations * 0.3} />
+                  <MetricCard label="Avg children/loc" value={worldMetrics.avgChildrenPerLocation.toFixed(1)} />
+                </div>
+              </div>
+            </div>
+          )}
+
+          {totalScenes === 0 && view !== 'metrics' && (
+            <p className="text-[11px] text-text-dim/50 italic py-8 text-center">No scenes yet — generate some to see usage analytics.</p>
+          )}
+        </div>
+
+        {/* Footer */}
+        <div className="flex justify-end mt-4 pt-3 border-t border-white/5 shrink-0">
+          <button onClick={onClose} className="text-[10px] px-3 py-1.5 rounded-md bg-white/5 text-text-dim hover:text-text-secondary transition-colors">
+            Close
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
