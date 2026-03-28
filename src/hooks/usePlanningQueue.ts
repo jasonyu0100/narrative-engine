@@ -263,6 +263,12 @@ export function usePlanningQueue() {
     runTransition(freshQueue, branchId);
   }, [branchId, queue, dispatch, runTransition]);
 
+  /** Dismiss the completion modal without advancing — user can re-trigger later */
+  const dismissCompletion = useCallback(() => {
+    setPendingCompletion(null);
+    lastProcessedRef.current = null; // Allow re-detection if they reopen
+  }, []);
+
   return {
     queue,
     activePhase,
@@ -271,5 +277,6 @@ export function usePlanningQueue() {
     pendingCompletion,
     extendPhase,
     advancePhase,
+    dismissCompletion,
   };
 }

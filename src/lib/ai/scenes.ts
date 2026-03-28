@@ -6,7 +6,7 @@ import { WRITING_MODEL, ANALYSIS_MODEL, GENERATE_MODEL, MAX_TOKENS_LARGE, PLAN_P
 import { parseJson } from './json';
 import { branchContext, sceneContext, deriveLogicRules, sceneScale } from './context';
 import { PROMPT_FORCE_STANDARDS, PROMPT_PACING, PROMPT_MUTATIONS, PROMPT_ARTIFACTS, PROMPT_POV, PROMPT_CONTINUITY, PROMPT_SUMMARY_REQUIREMENT, PROMPT_CHARACTER_ARCS, PROMPT_THREAD_COLLISION, promptThreadLifecycle, buildThreadHealthPrompt, buildCompletedBeatsPrompt } from './prompts';
-import { samplePacingSequence, buildSequencePrompt, detectCurrentMode, MATRIX_PRESETS, DEFAULT_TRANSITION_MATRIX, type PacingSequence } from '@/lib/markov';
+import { samplePacingSequence, buildSequencePrompt, buildSingleStepPrompt, detectCurrentMode, MATRIX_PRESETS, DEFAULT_TRANSITION_MATRIX, type PacingSequence, type ModeStep } from '@/lib/markov';
 
 export type GenerateScenesOptions = {
   existingArc?: Arc;
@@ -77,25 +77,39 @@ The scenes must continue from the current point in the story (after scene index 
 
 ${sequencePrompt}
 
-Return JSON with this exact structure:
+THE FOUR RULES THAT MATTER MOST (violating any of these is a critical failure):
+1. NO EVENT MAY HAPPEN TWICE. If a character discovers something in scene 3, that discovery cannot happen again in scene 11. If a leader is deposed in scene 19, they cannot be deposed again in scene 22. Before writing each scene, check every previous scene — if the event already occurred, skip it.
+2. NO SCENE STRUCTURE MAY REPEAT. If "A confronts B, B deflects" happened in scene 2, scenes 6/9/11 cannot be "A confronts B, B deflects again." The NEXT scene between A and B must have a fundamentally different shape: B capitulates, A loses leverage, a third party intervenes, or one takes an irreversible action. Similarly, "investigator finds clue, adversary retreats" can happen ONCE — not five times.
+3. EVERY SCENE MUST CHANGE STATE. If you cannot write a different BEFORE and AFTER for a scene, it is filler. Delete it and reduce the scene count. Fewer, denser scenes are always better than more, thinner ones.
+4. COLLIDE THREADS. At least half your scenes must advance 2+ threads simultaneously. Characters from different subplots share locations and resources. Single-thread scenes are a last resort, not the default.
+
+Return JSON with this exact structure. IMPORTANT: Fill out "arcOutline" FIRST — plan the arc structure before writing any scenes. The outline commits you to a specific beat sequence and collision plan. Then write scenes that execute the outline exactly.
 {
-  "arcName": "A short, evocative arc name (2-4 words) like a chapter title. Must be UNIQUE — not a variation of any existing arc name. Bad: 'Continuation', 'New Beginnings', 'Echoes of X', 'Seeds of Y'. Good: 'The Siege of Ashenmoor', 'Fractured Oaths', 'Blackwater Gambit'.",
-  "directionVector": "A single concise sentence (10-15 words max) using character NAMES capturing the narrative thrust — what changes, who drives it, and what's at stake. Examples: 'Kael discovers the seal is failing and must choose between duty and survival', 'Political alliances fracture as the harvest festival exposes hidden rivalries'.",
+  "arcName": "Short, evocative arc name (2-4 words). Must be UNIQUE. Bad: 'Continuation', 'New Beginnings'. Good: 'The Siege of Ashenmoor', 'Fractured Oaths'.",
+  "directionVector": "Single sentence (10-15 words) using character NAMES: what changes, who drives it, what's at stake.",
+  "arcOutline": {
+    "threadBeats": {
+      "T-XX (thread description)": ["Scene N: status FROM → TO via [specific mechanism]"],
+      "T-YY (thread description)": ["Scene N: status FROM → TO via [specific mechanism]"]
+    },
+    "collisionPlan": ["Scene N: T-XX and T-YY collide — [Character A] and [Character B] are at [Location] because [reason], their incompatible goals force [specific consequence]"],
+    "totalScenes": "number — the MINIMUM needed to execute all beats above. If a beat can share a scene with another beat via collision, it SHOULD."
+  },
   "scenes": [
     {
       "id": "S-GEN-001",
       "arcId": "${arcId}",
       "locationId": "existing location ID from the narrative",
-      "povId": "character ID whose perspective this scene is told from (must be a participant)${storySettings.povMode !== 'free' && storySettings.povCharacterIds.length > 0 ? ` — RESTRICTED to: ${storySettings.povCharacterIds.join(', ')}` : ''}",
+      "povId": "character ID whose perspective this scene is told from (must be a participant)${storySettings.povMode !== 'free' && storySettings.povCharacterIds.length > 0 ? ` — RESTRICTED to: ${storySettings.povCharacterIds.join(', ')}` : storySettings.povMode === 'free' && storySettings.povCharacterIds.length > 0 ? ` — PREFER: ${storySettings.povCharacterIds.join(', ')} (but may use others)` : ''}",
       "participantIds": ["existing character IDs"],
-      "characterMovements": {"C-XX": {"locationId": "L-YY", "transition": "Descriptive transition narrating HOW they moved, e.g. 'Rode horseback through the night', 'Slipped through the back gate at dawn', 'Got on a bus to the school'"}},
+      "characterMovements": {"C-XX": {"locationId": "L-YY", "transition": "Descriptive transition: 'Rode horseback through the night', 'Slipped through the back gate at dawn'"}},
       "events": ["event_tag_1", "event_tag_2"],
       "threadMutations": [{"threadId": "T-XX", "from": "current_status", "to": "new_status"}],
       "continuityMutations": [{"characterId": "C-XX", "nodeId": "K-GEN-001", "action": "added", "content": "what they learned", "nodeType": "a descriptive type for this knowledge"}],
       "relationshipMutations": [{"from": "C-XX", "to": "C-YY", "type": "description", "valenceDelta": 0.1}],
-      "worldKnowledgeMutations": {"addedNodes": [{"id": "WK-GEN-001", "concept": "name of a world concept, rule, system, or structure", "type": "law|system|concept|tension"}], "addedEdges": [{"from": "WK-GEN-001", "to": "WK-XX", "relation": "typed relationship: enables, requires, governs, located_in, opposes, created_by, extends, etc."}]},
+      "worldKnowledgeMutations": {"addedNodes": [{"id": "WK-GEN-001", "concept": "world concept name", "type": "law|system|concept|tension"}], "addedEdges": [{"from": "WK-GEN-001", "to": "WK-XX", "relation": "enables|requires|governs|opposes|extends|etc."}]},
       "ownershipMutations": [{"artifactId": "A-XX", "fromId": "C-XX or L-XX", "toId": "C-YY or L-YY"}],
-      "summary": "REQUIRED: 3-5 sentence detailed narrative summary. Use character NAMES and location NAMES — never raw IDs. Describe the key action, the consequence, and the tension it creates for what comes next. Example: 'Michael Corleone sits across from Sollozzo and McCluskey at the small Italian restaurant in the Bronx, listening to terms he has no intention of accepting. He excuses himself to the bathroom where a pistol has been planted behind the toilet tank. He returns to the table and shoots both men. The gun clatters to the floor as Michael walks out in a daze to a waiting car. The killing severs him permanently from his civilian life and sets in motion a gang war that will consume every family in New York.'"
+      "summary": "REQUIRED: 3-5 RICH sentences with specific details — names, objects, locations, dialogue snippets, physical consequences. Each sentence: named character + physical action verb + concrete consequence. Include specifics: what object, what words, what breaks. NO thin generic summaries. NO sentences ending in emotions/realizations. Example quality: 'Kael slams the forged treaty onto the table, forcing Mira to deny her signature or admit the alliance was a trap. She chooses silence — which tells every councillor in the room more than any denial could. Lord Hagen rises, overturns his chair, and walks out without a word, taking the northern delegation with him.'"
     }
   ]
 }
@@ -125,7 +139,8 @@ You MUST use ONLY these exact IDs. Do NOT invent new character, location, or thr
 
   // Retry on JSON parse failures (truncation, malformed output)
   const MAX_RETRIES = 2;
-  let parsed: { arcName?: string; directionVector?: string; scenes: Scene[] };
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let parsed: { arcName?: string; directionVector?: string; arcOutline?: any; scenes: Scene[] };
   let lastErr: unknown;
   for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
     try {
@@ -146,7 +161,7 @@ You MUST use ONLY these exact IDs. Do NOT invent new character, location, or thr
   const directionVector = parsed.directionVector;
 
   const sceneIds = nextIds('S', Object.keys(narrative.scenes), parsed.scenes.length, 3);
-  const scenes: Scene[] = parsed.scenes.map((s: Scene, i: number) => ({
+  const scenes: Scene[] = parsed.scenes.map((s, i) => ({
     ...s,
     kind: 'scene' as const,
     id: sceneIds[i],
@@ -154,98 +169,7 @@ You MUST use ONLY these exact IDs. Do NOT invent new character, location, or thr
     summary: s.summary || `Scene ${i + 1} of arc "${arcName}"`,
   }));
 
-  // Sanitize hallucinated IDs — filter out invalid references instead of crashing
-  const validCharIds = new Set(Object.keys(narrative.characters));
-  const validLocIds = new Set(Object.keys(narrative.locations));
-  const validThreadIds = new Set(Object.keys(narrative.threads));
-  const stripped: string[] = [];
-
-  const fallbackCharId = Object.keys(narrative.characters)[0];
-
-  for (const scene of scenes) {
-    // Fix invalid locationId — fall back to first valid location
-    if (!validLocIds.has(scene.locationId)) {
-      stripped.push(`locationId "${scene.locationId}" in scene ${scene.id}`);
-      scene.locationId = Object.keys(narrative.locations)[0];
-    }
-    // Fix invalid povId — must be a valid character
-    if (!scene.povId || !validCharIds.has(scene.povId)) {
-      if (scene.povId) stripped.push(`povId "${scene.povId}" in scene ${scene.id} (invalid)`);
-      scene.povId = scene.participantIds.find((pid) => validCharIds.has(pid)) ?? fallbackCharId;
-    }
-    // Remove invalid participantIds
-    const validParticipants = scene.participantIds.filter((pid) => {
-      if (validCharIds.has(pid)) return true;
-      stripped.push(`participantId "${pid}" in scene ${scene.id}`);
-      return false;
-    });
-    scene.participantIds = validParticipants.length > 0
-      ? validParticipants
-      : [fallbackCharId];
-    // Ensure povId is a participant
-    if (!scene.participantIds.includes(scene.povId)) {
-      scene.povId = scene.participantIds[0] ?? fallbackCharId;
-    }
-    // Ensure mutation arrays are actually arrays (LLM may return objects)
-    if (!Array.isArray(scene.threadMutations)) scene.threadMutations = [];
-    if (!Array.isArray(scene.continuityMutations)) scene.continuityMutations = [];
-    if (!Array.isArray(scene.relationshipMutations)) scene.relationshipMutations = [];
-    // Remove invalid threadMutations
-    scene.threadMutations = scene.threadMutations.filter((tm) => {
-      if (validThreadIds.has(tm.threadId)) return true;
-      stripped.push(`threadId "${tm.threadId}" in scene ${scene.id}`);
-      return false;
-    });
-    // Remove invalid continuityMutations
-    scene.continuityMutations = scene.continuityMutations.filter((km) => {
-      if (!km.characterId || validCharIds.has(km.characterId)) return true;
-      stripped.push(`knowledgeMutation characterId "${km.characterId}" in scene ${scene.id}`);
-      return false;
-    });
-    // Remove invalid relationshipMutations
-    scene.relationshipMutations = scene.relationshipMutations.filter((rm) => {
-      if (validCharIds.has(rm.from) && validCharIds.has(rm.to)) return true;
-      stripped.push(`relationshipMutation "${rm.from}" -> "${rm.to}" in scene ${scene.id}`);
-      return false;
-    });
-    // Remove invalid ownershipMutations
-    const validArtifactIds = new Set(Object.keys(narrative.artifacts ?? {}));
-    const allEntityIds = new Set([...validCharIds, ...validLocIds]);
-    scene.ownershipMutations = (scene.ownershipMutations ?? []).filter((om) => {
-      const validArtifact = validArtifactIds.has(om.artifactId);
-      const validFrom = allEntityIds.has(om.fromId);
-      const validTo = allEntityIds.has(om.toId);
-      if (validArtifact && validFrom && validTo) return true;
-      stripped.push(`ownershipMutation "${om.artifactId}" in scene ${scene.id}`);
-      return false;
-    });
-    if (scene.ownershipMutations.length === 0) delete scene.ownershipMutations;
-    // Sanitize characterMovements — remove invalid charId/locationId entries
-    if (scene.characterMovements) {
-      const sanitized: Record<string, { locationId: string; transition: string }> = {};
-      for (const [charId, mv] of Object.entries(scene.characterMovements)) {
-        // Handle legacy string format (charId → locationId) from older LLM responses
-        const movement = typeof mv === 'string' ? { locationId: mv, transition: '' } : mv;
-        if (!validCharIds.has(charId)) {
-          stripped.push(`characterMovement charId "${charId}" in scene ${scene.id}`);
-          continue;
-        }
-        if (!validLocIds.has(movement.locationId)) {
-          stripped.push(`characterMovement locationId "${movement.locationId}" in scene ${scene.id}`);
-          continue;
-        }
-        sanitized[charId] = movement;
-      }
-      scene.characterMovements = Object.keys(sanitized).length > 0 ? sanitized : undefined;
-    }
-  }
-
-  if (stripped.length > 0) {
-    console.warn(
-      `[generateScenes] Stripped ${stripped.length} hallucinated ID(s):\n` +
-      stripped.map((h) => `  - ${h}`).join('\n')
-    );
-  }
+  sanitizeScenes(scenes, narrative, 'generateScenes');
 
   // Fix knowledge mutation IDs to be unique and sequential
   const existingKIds = [
@@ -598,4 +522,469 @@ ${instruction}`;
     return await callGenerateStream(prompt, systemPrompt, onToken, scale.proseTokens, 'generateSceneProse', WRITING_MODEL);
   }
   return await callGenerate(prompt, systemPrompt, scale.proseTokens, 'generateSceneProse', WRITING_MODEL);
+}
+
+// ── Shared Helpers ───────────────────────────────────────────────────────────
+
+/** Sanitize hallucinated IDs in generated scenes — filter out invalid references instead of crashing. */
+function sanitizeScenes(scenes: Scene[], narrative: NarrativeState, label: string): void {
+  const validCharIds = new Set(Object.keys(narrative.characters));
+  const validLocIds = new Set(Object.keys(narrative.locations));
+  const validThreadIds = new Set(Object.keys(narrative.threads));
+  const validArtifactIds = new Set(Object.keys(narrative.artifacts ?? {}));
+  const allEntityIds = new Set([...validCharIds, ...validLocIds]);
+  const stripped: string[] = [];
+  const fallbackCharId = Object.keys(narrative.characters)[0];
+
+  for (const scene of scenes) {
+    if (!validLocIds.has(scene.locationId)) {
+      stripped.push(`locationId "${scene.locationId}" in scene ${scene.id}`);
+      scene.locationId = Object.keys(narrative.locations)[0];
+    }
+    if (!scene.povId || !validCharIds.has(scene.povId)) {
+      if (scene.povId) stripped.push(`povId "${scene.povId}" in scene ${scene.id} (invalid)`);
+      scene.povId = scene.participantIds.find((pid) => validCharIds.has(pid)) ?? fallbackCharId;
+    }
+    const validParticipants = scene.participantIds.filter((pid) => {
+      if (validCharIds.has(pid)) return true;
+      stripped.push(`participantId "${pid}" in scene ${scene.id}`);
+      return false;
+    });
+    scene.participantIds = validParticipants.length > 0 ? validParticipants : [fallbackCharId];
+    if (!scene.participantIds.includes(scene.povId)) {
+      scene.povId = scene.participantIds[0] ?? fallbackCharId;
+    }
+    if (!Array.isArray(scene.threadMutations)) scene.threadMutations = [];
+    if (!Array.isArray(scene.continuityMutations)) scene.continuityMutations = [];
+    if (!Array.isArray(scene.relationshipMutations)) scene.relationshipMutations = [];
+    scene.threadMutations = scene.threadMutations.filter((tm) => {
+      if (validThreadIds.has(tm.threadId)) return true;
+      stripped.push(`threadId "${tm.threadId}" in scene ${scene.id}`);
+      return false;
+    });
+    scene.continuityMutations = scene.continuityMutations.filter((km) => {
+      if (!km.characterId || validCharIds.has(km.characterId)) return true;
+      stripped.push(`knowledgeMutation characterId "${km.characterId}" in scene ${scene.id}`);
+      return false;
+    });
+    scene.relationshipMutations = scene.relationshipMutations.filter((rm) => {
+      if (validCharIds.has(rm.from) && validCharIds.has(rm.to)) return true;
+      stripped.push(`relationshipMutation "${rm.from}" -> "${rm.to}" in scene ${scene.id}`);
+      return false;
+    });
+    scene.ownershipMutations = (scene.ownershipMutations ?? []).filter((om) => {
+      const ok = validArtifactIds.has(om.artifactId) && allEntityIds.has(om.fromId) && allEntityIds.has(om.toId);
+      if (!ok) stripped.push(`ownershipMutation "${om.artifactId}" in scene ${scene.id}`);
+      return ok;
+    });
+    if (scene.ownershipMutations.length === 0) delete scene.ownershipMutations;
+    if (scene.characterMovements) {
+      const sanitized: Record<string, { locationId: string; transition: string }> = {};
+      for (const [charId, mv] of Object.entries(scene.characterMovements)) {
+        const movement = typeof mv === 'string' ? { locationId: mv, transition: '' } : mv;
+        if (!validCharIds.has(charId)) { stripped.push(`characterMovement charId "${charId}" in scene ${scene.id}`); continue; }
+        if (!validLocIds.has(movement.locationId)) { stripped.push(`characterMovement locationId "${movement.locationId}" in scene ${scene.id}`); continue; }
+        sanitized[charId] = movement;
+      }
+      scene.characterMovements = Object.keys(sanitized).length > 0 ? sanitized : undefined;
+    }
+    // Sanitize worldKnowledgeMutations — ensure arrays exist, nodes have concept, edges have valid refs
+    if (scene.worldKnowledgeMutations) {
+      const wkm = scene.worldKnowledgeMutations;
+      wkm.addedNodes = (wkm.addedNodes ?? []).filter((node) => {
+        if (node.concept && node.type) return true;
+        stripped.push(`worldKnowledge node missing concept/type in scene ${scene.id}`);
+        return false;
+      });
+      wkm.addedEdges = (wkm.addedEdges ?? []).filter((edge) => {
+        if (edge.from && edge.to && edge.relation) return true;
+        stripped.push(`worldKnowledge edge missing from/to/relation in scene ${scene.id}`);
+        return false;
+      });
+    } else {
+      scene.worldKnowledgeMutations = { addedNodes: [], addedEdges: [] };
+    }
+    // Ensure continuityMutations have required fields
+    scene.continuityMutations = scene.continuityMutations.filter((km) => {
+      if (km.characterId && km.nodeId && km.content) return true;
+      stripped.push(`continuityMutation missing fields in scene ${scene.id}`);
+      return false;
+    });
+  }
+  if (stripped.length > 0) {
+    console.warn(`[${label}] Stripped ${stripped.length} hallucinated ID(s):\n` + stripped.map((h) => `  - ${h}`).join('\n'));
+  }
+}
+
+/** Apply scene mutations to a narrative state (relationships, knowledge, threads, world knowledge). */
+function applySceneMutations(n: NarrativeState, scenes: Scene[]): NarrativeState {
+  let relationships = [...n.relationships];
+  const characters = { ...n.characters };
+  const threads = { ...n.threads };
+  const worldKnowledge = { nodes: { ...n.worldKnowledge?.nodes }, edges: [...(n.worldKnowledge?.edges ?? [])] };
+
+  for (const scene of scenes) {
+    for (const rm of scene.relationshipMutations) {
+      const idx = relationships.findIndex((r) => r.from === rm.from && r.to === rm.to);
+      if (idx >= 0) {
+        const existing = relationships[idx];
+        relationships = [...relationships.slice(0, idx), { ...existing, type: rm.type, valence: Math.max(-1, Math.min(1, existing.valence + rm.valenceDelta)) }, ...relationships.slice(idx + 1)];
+      } else {
+        relationships.push({ from: rm.from, to: rm.to, type: rm.type, valence: Math.max(-1, Math.min(1, rm.valenceDelta)) });
+      }
+    }
+    for (const km of scene.continuityMutations) {
+      const char = characters[km.characterId];
+      if (!char) continue;
+      if (km.action === 'added' && !char.continuity.nodes.some((kn) => kn.id === km.nodeId)) {
+        characters[km.characterId] = { ...char, continuity: { ...char.continuity, nodes: [...char.continuity.nodes, { id: km.nodeId, type: km.nodeType ?? 'learned', content: km.content }] } };
+      } else if (km.action === 'removed') {
+        characters[km.characterId] = { ...char, continuity: { ...char.continuity, nodes: char.continuity.nodes.filter((kn) => kn.id !== km.nodeId) } };
+      }
+    }
+    for (const tm of scene.threadMutations) {
+      const thread = threads[tm.threadId];
+      if (thread) threads[tm.threadId] = { ...thread, status: tm.to };
+    }
+    const wkm = scene.worldKnowledgeMutations;
+    if (wkm) {
+      for (const node of wkm.addedNodes ?? []) {
+        if (!worldKnowledge.nodes[node.id]) worldKnowledge.nodes[node.id] = { id: node.id, concept: node.concept, type: node.type };
+      }
+      for (const edge of wkm.addedEdges ?? []) {
+        if (!worldKnowledge.edges.some((e: { from: string; to: string; relation: string }) => e.from === edge.from && e.to === edge.to && e.relation === edge.relation)) {
+          worldKnowledge.edges.push({ from: edge.from, to: edge.to, relation: edge.relation });
+        }
+      }
+    }
+  }
+  return { ...n, relationships, characters, threads, worldKnowledge };
+}
+
+// ── Stepwise Arc Generation ──────────────────────────────────────────────────
+// Generates an arc one scene at a time. Each scene sees the full narrative
+// context including all previously generated scenes in this arc, preventing
+// the duplication that plagues batch generation.
+
+export type ArcPlan = {
+  arcName: string;
+  directionVector: string;
+  scenePlan: string[];  // One-line beat description per scene
+};
+
+export type GenerateStepwiseOptions = {
+  existingArc?: Arc;
+  pacingSequence?: PacingSequence;
+  worldBuildFocus?: WorldBuild;
+  onToken?: (token: string) => void;
+  /** Called after each scene is generated and sanitized. Use to dispatch to store for live UI updates. */
+  onScene?: (scene: Scene, arc: Arc, sceneIndex: number) => void;
+  /** Return true to abort generation early (e.g., user cancelled). */
+  shouldStop?: () => boolean;
+};
+
+/**
+ * Plan an arc's structure without generating scenes.
+ * Returns arc name, direction vector, and a one-line beat per scene.
+ */
+async function generateArcPlan(
+  narrative: NarrativeState,
+  resolvedKeys: string[],
+  currentIndex: number,
+  count: number,
+  direction: string,
+  sequence: PacingSequence,
+): Promise<ArcPlan> {
+  const ctx = branchContext(narrative, resolvedKeys, currentIndex);
+  const storySettings: StorySettings = { ...DEFAULT_STORY_SETTINGS, ...narrative.storySettings };
+  const speed = storySettings.threadResolutionSpeed ?? 'moderate';
+
+  const prompt = `${ctx}
+
+${direction.trim() ? `DIRECTION:\n${direction}` : 'DIRECTION: Use your judgment — choose the most compelling next development.'}
+
+Plan a ${count}-scene arc. For each scene, write ONE sentence describing the key action and which threads it advances. Scenes that collide 2+ threads are preferred.
+
+${buildThreadHealthPrompt(narrative, resolvedKeys, currentIndex, speed)}
+${buildCompletedBeatsPrompt(narrative, resolvedKeys, currentIndex)}
+
+ID REFERENCE:
+  Characters: ${Object.entries(narrative.characters).map(([id, c]) => `${c.name} (${id})`).join(', ')}
+  Threads: ${Object.entries(narrative.threads).map(([id, t]) => `${t.description.slice(0, 40)} (${id})`).join(', ')}
+
+Return JSON:
+{
+  "arcName": "2-4 word evocative chapter title, unique",
+  "directionVector": "Single sentence (10-15 words) with character NAMES",
+  "scenePlan": ["Scene 1: [Character] does [action] at [location], advancing [T-XX] and [T-YY]", "Scene 2: ..."]
+}`;
+
+  const raw = await callGenerate(prompt, SYSTEM_PROMPT, 1500, 'generateArcPlan', GENERATE_MODEL);
+  const parsed = parseJson(raw, 'generateArcPlan') as Partial<ArcPlan>;
+  return {
+    arcName: parsed.arcName ?? 'Untitled Arc',
+    directionVector: parsed.directionVector ?? '',
+    scenePlan: parsed.scenePlan ?? Array.from({ length: count }, (_, i) => `Scene ${i + 1}`),
+  };
+}
+
+/**
+ * Generate a single scene within a stepwise arc build.
+ * Gets the FULL narrative context (including prior scenes from this arc).
+ */
+async function generateSingleScene(
+  narrative: NarrativeState,
+  resolvedKeys: string[],
+  currentIndex: number,
+  arcId: string,
+  arcPlan: ArcPlan,
+  sceneIndex: number,
+  pacingStep: ModeStep,
+  totalScenes: number,
+  direction: string,
+  storySettings: StorySettings,
+  /** Scene IDs already generated in this arc — used to build prior summaries */
+  priorArcSceneIds: string[],
+  onToken?: (token: string) => void,
+): Promise<Scene> {
+  const ctx = branchContext(narrative, resolvedKeys, currentIndex);
+  const speed = storySettings.threadResolutionSpeed ?? 'moderate';
+  const stepPrompt = buildSingleStepPrompt(pacingStep, sceneIndex, totalScenes);
+
+  // Show the full arc plan with completion markers
+  const planContext = arcPlan.scenePlan
+    .map((beat, i) => {
+      const marker = i < sceneIndex ? '✓' : i === sceneIndex ? '→' : ' ';
+      return `  ${marker} Scene ${i + 1}: ${beat}`;
+    })
+    .join('\n');
+
+  // Summaries of scenes already generated in this arc (prevents duplication)
+  const priorSummaries = priorArcSceneIds
+    .map((id, i) => {
+      const s = narrative.scenes[id];
+      return s ? `  Scene ${i + 1} (DONE): ${s.summary}` : null;
+    })
+    .filter(Boolean)
+    .join('\n');
+
+  const prompt = `${ctx}
+
+ARC: "${arcPlan.arcName}" — ${arcPlan.directionVector}
+${direction.trim() ? `DIRECTION:\n${direction}` : ''}
+
+ARC PLAN (you are generating the scene marked with →):
+${planContext}
+
+${priorSummaries ? `SCENES ALREADY WRITTEN IN THIS ARC (do NOT repeat any action, discovery, or confrontation from these):\n${priorSummaries}\n` : ''}
+${stepPrompt}
+
+Generate exactly ONE scene. Every sentence in the summary must have: named character + physical action verb + concrete consequence. No sentences ending in emotions or realizations.
+
+Return JSON:
+{
+  "id": "S-GEN-001",
+  "arcId": "${arcId}",
+  "locationId": "existing location ID",
+  "povId": "character ID${storySettings.povMode !== 'free' && storySettings.povCharacterIds.length > 0 ? ` — RESTRICTED to: ${storySettings.povCharacterIds.join(', ')}` : ''}",
+  "participantIds": ["character IDs"],
+  "characterMovements": {},
+  "events": ["event_tags"],
+  "threadMutations": [{"threadId": "T-XX", "from": "status", "to": "status"}],
+  "continuityMutations": [{"characterId": "C-XX", "nodeId": "K-GEN-001", "action": "added", "content": "what", "nodeType": "type"}],
+  "relationshipMutations": [{"from": "C-XX", "to": "C-YY", "type": "desc", "valenceDelta": 0.1}],
+  "worldKnowledgeMutations": {"addedNodes": [], "addedEdges": []},
+  "ownershipMutations": [],
+  "summary": "REQUIRED: 3-5 RICH sentences with specific details — names, objects, locations, dialogue snippets, physical consequences. Each: named character + physical action + concrete consequence. NO thin generic summaries."
+}
+
+${PROMPT_SUMMARY_REQUIREMENT}
+${PROMPT_MUTATIONS}
+${Object.keys(narrative.artifacts ?? {}).length > 0 ? PROMPT_ARTIFACTS : ''}
+${PROMPT_CONTINUITY}
+${buildThreadHealthPrompt(narrative, resolvedKeys, currentIndex, speed)}
+${buildCompletedBeatsPrompt(narrative, resolvedKeys, currentIndex)}
+Use ONLY these IDs:
+  Characters: ${Object.entries(narrative.characters).map(([id, c]) => `${c.name} (${id})`).join(', ')}
+  Locations: ${Object.entries(narrative.locations).map(([id, l]) => `${l.name} (${id})`).join(', ')}
+  Threads: ${Object.entries(narrative.threads).map(([id, t]) => `${t.description.slice(0, 40)} (${id})`).join(', ')}${Object.keys(narrative.artifacts ?? {}).length > 0 ? `\n  Artifacts: ${Object.entries(narrative.artifacts).map(([id, a]) => `${a.name} (${id})`).join(', ')}` : ''}`;
+
+  const raw = onToken
+    ? await callGenerateStream(prompt, SYSTEM_PROMPT, onToken, 4000, 'generateSingleScene', GENERATE_MODEL)
+    : await callGenerate(prompt, SYSTEM_PROMPT, 4000, 'generateSingleScene', GENERATE_MODEL);
+
+  const parsed = parseJson(raw, 'generateSingleScene') as Scene;
+  return { ...parsed, kind: 'scene' as const, arcId };
+}
+
+/**
+ * Generate an arc one scene at a time.
+ * Each scene gets the full narrative context including all prior scenes
+ * from this arc, preventing the duplication that plagues batch generation.
+ *
+ * The onScene callback is called after each scene is sanitized, allowing
+ * the caller to dispatch to the store for live UI updates.
+ */
+export async function generateArcStepwise(
+  narrative: NarrativeState,
+  resolvedKeys: string[],
+  currentIndex: number,
+  count: number,
+  direction: string,
+  options: GenerateStepwiseOptions = {},
+): Promise<{ scenes: Scene[]; arc: Arc }> {
+  const { existingArc, pacingSequence, worldBuildFocus, onToken, onScene, shouldStop } = options;
+  const storySettings: StorySettings = { ...DEFAULT_STORY_SETTINGS, ...narrative.storySettings };
+  const targetLen = storySettings.targetArcLength;
+  const sceneCount = count > 0 ? Math.max(3, count) : targetLen;
+
+  // Sample pacing sequence
+  let sequence: PacingSequence;
+  if (pacingSequence) {
+    sequence = pacingSequence;
+  } else {
+    const currentMode = detectCurrentMode(narrative, resolvedKeys);
+    const matrix = MATRIX_PRESETS.find((p) => p.key === storySettings.rhythmPreset)?.matrix ?? DEFAULT_TRANSITION_MATRIX;
+    sequence = samplePacingSequence(currentMode, sceneCount, matrix);
+  }
+
+  // World build focus appended to direction
+  let fullDirection = direction;
+  if (worldBuildFocus) {
+    const wb = worldBuildFocus;
+    const chars = wb.expansionManifest.characters.map((c) => `${c.name} (${c.role})`);
+    const locs = wb.expansionManifest.locations.map((l) => l.name);
+    const threads = wb.expansionManifest.threads.map((t) => {
+      const live = narrative.threads[t.id];
+      return `${t.description} [${live?.status ?? t.status}]`;
+    });
+    const wbLines = [`WORLD BUILD FOCUS: bring in recently introduced entities:`];
+    if (chars.length) wbLines.push(`  Characters: ${chars.join(', ')}`);
+    if (locs.length) wbLines.push(`  Locations: ${locs.join(', ')}`);
+    if (threads.length) wbLines.push(`  Threads: ${threads.join('; ')}`);
+    fullDirection = `${direction}\n${wbLines.join('\n')}`;
+  }
+
+  // Step 1: Plan the arc
+  const arcId = existingArc?.id ?? nextId('ARC', Object.keys(narrative.arcs));
+  const plan = await generateArcPlan(narrative, resolvedKeys, currentIndex, sequence.steps.length, fullDirection, sequence);
+
+  // Step 2: Generate scenes one at a time
+  const allScenes: Scene[] = [];
+  let liveNarrative = JSON.parse(JSON.stringify(narrative)) as NarrativeState;
+  let liveResolvedKeys = [...resolvedKeys];
+  let liveIndex = currentIndex;
+
+  // Pre-allocate scene IDs so they're sequential
+  const sceneIds = nextIds('S', Object.keys(narrative.scenes), sequence.steps.length, 3);
+
+  for (let i = 0; i < sequence.steps.length; i++) {
+    if (shouldStop?.()) break;
+
+    const step = sequence.steps[i];
+    const priorArcSceneIds = allScenes.map((s) => s.id);
+    const scene = await generateSingleScene(
+      liveNarrative, liveResolvedKeys, liveIndex,
+      arcId, plan, i, step, sequence.steps.length,
+      fullDirection, storySettings, priorArcSceneIds, onToken,
+    );
+
+    // Assign real scene ID
+    scene.id = sceneIds[i];
+    scene.summary = scene.summary || `Scene ${i + 1} of arc "${plan.arcName}"`;
+
+    // Sanitize
+    sanitizeScenes([scene], liveNarrative, 'generateArcStepwise');
+
+    // Fix knowledge mutation IDs
+    const existingKIds = [
+      ...Object.values(liveNarrative.characters).flatMap((c) => c.continuity.nodes.map((n) => n.id)),
+      ...Object.values(liveNarrative.locations).flatMap((l) => l.continuity.nodes.map((n) => n.id)),
+    ];
+    const kIds = nextIds('K', existingKIds, scene.continuityMutations.length);
+    scene.continuityMutations.forEach((km, j) => { km.nodeId = kIds[j]; });
+
+    // Fix world knowledge IDs
+    const existingWKIds = Object.keys(liveNarrative.worldKnowledge?.nodes ?? {});
+    const wkm = scene.worldKnowledgeMutations;
+    if (wkm) {
+      wkm.addedNodes = wkm.addedNodes ?? [];
+      wkm.addedEdges = wkm.addedEdges ?? [];
+      const wkIds = nextIds('WK', existingWKIds, wkm.addedNodes.length);
+      const wkIdMap: Record<string, string> = {};
+      wkm.addedNodes.forEach((node, j) => { wkIdMap[node.id] = wkIds[j]; node.id = wkIds[j]; });
+      const validWKIds = new Set([...existingWKIds, ...Object.values(wkIdMap)]);
+      wkm.addedEdges = wkm.addedEdges
+        .map((e) => ({ from: wkIdMap[e.from] ?? e.from, to: wkIdMap[e.to] ?? e.to, relation: e.relation }))
+        .filter((e) => validWKIds.has(e.from) && validWKIds.has(e.to));
+    }
+
+    allScenes.push(scene);
+
+    // Update live narrative state so the next scene sees everything
+    liveNarrative = {
+      ...liveNarrative,
+      scenes: { ...liveNarrative.scenes, [scene.id]: scene },
+    };
+    liveNarrative = applySceneMutations(liveNarrative, [scene]);
+    liveResolvedKeys = [...liveResolvedKeys, scene.id];
+    liveIndex = liveResolvedKeys.length - 1;
+
+    // Build arc progressively
+    const currentArc: Arc = existingArc
+      ? {
+          ...existingArc,
+          sceneIds: [...existingArc.sceneIds, ...allScenes.map((s) => s.id)],
+          develops: [...new Set([...existingArc.develops, ...allScenes.flatMap((s) => s.threadMutations.map((tm) => tm.threadId))])],
+          locationIds: [...new Set([...existingArc.locationIds, ...allScenes.map((s) => s.locationId)])],
+          activeCharacterIds: [...new Set([...existingArc.activeCharacterIds, ...allScenes.flatMap((s) => s.participantIds)])],
+        }
+      : {
+          id: arcId,
+          name: plan.arcName,
+          sceneIds: allScenes.map((s) => s.id),
+          develops: [...new Set(allScenes.flatMap((s) => s.threadMutations.map((tm) => tm.threadId)))],
+          locationIds: [...new Set(allScenes.map((s) => s.locationId))],
+          activeCharacterIds: [...new Set(allScenes.flatMap((s) => s.participantIds))],
+          initialCharacterLocations: {},
+          directionVector: plan.directionVector,
+        };
+
+    // Notify caller for live UI updates
+    onScene?.(scene, currentArc, i);
+  }
+
+  // Build final arc
+  const newSceneIds = allScenes.map((s) => s.id);
+  const newDevelops = [...new Set(allScenes.flatMap((s) => s.threadMutations.map((tm) => tm.threadId)))];
+  const newLocationIds = [...new Set(allScenes.map((s) => s.locationId))];
+  const newCharacterIds = [...new Set(allScenes.flatMap((s) => s.participantIds))];
+
+  const arc: Arc = existingArc
+    ? {
+        ...existingArc,
+        sceneIds: [...existingArc.sceneIds, ...newSceneIds],
+        develops: [...new Set([...existingArc.develops, ...newDevelops])],
+        locationIds: [...new Set([...existingArc.locationIds, ...newLocationIds])],
+        activeCharacterIds: [...new Set([...existingArc.activeCharacterIds, ...newCharacterIds])],
+      }
+    : {
+        id: arcId,
+        name: plan.arcName,
+        sceneIds: newSceneIds,
+        develops: newDevelops,
+        locationIds: newLocationIds,
+        activeCharacterIds: newCharacterIds,
+        initialCharacterLocations: {},
+        directionVector: plan.directionVector,
+      };
+
+  if (!existingArc && allScenes.length > 0) {
+    for (const cid of arc.activeCharacterIds) {
+      const firstScene = allScenes.find((s) => s.participantIds.includes(cid));
+      if (firstScene) arc.initialCharacterLocations[cid] = firstScene.locationId;
+    }
+  }
+
+  return { scenes: allScenes, arc };
 }

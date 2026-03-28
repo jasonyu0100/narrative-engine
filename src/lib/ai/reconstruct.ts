@@ -309,7 +309,7 @@ Return JSON with ONLY the fields you are changing (omit unchanged fields):
   "threadMutations": [{"threadId": "T-XX", "from": "status", "to": "status"}],
   "continuityMutations": [{"characterId": "C-XX", "nodeId": "K-NEW-001", "action": "added", "content": "what they learned", "nodeType": "type"}],
   "relationshipMutations": [{"from": "C-XX", "to": "C-YY", "type": "description", "valenceDelta": 0.1}],
-  "summary": "3-5 sentence detailed narrative summary using character NAMES and location NAMES."
+  "summary": "3-5 sentences — every sentence needs a named character + physical action verb + concrete consequence. No sentences ending in emotions or realizations. Use character NAMES and location NAMES."
 }`;
 
   const raw = await callGenerate(prompt, SYSTEM_PROMPT, 1500, 'editSceneSummary', GENERATE_MODEL);
@@ -399,7 +399,7 @@ Return JSON (same scene structure):
   "continuityMutations": [{"characterId": "C-XX", "nodeId": "K-NEW-001", "action": "added", "content": "what they learned", "nodeType": "type"}],
   "relationshipMutations": [{"from": "C-XX", "to": "C-YY", "type": "description", "valenceDelta": 0.1}],
   "worldKnowledgeMutations": {"addedNodes": [], "addedEdges": []},
-  "summary": "3-5 sentence detailed narrative summary using character NAMES and location NAMES."
+  "summary": "3-5 sentences — every sentence needs a named character + physical action verb + concrete consequence. No sentences ending in emotions or realizations. Use character NAMES and location NAMES."
 }`;
 
   const raw = await callGenerate(prompt, SYSTEM_PROMPT, 2000, 'rewriteSceneStructure', GENERATE_MODEL);

@@ -2,7 +2,8 @@
 export { narrativeContext, narrativeContext as branchContext, sceneContext, outlineContext, worldContext } from './context';
 
 // Scene generation
-export { generateScenes, generateScenePlan, rewriteScenePlan, generateSceneProse } from './scenes';
+export { generateScenes, generateArcStepwise, generateScenePlan, rewriteScenePlan, generateSceneProse } from './scenes';
+export type { ArcPlan, GenerateStepwiseOptions } from './scenes';
 
 // World building & direction
 export { suggestArcDirection, suggestAutoDirection, suggestWorldExpansion, expandWorld, generateNarrative, computeWorldMetrics } from './world';

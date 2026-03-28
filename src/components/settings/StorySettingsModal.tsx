@@ -447,6 +447,32 @@ export function StorySettingsModal({ onClose }: { onClose: () => void }) {
                 </div>
               </div>
 
+              {/* Generation Mode */}
+              <div>
+                <label className="text-[10px] text-text-dim uppercase tracking-wider block mb-2">
+                  Generation Mode
+                </label>
+                <div className="space-y-1.5">
+                  {([
+                    { value: 'batch' as const, label: 'Batch', desc: 'Generate all scenes at once — fast, single LLM call per arc' },
+                    { value: 'stepwise' as const, label: 'Stepwise', desc: 'Generate one scene at a time — slower, but each scene sees full context of prior scenes' },
+                  ]).map((opt) => (
+                    <button
+                      key={opt.value}
+                      onClick={() => update({ generationMode: opt.value })}
+                      className={`w-full text-left px-3 py-2 rounded-lg border transition-colors ${
+                        settings.generationMode === opt.value
+                          ? 'border-blue-500/50 bg-blue-500/10'
+                          : 'border-white/5 bg-white/2 hover:bg-white/5'
+                      }`}
+                    >
+                      <span className="text-[11px] font-semibold text-text-primary">{opt.label}</span>
+                      <span className="text-[10px] text-text-dim ml-2">{opt.desc}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
               {/* Branch Time Horizon */}
               <div>
                 <label className="text-[10px] text-text-dim uppercase tracking-wider block mb-2">

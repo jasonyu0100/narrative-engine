@@ -513,6 +513,9 @@ export type WorldFocusMode = 'latest' | 'custom' | 'none';
  *  Controls expected scenes-per-lifecycle-phase and prompts thread acceleration/deceleration. */
 export type ThreadResolutionSpeed = 'slow' | 'moderate' | 'fast';
 
+/** How scenes within an arc are generated — batch (all at once, fast) or stepwise (one at a time, higher context) */
+export type GenerationMode = 'batch' | 'stepwise';
+
 export type StorySettings = {
   /** How POV is distributed across the story */
   povMode: POVMode;
@@ -544,6 +547,8 @@ export type StorySettings = {
   narrativeGuidance: string;
   /** Default world expansion strategy — depth deepens the existing sandbox, breadth widens the map, dynamic auto-selects based on metrics */
   expansionStrategy: 'depth' | 'breadth' | 'dynamic';
+  /** How scenes within an arc are generated — batch generates all at once (fast), stepwise generates one at a time with full context (slower, less duplication) */
+  generationMode: GenerationMode;
 };
 
 export const BRANCH_TIME_HORIZON_OPTIONS = [25, 50, 100, 200] as const;
@@ -563,6 +568,7 @@ export const DEFAULT_STORY_SETTINGS: StorySettings = {
   threadResolutionSpeed: 'moderate',
   narrativeGuidance: '',
   expansionStrategy: 'dynamic',
+  generationMode: 'batch',
 };
 
 // ── Planning Queue ──────────────────────────────────────────────────────────

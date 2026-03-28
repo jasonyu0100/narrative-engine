@@ -2,7 +2,7 @@
 
 import { useState, useMemo, useCallback } from 'react';
 import { useStore } from '@/lib/store';
-import { generateScenes, expandWorld, suggestWorldExpansion, type WorldExpansionSize, type WorldExpansionStrategy } from '@/lib/ai';
+import { generateScenes, generateArcStepwise, expandWorld, suggestWorldExpansion, type WorldExpansionSize, type WorldExpansionStrategy } from '@/lib/ai';
 import { resolveEntry, NARRATIVE_CUBE } from '@/types/narrative';
 import type { CubeCornerKey } from '@/types/narrative';
 import { nextId } from '@/lib/narrative-utils';
@@ -151,11 +151,28 @@ export function GeneratePanel({ onClose }: { onClose: () => void }) {
 
       const existingArc = !newArc ? currentArc ?? undefined : undefined;
       const worldBuildFocus = worldBuildFocusId ? narrative.worldBuilds[worldBuildFocusId] : undefined;
-      const { scenes, arc } = await generateScenes(
-        narrative, state.resolvedEntryKeys, headIndex, count, direction,
-        { existingArc, pacingSequence: previewSequence ?? undefined, worldBuildFocus, onToken: (token) => setStreamText((prev) => prev + token) },
-      );
-      dispatch({ type: 'BULK_ADD_SCENES', scenes, arc, branchId: state.activeBranchId! });
+      const genMode = narrative.storySettings?.generationMode ?? 'batch';
+
+      if (genMode === 'stepwise') {
+        await generateArcStepwise(
+          narrative, state.resolvedEntryKeys, headIndex, count, direction,
+          {
+            existingArc,
+            pacingSequence: previewSequence ?? undefined,
+            worldBuildFocus,
+            onToken: (token) => setStreamText((prev) => prev + token),
+            onScene: (scene, progressArc) => {
+              dispatch({ type: 'BULK_ADD_SCENES', scenes: [scene], arc: progressArc, branchId: state.activeBranchId! });
+            },
+          },
+        );
+      } else {
+        const { scenes, arc } = await generateScenes(
+          narrative, state.resolvedEntryKeys, headIndex, count, direction,
+          { existingArc, pacingSequence: previewSequence ?? undefined, worldBuildFocus, onToken: (token) => setStreamText((prev) => prev + token) },
+        );
+        dispatch({ type: 'BULK_ADD_SCENES', scenes, arc, branchId: state.activeBranchId! });
+      }
       onClose();
     } catch (err) {
       setError(String(err));

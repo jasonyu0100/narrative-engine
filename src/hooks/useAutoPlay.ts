@@ -3,10 +3,12 @@
 import { useRef, useCallback, useEffect } from 'react';
 import { useStore } from '@/lib/store';
 import { evaluateNarrativeState, checkEndConditions, pickArcLength, buildActionDirective } from '@/lib/auto-engine';
-import { generateScenes } from '@/lib/ai';
+import { generateScenes, generateArcStepwise, expandWorld } from '@/lib/ai';
 import { refreshDirection } from '@/lib/ai/review';
+import { generatePhaseDirection } from '@/lib/planning-engine';
 import { DEFAULT_STORY_SETTINGS } from '@/types/narrative';
 import type { AutoRunLog } from '@/types/narrative';
+import { nextId } from '@/lib/narrative-utils';
 
 export function useAutoPlay() {
   const { state, dispatch } = useStore();
@@ -43,6 +45,38 @@ export function useAutoPlay() {
         });
         dispatch({ type: 'STOP_AUTO_RUN' });
         return;
+      }
+    }
+
+    // First-phase init: if active phase has no direction yet, run world expansion + direction
+    if (pq) {
+      const ap = pq.phases[pq.activePhaseIndex];
+      if (ap?.status === 'active' && !ap.direction && ap.scenesCompleted === 0) {
+        dispatch({ type: 'SET_AUTO_STATUS', message: 'Initializing first phase...' });
+        try {
+          if (ap.worldExpansionHints) {
+            dispatch({ type: 'SET_AUTO_STATUS', message: 'Expanding world...' });
+            const strategy = activeNarrative.storySettings?.expansionStrategy ?? 'dynamic';
+            const expansion = await expandWorld(activeNarrative, resolvedEntryKeys, currentSceneIndex, ap.worldExpansionHints, 'medium', strategy);
+            dispatch({
+              type: 'EXPAND_WORLD',
+              worldBuildId: nextId('WB', Object.keys(activeNarrative.worldBuilds), 3),
+              characters: expansion.characters, locations: expansion.locations,
+              threads: expansion.threads, relationships: expansion.relationships,
+              worldKnowledgeMutations: expansion.worldKnowledgeMutations, artifacts: expansion.artifacts,
+              branchId: activeBranchId,
+            });
+          }
+          dispatch({ type: 'SET_AUTO_STATUS', message: 'Generating direction...' });
+          const freshNarrative = stateRef.current.activeNarrative ?? activeNarrative;
+          const { direction, constraints } = await generatePhaseDirection(freshNarrative, resolvedEntryKeys, currentSceneIndex, ap, pq);
+          dispatch({ type: 'UPDATE_PLANNING_PHASE', branchId: activeBranchId, phaseIndex: pq.activePhaseIndex, updates: { direction, constraints: constraints || ap.constraints } });
+          const baseSettings = { ...DEFAULT_STORY_SETTINGS, ...freshNarrative.storySettings };
+          dispatch({ type: 'SET_STORY_SETTINGS', settings: { ...baseSettings, storyDirection: direction, storyConstraints: constraints || ap.constraints || baseSettings.storyConstraints, worldFocus: 'latest' as const } });
+        } catch (err) {
+          console.error('[auto-play] first phase init failed:', err);
+        }
+        return; // Let the next tick proceed with generation
       }
     }
 
@@ -139,29 +173,42 @@ export function useAutoPlay() {
         }
       }
 
-      dispatch({ type: 'SET_AUTO_STATUS', message: `Generating ${sceneCount} scenes...` });
-      let { scenes, arc } = await generateScenes(
-        activeNarrative,
-        resolvedEntryKeys,
-        currentSceneIndex,
-        sceneCount,
-        directive,
-        { worldBuildFocus },
-      );
+      const genMode = activeNarrative.storySettings?.generationMode ?? 'batch';
+      let scenes: Awaited<ReturnType<typeof generateScenes>>['scenes'];
+      let arc: Awaited<ReturnType<typeof generateScenes>>['arc'];
 
-      // Truncate if LLM returned more scenes than requested
-      if (phaseRemaining < Infinity && scenes.length > phaseRemaining) {
-        scenes = scenes.slice(0, phaseRemaining);
-        arc = { ...arc, sceneIds: arc.sceneIds.slice(0, phaseRemaining) };
+      if (genMode === 'stepwise') {
+        dispatch({ type: 'SET_AUTO_STATUS', message: `Generating ${sceneCount} scenes (stepwise)...` });
+        const result = await generateArcStepwise(
+          activeNarrative, resolvedEntryKeys, currentSceneIndex, sceneCount, directive,
+          {
+            worldBuildFocus,
+            shouldStop: () => cancelledRef.current,
+            onScene: (scene, progressArc, idx) => {
+              dispatch({ type: 'SET_AUTO_STATUS', message: `Scene ${idx + 1}/${sceneCount}...` });
+              dispatch({ type: 'BULK_ADD_SCENES', scenes: [scene], arc: progressArc, branchId: activeBranchId });
+            },
+          },
+        );
+        scenes = result.scenes;
+        arc = result.arc;
+      } else {
+        dispatch({ type: 'SET_AUTO_STATUS', message: `Generating ${sceneCount} scenes...` });
+        const result = await generateScenes(
+          activeNarrative, resolvedEntryKeys, currentSceneIndex, sceneCount, directive, { worldBuildFocus },
+        );
+        scenes = result.scenes;
+        arc = result.arc;
+        // Truncate if LLM returned more scenes than requested
+        if (phaseRemaining < Infinity && scenes.length > phaseRemaining) {
+          scenes = scenes.slice(0, phaseRemaining);
+          arc = { ...arc, sceneIds: arc.sceneIds.slice(0, phaseRemaining) };
+        }
+        if (cancelledRef.current) return;
+        dispatch({ type: 'BULK_ADD_SCENES', scenes, arc, branchId: activeBranchId });
       }
-      if (cancelledRef.current) return;
 
-      dispatch({
-        type: 'BULK_ADD_SCENES',
-        scenes,
-        arc,
-        branchId: activeBranchId,
-      });
+      if (cancelledRef.current) return;
       scenesGenerated = scenes.length;
       arcName = arc.name;
 

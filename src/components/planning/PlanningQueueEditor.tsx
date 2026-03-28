@@ -232,9 +232,10 @@ export function PlanningQueueEditor({ onClose, onStartAuto }: Props) {
     onClose();
   }
 
-  async function handleAutoMode() {
+  function handleAutoMode() {
     setShowModeChoice(false);
-    await initFirstPhase();
+    // Auto mode skips the blocking world+direction init — the auto loop handles
+    // direction via refreshDirection and world expansion via phase transitions.
     onStartAuto?.();
     onClose();
   }

@@ -264,8 +264,9 @@ export default function KnowledgeGraphView({ narrative, resolvedKeys, currentInd
       })
       .text((d) => {
         // Truncate at em dash or long descriptions for clean graph labels
-        const dash = d.concept.indexOf(' — ');
-        return dash > 0 ? d.concept.slice(0, dash) : d.concept.slice(0, 40) + (d.concept.length > 40 ? '…' : '');
+        const concept = d.concept ?? '';
+        const dash = concept.indexOf(' — ');
+        return dash > 0 ? concept.slice(0, dash) : concept.slice(0, 40) + (concept.length > 40 ? '…' : '');
       });
 
     // Relation labels on edges

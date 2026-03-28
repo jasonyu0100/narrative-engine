@@ -432,6 +432,24 @@ const MODE_GUIDANCE: Record<CubeCornerKey, string> = {
 };
 
 /**
+ * Build a pacing prompt for a SINGLE scene step within a sequence.
+ * Used by stepwise scene generation where each scene is generated independently.
+ */
+export function buildSingleStepPrompt(step: ModeStep, sceneIndex: number, totalScenes: number): string {
+  const p = step.mode[0] === 'H' ? 'HIGH' : 'LOW';
+  const c = step.mode[1] === 'H' ? 'HIGH' : 'LOW';
+  const k = step.mode[2] === 'H' ? 'HIGH' : 'LOW';
+  const lines: string[] = [];
+  lines.push(`PACING MODE — Scene ${sceneIndex + 1} of ${totalScenes}: ${NARRATIVE_CUBE[step.mode].name} [P:${p} C:${c} K:${k}]`);
+  lines.push(`  ${MODE_GUIDANCE[step.mode]}`);
+  lines.push(`  Targets: Payoff ${step.forces.payoff[0]}–${step.forces.payoff[1]}, Change ${step.forces.change[0]}–${step.forces.change[1]}, Knowledge ${step.forces.knowledge[0]}–${step.forces.knowledge[1]}`);
+  lines.push('');
+  lines.push('Force formulas: Payoff = Σ thread transition jumps (pulse = 0.25). Change = √(continuity) + √(events) + √(Σ|valenceDelta|). Knowledge = new_world_nodes + √(new_world_edges).');
+  lines.push('Match your mutation counts to the mode targets — the formulas compute forces FROM mutations.');
+  return lines.join('\n');
+}
+
+/**
  * Build the per-scene pacing prompt block from a sequence.
  * Each scene gets its cube mode, a description of what that mode demands
  * in terms of mutations, and target force ranges.

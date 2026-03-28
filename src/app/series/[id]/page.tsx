@@ -219,7 +219,7 @@ export default function SeriesPage() {
           transitionStep={planning.transitionStep}
           onExtend={() => planning.extendPhase()}
           onAdvance={(customWorldPrompt) => planning.advancePhase(customWorldPrompt)}
-          onClose={() => planning.advancePhase()}
+          onClose={() => planning.dismissCompletion()}
         />
       )}
       <MCTSPanel isOpen={mctsOpen} onClose={() => setMctsOpen(false)} mcts={mcts} />
