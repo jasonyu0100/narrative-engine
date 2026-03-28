@@ -3,6 +3,7 @@
 import React, { useMemo, useState } from 'react';
 import katex from 'katex';
 import 'katex/dist/katex.min.css';
+import { Modal, ModalHeader, ModalBody } from '@/components/Modal';
 
 type Props = { onClose: () => void };
 
@@ -142,41 +143,29 @@ export function FormulaModal({ onClose }: Props) {
   const [tab, setTab] = useState<Tab>('Forces');
 
   return (
-    <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4" onClick={onClose}>
-      <div
-        className="bg-bg-base border border-white/10 rounded-2xl flex flex-col max-w-2xl w-full"
-        style={{ maxHeight: 'calc(100vh - 4rem)' }}
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="flex items-center justify-between px-5 py-3 border-b border-border shrink-0">
-          <div className="flex items-center gap-1">
-            {tabs.map((t) => (
-              <button
-                key={t}
-                onClick={() => setTab(t)}
-                className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
-                  tab === t
-                    ? 'bg-bg-elevated text-text-primary'
-                    : 'text-text-dim hover:text-text-secondary'
-                }`}
-              >
-                {t}
-              </button>
-            ))}
-          </div>
-          <button onClick={onClose} className="p-1 rounded hover:bg-bg-elevated transition-colors text-text-dim hover:text-text-primary">
-            <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
-            </svg>
-          </button>
+    <Modal onClose={onClose} size="2xl">
+      <ModalHeader onClose={onClose}>
+        <div className="flex items-center gap-1">
+          {tabs.map((t) => (
+            <button
+              key={t}
+              onClick={() => setTab(t)}
+              className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+                tab === t
+                  ? 'bg-bg-elevated text-text-primary'
+                  : 'text-text-dim hover:text-text-secondary'
+              }`}
+            >
+              {t}
+            </button>
+          ))}
         </div>
-
-        <div className="overflow-auto px-5 py-4">
-          {tab === 'Forces' && <ForcesTab />}
-          {tab === 'Dynamics' && <DynamicsTab />}
-          {tab === 'Scoring' && <ScoringTab />}
-        </div>
-      </div>
-    </div>
+      </ModalHeader>
+      <ModalBody className="px-5 py-4">
+        {tab === 'Forces' && <ForcesTab />}
+        {tab === 'Dynamics' && <DynamicsTab />}
+        {tab === 'Scoring' && <ScoringTab />}
+      </ModalBody>
+    </Modal>
   );
 }

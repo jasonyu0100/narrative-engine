@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { Modal, ModalHeader, ModalBody, ModalFooter } from '@/components/Modal';
 import type { PlanningQueue } from '@/types/narrative';
 import { PlanningLoadingModal } from './PlanningLoadingModal';
 
@@ -26,15 +27,13 @@ export function PhaseCompletionModal({ queue, completionReport, transitioning, t
   }
 
   return (
-    <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center">
-      <div className="glass max-w-md w-full rounded-2xl p-5 relative">
-        <button onClick={onClose} className="absolute top-3 right-3 text-text-dim hover:text-text-primary text-lg leading-none">&times;</button>
-
-        {/* Header */}
+    <Modal onClose={onClose} size="md">
+      <ModalHeader onClose={onClose}>
         <p className="text-[10px] text-text-dim uppercase tracking-wider">{completedPhase?.name ?? 'Phase'} complete</p>
-
+      </ModalHeader>
+      <ModalBody className="p-5">
         {/* Report */}
-        <p className="text-xs text-text-secondary leading-relaxed mt-2 whitespace-pre-wrap">
+        <p className="text-xs text-text-secondary leading-relaxed whitespace-pre-wrap">
           {completionReport || 'Generating report...'}
         </p>
 
@@ -55,24 +54,21 @@ export function PhaseCompletionModal({ queue, completionReport, transitioning, t
             )}
           </div>
         )}
-
-        {/* Actions */}
-        <div className="flex items-center gap-2 mt-4">
-          {!isLastPhase && (
-            <button onClick={onExtend}
-              className="text-[11px] text-text-dim hover:text-text-secondary transition mr-auto">
-              + Extend phase
-            </button>
-          )}
-          <div className="flex-1" />
-          <button
-            onClick={() => onAdvance(worldPrompt.trim() || undefined)}
-            className="px-5 py-2 text-xs font-semibold rounded-lg bg-white/10 hover:bg-white/16 text-text-primary transition"
-          >
-            {isLastPhase ? 'Complete' : 'Next Phase'}
+      </ModalBody>
+      <ModalFooter>
+        {!isLastPhase && (
+          <button onClick={onExtend}
+            className="text-[11px] text-text-dim hover:text-text-secondary transition mr-auto">
+            + Extend phase
           </button>
-        </div>
-      </div>
-    </div>
+        )}
+        <button
+          onClick={() => onAdvance(worldPrompt.trim() || undefined)}
+          className="px-5 py-2 text-xs font-semibold rounded-lg bg-white/10 hover:bg-white/16 text-text-primary transition"
+        >
+          {isLastPhase ? 'Complete' : 'Next Phase'}
+        </button>
+      </ModalFooter>
+    </Modal>
   );
 }

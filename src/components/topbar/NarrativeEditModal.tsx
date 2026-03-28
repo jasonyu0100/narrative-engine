@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useStore } from '@/lib/store';
 import { apiHeaders } from '@/lib/api-headers';
+import { Modal, ModalHeader, ModalBody, ModalFooter } from '@/components/Modal';
 import type { NarrativeEntry } from '@/types/narrative';
 
 export function NarrativeEditModal({ entry, onClose }: { entry: NarrativeEntry; onClose: () => void }) {
@@ -57,22 +58,11 @@ export function NarrativeEditModal({ entry, onClose }: { entry: NarrativeEntry; 
   }
 
   return (
-    <div
-      className="fixed inset-0 z-200 flex items-center justify-center"
-      onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
-    >
-      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
-      <div
-        className="relative w-full max-w-lg mx-4 rounded-xl border border-white/10 flex flex-col overflow-hidden"
-        style={{ background: '#1a1a1a', boxShadow: '0 24px 60px rgba(0,0,0,0.7)' }}
-      >
-        {/* Header */}
-        <div className="flex items-center justify-between px-4 py-3 border-b border-white/6">
-          <h2 className="text-[13px] font-semibold text-text-primary">Edit Story</h2>
-          <button onClick={onClose} className="text-text-dim hover:text-text-secondary transition-colors text-lg leading-none">&times;</button>
-        </div>
-
-        <div className="p-4 space-y-4 overflow-y-auto">
+    <Modal onClose={onClose} size="lg">
+      <ModalHeader onClose={onClose}>
+        <h2 className="text-[13px] font-semibold text-text-primary">Edit Story</h2>
+      </ModalHeader>
+      <ModalBody className="p-4 space-y-4">
           {/* Cover */}
           <div className="flex gap-4 items-start">
             <div className="w-24 shrink-0 rounded-lg overflow-hidden border border-white/10">
@@ -132,24 +122,21 @@ export function NarrativeEditModal({ entry, onClose }: { entry: NarrativeEntry; 
               className="w-full bg-bg-elevated border border-white/10 rounded-lg px-3 py-2 text-[12px] text-text-primary placeholder:text-text-dim/40 outline-none focus:border-white/20 resize-none transition-colors"
             />
           </div>
-        </div>
-
-        {/* Footer */}
-        <div className="flex justify-end gap-2 px-4 py-3 border-t border-white/6 shrink-0">
-          <button
-            onClick={onClose}
-            className="text-[11px] px-3 py-1.5 rounded-md bg-white/5 text-text-dim hover:text-text-secondary transition-colors"
-          >
-            Cancel
-          </button>
-          <button
-            onClick={handleSave}
-            className="text-[11px] px-3 py-1.5 rounded-md bg-white/10 text-text-primary hover:bg-white/15 transition-colors font-medium"
-          >
-            Save
-          </button>
-        </div>
-      </div>
-    </div>
+      </ModalBody>
+      <ModalFooter>
+        <button
+          onClick={onClose}
+          className="text-[11px] px-3 py-1.5 rounded-md bg-white/5 text-text-dim hover:text-text-secondary transition-colors"
+        >
+          Cancel
+        </button>
+        <button
+          onClick={handleSave}
+          className="text-[11px] px-3 py-1.5 rounded-md bg-white/10 text-text-primary hover:bg-white/15 transition-colors font-medium"
+        >
+          Save
+        </button>
+      </ModalFooter>
+    </Modal>
   );
 }

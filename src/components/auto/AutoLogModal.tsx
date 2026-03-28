@@ -1,6 +1,7 @@
 'use client';
 
 import { useRef, useEffect } from 'react';
+import { Modal, ModalHeader, ModalBody } from '@/components/Modal';
 import type { AutoRunLog } from '@/types/narrative';
 
 const ACTION_LABELS: Record<string, string> = {
@@ -22,14 +23,14 @@ export function AutoLogModal({ log, onClose }: { log: AutoRunLog[]; onClose: () 
   }, [log.length]);
 
   return (
-    <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center">
-      <div className="glass max-w-2xl w-full rounded-2xl p-5 relative max-h-[80vh] flex flex-col">
-        <button onClick={onClose} className="absolute top-3 right-3 text-text-dim hover:text-text-primary text-lg leading-none">&times;</button>
-
-        <h2 className="text-sm font-semibold text-text-primary mb-0.5">Auto Mode Log</h2>
-        <p className="text-[10px] text-text-dim uppercase tracking-wider mb-3">{log.length} cycles</p>
-
-        <div className="flex-1 overflow-y-auto min-h-0 font-mono text-[11px] space-y-3">
+    <Modal onClose={onClose} size="2xl" maxHeight="80vh">
+      <ModalHeader onClose={onClose}>
+        <div>
+          <h2 className="text-sm font-semibold text-text-primary">Auto Mode Log</h2>
+          <p className="text-[10px] text-text-dim uppercase tracking-wider">{log.length} cycles</p>
+        </div>
+      </ModalHeader>
+      <ModalBody className="p-5 font-mono text-[11px] space-y-3">
           {log.length === 0 && (
             <p className="text-text-dim text-center py-8">No cycles logged yet</p>
           )}
@@ -100,8 +101,7 @@ export function AutoLogModal({ log, onClose }: { log: AutoRunLog[]; onClose: () 
             </div>
           ))}
           <div ref={bottomRef} />
-        </div>
-      </div>
-    </div>
+      </ModalBody>
+    </Modal>
   );
 }

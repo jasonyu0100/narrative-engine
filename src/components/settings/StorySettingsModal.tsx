@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { useStore } from '@/lib/store';
+import { Modal, ModalHeader, ModalBody, ModalFooter } from '@/components/Modal';
 import type { StorySettings, POVMode, WorldFocusMode } from '@/types/narrative';
 import { DEFAULT_STORY_SETTINGS, BRANCH_TIME_HORIZON_OPTIONS } from '@/types/narrative';
 import { NARRATIVE_CUBE } from '@/types/narrative';
@@ -61,22 +62,18 @@ export function StorySettingsModal({ onClose }: { onClose: () => void }) {
   }
 
   return (
-    <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center">
-      <div className="glass max-w-2xl w-full rounded-2xl p-6 relative max-h-[85vh] flex flex-col">
-        <button
-          onClick={onClose}
-          className="absolute top-4 right-4 text-text-dim hover:text-text-primary text-lg leading-none"
-        >
-          &times;
-        </button>
-
-        <h2 className="text-sm font-semibold text-text-primary mb-1">Story Settings</h2>
-        <p className="text-[10px] text-text-dim uppercase tracking-wider mb-3">
-          Shape how your narrative is generated
-        </p>
-
+    <Modal onClose={onClose} size="2xl" maxHeight="85vh">
+      <ModalHeader onClose={onClose}>
+        <div>
+          <h2 className="text-sm font-semibold text-text-primary">Story Settings</h2>
+          <p className="text-[10px] text-text-dim uppercase tracking-wider">
+            Shape how your narrative is generated
+          </p>
+        </div>
+      </ModalHeader>
+      <ModalBody className="p-6">
         {/* Tabs */}
-        <div className="flex gap-1 bg-bg-elevated rounded-lg p-0.5 mb-4 shrink-0">
+        <div className="flex gap-1 bg-bg-elevated rounded-lg p-0.5 mb-4">
           {TABS.map((t) => (
             <button
               key={t.value}
@@ -471,22 +468,21 @@ export function StorySettingsModal({ onClose }: { onClose: () => void }) {
           )}
         </div>
 
-        {/* Footer */}
-        <div className="flex justify-end gap-2 mt-4 pt-3 border-t border-white/5 shrink-0">
-          <button
-            onClick={onClose}
-            className="text-[10px] px-3 py-1.5 rounded-md bg-white/5 text-text-dim hover:text-text-secondary transition-colors"
-          >
-            Cancel
-          </button>
-          <button
-            onClick={handleSave}
-            className="text-[10px] px-3 py-1.5 rounded-md bg-blue-500/20 text-blue-300 hover:bg-blue-500/30 transition-colors font-semibold"
-          >
-            Save Settings
-          </button>
-        </div>
-      </div>
-    </div>
+      </ModalBody>
+      <ModalFooter>
+        <button
+          onClick={onClose}
+          className="text-[10px] px-3 py-1.5 rounded-md bg-white/5 text-text-dim hover:text-text-secondary transition-colors"
+        >
+          Cancel
+        </button>
+        <button
+          onClick={handleSave}
+          className="text-[10px] px-3 py-1.5 rounded-md bg-blue-500/20 text-blue-300 hover:bg-blue-500/30 transition-colors font-semibold"
+        >
+          Save Settings
+        </button>
+      </ModalFooter>
+    </Modal>
   );
 }

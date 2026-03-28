@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { Modal, ModalHeader, ModalBody, ModalFooter } from '@/components/Modal';
 import type { FeatureAccess } from '@/hooks/useFeatureAccess';
 
 type Props = {
@@ -20,10 +21,12 @@ export default function ApiKeyModal({ access, onClose }: Props) {
   }
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80">
-      <div className="glass-panel border border-border rounded-xl w-full max-w-sm p-5 shadow-2xl">
-        <h2 className="text-sm font-semibold text-text-primary mb-1">API Keys</h2>
-        <p className="text-[11px] text-text-dim mb-3">
+    <Modal onClose={onClose} size="sm">
+      <ModalHeader onClose={onClose}>
+        <h2 className="text-sm font-semibold text-text-primary">API Keys</h2>
+      </ModalHeader>
+      <ModalBody>
+        <p className="text-[11px] text-text-dim mb-3 -mt-1">
           InkTide uses AI models via OpenRouter to analyze, generate, and refine stories. You&apos;ll need an OpenRouter API key to get started.
         </p>
 
@@ -70,30 +73,30 @@ export default function ApiKeyModal({ access, onClose }: Props) {
           )}
         </div>
 
-        <div className="flex items-center justify-end gap-2 mt-4">
-          {(access.hasOpenRouterKey || access.hasReplicateKey) && (
-            <button
-              onClick={() => { access.clearKeys(); setOrKey(''); setRepKey(''); }}
-              className="text-[10px] text-red-400/60 hover:text-red-400 transition-colors mr-auto"
-            >
-              Clear
-            </button>
-          )}
+      </ModalBody>
+      <ModalFooter>
+        {(access.hasOpenRouterKey || access.hasReplicateKey) && (
           <button
-            onClick={onClose}
-            className="text-[11px] px-3 py-1.5 rounded text-text-dim hover:text-text-secondary transition-colors"
+            onClick={() => { access.clearKeys(); setOrKey(''); setRepKey(''); }}
+            className="text-[10px] text-red-400/60 hover:text-red-400 transition-colors mr-auto"
           >
-            Cancel
+            Clear
           </button>
-          <button
-            onClick={handleSave}
-            disabled={!orKey.trim()}
-            className="text-[11px] px-3 py-1.5 rounded bg-accent/20 text-accent hover:bg-accent/30 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-          >
-            Save
-          </button>
-        </div>
-      </div>
-    </div>
+        )}
+        <button
+          onClick={onClose}
+          className="text-[11px] px-3 py-1.5 rounded text-text-dim hover:text-text-secondary transition-colors"
+        >
+          Cancel
+        </button>
+        <button
+          onClick={handleSave}
+          disabled={!orKey.trim()}
+          className="text-[11px] px-3 py-1.5 rounded bg-accent/20 text-accent hover:bg-accent/30 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+        >
+          Save
+        </button>
+      </ModalFooter>
+    </Modal>
   );
 }

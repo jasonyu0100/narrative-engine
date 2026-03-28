@@ -4,6 +4,7 @@ import { useMemo, useState } from 'react';
 import type { NarrativeState, Scene, CubeCornerKey } from '@/types/narrative';
 import { NARRATIVE_CUBE, resolveEntry, isScene } from '@/types/narrative';
 import { computeForceSnapshots, computeWindowedForces, detectCubeCorner, FORCE_WINDOW_SIZE } from '@/lib/narrative-utils';
+import { Modal, ModalHeader, ModalBody } from '@/components/Modal';
 
 type Scope = 'global' | 'local';
 type SortKey = 'index' | 'payoff' | 'change' | 'knowledge' | 'proximity';
@@ -141,37 +142,26 @@ export function CubeExplorer({
     sortKey === key ? (sortAsc ? ' \u25B2' : ' \u25BC') : '';
 
   return (
-    <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center" onClick={onClose}>
-      <div
-        className="bg-bg-base border border-white/10 rounded-xl shadow-2xl w-[720px] max-h-[80vh] flex flex-col"
-        onClick={(e) => e.stopPropagation()}
-      >
-        {/* Header */}
-        <div className="px-5 py-4 border-b border-white/5 flex items-center justify-between shrink-0">
-          <div className="flex items-center gap-3">
-            <h2 className="text-sm font-semibold text-text-primary">Cube Explorer</h2>
-            <span className="text-[10px] text-text-dim font-mono">{displayed.length} scenes</span>
-          </div>
-          <div className="flex items-center gap-3">
-            {/* Scope toggle */}
-            <div className="flex rounded-md overflow-hidden border border-white/10">
-              {(['global', 'local'] as const).map((s) => (
-                <button
-                  key={s}
-                  onClick={() => setScope(s)}
-                  className={`px-2.5 py-1 text-[10px] capitalize transition-colors ${
-                    scope === s ? 'bg-white/12 text-text-primary' : 'text-text-dim hover:text-text-secondary'
-                  }`}
-                >
-                  {s}
-                </button>
-              ))}
-            </div>
-            <button onClick={onClose} className="text-text-dim hover:text-text-primary text-lg leading-none transition">
-              &times;
+    <Modal onClose={onClose} size="2xl" maxHeight="80vh" panelClassName="w-180">
+      <ModalHeader onClose={onClose}>
+        <h2 className="text-sm font-semibold text-text-primary">Cube Explorer</h2>
+        <span className="text-[10px] text-text-dim font-mono">{displayed.length} scenes</span>
+        <div className="flex-1" />
+        {/* Scope toggle */}
+        <div className="flex rounded-md overflow-hidden border border-white/10">
+          {(['global', 'local'] as const).map((s) => (
+            <button
+              key={s}
+              onClick={() => setScope(s)}
+              className={`px-2.5 py-1 text-[10px] capitalize transition-colors ${
+                scope === s ? 'bg-white/12 text-text-primary' : 'text-text-dim hover:text-text-secondary'
+              }`}
+            >
+              {s}
             </button>
-          </div>
+          ))}
         </div>
+      </ModalHeader>
 
         {/* Corner filter chips */}
         <div className="px-5 py-3 border-b border-white/5 flex flex-wrap gap-1.5 shrink-0">
@@ -372,7 +362,6 @@ export function CubeExplorer({
             })
           )}
         </div>
-      </div>
-    </div>
+    </Modal>
   );
 }

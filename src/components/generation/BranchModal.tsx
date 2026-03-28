@@ -3,6 +3,7 @@
 import { useState, useMemo } from 'react';
 import { useStore } from '@/lib/store';
 import { resolveEntrySequence } from '@/lib/narrative-utils';
+import { Modal, ModalHeader, ModalBody } from '@/components/Modal';
 import type { Branch, NarrativeState } from '@/types/narrative';
 
 // ─── Colours ──────────────────────────────────────────────────────────────────
@@ -278,16 +279,11 @@ export function BranchModal({ onClose }: { onClose: () => void }) {
   }
 
   return (
-    <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center">
-      <div className="glass max-w-2xl w-full rounded-2xl p-6 relative max-h-[85vh] flex flex-col">
-        <button
-          onClick={onClose}
-          className="absolute top-4 right-4 text-text-dim hover:text-text-primary text-lg leading-none"
-        >
-          &times;
-        </button>
-
-        <h2 className="text-sm font-semibold text-text-primary mb-4">Branches</h2>
+    <Modal onClose={onClose} size="2xl" maxHeight="85vh">
+      <ModalHeader onClose={onClose}>
+        <h2 className="text-sm font-semibold text-text-primary">Branches</h2>
+      </ModalHeader>
+      <ModalBody className="p-6">
 
         {/* ── Git graph ───────────────────────────────────────────────────── */}
         <div className="flex-1 overflow-y-auto min-h-0 mb-4">
@@ -526,7 +522,7 @@ export function BranchModal({ onClose }: { onClose: () => void }) {
             </button>
           </div>
         </div>
-      </div>
-    </div>
+      </ModalBody>
+    </Modal>
   );
 }

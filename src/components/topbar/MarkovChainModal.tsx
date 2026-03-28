@@ -4,6 +4,7 @@ import { useMemo, useState, useRef, useEffect } from 'react';
 import type { NarrativeState, CubeCornerKey, ForceSnapshot, Scene } from '@/types/narrative';
 import { NARRATIVE_CUBE, resolveEntry, isScene } from '@/types/narrative';
 import { computeForceSnapshots, detectCubeCorner } from '@/lib/narrative-utils';
+import { Modal, ModalHeader } from '@/components/Modal';
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -696,36 +697,22 @@ export function MarkovChainModal({ narrative, resolvedKeys, currentSceneIndex, o
   );
 
   return (
-    <div className="fixed inset-0 bg-bg-base z-50">
-      <div className="flex flex-col w-full h-full" onClick={(e) => e.stopPropagation()}>
-        {/* Header */}
-        <div className="px-6 py-3 border-b border-white/5 shrink-0 flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <h2 className="text-[14px] font-semibold text-text-primary">State Machine</h2>
-            {currentMode && (
-              <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-white/5 text-[11px]">
-                <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: CORNER_COLORS[currentMode] }} />
-                <span className="text-text-dim">Now:</span>
-                <span style={{ color: CORNER_COLORS[currentMode] }} className="font-medium">
-                  {NARRATIVE_CUBE[currentMode].name}
-                </span>
-              </div>
-            )}
-            <span className="text-[11px] text-text-dim">
-              {cornerSeq.length} scenes · {totalTransitions} transitions
+    <Modal onClose={onClose} fullScreen>
+      <ModalHeader onClose={onClose}>
+        <h2 className="text-[14px] font-semibold text-text-primary">State Machine</h2>
+        {currentMode && (
+          <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-white/5 text-[11px]">
+            <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: CORNER_COLORS[currentMode] }} />
+            <span className="text-text-dim">Now:</span>
+            <span style={{ color: CORNER_COLORS[currentMode] }} className="font-medium">
+              {NARRATIVE_CUBE[currentMode].name}
             </span>
           </div>
-          <div className="flex items-center gap-2">
-            <button
-              onClick={onClose}
-              className="ml-2 p-1.5 rounded hover:bg-white/10 text-text-dim hover:text-text-primary transition-colors"
-            >
-              <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M18 6L6 18M6 6l12 12" />
-              </svg>
-            </button>
-          </div>
-        </div>
+        )}
+        <span className="text-[11px] text-text-dim">
+          {cornerSeq.length} scenes · {totalTransitions} transitions
+        </span>
+      </ModalHeader>
 
         {/* Content */}
         <div className="flex-1 flex min-h-0">
@@ -850,7 +837,6 @@ export function MarkovChainModal({ narrative, resolvedKeys, currentSceneIndex, o
             <span className="ml-auto">Click a row to focus</span>
           </div>
         </div>
-      </div>
-    </div>
+    </Modal>
   );
 }
