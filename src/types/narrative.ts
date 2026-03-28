@@ -366,7 +366,7 @@ export type ContinuityPlan = {
 // ── Branch Evaluation ─────────────────────────────────────────────────────
 
 /** Per-scene verdict from a branch evaluation pass */
-export type SceneVerdict = 'ok' | 'edit' | 'rewrite' | 'cut';
+export type SceneVerdict = 'ok' | 'edit' | 'merge' | 'cut' | 'defer';
 
 /** One scene's evaluation entry */
 export type SceneEval = {
@@ -374,6 +374,10 @@ export type SceneEval = {
   verdict: SceneVerdict;
   /** One-line reason for the verdict */
   reason: string;
+  /** For "merge" verdicts: ID of the scene to merge INTO (the surviving scene absorbs this one's content) */
+  mergeInto?: string;
+  /** For "defer" verdicts: brief description of the beat to carry forward into the next arc's direction */
+  deferredBeat?: string;
 };
 
 /** Full branch evaluation — overall critique + per-scene verdicts */

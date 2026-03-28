@@ -92,26 +92,32 @@ Evaluate this branch on these dimensions:
 5. **THREADS** — Which threads are advancing well? Which are stagnating or being ignored?
 6. **THEME** — What is this story about underneath the plot? Is it interrogating anything?
 
-For EACH scene, assign a verdict. These map to concrete operations — choose carefully:
-- "ok" — scene works structurally and respects continuity. No changes needed.
-- "edit" — the scene's core is right (correct POV, correct location, correct participants) but the SUMMARY needs tightening. Use for: repetitive beats that need variation, weak event descriptions, minor continuity fixes in what happens, thread mutations that need adjusting. The scene keeps its POV, location, and cast — only summary, events, and mutations change.
-- "rewrite" — the scene's STRUCTURE is wrong and needs rebuilding from scratch. Use for: wrong POV character for this moment, wrong location, wrong participants, or continuity broken so badly the scene needs reimagining. Everything changes — POV, location, participants, mutations, summary. NOTE: "rewrite" means THIS SCENE SHOULD EXIST but with different content. Do NOT use "rewrite" for scenes that are redundant — use "cut" instead.
-- "cut" — scene is redundant, a near-duplicate of another scene, or adds nothing the narrative needs. The story is tighter without it. USE THIS VERDICT. If a scene covers the same beat as another scene and the other scene does it better, cut this one. If the reason includes words like "redundant", "overlap", "duplicate", "repetitive of S-XXX", or "same beat as" — that is a CUT, not a rewrite.
+For EACH scene, assign a verdict. These map to concrete operations:
+- "ok" — scene works. No changes needed.
+- "edit" — scene should exist but needs revision. You may change ANYTHING: POV, location, participants, summary, events, mutations. Use for: wrong POV for this moment, repetitive beats that need variation, weak execution, continuity breaks, scenes that need restructuring while keeping their place in the timeline.
+- "merge" — this scene covers the same beat as another and should be ABSORBED into the stronger one. You MUST specify "mergeInto" with the target scene ID. The two become one denser scene. Use when two scenes advance the same thread with similar dramatic shape.
+- "cut" — scene is redundant and adds nothing. The story is tighter without it.
+- "defer" — good beat, wrong timing. This scene should be removed from the current arc and carried forward as a priority for the next arc. You MUST specify "deferredBeat" describing what should happen later. Use when a scene introduces something that would land better after other events have played out.
 
-CONTINUITY IS PARAMOUNT. A scene that contradicts established character knowledge, places a character in the wrong location, ignores the consequences of a prior scene, or leaks information a character shouldn't have yet MUST be flagged as "edit" or "rewrite" — never "ok".
+STRUCTURAL OPERATIONS GUIDE:
+- If 5 scenes cover the same beat: keep the strongest as "ok", merge 1-2 into it, cut the rest.
+- If a thread has 8 scenes but only 3 distinct beats: merge within each beat, cut the remainder.
+- If a scene is fine but premature: defer it so the next arc can execute it with proper setup.
+- "mergeInto" must reference a scene that is NOT itself cut/merged/deferred.
+- Prefer merge over cut when the weaker scene has unique content worth absorbing.
 
-CUTTING IS EXPECTED. A well-edited branch will cut redundant scenes. If two scenes cover the same ground, keep the stronger one and cut the weaker. Do not rewrite a redundant scene into something different — cut it and let the remaining scenes breathe.
+CONTINUITY IS PARAMOUNT. Scenes that contradict established knowledge, misplace characters, or leak information must be flagged — never "ok".
 
-Be honest and specific. If the branch is genuinely strong, every scene CAN be "ok" — do not manufacture problems. But if scenes repeat the same beat, break continuity, or add nothing, flag them. Accuracy matters more than finding a quota of issues.
+COMPRESSION IS EXPECTED. Most branches benefit from losing 20-40% of their scenes through merges and cuts. Do not preserve scenes out of politeness.
 
 Return JSON:
 {
-  "overall": "3-5 paragraph honest critique covering what's genuinely working and what's weak. Be specific — name scenes, characters, patterns. End with the thematic question this story needs to answer.",
+  "overall": "3-5 paragraph critique. Name scenes, characters, patterns. End with the thematic question.",
   "sceneEvals": [
-    { "sceneId": "SC-001", "verdict": "ok|edit|rewrite|cut", "reason": "one sentence" }
+    { "sceneId": "SC-001", "verdict": "ok|edit|merge|cut|defer", "reason": "one sentence", "mergeInto": "SC-XXX (merge only)", "deferredBeat": "description (defer only)" }
   ],
   "repetitions": ["pattern 1", "pattern 2"],
-  "thematicQuestion": "The human question underneath the plot that the story needs to interrogate"
+  "thematicQuestion": "The human question underneath the plot"
 }
 
 Every scene must appear in sceneEvals. Use the exact scene IDs from above.`;
@@ -123,19 +129,38 @@ Every scene must appear in sceneEvals. Use the exact scene IDs from above.`;
   try {
     const parsed = parseJson(raw, 'evaluateBranch') as {
       overall?: string;
-      sceneEvals?: { sceneId?: string; verdict?: string; reason?: string }[];
+      sceneEvals?: { sceneId?: string; verdict?: string; reason?: string; mergeInto?: string; deferredBeat?: string }[];
       repetitions?: string[];
       thematicQuestion?: string;
     };
 
-    const validVerdicts = new Set<SceneVerdict>(['ok', 'edit', 'rewrite', 'cut']);
+    const validVerdicts = new Set<SceneVerdict>(['ok', 'edit', 'merge', 'cut', 'defer']);
     const sceneEvals: SceneEval[] = (parsed.sceneEvals ?? [])
       .filter((e) => e.sceneId && narrative.scenes[e.sceneId])
-      .map((e) => ({
-        sceneId: e.sceneId!,
-        verdict: validVerdicts.has(e.verdict as SceneVerdict) ? (e.verdict as SceneVerdict) : 'ok',
-        reason: e.reason ?? '',
-      }));
+      .map((e) => {
+        // Accept 'rewrite' from older models and map to 'edit'
+        let rawVerdict = e.verdict as string;
+        if (rawVerdict === 'rewrite') rawVerdict = 'edit';
+        const verdict = validVerdicts.has(rawVerdict as SceneVerdict) ? (rawVerdict as SceneVerdict) : 'ok';
+        const eval_: SceneEval = { sceneId: e.sceneId!, verdict, reason: e.reason ?? '' };
+        if (verdict === 'merge') {
+          // Validate merge target: must exist AND not itself be cut/merged/deferred
+          const targetEval = parsed.sceneEvals?.find((t) => t.sceneId === e.mergeInto);
+          const targetVerdict = targetEval?.verdict;
+          const targetInvalid = !e.mergeInto || !narrative.scenes[e.mergeInto]
+            || targetVerdict === 'cut' || targetVerdict === 'merge' || targetVerdict === 'defer';
+          if (targetInvalid) {
+            eval_.verdict = 'cut';
+            eval_.reason = `${eval_.reason} (merge target invalid or also removed, converted to cut)`;
+          } else {
+            eval_.mergeInto = e.mergeInto;
+          }
+        }
+        if (verdict === 'defer') {
+          eval_.deferredBeat = e.deferredBeat ?? eval_.reason;
+        }
+        return eval_;
+      });
 
     return {
       id: `EVAL-${Date.now().toString(36)}`,

@@ -12,8 +12,9 @@ import type { BranchEvaluation, SceneVerdict, Scene, Arc } from '@/types/narrati
 const VERDICT_CONFIG: Record<SceneVerdict, { icon: string; color: string; bg: string; label: string }> = {
   ok:      { icon: '✓', color: 'text-emerald-400', bg: 'bg-emerald-500/15', label: 'OK' },
   edit:    { icon: '~', color: 'text-amber-400',   bg: 'bg-amber-500/15',   label: 'Edit' },
-  rewrite: { icon: '↻', color: 'text-red-400',     bg: 'bg-red-500/15',     label: 'Rewrite' },
+  merge:   { icon: '⊕', color: 'text-blue-400',    bg: 'bg-blue-500/15',    label: 'Merge' },
   cut:     { icon: '✕', color: 'text-white/30',    bg: 'bg-white/5',        label: 'Cut' },
+  defer:   { icon: '→', color: 'text-purple-400',  bg: 'bg-purple-500/15',  label: 'Defer' },
 };
 
 const STEP_STATUS_ICON: Record<string, string> = {
@@ -52,7 +53,7 @@ function SceneNode({
         <div
           className={`w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold ${cfg.bg} ${cfg.color} shrink-0 border border-current/20 ${reconStatus === 'running' ? 'animate-pulse ring-1 ring-current/40' : ''}`}
         >
-          {reconStatus === 'running' ? '◎' : reconStatus === 'done' && verdict === 'edit' ? '✎' : reconStatus === 'done' && verdict === 'rewrite' ? '⟳' : reconStatus === 'done' && verdict === 'cut' ? '⌀' : cfg.icon}
+          {reconStatus === 'running' ? '◎' : reconStatus === 'done' && verdict === 'edit' ? '✎' : reconStatus === 'done' && verdict === 'merge' ? '⊕' : reconStatus === 'done' && verdict === 'cut' ? '⌀' : reconStatus === 'done' && verdict === 'defer' ? '→' : cfg.icon}
         </div>
         {!isLast && (
           <div className="w-px flex-1 bg-white/10 min-h-3" />
@@ -103,13 +104,13 @@ function SceneNode({
 // ── Stats bar ────────────────────────────────────────────────────────────────
 
 function StatsBar({ sceneEvals }: { sceneEvals: BranchEvaluation['sceneEvals'] }) {
-  const counts = { ok: 0, edit: 0, rewrite: 0, cut: 0 };
+  const counts: Record<SceneVerdict, number> = { ok: 0, edit: 0, merge: 0, cut: 0, defer: 0 };
   for (const e of sceneEvals) counts[e.verdict]++;
   const total = sceneEvals.length || 1;
 
   return (
     <div className="flex items-center gap-3 text-[10px] font-mono">
-      {(['ok', 'edit', 'rewrite', 'cut'] as SceneVerdict[]).map((v) => {
+      {(['ok', 'edit', 'merge', 'cut', 'defer'] as SceneVerdict[]).map((v) => {
         const cfg = VERDICT_CONFIG[v];
         const pct = Math.round((counts[v] / total) * 100);
         return (
