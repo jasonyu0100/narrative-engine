@@ -70,13 +70,14 @@ CURRENT PHASE: "${phase.name}"
 OBJECTIVE: ${phase.objective}
 SCENES ALLOCATED: ${phase.sceneAllocation}
 ${phase.constraints ? `PHASE CONSTRAINTS: ${phase.constraints}` : ''}
+${phase.structuralRules ? `\nSTRUCTURAL RULES (these are mechanical requirements — enforce them in every arc):\n${phase.structuralRules}` : ''}
 ${phase.worldExpansionHints ? `WORLD EXPANSION CONTEXT: ${phase.worldExpansionHints}` : ''}
 
 ${completedSummary ? `COMPLETED PHASES:\n${completedSummary}\n` : ''}
 ${remaining ? `UPCOMING PHASES:\n${remaining}\n` : ''}
 
 Generate:
-1. A DIRECTION prompt (2-4 sentences) — advisory guidance, not a script. Describe the FEEL and TRAJECTORY of this phase: what kind of energy it should have, which threads are ripe for development, what the reader should experience. Name characters and threads that are ready to move, but leave room for emergent storytelling. If artifacts already exist in the world, note which ones are ripe — who should acquire, use, or lose them. The world will be expanded before generation — the direction should guide how the new and existing elements interact.
+1. A DIRECTION prompt (2-4 sentences) — advisory guidance, not a script. Describe the FEEL and TRAJECTORY of this phase: what kind of energy it should have, which threads are ripe for development, what the reader should experience. Name characters and threads that are ready to move, but leave room for emergent storytelling. If artifacts already exist in the world, note which ones are ripe — who should acquire, use, or lose them. The world will be expanded before generation — the direction should guide how the new and existing elements interact. The direction must be compatible with the STRUCTURAL RULES above — if the rules demand convergence density or protagonist gravity, the direction must create conditions for those mechanics to fire.
 2. A CONSTRAINTS prompt (1-2 sentences) — what must NOT happen yet. Protect threads, reveals, and artifact transfers that belong to later phases. Keep it to absolute prohibitions, not creative restrictions.
 
 Use character NAMES, location NAMES, and thread DESCRIPTIONS — never raw IDs.
@@ -119,7 +120,7 @@ export async function generateCustomPlan(
   resolvedKeys: string[],
   currentIndex: number,
   planDocument: string,
-): Promise<{ name: string; phases: { name: string; objective: string; sceneAllocation: number; constraints: string; worldExpansionHints: string }[] }> {
+): Promise<{ name: string; phases: { name: string; objective: string; sceneAllocation: number; constraints: string; structuralRules?: string; worldExpansionHints: string }[] }> {
   const ctx = branchContext(narrative, resolvedKeys, currentIndex);
 
   const prompt = `${ctx}
@@ -136,9 +137,10 @@ Produce a sequence of phases that:
 2. Each phase describes the FEEL and TRAJECTORY — what kind of energy, what the reader should experience, which threads are ripe for movement. Advisory, not prescriptive.
 3. Scene allocations are 6-9 scenes per phase
 4. Constraints protect threads and reveals that belong to later phases — absolute prohibitions only
-5. World expansion hints describe what NEW elements the world needs for this phase — characters, locations, systems, lore. The world grows phase by phase; each expansion fuels the storytelling that follows.
-6. Respect what already exists — don't re-establish what's built
-7. Leave room for emergent storytelling. The AI will make specific scene-level decisions. Phases guide the current, not the individual waves.
+5. Structural rules define mechanical requirements for each phase — convergence density (how many threads must collide per arc), payoff density (ratio of setup vs irreversible consequence), scene function variety (what beat types are required/banned), and protagonist gravity (how often the primary character must appear and dominate). These are enforceable rules, not vibes.
+6. World expansion hints describe what NEW elements the world needs for this phase — characters, locations, systems, lore. The world grows phase by phase; each expansion fuels the storytelling that follows.
+7. Respect what already exists — don't re-establish what's built
+8. Leave room for emergent storytelling. The AI will make specific scene-level decisions. Phases guide the current, not the individual waves.
 
 Use character NAMES, location NAMES, and thread DESCRIPTIONS — never raw IDs.
 
@@ -151,6 +153,7 @@ Return JSON:
       "objective": "Advisory objective (2-4 sentences). The feel of this phase, which threads are ready to develop, what the reader should experience. Not a plot outline — a compass heading.",
       "sceneAllocation": 7,
       "constraints": "What must NOT happen yet (1 sentence). Protect later phases.",
+      "structuralRules": "Mechanical requirements across 4 dimensions: CONVERGENCE (how many threads must collide per arc, causal vs spatial), PAYOFF DENSITY (thread transitions per arc, setup-to-payoff ratio), SCENE FUNCTION VARIETY (required/banned beat types, max consecutive same-function scenes), PROTAGONIST GRAVITY (appearance frequency, causal centrality). Be specific and enforceable.",
       "worldExpansionHints": "New characters, locations, or world systems needed for this phase. Empty string if existing world is sufficient."
     }
   ]
@@ -169,6 +172,7 @@ Return JSON:
           objective: String(p.objective ?? ''),
           sceneAllocation: Number(p.sceneAllocation) || 15,
           constraints: String(p.constraints ?? ''),
+          structuralRules: p.structuralRules ? String(p.structuralRules) : undefined,
           worldExpansionHints: String(p.worldExpansionHints ?? ''),
         })),
       };

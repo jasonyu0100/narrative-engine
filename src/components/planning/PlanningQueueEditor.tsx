@@ -50,6 +50,7 @@ export function PlanningQueueEditor({ onClose, onStartAuto }: Props) {
           scenesCompleted: 0,
           status: i === 0 ? 'active' : 'pending',
           constraints: p.constraints,
+          structuralRules: p.structuralRules,
           direction: '',
           worldExpansionHints: p.worldExpansionHints,
         })),
@@ -468,19 +469,38 @@ export function PlanningQueueEditor({ onClose, onStartAuto }: Props) {
                         {phase.status !== 'completed' && (
                           <details className="mt-2" open={phase.status === 'active'}>
                             <summary className="text-[10px] text-text-dim cursor-pointer hover:text-text-secondary">Configuration</summary>
-                            <div className="mt-1.5 flex flex-col gap-1.5">
-                              <input
-                                value={phase.constraints}
-                                onChange={(e) => updatePhase(i, { constraints: e.target.value })}
-                                placeholder="Phase-specific constraints..."
-                                className="bg-bg-overlay border border-border rounded px-2 py-1 text-[10px] text-text-primary w-full outline-none placeholder:text-text-dim"
-                              />
-                              <input
-                                value={phase.worldExpansionHints}
-                                onChange={(e) => updatePhase(i, { worldExpansionHints: e.target.value })}
-                                placeholder="World expansion hints for this phase..."
-                                className="bg-bg-overlay border border-border rounded px-2 py-1 text-[10px] text-text-primary w-full outline-none placeholder:text-text-dim"
-                              />
+                            <div className="mt-1.5 flex flex-col gap-2">
+                              <div>
+                                <label className="text-[9px] text-text-dim uppercase tracking-wider block mb-0.5">Constraints</label>
+                                <textarea
+                                  value={phase.constraints}
+                                  onChange={(e) => updatePhase(i, { constraints: e.target.value })}
+                                  placeholder="What must NOT happen in this phase..."
+                                  className="bg-bg-overlay border border-border rounded px-2 py-1.5 text-[10px] text-text-primary w-full outline-none placeholder:text-text-dim resize-none leading-relaxed"
+                                  rows={2}
+                                />
+                              </div>
+                              <div>
+                                <label className="text-[9px] text-text-dim uppercase tracking-wider block mb-0.5">World Expansion</label>
+                                <textarea
+                                  value={phase.worldExpansionHints}
+                                  onChange={(e) => updatePhase(i, { worldExpansionHints: e.target.value })}
+                                  placeholder="New characters, locations, or systems to add..."
+                                  className="bg-bg-overlay border border-border rounded px-2 py-1.5 text-[10px] text-text-primary w-full outline-none placeholder:text-text-dim resize-none leading-relaxed"
+                                  rows={2}
+                                />
+                              </div>
+                              {phase.structuralRules && (
+                                <details>
+                                  <summary className="text-[9px] text-text-dim uppercase tracking-wider cursor-pointer hover:text-text-secondary">Structural Rules</summary>
+                                  <textarea
+                                    value={phase.structuralRules}
+                                    onChange={(e) => updatePhase(i, { structuralRules: e.target.value })}
+                                    className="mt-1 bg-bg-overlay border border-border rounded px-2 py-1.5 text-[10px] text-text-primary w-full outline-none resize-none leading-relaxed"
+                                    rows={5}
+                                  />
+                                </details>
+                              )}
                               {phase.status === 'active' && existingQueue && (
                                 <div className="flex gap-2 mt-1">
                                   <button onClick={() => regenerateWorld(i)} disabled={regenerating !== null || !phase.worldExpansionHints}

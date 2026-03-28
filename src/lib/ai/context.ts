@@ -235,7 +235,9 @@ export function narrativeContext(
       const age = firstMut !== undefined ? totalScenes - firstMut : 0;
       const mutations = threadMutationCount[t.id] ?? 0;
       const participantNames = t.participants.map((a) => n.characters[a.id]?.name ?? n.locations[a.id]?.name ?? a.id).join(', ');
-      return `<thread id="${t.id}" status="${t.status}"${age > 0 ? ` age="${age}" mutations="${mutations}"` : ''}${participantNames ? ` participants="${participantNames}"` : ''}>${t.description}</thread>`;
+      const validDeps = t.dependents.filter((id) => n.threads[id]);
+      const depsAttr = validDeps.length > 0 ? ` converges="${validDeps.join(',')}"` : '';
+      return `<thread id="${t.id}" status="${t.status}"${age > 0 ? ` age="${age}" mutations="${mutations}"` : ''}${participantNames ? ` participants="${participantNames}"` : ''}${depsAttr}>${t.description}</thread>`;
     })
     .join('\n');
   const relationships = branchRelationships

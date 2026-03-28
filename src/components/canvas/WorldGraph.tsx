@@ -12,6 +12,7 @@ import type {
 } from '@/types/narrative';
 import EvalBar from '@/components/timeline/EvalBar';
 import KnowledgeGraphView, { FullscreenButton } from './KnowledgeGraphView';
+import ThreadGraphView from './ThreadGraphView';
 import {
   type GraphNode,
   type GraphLink,
@@ -1173,6 +1174,7 @@ export default function WorldGraph() {
           { mode: 'prose' as const, label: 'Prose' },
           { mode: 'spark' as const, label: 'Spark' },
           { mode: 'codex' as const, label: 'Codex' },
+          { mode: 'threads' as const, label: 'Threads' },
         ]).map(({ mode, label }, i, arr) => (
           <span key={mode} className="contents">
             {i > 0 && <div className="w-px h-3.5 bg-border" />}
@@ -1201,6 +1203,13 @@ export default function WorldGraph() {
             )}
           </div>
         </div>
+      ) : graphViewMode === 'threads' ? (
+        <ThreadGraphView
+          narrative={narrative!}
+          resolvedKeys={state.resolvedEntryKeys}
+          currentIndex={state.currentSceneIndex}
+          onSelectThread={(id) => dispatch({ type: 'SET_INSPECTOR', context: { type: 'thread', threadId: id } })}
+        />
       ) : graphViewMode === 'spark' || graphViewMode === 'codex' ? (
         <KnowledgeGraphView
           narrative={narrative!}

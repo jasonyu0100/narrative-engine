@@ -94,6 +94,7 @@ threadMutations — track thread status changes or engagement:
 - Pulses (same→same) indicate a scene engages a thread without shifting its phase (0.25 payoff each).
 - Prefer real transitions over pulses, but pulses are valid for buildup scenes.
 - Each thread must be distinct — merge threads that describe the same underlying tension.
+- CONVERGENCE CASCADE: When a thread has a converges="" attribute listing other thread IDs, advancing that thread SHOULD create pressure on the linked threads. If you transition a convergent thread, include mutations for its linked threads too — at minimum a pulse, ideally a transition. This is how storylines collide: thread A's resolution forces thread B into a new phase. A convergent thread reaching terminal status should trigger at least one transition in each linked thread.
 
 continuityMutations — track what characters learn:
 - NOT every scene requires continuity mutations. Only add them when a character genuinely learns, discovers, or realises something. A scene where characters simply act on existing knowledge needs zero continuity mutations.
@@ -343,6 +344,21 @@ export function buildThreadHealthPrompt(
     lines.push(`  Velocity: ${velocityLabel} | ${sinceLabel}`);
     if (pulseBlock) lines.push(pulseBlock);
     lines.push(`  ${history}`);
+    // Show convergence links — threads that depend on this one or that this one depends on
+    if (t.dependents.length > 0) {
+      const depDescs = t.dependents
+        .map((depId) => narrative.threads[depId])
+        .filter(Boolean)
+        .map((dep) => `"${dep.description}" [${dep.id}]`);
+      if (depDescs.length > 0) {
+        lines.push(`  ↔ CONVERGES WITH: ${depDescs.join(', ')} — advancing this thread should pressure those threads too`);
+      }
+    }
+    // Show reverse links — threads that list this one as a dependent
+    const reverseLinks = allThreads.filter((other) => other.id !== t.id && other.dependents.includes(t.id));
+    if (reverseLinks.length > 0) {
+      lines.push(`  ← CONNECTED FROM: ${reverseLinks.map((r) => `"${r.description}" [${r.id}]`).join(', ')}`);
+    }
     lines.push('');
   }
 

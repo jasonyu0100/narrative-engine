@@ -725,7 +725,7 @@ export type AnalysisChunkResult = {
   characters: { name: string; role: string; firstAppearance: boolean; imagePrompt?: string; continuity: { type: string; content: string }[] }[];
   locations: { name: string; parentName: string | null; description: string; imagePrompt?: string; lore: string[] }[];
   artifacts?: { name: string; significance: string; continuity: { type: string; content: string }[]; ownerName: string }[];
-  threads: { description: string; participantNames: string[]; statusAtStart: string; statusAtEnd: string; development: string }[];
+  threads: { description: string; participantNames: string[]; statusAtStart: string; statusAtEnd: string; development: string; relatedThreadDescriptions?: string[] }[];
   scenes: {
     locationName: string; povName: string; participantNames: string[]; events: string[];
     summary: string; sections: number[]; prose?: string;
@@ -765,6 +765,18 @@ import type { PremiseDecision, PremiseEntity, PremiseEdge, PremiseQuestion, Prem
 
 export type DiscoveryPhase = 'systems' | 'rules' | 'cast' | 'threads';
 
+export type DiscoverySnapshot = {
+  decisions: PremiseDecision[];
+  entities: PremiseEntity[];
+  edges: PremiseEdge[];
+  rules: string[];
+  systems: PremiseSystemSketch[];
+  title: string;
+  worldSummary: string;
+  currentQuestion: PremiseQuestion | null;
+  phase: 'seed' | DiscoveryPhase;
+};
+
 export type DiscoveryInquiryState = {
   seed: string;
   decisions: PremiseDecision[];
@@ -776,6 +788,7 @@ export type DiscoveryInquiryState = {
   worldSummary: string;
   currentQuestion: PremiseQuestion | null;
   phase: 'seed' | DiscoveryPhase;
+  history?: DiscoverySnapshot[];
 };
 
 export type DiscoveryInquiry = {
@@ -831,7 +844,7 @@ export type WizardData = {
   worldSystems: WorldSystemSketch[];
 };
 
-export type GraphViewMode = 'spatial' | 'overview' | 'prose' | 'spark' | 'codex';
+export type GraphViewMode = 'spatial' | 'overview' | 'prose' | 'spark' | 'codex' | 'threads';
 
 // ── Chat Threads ──────────────────────────────────────────────────────────────
 export type ChatMessage = {

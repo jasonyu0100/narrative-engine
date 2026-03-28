@@ -16,7 +16,7 @@ import { BranchContextModal } from '@/components/topbar/BranchContextModal';
 import { FormulaModal } from '@/components/topbar/FormulaModal';
 import { SlidesPlayer } from '@/components/slides/SlidesPlayer';
 import { MarkovChainModal } from '@/components/topbar/MarkovChainModal';
-import { ThreadLifecycleModal } from '@/components/topbar/ThreadLifecycleModal';
+import { ThreadGraphModal } from '@/components/topbar/ThreadGraphModal';
 import { NarrativeEditModal } from '@/components/topbar/NarrativeEditModal';
 import { UsageDropdown, computeTotalCost } from '@/components/topbar/UsageAnalyticsModal';
 import type { NarrativeEntry } from '@/types/narrative';
@@ -289,7 +289,7 @@ export default function TopBar() {
   const [formulaOpen, setFormulaOpen] = useState(false);
   const [slidesOpen, setSlidesOpen] = useState(false);
   const [markovOpen, setMarkovOpen] = useState(false);
-  const [threadLifecycleOpen, setThreadLifecycleOpen] = useState(false);
+  const [threadGraphOpen, setThreadGraphOpen] = useState(false);
   const [scorecardOpen, setScorecardOpen] = useState(false);
   const [usageOpen, setUsageOpen] = useState(false);
   const [hoveredArcIdx, setHoveredArcIdx] = useState<number | null>(null);
@@ -694,7 +694,7 @@ export default function TopBar() {
           anyMenuOpen={openMenu !== null}
           items={[
             { label: 'Narrative Cube', onClick: () => window.dispatchEvent(new CustomEvent('open-cube-viewer')), disabled: !hasNarrative },
-            { label: 'Thread Lifecycle', onClick: () => setThreadLifecycleOpen(true), disabled: !hasNarrative },
+            { label: 'Thread Graph', onClick: () => setThreadGraphOpen(true), disabled: !hasNarrative },
             { label: 'Cube Explorer', onClick: () => setCubeExplorerOpen(true), disabled: !hasNarrative },
             { label: 'State Machine', onClick: () => setMarkovOpen(true), disabled: !hasNarrative },
             { separator: true },
@@ -1061,11 +1061,16 @@ export default function TopBar() {
         />
       )}
       {formulaOpen && <FormulaModal onClose={() => setFormulaOpen(false)} />}
-      {threadLifecycleOpen && narrative && (
-        <ThreadLifecycleModal
+      {threadGraphOpen && narrative && (
+        <ThreadGraphModal
           narrative={narrative}
           resolvedKeys={state.resolvedEntryKeys}
-          onClose={() => setThreadLifecycleOpen(false)}
+          currentSceneIndex={state.currentSceneIndex}
+          onClose={() => setThreadGraphOpen(false)}
+          onSelectThread={(id) => {
+            dispatch({ type: 'SET_INSPECTOR', context: { type: 'thread', threadId: id } });
+            setThreadGraphOpen(false);
+          }}
         />
       )}
       {markovOpen && narrative && (

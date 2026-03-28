@@ -108,6 +108,8 @@ export type SlidesData = {
   cubeTransitions: { from: CubeCornerKey; to: CubeCornerKey; count: number }[];
 
   threadLifecycles: ThreadLifecycle[];
+  /** Thread convergence edges for braiding diagram */
+  threadConvergences: { fromId: string; toId: string }[];
   topCharacters: { character: Character; sceneCount: number }[];
   topLocations: { location: Location; sceneCount: number }[];
 
@@ -242,6 +244,20 @@ export function computeSlidesData(
   // Thread lifecycles
   const threadLifecycles = buildThreadLifecycles(narrative, scenes, resolvedEntryKeys);
 
+  // Thread convergences
+  const threadConvergences: SlidesData['threadConvergences'] = [];
+  const convSet = new Set<string>();
+  for (const t of Object.values(narrative.threads)) {
+    for (const depId of t.dependents) {
+      if (!narrative.threads[depId]) continue;
+      const key = [t.id, depId].sort().join('|');
+      if (!convSet.has(key)) {
+        convSet.add(key);
+        threadConvergences.push({ fromId: t.id, toId: depId });
+      }
+    }
+  }
+
   // Top characters by participation
   const charCounts = new Map<string, number>();
   for (const s of scenes) {
@@ -322,6 +338,7 @@ export function computeSlidesData(
     cubeDistribution,
     cubeTransitions,
     threadLifecycles,
+    threadConvergences,
     topCharacters,
     topLocations,
     overallGrades: overallGrades,

@@ -435,7 +435,7 @@ Return JSON with this exact structure:
       "description": "string",
       "status": "dormant",
       "openedAt": "new",
-      "dependents": []
+      "dependents": ["T-XX (existing thread IDs this thread connects to, accelerates, or converges with — see THREAD CONVERGENCE below)"]
     }
   ],
   "relationships": [
@@ -482,6 +482,14 @@ CONTENT RULES:
 - ALL new threads MUST have status "dormant" — they are seeds for future arcs, not active storylines yet
 - Generate the exact counts specified above (${EXPANSION_SIZE_CONFIG[size].characters} characters, ${EXPANSION_SIZE_CONFIG[size].locations} locations, ${EXPANSION_SIZE_CONFIG[size].threads} threads)
 
+THREAD CONVERGENCE (critical for long-form narrative):
+- The "dependents" field lists EXISTING thread IDs that this new thread connects to, accelerates, or converges with. This is how storylines collide.
+- A convergent thread is one whose activation or resolution forces multiple existing threads into new trajectories. Example: a resource thread (T-new) that depends on [T-03, T-07] means when this resource thread activates, it creates pressure on both T-03 and T-07 simultaneously.
+- At least ONE new thread should have 2+ dependents — this is a convergent bridge thread that forces collision between existing storylines.
+- Dependents should reference threads that are currently in different storylines or involve different characters — the whole point is to CREATE connections between threads that were previously parallel.
+- Think: shared resources both factions need, events that affect multiple storylines, secrets that connect separated characters, external forces that compress multiple conflicts.
+- Empty dependents [] is acceptable for truly independent new threads, but at least one thread per expansion MUST bridge existing threads.
+
 WORLD KNOWLEDGE MUTATIONS:
 worldKnowledgeMutations define the FOUNDATIONAL abstractions this expansion establishes — the rules, systems, concepts, and tensions that the new characters, locations, and threads operate within. These are intentional world-building, not incidental discovery.
 - Use "law" for governing truths and hard constraints, "system" for institutions/processes, "concept" for named ideas/phenomena, "tension" for contradictions or unresolved forces.
@@ -496,9 +504,16 @@ worldKnowledgeMutations define the FOUNDATIONAL abstractions this expansion esta
 
   // Force all world-build threads to dormant — they're seeds, not active storylines
   // Normalize: LLM may still output "anchors" (legacy field name) — remap to "participants"
+  // Validate dependents — only keep IDs that reference real existing or new threads
+  const newThreadIds = new Set((parsed.threads ?? []).map((t: { id: string }) => t.id));
+  const existingThreadIds = new Set(Object.keys(narrative.threads));
+  const validThreadIds = new Set([...newThreadIds, ...existingThreadIds]);
+
   const threads = (parsed.threads ?? []).map((t: Thread & { anchors?: Thread['participants'] }) => {
     const { anchors, ...rest } = t;
-    return { ...rest, participants: rest.participants ?? anchors ?? [], status: THREAD_ACTIVE_STATUSES[0] };
+    // Filter dependents to only valid thread IDs (not example text the LLM might echo)
+    const dependents = (rest.dependents ?? []).filter((id: string) => validThreadIds.has(id) && id !== rest.id);
+    return { ...rest, participants: rest.participants ?? anchors ?? [], dependents, status: THREAD_ACTIVE_STATUSES[0] };
   });
 
   // Process worldKnowledgeMutations: assign real WK-XX IDs

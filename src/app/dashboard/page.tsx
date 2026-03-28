@@ -177,6 +177,31 @@ export default function DashboardPage() {
             </div>
           </div>
 
+          {/* Your Stories */}
+          <div className="max-w-4xl mx-auto mb-12">
+            <div className="flex items-center gap-3 mb-5">
+              <h2 className="text-[10px] uppercase tracking-[0.2em] text-text-dim font-mono">Your Stories</h2>
+              <div className="flex-1 h-px bg-white/6" />
+            </div>
+            {userSeries.length > 0 ? (
+              <div className="flex gap-3 flex-wrap">
+                {userSeries.map((entry, i) => (
+                  <StoryCard key={entry.id} entry={entry} index={i} />
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-12 border border-dashed border-white/8 rounded-lg">
+                <p className="text-white/25 text-sm">No stories yet</p>
+                <button
+                  onClick={() => openCreate()}
+                  className="mt-3 text-xs text-white/40 hover:text-white/70 underline underline-offset-2 transition"
+                >
+                  Create your first narrative
+                </button>
+              </div>
+            )}
+          </div>
+
           {/* Discovery Inquiries */}
           {inquiries.length > 0 && (
             <div className="max-w-4xl mx-auto mb-12">
@@ -217,31 +242,6 @@ export default function DashboardPage() {
               </div>
             </div>
           )}
-
-          {/* Your Stories */}
-          <div className="max-w-4xl mx-auto mb-12">
-            <div className="flex items-center gap-3 mb-5">
-              <h2 className="text-[10px] uppercase tracking-[0.2em] text-text-dim font-mono">Your Stories</h2>
-              <div className="flex-1 h-px bg-white/6" />
-            </div>
-            {userSeries.length > 0 ? (
-              <div className="flex gap-3 flex-wrap">
-                {userSeries.map((entry, i) => (
-                  <StoryCard key={entry.id} entry={entry} index={i} />
-                ))}
-              </div>
-            ) : (
-              <div className="text-center py-12 border border-dashed border-white/8 rounded-lg">
-                <p className="text-white/25 text-sm">No stories yet</p>
-                <button
-                  onClick={() => openCreate()}
-                  className="mt-3 text-xs text-white/40 hover:text-white/70 underline underline-offset-2 transition"
-                >
-                  Create your first narrative
-                </button>
-              </div>
-            )}
-          </div>
 
           {/* Analysis Jobs */}
           {state.analysisJobs.length > 0 && (

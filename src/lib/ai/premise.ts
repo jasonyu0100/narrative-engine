@@ -143,7 +143,11 @@ ${phaseGuidance}
 ${gaps.length > 0 ? `\nGAPS TO ADDRESS:\n${gaps.map(g => `- ${g}`).join('\n')}` : ''}
 ${currentTitle ? `WORKING TITLE: ${currentTitle}` : ''}
 
-Ask ONE question with 3-4 choices. Also extract any NEW entities, edges, rules, and world systems crystallized by the most recent answer (if any). Update the title and world summary.
+Ask ONE question with 3-4 choices. Extract NEW entities, edges, rules, and world systems crystallized by the most recent answer. Update the title and world summary.
+${discoveryPhase === 'cast' ? 'IMPORTANT: Every answer in the Cast phase MUST produce at least one new character or location entity. If the user described a character, extract them. If they described a place, extract it. Never return an empty newEntities array in this phase.' : ''}
+${discoveryPhase === 'threads' ? 'IMPORTANT: Every answer in the Threads phase MUST produce at least one new thread entity connecting to existing characters. Never return an empty newEntities array in this phase.' : ''}
+${discoveryPhase === 'systems' ? 'IMPORTANT: Every answer in the Systems phase MUST produce or update at least one system. Never return both empty newSystems and empty systemUpdates in this phase.' : ''}
+${discoveryPhase === 'rules' ? 'IMPORTANT: Every answer in the Rules phase MUST produce at least one new rule. Never return an empty newRules array in this phase.' : ''}
 
 Return JSON:
 {

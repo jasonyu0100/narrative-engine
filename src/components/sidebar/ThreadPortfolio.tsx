@@ -95,6 +95,7 @@ function ThreadItem({
   statusLabel,
   metrics,
   benchmark,
+  convergenceCount,
   dimmed,
   onClick,
 }: {
@@ -102,6 +103,7 @@ function ThreadItem({
   statusLabel: string;
   metrics?: ThreadMetrics;
   benchmark: number;
+  convergenceCount: number;
   dimmed?: boolean;
   onClick: () => void;
 }) {
@@ -124,7 +126,7 @@ function ThreadItem({
         </span>
       </div>
 
-      {/* Status + phase bar */}
+      {/* Status + phase bar + convergence */}
       <div className="flex items-center gap-2">
         <span className={`text-[10px] px-2 py-0.5 rounded-full ${STATUS_COLORS[statusLabel] ?? 'bg-white/6 text-text-secondary'}`}>
           {statusLabel}
@@ -140,6 +142,11 @@ function ThreadItem({
             />
           ))}
         </div>
+        {convergenceCount > 0 && (
+          <span className="text-[9px] text-cyan-400/70 font-mono ml-auto" title={`Converges with ${convergenceCount} thread${convergenceCount > 1 ? 's' : ''}`}>
+            &#x21C4;{convergenceCount}
+          </span>
+        )}
       </div>
 
       {/* Metrics row */}
@@ -147,7 +154,7 @@ function ThreadItem({
         <div className="flex items-center gap-2 text-[9px] text-text-dim font-mono">
           <span>{metrics.age}s</span>
           <span className="text-white/10">|</span>
-          <span>{metrics.transitions}↑ {metrics.pulses}~</span>
+          <span>{metrics.transitions}&#x2191; {metrics.pulses}~</span>
           <span className="text-white/10">|</span>
           <span className={isOverBenchmark ? 'text-amber-400' : ''}>
             {metrics.scenesSinceLastTransition}s ago
@@ -218,6 +225,21 @@ export default function ThreadPortfolio() {
 
   const speed = narrative?.storySettings?.threadResolutionSpeed ?? DEFAULT_STORY_SETTINGS.threadResolutionSpeed;
   const benchmark = SPEED_BENCHMARKS[speed];
+
+  // Compute bidirectional convergence counts per thread
+  const convergenceCounts = useMemo(() => {
+    if (!narrative) return {} as Record<string, number>;
+    const counts: Record<string, number> = {};
+    const allThreads = Object.values(narrative.threads);
+    for (const t of allThreads) {
+      // Direct: threads this one converges with
+      const directCount = t.dependents.filter((id) => narrative.threads[id]).length;
+      // Reverse: threads that converge with this one
+      const reverseCount = allThreads.filter((other) => other.id !== t.id && other.dependents.includes(t.id)).length;
+      counts[t.id] = directCount + reverseCount;
+    }
+    return counts;
+  }, [narrative]);
 
   type ThreadWithStatus = Thread & { currentStatus: ThreadStatus };
   const emptyList: ThreadWithStatus[] = [];
@@ -291,6 +313,7 @@ export default function ThreadPortfolio() {
         statusLabel={thread.currentStatus}
         metrics={threadMetrics[thread.id]}
         benchmark={benchmark}
+        convergenceCount={convergenceCounts[thread.id] ?? 0}
         dimmed={dimmed}
         onClick={() =>
           dispatch({

@@ -88,16 +88,21 @@ export default function SceneDetail({ sceneId }: Props) {
             <div className="flex flex-col gap-1">
               <h3 className="text-[10px] uppercase tracking-widest text-text-dim">Threads</h3>
               <div className="flex flex-wrap gap-1.5">
-                {m.threads.map((mt) => (
-                  <button
-                    key={mt.id}
-                    type="button"
-                    onClick={() => dispatch({ type: 'SET_INSPECTOR', context: { type: 'thread', threadId: mt.id } })}
-                    className="rounded bg-white/6 px-1.5 py-0.5 font-mono text-[10px] text-text-primary transition-colors hover:bg-white/12"
-                  >
-                    {narrative.threads[mt.id]?.description ?? mt.description}
-                  </button>
-                ))}
+                {m.threads.map((mt) => {
+                  const thread = narrative.threads[mt.id];
+                  const depCount = thread?.dependents?.filter((id) => narrative.threads[id]).length ?? 0;
+                  return (
+                    <button
+                      key={mt.id}
+                      type="button"
+                      onClick={() => dispatch({ type: 'SET_INSPECTOR', context: { type: 'thread', threadId: mt.id } })}
+                      className="rounded bg-white/6 px-1.5 py-0.5 font-mono text-[10px] text-text-primary transition-colors hover:bg-white/12"
+                    >
+                      {thread?.description ?? mt.description}
+                      {depCount > 0 && <span className="text-cyan-400/70 ml-1">&#x21C4;{depCount}</span>}
+                    </button>
+                  );
+                })}
               </div>
             </div>
           )}

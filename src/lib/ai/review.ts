@@ -64,6 +64,7 @@ PHASE: "${phase.name}"
 PHASE OBJECTIVE: ${phase.objective}
 PROGRESS: ${phase.scenesCompleted} / ${phase.sceneAllocation} scenes
 ${phase.constraints ? `PHASE CONSTRAINTS: ${phase.constraints}` : ''}
+${phase.structuralRules ? `STRUCTURAL RULES (mechanical requirements — audit compliance and enforce in next direction):\n${phase.structuralRules}` : ''}
 CURRENT DIRECTION: ${currentDirection || '(none set)'}
 CURRENT CONSTRAINTS: ${currentConstraints || '(none set)'}
 
@@ -86,6 +87,8 @@ Review the scene history and thread velocity report through these lenses:
 5. MOMENTUM — With ${scenesRemaining} scenes left, what MUST happen before this phase ends? Are we on track? If not, which threads can be accelerated and which can be abandoned?
 
 6. ARTIFACTS — Are any existing artifacts being ignored or underused? Should one change hands?
+
+7. STRUCTURAL COMPLIANCE — Audit the recent scenes against the STRUCTURAL RULES above (if any). Are convergence requirements being met? Is payoff density on target? Are scene functions varied or repeating? Is protagonist gravity maintained? Name specific violations and what the next arc must do to correct them. If a rule says "no more than 2 consecutive X" and the last arc had 3, the next direction must explicitly ban that pattern.
 
 CRITICAL OUTPUT RULES:
 - The direction you write REPLACES the current direction entirely. It is NOT appended. Write it as a fresh, standalone brief.

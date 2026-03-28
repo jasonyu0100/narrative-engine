@@ -372,7 +372,8 @@ Return a single JSON object with this exact structure:
       "participantNames": ["Character or location names this thread is anchored to"],
       "statusAtStart": "status at chunk start",
       "statusAtEnd": "status at chunk end",
-      "development": "How this thread developed in this chunk"
+      "development": "How this thread developed in this chunk",
+      "relatedThreadDescriptions": ["EXACT descriptions of OTHER threads this thread converges with, accelerates, or depends on — threads whose resolution is causally linked to this one. Empty array if independent."]
     }
   ],
   "scenes": [
@@ -570,7 +571,8 @@ Return a single JSON object with this exact structure:
       "participantNames": ["Character or location names this thread is anchored to"],
       "statusAtStart": "status at chunk start",
       "statusAtEnd": "status at chunk end",
-      "development": "How this thread developed in this chunk"
+      "development": "How this thread developed in this chunk",
+      "relatedThreadDescriptions": ["EXACT descriptions of OTHER threads this thread converges with or depends on — empty if independent"]
     }
   ],
   "scenes": [
@@ -1107,6 +1109,13 @@ export async function assembleNarrative(
             threads[id].participants.push(anchor);
             existingAnchorIds.add(anchor.id);
           }
+        }
+      }
+      // Accumulate thread convergence — resolve related descriptions to thread IDs
+      for (const relDesc of t.relatedThreadDescriptions ?? []) {
+        const relId = getThreadId(relDesc);
+        if (relId !== id && !threads[id].dependents.includes(relId)) {
+          threads[id].dependents.push(relId);
         }
       }
     }
