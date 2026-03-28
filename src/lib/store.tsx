@@ -26,9 +26,12 @@ function computeDerivedEntities(
 
   const applyWkMutation = (wkm: WorldKnowledgeMutation) => {
     for (const n of wkm.addedNodes ?? []) {
+      // Guard: skip nodes with missing concept or type (malformed LLM output)
+      if (!n.id || !n.concept || !n.type) continue;
       if (!wkNodes[n.id]) wkNodes[n.id] = { id: n.id, concept: n.concept, type: n.type };
     }
     for (const e of wkm.addedEdges ?? []) {
+      if (!e.from || !e.to || !e.relation) continue;
       if (!wkEdges.some((x) => x.from === e.from && x.to === e.to && x.relation === e.relation)) {
         wkEdges.push({ from: e.from, to: e.to, relation: e.relation });
       }

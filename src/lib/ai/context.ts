@@ -803,14 +803,16 @@ export function deriveLogicRules(narrative: NarrativeState, scene: Scene): strin
     const newNodeIds = new Set((scene.worldKnowledgeMutations.addedNodes ?? []).map((n) => n.id));
     // New concepts: must be revealed during the scene
     for (const addedNode of scene.worldKnowledgeMutations.addedNodes ?? []) {
+      if (!addedNode.concept) continue;
       const shortConcept = addedNode.concept.includes(' — ') ? addedNode.concept.split(' — ')[0] : addedNode.concept;
       rules.push(`WORLD KNOWLEDGE REVEAL: "${shortConcept}" (${addedNode.type}) has NOT been established yet at scene start — it must be revealed through a specific mechanism (demonstration, explanation, discovery, action). Do not reference it as pre-existing before its revelation delivery.`);
     }
     // New edges: dramatise the connection
     for (const edge of scene.worldKnowledgeMutations.addedEdges ?? []) {
+      if (!edge.from || !edge.to) continue;
       const fromNode = narrative.worldKnowledge?.nodes[edge.from] ?? scene.worldKnowledgeMutations.addedNodes?.find((n) => n.id === edge.from);
       const toNode = narrative.worldKnowledge?.nodes[edge.to] ?? scene.worldKnowledgeMutations.addedNodes?.find((n) => n.id === edge.to);
-      if (fromNode && toNode) {
+      if (fromNode?.concept && toNode?.concept) {
         const fromShort = fromNode.concept.includes(' — ') ? fromNode.concept.split(' — ')[0] : fromNode.concept;
         const toShort = toNode.concept.includes(' — ') ? toNode.concept.split(' — ')[0] : toNode.concept;
         rules.push(`WORLD KNOWLEDGE CONNECTION: The relationship "${fromShort}" ${edge.relation} "${toShort}" must be demonstrated through the narrative — show it through action, dialogue, or consequence, not exposition.`);
@@ -819,13 +821,14 @@ export function deriveLogicRules(narrative: NarrativeState, scene: Scene): strin
     // Existing concepts referenced by edges: these ARE established and can be used freely
     const referencedExistingIds = new Set<string>();
     for (const edge of scene.worldKnowledgeMutations.addedEdges ?? []) {
+      if (!edge.from || !edge.to) continue;
       if (!newNodeIds.has(edge.from) && narrative.worldKnowledge?.nodes[edge.from]) referencedExistingIds.add(edge.from);
       if (!newNodeIds.has(edge.to) && narrative.worldKnowledge?.nodes[edge.to]) referencedExistingIds.add(edge.to);
     }
     if (referencedExistingIds.size > 0) {
       const established = [...referencedExistingIds].map((id) => {
         const node = narrative.worldKnowledge.nodes[id];
-        return node?.concept.includes(' — ') ? node.concept.split(' — ')[0] : node?.concept ?? id;
+        return node?.concept ? (node.concept.includes(' — ') ? node.concept.split(' — ')[0] : node.concept) : id;
       });
       rules.push(`ESTABLISHED WORLD KNOWLEDGE (can be referenced freely): ${established.join(', ')}.`);
     }
