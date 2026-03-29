@@ -8,12 +8,13 @@ import { DEFAULT_STORY_SETTINGS, BRANCH_TIME_HORIZON_OPTIONS, REASONING_BUDGETS 
 import { NARRATIVE_CUBE } from '@/types/narrative';
 import type { CubeCornerKey } from '@/types/narrative';
 import { MATRIX_PRESETS, type TransitionMatrix } from '@/lib/markov';
+import { DEFAULT_PROSE_PROFILE, ACTION_PROFILE, INTROSPECTIVE_PROFILE } from '@/lib/beat-profiles';
 
-type Tab = 'direction' | 'markov' | 'pov' | 'other';
+type Tab = 'direction' | 'style' | 'pov' | 'other';
 
 const TABS: { label: string; value: Tab }[] = [
   { label: 'Direction', value: 'direction' },
-  { label: 'Markov', value: 'markov' },
+  { label: 'Style', value: 'style' },
   { label: 'POV', value: 'pov' },
   { label: 'Other', value: 'other' },
 ];
@@ -266,7 +267,7 @@ export function StorySettingsModal({ onClose }: { onClose: () => void }) {
             </>
           )}
 
-          {tab === 'markov' && (() => {
+          {tab === 'style' && (() => {
             const CORNERS: CubeCornerKey[] = ['HHH', 'HHL', 'HLH', 'HLL', 'LHH', 'LHL', 'LLH', 'LLL'];
             const COLORS: Record<CubeCornerKey, string> = {
               HHH: '#f59e0b', HHL: '#ef4444', HLH: '#a855f7', HLL: '#6366f1',
@@ -410,42 +411,77 @@ export function StorySettingsModal({ onClose }: { onClose: () => void }) {
                         })}
                       </div>
 
-                      {/* Beat transition matrix */}
-                      <div className="overflow-x-auto">
-                        <table className="w-full text-[9px] border-collapse">
-                          <thead>
-                            <tr>
-                              <th className="p-1 text-left text-text-dim font-medium w-16">From ↓</th>
-                              {BEAT_FNS.map((fn) => (
-                                <th key={fn} className="p-1 text-center font-medium" style={{ color: FN_COLORS[fn] }}>{fn.slice(0, 4)}</th>
-                              ))}
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {BEAT_FNS.map((from) => {
-                              // Get matrix from resolved profile
-                              const profileMarkov = narrative?.proseProfile?.markov ?? {};
-                              const row = (profileMarkov as Record<string, Record<string, number>>)[from] ?? {};
-                              return (
-                                <tr key={from} className="border-t border-white/5">
-                                  <td className="p-1 font-medium" style={{ color: FN_COLORS[from] }}>{from.slice(0, 4)}</td>
-                                  {BEAT_FNS.map((to) => {
-                                    const prob = row[to] ?? 0;
+                      {/* Beat transition matrix + mechanism distribution */}
+                      {(() => {
+                        // Resolve the active beat profile
+                        const presetKey = settings.beatProfilePreset || '';
+                        const activeProfile = presetKey === 'self' ? narrative?.proseProfile
+                          : presetKey === 'action' ? ACTION_PROFILE
+                          : presetKey === 'introspective' ? INTROSPECTIVE_PROFILE
+                          : presetKey && narrative?.proseProfile ? narrative.proseProfile
+                          : DEFAULT_PROSE_PROFILE;
+                        const markov = (activeProfile?.markov ?? {}) as Record<string, Record<string, number>>;
+                        const mechDist = activeProfile?.mechanismDistribution ?? {};
+
+                        const MECH_COLORS: Record<string, string> = {
+                          dialogue: '#3b82f6', thought: '#a855f7', action: '#22c55e', environment: '#06b6d4',
+                          narration: '#f59e0b', memory: '#ec4899', document: '#84cc16', comic: '#ef4444',
+                        };
+
+                        return (
+                          <>
+                            <div className="overflow-x-auto mb-4">
+                              <table className="w-full text-[9px] border-collapse">
+                                <thead>
+                                  <tr>
+                                    <th className="p-1 text-left text-text-dim font-medium w-16">From ↓</th>
+                                    {BEAT_FNS.map((fn) => (
+                                      <th key={fn} className="p-1 text-center font-medium" style={{ color: FN_COLORS[fn] }}>{fn.slice(0, 4)}</th>
+                                    ))}
+                                  </tr>
+                                </thead>
+                                <tbody>
+                                  {BEAT_FNS.map((from) => {
+                                    const row = markov[from] ?? {};
                                     return (
-                                      <td key={to} className="p-1 text-center tabular-nums" style={{
-                                        backgroundColor: prob > 0 ? `rgba(167,139,250,${Math.min(prob * 1.5, 1)})` : 'transparent',
-                                        color: prob >= 0.25 ? '#fff' : prob > 0.05 ? '#d1d5db' : '#4b5563',
-                                      }}>
-                                        {prob > 0 ? Math.round(prob * 100) : '·'}
-                                      </td>
+                                      <tr key={from} className="border-t border-white/5">
+                                        <td className="p-1 font-medium" style={{ color: FN_COLORS[from] }}>{from.slice(0, 4)}</td>
+                                        {BEAT_FNS.map((to) => {
+                                          const prob = row[to] ?? 0;
+                                          return (
+                                            <td key={to} className="p-1 text-center tabular-nums" style={{
+                                              backgroundColor: prob > 0 ? `rgba(167,139,250,${Math.min(prob * 1.5, 1)})` : 'transparent',
+                                              color: prob >= 0.25 ? '#fff' : prob > 0.05 ? '#d1d5db' : '#4b5563',
+                                            }}>
+                                              {prob > 0 ? Math.round(prob * 100) : '·'}
+                                            </td>
+                                          );
+                                        })}
+                                      </tr>
                                     );
                                   })}
-                                </tr>
-                              );
-                            })}
-                          </tbody>
-                        </table>
-                      </div>
+                                </tbody>
+                              </table>
+                            </div>
+
+                            <label className="text-[10px] text-text-dim uppercase tracking-wider block mb-2">Mechanism Distribution</label>
+                            <div className="space-y-1">
+                              {Object.entries(mechDist)
+                                .filter(([, v]) => v && v > 0)
+                                .sort(([, a], [, b]) => (b ?? 0) - (a ?? 0))
+                                .map(([mech, pct]) => (
+                                  <div key={mech} className="flex items-center gap-2">
+                                    <span className="text-[9px] font-mono w-16 shrink-0" style={{ color: MECH_COLORS[mech] || '#888' }}>{mech}</span>
+                                    <div className="flex-1 h-2 bg-white/5 rounded-full overflow-hidden">
+                                      <div className="h-full rounded-full" style={{ width: `${(pct ?? 0) * 100}%`, backgroundColor: MECH_COLORS[mech] || '#888', opacity: 0.7 }} />
+                                    </div>
+                                    <span className="text-[9px] text-text-dim font-mono w-8 text-right">{Math.round((pct ?? 0) * 100)}%</span>
+                                  </div>
+                                ))}
+                            </div>
+                          </>
+                        );
+                      })()}
                     </>
                   )}
                 </div>
