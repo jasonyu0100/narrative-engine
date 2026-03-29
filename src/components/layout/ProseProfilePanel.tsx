@@ -94,11 +94,11 @@ export default function ProseProfilePanel({ onClose }: Props) {
           <div className="grid grid-cols-2 gap-2 text-[11px]">
             <div className="px-2.5 py-2 rounded border border-white/5 bg-white/2">
               <span className="text-[9px] text-text-dim block">Register</span>
-              <span className="text-text-primary font-medium capitalize">{profile.register}</span>
+              <span className="text-text-primary font-medium capitalize">{profile.register ?? 'conversational'}</span>
             </div>
             <div className="px-2.5 py-2 rounded border border-white/5 bg-white/2">
               <span className="text-[9px] text-text-dim block">Stance</span>
-              <span className="text-text-primary font-medium">{profile.stance.replace(/_/g, ' ')}</span>
+              <span className="text-text-primary font-medium">{(profile.stance ?? 'close_third').replace(/_/g, ' ')}</span>
             </div>
           </div>
         </div>
@@ -107,7 +107,7 @@ export default function ProseProfilePanel({ onClose }: Props) {
         <div>
           <span className="text-[9px] uppercase tracking-widest text-text-dim block mb-2">Devices</span>
           <div className="flex flex-wrap gap-1.5">
-            {profile.devices.map((d) => (
+            {(profile.devices ?? []).map((d) => (
               <span key={d} className="text-[10px] px-2 py-1 rounded-full border border-white/10 text-text-secondary">
                 {d.replace(/_/g, ' ')}
               </span>
@@ -116,11 +116,11 @@ export default function ProseProfilePanel({ onClose }: Props) {
         </div>
 
         {/* Rules */}
-        {profile.rules.length > 0 && (
+        {(profile.rules?.length ?? 0) > 0 && (
           <div>
             <span className="text-[9px] uppercase tracking-widest text-text-dim block mb-2">Rules</span>
             <div className="space-y-1.5">
-              {profile.rules.map((r, i) => (
+              {(profile.rules ?? []).map((r, i) => (
                 <p key={i} className="text-[10px] text-text-secondary leading-snug pl-3 border-l border-white/10">
                   {r}
                 </p>
@@ -133,7 +133,7 @@ export default function ProseProfilePanel({ onClose }: Props) {
         <div>
           <span className="text-[9px] uppercase tracking-widest text-text-dim block mb-2">Beat Distribution</span>
           <div className="space-y-1">
-            {Object.entries(profile.beatDistribution)
+            {Object.entries(profile.beatDistribution ?? {})
               .filter(([, v]) => v && v > 0)
               .sort(([, a], [, b]) => (b ?? 0) - (a ?? 0))
               .map(([fn, pct]) => (
@@ -152,7 +152,7 @@ export default function ProseProfilePanel({ onClose }: Props) {
         <div>
           <span className="text-[9px] uppercase tracking-widest text-text-dim block mb-2">Mechanism Distribution</span>
           <div className="space-y-1">
-            {Object.entries(profile.mechanismDistribution)
+            {Object.entries(profile.mechanismDistribution ?? {})
               .filter(([, v]) => v && v > 0)
               .sort(([, a], [, b]) => (b ?? 0) - (a ?? 0))
               .map(([mech, pct]) => (
