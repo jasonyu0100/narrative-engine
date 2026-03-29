@@ -9,11 +9,11 @@ import { NARRATIVE_CUBE } from '@/types/narrative';
 import type { CubeCornerKey } from '@/types/narrative';
 import { MATRIX_PRESETS, type TransitionMatrix } from '@/lib/markov';
 
-type Tab = 'direction' | 'pacing' | 'pov' | 'other';
+type Tab = 'direction' | 'markov' | 'pov' | 'other';
 
 const TABS: { label: string; value: Tab }[] = [
   { label: 'Direction', value: 'direction' },
-  { label: 'Pacing', value: 'pacing' },
+  { label: 'Markov', value: 'markov' },
   { label: 'POV', value: 'pov' },
   { label: 'Other', value: 'other' },
 ];
@@ -266,7 +266,7 @@ export function StorySettingsModal({ onClose }: { onClose: () => void }) {
             </>
           )}
 
-          {tab === 'pacing' && (() => {
+          {tab === 'markov' && (() => {
             const CORNERS: CubeCornerKey[] = ['HHH', 'HHL', 'HLH', 'HLL', 'LHH', 'LHL', 'LLH', 'LLL'];
             const COLORS: Record<CubeCornerKey, string> = {
               HHH: '#f59e0b', HHL: '#ef4444', HLH: '#a855f7', HLL: '#6366f1',
