@@ -19,7 +19,7 @@ const MECH_COLORS: Record<string, string> = {
 };
 
 function MiniMatrix({ profile }: { profile: ProseProfile }) {
-  const fns = BEAT_FN_LIST.filter((fn) => profile.beatDistribution[fn]);
+  const fns = BEAT_FN_LIST.filter((fn) => (profile.beatDistribution ?? {})[fn]);
 
   return (
     <div className="overflow-x-auto">
@@ -36,7 +36,7 @@ function MiniMatrix({ profile }: { profile: ProseProfile }) {
         </thead>
         <tbody>
           {fns.map((from) => {
-            const row = profile.markov[from] ?? {};
+            const row = (profile.markov ?? {})[from as keyof typeof profile.markov] ?? {};
             return (
               <tr key={from} className="border-t border-white/5">
                 <td className="p-1 font-medium" style={{ color: FN_COLORS[from] }}>{from.slice(0, 4)}</td>
