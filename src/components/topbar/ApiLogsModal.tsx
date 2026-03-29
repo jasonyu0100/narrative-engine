@@ -42,7 +42,7 @@ function LogDetail({ entry, onClose }: { entry: ApiLogEntry; onClose: () => void
           </button>
           <div className="w-px h-3.5 bg-white/10" />
           <span className="text-[13px] text-text-primary font-medium truncate">{entry.caller}</span>
-          {entry.model && <span className="text-[9px] text-text-dim font-mono">{entry.model.split('/').pop()}</span>}
+          {entry.model && <span className={`text-[9px] font-mono ${entry.model.startsWith('replicate/') ? 'text-pink-400' : 'text-text-dim'}`}>{entry.model.split('/').pop()}</span>}
           <StatusBadge status={entry.status} />
         </div>
         <span className="text-[10px] text-text-dim shrink-0">
@@ -157,13 +157,19 @@ export function ApiLogsModal({ onClose }: { onClose: () => void }) {
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2">
                         <span className="text-[12px] text-text-primary font-medium">{entry.caller}</span>
-                        {entry.model && <span className="text-[9px] text-text-dim font-mono">{entry.model.split('/').pop()}</span>}
+                        {entry.model && (
+                          <span className={`text-[9px] font-mono ${entry.model.startsWith('replicate/') ? 'text-pink-400' : 'text-text-dim'}`}>
+                            {entry.model.split('/').pop()}
+                          </span>
+                        )}
                         {entry.reasoningTokens != null && entry.reasoningTokens > 0 && (
                           <span className="text-[9px] text-purple-400 font-mono">~{entry.reasoningTokens.toLocaleString()} thinking</span>
                         )}
-                        <span className="text-[10px] text-text-dim">
-                          ~{(entry.promptTokens ?? 0).toLocaleString()} tokens
-                        </span>
+                        {entry.model?.startsWith('replicate/') ? (
+                          <span className="text-[10px] text-pink-400/60">$0.04</span>
+                        ) : (
+                          <span className="text-[10px] text-text-dim">~{(entry.promptTokens ?? 0).toLocaleString()} tokens</span>
+                        )}
                       </div>
                       {entry.error && (
                         <p className="text-[10px] text-red-400 truncate mt-0.5">{entry.error}</p>

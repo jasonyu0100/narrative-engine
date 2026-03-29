@@ -40,7 +40,7 @@ async function generateImage(
       throw new Error(message);
     }
     const data = await res.json();
-    updateApiLog(logId, { status: 'success', durationMs: Math.round(performance.now() - start), responseLength: data.imageUrl?.length ?? 0, responsePreview: `image generated (${type})` });
+    updateApiLog(logId, { status: 'success', durationMs: Math.round(performance.now() - start), responsePreview: `image generated (${type})` });
     return data;
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);

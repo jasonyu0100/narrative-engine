@@ -11,7 +11,21 @@ function getPricing(model?: string) {
   return MODEL_PRICING[model] ?? DEFAULT_PRICING;
 }
 
+/** Image generation calls use flat per-image pricing, not token pricing */
+function isImageGenCall(entry: ApiLogEntry): boolean {
+  return entry.model?.startsWith('replicate/') === true || entry.caller.includes('generateImage');
+}
+
+/** Flat cost per image for image generation models */
+const IMAGE_PRICING: Record<string, number> = {
+  'replicate/seedream-4.5': 0.04,
+};
+
 function costForEntry(entry: ApiLogEntry): { input: number; output: number; reasoning: number } {
+  if (isImageGenCall(entry)) {
+    const flatCost = IMAGE_PRICING[entry.model ?? ''] ?? 0.04;
+    return { input: 0, output: flatCost, reasoning: 0 };
+  }
   const pricing = getPricing(entry.model);
   const inputCost = (entry.promptTokens / 1_000_000) * pricing.input;
   const outputCost = ((entry.responseTokens ?? 0) / 1_000_000) * pricing.output;
@@ -90,25 +104,29 @@ function bucketByMinute(logs: ApiLogEntry[]): { label: string; shortLabel: strin
 
 // ── SVG Bar Chart ────────────────────────────────────────────────────────────
 
-type BarDatum = { label: string; shortLabel: string; v1: number; v2: number; v3: number };
+type BarDatum = { label: string; shortLabel: string; v1: number; v2: number; v3: number; v4: number };
 
 function BarChart({
   data,
   color1,
   color2,
   color3,
+  color4,
   label1,
   label2,
   label3,
+  label4,
   formatValue,
 }: {
   data: BarDatum[];
   color1: string;
   color2: string;
   color3: string;
+  color4: string;
   label1: string;
   label2: string;
   label3: string;
+  label4: string;
   formatValue: (v: number) => string;
 }) {
   const [hovered, setHovered] = useState<number | null>(null);
@@ -126,7 +144,7 @@ function BarChart({
     );
   }
 
-  const maxVal = Math.max(...data.map((d) => d.v1 + d.v2 + d.v3), 0.001);
+  const maxVal = Math.max(...data.map((d) => d.v1 + d.v2 + d.v3 + d.v4), 0.001);
   const barW = Math.max(2, Math.min(20, (cw / data.length) * 0.65));
   const gap = cw / data.length;
   const ticks = Array.from({ length: 4 }, (_, i) => (maxVal / 3) * i);
@@ -148,6 +166,12 @@ function BarChart({
           <span className="flex items-center gap-1">
             <span className="w-2 h-2 rounded-sm" style={{ background: color3 }} />
             {label3}
+          </span>
+        )}
+        {label4 && (
+          <span className="flex items-center gap-1">
+            <span className="w-2 h-2 rounded-sm" style={{ background: color4 }} />
+            {label4}
           </span>
         )}
         <span className="flex items-center gap-1">
@@ -172,10 +196,15 @@ function BarChart({
           const h1 = (d.v1 / maxVal) * ch;
           const h2 = (d.v2 / maxVal) * ch;
           const h3 = (d.v3 / maxVal) * ch;
+          const h4 = (d.v4 / maxVal) * ch;
           const isH = hovered === i;
+          const totalH = h1 + h2 + h3 + h4;
           return (
             <g key={i} onMouseEnter={() => setHovered(i)} onMouseLeave={() => setHovered(null)} className="cursor-pointer">
               <rect x={PAD.left + gap * i} y={PAD.top} width={gap} height={ch} fill="transparent" />
+              {h4 > 0 && (
+                <rect x={x} y={PAD.top + ch - totalH} width={barW} height={h4} fill={color4} opacity={isH ? 1 : 0.65} rx={1} />
+              )}
               {h3 > 0 && (
                 <rect x={x} y={PAD.top + ch - h1 - h2 - h3} width={barW} height={h3} fill={color3} opacity={isH ? 1 : 0.65} rx={1} />
               )}
@@ -188,40 +217,25 @@ function BarChart({
                   {d.shortLabel}
                 </text>
               )}
-              {isH && (
-                <g>
-                  <rect
-                    x={Math.max(PAD.left, Math.min(x - 36, W - PAD.right - 76))}
-                    y={Math.max(0, PAD.top + ch - h1 - h2 - h3 - 40)}
-                    width={76} height={label3 && d.v3 > 0 ? 34 : label2 ? 24 : 14} rx={3} fill="#222" stroke="white" strokeOpacity="0.1"
-                  />
-                  <text
-                    x={Math.max(PAD.left, Math.min(x - 36, W - PAD.right - 76)) + 38}
-                    y={Math.max(0, PAD.top + ch - h1 - h2 - h3 - 40) + 10}
-                    textAnchor="middle" fill="white" fontSize="7" fontFamily="monospace"
-                  >
-                    {label1}: {formatValue(d.v1)}
-                  </text>
-                  {label2 && (
-                    <text
-                      x={Math.max(PAD.left, Math.min(x - 36, W - PAD.right - 76)) + 38}
-                      y={Math.max(0, PAD.top + ch - h1 - h2 - h3 - 40) + 20}
-                      textAnchor="middle" fill="white" fontSize="7" fontFamily="monospace"
-                    >
-                      {label2}: {formatValue(d.v2)}
-                    </text>
-                  )}
-                  {label3 && d.v3 > 0 && (
-                    <text
-                      x={Math.max(PAD.left, Math.min(x - 36, W - PAD.right - 76)) + 38}
-                      y={Math.max(0, PAD.top + ch - h1 - h2 - h3 - 40) + 30}
-                      textAnchor="middle" fill="white" fontSize="7" fontFamily="monospace"
-                    >
-                      {label3}: {formatValue(d.v3)}
-                    </text>
-                  )}
-                </g>
-              )}
+              {isH && (() => {
+                const lines: { label: string; value: string }[] = [{ label: label1, value: formatValue(d.v1) }];
+                if (label2 && d.v2 > 0) lines.push({ label: label2, value: formatValue(d.v2) });
+                if (label3 && d.v3 > 0) lines.push({ label: label3, value: formatValue(d.v3) });
+                if (label4 && d.v4 > 0) lines.push({ label: label4, value: formatValue(d.v4) });
+                const tipH = lines.length * 10 + 4;
+                const tipX = Math.max(PAD.left, Math.min(x - 36, W - PAD.right - 76));
+                const tipY = Math.max(0, PAD.top + ch - totalH - tipH - 6);
+                return (
+                  <g>
+                    <rect x={tipX} y={tipY} width={76} height={tipH} rx={3} fill="#222" stroke="white" strokeOpacity="0.1" />
+                    {lines.map((l, li) => (
+                      <text key={li} x={tipX + 38} y={tipY + 10 + li * 10} textAnchor="middle" fill="white" fontSize="7" fontFamily="monospace">
+                        {l.label}: {l.value}
+                      </text>
+                    ))}
+                  </g>
+                );
+              })()}
             </g>
           );
         })}
@@ -229,7 +243,7 @@ function BarChart({
         {data.length > 1 && (() => {
           const cumulative: number[] = [];
           let running = 0;
-          for (const d of data) { running += d.v1 + d.v2 + d.v3; cumulative.push(running); }
+          for (const d of data) { running += d.v1 + d.v2 + d.v3 + d.v4; cumulative.push(running); }
           const maxCum = Math.max(...cumulative, 0.001);
           const points = cumulative.map((v, i) => {
             const x = PAD.left + gap * i + gap / 2;
@@ -269,22 +283,28 @@ export function UsageDropdown({ logs }: { logs: ApiLogEntry[] }) {
   const successLogs = useMemo(() => logs.filter((l) => l.status === 'success'), [logs]);
 
   const totals = useMemo(() => {
-    let inputTokens = 0, outputTokens = 0, reasoningTokens = 0, inputCost = 0, outputCost = 0, reasoningCost = 0;
+    let inputTokens = 0, outputTokens = 0, reasoningTokens = 0, inputCost = 0, outputCost = 0, reasoningCost = 0, imageCost = 0, imageCount = 0;
     for (const log of successLogs) {
+      const c = costForEntry(log);
+      if (isImageGenCall(log)) {
+        imageCost += c.output;
+        imageCount++;
+        continue;
+      }
       inputTokens += log.promptTokens;
       outputTokens += log.responseTokens ?? 0;
       reasoningTokens += log.reasoningTokens ?? 0;
-      const c = costForEntry(log);
       inputCost += c.input;
       outputCost += c.output;
       reasoningCost += c.reasoning;
     }
-    return { inputTokens, outputTokens, reasoningTokens, inputCost, outputCost, reasoningCost, totalCost: inputCost + outputCost + reasoningCost, calls: successLogs.length };
+    return { inputTokens, outputTokens, reasoningTokens, inputCost, outputCost, reasoningCost, imageCost, imageCount, totalCost: inputCost + outputCost + reasoningCost + imageCost, calls: successLogs.length };
   }, [successLogs]);
 
   const modelBreakdown = useMemo(() => {
     const map = new Map<string, { calls: number; inputTokens: number; outputTokens: number; reasoningTokens: number; cost: number }>();
     for (const log of successLogs) {
+      if (isImageGenCall(log)) continue;
       const model = log.model ?? 'unknown';
       const existing = map.get(model) ?? { calls: 0, inputTokens: 0, outputTokens: 0, reasoningTokens: 0, cost: 0 };
       existing.calls += 1;
@@ -305,14 +325,14 @@ export function UsageDropdown({ logs }: { logs: ApiLogEntry[] }) {
     return buckets.map((b): BarDatum => {
       if (view === 'tokens') {
         let v1 = 0, v2 = 0, v3 = 0;
-        for (const e of b.entries) { v1 += e.promptTokens; v2 += e.responseTokens ?? 0; v3 += e.reasoningTokens ?? 0; }
-        return { label: b.label, shortLabel: b.shortLabel, v1, v2, v3 };
+        for (const e of b.entries) { if (isImageGenCall(e)) continue; v1 += e.promptTokens; v2 += e.responseTokens ?? 0; v3 += e.reasoningTokens ?? 0; }
+        return { label: b.label, shortLabel: b.shortLabel, v1, v2, v3, v4: 0 };
       } else if (view === 'cost') {
-        let v1 = 0, v2 = 0, v3 = 0;
-        for (const e of b.entries) { const c = costForEntry(e); v1 += c.input; v2 += c.output; v3 += c.reasoning; }
-        return { label: b.label, shortLabel: b.shortLabel, v1, v2, v3 };
+        let v1 = 0, v2 = 0, v3 = 0, v4 = 0;
+        for (const e of b.entries) { const c = costForEntry(e); if (isImageGenCall(e)) { v4 += c.output; } else { v1 += c.input; v2 += c.output; v3 += c.reasoning; } }
+        return { label: b.label, shortLabel: b.shortLabel, v1, v2, v3, v4 };
       } else {
-        return { label: b.label, shortLabel: b.shortLabel, v1: b.entries.length, v2: 0, v3: 0 };
+        return { label: b.label, shortLabel: b.shortLabel, v1: b.entries.length, v2: 0, v3: 0, v4: 0 };
       }
     });
   }, [logs, view, granularity]);
@@ -326,14 +346,17 @@ export function UsageDropdown({ logs }: { logs: ApiLogEntry[] }) {
   return (
     <div className="absolute top-full right-0 mt-1 z-50 bg-bg-base border border-white/10 rounded-lg shadow-2xl p-4 w-[560px] max-h-[80vh] overflow-y-auto">
       {/* Summary row */}
-      <div className={`grid gap-2 mb-4 ${totals.reasoningTokens > 0 ? 'grid-cols-5' : 'grid-cols-4'}`}>
+      <div className="grid grid-cols-4 gap-2 mb-4">
         <MiniCard label="Total Cost" value={formatCost(totals.totalCost)} color="#a78bfa" />
         <MiniCard label="Input Tokens" value={formatTokens(totals.inputTokens)} color="#3B82F6" />
         <MiniCard label="Output Tokens" value={formatTokens(totals.outputTokens)} color="#22C55E" />
+        <MiniCard label="API Calls" value={String(totals.calls)} color="#facc15" />
         {totals.reasoningTokens > 0 && (
           <MiniCard label="Reasoning" value={formatTokens(totals.reasoningTokens)} color="#c084fc" />
         )}
-        <MiniCard label="API Calls" value={String(totals.calls)} color="#facc15" />
+        {totals.imageCount > 0 && (
+          <MiniCard label="Images" value={`${totals.imageCount} (${formatCost(totals.imageCost)})`} color="#f472b6" />
+        )}
       </div>
 
       {/* Controls */}
@@ -372,9 +395,11 @@ export function UsageDropdown({ logs }: { logs: ApiLogEntry[] }) {
         color1={view === 'cost' ? '#3B82F6' : view === 'tokens' ? '#3B82F6' : '#facc15'}
         color2={view === 'cost' ? '#22C55E' : view === 'tokens' ? '#22C55E' : ''}
         color3={view === 'cost' ? '#c084fc' : view === 'tokens' ? '#c084fc' : ''}
+        color4={view === 'cost' ? '#f472b6' : ''}
         label1={view === 'cost' ? 'Input' : view === 'tokens' ? 'Input' : 'Calls'}
         label2={view === 'cost' ? 'Output' : view === 'tokens' ? 'Output' : ''}
         label3={view === 'cost' ? 'Reasoning' : view === 'tokens' ? 'Reasoning' : ''}
+        label4={view === 'cost' ? 'Images' : ''}
         formatValue={formatFn}
       />
 
