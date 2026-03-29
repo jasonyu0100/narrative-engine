@@ -688,23 +688,34 @@ export function StoryReader({
               {/* Context actions — shown in tab bar, right-aligned */}
               {viewMode === 'plan' && hasPlan && !isPlanLoading && (
                 <div className="ml-auto flex items-center gap-1.5">
+                  {!scene.locked && (
+                    <>
+                      <button
+                        onClick={() => {
+                          setViewMode('prose');
+                          if (!hasProse) generateProse(scene);
+                        }}
+                        className="text-[9px] px-2 py-1 rounded text-sky-400/80 hover:text-sky-400 hover:bg-sky-500/10 transition"
+                      >
+                        Write Prose &rarr;
+                      </button>
+                      <button
+                        onClick={() => {
+                          dispatch({ type: 'UPDATE_SCENE', sceneId: scene.id, updates: { plan: undefined } });
+                          setPlanCache((prev) => { const next = { ...prev }; delete next[scene.id]; return next; });
+                        }}
+                        className="text-[9px] px-2 py-1 rounded text-text-dim/50 hover:text-red-400/80 hover:bg-red-500/5 transition"
+                      >
+                        Clear
+                      </button>
+                    </>
+                  )}
                   <button
-                    onClick={() => {
-                      setViewMode('prose');
-                      if (!hasProse) generateProse(scene);
-                    }}
-                    className="text-[9px] px-2 py-1 rounded text-sky-400/80 hover:text-sky-400 hover:bg-sky-500/10 transition"
+                    onClick={() => dispatch({ type: 'UPDATE_SCENE', sceneId: scene.id, updates: { locked: !scene.locked } })}
+                    className={`text-[9px] px-2 py-1 rounded transition ${scene.locked ? 'text-amber-400 bg-amber-500/10' : 'text-text-dim/40 hover:text-text-dim hover:bg-white/5'}`}
+                    title={scene.locked ? 'Unlock — allow editing' : 'Lock — prevent changes'}
                   >
-                    Write Prose &rarr;
-                  </button>
-                  <button
-                    onClick={() => {
-                      dispatch({ type: 'UPDATE_SCENE', sceneId: scene.id, updates: { plan: undefined } });
-                      setPlanCache((prev) => { const next = { ...prev }; delete next[scene.id]; return next; });
-                    }}
-                    className="text-[9px] px-2 py-1 rounded text-text-dim/50 hover:text-red-400/80 hover:bg-red-500/5 transition"
-                  >
-                    Clear
+                    {scene.locked ? 'Locked' : 'Lock'}
                   </button>
                 </div>
               )}
