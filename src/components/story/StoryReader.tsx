@@ -1,13 +1,13 @@
 'use client';
 
 import { useState, useCallback, useRef, useEffect } from 'react';
-import type { NarrativeState, Scene, StorySettings, AlignmentReport, ContinuityPlan } from '@/types/narrative';
+import type { NarrativeState, Scene, StorySettings, AlignmentReport, ContinuityPlan, BeatPlan } from '@/types/narrative';
 import { resolveEntry, isScene, DEFAULT_STORY_SETTINGS } from '@/types/narrative';
-import { generateSceneProse, generateScenePlan, rewriteScenePlan, rewriteSceneProse, runAlignment, buildContinuityPlan, buildFixAnalysis, runFixWindows } from '@/lib/ai';
+import { generateSceneProse, rewriteSceneProse, runAlignment, buildContinuityPlan, buildFixAnalysis, runFixWindows } from '@/lib/ai';
 import type { AlignmentProgress } from '@/lib/ai';
 import { useStore } from '@/lib/store';
 import { exportEpub } from '@/lib/epub-export';
-import { PROSE_CONCURRENCY, PLAN_CONCURRENCY, ALIGNMENT_CONCURRENCY, ALIGNMENT_WINDOW_SIZE, ALIGNMENT_STRIDE } from '@/lib/constants';
+import { PROSE_CONCURRENCY, ALIGNMENT_CONCURRENCY, ALIGNMENT_WINDOW_SIZE, ALIGNMENT_STRIDE } from '@/lib/constants';
 
 type ContentCache = Record<string, { text: string; status: 'loading' | 'ready' | 'error'; error?: string }>;
 type BulkState = { running: boolean; completed: number; total: number; errors: number } | null;
@@ -45,8 +45,7 @@ export function StoryReader({
   const [currentIndex, setCurrentIndex] = useState(initialIndex);
   const [viewMode, setViewMode] = useState<'summary' | 'plan' | 'prose'>('summary');
   const [proseCache, setProseCache] = useState<ContentCache>({});
-  const [planCache, setPlanCache] = useState<ContentCache>({});
-  const [editedPlan, setEditedPlan] = useState<string | null>(null);
+  const [planCache, setPlanCache] = useState<Record<string, { plan: BeatPlan | null; status: 'loading' | 'ready' | 'error'; error?: string }>>({});
   const contentRef = useRef<HTMLDivElement>(null);
   const activeSceneRef = useRef<HTMLButtonElement>(null);
   const [proseBulk, setProseBulk] = useState<BulkState>(null);
@@ -80,22 +79,12 @@ export function StoryReader({
 
 
   // ── Plan generation ──────────────────────────────────────────────────
-  const generatePlan = useCallback(async (s: Scene) => {
-    setPlanCache((prev) => ({ ...prev, [s.id]: { text: '', status: 'loading' } }));
-    try {
-      const plan = await generateScenePlan(narrative, s, resolvedKeys, (token) => {
-        setPlanCache((prev) => {
-          const existing = prev[s.id];
-          return { ...prev, [s.id]: { text: (existing?.text ?? '') + token, status: 'loading' } };
-        });
-      });
-      setPlanCache((prev) => ({ ...prev, [s.id]: { text: plan, status: 'ready' } }));
-      dispatch({ type: 'UPDATE_SCENE', sceneId: s.id, updates: { plan } });
-    } catch (err) {
-      const message = err instanceof Error ? err.message : String(err);
-      setPlanCache((prev) => ({ ...prev, [s.id]: { text: '', status: 'error', error: message } }));
-    }
-  }, [narrative, resolvedKeys, dispatch]);
+  // TODO: generateScenePlan will be updated to return BeatPlan directly.
+  // For now, plan generation is disabled — plans are created by the scene generation pipeline.
+  const generatePlan = useCallback(async (_s: Scene) => {
+    // Plan generation temporarily disabled — being updated to structured BeatPlan format
+    void _s;
+  }, []);
 
   // ── Prose generation ─────────────────────────────────────────────────
   const generateProse = useCallback(async (s: Scene) => {
@@ -117,8 +106,6 @@ export function StoryReader({
 
   const [rewriteAnalysis, setRewriteAnalysis] = useState('');
   const [showRewrite, setShowRewrite] = useState(false);
-  const [planRewriteAnalysis, setPlanRewriteAnalysis] = useState('');
-  const [showPlanRewrite, setShowPlanRewrite] = useState(false);
   const [contextPast, setContextPast] = useState(0);
   const [contextFuture, setContextFuture] = useState(0);
   const [referenceSceneIds, setReferenceSceneIds] = useState<string[]>([]);
@@ -147,24 +134,7 @@ export function StoryReader({
   }, [narrative, resolvedKeys, proseCache, dispatch]);
 
   // ── Rewrite plan ──────────────────────────────────────────────────────
-  const rewritePlan = useCallback(async (s: Scene, analysis: string) => {
-    const currentPlan = planCache[s.id]?.status === 'ready' ? planCache[s.id].text : s.plan;
-    if (!currentPlan) return;
-    setPlanCache((prev) => ({ ...prev, [s.id]: { text: '', status: 'loading' } }));
-    try {
-      const plan = await rewriteScenePlan(narrative, s, resolvedKeys, currentPlan, analysis, (token) => {
-        setPlanCache((prev) => {
-          const existing = prev[s.id];
-          return { ...prev, [s.id]: { text: (existing?.text ?? '') + token, status: 'loading' } };
-        });
-      });
-      setPlanCache((prev) => ({ ...prev, [s.id]: { text: plan, status: 'ready' } }));
-      dispatch({ type: 'UPDATE_SCENE', sceneId: s.id, updates: { plan } });
-    } catch (err) {
-      const message = err instanceof Error ? err.message : String(err);
-      setPlanCache((prev) => ({ ...prev, [s.id]: { text: currentPlan, status: 'error', error: message } }));
-    }
-  }, [narrative, resolvedKeys, planCache, dispatch]);
+  // TODO: Plan rewrite disabled — will be updated to work with BeatPlan format
 
   // ── Bulk helpers ─────────────────────────────────────────────────────
   const runBulk = useCallback(async (
@@ -198,10 +168,10 @@ export function StoryReader({
     setState({ running: false, completed, total: items.length, errors });
   }, []);
 
+  // TODO: Bulk plan generation disabled — being updated to structured BeatPlan format
   const bulkPlan = useCallback(() => {
-    const missing = scenes.filter((s) => !s.plan && planCache[s.id]?.status !== 'ready');
-    runBulk(missing, PLAN_CONCURRENCY, (s) => generatePlan(s), setPlanBulk);
-  }, [scenes, planCache, resolvedKeys, generatePlan, runBulk]);
+    // Disabled — plan generation being updated to structured format
+  }, []);
 
   const bulkProse = useCallback(() => {
     // Only generate prose for scenes that have plans but no prose yet
@@ -343,12 +313,12 @@ export function StoryReader({
       setProseCache((prev) => ({ ...prev, [scene.id]: { text: scene.prose!, status: 'ready' } }));
     }
     if (scene.plan && !planCache[scene.id]) {
-      setPlanCache((prev) => ({ ...prev, [scene.id]: { text: scene.plan!, status: 'ready' } }));
+      setPlanCache((prev) => ({ ...prev, [scene.id]: { plan: scene.plan!, status: 'ready' as const } }));
     }
   }, [scene, proseCache, planCache]);
 
-  // Reset edited plan when changing scenes
-  useEffect(() => { setEditedPlan(null); setShowRewrite(false); setRewriteAnalysis(''); setShowPlanRewrite(false); setPlanRewriteAnalysis(''); }, [currentIndex]);
+  // Reset state when changing scenes
+  useEffect(() => { setShowRewrite(false); setRewriteAnalysis(''); }, [currentIndex]);
 
   useEffect(() => { activeSceneRef.current?.scrollIntoView({ block: 'center' }); }, []); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => {
@@ -395,7 +365,7 @@ export function StoryReader({
   const isAnyBulkRunning = !!(proseBulk?.running || planBulk?.running);
   const activeBulk = proseBulk?.running ? proseBulk : planBulk?.running ? planBulk : null;
 
-  const planText = editedPlan ?? planCached?.text ?? scene?.plan ?? '';
+  const activePlan: BeatPlan | null = planCached?.plan ?? scene?.plan ?? null;
 
   return (
     <div className="fixed inset-0 bg-bg-base z-50 flex flex-col">
@@ -471,8 +441,11 @@ export function StoryReader({
                     text = scenes.map((s, i) => `Scene ${i + 1}: ${s.summary || '(no summary)'}`).join('\n\n');
                   } else if (type === 'plans') {
                     text = scenes.map((s, i) => {
-                      const plan = planCache[s.id]?.status === 'ready' ? planCache[s.id].text : s.plan;
-                      return plan ? `Scene ${i + 1}:\n${plan}` : null;
+                      const plan = planCache[s.id]?.status === 'ready' ? planCache[s.id].plan : s.plan;
+                      if (!plan) return null;
+                      const beatLines = plan.beats.map((b, bi) => `  ${bi + 1}. [${b.fn}:${b.mechanism}] ${b.what} | ${b.anchor}`).join('\n');
+                      const anchorLines = plan.anchors.length > 0 ? `\n  Anchors: ${plan.anchors.map(a => `"${a}"`).join(', ')}` : '';
+                      return `Scene ${i + 1}:\n${beatLines}${anchorLines}`;
                     }).filter(Boolean).join('\n\n---\n\n');
                   } else {
                     text = scenes.map((s) => proseCache[s.id]?.status === 'ready' ? proseCache[s.id].text : s.prose).filter(Boolean).join('\n\n');
@@ -698,44 +671,8 @@ export function StoryReader({
               {/* Context actions — shown in tab bar, right-aligned */}
               {viewMode === 'plan' && hasPlan && !isPlanLoading && (
                 <div className="ml-auto flex items-center gap-1.5">
-                  {editedPlan !== null && (
-                    <button
-                      onClick={() => {
-                        dispatch({ type: 'UPDATE_SCENE', sceneId: scene.id, updates: { plan: editedPlan } });
-                        setPlanCache((prev) => ({ ...prev, [scene.id]: { text: editedPlan, status: 'ready' } }));
-                        setEditedPlan(null);
-                      }}
-                      className="text-[9px] px-2 py-1 rounded text-sky-400 hover:bg-sky-500/10 transition"
-                    >
-                      Save
-                    </button>
-                  )}
-                  <button
-                    onClick={() => setShowPlanRewrite((v) => !v)}
-                    className={`text-[9px] px-2 py-1 rounded transition ${showPlanRewrite ? 'text-sky-400 bg-sky-500/10' : 'text-sky-400/60 hover:text-sky-400 hover:bg-sky-500/10'}`}
-                  >
-                    Rewrite
-                  </button>
                   <button
                     onClick={() => {
-                      dispatch({ type: 'UPDATE_SCENE', sceneId: scene.id, updates: { plan: undefined, prose: undefined, proseScore: undefined } });
-                      setPlanCache((prev) => { const next = { ...prev }; delete next[scene.id]; return next; });
-                      setProseCache((prev) => { const next = { ...prev }; delete next[scene.id]; return next; });
-                      setEditedPlan(null);
-                      generatePlan(scene);
-                    }}
-                    className="text-[9px] px-2 py-1 rounded text-text-dim hover:text-text-secondary hover:bg-white/5 transition"
-                  >
-                    Regenerate
-                  </button>
-                  <button
-                    onClick={() => {
-                      // Save any unsaved edits first
-                      if (editedPlan !== null) {
-                        dispatch({ type: 'UPDATE_SCENE', sceneId: scene.id, updates: { plan: editedPlan } });
-                        setPlanCache((prev) => ({ ...prev, [scene.id]: { text: editedPlan, status: 'ready' } }));
-                        setEditedPlan(null);
-                      }
                       setViewMode('prose');
                       if (!hasProse) generateProse(scene);
                     }}
@@ -748,7 +685,6 @@ export function StoryReader({
                       dispatch({ type: 'UPDATE_SCENE', sceneId: scene.id, updates: { plan: undefined, prose: undefined, proseScore: undefined } });
                       setPlanCache((prev) => { const next = { ...prev }; delete next[scene.id]; return next; });
                       setProseCache((prev) => { const next = { ...prev }; delete next[scene.id]; return next; });
-                      setEditedPlan(null);
                     }}
                     className="text-[9px] px-2 py-1 rounded text-text-dim/50 hover:text-red-400/80 hover:bg-red-500/5 transition"
                   >
@@ -1060,82 +996,54 @@ export function StoryReader({
             {/* ── PLAN VIEW ──────────────────────────────────────────── */}
             {viewMode === 'plan' && (
               <>
-                {isPlanLoading && !planCached?.text && (
+                {isPlanLoading && !planCached?.plan && (
                   <div className="flex flex-col items-center justify-center py-20 gap-3">
                     <div className="w-5 h-5 border-2 border-sky-400/30 border-t-sky-400/80 rounded-full animate-spin" />
                     <p className="text-[11px] text-text-dim">Generating plan...</p>
                   </div>
                 )}
 
-                {isPlanLoading && planCached?.text && (
-                  <div>
-                    <div className="flex items-center gap-2 mb-6">
-                      <div className="w-3 h-3 border-2 border-sky-400/30 border-t-sky-400/80 rounded-full animate-spin" />
-                      <span className="text-[9px] text-text-dim">Planning...</span>
-                    </div>
-                    {planCached.text.split('\n\n').map((block, i) => (
-                      <p key={i} className="text-[13px] text-text-secondary leading-[1.8] mb-5">{block}</p>
-                    ))}
-                  </div>
-                )}
-
                 {hasPlanError && (
                   <div className="py-12 text-center">
                     <p className="text-[11px] text-red-400/80 mb-3">{planCached?.error}</p>
-                    <button onClick={() => generatePlan(scene)} className="text-[10px] px-4 py-1.5 rounded-full border border-white/10 text-text-dim hover:text-text-secondary transition">Retry</button>
                   </div>
                 )}
 
-                {/* ── Plan rewrite input ──────────────────────────── */}
-                {viewMode === 'plan' && showPlanRewrite && hasPlan && !isPlanLoading && (
-                  <div className="mx-0 mb-4 px-4 py-3 rounded-lg bg-sky-500/5 border border-sky-500/10">
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="text-[9px] uppercase tracking-widest text-sky-400/60">Rewrite Plan</span>
-                      <button onClick={() => setShowPlanRewrite(false)} className="text-[9px] text-text-dim/40 hover:text-text-dim transition">&times;</button>
-                    </div>
-                    <textarea
-                      value={planRewriteAnalysis}
-                      onChange={(e) => setPlanRewriteAnalysis(e.target.value)}
-                      placeholder="Describe what to change about this plan — fix spatial issues, add transitions, adjust pacing, restructure deliveries..."
-                      className="w-full h-24 bg-black/20 border border-white/5 rounded text-[11px] text-text-secondary p-2 resize-y outline-none focus:border-sky-500/20 placeholder:text-text-dim/30"
-                    />
-                    <div className="flex items-center justify-end mt-2">
-                      <button
-                        onClick={() => { rewritePlan(scene, planRewriteAnalysis); setShowPlanRewrite(false); setPlanRewriteAnalysis(''); }}
-                        disabled={!planRewriteAnalysis.trim()}
-                        className="text-[9px] px-3 py-1 rounded bg-sky-500/10 border border-sky-500/20 text-sky-400 hover:bg-sky-500/15 transition disabled:opacity-30 disabled:cursor-not-allowed"
-                      >
-                        Rewrite Plan
-                      </button>
-                    </div>
+                {hasPlan && !isPlanLoading && !hasPlanError && activePlan && (
+                  <div className="space-y-2">
+                    {activePlan.beats.length > 0 && (
+                      <div className="space-y-1.5">
+                        <h4 className="text-[9px] uppercase tracking-widest text-text-dim mb-2">Beats</h4>
+                        {activePlan.beats.map((beat, i) => (
+                          <div key={i} className="flex gap-2 px-3 py-2 rounded border border-white/5">
+                            <span className="text-[10px] font-mono text-sky-400 w-16 shrink-0">{beat.fn}</span>
+                            <span className="text-[10px] font-mono text-text-dim w-16 shrink-0">{beat.mechanism}</span>
+                            <div>
+                              <p className="text-[11px] text-text-secondary">{beat.what}</p>
+                              <p className="text-[10px] text-text-dim">{beat.anchor}</p>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    {activePlan.anchors.length > 0 && (
+                      <div className="mt-4">
+                        <h4 className="text-[9px] uppercase tracking-widest text-text-dim mb-2">Anchors</h4>
+                        {activePlan.anchors.map((a, i) => (
+                          <p key={i} className="text-[11px] text-amber-400/70 italic">&ldquo;{a}&rdquo;</p>
+                        ))}
+                      </div>
+                    )}
+                    {activePlan.beats.length === 0 && activePlan.anchors.length === 0 && (
+                      <p className="text-[11px] text-text-dim py-8 text-center">Plan is empty.</p>
+                    )}
                   </div>
-                )}
-
-                {hasPlan && !isPlanLoading && !hasPlanError && (
-                  <>
-                  <div
-                    className="text-[13px] text-text-secondary leading-[1.8] whitespace-pre-wrap outline-none"
-                    contentEditable
-                    suppressContentEditableWarning
-                    onInput={(e) => setEditedPlan((e.target as HTMLDivElement).innerText)}
-                    onBlur={(e) => {
-                      const text = (e.target as HTMLDivElement).innerText;
-                      if (text !== planText) setEditedPlan(text);
-                    }}
-                    dangerouslySetInnerHTML={{ __html: planText.replace(/\n/g, '<br>') }}
-                  />
-                  </>
                 )}
 
                 {!hasPlan && !isPlanLoading && !hasPlanError && (
                   <div className="flex flex-col items-center justify-center py-20 gap-4">
                     <p className="text-[11px] text-text-dim">No plan yet for this scene.</p>
-                    <button
-                      onClick={() => generatePlan(scene)}
-                      className="text-[11px] px-5 py-2 rounded-full bg-sky-500/10 border border-sky-500/20 text-sky-400 hover:bg-sky-500/15 transition"
-                    >
-                      Generate Plan
-                    </button>
+                    <p className="text-[10px] text-text-dim/50">Plans are created during scene generation.</p>
                   </div>
                 )}
               </>

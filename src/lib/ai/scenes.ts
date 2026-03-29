@@ -1,5 +1,5 @@
-import type { NarrativeState, Scene, Arc, WorldBuild, StorySettings } from '@/types/narrative';
-import { resolveEntry, DEFAULT_STORY_SETTINGS, REASONING_BUDGETS } from '@/types/narrative';
+import type { NarrativeState, Scene, Arc, WorldBuild, StorySettings, BeatPlan } from '@/types/narrative';
+import { resolveEntry, DEFAULT_STORY_SETTINGS, REASONING_BUDGETS, BEAT_FN_LIST, BEAT_MECHANISM_LIST } from '@/types/narrative';
 import { nextId, nextIds } from '@/lib/narrative-utils';
 import { callGenerate, callGenerateStream, SYSTEM_PROMPT } from './api';
 import { WRITING_MODEL, ANALYSIS_MODEL, GENERATE_MODEL, MAX_TOKENS_LARGE, PLAN_PROSE_LOOKBACK } from '@/lib/constants';
@@ -258,9 +258,8 @@ export async function generateScenePlan(
   narrative: NarrativeState,
   scene: Scene,
   resolvedKeys: string[],
-  onToken?: (token: string) => void,
   onReasoning?: (token: string) => void,
-): Promise<string> {
+): Promise<BeatPlan> {
   const sceneIdx = resolvedKeys.indexOf(scene.id);
   const contextIndex = sceneIdx >= 0 ? sceneIdx : resolvedKeys.length - 1;
   const fullContext = branchContext(narrative, resolvedKeys, contextIndex);
@@ -270,7 +269,7 @@ export async function generateScenePlan(
     ? `\nLOGICAL CONSTRAINTS (the plan must satisfy all of these):\n${logicRules.map((r) => `  - ${r}`).join('\n')}\n`
     : '';
 
-  // Recent scene prose for continuity — the planner needs to know what was actually written
+  // Recent scene prose for continuity
   const recentProseBlocks: string[] = [];
   for (let i = 1; i <= PLAN_PROSE_LOOKBACK; i++) {
     const pIdx = sceneIdx - i;
@@ -283,96 +282,118 @@ export async function generateScenePlan(
     recentProseBlocks.unshift(`--- SCENE ${pIdx + 1} (POV: ${pov}, @${loc}) ---\n${pScene.summary}\n\n${pScene.prose}`);
   }
   const recentProseBlock = recentProseBlocks.length > 0
-    ? `RECENT PROSE (${recentProseBlocks.length} scene${recentProseBlocks.length > 1 ? 's' : ''} before this one — read carefully for character state, injuries, emotional beats, spatial positions, and unresolved tension that your plan must carry forward):\n\n${recentProseBlocks.join('\n\n')}`
+    ? `RECENT PROSE (read carefully for character state, injuries, emotional beats, spatial positions):\n\n${recentProseBlocks.join('\n\n')}`
     : '';
 
-  // Adjacent scene plans for flow continuity
+  // Adjacent beat plans for flow continuity
   const prevSceneKey = sceneIdx > 0 ? resolvedKeys[sceneIdx - 1] : null;
   const prevScene = prevSceneKey ? narrative.scenes[prevSceneKey] : null;
   const prevPlan = prevScene?.plan;
-
   const nextSceneKey = sceneIdx < resolvedKeys.length - 1 ? resolvedKeys[sceneIdx + 1] : null;
   const nextScene = nextSceneKey ? narrative.scenes[nextSceneKey] : null;
   const nextPlan = nextScene?.plan;
 
-  const adjacentBlock = [
-    prevPlan ? `PREVIOUS SCENE PLAN (your opening state must flow from this scene's closing state):\n${prevPlan}` : '',
-    nextPlan ? `NEXT SCENE PLAN (your closing state must hand off naturally to this scene's opening):\n${nextPlan}` : '',
-  ].filter(Boolean).join('\n\n');
+  const adjacentLines: string[] = [];
+  if (prevPlan) {
+    const lastBeats = prevPlan.beats.slice(-3).map((b) => `[${b.fn}:${b.mechanism}] ${b.what}`).join(', ');
+    adjacentLines.push(`PREVIOUS SCENE ends with: ${lastBeats}`);
+  }
+  if (nextPlan) {
+    const firstBeats = nextPlan.beats.slice(0, 3).map((b) => `[${b.fn}:${b.mechanism}] ${b.what}`).join(', ');
+    adjacentLines.push(`NEXT SCENE opens with: ${firstBeats}`);
+  }
+  const adjacentBlock = adjacentLines.join('\n');
+
+  // Prose profile context
+  const profile = narrative.proseProfile;
+  const profileBlock = profile && narrative.storySettings?.useProseProfile !== false
+    ? `\nPROSE PROFILE (${profile.name}):
+  Register: ${profile.register} | Stance: ${profile.stance}
+  Devices: ${profile.devices.join(', ')}
+  Rules: ${profile.rules.slice(0, 3).join('; ')}
+  Beat density: ~${profile.beatsPerKWord} beats/kword\n`
+    : '';
 
   const scale = sceneScale(scene);
+  const targetBeats = Math.max(4, Math.round(scale.proseTokens / 400 * (profile?.beatsPerKWord ?? 12) / 1000 * 4));
 
-  const systemPrompt = `You are a dramaturg and scene architect for "${narrative.title}". Your job is to expand structural deliveries into a detailed staging plan that a prose writer can follow. Do NOT write prose — write a blueprint.
+  const systemPrompt = `You are a scene architect. Given a scene's structural data (summary, mutations, events), produce a structured beat plan — a JSON blueprint that a prose writer can follow.
 
-Output format (free-form text — length should match the scene's complexity; a simple scene needs a short plan, a dense multi-thread convergence needs a thorough one):
+Return ONLY valid JSON matching this schema:
+{
+  "beats": [
+    {
+      "fn": "${BEAT_FN_LIST.join('|')}",
+      "mechanism": "${BEAT_MECHANISM_LIST.join('|')}",
+      "what": "One sentence: the concrete action or event",
+      "anchor": "The one sensory detail that makes this beat physical"
+    }
+  ],
+  "anchors": ["0-5 memorable lines the prose should crystallize around"]
+}
 
-OPENING STATE
-2-3 sentences: where characters are physically, what they know, emotional temperature entering the scene. If characters are arriving from elsewhere, describe HOW they arrived — the mode of travel, the journey's toll, what they saw along the way. Ground the reader in the spatial reality before the scene's action begins.
+BEAT FUNCTIONS (10):
+  breathe    — Pacing, atmosphere, sensory grounding, scene establishment.
+  inform     — Knowledge delivery. Character or reader learns something NOW.
+  advance    — Forward momentum. Plot moves, goals pursued, tension rises.
+  bond       — Relationship shifts between characters.
+  turn       — Scene pivots. Revelation, reversal, interruption.
+  reveal     — Character nature exposed through action or choice.
+  shift      — Power dynamic inverts.
+  expand     — World-building. New rule, system, geography introduced.
+  foreshadow — Plants information that pays off LATER.
+  resolve    — Tension releases. Question answered, conflict settles.
 
-DELIVERIES
-Numbered list (4-8 deliveries). Each delivery specifies:
-- Trigger: what initiates this moment
-- Action: what happens physically and emotionally
-- Shift: what mutation (thread/knowledge/relationship) this dramatises, and HOW it occurs mechanically
+MECHANISMS (8):
+  dialogue    — Characters speaking.
+  thought     — Internal monologue.
+  action      — Physical movement, gesture.
+  environment — Setting, weather, arrivals, sensory details.
+  narration   — Narrator voice, commentary, rhetoric.
+  memory      — Flashback triggered by association.
+  document    — Embedded text: letter, newspaper, sign, poem.
+  comic       — Humor, physical comedy, absurdity.
 
-Every structural mutation in the scene data MUST map to at least one delivery with a concrete mechanism:
-- Thread transitions need a trigger (not "the thread becomes active" but "the letter falls from the coat pocket, she reads it aloud")
-- Knowledge discoveries need a device (overheard, found object, deduction, confession, demonstration, letter, physical evidence)
-- Relationship shifts need a catalytic moment (a specific line, gesture, betrayal, sacrifice, shared danger)
-- Character movements need a SPATIAL TRANSITION delivery: describe the journey itself — what they see/experience in transit, how the landscape changes, what it costs them physically or emotionally. Transitions are narrative moments, not teleportation. Include sensory detail about the route (terrain, weather, crowds, vehicles) and the character's internal state during travel.
-- World knowledge reveals need a discovery mechanism: a character explains a rule, demonstrates a technique, references a historical event, or the narrator establishes world context through action. Each new world concept should feel earned, not lectured. The mechanism must be specific — not 'they learn about X' but 'the old woman draws the rune pattern in ash and explains its binding properties'.
-- Do NOT reuse the same discovery device across multiple deliveries
-
-DIALOGUE SEEDS
-2-4 key exchanges. For each: who speaks, the surface topic, and the subtext underneath. Not full dialogue — just the tension map.
-
-CLOSING STATE
-2-3 sentences: where everyone ends up physically and emotionally. If characters have moved to a new location, confirm their arrival and describe the new environment as they encounter it. What has irrevocably changed.
-
-THE THREE PILLARS OF NARRATIVE LOGIC:
-
-1. CONTINUITY LOGIC (what characters know):
-- The scene is told from the POV character's perspective. They can only perceive what their senses and existing knowledge allow.
-- In the OPENING STATE, specify exactly what the POV character knows and does NOT know. This sets the information boundary for the entire scene.
-- When planning deliveries where NON-POV characters act on private knowledge, describe only their observable behaviour — the POV character must interpret from the outside (and may misread the situation).
-- When the POV character discovers new knowledge (continuity mutation), the delivery must specify the exact mechanism: what they see, hear, read, or deduce. No omniscient revelation.
-- If another character conceals something from the POV character, note what the POV character sees on the surface vs. what is actually happening underneath. The plan should mark which layer the prose can access.
-
-2. THREAD LOGIC (how plot advances):
-- Each thread mutation must have a concrete narrative trigger — not "the thread escalates" but "the scout's report changes everything."
-- Thread transitions are MOMENTS — they happen at a specific delivery, not diffusely across the scene. Identify the exact delivery where the status changes.
-- Threads that pulse (same status → same status) still need a delivery showing active delivery with the thread's tension.
-- If multiple threads shift in one scene, stagger the moments — don't cluster all transitions in a single delivery.
-
-3. KNOWLEDGE LOGIC (what the world reveals):
-- World knowledge nodes added in this scene have NOT been established yet at scene start. They must be REVEALED through the narrative — a character explains, demonstrates, discovers, or the narrator establishes through action.
-- The OPENING STATE should note which world rules ARE already established (can be referenced freely) vs which will be revealed during the scene.
-- World knowledge edges (connections between concepts) should be dramatised: if concept A "enables" concept B, show that enabling relationship through action, not exposition.
-- Revelation mechanisms must be specific and earned — not "they learn about the magic system" but "the old woman lights the candle without a match, and when asked, explains that fire-calling is the first skill any practitioner masters."
-- Existing world concepts from the knowledge graph can be REFERENCED in the plan as established facts. Only NEW concepts require revelation deliveries.
-
-Rules:
-- Be specific and concrete. "A tense exchange" is useless. "She asks about the missing shipment; he deflects by mentioning the festival" is useful.
-- Include spatial blocking: who is where, who moves, sightlines, physical proximity.
-- The plan must cover ALL events, thread mutations, continuity mutations, relationship mutations, character movements, and world knowledge reveals listed in the scene data. Missing any is a failure.
-- Output ONLY the plan text. No JSON, no markdown fences, no commentary.`
+RULES:
+- Open with 1-3 breathe beats to ground the scene physically.
+- Target ${targetBeats}-${targetBeats + 4} beats total.
+- Every structural mutation (thread, continuity, relationship, world knowledge) must map to at least one beat.
+- Thread transitions need a concrete trigger in the 'what' field.
+- Knowledge gains need a discovery mechanism (overheard, read, deduced, confessed).
+- Relationship shifts need a catalytic moment.
+- Be specific: "She asks about the missing shipment; he deflects" not "A tense exchange."
+- Anchors are optional — only include lines that would define the scene if quoted.
+- Return ONLY valid JSON.`
   + (narrative.storySettings?.planGuidance?.trim()
-    ? `\n\nPLAN GUIDANCE (follow these instructions when structuring your plan):\n${narrative.storySettings.planGuidance.trim()}`
+    ? `\n\nPLAN GUIDANCE:\n${narrative.storySettings.planGuidance.trim()}`
     : '');
 
-  const prompt = `BRANCH CONTEXT (for continuity — do not repeat):
-${fullContext}
+  const prompt = `BRANCH CONTEXT:\n${fullContext}
 ${recentProseBlock ? `\n${recentProseBlock}\n` : ''}
-${adjacentBlock ? `${adjacentBlock}\n\n` : ''}${sceneBlock}
+${adjacentBlock ? `${adjacentBlock}\n\n` : ''}${profileBlock}${sceneBlock}
 ${logicBlock}
-Create a detailed staging plan for this scene. Every structural mutation must have a concrete mechanism. Be specific about HOW things happen, not just WHAT happens.${recentProseBlock ? ' Your OPENING STATE must directly continue from the physical, emotional, and spatial reality established in the recent prose above — characters carry their wounds, knowledge, and positions forward.' : ''}`;
+Generate a structured beat plan for this scene.${recentProseBlock ? ' Opening beats must continue from the physical/emotional state in the recent prose.' : ''}`;
 
   const reasoningBudget = REASONING_BUDGETS[narrative.storySettings?.reasoningLevel ?? 'low'] || undefined;
-  const useStream = !!(onToken || onReasoning);
-  if (useStream) {
-    return await callGenerateStream(prompt, systemPrompt, onToken ?? (() => {}), Math.ceil(scale.proseTokens * 0.6), 'generateScenePlan', WRITING_MODEL, reasoningBudget, onReasoning);
-  }
-  return await callGenerate(prompt, systemPrompt, Math.ceil(scale.proseTokens * 0.6), 'generateScenePlan', WRITING_MODEL, reasoningBudget);
+  const raw = onReasoning
+    ? await callGenerateStream(prompt, systemPrompt, () => {}, Math.ceil(scale.proseTokens * 0.6), 'generateScenePlan', GENERATE_MODEL, reasoningBudget, onReasoning)
+    : await callGenerate(prompt, systemPrompt, Math.ceil(scale.proseTokens * 0.6), 'generateScenePlan', GENERATE_MODEL, reasoningBudget);
+
+  const parsed = parseJson(raw, 'generateScenePlan') as { beats?: unknown[]; anchors?: string[] };
+  const beats = (parsed.beats ?? []).map((b: unknown) => {
+    const beat = b as Record<string, unknown>;
+    return {
+      fn: ((BEAT_FN_LIST as readonly string[]).includes(String(beat.fn)) ? beat.fn : 'advance') as BeatPlan['beats'][0]['fn'],
+      mechanism: ((BEAT_MECHANISM_LIST as readonly string[]).includes(String(beat.mechanism)) ? beat.mechanism : 'action') as BeatPlan['beats'][0]['mechanism'],
+      what: String(beat.what ?? ''),
+      anchor: String(beat.anchor ?? ''),
+    };
+  });
+
+  return {
+    beats,
+    anchors: (parsed.anchors ?? []).filter((a): a is string => typeof a === 'string'),
+  };
 }
 
 /**
@@ -384,40 +405,54 @@ export async function rewriteScenePlan(
   narrative: NarrativeState,
   scene: Scene,
   resolvedKeys: string[],
-  currentPlan: string,
+  currentPlan: BeatPlan,
   analysis: string,
-  onToken?: (token: string) => void,
-): Promise<string> {
+): Promise<BeatPlan> {
   const sceneBlock = sceneContext(narrative, scene);
   const scale = sceneScale(scene);
 
-  // Adjacent plans for continuity
-  const sceneIdx = resolvedKeys.indexOf(scene.id);
-  const prevScene = sceneIdx > 0 ? narrative.scenes[resolvedKeys[sceneIdx - 1]] : null;
-  const nextScene = sceneIdx < resolvedKeys.length - 1 ? narrative.scenes[resolvedKeys[sceneIdx + 1]] : null;
+  const currentPlanText = currentPlan.beats.map((b, i) =>
+    `${i + 1}. [${b.fn}:${b.mechanism}] ${b.what} | anchor: ${b.anchor}`
+  ).join('\n');
+  const currentAnchors = currentPlan.anchors.length > 0
+    ? `\nAnchors: ${currentPlan.anchors.map((a) => `"${a}"`).join(', ')}`
+    : '';
 
-  const adjacentBlock = [
-    prevScene?.plan ? `PREVIOUS SCENE PLAN (your opening must flow from this):\n${prevScene.plan}` : '',
-    nextScene?.plan ? `NEXT SCENE PLAN (your closing must hand off to this):\n${nextScene.plan}` : '',
-  ].filter(Boolean).join('\n\n');
+  const systemPrompt = `You are a dramaturg revising a scene plan for "${narrative.title}". You receive the current beat plan and editorial feedback. Return an improved beat plan as JSON.
 
-  const systemPrompt = `You are a dramaturg revising a scene plan for "${narrative.title}". You receive the current plan and editorial feedback. Rewrite the plan to address the feedback while preserving the plan structure (OPENING STATE, DELIVERIES, DIALOGUE SEEDS, CLOSING STATE). Every structural mutation in the scene data must still be covered. Output ONLY the revised plan text — no commentary, no markdown fences.`;
+Return ONLY valid JSON: { "beats": [{ "fn": "...", "mechanism": "...", "what": "...", "anchor": "..." }], "anchors": ["..."] }
+
+Beat functions: ${BEAT_FN_LIST.join(', ')}
+Mechanisms: ${BEAT_MECHANISM_LIST.join(', ')}`;
 
   const prompt = `${sceneBlock}
 
-${adjacentBlock ? `${adjacentBlock}\n\n` : ''}CURRENT PLAN:
-${currentPlan}
+CURRENT PLAN:
+${currentPlanText}${currentAnchors}
 
-EDITORIAL FEEDBACK (address all points in your revision):
+EDITORIAL FEEDBACK:
 ${analysis}
 
-Rewrite the plan to address the feedback. Preserve the structure and ensure all scene mutations are still covered. If the feedback conflicts with scene data, prioritise scene data for structural accuracy but incorporate the feedback's creative direction.`;
+Revise the beat plan to address the feedback. Ensure all scene mutations are still covered.`;
 
   const reasoningBudget = REASONING_BUDGETS[narrative.storySettings?.reasoningLevel ?? 'low'] || undefined;
-  if (onToken) {
-    return await callGenerateStream(prompt, systemPrompt, onToken, Math.ceil(scale.proseTokens * 0.6), 'rewriteScenePlan', WRITING_MODEL, reasoningBudget);
-  }
-  return await callGenerate(prompt, systemPrompt, Math.ceil(scale.proseTokens * 0.6), 'rewriteScenePlan', WRITING_MODEL, reasoningBudget);
+  const raw = await callGenerate(prompt, systemPrompt, Math.ceil(scale.proseTokens * 0.6), 'rewriteScenePlan', GENERATE_MODEL, reasoningBudget);
+  const parsed = parseJson(raw, 'rewriteScenePlan') as { beats?: unknown[]; anchors?: string[] };
+
+  const beats = (parsed.beats ?? []).map((b: unknown) => {
+    const beat = b as Record<string, unknown>;
+    return {
+      fn: ((BEAT_FN_LIST as readonly string[]).includes(String(beat.fn)) ? beat.fn : 'advance') as BeatPlan['beats'][0]['fn'],
+      mechanism: ((BEAT_MECHANISM_LIST as readonly string[]).includes(String(beat.mechanism)) ? beat.mechanism : 'action') as BeatPlan['beats'][0]['mechanism'],
+      what: String(beat.what ?? ''),
+      anchor: String(beat.anchor ?? ''),
+    };
+  });
+
+  return {
+    beats: beats.length > 0 ? beats : currentPlan.beats,
+    anchors: (parsed.anchors ?? currentPlan.anchors).filter((a): a is string => typeof a === 'string'),
+  };
 }
 
 export async function generateSceneProse(
@@ -480,13 +515,23 @@ Strict output rules:
 - Do NOT end with philosophical musings, rhetorical questions, or atmospheric fade-outs. Instead end with: a character leaving, a sharp line of dialogue, a decision made in silence, an interruption, a physical gesture, or a thought that reframes the scene.`
   + (narrative.storySettings?.proseVoice?.trim()
     ? `\n\nAUTHOR VOICE (mimic this style — it overrides the defaults above):\n${narrative.storySettings.proseVoice.trim()}`
-    : '');
+    : '')
+  + (() => {
+    const profile = narrative.proseProfile;
+    if (!profile || narrative.storySettings?.useProseProfile === false) return '';
+    return `\n\nPROSE PROFILE — ${profile.name}:
+Register: ${profile.register} | Stance: ${profile.stance}
+Devices: ${profile.devices.join(', ')}
+Rules: ${profile.rules.slice(0, 3).join('; ')}`;
+  })();
 
   const sceneBlock = sceneContext(narrative, scene);
 
   // Scene plan — when available, this is the primary creative direction
   const planBlock = scene.plan
-    ? `\nSCENE PLAN (follow this blueprint closely — it specifies delivery-by-delivery staging, discovery mechanisms, and dialogue seeds):\n${scene.plan}\n`
+    ? `\nBEAT PLAN (follow this beat sequence — each beat maps to a passage of prose):
+${scene.plan.beats.map((b, i) => `  ${i + 1}. [${b.fn}:${b.mechanism}] ${b.what} | anchor: ${b.anchor}`).join('\n')}
+${scene.plan.anchors.length > 0 ? `\nANCHOR LINES (these exact formulations must appear in your prose):\n${scene.plan.anchors.map((a) => `  "${a}"`).join('\n')}` : ''}\n`
     : '';
 
   // Derive logical constraints from the scene graph — these are hard rules the prose must obey
@@ -504,14 +549,14 @@ Strict output rules:
   const scale = sceneScale(scene);
 
   const instruction = scene.plan
-    ? `Follow the scene plan's delivery sequence — it specifies the concrete mechanisms for every mutation.
+    ? `Follow the beat plan sequence — each beat maps to a passage of prose. The mechanism tells you HOW to write each beat (dialogue = conversation, thought = internal monologue, action = physical movement, etc). The anchor is the sensory detail that grounds the beat.
 
 THREE PILLARS — the prose must honour all three:
 1. CONTINUITY: POV character can only perceive what their senses and existing knowledge allow. New continuity mutations must be discovered through specific mechanisms — never referenced before their revelation moment.
 2. THREADS: Every thread shift must land at a specific dramatic moment. Show the status change through action, not narration.
 3. KNOWLEDGE: World concepts being revealed in this scene (marked in the logical requirements) must feel EARNED — discovered through demonstration, explanation, or consequence. Established world knowledge can be referenced freely. New knowledge cannot be treated as pre-existing.
 
-Every thread shift, continuity change, relationship mutation, and world knowledge reveal must appear in the prose. You MUST satisfy every logical requirement. Fill around the planned deliveries with extended dialogue, internal monologue, physical action, and sensory detail. Let scenes breathe. Foreshadow future events through subtle imagery — never telegraph. Write as many words as the scene demands — a quiet scene with few deliveries may need only 800 words, a dense convergence scene may need 3000+. Err on the side of brevity for delivery; never pad.`
+Every thread shift, continuity change, relationship mutation, and world knowledge reveal must appear in the prose. You MUST satisfy every logical requirement. Anchor lines must appear VERBATIM. Fill around the beats with extended dialogue, internal monologue, physical action, and sensory detail. Let scenes breathe. Write as many words as the scene demands. Err on the side of brevity; never pad.`
     : `THREE PILLARS — the prose must honour all three:
 1. CONTINUITY: POV character can only perceive what their senses and existing knowledge allow. New continuity mutations must be discovered through specific mechanisms — never referenced before their revelation moment.
 2. THREADS: Every thread shift must land at a specific dramatic moment. Show the status change through action, not narration.

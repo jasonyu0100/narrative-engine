@@ -374,6 +374,88 @@ export function StorySettingsModal({ onClose }: { onClose: () => void }) {
                     </div>
                   </div>
                 )}
+
+                {/* Beat Profile Preset */}
+                <div className="mt-6">
+                  <label className="text-[10px] text-text-dim uppercase tracking-wider block mb-2">
+                    Beat Profile
+                  </label>
+                  <p className="text-[9px] text-text-dim/50 mb-2">
+                    Prose plans use beat transition probabilities from a published work to shape scene rhythm. Leave empty for AI-optimal (no profile constraints).
+                  </p>
+                  <div className="space-y-1.5">
+                    <button
+                      onClick={() => update({ beatProfilePreset: '' })}
+                      className={`w-full text-left px-3 py-2 rounded-lg border transition-colors ${
+                        !settings.beatProfilePreset
+                          ? 'border-blue-500/50 bg-blue-500/10'
+                          : 'border-white/5 bg-white/2 hover:bg-white/5'
+                      }`}
+                    >
+                      <span className="text-[11px] font-semibold text-text-primary">AI Optimal</span>
+                      <span className="text-[10px] text-text-dim ml-2">No profile — AI picks best beats per scene</span>
+                    </button>
+                    {narrative?.proseProfile && (
+                      <button
+                        onClick={() => update({ beatProfilePreset: 'self' })}
+                        className={`w-full text-left px-3 py-2 rounded-lg border transition-colors ${
+                          settings.beatProfilePreset === 'self'
+                            ? 'border-blue-500/50 bg-blue-500/10'
+                            : 'border-white/5 bg-white/2 hover:bg-white/5'
+                        }`}
+                      >
+                        <span className="text-[11px] font-semibold text-text-primary">This Story</span>
+                        <span className="text-[10px] text-text-dim ml-2">Use this story&apos;s own prose profile</span>
+                      </button>
+                    )}
+                    {[
+                      { key: 'harry_potter', label: 'Harry Potter', desc: 'Conversational, comic escalation, close third' },
+                      { key: 'reverend_insanity', label: 'Reverend Insanity', desc: 'Raw, strategic introspection, dramatic irony' },
+                      { key: 'nineteen_eighty_four', label: '1984', desc: 'Clinical, internal surveillance, ironic understatement' },
+                      { key: 'the_great_gatsby', label: 'The Great Gatsby', desc: 'Literary, sardonic first person, extended metaphor' },
+                      { key: 'a_tale_of_two_cities', label: 'A Tale of Two Cities', desc: 'Literary, omniscient ironic, anaphora' },
+                      { key: 'romeo_and_juliet', label: 'Romeo and Juliet', desc: 'Literary, detached observer, dialogue-heavy' },
+                    ].map((preset) => (
+                      <button
+                        key={preset.key}
+                        onClick={() => update({ beatProfilePreset: preset.key })}
+                        className={`w-full text-left px-3 py-2 rounded-lg border transition-colors ${
+                          settings.beatProfilePreset === preset.key
+                            ? 'border-blue-500/50 bg-blue-500/10'
+                            : 'border-white/5 bg-white/2 hover:bg-white/5'
+                        }`}
+                      >
+                        <span className="text-[11px] font-semibold text-text-primary">{preset.label}</span>
+                        <span className="text-[10px] text-text-dim ml-2">{preset.desc}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Prose Profile Toggle */}
+                <div className="mt-4">
+                  <label className="flex items-center justify-between cursor-pointer">
+                    <div>
+                      <span className="text-[11px] text-text-secondary">Use Prose Profile</span>
+                      <p className="text-[9px] text-text-dim/50 mt-0.5">
+                        When enabled, plans and prose use the selected beat profile&apos;s voice, rules, and Markov transitions.
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      role="switch"
+                      aria-checked={settings.useProseProfile}
+                      onClick={() => update({ useProseProfile: !settings.useProseProfile })}
+                      className={`w-7 h-4 rounded-full transition-colors relative ${
+                        settings.useProseProfile ? 'bg-white/25' : 'bg-white/8'
+                      }`}
+                    >
+                      <span className={`absolute top-0.5 w-3 h-3 rounded-full bg-white transition-all ${
+                        settings.useProseProfile ? 'left-3.5' : 'left-0.5'
+                      }`} />
+                    </button>
+                  </label>
+                </div>
               </>
             );
           })()}

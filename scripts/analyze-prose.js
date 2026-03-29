@@ -13,7 +13,7 @@ const fs = require('fs');
 const path = require('path');
 
 const API_URL = 'http://localhost:3001/api/generate';
-const CONCURRENCY = 5;
+const CONCURRENCY = 20;
 const WORKS_DIR = path.join(__dirname, '..', 'public', 'works');
 const OUT_DIR = path.join(__dirname, '..', 'public', 'prose-profiles');
 
@@ -127,7 +127,8 @@ async function extractPlans(work, scenesPerWork) {
   const locNames = {};
   Object.entries(work.locations || {}).forEach(([id, l]) => locNames[id] = l.name);
 
-  const scenes = Object.values(work.scenes).filter(s => s.prose).slice(0, scenesPerWork);
+  const allScenes = Object.values(work.scenes).filter(s => s.prose && !s.plan?.beats?.length);
+  const scenes = scenesPerWork > 0 ? allScenes.slice(0, scenesPerWork) : allScenes;
 
   return parallelMap(scenes, async (s, i) => {
     const povName = charNames[s.povId] || s.povId;
@@ -233,7 +234,7 @@ function buildProfile(work, plans) {
 }
 
 async function main() {
-  const scenesPerWork = parseInt(process.argv[2] || '10', 10);
+  const scenesPerWork = parseInt(process.argv[2] || '0', 10); // 0 = all scenes
 
   // Ensure output directory
   if (!fs.existsSync(OUT_DIR)) fs.mkdirSync(OUT_DIR, { recursive: true });
@@ -244,19 +245,52 @@ async function main() {
     const workPath = path.join(WORKS_DIR, workFile);
     if (!fs.existsSync(workPath)) continue;
     const work = JSON.parse(fs.readFileSync(workPath, 'utf-8'));
-    const proseCount = Object.values(work.scenes).filter(s => s.prose).length;
+    const proseScenes = Object.values(work.scenes).filter(s => s.prose);
+    // Skip scenes that already have a plan with beats
+    const needsPlan = proseScenes.filter(s => !s.plan?.beats?.length);
+    const toProcess = scenesPerWork > 0 ? needsPlan.slice(0, scenesPerWork) : needsPlan;
 
-    console.log(`\n═══ ${work.title} (${proseCount} scenes with prose) ═══`);
+    console.log(`\n═══ ${work.title} (${proseScenes.length} prose scenes, ${needsPlan.length} need plans) ═══`);
 
-    // Phase 1: Extract plans
-    console.log(`  Extracting plans (${Math.min(scenesPerWork, proseCount)} scenes)...`);
-    const plans = await extractPlans(work, scenesPerWork);
+    if (toProcess.length === 0) {
+      console.log('  All scenes already have plans, skipping extraction');
+    } else {
+      // Phase 1: Extract plans
+      console.log(`  Extracting plans for ${toProcess.length} scenes (concurrency: ${CONCURRENCY})...`);
+      const plans = await extractPlans(work, scenesPerWork > 0 ? scenesPerWork : 99999);
 
-    // Phase 2: Build profile
-    const profile = buildProfile(work, plans);
-    if (!profile) { console.log('  ✗ No valid plans'); continue; }
+      // Write plans back into the work JSON
+      let written = 0;
+      for (const p of plans) {
+        if (p.plan && p.plan.beats?.length > 0 && work.scenes[p.sceneId]) {
+          work.scenes[p.sceneId].plan = p.plan;
+          written++;
+        }
+      }
+
+      if (written > 0) {
+        fs.writeFileSync(workPath, JSON.stringify(work, null, 2));
+        console.log(`  ✓ Wrote ${written} plans back to ${workFile}`);
+      }
+    }
+
+    // Phase 2: Build profile from ALL scenes with plans (including previously written)
+    const allWithPlans = Object.values(work.scenes)
+      .filter(s => s.plan?.beats?.length > 0)
+      .map(s => ({ sceneId: s.id, wordCount: s.prose?.split(/\s+/).length ?? 0, plan: s.plan }));
+
+    const profile = buildProfile(work, allWithPlans);
+    if (!profile) { console.log('  ✗ No valid plans for profile'); continue; }
+
+    // Add profile ID
+    profile.id = workFile.replace('.json', '');
+    profile.builtIn = true;
 
     allProfiles.push(profile);
+
+    // Write profile into the work JSON as well
+    work.proseProfile = profile;
+    fs.writeFileSync(workPath, JSON.stringify(work, null, 2));
 
     // Save individual profile
     const profilePath = path.join(OUT_DIR, workFile.replace('.json', '_profile.json'));
