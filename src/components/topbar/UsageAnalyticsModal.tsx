@@ -11,11 +11,13 @@ function getPricing(model?: string) {
   return MODEL_PRICING[model] ?? DEFAULT_PRICING;
 }
 
-function costForEntry(entry: ApiLogEntry): { input: number; output: number } {
+function costForEntry(entry: ApiLogEntry): { input: number; output: number; reasoning: number } {
   const pricing = getPricing(entry.model);
   const inputCost = (entry.promptTokens / 1_000_000) * pricing.input;
   const outputCost = ((entry.responseTokens ?? 0) / 1_000_000) * pricing.output;
-  return { input: inputCost, output: outputCost };
+  // Reasoning tokens are billed as output tokens
+  const reasoningCost = ((entry.reasoningTokens ?? 0) / 1_000_000) * pricing.output;
+  return { input: inputCost, output: outputCost, reasoning: reasoningCost };
 }
 
 /** Compute total cost for a list of logs */
@@ -24,7 +26,7 @@ export function computeTotalCost(logs: ApiLogEntry[]): number {
   for (const log of logs) {
     if (log.status !== 'success') continue;
     const c = costForEntry(log);
-    total += c.input + c.output;
+    total += c.input + c.output + c.reasoning;
   }
   return total;
 }
@@ -244,27 +246,30 @@ export function UsageDropdown({ logs }: { logs: ApiLogEntry[] }) {
   const successLogs = useMemo(() => logs.filter((l) => l.status === 'success'), [logs]);
 
   const totals = useMemo(() => {
-    let inputTokens = 0, outputTokens = 0, inputCost = 0, outputCost = 0;
+    let inputTokens = 0, outputTokens = 0, reasoningTokens = 0, inputCost = 0, outputCost = 0, reasoningCost = 0;
     for (const log of successLogs) {
       inputTokens += log.promptTokens;
       outputTokens += log.responseTokens ?? 0;
+      reasoningTokens += log.reasoningTokens ?? 0;
       const c = costForEntry(log);
       inputCost += c.input;
       outputCost += c.output;
+      reasoningCost += c.reasoning;
     }
-    return { inputTokens, outputTokens, inputCost, outputCost, totalCost: inputCost + outputCost, calls: successLogs.length };
+    return { inputTokens, outputTokens, reasoningTokens, inputCost, outputCost, reasoningCost, totalCost: inputCost + outputCost + reasoningCost, calls: successLogs.length };
   }, [successLogs]);
 
   const modelBreakdown = useMemo(() => {
-    const map = new Map<string, { calls: number; inputTokens: number; outputTokens: number; cost: number }>();
+    const map = new Map<string, { calls: number; inputTokens: number; outputTokens: number; reasoningTokens: number; cost: number }>();
     for (const log of successLogs) {
       const model = log.model ?? 'unknown';
-      const existing = map.get(model) ?? { calls: 0, inputTokens: 0, outputTokens: 0, cost: 0 };
+      const existing = map.get(model) ?? { calls: 0, inputTokens: 0, outputTokens: 0, reasoningTokens: 0, cost: 0 };
       existing.calls += 1;
       existing.inputTokens += log.promptTokens;
       existing.outputTokens += log.responseTokens ?? 0;
+      existing.reasoningTokens += log.reasoningTokens ?? 0;
       const c = costForEntry(log);
-      existing.cost += c.input + c.output;
+      existing.cost += c.input + c.output + c.reasoning;
       map.set(model, existing);
     }
     return [...map.entries()]
@@ -298,10 +303,13 @@ export function UsageDropdown({ logs }: { logs: ApiLogEntry[] }) {
   return (
     <div className="absolute top-full right-0 mt-1 z-50 bg-bg-base border border-white/10 rounded-lg shadow-2xl p-4 w-[560px] max-h-[80vh] overflow-y-auto">
       {/* Summary row */}
-      <div className="grid grid-cols-4 gap-2 mb-4">
+      <div className={`grid gap-2 mb-4 ${totals.reasoningTokens > 0 ? 'grid-cols-5' : 'grid-cols-4'}`}>
         <MiniCard label="Total Cost" value={formatCost(totals.totalCost)} color="#a78bfa" />
         <MiniCard label="Input Tokens" value={formatTokens(totals.inputTokens)} color="#3B82F6" />
         <MiniCard label="Output Tokens" value={formatTokens(totals.outputTokens)} color="#22C55E" />
+        {totals.reasoningTokens > 0 && (
+          <MiniCard label="Reasoning" value={formatTokens(totals.reasoningTokens)} color="#c084fc" />
+        )}
         <MiniCard label="API Calls" value={String(totals.calls)} color="#facc15" />
       </div>
 

@@ -1,5 +1,5 @@
-import type { NarrativeState, Scene, Character, Location, Thread, RelationshipEdge, WorldKnowledgeNode, WorldKnowledgeEdge, WorldKnowledgeMutation, Artifact } from '@/types/narrative';
-import { THREAD_ACTIVE_STATUSES, resolveEntry, isScene } from '@/types/narrative';
+import type { NarrativeState, Scene, Character, Location, Thread, RelationshipEdge, WorldKnowledgeNode, WorldKnowledgeEdge, WorldKnowledgeMutation, Artifact, ReasoningLevel } from '@/types/narrative';
+import { THREAD_ACTIVE_STATUSES, resolveEntry, isScene, REASONING_BUDGETS } from '@/types/narrative';
 import { nextId, nextIds } from '@/lib/narrative-utils';
 import { callGenerate, callGenerateStream, SYSTEM_PROMPT } from './api';
 import { MAX_TOKENS_LARGE, GENERATE_MODEL } from '@/lib/constants';
@@ -565,6 +565,8 @@ export async function generateNarrative(
   rules: string[] = [],
   systemSketches: { name: string; description: string; principles: string[]; constraints: string[]; interactions: string[] }[] = [],
   onToken?: (token: string) => void,
+  onReasoning?: (token: string) => void,
+  reasoningLevel?: ReasoningLevel,
 ): Promise<NarrativeState> {
   const prompt = `Create a complete narrative world for:
 Title: "${title}"
@@ -692,9 +694,11 @@ For each system, provide:
 
 The goal is to make the world feel like a coherent machine where systems interlock. Great worlds have systems that create emergent behavior — institutions that arise from mechanics, conflicts that emerge from scarcity, power that requires trade-offs.`;
 
-  const raw = onToken
-    ? await callGenerateStream(prompt, SYSTEM_PROMPT, onToken, MAX_TOKENS_LARGE, 'generateNarrative', GENERATE_MODEL)
-    : await callGenerate(prompt, SYSTEM_PROMPT, MAX_TOKENS_LARGE, 'generateNarrative', GENERATE_MODEL);
+  const reasoningBudget = REASONING_BUDGETS[reasoningLevel ?? 'medium'] || undefined;
+  const useStream = !!(onToken || onReasoning);
+  const raw = useStream
+    ? await callGenerateStream(prompt, SYSTEM_PROMPT, onToken ?? (() => {}), MAX_TOKENS_LARGE, 'generateNarrative', GENERATE_MODEL, reasoningBudget, onReasoning)
+    : await callGenerate(prompt, SYSTEM_PROMPT, MAX_TOKENS_LARGE, 'generateNarrative', GENERATE_MODEL, reasoningBudget);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const parsed = parseJson(raw, 'generateNarrative') as any;
 

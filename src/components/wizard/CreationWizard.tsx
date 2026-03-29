@@ -207,7 +207,8 @@ export function CreationWizard() {
     try {
       const narrative = await generateNarrative(
         wd.title, buildEnhancedPremise(), wd.rules, wd.worldSystems,
-        (token) => setStreamText((prev) => prev + token),
+        undefined,
+        (reasoning) => setStreamText((prev) => prev + reasoning),
       );
       dispatch({ type: 'ADD_NARRATIVE', narrative });
       router.push(`/series/${narrative.id}`);

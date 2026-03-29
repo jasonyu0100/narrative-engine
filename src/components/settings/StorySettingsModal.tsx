@@ -3,8 +3,8 @@
 import { useState } from 'react';
 import { useStore } from '@/lib/store';
 import { Modal, ModalHeader, ModalBody, ModalFooter } from '@/components/Modal';
-import type { StorySettings, POVMode, WorldFocusMode } from '@/types/narrative';
-import { DEFAULT_STORY_SETTINGS, BRANCH_TIME_HORIZON_OPTIONS } from '@/types/narrative';
+import type { StorySettings, POVMode, WorldFocusMode, ReasoningLevel } from '@/types/narrative';
+import { DEFAULT_STORY_SETTINGS, BRANCH_TIME_HORIZON_OPTIONS, REASONING_BUDGETS } from '@/types/narrative';
 import { NARRATIVE_CUBE } from '@/types/narrative';
 import type { CubeCornerKey } from '@/types/narrative';
 import { MATRIX_PRESETS, type TransitionMatrix } from '@/lib/markov';
@@ -471,6 +471,36 @@ export function StorySettingsModal({ onClose }: { onClose: () => void }) {
                     </button>
                   ))}
                 </div>
+              </div>
+
+              {/* Reasoning Level */}
+              <div>
+                <label className="text-[10px] text-text-dim uppercase tracking-wider block mb-2">
+                  Reasoning Level
+                </label>
+                <div className="space-y-1.5">
+                  {([
+                    { value: 'low' as ReasoningLevel, label: 'Low', desc: `~${(REASONING_BUDGETS.low / 1024).toFixed(0)}k thinking tokens — light reasoning for basic structural checks` },
+                    { value: 'medium' as ReasoningLevel, label: 'Medium', desc: `~${(REASONING_BUDGETS.medium / 1024).toFixed(0)}k thinking tokens — traces causality, checks agency patterns, validates convergence` },
+                    { value: 'high' as ReasoningLevel, label: 'High', desc: `~${(REASONING_BUDGETS.high / 1024).toFixed(0)}k thinking tokens — deep reasoning for complex world states. Slowest, highest quality.` },
+                  ]).map((opt) => (
+                    <button
+                      key={opt.value}
+                      onClick={() => update({ reasoningLevel: opt.value })}
+                      className={`w-full text-left px-3 py-2 rounded-lg border transition-colors ${
+                        (settings.reasoningLevel ?? 'medium') === opt.value
+                          ? 'border-blue-500/50 bg-blue-500/10'
+                          : 'border-white/5 bg-white/2 hover:bg-white/5'
+                      }`}
+                    >
+                      <span className="text-[11px] font-semibold text-text-primary">{opt.label}</span>
+                      <span className="text-[10px] text-text-dim ml-2">{opt.desc}</span>
+                    </button>
+                  ))}
+                </div>
+                <p className="text-[9px] text-text-dim/50 mt-2">
+                  Applies to structural calls (scene skeletons, direction, evaluation, planning) — not prose. Reasoning tokens are billed as output tokens. Check API logs to inspect model thinking.
+                </p>
               </div>
 
               {/* Branch Time Horizon */}

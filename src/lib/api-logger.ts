@@ -46,11 +46,13 @@ export function logApiCall(caller: string, promptChars: number, promptPreview: s
 }
 
 /** Callers pass responseLength in chars — converted to tokens here */
-type ApiLogUpdate = Omit<Partial<ApiLogEntry>, 'responseTokens'> & { responseLength?: number };
+type ApiLogUpdate = Omit<Partial<ApiLogEntry>, 'responseTokens'> & { responseLength?: number; reasoningContent?: string; reasoningTokens?: number };
 
 export function updateApiLog(id: string, updates: ApiLogUpdate) {
-  const { responseLength, ...rest } = updates;
+  const { responseLength, reasoningContent, reasoningTokens, ...rest } = updates;
   const mapped: Partial<ApiLogEntry> = { ...rest };
   if (responseLength != null) mapped.responseTokens = estimateTokens(responseLength);
+  if (reasoningContent != null) mapped.reasoningContent = reasoningContent;
+  if (reasoningTokens != null) mapped.reasoningTokens = reasoningTokens;
   updateListener?.(id, mapped);
 }

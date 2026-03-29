@@ -1,4 +1,5 @@
 import type { NarrativeState, PlanningQueue, PlanningPhase } from '@/types/narrative';
+import { REASONING_BUDGETS } from '@/types/narrative';
 import { callGenerate, SYSTEM_PROMPT } from './ai/api';
 import { branchContext } from './ai/context';
 
@@ -32,7 +33,8 @@ Produce a concise completion report covering:
 Keep the report to 3-5 sentences. Be specific — use character NAMES, location NAMES, and thread DESCRIPTIONS, never raw IDs.
 Return ONLY the report text, no JSON or markup.`;
 
-  const report = await callGenerate(prompt, SYSTEM_PROMPT, 500, 'planningEngine');
+  const reasoningBudget = REASONING_BUDGETS[narrative.storySettings?.reasoningLevel ?? 'medium'] || undefined;
+  const report = await callGenerate(prompt, SYSTEM_PROMPT, 500, 'planningEngine', undefined, reasoningBudget);
   return report.trim();
 }
 
@@ -88,7 +90,8 @@ Return JSON:
   "constraints": "..."
 }`;
 
-  const response = await callGenerate(prompt, SYSTEM_PROMPT, 500, 'planningEngine');
+  const reasoningBudget = REASONING_BUDGETS[narrative.storySettings?.reasoningLevel ?? 'medium'] || undefined;
+  const response = await callGenerate(prompt, SYSTEM_PROMPT, 500, 'planningEngine', undefined, reasoningBudget);
 
   try {
     const match = response.match(/\{[\s\S]*\}/);
@@ -159,7 +162,8 @@ Return JSON:
   ]
 }`;
 
-  const raw = await callGenerate(prompt, SYSTEM_PROMPT, 4000, 'generateCustomPlan');
+  const reasoningBudget = REASONING_BUDGETS[narrative.storySettings?.reasoningLevel ?? 'medium'] || undefined;
+  const raw = await callGenerate(prompt, SYSTEM_PROMPT, 4000, 'generateCustomPlan', undefined, reasoningBudget);
 
   try {
     const match = raw.match(/\{[\s\S]*\}/);

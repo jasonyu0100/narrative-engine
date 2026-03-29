@@ -27,7 +27,8 @@ function StatusBadge({ status }: { status: ApiLogEntry['status'] }) {
 }
 
 function LogDetail({ entry, onClose }: { entry: ApiLogEntry; onClose: () => void }) {
-  const [tab, setTab] = useState<'prompt' | 'response'>('prompt');
+  const hasReasoning = !!entry.reasoningContent;
+  const [tab, setTab] = useState<'prompt' | 'response' | 'reasoning'>('prompt');
 
   return (
     <div className="flex flex-col h-full">
@@ -53,6 +54,9 @@ function LogDetail({ entry, onClose }: { entry: ApiLogEntry; onClose: () => void
       <div className="flex items-center gap-4 px-4 py-2 border-b border-white/5 text-[10px] text-text-dim shrink-0">
         <span>Prompt: ~{(entry.promptTokens ?? 0).toLocaleString()} tokens</span>
         {entry.responseTokens != null && <span>Response: ~{entry.responseTokens.toLocaleString()} tokens</span>}
+        {entry.reasoningTokens != null && entry.reasoningTokens > 0 && (
+          <span className="text-purple-400">Reasoning: ~{entry.reasoningTokens.toLocaleString()} tokens</span>
+        )}
         <span>{new Date(entry.timestamp).toLocaleTimeString()}</span>
       </div>
 
@@ -76,13 +80,23 @@ function LogDetail({ entry, onClose }: { entry: ApiLogEntry; onClose: () => void
         >
           Response
         </button>
+        {hasReasoning && (
+          <button
+            className={`px-4 py-2 text-[11px] transition-colors ${tab === 'reasoning' ? 'text-purple-400 border-b border-purple-400/50' : 'text-text-dim hover:text-purple-300'}`}
+            onClick={() => setTab('reasoning')}
+          >
+            Reasoning
+          </button>
+        )}
       </div>
 
       {/* Content */}
-      <div className="flex-1 overflow-y-auto p-4 min-h-0">
-        <pre className="text-[11px] text-text-secondary leading-relaxed whitespace-pre-wrap break-words font-mono">
+      <div className="overflow-y-auto p-4" style={{ maxHeight: 'calc(80vh - 10rem)' }}>
+        <pre className="text-[11px] leading-relaxed whitespace-pre-wrap wrap-break-word font-mono text-text-secondary">
           {tab === 'prompt'
             ? entry.promptPreview || '(empty)'
+            : tab === 'reasoning'
+            ? entry.reasoningContent || '(no reasoning content)'
             : entry.responsePreview || (entry.status === 'pending' ? 'Waiting for response...' : '(empty)')}
         </pre>
       </div>
@@ -144,6 +158,9 @@ export function ApiLogsModal({ onClose }: { onClose: () => void }) {
                       <div className="flex items-center gap-2">
                         <span className="text-[12px] text-text-primary font-medium">{entry.caller}</span>
                         {entry.model && <span className="text-[9px] text-text-dim font-mono">{entry.model.split('/').pop()}</span>}
+                        {entry.reasoningTokens != null && entry.reasoningTokens > 0 && (
+                          <span className="text-[9px] text-purple-400 font-mono">~{entry.reasoningTokens.toLocaleString()} thinking</span>
+                        )}
                         <span className="text-[10px] text-text-dim">
                           ~{(entry.promptTokens ?? 0).toLocaleString()} tokens
                         </span>

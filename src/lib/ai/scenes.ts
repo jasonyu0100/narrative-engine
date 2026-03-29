@@ -1,5 +1,5 @@
 import type { NarrativeState, Scene, Arc, WorldBuild, StorySettings } from '@/types/narrative';
-import { resolveEntry, DEFAULT_STORY_SETTINGS } from '@/types/narrative';
+import { resolveEntry, DEFAULT_STORY_SETTINGS, REASONING_BUDGETS } from '@/types/narrative';
 import { nextId, nextIds } from '@/lib/narrative-utils';
 import { callGenerate, callGenerateStream, SYSTEM_PROMPT } from './api';
 import { WRITING_MODEL, ANALYSIS_MODEL, GENERATE_MODEL, MAX_TOKENS_LARGE, PLAN_PROSE_LOOKBACK } from '@/lib/constants';
@@ -14,6 +14,8 @@ export type GenerateScenesOptions = {
   pacingSequence?: PacingSequence;
   worldBuildFocus?: WorldBuild;
   onToken?: (token: string) => void;
+  /** Callback for streaming reasoning/thinking tokens */
+  onReasoning?: (token: string) => void;
 };
 
 export async function generateScenes(
@@ -24,7 +26,7 @@ export async function generateScenes(
   direction: string,
   options: GenerateScenesOptions = {},
 ): Promise<{ scenes: Scene[]; arc: Arc }> {
-  const { existingArc, pacingSequence, worldBuildFocus, onToken } = options;
+  const { existingArc, pacingSequence, worldBuildFocus, onToken, onReasoning } = options;
   const ctx = branchContext(narrative, resolvedKeys, currentIndex);
   const arcId = existingArc?.id ?? nextId('ARC', Object.keys(narrative.arcs));
   const storySettings: StorySettings = { ...DEFAULT_STORY_SETTINGS, ...narrative.storySettings };
@@ -144,9 +146,11 @@ You MUST use ONLY these exact IDs. Do NOT invent new character, location, or thr
   let lastErr: unknown;
   for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
     try {
-      const raw = onToken
-        ? await callGenerateStream(prompt, SYSTEM_PROMPT, onToken, MAX_TOKENS_LARGE, 'generateScenes', GENERATE_MODEL)
-        : await callGenerate(prompt, SYSTEM_PROMPT, MAX_TOKENS_LARGE, 'generateScenes', GENERATE_MODEL);
+      const reasoningBudget = REASONING_BUDGETS[storySettings.reasoningLevel] || undefined;
+      const useStream = !!(onToken || onReasoning);
+      const raw = useStream
+        ? await callGenerateStream(prompt, SYSTEM_PROMPT, onToken ?? (() => {}), MAX_TOKENS_LARGE, 'generateScenes', GENERATE_MODEL, reasoningBudget, onReasoning)
+        : await callGenerate(prompt, SYSTEM_PROMPT, MAX_TOKENS_LARGE, 'generateScenes', GENERATE_MODEL, reasoningBudget);
       parsed = parseJson(raw, 'generateScenes') as { arcName?: string; directionVector?: string; scenes: Scene[] };
       break;
     } catch (err) {
@@ -255,6 +259,7 @@ export async function generateScenePlan(
   scene: Scene,
   resolvedKeys: string[],
   onToken?: (token: string) => void,
+  onReasoning?: (token: string) => void,
 ): Promise<string> {
   const sceneIdx = resolvedKeys.indexOf(scene.id);
   const contextIndex = sceneIdx >= 0 ? sceneIdx : resolvedKeys.length - 1;
@@ -362,10 +367,12 @@ ${adjacentBlock ? `${adjacentBlock}\n\n` : ''}${sceneBlock}
 ${logicBlock}
 Create a detailed staging plan for this scene. Every structural mutation must have a concrete mechanism. Be specific about HOW things happen, not just WHAT happens.${recentProseBlock ? ' Your OPENING STATE must directly continue from the physical, emotional, and spatial reality established in the recent prose above — characters carry their wounds, knowledge, and positions forward.' : ''}`;
 
-  if (onToken) {
-    return await callGenerateStream(prompt, systemPrompt, onToken, Math.ceil(scale.proseTokens * 0.6), 'generateScenePlan', WRITING_MODEL);
+  const reasoningBudget = REASONING_BUDGETS[narrative.storySettings?.reasoningLevel ?? 'medium'] || undefined;
+  const useStream = !!(onToken || onReasoning);
+  if (useStream) {
+    return await callGenerateStream(prompt, systemPrompt, onToken ?? (() => {}), Math.ceil(scale.proseTokens * 0.6), 'generateScenePlan', WRITING_MODEL, reasoningBudget, onReasoning);
   }
-  return await callGenerate(prompt, systemPrompt, Math.ceil(scale.proseTokens * 0.6), 'generateScenePlan', WRITING_MODEL);
+  return await callGenerate(prompt, systemPrompt, Math.ceil(scale.proseTokens * 0.6), 'generateScenePlan', WRITING_MODEL, reasoningBudget);
 }
 
 /**
@@ -677,6 +684,8 @@ export type GenerateStepwiseOptions = {
   pacingSequence?: PacingSequence;
   worldBuildFocus?: WorldBuild;
   onToken?: (token: string) => void;
+  /** Callback for streaming reasoning/thinking tokens */
+  onReasoning?: (token: string) => void;
   /** Called after each scene is generated and sanitized. Use to dispatch to store for live UI updates. */
   onScene?: (scene: Scene, arc: Arc, sceneIndex: number) => void;
   /** Return true to abort generation early (e.g., user cancelled). */
@@ -719,7 +728,8 @@ Return JSON:
   "scenePlan": ["Scene 1: [Character] does [action] at [location], advancing [T-XX] and [T-YY]", "Scene 2: ..."]
 }`;
 
-  const raw = await callGenerate(prompt, SYSTEM_PROMPT, 1500, 'generateArcPlan', GENERATE_MODEL);
+  const reasoningBudget = REASONING_BUDGETS[narrative.storySettings?.reasoningLevel ?? 'medium'] || undefined;
+  const raw = await callGenerate(prompt, SYSTEM_PROMPT, 1500, 'generateArcPlan', GENERATE_MODEL, reasoningBudget);
   const parsed = parseJson(raw, 'generateArcPlan') as Partial<ArcPlan>;
   return {
     arcName: parsed.arcName ?? 'Untitled Arc',
@@ -746,6 +756,7 @@ async function generateSingleScene(
   /** Scene IDs already generated in this arc — used to build prior summaries */
   priorArcSceneIds: string[],
   onToken?: (token: string) => void,
+  onReasoning?: (token: string) => void,
 ): Promise<Scene> {
   const ctx = branchContext(narrative, resolvedKeys, currentIndex);
   const speed = storySettings.threadResolutionSpeed ?? 'moderate';
@@ -809,9 +820,11 @@ Use ONLY these IDs:
   Locations: ${Object.entries(narrative.locations).map(([id, l]) => `${l.name} (${id})`).join(', ')}
   Threads: ${Object.entries(narrative.threads).map(([id, t]) => `${t.description.slice(0, 40)} (${id})`).join(', ')}${Object.keys(narrative.artifacts ?? {}).length > 0 ? `\n  Artifacts: ${Object.entries(narrative.artifacts).map(([id, a]) => `${a.name} (${id})`).join(', ')}` : ''}`;
 
-  const raw = onToken
-    ? await callGenerateStream(prompt, SYSTEM_PROMPT, onToken, 4000, 'generateSingleScene', GENERATE_MODEL)
-    : await callGenerate(prompt, SYSTEM_PROMPT, 4000, 'generateSingleScene', GENERATE_MODEL);
+  const reasoningBudget = REASONING_BUDGETS[narrative.storySettings?.reasoningLevel ?? 'medium'] || undefined;
+  const useStream = !!(onToken || onReasoning);
+  const raw = useStream
+    ? await callGenerateStream(prompt, SYSTEM_PROMPT, onToken ?? (() => {}), 4000, 'generateSingleScene', GENERATE_MODEL, reasoningBudget, onReasoning)
+    : await callGenerate(prompt, SYSTEM_PROMPT, 4000, 'generateSingleScene', GENERATE_MODEL, reasoningBudget);
 
   const parsed = parseJson(raw, 'generateSingleScene') as Scene;
   return { ...parsed, kind: 'scene' as const, arcId };
@@ -833,7 +846,7 @@ export async function generateArcStepwise(
   direction: string,
   options: GenerateStepwiseOptions = {},
 ): Promise<{ scenes: Scene[]; arc: Arc }> {
-  const { existingArc, pacingSequence, worldBuildFocus, onToken, onScene, shouldStop } = options;
+  const { existingArc, pacingSequence, worldBuildFocus, onToken, onReasoning, onScene, shouldStop } = options;
   const storySettings: StorySettings = { ...DEFAULT_STORY_SETTINGS, ...narrative.storySettings };
   const targetLen = storySettings.targetArcLength;
   const sceneCount = count > 0 ? Math.max(3, count) : targetLen;
@@ -886,7 +899,7 @@ export async function generateArcStepwise(
     const scene = await generateSingleScene(
       liveNarrative, liveResolvedKeys, liveIndex,
       arcId, plan, i, step, sequence.steps.length,
-      fullDirection, storySettings, priorArcSceneIds, onToken,
+      fullDirection, storySettings, priorArcSceneIds, onToken, onReasoning,
     );
 
     // Assign real scene ID

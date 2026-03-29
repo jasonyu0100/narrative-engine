@@ -1,5 +1,5 @@
 import type { NarrativeState, PlanningPhase } from '@/types/narrative';
-import { DEFAULT_STORY_SETTINGS } from '@/types/narrative';
+import { DEFAULT_STORY_SETTINGS, REASONING_BUDGETS } from '@/types/narrative';
 import { callGenerate, SYSTEM_PROMPT } from './api';
 import { branchContext } from './context';
 import { buildThreadHealthPrompt, buildCompletedBeatsPrompt } from './prompts';
@@ -132,7 +132,8 @@ Return JSON:
   "sceneBudget": {"T-XX": 2, "T-YY+T-ZZ": 1}
 }`;
 
-  const raw = await callGenerate(prompt, SYSTEM_PROMPT, 1200, 'refreshDirection');
+  const reasoningBudget = REASONING_BUDGETS[narrative.storySettings?.reasoningLevel ?? 'medium'] || undefined;
+  const raw = await callGenerate(prompt, SYSTEM_PROMPT, 1200, 'refreshDirection', undefined, reasoningBudget);
 
   try {
     const parsed = parseJson(raw, 'refreshDirection') as { direction?: string; constraints?: string; sceneBudget?: Record<string, number> };

@@ -12,13 +12,14 @@ export async function POST(req: NextRequest) {
 
   try {
     const body = await req.json();
-    const { prompt, systemPrompt, model, maxTokens, stream, temperature } = body as {
+    const { prompt, systemPrompt, model, maxTokens, stream, temperature, reasoningBudget } = body as {
       prompt: string;
       systemPrompt?: string;
       model?: string;
       maxTokens?: number;
       stream?: boolean;
       temperature?: number;
+      reasoningBudget?: number;
     };
 
     const response = await fetch(OPENROUTER_URL, {
@@ -38,6 +39,7 @@ export async function POST(req: NextRequest) {
         temperature: temperature ?? DEFAULT_TEMPERATURE,
         max_tokens: maxTokens || MAX_TOKENS_DEFAULT,
         ...(stream ? { stream: true } : {}),
+        ...(reasoningBudget && reasoningBudget > 0 ? { reasoning: { max_tokens: reasoningBudget } } : {}),
       }),
     });
 
@@ -81,9 +83,15 @@ export async function POST(req: NextRequest) {
                 if (trimmed.startsWith('data: ')) {
                   try {
                     const chunk = JSON.parse(trimmed.slice(6));
-                    const token = chunk.choices?.[0]?.delta?.content ?? '';
+                    const delta = chunk.choices?.[0]?.delta;
+                    const token = delta?.content ?? '';
+                    // Forward reasoning tokens separately so the client can capture them
+                    const reasoning = delta?.reasoning ?? delta?.reasoning_content ?? '';
                     if (token) {
                       controller.enqueue(encoder.encode(`data: ${JSON.stringify({ token })}\n\n`));
+                    }
+                    if (reasoning) {
+                      controller.enqueue(encoder.encode(`data: ${JSON.stringify({ reasoning })}\n\n`));
                     }
                   } catch {
                     // skip malformed chunks
@@ -109,7 +117,13 @@ export async function POST(req: NextRequest) {
     // Non-streaming mode: existing behavior
     const data = await response.json();
     const content = data.choices?.[0]?.message?.content ?? '';
-    return NextResponse.json({ content });
+    // Extract reasoning content if present (OpenRouter returns it in message.reasoning or reasoning_details)
+    const message = data.choices?.[0]?.message;
+    const reasoning = message?.reasoning
+      ?? message?.reasoning_content
+      ?? (Array.isArray(message?.reasoning_details) ? message.reasoning_details.map((d: { content?: string }) => d.content ?? '').join('') : null);
+    const reasoningTokens = data.usage?.completion_tokens_details?.reasoning_tokens ?? null;
+    return NextResponse.json({ content, ...(reasoning ? { reasoning } : {}), ...(reasoningTokens != null ? { reasoningTokens } : {}) });
   } catch (err) {
     return NextResponse.json({ error: String(err) }, { status: 500 });
   }

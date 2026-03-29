@@ -1,5 +1,5 @@
 import type { NarrativeState, BranchEvaluation, SceneEval, SceneVerdict, Scene, Arc } from '@/types/narrative';
-import { resolveEntry, isScene } from '@/types/narrative';
+import { resolveEntry, isScene, REASONING_BUDGETS } from '@/types/narrative';
 import { callGenerate, SYSTEM_PROMPT } from './api';
 import { parseJson } from './json';
 import { ANALYSIS_MODEL } from '@/lib/constants';
@@ -124,7 +124,8 @@ Every scene must appear in sceneEvals. Use the exact scene IDs from above.`;
 
   // Scale token budget: ~80 tokens per scene for verdicts + ~2000 for overall analysis
   const maxTokens = Math.min(16000, 2000 + sceneSummaries.length * 80);
-  const raw = await callGenerate(prompt, SYSTEM_PROMPT, maxTokens, 'evaluateBranch', ANALYSIS_MODEL);
+  const reasoningBudget = REASONING_BUDGETS[narrative.storySettings?.reasoningLevel ?? 'medium'] || undefined;
+  const raw = await callGenerate(prompt, SYSTEM_PROMPT, maxTokens, 'evaluateBranch', ANALYSIS_MODEL, reasoningBudget);
 
   try {
     const parsed = parseJson(raw, 'evaluateBranch') as {

@@ -520,6 +520,19 @@ export type ThreadResolutionSpeed = 'slow' | 'moderate' | 'fast';
 /** How scenes within an arc are generated — batch (all at once, fast) or stepwise (one at a time, higher context) */
 export type GenerationMode = 'batch' | 'stepwise';
 
+/** Reasoning effort level — controls how many thinking tokens the model uses before responding.
+ *  Higher levels produce better structural decisions (causality, agency, convergence)
+ *  at the cost of slower generation and higher token usage.
+ *  Maps to OpenRouter's `reasoning.max_tokens` parameter. */
+export type ReasoningLevel = 'low' | 'medium' | 'high';
+
+/** Max thinking tokens per reasoning level */
+export const REASONING_BUDGETS: Record<ReasoningLevel, number> = {
+  low: 2048,
+  medium: 8192,
+  high: 24576,
+};
+
 export type StorySettings = {
   /** How POV is distributed across the story */
   povMode: POVMode;
@@ -553,6 +566,8 @@ export type StorySettings = {
   expansionStrategy: 'depth' | 'breadth' | 'dynamic';
   /** How scenes within an arc are generated — batch generates all at once (fast), stepwise generates one at a time with full context (slower, less duplication) */
   generationMode: GenerationMode;
+  /** Reasoning effort — how much thinking the model does before responding. Higher = better structural decisions, slower generation. */
+  reasoningLevel: ReasoningLevel;
 };
 
 export const BRANCH_TIME_HORIZON_OPTIONS = [25, 50, 100, 200] as const;
@@ -573,6 +588,7 @@ export const DEFAULT_STORY_SETTINGS: StorySettings = {
   narrativeGuidance: '',
   expansionStrategy: 'dynamic',
   generationMode: 'batch',
+  reasoningLevel: 'medium',
 };
 
 // ── Planning Queue ──────────────────────────────────────────────────────────
@@ -726,6 +742,10 @@ export type ApiLogEntry = {
   promptPreview: string;
   /** Truncated response preview */
   responsePreview: string | null;
+  /** Reasoning/thinking tokens used (if reasoning was enabled) */
+  reasoningTokens?: number | null;
+  /** Reasoning/thinking content from the model (if available) */
+  reasoningContent?: string | null;
 };
 
 // ── Text Analysis ────────────────────────────────────────────────────────────

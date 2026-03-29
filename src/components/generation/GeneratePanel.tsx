@@ -160,7 +160,7 @@ export function GeneratePanel({ onClose }: { onClose: () => void }) {
             existingArc,
             pacingSequence: previewSequence ?? undefined,
             worldBuildFocus,
-            onToken: (token) => setStreamText((prev) => prev + token),
+            onReasoning: (token) => setStreamText((prev) => prev + token),
             onScene: (scene, progressArc) => {
               dispatch({ type: 'BULK_ADD_SCENES', scenes: [scene], arc: progressArc, branchId: state.activeBranchId! });
             },
@@ -169,7 +169,7 @@ export function GeneratePanel({ onClose }: { onClose: () => void }) {
       } else {
         const { scenes, arc } = await generateScenes(
           narrative, state.resolvedEntryKeys, headIndex, count, direction,
-          { existingArc, pacingSequence: previewSequence ?? undefined, worldBuildFocus, onToken: (token) => setStreamText((prev) => prev + token) },
+          { existingArc, pacingSequence: previewSequence ?? undefined, worldBuildFocus, onReasoning: (token) => setStreamText((prev) => prev + token) },
         );
         dispatch({ type: 'BULK_ADD_SCENES', scenes, arc, branchId: state.activeBranchId! });
       }

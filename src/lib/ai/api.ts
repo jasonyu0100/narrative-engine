@@ -8,6 +8,8 @@ export async function callGenerateStream(
   maxTokens?: number,
   caller = 'callGenerateStream',
   model?: string,
+  reasoningBudget?: number,
+  onReasoning?: (token: string) => void,
 ): Promise<string> {
   const resolvedModel = model ?? DEFAULT_MODEL;
   const { logApiCall, updateApiLog } = await import('@/lib/api-logger');
@@ -18,7 +20,7 @@ export async function callGenerateStream(
     const res = await fetch('/api/generate', {
       method: 'POST',
       headers: apiHeaders(),
-      body: JSON.stringify({ prompt, systemPrompt, stream: true, ...(maxTokens ? { maxTokens } : {}), ...(model ? { model } : {}) }),
+      body: JSON.stringify({ prompt, systemPrompt, stream: true, ...(maxTokens ? { maxTokens } : {}), ...(model ? { model } : {}), ...(reasoningBudget ? { reasoningBudget } : {}) }),
     });
     if (!res.ok) {
       const err = await res.json();
@@ -33,6 +35,7 @@ export async function callGenerateStream(
     const decoder = new TextDecoder();
     let buffer = '';
     let full = '';
+    let reasoningFull = '';
 
     while (true) {
       const { done, value } = await reader.read();
@@ -53,6 +56,11 @@ export async function callGenerateStream(
               full += token;
               onToken(token);
             }
+            const reasoning = chunk.reasoning ?? '';
+            if (reasoning) {
+              reasoningFull += reasoning;
+              onReasoning?.(reasoning);
+            }
           } catch {
             // skip malformed chunks
           }
@@ -65,6 +73,7 @@ export async function callGenerateStream(
       durationMs: Math.round(performance.now() - start),
       responseLength: full.length,
       responsePreview: full,
+      ...(reasoningFull ? { reasoningContent: reasoningFull, reasoningTokens: Math.ceil(reasoningFull.length / 4) } : {}),
     });
     return full;
   } catch (err) {
@@ -74,7 +83,7 @@ export async function callGenerateStream(
   }
 }
 
-export async function callGenerate(prompt: string, systemPrompt: string, maxTokens?: number, caller = 'callGenerate', model?: string): Promise<string> {
+export async function callGenerate(prompt: string, systemPrompt: string, maxTokens?: number, caller = 'callGenerate', model?: string, reasoningBudget?: number): Promise<string> {
   const resolvedModel = model ?? DEFAULT_MODEL;
   const { logApiCall, updateApiLog } = await import('@/lib/api-logger');
   const logId = logApiCall(caller, prompt.length + (systemPrompt?.length ?? 0), prompt, resolvedModel);
@@ -84,7 +93,7 @@ export async function callGenerate(prompt: string, systemPrompt: string, maxToke
     const res = await fetch('/api/generate', {
       method: 'POST',
       headers: apiHeaders(),
-      body: JSON.stringify({ prompt, systemPrompt, ...(maxTokens ? { maxTokens } : {}), ...(model ? { model } : {}) }),
+      body: JSON.stringify({ prompt, systemPrompt, ...(maxTokens ? { maxTokens } : {}), ...(model ? { model } : {}), ...(reasoningBudget ? { reasoningBudget } : {}) }),
     });
     if (!res.ok) {
       const err = await res.json();
@@ -99,6 +108,8 @@ export async function callGenerate(prompt: string, systemPrompt: string, maxToke
       durationMs: Math.round(performance.now() - start),
       responseLength: content.length,
       responsePreview: content,
+      ...(data.reasoning ? { reasoningContent: data.reasoning } : {}),
+      ...(data.reasoningTokens != null ? { reasoningTokens: data.reasoningTokens } : {}),
     });
     return content;
   } catch (err) {
