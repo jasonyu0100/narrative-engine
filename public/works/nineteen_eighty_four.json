@@ -4569,7 +4569,84 @@
       },
       "prose": "He thought again of Katharine. It must be nine, ten--nearly eleven years\nsince they had parted. It was curious how seldom he thought of her. For\ndays at a time he was capable of forgetting that he had ever been married.\nThey had only been together for about fifteen months. The Party did not\npermit divorce, but it rather encouraged separation in cases where there\nwere no children.\n\nKatharine was a tall, fair-haired girl, very straight, with splendid\nmovements. She had a bold, aquiline face, a face that one might have called\nnoble until one discovered that there was as nearly as possible nothing\nbehind it. Very early in her married life he had decided--though perhaps\nit was only that he knew her more intimately than he knew most people--that\nshe had without exception the most stupid, vulgar, empty mind that he had\never encountered. She had not a thought in her head that was not a slogan,\nand there was no imbecility, absolutely none that she was not capable of\nswallowing if the Party handed it out to her. 'The human sound-track' he\nnicknamed her in his own mind. Yet he could have endured living with her\nif it had not been for just one thing--sex.\n\nAs soon as he touched her she seemed to wince and stiffen. To embrace her\nwas like embracing a jointed wooden image. And what was strange was that\neven when she was clasping him against her he had the feeling that she\nwas simultaneously pushing him away with all her strength. The rigidity\nof her muscles managed to convey that impression. She would lie there\nwith shut eyes, neither resisting nor co-operating but SUBMITTING. It was\nextraordinarily embarrassing, and, after a while, horrible. But even then\nhe could have borne living with her if it had been agreed that they should\nremain celibate. But curiously enough it was Katharine who refused this.\nThey must, she said, produce a child if they could. So the performance\ncontinued to happen, once a week quite regularly, whenever it was not\nimpossible. She even used to remind him of it in the morning, as something\nwhich had to be done that evening and which must not be forgotten. She had\ntwo names for it. One was 'making a baby', and the other was 'our duty to\nthe Party' (yes, she had actually used that phrase). Quite soon he grew to\nhave a feeling of positive dread when the appointed day came round. But\nluckily no child appeared, and in the end she agreed to give up trying,\nand soon afterwards they parted.\n\nWinston sighed inaudibly. He picked up his pen again and\nwrote:\n\nShe threw herself down on the bed, and at once, without any kind of\npreliminary in the most coarse, horrible way you can imagine, pulled up\nher skirt. I----\n\nHe saw himself standing there in the dim lamplight, with the smell of bugs\nand cheap scent in his nostrils, and in his heart a feeling of defeat and\nresentment which even at that moment was mixed up with the thought of\nKatharine's white body, frozen for ever by the hypnotic power of the Party.\nWhy did it always have to be like this? Why could he not have a woman of\nhis own instead of these filthy scuffles at intervals of years? But a real\nlove affair was an almost unthinkable event. The women of the Party were\nall alike. Chastity was as deep ingrained in them as Party loyalty. By\ncareful early conditioning, by games and cold water, by the rubbish that\nwas dinned into them at school and in the Spies and the Youth League, by\nlectures, parades, songs, slogans, and martial music, the natural feeling\nhad been driven out of them. His reason told him that there must be\nexceptions, but his heart did not believe it. They were all impregnable,\nas the Party intended that they should be. And what he wanted, more even\nthan to be loved, was to break down that wall of virtue, even if it were\nonly once in his whole life. The sexual act, successfully performed, was\nrebellion. Desire was thoughtcrime. Even to have awakened Katharine, if he\ncould have achieved it, would have been like a seduction, although she was\nhis wife.",
       "summary": "Winston further reflects on his deeply unsatisfying marriage to Katharine, remembering her as intellectually void and physically repulsive, rigidly adhering to Party doctrine even in their forced sexual encounters. He writes in his diary again, detailing the prostitute's immediate, coarse actions, which he ties to the Party's influence and his yearning to break through the enforced chastity of Party women.",
-      "locked": true
+      "locked": true,
+      "plan": {
+        "beats": [
+          {
+            "fn": "breathe",
+            "mechanism": "thought",
+            "what": "Winston reflects on how long it has been since he separated from Katharine and how little he thinks of her.",
+            "anchor": "It must be nine, ten--nearly eleven years since they had parted."
+          },
+          {
+            "fn": "inform",
+            "mechanism": "narration",
+            "what": "The Party's stance on divorce and separation is explained.",
+            "anchor": "The Party did not permit divorce, but it rather encouraged separation in cases where there were no children."
+          },
+          {
+            "fn": "reveal",
+            "mechanism": "thought",
+            "what": "Winston describes Katharine as physically attractive but intellectually empty, a mere echo of Party slogans.",
+            "anchor": "She had not a thought in her head that was not a slogan"
+          },
+          {
+            "fn": "bond",
+            "mechanism": "thought",
+            "what": "Winston details the emotionally and physically repulsive nature of their sexual encounters, characterized by Katharine's rigid submission.",
+            "anchor": "To embrace her was like embracing a jointed wooden image."
+          },
+          {
+            "fn": "advance",
+            "mechanism": "thought",
+            "what": "Katharine's insistence on 'making a baby' as 'our duty to the Party' led to a routine that filled Winston with dread.",
+            "anchor": "She had two names for it. One was 'making a baby', and the other was 'our duty to the Party'"
+          },
+          {
+            "fn": "resolve",
+            "mechanism": "thought",
+            "what": "Their separation occurred after no child was produced and Katharine finally agreed to stop trying.",
+            "anchor": "But luckily no child appeared, and in the end she agreed to give up trying, and soon afterwards they parted."
+          },
+          {
+            "fn": "breathe",
+            "mechanism": "action",
+            "what": "Winston sighs and returns to his diary to continue writing.",
+            "anchor": "Winston sighed inaudibly. He picked up his pen again and wrote:"
+          },
+          {
+            "fn": "advance",
+            "mechanism": "document",
+            "what": "He writes about the prostitute's immediate and coarse actions, tying it to the Party's influence.",
+            "anchor": "She threw herself down on the bed, and at once, without any kind of preliminary in the most coarse, horrible way you can imagine, pulled up her skirt."
+          },
+          {
+            "fn": "foreshadow",
+            "mechanism": "thought",
+            "what": "Winston connects the prostitute's actions to Katharine's 'frozen' state, both victims of the Party's hypnotic power.",
+            "anchor": "Katharine's white body, frozen for ever by the hypnotic power of the Party."
+          },
+          {
+            "fn": "expand",
+            "mechanism": "thought",
+            "what": "He laments the Party's systematic conditioning to enforce chastity and loyalty in women, making real love affairs impossible.",
+            "anchor": "Chastity was as deep ingrained in them as Party loyalty."
+          },
+          {
+            "fn": "reveal",
+            "mechanism": "thought",
+            "what": "Winston yearns to break down the 'wall of virtue' in Party women, viewing the sexual act as a form of rebellion against thoughtcrime.",
+            "anchor": "The sexual act, successfully performed, was rebellion. Desire was thoughtcrime."
+          }
+        ],
+        "anchors": [
+          "She had not a thought in her head that was not a slogan",
+          "To embrace her was like embracing a jointed wooden image.",
+          "She had two names for it. One was 'making a baby', and the other was 'our duty to the Party'",
+          "Katharine's white body, frozen for ever by the hypnotic power of the Party.",
+          "The sexual act, successfully performed, was rebellion. Desire was thoughtcrime."
+        ]
+      }
     },
     "S-NIN-016": {
       "kind": "scene",
@@ -5225,7 +5302,90 @@
       },
       "prose": "The three men never stirred. But when Winston glanced again at Rutherford's\nruinous face, he saw that his eyes were full of tears. And for the first\ntime he noticed, with a kind of inward shudder, and yet not knowing\nAT WHAT he shuddered, that both Aaronson and Rutherford had broken noses.\n\nA little later all three were re-arrested. It appeared that they had\nengaged in fresh conspiracies from the very moment of their release. At\ntheir second trial they confessed to all their old crimes over again, with\na whole string of new ones. They were executed, and their fate was recorded\nin the Party histories, a warning to posterity. About five years after\nthis, in 1973, Winston was unrolling a wad of documents which had just\nflopped out of the pneumatic tube on to his desk when he came on a fragment\nof paper which had evidently been slipped in among the others and then\nforgotten. The instant he had flattened it out he saw its significance.\nIt was a half-page torn out of 'The Times' of about ten years earlier--the\ntop half of the page, so that it included the date--and it contained a\nphotograph of the delegates at some Party function in New York. Prominent\nin the middle of the group were Jones, Aaronson, and Rutherford. There was\nno mistaking them, in any case their names were in the caption at the\nbottom.\n\nThe point was that at both trials all three men had confessed that on that\ndate they had been on Eurasian soil. They had flown from a secret airfield\nin Canada to a rendezvous somewhere in Siberia, and had conferred with\nmembers of the Eurasian General Staff, to whom they had betrayed important\nmilitary secrets. The date had stuck in Winston's memory because it chanced\nto be midsummer day; but the whole story must be on record in countless\nother places as well. There was only one possible conclusion: the\nconfessions were lies.\n\nOf course, this was not in itself a discovery. Even at that time Winston\nhad not imagined that the people who were wiped out in the purges had\nactually committed the crimes that they were accused of. But this was\nconcrete evidence; it was a fragment of the abolished past, like a fossil\nbone which turns up in the wrong stratum and destroys a geological theory.\nIt was enough to blow the Party to atoms, if in some way it could have\nbeen published to the world and its significance made known.\n\nHe had gone straight on working. As soon as he saw what the photograph\nwas, and what it meant, he had covered it up with another sheet of paper.\nLuckily, when he unrolled it, it had been upside-down from the point of\nview of the telescreen.\n\nHe took his scribbling pad on his knee and pushed back his chair so as\nto get as far away from the telescreen as possible. To keep your face\nexpressionless was not difficult, and even your breathing could be\ncontrolled, with an effort: but you could not control the beating of your\nheart, and the telescreen was quite delicate enough to pick it up. He let\nwhat he judged to be ten minutes go by, tormented all the while by the\nfear that some accident--a sudden draught blowing across his desk, for\ninstance--would betray him. Then, without uncovering it again, he dropped\nthe photograph into the memory hole, along with some other waste papers.\nWithin another minute, perhaps, it would have crumbled into ashes.\n\nThat was ten--eleven years ago. Today, probably, he would have kept that\nphotograph. It was curious that the fact of having held it in his fingers\nseemed to him to make a difference even now, when the photograph itself,\nas well as the event it recorded, was only memory. Was the Party's hold\nupon the past less strong, he wondered, because a piece of evidence which\nexisted no longer HAD ONCE existed?\n\nBut today, supposing that it could be somehow resurrected from its ashes,\nthe photograph might not even be evidence. Already, at the time when he\nmade his discovery, Oceania was no longer at war with Eurasia, and it must\nhave been to the agents of Eastasia that the three dead men had betrayed\ntheir country. Since then there had been other changes--two, three,\nhe could not remember how many. Very likely the confessions had been\nrewritten and rewritten until the original facts and dates no longer\nhad the smallest significance. The past not only changed, but changed\ncontinuously. What most afflicted him with the sense of nightmare was that\nhe had never clearly understood why the huge imposture was undertaken.\nThe immediate advantages of falsifying the past were obvious, but the\nultimate motive was mysterious. He took up his pen again and wrote:\n\nI understand HOW: I do not understand WHY.",
       "summary": "Years later, Winston uncovers a photograph proving the confessions of Jones, Aaronson, and Rutherford were lies. The realization of this concrete evidence of the Party's historical falsification shakes him deeply. Fearing the telescreen, he quickly hides and then destroys the photograph in the memory hole, tormented by the Party's absolute power to rewrite the past.",
-      "locked": true
+      "locked": true,
+      "plan": {
+        "beats": [
+          {
+            "fn": "breathe",
+            "mechanism": "environment",
+            "what": "Winston observes Rutherford's tearful eyes and the broken noses of Aaronson and Rutherford as they sit in custody.",
+            "anchor": "Rutherford's ruinous face"
+          },
+          {
+            "fn": "inform",
+            "mechanism": "narration",
+            "what": "The three men were re-arrested, confessed again, executed, and their fate recorded as a Party warning.",
+            "anchor": "their fate was recorded in the Party histories"
+          },
+          {
+            "fn": "advance",
+            "mechanism": "action",
+            "what": "Years later, Winston unrolls documents from a pneumatic tube and discovers a fragment of 'The Times' with a photograph.",
+            "anchor": "a fragment of paper which had evidently been slipped in among the others"
+          },
+          {
+            "fn": "inform",
+            "mechanism": "document",
+            "what": "The photograph shows Jones, Aaronson, and Rutherford at a Party function in New York, dated ten years prior.",
+            "anchor": "a half-page torn out of 'The Times'"
+          },
+          {
+            "fn": "turn",
+            "mechanism": "thought",
+            "what": "Winston realizes the photograph contradicts the men's confessions of being in Eurasia on that exact date, proving their confessions were lies.",
+            "anchor": "The point was that at both trials all three men had confessed that on that date they had been on Eurasian soil."
+          },
+          {
+            "fn": "reveal",
+            "mechanism": "thought",
+            "what": "This concrete evidence of a falsified past, like a fossil out of place, has the power to destroy the Party's narrative.",
+            "anchor": "It was a fragment of the abolished past, like a fossil bone which turns up in the wrong stratum"
+          },
+          {
+            "fn": "advance",
+            "mechanism": "action",
+            "what": "Winston immediately covers the photograph, having luckily received it upside down from the telescreen's view.",
+            "anchor": "he had covered it up with another sheet of paper."
+          },
+          {
+            "fn": "breathe",
+            "mechanism": "environment",
+            "what": "He pushes his chair back to distance himself from the telescreen, struggling to control his heartbeat.",
+            "anchor": "pushed back his chair so as to get as far away from the telescreen as possible"
+          },
+          {
+            "fn": "advance",
+            "mechanism": "action",
+            "what": "Tormented by fear, Winston waits ten minutes before dropping the photograph into the memory hole, destroying it.",
+            "anchor": "dropped the photograph into the memory hole"
+          },
+          {
+            "fn": "shift",
+            "mechanism": "thought",
+            "what": "Winston reflects that today he might have kept the photograph, pondering if the Party's control over the past is weaker because the evidence once existed.",
+            "anchor": "Was the Party's hold upon the past less strong, he wondered, because a piece of evidence which existed no longer HAD ONCE existed?"
+          },
+          {
+            "fn": "expand",
+            "mechanism": "thought",
+            "what": "He considers that the photograph might not even be evidence today, as the Party's continuous rewriting of history would have altered the context.",
+            "anchor": "The past not only changed, but changed continuously."
+          },
+          {
+            "fn": "resolve",
+            "mechanism": "action",
+            "what": "Afflicted by the mystery of the Party's ultimate motive for falsifying the past, Winston writes, 'I understand HOW: I do not understand WHY.'",
+            "anchor": "I understand HOW: I do not understand WHY."
+          }
+        ],
+        "anchors": [
+          "both Aaronson and Rutherford had broken noses.",
+          "a fragment of paper which had evidently been slipped in among the others and then forgotten.",
+          "It was a fragment of the abolished past, like a fossil bone which turns up in the wrong stratum and destroys a geological theory.",
+          "the telescreen was quite delicate enough to pick it up.",
+          "I understand HOW: I do not understand WHY."
+        ]
+      }
     },
     "S-NIN-020": {
       "kind": "scene",
@@ -23917,12 +24077,12 @@
   "updatedAt": 1773980666391,
   "proseProfile": {
     "title": "Nineteen Eighty-Four",
-    "scenesAnalyzed": 70,
-    "totalBeats": 1000,
-    "avgBeatsPerKWord": 13.2,
+    "scenesAnalyzed": 72,
+    "totalBeats": 1023,
+    "avgBeatsPerKWord": 13.3,
     "beatDistribution": {
       "breathe": 0.163,
-      "inform": 0.214,
+      "inform": 0.212,
       "advance": 0.223,
       "bond": 0.053,
       "turn": 0.058,
@@ -23930,127 +24090,127 @@
       "shift": 0.022,
       "expand": 0.077,
       "foreshadow": 0.037,
-      "resolve": 0.044
+      "resolve": 0.045
     },
     "mechanismDistribution": {
-      "dialogue": 0.243,
-      "thought": 0.205,
+      "dialogue": 0.238,
+      "thought": 0.212,
       "action": 0.21,
-      "environment": 0.147,
-      "narration": 0.157,
+      "environment": 0.146,
+      "narration": 0.155,
       "memory": 0.019,
-      "document": 0.018,
+      "document": 0.02,
       "comic": 0.001
     },
     "markovTransitions": {
       "breathe": {
-        "breathe": 0.101,
-        "advance": 0.234,
-        "reveal": 0.076,
-        "inform": 0.405,
-        "resolve": 0.013,
-        "expand": 0.038,
-        "turn": 0.051,
+        "breathe": 0.099,
+        "advance": 0.241,
+        "reveal": 0.074,
+        "inform": 0.407,
+        "resolve": 0.012,
+        "expand": 0.037,
+        "turn": 0.049,
         "foreshadow": 0.025,
-        "bond": 0.051,
+        "bond": 0.049,
         "shift": 0.006
       },
       "inform": {
-        "breathe": 0.095,
-        "reveal": 0.176,
-        "expand": 0.129,
+        "breathe": 0.094,
+        "reveal": 0.178,
+        "expand": 0.127,
         "advance": 0.333,
-        "turn": 0.024,
-        "inform": 0.086,
+        "turn": 0.028,
+        "inform": 0.085,
         "shift": 0.033,
-        "bond": 0.043,
+        "bond": 0.042,
         "foreshadow": 0.052,
-        "resolve": 0.029
+        "resolve": 0.028
       },
       "advance": {
         "inform": 0.199,
-        "turn": 0.128,
-        "reveal": 0.137,
-        "bond": 0.057,
-        "advance": 0.18,
-        "expand": 0.071,
-        "breathe": 0.109,
-        "resolve": 0.062,
-        "shift": 0.024,
-        "foreshadow": 0.033
-      },
-      "bond": {
-        "resolve": 0.14,
-        "inform": 0.22,
-        "expand": 0.12,
-        "advance": 0.12,
-        "breathe": 0.1,
-        "reveal": 0.14,
-        "bond": 0.06,
-        "turn": 0.06,
-        "shift": 0.04
-      },
-      "turn": {
-        "advance": 0.333,
-        "breathe": 0.074,
-        "inform": 0.148,
-        "resolve": 0.074,
-        "reveal": 0.148,
-        "bond": 0.093,
-        "expand": 0.056,
-        "shift": 0.037,
+        "turn": 0.125,
+        "reveal": 0.134,
+        "bond": 0.056,
+        "advance": 0.176,
+        "expand": 0.069,
+        "breathe": 0.111,
+        "resolve": 0.065,
+        "shift": 0.028,
         "foreshadow": 0.037
       },
+      "bond": {
+        "resolve": 0.137,
+        "inform": 0.216,
+        "expand": 0.118,
+        "advance": 0.137,
+        "breathe": 0.098,
+        "reveal": 0.137,
+        "bond": 0.059,
+        "turn": 0.059,
+        "shift": 0.039
+      },
+      "turn": {
+        "advance": 0.327,
+        "breathe": 0.073,
+        "inform": 0.145,
+        "resolve": 0.073,
+        "reveal": 0.164,
+        "bond": 0.091,
+        "expand": 0.055,
+        "shift": 0.036,
+        "foreshadow": 0.036
+      },
       "reveal": {
-        "breathe": 0.07,
-        "expand": 0.07,
-        "inform": 0.27,
-        "advance": 0.25,
-        "turn": 0.07,
-        "bond": 0.1,
-        "resolve": 0.08,
-        "shift": 0.03,
-        "foreshadow": 0.03,
-        "reveal": 0.03
+        "breathe": 0.069,
+        "expand": 0.069,
+        "inform": 0.265,
+        "advance": 0.255,
+        "turn": 0.069,
+        "bond": 0.108,
+        "resolve": 0.078,
+        "shift": 0.029,
+        "foreshadow": 0.029,
+        "reveal": 0.029
       },
       "shift": {
-        "advance": 0.421,
-        "expand": 0.053,
-        "breathe": 0.053,
-        "turn": 0.105,
-        "bond": 0.053,
-        "inform": 0.263,
-        "reveal": 0.053
+        "advance": 0.4,
+        "expand": 0.1,
+        "breathe": 0.05,
+        "turn": 0.1,
+        "bond": 0.05,
+        "inform": 0.25,
+        "reveal": 0.05
       },
       "expand": {
-        "foreshadow": 0.12,
-        "expand": 0.107,
-        "advance": 0.133,
-        "reveal": 0.107,
-        "inform": 0.36,
-        "breathe": 0.107,
-        "bond": 0.04,
-        "resolve": 0.027
+        "foreshadow": 0.117,
+        "expand": 0.104,
+        "advance": 0.13,
+        "reveal": 0.117,
+        "inform": 0.351,
+        "breathe": 0.104,
+        "bond": 0.039,
+        "resolve": 0.039
       },
       "foreshadow": {
-        "expand": 0.063,
-        "inform": 0.125,
-        "breathe": 0.125,
-        "advance": 0.25,
-        "turn": 0.188,
-        "reveal": 0.094,
-        "shift": 0.031,
-        "bond": 0.063,
-        "resolve": 0.063
+        "expand": 0.091,
+        "inform": 0.121,
+        "breathe": 0.121,
+        "advance": 0.242,
+        "turn": 0.182,
+        "reveal": 0.091,
+        "shift": 0.03,
+        "bond": 0.061,
+        "resolve": 0.061
       },
       "resolve": {
-        "shift": 0.048,
-        "advance": 0.095,
-        "breathe": 0.476,
-        "expand": 0.095,
-        "inform": 0.19,
-        "reveal": 0.048,
-        "foreshadow": 0.048
+        "breathe": 0.5,
+        "shift": 0.045,
+        "advance": 0.091,
+        "expand": 0.091,
+        "inform": 0.182,
+        "reveal": 0.045,
+        "foreshadow": 0.045
       }
     },
     "sampleAnchors": [

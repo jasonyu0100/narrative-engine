@@ -340,7 +340,7 @@ Return ONLY valid JSON matching this schema:
       "anchor": "The one sensory detail that makes this beat physical"
     }
   ],
-  "anchors": ["0-5 memorable lines the prose should crystallize around"]
+  "anchors": ["0-5 iconic lines the prose writer MUST include verbatim — the sentences a reader would quote, highlight, or remember. Craft these as polished, publication-ready prose: a striking opening image, a character's defining utterance, a metaphor that crystallizes the scene's meaning, a line of dialogue that reverberates. Not every scene needs anchors — only include them when the moment earns a standout line."]
 }
 
 BEAT FUNCTIONS (10):
@@ -373,7 +373,7 @@ RULES:
 - Knowledge gains need a discovery mechanism (overheard, read, deduced, confessed).
 - Relationship shifts need a catalytic moment.
 - Be specific: "She asks about the missing shipment; he deflects" not "A tense exchange."
-- Anchors are optional — only include lines that would define the scene if quoted.
+- ANCHORS: Write 1-3 polished, publication-ready sentences that would define this scene if quoted. These are the lines a reader highlights — a striking image, a defining utterance, a metaphor that crystallizes meaning. The prose writer will include these VERBATIM. Quiet scenes may have 0 anchors. Climactic scenes may have 3. Write them as finished prose, not summaries.
 - Return ONLY valid JSON.`
   + (narrative.storySettings?.planGuidance?.trim()
     ? `\n\nPLAN GUIDANCE:\n${narrative.storySettings.planGuidance.trim()}`
