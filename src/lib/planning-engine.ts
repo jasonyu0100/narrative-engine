@@ -33,7 +33,7 @@ Produce a concise completion report covering:
 Keep the report to 3-5 sentences. Be specific — use character NAMES, location NAMES, and thread DESCRIPTIONS, never raw IDs.
 Return ONLY the report text, no JSON or markup.`;
 
-  const reasoningBudget = REASONING_BUDGETS[narrative.storySettings?.reasoningLevel ?? 'medium'] || undefined;
+  const reasoningBudget = REASONING_BUDGETS[narrative.storySettings?.reasoningLevel ?? 'low'] || undefined;
   const report = await callGenerate(prompt, SYSTEM_PROMPT, 500, 'planningEngine', undefined, reasoningBudget);
   return report.trim();
 }
@@ -90,7 +90,7 @@ Return JSON:
   "constraints": "..."
 }`;
 
-  const reasoningBudget = REASONING_BUDGETS[narrative.storySettings?.reasoningLevel ?? 'medium'] || undefined;
+  const reasoningBudget = REASONING_BUDGETS[narrative.storySettings?.reasoningLevel ?? 'low'] || undefined;
   const response = await callGenerate(prompt, SYSTEM_PROMPT, 500, 'planningEngine', undefined, reasoningBudget);
 
   try {
@@ -162,7 +162,7 @@ Return JSON:
   ]
 }`;
 
-  const reasoningBudget = REASONING_BUDGETS[narrative.storySettings?.reasoningLevel ?? 'medium'] || undefined;
+  const reasoningBudget = REASONING_BUDGETS[narrative.storySettings?.reasoningLevel ?? 'low'] || undefined;
   const raw = await callGenerate(prompt, SYSTEM_PROMPT, 4000, 'generateCustomPlan', undefined, reasoningBudget);
 
   try {

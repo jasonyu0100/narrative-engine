@@ -588,7 +588,7 @@ export const DEFAULT_STORY_SETTINGS: StorySettings = {
   narrativeGuidance: '',
   expansionStrategy: 'dynamic',
   generationMode: 'batch',
-  reasoningLevel: 'medium',
+  reasoningLevel: 'low',
 };
 
 // ── Planning Queue ──────────────────────────────────────────────────────────

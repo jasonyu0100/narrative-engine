@@ -124,7 +124,7 @@ Every scene must appear in sceneEvals. Use the exact scene IDs from above.`;
 
   // Scale token budget: ~80 tokens per scene for verdicts + ~2000 for overall analysis
   const maxTokens = Math.min(16000, 2000 + sceneSummaries.length * 80);
-  const reasoningBudget = REASONING_BUDGETS[narrative.storySettings?.reasoningLevel ?? 'medium'] || undefined;
+  const reasoningBudget = REASONING_BUDGETS[narrative.storySettings?.reasoningLevel ?? 'low'] || undefined;
   const raw = await callGenerate(prompt, SYSTEM_PROMPT, maxTokens, 'evaluateBranch', ANALYSIS_MODEL, reasoningBudget);
 
   try {

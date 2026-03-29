@@ -1,5 +1,5 @@
 import { apiHeaders } from '@/lib/api-headers';
-import { DEFAULT_MODEL } from '@/lib/constants';
+import { DEFAULT_MODEL, DEFAULT_REASONING_BUDGET } from '@/lib/constants';
 
 export async function callGenerateStream(
   prompt: string,
@@ -20,7 +20,7 @@ export async function callGenerateStream(
     const res = await fetch('/api/generate', {
       method: 'POST',
       headers: apiHeaders(),
-      body: JSON.stringify({ prompt, systemPrompt, stream: true, ...(maxTokens ? { maxTokens } : {}), ...(model ? { model } : {}), ...(reasoningBudget ? { reasoningBudget } : {}) }),
+      body: JSON.stringify({ prompt, systemPrompt, stream: true, ...(maxTokens ? { maxTokens } : {}), ...(model ? { model } : {}), reasoningBudget: reasoningBudget ?? DEFAULT_REASONING_BUDGET }),
     });
     if (!res.ok) {
       const err = await res.json();
@@ -93,7 +93,7 @@ export async function callGenerate(prompt: string, systemPrompt: string, maxToke
     const res = await fetch('/api/generate', {
       method: 'POST',
       headers: apiHeaders(),
-      body: JSON.stringify({ prompt, systemPrompt, ...(maxTokens ? { maxTokens } : {}), ...(model ? { model } : {}), ...(reasoningBudget ? { reasoningBudget } : {}) }),
+      body: JSON.stringify({ prompt, systemPrompt, ...(maxTokens ? { maxTokens } : {}), ...(model ? { model } : {}), reasoningBudget: reasoningBudget ?? DEFAULT_REASONING_BUDGET }),
     });
     if (!res.ok) {
       const err = await res.json();

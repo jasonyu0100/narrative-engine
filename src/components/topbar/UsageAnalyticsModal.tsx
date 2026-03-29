@@ -90,21 +90,25 @@ function bucketByMinute(logs: ApiLogEntry[]): { label: string; shortLabel: strin
 
 // ── SVG Bar Chart ────────────────────────────────────────────────────────────
 
-type BarDatum = { label: string; shortLabel: string; v1: number; v2: number };
+type BarDatum = { label: string; shortLabel: string; v1: number; v2: number; v3: number };
 
 function BarChart({
   data,
   color1,
   color2,
+  color3,
   label1,
   label2,
+  label3,
   formatValue,
 }: {
   data: BarDatum[];
   color1: string;
   color2: string;
+  color3: string;
   label1: string;
   label2: string;
+  label3: string;
   formatValue: (v: number) => string;
 }) {
   const [hovered, setHovered] = useState<number | null>(null);
@@ -122,7 +126,7 @@ function BarChart({
     );
   }
 
-  const maxVal = Math.max(...data.map((d) => d.v1 + d.v2), 0.001);
+  const maxVal = Math.max(...data.map((d) => d.v1 + d.v2 + d.v3), 0.001);
   const barW = Math.max(2, Math.min(20, (cw / data.length) * 0.65));
   const gap = cw / data.length;
   const ticks = Array.from({ length: 4 }, (_, i) => (maxVal / 3) * i);
@@ -138,6 +142,12 @@ function BarChart({
           <span className="flex items-center gap-1">
             <span className="w-2 h-2 rounded-sm" style={{ background: color2 }} />
             {label2}
+          </span>
+        )}
+        {label3 && (
+          <span className="flex items-center gap-1">
+            <span className="w-2 h-2 rounded-sm" style={{ background: color3 }} />
+            {label3}
           </span>
         )}
         <span className="flex items-center gap-1">
@@ -161,10 +171,14 @@ function BarChart({
           const x = PAD.left + gap * i + (gap - barW) / 2;
           const h1 = (d.v1 / maxVal) * ch;
           const h2 = (d.v2 / maxVal) * ch;
+          const h3 = (d.v3 / maxVal) * ch;
           const isH = hovered === i;
           return (
             <g key={i} onMouseEnter={() => setHovered(i)} onMouseLeave={() => setHovered(null)} className="cursor-pointer">
               <rect x={PAD.left + gap * i} y={PAD.top} width={gap} height={ch} fill="transparent" />
+              {h3 > 0 && (
+                <rect x={x} y={PAD.top + ch - h1 - h2 - h3} width={barW} height={h3} fill={color3} opacity={isH ? 1 : 0.65} rx={1} />
+              )}
               {h2 > 0 && (
                 <rect x={x} y={PAD.top + ch - h1 - h2} width={barW} height={h2} fill={color2} opacity={isH ? 1 : 0.65} rx={1} />
               )}
@@ -178,12 +192,12 @@ function BarChart({
                 <g>
                   <rect
                     x={Math.max(PAD.left, Math.min(x - 36, W - PAD.right - 76))}
-                    y={Math.max(0, PAD.top + ch - h1 - h2 - 30)}
-                    width={76} height={label2 ? 24 : 14} rx={3} fill="#222" stroke="white" strokeOpacity="0.1"
+                    y={Math.max(0, PAD.top + ch - h1 - h2 - h3 - 40)}
+                    width={76} height={label3 && d.v3 > 0 ? 34 : label2 ? 24 : 14} rx={3} fill="#222" stroke="white" strokeOpacity="0.1"
                   />
                   <text
                     x={Math.max(PAD.left, Math.min(x - 36, W - PAD.right - 76)) + 38}
-                    y={Math.max(0, PAD.top + ch - h1 - h2 - 30) + 10}
+                    y={Math.max(0, PAD.top + ch - h1 - h2 - h3 - 40) + 10}
                     textAnchor="middle" fill="white" fontSize="7" fontFamily="monospace"
                   >
                     {label1}: {formatValue(d.v1)}
@@ -191,10 +205,19 @@ function BarChart({
                   {label2 && (
                     <text
                       x={Math.max(PAD.left, Math.min(x - 36, W - PAD.right - 76)) + 38}
-                      y={Math.max(0, PAD.top + ch - h1 - h2 - 30) + 20}
+                      y={Math.max(0, PAD.top + ch - h1 - h2 - h3 - 40) + 20}
                       textAnchor="middle" fill="white" fontSize="7" fontFamily="monospace"
                     >
                       {label2}: {formatValue(d.v2)}
+                    </text>
+                  )}
+                  {label3 && d.v3 > 0 && (
+                    <text
+                      x={Math.max(PAD.left, Math.min(x - 36, W - PAD.right - 76)) + 38}
+                      y={Math.max(0, PAD.top + ch - h1 - h2 - h3 - 40) + 30}
+                      textAnchor="middle" fill="white" fontSize="7" fontFamily="monospace"
+                    >
+                      {label3}: {formatValue(d.v3)}
                     </text>
                   )}
                 </g>
@@ -206,7 +229,7 @@ function BarChart({
         {data.length > 1 && (() => {
           const cumulative: number[] = [];
           let running = 0;
-          for (const d of data) { running += d.v1 + d.v2; cumulative.push(running); }
+          for (const d of data) { running += d.v1 + d.v2 + d.v3; cumulative.push(running); }
           const maxCum = Math.max(...cumulative, 0.001);
           const points = cumulative.map((v, i) => {
             const x = PAD.left + gap * i + gap / 2;
@@ -281,15 +304,15 @@ export function UsageDropdown({ logs }: { logs: ApiLogEntry[] }) {
     const buckets = granularity === 'minute' ? bucketByMinute(logs) : granularity === 'hour' ? bucketByHour(logs) : bucketByDay(logs);
     return buckets.map((b): BarDatum => {
       if (view === 'tokens') {
-        let v1 = 0, v2 = 0;
-        for (const e of b.entries) { v1 += e.promptTokens; v2 += e.responseTokens ?? 0; }
-        return { label: b.label, shortLabel: b.shortLabel, v1, v2 };
+        let v1 = 0, v2 = 0, v3 = 0;
+        for (const e of b.entries) { v1 += e.promptTokens; v2 += e.responseTokens ?? 0; v3 += e.reasoningTokens ?? 0; }
+        return { label: b.label, shortLabel: b.shortLabel, v1, v2, v3 };
       } else if (view === 'cost') {
-        let v1 = 0, v2 = 0;
-        for (const e of b.entries) { const c = costForEntry(e); v1 += c.input; v2 += c.output; }
-        return { label: b.label, shortLabel: b.shortLabel, v1, v2 };
+        let v1 = 0, v2 = 0, v3 = 0;
+        for (const e of b.entries) { const c = costForEntry(e); v1 += c.input; v2 += c.output; v3 += c.reasoning; }
+        return { label: b.label, shortLabel: b.shortLabel, v1, v2, v3 };
       } else {
-        return { label: b.label, shortLabel: b.shortLabel, v1: b.entries.length, v2: 0 };
+        return { label: b.label, shortLabel: b.shortLabel, v1: b.entries.length, v2: 0, v3: 0 };
       }
     });
   }, [logs, view, granularity]);
@@ -348,8 +371,10 @@ export function UsageDropdown({ logs }: { logs: ApiLogEntry[] }) {
         data={chartData}
         color1={view === 'cost' ? '#3B82F6' : view === 'tokens' ? '#3B82F6' : '#facc15'}
         color2={view === 'cost' ? '#22C55E' : view === 'tokens' ? '#22C55E' : ''}
+        color3={view === 'cost' ? '#c084fc' : view === 'tokens' ? '#c084fc' : ''}
         label1={view === 'cost' ? 'Input' : view === 'tokens' ? 'Input' : 'Calls'}
         label2={view === 'cost' ? 'Output' : view === 'tokens' ? 'Output' : ''}
+        label3={view === 'cost' ? 'Reasoning' : view === 'tokens' ? 'Reasoning' : ''}
         formatValue={formatFn}
       />
 
@@ -365,6 +390,7 @@ export function UsageDropdown({ logs }: { logs: ApiLogEntry[] }) {
                   <th className="px-2.5 py-1.5 font-medium text-right">Calls</th>
                   <th className="px-2.5 py-1.5 font-medium text-right">Input</th>
                   <th className="px-2.5 py-1.5 font-medium text-right">Output</th>
+                  <th className="px-2.5 py-1.5 font-medium text-right">Reasoning</th>
                   <th className="px-2.5 py-1.5 font-medium text-right">Cost</th>
                 </tr>
               </thead>
@@ -375,6 +401,7 @@ export function UsageDropdown({ logs }: { logs: ApiLogEntry[] }) {
                     <td className="px-2.5 py-1.5 text-right text-text-dim">{m.calls}</td>
                     <td className="px-2.5 py-1.5 text-right text-text-dim">{formatTokens(m.inputTokens)}</td>
                     <td className="px-2.5 py-1.5 text-right text-text-dim">{formatTokens(m.outputTokens)}</td>
+                    <td className="px-2.5 py-1.5 text-right text-text-dim">{formatTokens(m.reasoningTokens)}</td>
                     <td className="px-2.5 py-1.5 text-right text-text-primary font-mono">{formatCost(m.cost)}</td>
                   </tr>
                 ))}

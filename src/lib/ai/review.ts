@@ -132,7 +132,7 @@ Return JSON:
   "sceneBudget": {"T-XX": 2, "T-YY+T-ZZ": 1}
 }`;
 
-  const reasoningBudget = REASONING_BUDGETS[narrative.storySettings?.reasoningLevel ?? 'medium'] || undefined;
+  const reasoningBudget = REASONING_BUDGETS[narrative.storySettings?.reasoningLevel ?? 'low'] || undefined;
   const raw = await callGenerate(prompt, SYSTEM_PROMPT, 1200, 'refreshDirection', undefined, reasoningBudget);
 
   try {

@@ -1,4 +1,5 @@
 import type { NarrativeState, Scene, AlignmentIssue, AlignmentReport, AlignmentCategory, AlignmentSeverity, ContinuityPlan, ContinuityEdit } from '@/types/narrative';
+import { REASONING_BUDGETS } from '@/types/narrative';
 import { callGenerate } from './api';
 import { rewriteSceneProse } from './prose';
 import { ANALYSIS_MODEL } from '@/lib/constants';
@@ -159,7 +160,8 @@ Return JSON:
 If these scenes read well with no continuity problems, return {"issues": []}. An empty result is perfectly valid — not every window will have issues, and false positives waste rewrite budget.
 Be thorough but precise — check every scene boundary for state carryover, but only flag genuine problems that would jar a reader.`;
 
-  const raw = await callGenerate(prompt, systemPrompt, 8000, `alignmentAudit:window${window.index}`, ANALYSIS_MODEL);
+  const reasoningBudget = REASONING_BUDGETS[narrative.storySettings?.reasoningLevel ?? 'low'] || undefined;
+  const raw = await callGenerate(prompt, systemPrompt, 8000, `alignmentAudit:window${window.index}`, ANALYSIS_MODEL, reasoningBudget);
   const parsed = parseJson(raw, 'alignmentAudit') as { issues: RawIssue[] };
 
   if (!Array.isArray(parsed.issues)) return [];

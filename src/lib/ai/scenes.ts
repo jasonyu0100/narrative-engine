@@ -367,7 +367,7 @@ ${adjacentBlock ? `${adjacentBlock}\n\n` : ''}${sceneBlock}
 ${logicBlock}
 Create a detailed staging plan for this scene. Every structural mutation must have a concrete mechanism. Be specific about HOW things happen, not just WHAT happens.${recentProseBlock ? ' Your OPENING STATE must directly continue from the physical, emotional, and spatial reality established in the recent prose above — characters carry their wounds, knowledge, and positions forward.' : ''}`;
 
-  const reasoningBudget = REASONING_BUDGETS[narrative.storySettings?.reasoningLevel ?? 'medium'] || undefined;
+  const reasoningBudget = REASONING_BUDGETS[narrative.storySettings?.reasoningLevel ?? 'low'] || undefined;
   const useStream = !!(onToken || onReasoning);
   if (useStream) {
     return await callGenerateStream(prompt, systemPrompt, onToken ?? (() => {}), Math.ceil(scale.proseTokens * 0.6), 'generateScenePlan', WRITING_MODEL, reasoningBudget, onReasoning);
@@ -413,10 +413,11 @@ ${analysis}
 
 Rewrite the plan to address the feedback. Preserve the structure and ensure all scene mutations are still covered. If the feedback conflicts with scene data, prioritise scene data for structural accuracy but incorporate the feedback's creative direction.`;
 
+  const reasoningBudget = REASONING_BUDGETS[narrative.storySettings?.reasoningLevel ?? 'low'] || undefined;
   if (onToken) {
-    return await callGenerateStream(prompt, systemPrompt, onToken, Math.ceil(scale.proseTokens * 0.6), 'rewriteScenePlan', WRITING_MODEL);
+    return await callGenerateStream(prompt, systemPrompt, onToken, Math.ceil(scale.proseTokens * 0.6), 'rewriteScenePlan', WRITING_MODEL, reasoningBudget);
   }
-  return await callGenerate(prompt, systemPrompt, Math.ceil(scale.proseTokens * 0.6), 'rewriteScenePlan', WRITING_MODEL);
+  return await callGenerate(prompt, systemPrompt, Math.ceil(scale.proseTokens * 0.6), 'rewriteScenePlan', WRITING_MODEL, reasoningBudget);
 }
 
 export async function generateSceneProse(
@@ -728,7 +729,7 @@ Return JSON:
   "scenePlan": ["Scene 1: [Character] does [action] at [location], advancing [T-XX] and [T-YY]", "Scene 2: ..."]
 }`;
 
-  const reasoningBudget = REASONING_BUDGETS[narrative.storySettings?.reasoningLevel ?? 'medium'] || undefined;
+  const reasoningBudget = REASONING_BUDGETS[narrative.storySettings?.reasoningLevel ?? 'low'] || undefined;
   const raw = await callGenerate(prompt, SYSTEM_PROMPT, 1500, 'generateArcPlan', GENERATE_MODEL, reasoningBudget);
   const parsed = parseJson(raw, 'generateArcPlan') as Partial<ArcPlan>;
   return {
@@ -820,7 +821,7 @@ Use ONLY these IDs:
   Locations: ${Object.entries(narrative.locations).map(([id, l]) => `${l.name} (${id})`).join(', ')}
   Threads: ${Object.entries(narrative.threads).map(([id, t]) => `${t.description.slice(0, 40)} (${id})`).join(', ')}${Object.keys(narrative.artifacts ?? {}).length > 0 ? `\n  Artifacts: ${Object.entries(narrative.artifacts).map(([id, a]) => `${a.name} (${id})`).join(', ')}` : ''}`;
 
-  const reasoningBudget = REASONING_BUDGETS[narrative.storySettings?.reasoningLevel ?? 'medium'] || undefined;
+  const reasoningBudget = REASONING_BUDGETS[narrative.storySettings?.reasoningLevel ?? 'low'] || undefined;
   const useStream = !!(onToken || onReasoning);
   const raw = useStream
     ? await callGenerateStream(prompt, SYSTEM_PROMPT, onToken ?? (() => {}), 4000, 'generateSingleScene', GENERATE_MODEL, reasoningBudget, onReasoning)

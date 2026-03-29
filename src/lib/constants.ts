@@ -63,6 +63,13 @@ export const MAX_TOKENS_LARGE = 64000;
 /** Max output tokens for the /api/generate route when no explicit limit is passed */
 export const MAX_TOKENS_DEFAULT = 32000;
 
+// ── AI Reasoning ────────────────────────────────────────────────────────────
+
+/** Default reasoning budget (thinking tokens) applied to all LLM calls.
+ *  Corresponds to REASONING_BUDGETS['low'] in narrative.ts.
+ *  Story settings can override this per-story. */
+export const DEFAULT_REASONING_BUDGET = 2048;
+
 // ── AI Context ───────────────────────────────────────────────────────────────
 
 /** Rolling window size for force computation & normalization */

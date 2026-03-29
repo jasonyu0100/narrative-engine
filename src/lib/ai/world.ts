@@ -51,7 +51,8 @@ Return JSON with this exact structure:
 suggestedSceneCount must be between 1 and 8.
 IMPORTANT: Use character NAMES, location NAMES, and thread DESCRIPTIONS in the direction and suggestion — never raw IDs.`;
 
-  const raw = await callGenerate(prompt, SYSTEM_PROMPT, undefined, 'suggestDirection');
+  const reasoningBudget = REASONING_BUDGETS[narrative.storySettings?.reasoningLevel ?? 'low'] || undefined;
+  const raw = await callGenerate(prompt, SYSTEM_PROMPT, undefined, 'suggestDirection', undefined, reasoningBudget);
   const parsed = parseJson(raw, 'suggestDirection') as {
     arcName?: string; direction?: string; sceneSuggestion?: string; suggestedSceneCount?: number;
   };
@@ -88,7 +89,8 @@ Use character NAMES, location NAMES, and thread DESCRIPTIONS — never raw IDs.
 
 Return JSON: { "direction": "2-4 sentences describing the big-picture story direction" }`;
 
-  const raw = await callGenerate(prompt, SYSTEM_PROMPT, undefined, 'suggestStoryDirection');
+  const reasoningBudget = REASONING_BUDGETS[narrative.storySettings?.reasoningLevel ?? 'low'] || undefined;
+  const raw = await callGenerate(prompt, SYSTEM_PROMPT, undefined, 'suggestStoryDirection', undefined, reasoningBudget);
   const parsed = parseJson(raw, 'suggestStoryDirection') as { direction?: string };
   return parsed.direction ?? '';
 }
@@ -326,7 +328,8 @@ Return JSON with this exact structure:
   "suggestion": "2-4 sentence description of what should be added to the world and WHY, with specific references to existing characters/locations that new elements should connect to"
 }`;
 
-  const raw = await callGenerate(prompt, SYSTEM_PROMPT, undefined, 'suggestWorldExpansion');
+  const reasoningBudget = REASONING_BUDGETS[narrative.storySettings?.reasoningLevel ?? 'low'] || undefined;
+  const raw = await callGenerate(prompt, SYSTEM_PROMPT, undefined, 'suggestWorldExpansion', undefined, reasoningBudget);
   const parsed = parseJson(raw, 'suggestWorldExpansion') as { suggestion: string };
   return parsed.suggestion;
 }
@@ -503,7 +506,8 @@ worldKnowledgeMutations define the FOUNDATIONAL abstractions this expansion esta
 - Generate 3-8 world knowledge nodes depending on expansion size, with edges connecting related concepts.
 - Focus on the structural WHY behind the expansion — what abstract rules, power structures, or tensions make these new entities meaningful?`;
 
-  const raw = await callGenerate(prompt, SYSTEM_PROMPT, undefined, 'expandWorld');
+  const reasoningBudget = REASONING_BUDGETS[narrative.storySettings?.reasoningLevel ?? 'low'] || undefined;
+  const raw = await callGenerate(prompt, SYSTEM_PROMPT, undefined, 'expandWorld', undefined, reasoningBudget);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const parsed = parseJson(raw, 'expandWorld') as any;
 
@@ -694,7 +698,7 @@ For each system, provide:
 
 The goal is to make the world feel like a coherent machine where systems interlock. Great worlds have systems that create emergent behavior — institutions that arise from mechanics, conflicts that emerge from scarcity, power that requires trade-offs.`;
 
-  const reasoningBudget = REASONING_BUDGETS[reasoningLevel ?? 'medium'] || undefined;
+  const reasoningBudget = REASONING_BUDGETS[reasoningLevel ?? 'low'] || undefined;
   const useStream = !!(onToken || onReasoning);
   const raw = useStream
     ? await callGenerateStream(prompt, SYSTEM_PROMPT, onToken ?? (() => {}), MAX_TOKENS_LARGE, 'generateNarrative', GENERATE_MODEL, reasoningBudget, onReasoning)

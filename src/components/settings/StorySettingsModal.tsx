@@ -488,7 +488,7 @@ export function StorySettingsModal({ onClose }: { onClose: () => void }) {
                       key={opt.value}
                       onClick={() => update({ reasoningLevel: opt.value })}
                       className={`w-full text-left px-3 py-2 rounded-lg border transition-colors ${
-                        (settings.reasoningLevel ?? 'medium') === opt.value
+                        (settings.reasoningLevel ?? 'low') === opt.value
                           ? 'border-blue-500/50 bg-blue-500/10'
                           : 'border-white/5 bg-white/2 hover:bg-white/5'
                       }`}

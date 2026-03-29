@@ -1,5 +1,5 @@
 import type { NarrativeState, BranchEvaluation, SceneEval, SceneVerdict, Scene, Arc, Branch } from '@/types/narrative';
-import { resolveEntry, isScene, isWorldBuild } from '@/types/narrative';
+import { resolveEntry, isScene, isWorldBuild, REASONING_BUDGETS } from '@/types/narrative';
 import { nextId } from '@/lib/narrative-utils';
 import { callGenerate, SYSTEM_PROMPT } from './api';
 import { parseJson } from './json';
@@ -355,7 +355,8 @@ Return JSON:
   "summary": "3-5 RICH sentences — named character + physical action + concrete consequence. No emotions/realizations as endings."
 }`;
 
-  const raw = await callGenerate(prompt, SYSTEM_PROMPT, 2000, 'editScene', GENERATE_MODEL);
+  const reasoningBudget = REASONING_BUDGETS[narrative.storySettings?.reasoningLevel ?? 'low'] || undefined;
+  const raw = await callGenerate(prompt, SYSTEM_PROMPT, 2000, 'editScene', GENERATE_MODEL, reasoningBudget);
   const parsed = parseJson(raw, 'editScene') as Partial<Scene>;
 
   return {
@@ -455,7 +456,8 @@ Return JSON:
   "summary": "4-5 RICH sentences combining the strongest elements from all merged scenes."
 }`;
 
-  const raw = await callGenerate(prompt, SYSTEM_PROMPT, 2500, 'mergeScenes', GENERATE_MODEL);
+  const reasoningBudget = REASONING_BUDGETS[narrative.storySettings?.reasoningLevel ?? 'low'] || undefined;
+  const raw = await callGenerate(prompt, SYSTEM_PROMPT, 2500, 'mergeScenes', GENERATE_MODEL, reasoningBudget);
   const parsed = parseJson(raw, 'mergeScenes') as Partial<Scene>;
 
   return {
