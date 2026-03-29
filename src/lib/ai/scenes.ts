@@ -307,7 +307,7 @@ export async function generateScenePlan(
   const adjacentBlock = adjacentLines.join('\n');
 
   // Prose profile context + optional Markov beat sequence
-  const { resolveProfile, sampleBeatSequence, sampleMechanism } = await import('@/lib/beat-profiles');
+  const { resolveProfile, sampleBeatSequence } = await import('@/lib/beat-profiles');
   const profile = resolveProfile(narrative);
   const storySettings: StorySettings = { ...DEFAULT_STORY_SETTINGS, ...narrative.storySettings };
   const scale = sceneScale(scene);
@@ -317,9 +317,8 @@ export async function generateScenePlan(
   let beatSequenceHint = '';
   if (storySettings.useBeatChain !== false) {
     const sampledFns = sampleBeatSequence(profile, targetBeats, 'breathe');
-    const sampledBeats = sampledFns.map((fn) => `${fn}:${sampleMechanism(profile)}`);
-    beatSequenceHint = `\nSUGGESTED BEAT SEQUENCE (sampled from ${profile.name} Markov chain — follow this sequence as a guide, adjust individual beats if the scene demands it):
-${sampledBeats.map((b, i) => `  ${i + 1}. ${b}`).join('\n')}\n`;
+    beatSequenceHint = `\nSUGGESTED BEAT SEQUENCE (sampled from ${profile.name} Markov chain — follow this fn sequence as a guide, choose the best mechanism for each beat based on context):
+${sampledFns.map((fn, i) => `  ${i + 1}. ${fn}`).join('\n')}\n`;
   }
 
   const profileBlock = `\nPROSE PROFILE (${profile.name}):
