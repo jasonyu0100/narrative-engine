@@ -10,6 +10,21 @@ type ImageRequest =
   | { type: 'location'; name: string; parentName?: string; worldSummary: string; continuityHints: string[]; imagePrompt?: string; imageStyle?: string }
   | { type: 'scene'; summary: string; locationName: string; characterDescriptions: { name: string; visualDescription: string }[]; worldSummary: string; imageStyle?: string };
 
+/** Composition guidance per image type */
+/** Composition guidance per image type */
+const COMPOSITION: Record<ImageRequest['type'], string> = {
+  character: 'Single character portrait, head and shoulders, one subject only',
+  location: 'Wide establishing shot, architectural or landscape composition',
+  scene: 'Manga page layout with multiple panels divided by black gutters, sequential storytelling, each panel captures a different beat of the scene, dramatic angles, speed lines, high contrast black and white ink with screentone shading',
+};
+
+/** Aspect ratio per image type */
+const ASPECT_RATIO: Record<ImageRequest['type'], string> = {
+  character: '3:4',
+  location: '16:9',
+  scene: '2:3',
+};
+
 /** Use LLM to craft a rich visual description for image generation */
 async function describeVisually(openrouterKey: string, request: ImageRequest): Promise<string> {
   // If an imagePrompt already exists for character/location, use it directly
@@ -21,11 +36,15 @@ async function describeVisually(openrouterKey: string, request: ImageRequest): P
     ? `\nIMPORTANT: Match this visual style: ${request.imageStyle}`
     : '';
 
-  const systemPrompt = `You are a visual description specialist. Given narrative context, produce a single concise image generation prompt (2-3 sentences max). Focus on visual details: appearance, clothing, atmosphere, lighting, color palette. Never include text, words, or watermarks in the description. Output ONLY the prompt, nothing else.${styleDirective}`;
+  const systemPrompt = request.type === 'scene'
+    ? `You are a manga storyboard artist. Given a scene description, produce an image generation prompt for a full manga PAGE with multiple panels. Describe the panel layout, what each panel shows (camera angle, characters, action), and manga techniques (speed lines, dramatic shadows, reaction close-ups, establishing wide shots). The panels should tell the scene as sequential visual storytelling. Output ONLY the prompt, nothing else.${styleDirective}`
+    : `You are a visual description specialist. Given narrative context, produce a single concise image generation prompt (2-3 sentences max). Focus on visual details: appearance, clothing, atmosphere, lighting, color palette. Never include text, words, or watermarks in the description. Output ONLY the prompt, nothing else.${styleDirective}
+
+COMPOSITION: ${COMPOSITION[request.type]}`;
 
   let userPrompt: string;
   if (request.type === 'character') {
-    userPrompt = `Create a character portrait prompt for "${request.name}" (role: ${request.role}) in this world: ${request.worldSummary}. Context clues: ${request.continuityHints.join('; ') || 'none'}. IMPORTANT: Single character only, one person, head and shoulders portrait.`;
+    userPrompt = `Create a character portrait prompt for "${request.name}" (role: ${request.role}) in this world: ${request.worldSummary}. Context clues: ${request.continuityHints.join('; ') || 'none'}.`;
   } else if (request.type === 'location') {
     const parent = request.parentName ? ` (inside ${request.parentName})` : '';
     userPrompt = `Create an establishing shot prompt for the location "${request.name}"${parent} in this world: ${request.worldSummary}. Context clues: ${request.continuityHints.join('; ') || 'none'}.`;
@@ -33,7 +52,9 @@ async function describeVisually(openrouterKey: string, request: ImageRequest): P
     const charDescs = request.characterDescriptions
       .map((c) => `${c.name}: ${c.visualDescription}`)
       .join('. ');
-    userPrompt = `Create a scene image prompt for: "${request.summary}". Location: ${request.locationName}. Characters present: ${charDescs || 'none specified'}. World: ${request.worldSummary}.`;
+    userPrompt = `Create a manga page prompt for this scene: "${request.summary}". Location: ${request.locationName}. Characters: ${charDescs || 'none specified'}. World: ${request.worldSummary}.
+
+Describe a manga PAGE with 3-5 panels arranged vertically. For each panel describe: the camera angle (close-up, wide shot, over-shoulder, bird's eye), what's shown, and the emotion. The panels should flow as sequential storytelling — each panel captures a different beat of the scene. Include manga techniques: speed lines for action, dramatic shadows, reaction shots, establishing shots.`;
   }
 
   const res = await fetch(OPENROUTER_URL, {
@@ -74,13 +95,15 @@ export async function POST(req: NextRequest) {
     const visualPrompt = await describeVisually(openrouterKey, body);
     if (!visualPrompt) return NextResponse.json({ error: 'Failed to generate visual description' }, { status: 500 });
 
-    // Append style directive if present and not already baked into imagePrompt
-    const styleAppend = body.imageStyle && !(body.type !== 'scene' && 'imagePrompt' in body && body.imagePrompt)
-      ? `, ${body.imageStyle}`
-      : '';
-    const singleCharSuffix = body.type === 'character' ? ', solo character, one person only, single subject' : '';
-    const suffix = singleCharSuffix + ', no text, no letters, no words, no watermarks';
-    const aspectRatio = body.type === 'character' ? '3:4' : body.type === 'location' ? '16:9' : '16:9';
+    // Build prompt: style → subject → composition → safety (consistent across all types)
+    // Style ALWAYS leads — even with custom imagePrompt — to ensure visual consistency
+    const parts: string[] = [];
+    if (body.imageStyle) parts.push(body.imageStyle);
+    parts.push(visualPrompt);
+    parts.push(COMPOSITION[body.type]);
+    parts.push('No text, no letters, no watermarks');
+    const finalPrompt = parts.join('. ');
+    const aspectRatio = ASPECT_RATIO[body.type];
 
     // Step 2: Generate image with Seedream 4.5
     const response = await fetch(REPLICATE_URL, {
@@ -92,11 +115,8 @@ export async function POST(req: NextRequest) {
       },
       body: JSON.stringify({
         input: {
-          prompt: visualPrompt + styleAppend + suffix,
-          num_outputs: 1,
+          prompt: finalPrompt,
           aspect_ratio: aspectRatio,
-          output_format: 'webp',
-          output_quality: 80,
         },
       }),
     });
@@ -109,7 +129,12 @@ export async function POST(req: NextRequest) {
     const data = await response.json();
     const replicateUrl = Array.isArray(data.output) ? data.output[0] : data.output;
 
-    if (!replicateUrl) return NextResponse.json({ error: 'No image generated' }, { status: 500 });
+    if (!replicateUrl) {
+      const status = data.status ?? 'unknown';
+      const logs = data.logs ?? '';
+      console.error('[generate-image] Empty output from Replicate:', { status, logs: logs.slice(0, 500), error: data.error });
+      return NextResponse.json({ error: `No image generated (status: ${status}${data.error ? `, error: ${data.error}` : ''})` }, { status: 500 });
+    }
 
     // Fetch the image and convert to base64 data URL so it persists in localStorage
     const imgRes = await fetch(replicateUrl);

@@ -164,7 +164,7 @@ export default function MediaDrive() {
       imageUrl: s.imageUrl!,
       label: s.summary.slice(0, 80) + (s.summary.length > 80 ? '...' : ''),
       sublabel: s.id,
-      aspectClass: 'aspect-video',
+      aspectClass: 'aspect-2/3',
     }));
   }, [tab, characters, locations, artifacts, scenes, narrative]);
 
@@ -475,7 +475,7 @@ export default function MediaDrive() {
                   onClick={() => openPreview(scene.id)}
                   className="w-full"
                 >
-                  <img src={scene.imageUrl} alt={scene.summary} className="w-full aspect-video object-cover" />
+                  <img src={scene.imageUrl} alt={scene.summary} className="w-full aspect-2/3 object-cover" />
                   <div className="absolute inset-x-0 bottom-0 bg-linear-to-t from-black/80 to-transparent px-2 py-1.5">
                     <p className="text-[10px] text-white/70 leading-tight truncate">
                       <span className="text-white/40 font-mono mr-1">{scene.id}</span>
