@@ -1,8 +1,9 @@
 'use client';
 
 import { useStore } from '@/lib/store';
+import { Modal, ModalHeader, ModalBody } from '@/components/Modal';
 import { resolveProfile, BEAT_PROFILE_PRESETS } from '@/lib/beat-profiles';
-import { BEAT_FN_LIST, BEAT_MECHANISM_LIST } from '@/types/narrative';
+import { BEAT_FN_LIST } from '@/types/narrative';
 import type { BeatFn, ProseProfile } from '@/types/narrative';
 
 type Props = { onClose: () => void };
@@ -77,17 +78,14 @@ export default function ProseProfilePanel({ onClose }: Props) {
     : profile.name;
 
   return (
-    <div className="flex flex-col h-full">
-      {/* Header */}
-      <div className="shrink-0 px-4 py-3 border-b border-border flex items-center justify-between">
+    <Modal onClose={onClose} size="2xl" maxHeight="85vh">
+      <ModalHeader onClose={onClose}>
         <div>
-          <h2 className="text-[13px] font-semibold text-text-primary">Prose Profile</h2>
-          <p className="text-[10px] text-text-dim">{presetName} — {profile.scenesAnalyzed} scenes analysed</p>
+          <h2 className="text-sm font-semibold text-text-primary">Prose Profile</h2>
+          <p className="text-[10px] text-text-dim">{presetName} — {profile.scenesAnalyzed ?? 0} scenes analysed</p>
         </div>
-        <button onClick={onClose} className="text-text-dim hover:text-text-primary text-lg transition-colors">&times;</button>
-      </div>
-
-      <div className="flex-1 overflow-y-auto p-4 space-y-5">
+      </ModalHeader>
+      <ModalBody className="p-4 space-y-5">
         {/* Voice */}
         <div>
           <span className="text-[9px] uppercase tracking-widest text-text-dim block mb-2">Voice</span>
@@ -180,7 +178,7 @@ export default function ProseProfilePanel({ onClose }: Props) {
           <span>{profile.beatsPerKWord} beats/kword</span>
           <span>{profile.scenesAnalyzed} scenes</span>
         </div>
-      </div>
-    </div>
+      </ModalBody>
+    </Modal>
   );
 }
