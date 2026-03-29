@@ -8,7 +8,7 @@ import { DEFAULT_STORY_SETTINGS, BRANCH_TIME_HORIZON_OPTIONS, REASONING_BUDGETS 
 import { NARRATIVE_CUBE } from '@/types/narrative';
 import type { CubeCornerKey } from '@/types/narrative';
 import { MATRIX_PRESETS, type TransitionMatrix } from '@/lib/markov';
-import { DEFAULT_PROSE_PROFILE, ACTION_PROFILE, INTROSPECTIVE_PROFILE, BEAT_PROFILE_PRESETS } from '@/lib/beat-profiles';
+import { DEFAULT_BEAT_SAMPLER, BEAT_PROFILE_PRESETS, computeSamplerFromPlans } from '@/lib/beat-profiles';
 
 type Tab = 'direction' | 'style' | 'pov' | 'other';
 
@@ -413,16 +413,16 @@ export function StorySettingsModal({ onClose }: { onClose: () => void }) {
 
                       {/* Beat transition matrix + mechanism distribution */}
                       {(() => {
-                        // Resolve the active beat profile from presets
+                        // Resolve sampler generically from BEAT_PROFILE_PRESETS (no hardcoded preset keys)
                         const presetKey = settings.beatProfilePreset || '';
-                        const runtimePreset = BEAT_PROFILE_PRESETS.find((p) => p.key === presetKey);
-                        const activeProfile = presetKey === 'self' ? narrative?.proseProfile
-                          : presetKey === 'action' ? ACTION_PROFILE
-                          : presetKey === 'introspective' ? INTROSPECTIVE_PROFILE
-                          : runtimePreset ? runtimePreset.profile
-                          : DEFAULT_PROSE_PROFILE;
-                        const markov = (activeProfile?.markov ?? {}) as Record<string, Record<string, number>>;
-                        const mechDist = activeProfile?.mechanismDistribution ?? {};
+                        const activeSampler = presetKey === 'self'
+                          ? (computeSamplerFromPlans(
+                              Object.values(narrative?.scenes ?? {}).filter((s) => state.resolvedEntryKeys.includes(s.id))
+                            ) ?? DEFAULT_BEAT_SAMPLER)
+                          : (BEAT_PROFILE_PRESETS.find((p) => p.key === presetKey)?.sampler ?? DEFAULT_BEAT_SAMPLER);
+
+                        const markov = activeSampler.markov as Record<string, Record<string, number>>;
+                        const mechDist = activeSampler.mechanismDistribution;
 
                         const MECH_COLORS: Record<string, string> = {
                           dialogue: '#3b82f6', thought: '#a855f7', action: '#22c55e', environment: '#06b6d4',

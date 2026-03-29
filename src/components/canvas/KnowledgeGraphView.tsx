@@ -4,7 +4,7 @@ import { useRef, useEffect, useCallback, useMemo, useState } from 'react';
 import * as d3 from 'd3';
 import { useStore } from '@/lib/store';
 import { buildCumulativeWorldKnowledge } from '@/lib/narrative-utils';
-import type { NarrativeState } from '@/types/narrative';
+import type { NarrativeState, WorldKnowledgeNode } from '@/types/narrative';
 import EvalBar from '@/components/timeline/EvalBar';
 import { computeGroups, WK_TYPE_COLORS, type WKNode, type WKLink } from './graph-utils';
 
@@ -82,7 +82,7 @@ export default function KnowledgeGraphView({ narrative, resolvedKeys, currentInd
       const wb = narrative.worldBuilds[key];
       const wkm = scene?.worldKnowledgeMutations ?? wb?.expansionManifest.worldKnowledge;
       if (!wkm) return { nodes: {}, edges: [] };
-      const nodes: Record<string, import('@/types/narrative').WorldKnowledgeNode> = {};
+      const nodes: Record<string, WorldKnowledgeNode> = {};
       for (const n of wkm.addedNodes ?? []) {
         nodes[n.id] = { id: n.id, concept: n.concept, type: n.type };
       }

@@ -177,37 +177,34 @@ export type BeatPlan = {
 /** Markov transition matrix — probability of transitioning from one beat fn to another */
 export type BeatTransitionMatrix = Partial<Record<BeatFn, Partial<Record<BeatFn, number>>>>;
 
-/** Authorial prose profile — derived from analyzing published prose.
- *  Captures the stable voice characteristics of an author/series.
- *  Applied globally to all prose generation, not per-scene. */
+/** Authorial prose profile — voice and style applied to all prose generation. */
 export type ProseProfile = {
-  id: string;
-  /** Display name — author or series name */
-  name: string;
-  /** Source work(s) this profile was derived from */
-  source: string;
-  /** Number of scenes analyzed to build this profile */
-  scenesAnalyzed: number;
-  /** Total beats analyzed */
-  totalBeats: number;
-  /** Average beats per 1000 words of prose */
-  beatsPerKWord: number;
-  /** Narrative register — the emotional tone of the narration */
-  register: 'conversational' | 'clinical' | 'literary' | 'sardonic' | 'raw' | 'lyrical';
+  /** Tonal register of the narration */
+  register: string;
   /** Narrator's distance from the character */
-  stance: 'close_third' | 'intimate_first_person' | 'omniscient_ironic' | 'detached_observer';
-  /** Rhetorical devices the author uses */
+  stance: string;
+  /** Grammatical tense */
+  tense?: string;
+  /** Structural cadence of prose */
+  sentenceRhythm?: string;
+  /** How deep the narrator goes into character interiority */
+  interiority?: string;
+  /** Proportion of prose given to dialogue */
+  dialogueWeight?: string;
+  /** Rhetorical and narrative devices the author uses */
   devices: string[];
   /** Show-don't-tell constraints — apply to ALL scenes */
   rules: string[];
-  /** Beat function distribution — how often each fn appears */
-  beatDistribution: Partial<Record<BeatFn, number>>;
-  /** Mechanism distribution — how often each mechanism appears */
-  mechanismDistribution: Partial<Record<BeatMechanism, number>>;
+};
+
+/** Beat sampling data — derived from analyzed works, separate from voice profile. */
+export type BeatSampler = {
   /** Markov chain transition probabilities between beat functions */
   markov: BeatTransitionMatrix;
-  /** Whether this is a built-in profile from analyzed works */
-  builtIn: boolean;
+  /** How often each mechanism appears */
+  mechanismDistribution: Partial<Record<BeatMechanism, number>>;
+  /** Average beats per 1000 words */
+  beatsPerKWord: number;
 };
 
 export const BEAT_FN_LIST: BeatFn[] = ['breathe', 'inform', 'advance', 'bond', 'turn', 'reveal', 'shift', 'expand', 'foreshadow', 'resolve'];
@@ -974,6 +971,7 @@ export type WizardData = {
   threads: ThreadSketch[];
   rules: string[];
   worldSystems: WorldSystemSketch[];
+  proseProfile?: ProseProfile;
 };
 
 export type GraphViewMode = 'spatial' | 'overview' | 'prose' | 'spark' | 'codex' | 'pulse' | 'threads';
@@ -1022,4 +1020,13 @@ export type AppState = {
   analysisJobs: AnalysisJob[];
   activeChatThreadId: string | null;
   activeNoteId: string | null;
+  beatProfilePresets: BeatProfilePreset[];
+};
+
+export type BeatProfilePreset = {
+  key: string;
+  name: string;
+  description: string;
+  profile: ProseProfile;
+  sampler?: BeatSampler;
 };

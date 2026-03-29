@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { useStore } from '@/lib/store';
+import type { WorldBuild } from '@/types/narrative';
 import EmptyState from './EmptyState';
 import SceneDetail from './SceneDetail';
 import CharacterDetail from './CharacterDetail';
@@ -43,7 +44,7 @@ function getDefaultContext(state: ReturnType<typeof useStore>['state']) {
       return { type: 'location' as const, locationId: entry.locationId };
     }
   } else if (entry) {
-    const wb = entry as import('@/types/narrative').WorldBuild;
+    const wb = entry as WorldBuild;
     const firstChar = wb.expansionManifest?.characters?.[0]?.id;
     if (firstChar && narrative.characters[firstChar]) {
       return { type: 'character' as const, characterId: firstChar };

@@ -9,9 +9,10 @@
 
 import { analyzeChunkParallel, reconcileResults, assembleNarrative } from '@/lib/text-analysis';
 import type { AnalysisJob, AnalysisChunkResult } from '@/types/narrative';
+import type { Action } from '@/lib/store';
 import { ANALYSIS_CONCURRENCY, ANALYSIS_STAGGER_DELAY_MS, ANALYSIS_MAX_CHUNK_RETRIES } from '@/lib/constants';
 
-type Dispatch = (action: import('@/lib/store').Action) => void;
+type Dispatch = (action: Action) => void;
 
 type StreamListener = (jobId: string, text: string) => void;
 type ChunkStreamListener = (jobId: string, chunkIndex: number, text: string) => void;

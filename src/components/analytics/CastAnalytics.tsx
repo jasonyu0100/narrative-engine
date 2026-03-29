@@ -5,6 +5,7 @@ import { useStore } from '@/lib/store';
 import { resolveEntry, isScene } from '@/types/narrative';
 import type { Scene, Character, Location } from '@/types/narrative';
 import { computeWorldMetrics, type WorldMetrics } from '@/lib/ai';
+import { Modal, ModalHeader, ModalBody, ModalFooter } from '@/components/Modal';
 
 type Props = { onClose: () => void };
 type View = 'cast' | 'locations' | 'metrics';
@@ -254,17 +255,16 @@ export function CastAnalytics({ onClose }: Props) {
   // ── Render ──────────────────────────────────────────────────────────
 
   return (
-    <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center">
-      <div className="glass max-w-2xl w-full rounded-2xl p-6 relative max-h-[85vh] flex flex-col">
-        <button onClick={onClose} className="absolute top-4 right-4 text-text-dim hover:text-text-primary text-lg leading-none">&times;</button>
-
-        <h2 className="text-sm font-semibold text-text-primary mb-1">Usage Analytics</h2>
-        <p className="text-[10px] text-text-dim uppercase tracking-wider mb-3">
-          {totalScenes} scenes analysed
-        </p>
-
+    <Modal onClose={onClose} size="2xl" maxHeight="85vh">
+      <ModalHeader onClose={onClose}>
+        <div>
+          <h2 className="text-sm font-semibold text-text-primary">Usage Analytics</h2>
+          <p className="text-[10px] text-text-dim uppercase tracking-wider">{totalScenes} scenes analysed</p>
+        </div>
+      </ModalHeader>
+      <ModalBody className="p-6 space-y-4">
         {/* View tabs */}
-        <div className="flex gap-1 bg-bg-elevated rounded-lg p-0.5 mb-4 shrink-0">
+        <div className="flex gap-1 bg-bg-elevated rounded-lg p-0.5 shrink-0">
           <button onClick={() => setView('cast')} className={`flex-1 text-[11px] py-1.5 rounded-md transition-colors ${view === 'cast' ? 'bg-white/10 text-text-primary font-semibold' : 'text-text-dim hover:text-text-secondary'}`}>
             Cast
           </button>
@@ -405,13 +405,12 @@ export function CastAnalytics({ onClose }: Props) {
           )}
         </div>
 
-        {/* Footer */}
-        <div className="flex justify-end mt-4 pt-3 border-t border-white/5 shrink-0">
-          <button onClick={onClose} className="text-[10px] px-3 py-1.5 rounded-md bg-white/5 text-text-dim hover:text-text-secondary transition-colors">
-            Close
-          </button>
-        </div>
-      </div>
-    </div>
+      </ModalBody>
+      <ModalFooter>
+        <button onClick={onClose} className="text-[10px] px-3 py-1.5 rounded-md bg-white/5 text-text-dim hover:text-text-secondary transition-colors">
+          Close
+        </button>
+      </ModalFooter>
+    </Modal>
   );
 }

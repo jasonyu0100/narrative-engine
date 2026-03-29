@@ -1,4 +1,4 @@
-import type { PlanningProfile } from '@/types/narrative';
+import type { PlanningProfile, PlanningQueue } from '@/types/narrative';
 
 // ── Built-in Narrative Superstructure Profiles ──────────────────────────────
 //
@@ -361,7 +361,7 @@ export function getProfile(id: string): PlanningProfile | undefined {
 }
 
 /** Create a PlanningQueue from a profile */
-export function profileToQueue(profile: PlanningProfile): import('@/types/narrative').PlanningQueue {
+export function profileToQueue(profile: PlanningProfile): PlanningQueue {
   return {
     profileId: profile.id,
     phases: profile.phases.map((p, i) => ({

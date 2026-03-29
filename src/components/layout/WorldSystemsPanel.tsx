@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useStore } from '@/lib/store';
 import type { WorldSystem } from '@/types/narrative';
 import { ingestSystems } from '@/lib/ai/ingest';
+import { Modal, ModalHeader, ModalBody, ModalFooter } from '@/components/Modal';
 
 type Props = { onClose: () => void };
 
@@ -114,22 +115,21 @@ export default function WorldSystemsPanel({ onClose }: Props) {
   const totalEntries = systems.reduce((sum, s) => sum + s.principles.length + s.constraints.length + s.interactions.length, 0);
 
   return (
-    <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center">
-      <div className="glass max-w-2xl w-full rounded-2xl p-6 relative max-h-[85vh] flex flex-col">
-        <button onClick={onClose} className="absolute top-4 right-4 text-text-dim hover:text-text-primary text-lg leading-none">&times;</button>
-
-        <div className="flex items-center justify-between mb-1">
-          <h2 className="text-sm font-semibold text-text-primary">Systems</h2>
+    <Modal onClose={onClose} size="2xl" maxHeight="85vh">
+      <ModalHeader onClose={onClose}>
+        <div className="flex items-center gap-3">
+          <div>
+            <h2 className="text-sm font-semibold text-text-primary">Systems</h2>
+            <p className="text-[10px] text-text-dim uppercase tracking-wider">Structured mechanics that define how this world works</p>
+          </div>
           {totalSystems > 0 && (
-            <span className="text-[10px] text-text-dim/50 mr-6">{totalSystems} system{totalSystems !== 1 ? 's' : ''} &middot; {totalEntries} entries</span>
+            <span className="text-[10px] text-text-dim/50 ml-auto mr-6">{totalSystems} system{totalSystems !== 1 ? 's' : ''} &middot; {totalEntries} entries</span>
           )}
         </div>
-        <p className="text-[10px] text-text-dim uppercase tracking-wider mb-3">
-          Structured mechanics that define how this world works
-        </p>
-
+      </ModalHeader>
+      <ModalBody className="p-6 space-y-4">
         {/* Tabs */}
-        <div className="flex gap-1 bg-bg-elevated rounded-lg p-0.5 mb-4 shrink-0">
+        <div className="flex gap-1 bg-bg-elevated rounded-lg p-0.5 shrink-0">
           <button onClick={() => setTab('list')} className={`flex-1 text-[11px] py-1.5 rounded-md transition-colors ${tab === 'list' ? 'bg-white/10 text-text-primary font-semibold' : 'text-text-dim hover:text-text-secondary'}`}>
             Systems
           </button>
@@ -138,9 +138,7 @@ export default function WorldSystemsPanel({ onClose }: Props) {
           </button>
         </div>
 
-        {/* Content */}
-        <div className="flex-1 overflow-y-auto min-h-0 pr-1">
-          {tab === 'list' && (
+        {tab === 'list' && (
             <div className="space-y-2">
               {systems.length === 0 ? (
                 <p className="text-[11px] text-text-dim/50 italic py-6 text-center">No systems defined yet</p>
@@ -256,48 +254,44 @@ export default function WorldSystemsPanel({ onClose }: Props) {
             </div>
           )}
 
-          {tab === 'ingest' && (
-            <div className="space-y-3">
-              <p className="text-[11px] text-text-dim leading-relaxed">
-                Paste an outline, wiki page, or analysis from another AI. Systems will be extracted with principles, constraints, and interactions.
-              </p>
-
-              {ingesting ? (
-                <Skeleton count={3} />
-              ) : (
-                <>
-                  <textarea
-                    value={ingestText}
-                    onChange={(e) => setIngestText(e.target.value)}
-                    rows={10}
-                    placeholder="Paste text here..."
-                    className="w-full bg-bg-elevated border border-white/10 rounded-lg px-3 py-2.5 text-[11px] text-text-primary placeholder:text-text-dim/40 outline-none focus:border-white/20 transition-colors resize-none"
-                  />
-                  <div className="flex justify-end">
-                    <button
-                      onClick={handleIngest}
-                      disabled={!ingestText.trim()}
-                      className="text-[10px] px-4 py-1.5 rounded-md bg-white/5 border border-white/10 text-text-secondary hover:text-text-primary hover:border-white/20 disabled:opacity-25 disabled:cursor-not-allowed transition-colors font-medium"
-                    >
-                      Extract Systems
-                    </button>
-                  </div>
-                </>
-              )}
-            </div>
-          )}
-        </div>
-
-        {/* Footer */}
-        <div className="flex justify-end gap-2 mt-4 pt-3 border-t border-white/5 shrink-0">
-          <button onClick={onClose} className="text-[10px] px-3 py-1.5 rounded-md bg-white/5 text-text-dim hover:text-text-secondary transition-colors">
-            Cancel
-          </button>
-          <button onClick={handleSave} className="text-[10px] px-4 py-1.5 rounded-md bg-accent/20 text-accent hover:bg-accent/30 transition-colors font-semibold">
-            Save
-          </button>
-        </div>
-      </div>
-    </div>
+        {tab === 'ingest' && (
+          <div className="space-y-3">
+            <p className="text-[11px] text-text-dim leading-relaxed">
+              Paste an outline, wiki page, or analysis from another AI. Systems will be extracted with principles, constraints, and interactions.
+            </p>
+            {ingesting ? (
+              <Skeleton count={3} />
+            ) : (
+              <>
+                <textarea
+                  value={ingestText}
+                  onChange={(e) => setIngestText(e.target.value)}
+                  rows={10}
+                  placeholder="Paste text here..."
+                  className="w-full bg-bg-elevated border border-white/10 rounded-lg px-3 py-2.5 text-[11px] text-text-primary placeholder:text-text-dim/40 outline-none focus:border-white/20 transition-colors resize-none"
+                />
+                <div className="flex justify-end">
+                  <button
+                    onClick={handleIngest}
+                    disabled={!ingestText.trim()}
+                    className="text-[10px] px-4 py-1.5 rounded-md bg-white/5 border border-white/10 text-text-secondary hover:text-text-primary hover:border-white/20 disabled:opacity-25 disabled:cursor-not-allowed transition-colors font-medium"
+                  >
+                    Extract Systems
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+        )}
+      </ModalBody>
+      <ModalFooter>
+        <button onClick={onClose} className="text-[10px] px-3 py-1.5 rounded-md bg-white/5 text-text-dim hover:text-text-secondary transition-colors">
+          Cancel
+        </button>
+        <button onClick={handleSave} className="text-[10px] px-4 py-1.5 rounded-md bg-accent/20 text-accent hover:bg-accent/30 transition-colors font-semibold">
+          Save
+        </button>
+      </ModalFooter>
+    </Modal>
   );
 }

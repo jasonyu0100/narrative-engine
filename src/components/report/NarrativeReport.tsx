@@ -328,7 +328,7 @@ function MomentSparkline({ data, sceneIdx, isPeak }: { data: SlidesData; sceneId
   return <svg ref={svgRef} className="w-full" style={{ height: 48 }} />;
 }
 
-// ── State Machine Graph ──────────────────────────────────────────────────
+// ── Pacing Profile Graph ─────────────────────────────────────────────────
 
 type TransitionMatrix = Record<CubeCornerKey, Record<CubeCornerKey, number>>;
 
@@ -865,8 +865,8 @@ export function NarrativeReport({
             </Section>
           )}
 
-          {/* ── 08 State Machine ── */}
-          <Section title="State Machine" number={++sec}>
+          {/* ── 08 Pacing Profile ── */}
+          <Section title="Pacing Profile" number={++sec}>
             <Figure caption="Cube mode transition graph. Node size reflects visit frequency, edge weight reflects transition count.">
               <StateMachineGraph data={data} />
             </Figure>

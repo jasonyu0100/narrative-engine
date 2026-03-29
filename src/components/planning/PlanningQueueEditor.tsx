@@ -9,6 +9,7 @@ import { nextId } from '@/lib/narrative-utils';
 import { DEFAULT_STORY_SETTINGS } from '@/types/narrative';
 import type { PlanningPhase, PlanningProfile, PlanningQueue } from '@/types/narrative';
 import { PlanningLoadingModal } from './PlanningLoadingModal';
+import { Modal, ModalHeader, ModalBody, ModalFooter } from '@/components/Modal';
 
 type Props = {
   onClose: () => void;
@@ -257,13 +258,14 @@ export function PlanningQueueEditor({ onClose, onStartAuto }: Props) {
 
   if (showModeChoice) {
     return (
-      <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center">
-        <div className="glass max-w-md w-full rounded-2xl p-6">
-          <h2 className="text-sm font-semibold text-text-primary mb-1">Queue activated</h2>
-          <p className="text-[10px] text-text-dim uppercase tracking-wider mb-5">
-            Choose how to run the first phase
-          </p>
-
+      <Modal onClose={onClose} size="md">
+        <ModalHeader onClose={onClose}>
+          <div>
+            <h2 className="text-sm font-semibold text-text-primary">Queue activated</h2>
+            <p className="text-[10px] text-text-dim uppercase tracking-wider">Choose how to run the first phase</p>
+          </div>
+        </ModalHeader>
+        <ModalBody className="p-6">
           <div className="flex flex-col gap-2.5">
             <button
               onClick={handleManualGenerate}
@@ -274,7 +276,6 @@ export function PlanningQueueEditor({ onClose, onStartAuto }: Props) {
                 Prepare the world and direction, then generate scenes yourself. You control the pace.
               </p>
             </button>
-
             <button
               onClick={handleAutoMode}
               className="w-full text-left rounded-lg border border-white/8 bg-white/3 hover:bg-white/6 hover:border-white/15 p-4 transition-colors group"
@@ -285,33 +286,30 @@ export function PlanningQueueEditor({ onClose, onStartAuto }: Props) {
               </p>
             </button>
           </div>
-
-          <div className="flex justify-end mt-4 pt-3 border-t border-white/5">
-            <button onClick={onClose} className="text-[10px] px-3 py-1.5 text-text-dim hover:text-text-secondary transition-colors">
-              Cancel
-            </button>
-          </div>
-        </div>
-      </div>
+        </ModalBody>
+        <ModalFooter>
+          <button onClick={onClose} className="text-[10px] px-3 py-1.5 text-text-dim hover:text-text-secondary transition-colors">
+            Cancel
+          </button>
+        </ModalFooter>
+      </Modal>
     );
   }
 
   // ── Main render ───────────────────────────────────────────────────────
 
   return (
-    <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center">
-      <div className="glass max-w-2xl w-full rounded-2xl relative max-h-[85vh] flex flex-col">
-        <button onClick={onClose} className="absolute top-4 right-4 text-text-dim hover:text-text-primary text-lg leading-none z-10">&times;</button>
-
-        {/* Header */}
-        <div className="px-6 pt-5 pb-3 border-b border-white/6 shrink-0">
+    <Modal onClose={onClose} size="2xl" maxHeight="85vh">
+      <ModalHeader onClose={onClose}>
+        <div>
           <h2 className="text-sm font-semibold text-text-primary">Planning Queue</h2>
           <p className="text-[10px] text-text-dim mt-0.5">
-            {queue ? `${queue.phases.length} phases \u00b7 ${totalScenes} scenes` : 'Choose how to structure your story'}
+            {queue ? `${queue.phases.length} phases · ${totalScenes} scenes` : 'Choose how to structure your story'}
           </p>
         </div>
-
-        <div className="flex-1 overflow-y-auto min-h-0">
+      </ModalHeader>
+      <ModalBody className="p-0">
+        <div className="overflow-y-auto">
           {/* ── Create view ──────────────────────────────────────────── */}
           {!queue && (
             <div className="p-6">
@@ -539,37 +537,35 @@ export function PlanningQueueEditor({ onClose, onStartAuto }: Props) {
             </div>
           )}
         </div>
-
-        {/* Footer */}
-        <div className="flex gap-2 px-6 py-4 border-t border-white/6 shrink-0">
-          {queue && !existingQueue && (
-            <button onClick={() => { setQueue(null); setSelectedProfileId(null); }}
-              className="px-4 text-xs font-medium py-2 rounded-lg text-text-dim hover:text-text-secondary hover:bg-white/6 transition-colors">
-              Back
-            </button>
-          )}
-          {existingQueue && (
-            <button onClick={handleClear}
-              className="px-4 text-xs font-medium py-2 rounded-lg text-payoff hover:bg-white/6 transition-colors">
-              Remove Queue
-            </button>
-          )}
-          <div className="flex-1" />
-          {queue && !existingQueue && (
-            <button
-              onClick={handleSave}
-              disabled={queue.phases.length === 0 || activating}
-              className={`px-6 text-xs font-semibold py-2 rounded-lg transition-colors ${
-                queue.phases.length === 0 || activating
-                  ? 'bg-white/4 text-text-dim cursor-not-allowed'
-                  : 'bg-white/12 text-text-primary hover:bg-white/16'
-              }`}
-            >
-              Activate Queue
-            </button>
-          )}
-        </div>
-      </div>
-    </div>
+      </ModalBody>
+      <ModalFooter>
+        {queue && !existingQueue && (
+          <button onClick={() => { setQueue(null); setSelectedProfileId(null); }}
+            className="px-4 text-xs font-medium py-2 rounded-lg text-text-dim hover:text-text-secondary hover:bg-white/6 transition-colors">
+            Back
+          </button>
+        )}
+        {existingQueue && (
+          <button onClick={handleClear}
+            className="px-4 text-xs font-medium py-2 rounded-lg text-payoff hover:bg-white/6 transition-colors">
+            Remove Queue
+          </button>
+        )}
+        <div className="flex-1" />
+        {queue && !existingQueue && (
+          <button
+            onClick={handleSave}
+            disabled={queue.phases.length === 0 || activating}
+            className={`px-6 text-xs font-semibold py-2 rounded-lg transition-colors ${
+              queue.phases.length === 0 || activating
+                ? 'bg-white/4 text-text-dim cursor-not-allowed'
+                : 'bg-white/12 text-text-primary hover:bg-white/16'
+            }`}
+          >
+            Activate Queue
+          </button>
+        )}
+      </ModalFooter>
+    </Modal>
   );
 }

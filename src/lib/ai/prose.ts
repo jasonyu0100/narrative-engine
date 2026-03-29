@@ -103,19 +103,21 @@ export async function rewriteSceneProse(
     ? `\nLOGICAL CONSTRAINTS (all must be satisfied):\n${logicRules.map((r) => `  - ${r}`).join('\n')}\n`
     : '';
 
-  const systemPrompt = `You are a literary editor and prose writer. Your task is to REWRITE prose based on the provided analysis. You return ONLY valid JSON — no markdown, no commentary.
+  const hasVoiceOverride = !!narrative.storySettings?.proseVoice?.trim();
 
-Voice & style for the rewrite:
+  const systemPrompt = `You are a literary editor and prose writer. Your task is to REWRITE prose based on the provided analysis. You return ONLY valid JSON — no markdown, no commentary.
+${hasVoiceOverride
+    ? `\nAUTHOR VOICE (this is the PRIMARY creative direction — all style defaults below are subordinate to this voice):
+${narrative.storySettings!.proseVoice!.trim()}
+`
+    : ''}
+Voice & style for the rewrite${hasVoiceOverride ? ' (defer to AUTHOR VOICE when these conflict)' : ''}:
 - Third-person limited, locked to the POV character's senses and interiority.
-- Prose should feel novelistic, not summarised. Dramatise through action, dialogue, and sensory texture.
-- Favour subtext over exposition. Let tension live in what characters don't say.
+- Prose should feel novelistic, not summarised. Dramatise through action, dialogue, and sensory texture.${!hasVoiceOverride ? '\n- Favour subtext over exposition. Let tension live in what characters don\'t say.' : ''}
 - Match the tone and genre of the world: ${narrative.worldSummary.slice(0, 200)}.
-- Use straight quotes (" and '), never smart/curly quotes.
+- Use straight quotes (" and '), never smart/curly quotes.${!hasVoiceOverride ? `
 - CRITICAL: Do NOT open with weather, atmosphere, scent, or environmental description.
-- Do NOT end with philosophical musings, rhetorical questions, or atmospheric fade-outs.`
-  + (narrative.storySettings?.proseVoice?.trim()
-    ? `\n\nAUTHOR VOICE (mimic this style — it overrides the defaults above):\n${narrative.storySettings.proseVoice.trim()}`
-    : '');
+- Do NOT end with philosophical musings, rhetorical questions, or atmospheric fade-outs.` : ''}`;
 
   const neighborBlock = neighborContext
     || `${prevEnding ? `\nPREVIOUS SCENE ENDING:\n"...${prevEnding}"\n` : ''}${nextOpening ? `\nNEXT SCENE OPENING:\n"${nextOpening}..."\n` : ''}`;
@@ -132,7 +134,7 @@ ${analysis}
 
 Rewrite the prose to FULLY ADDRESS every point in the analysis above. The analysis describes specific changes that MUST be implemented — do not merely acknowledge them cosmetically. If the analysis says a character should leave, they must leave in the prose. If it says an event should be removed, remove it entirely. If it says a detail should be added, add it concretely. The rewrite is not a polish pass — it is a structural edit guided by the analysis.
 
-Preserve narrative deliveries, events, and plot points that the analysis does NOT ask you to change. Length should match the scene's needs — a quiet scene may be 800 words, a dense convergence scene 3000+. Err on the side of brevity for delivery; never pad. Do not artificially compress or expand — let the content dictate length.${hasExpandedContext ? '\n\nYou have been given the FULL PROSE of neighboring scenes. Use this to ensure continuity — character state, spatial positions, injuries, emotional beats, and knowledge must flow consistently across scene boundaries. Do not repeat beats that already occurred in preceding scenes, and set up what following scenes expect.' : ''}
+Preserve narrative deliveries, events, and plot points that the analysis does NOT ask you to change. Target ~${sceneScale(scene).estWords} words — scenes that come in significantly under feel rushed and underdeveloped. Never pad with filler, but do not cut scenes short either.${hasExpandedContext ? '\n\nYou have been given the FULL PROSE of neighboring scenes. Use this to ensure continuity — character state, spatial positions, injuries, emotional beats, and knowledge must flow consistently across scene boundaries. Do not repeat beats that already occurred in preceding scenes, and set up what following scenes expect.' : ''}
 
 ${onToken ? 'Write the full rewritten prose directly — no JSON, no markdown, no commentary. Start with the first word of the scene.' : 'Return JSON:\n{\n  "prose": "the full rewritten prose text"\n}'}`;
 

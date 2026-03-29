@@ -17,6 +17,7 @@ import { FormulaModal } from '@/components/topbar/FormulaModal';
 import { SlidesPlayer } from '@/components/slides/SlidesPlayer';
 import { NarrativeReport } from '@/components/report/NarrativeReport';
 import { MarkovChainModal } from '@/components/topbar/MarkovChainModal';
+import { BeatProfileModal } from '@/components/topbar/BeatProfileModal';
 import { ThreadGraphModal } from '@/components/topbar/ThreadGraphModal';
 import { NarrativeEditModal } from '@/components/topbar/NarrativeEditModal';
 import { UsageDropdown, computeTotalCost } from '@/components/topbar/UsageAnalyticsModal';
@@ -291,6 +292,7 @@ export default function TopBar() {
   const [slidesOpen, setSlidesOpen] = useState(false);
   const [reportOpen, setReportOpen] = useState(false);
   const [markovOpen, setMarkovOpen] = useState(false);
+  const [beatProfileOpen, setBeatProfileOpen] = useState(false);
   const [threadGraphOpen, setThreadGraphOpen] = useState(false);
   const [scorecardOpen, setScorecardOpen] = useState(false);
   const [usageOpen, setUsageOpen] = useState(false);
@@ -720,7 +722,8 @@ export default function TopBar() {
             { label: 'Narrative Cube', onClick: () => window.dispatchEvent(new CustomEvent('open-cube-viewer')), disabled: !hasNarrative },
             { label: 'Thread Graph', onClick: () => setThreadGraphOpen(true), disabled: !hasNarrative },
             { label: 'Cube Explorer', onClick: () => setCubeExplorerOpen(true), disabled: !hasNarrative },
-            { label: 'State Machine', onClick: () => setMarkovOpen(true), disabled: !hasNarrative },
+            { label: 'Pacing Profile', onClick: () => setMarkovOpen(true), disabled: !hasNarrative },
+            { label: 'Beat Profile', onClick: () => setBeatProfileOpen(true), disabled: !hasNarrative },
             { separator: true },
             { label: 'Formulas', onClick: () => setFormulaOpen(true) },
             { label: 'Rules', onClick: () => window.dispatchEvent(new Event('open-rules-panel')), disabled: !hasNarrative },
@@ -1144,6 +1147,13 @@ export default function TopBar() {
           resolvedKeys={state.resolvedEntryKeys}
           currentSceneIndex={state.currentSceneIndex}
           onClose={() => setMarkovOpen(false)}
+        />
+      )}
+      {beatProfileOpen && narrative && (
+        <BeatProfileModal
+          narrative={narrative}
+          resolvedKeys={state.resolvedEntryKeys}
+          onClose={() => setBeatProfileOpen(false)}
         />
       )}
       {branchContextOpen && narrative && (

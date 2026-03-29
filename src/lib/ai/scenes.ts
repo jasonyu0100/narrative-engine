@@ -261,6 +261,7 @@ export async function generateScenePlan(
   scene: Scene,
   resolvedKeys: string[],
   onReasoning?: (token: string) => void,
+  onMeta?: (meta: { targetBeats: number; estWords: number }) => void,
 ): Promise<BeatPlan> {
   const sceneIdx = resolvedKeys.indexOf(scene.id);
   const contextIndex = sceneIdx >= 0 ? sceneIdx : resolvedKeys.length - 1;
@@ -307,27 +308,43 @@ export async function generateScenePlan(
   const adjacentBlock = adjacentLines.join('\n');
 
   // Prose profile context + optional Markov beat sequence
-  const { resolveProfile, sampleBeatSequence } = await import('@/lib/beat-profiles');
+  const { resolveProfile, resolveSampler, sampleBeatSequence } = await import('@/lib/beat-profiles');
   const profile = resolveProfile(narrative);
+  const sampler = resolveSampler(narrative);
   const storySettings: StorySettings = { ...DEFAULT_STORY_SETTINGS, ...narrative.storySettings };
   const scale = sceneScale(scene);
-  const targetBeats = Math.max(4, Math.round(scale.proseTokens / 400 * (profile.beatsPerKWord ?? 12) / 1000 * 4));
+  const estWords = scale.estWords;
+  // Clamp beatsPerKWord to sane range — real works are 9-12
+  const bpkw = Math.min(16, Math.max(6, sampler.beatsPerKWord ?? 12));
+  const targetBeats = Math.max(8, Math.round(estWords * bpkw / 1000));
+  onMeta?.({ targetBeats, estWords });
 
   // Sample a beat sequence from the Markov chain when enabled
   let beatSequenceHint = '';
   if (storySettings.useBeatChain !== false) {
-    const sampledFns = sampleBeatSequence(profile, targetBeats, 'breathe');
-    beatSequenceHint = `\nSUGGESTED BEAT SEQUENCE (sampled from ${profile.name} Markov chain — follow this fn sequence as a guide, choose the best mechanism for each beat based on context):
+    const sampledFns = sampleBeatSequence(sampler, targetBeats, 'breathe');
+    beatSequenceHint = `\nSUGGESTED BEAT SEQUENCE (${targetBeats} beats — follow this fn sequence, choose the best mechanism per beat based on context):
 ${sampledFns.map((fn, i) => `  ${i + 1}. ${fn}`).join('\n')}\n`;
   }
 
-  const profileBlock = `\nPROSE PROFILE (${profile.name}):
-  Register: ${profile.register} | Stance: ${profile.stance}
-  Devices: ${profile.devices.join(', ')}
-  Rules: ${profile.rules.slice(0, 3).join('; ')}
-  Beat density: ~${profile.beatsPerKWord} beats/kword${beatSequenceHint}\n`;
+  // Render profile fields directly for the plan — no hardcoded value interpretation
+  const planProfileLines: string[] = [];
+  if (profile.register)       planProfileLines.push(`Register: ${profile.register}`);
+  if (profile.stance)         planProfileLines.push(`Stance: ${profile.stance}`);
+  if (profile.tense)          planProfileLines.push(`Tense: ${profile.tense}`);
+  if (profile.sentenceRhythm) planProfileLines.push(`Sentence rhythm: ${profile.sentenceRhythm}`);
+  if (profile.interiority)    planProfileLines.push(`Interiority: ${profile.interiority}`);
+  if (profile.dialogueWeight) planProfileLines.push(`Dialogue weight: ${profile.dialogueWeight}`);
+  if (profile.devices?.length) planProfileLines.push(`Devices: ${profile.devices.join(', ')}`);
+  if (profile.rules?.length)   planProfileLines.push(`Rules: ${profile.rules.slice(0, 3).join('; ')}`);
+
+  const profileBlock = `\nPROSE PROFILE (use these settings when choosing mechanisms and structuring beats):
+${planProfileLines.map((l) => `  ${l}`).join('\n')}
+  Beat density: ~${sampler.beatsPerKWord} beats/kword → target ${targetBeats} beats for this scene${beatSequenceHint}\n`;
 
   const systemPrompt = `You are a scene architect. Given a scene's structural data (summary, mutations, events), produce a structured beat plan — a JSON blueprint that a prose writer can follow.
+
+The scene context includes a PROSE PROFILE. Every beat you write must reflect it — mechanism choices, beat density, and anchor language must all be consistent with the profile settings. This is not optional.
 
 Return ONLY valid JSON matching this schema:
 {
@@ -366,7 +383,7 @@ MECHANISMS (8):
 
 RULES:
 - Open with 1-3 breathe beats to ground the scene physically.
-- Target ${targetBeats}-${targetBeats + 4} beats total.
+- You MUST produce exactly ${targetBeats} beats (±2). This is calibrated from the prose profile's beat density and the scene's target word count (~${estWords} words). Do not produce fewer.
 - Every structural mutation (thread, continuity, relationship, world knowledge) must map to at least one beat.
 - Thread transitions need a concrete trigger in the 'what' field.
 - Knowledge gains need a discovery mechanism (overheard, read, deduced, confessed).
@@ -378,16 +395,18 @@ RULES:
     ? `\n\nPLAN GUIDANCE:\n${narrative.storySettings.planGuidance.trim()}`
     : '');
 
-  const prompt = `BRANCH CONTEXT:\n${fullContext}
+  const prompt = `${profileBlock}BRANCH CONTEXT:\n${fullContext}
 ${recentProseBlock ? `\n${recentProseBlock}\n` : ''}
-${adjacentBlock ? `${adjacentBlock}\n\n` : ''}${profileBlock}${sceneBlock}
+${adjacentBlock ? `${adjacentBlock}\n\n` : ''}${sceneBlock}
 ${logicBlock}
 Generate a structured beat plan for this scene.${recentProseBlock ? ' Opening beats must continue from the physical/emotional state in the recent prose.' : ''}`;
 
   const reasoningBudget = REASONING_BUDGETS[narrative.storySettings?.reasoningLevel ?? 'low'] || undefined;
+  // ~150 tokens per beat (fn, mechanism, what, anchor with verbose descriptions) + 800 for anchors/overhead
+  const planTokens = Math.max(8192, targetBeats * 150 + 800);
   const raw = onReasoning
-    ? await callGenerateStream(prompt, systemPrompt, () => {}, Math.ceil(scale.proseTokens * 0.6), 'generateScenePlan', GENERATE_MODEL, reasoningBudget, onReasoning)
-    : await callGenerate(prompt, systemPrompt, Math.ceil(scale.proseTokens * 0.6), 'generateScenePlan', GENERATE_MODEL, reasoningBudget);
+    ? await callGenerateStream(prompt, systemPrompt, () => {}, planTokens, 'generateScenePlan', GENERATE_MODEL, reasoningBudget, onReasoning)
+    : await callGenerate(prompt, systemPrompt, planTokens, 'generateScenePlan', GENERATE_MODEL, reasoningBudget);
 
   const parsed = parseJson(raw, 'generateScenePlan') as { beats?: unknown[]; anchors?: string[] };
   const beats = (parsed.beats ?? []).map((b: unknown) => {
@@ -504,36 +523,48 @@ export async function generateSceneProse(
 
 
 
+  const proseProfile = narrative.proseProfile;
+
+  // Render profile fields directly — no hardcoded interpretation of specific values
+  const profileLines: string[] = [];
+  if (proseProfile?.register)       profileLines.push(`Register: ${proseProfile.register}`);
+  if (proseProfile?.stance)         profileLines.push(`Stance: ${proseProfile.stance}`);
+  if (proseProfile?.tense)          profileLines.push(`Tense: ${proseProfile.tense}`);
+  if (proseProfile?.sentenceRhythm) profileLines.push(`Sentence rhythm: ${proseProfile.sentenceRhythm}`);
+  if (proseProfile?.interiority)    profileLines.push(`Interiority: ${proseProfile.interiority}`);
+  if (proseProfile?.dialogueWeight) profileLines.push(`Dialogue weight: ${proseProfile.dialogueWeight}`);
+  if (proseProfile?.devices?.length) profileLines.push(`Devices: ${proseProfile.devices.join(', ')}`);
+
+  const profileSection = profileLines.length > 0
+    ? `\n\nPROSE PROFILE — every sentence must conform to these settings. Non-compliance is a failure:\n${profileLines.map((l) => `- ${l}`).join('\n')}${
+        proseProfile?.rules?.length
+          ? `\n- Rules:\n${proseProfile.rules.map((r) => `  • ${r}`).join('\n')}`
+          : ''
+      }`
+    : '';
+
+  const hasVoiceOverride = !!narrative.storySettings?.proseVoice?.trim();
+
   const systemPrompt = `You are a literary prose writer crafting a single scene for a novel set in "${narrative.title}".
 
 Tone: ${narrative.worldSummary.slice(0, 200)}.
-
-Voice & style:
-- Third-person limited, locked to the POV character's senses and interiority. Their body, breath, and attention are the camera.
-- Enter late, leave early. Start in the middle of something happening — never with setup or orientation.
-- Let scenes breathe. Don't rush through structural deliveries. A thread shift or relationship change is a turning point — build to it, let it land, show the aftermath ripple through the character's body and thoughts.
-- Dialogue must do at least two things at once: reveal character, advance conflict, shift power, or expose subtext. No filler exchanges. Each character should sound distinct — vocabulary, rhythm, what they avoid saying.
-- Interiority through the body, not narration. Show the POV character's emotional state through physical sensation, impulse, and micro-action — not by naming emotions.
-- Subtext over exposition. What characters don't say, what they notice but look away from, what they almost do — these carry more weight than declarations.
-- Sensory grounding in small, specific details. One precise image outweighs three generic ones. Anchor abstract tension in concrete objects, textures, sounds.
+${hasVoiceOverride
+    ? `\nAUTHOR VOICE (this is the PRIMARY creative direction — all craft defaults below are subordinate to this voice):
+${narrative.storySettings!.proseVoice!.trim()}
+`
+    : ''}
+General craft${hasVoiceOverride ? ' (defer to AUTHOR VOICE when these conflict)' : ''}:
+- Enter late, leave early. Start in the middle of something happening.
+- Let scenes breathe. A thread shift or relationship change is a turning point — build to it, let it land.
+- Dialogue must do at least two things at once: reveal character, advance conflict, shift power, or expose subtext.
+- Sensory grounding in small, specific details. One precise image outweighs three generic ones.${!hasVoiceOverride ? '\n- Subtext over exposition. What characters don\'t say carries more weight than declarations.' : ''}${profileSection}
 
 Strict output rules:
 - Output ONLY the prose. No scene titles, chapter headers, separators (---), or meta-commentary.
 - Use straight quotes (" and '), never smart/curly quotes or other typographic substitutions.
-- Do not begin with a character name as the first word.
-- CRITICAL: Do NOT open with weather, atmosphere, air quality, scent, temperature, or environmental description. These are the most overused openings in fiction. Instead, choose from techniques like: mid-dialogue, a character's body in motion, a close-up on an object, an internal thought, a sound, a question, a tactile sensation, noticing someone's expression, or a punchy declarative sentence.
-- Do NOT end with philosophical musings, rhetorical questions, or atmospheric fade-outs. Instead end with: a character leaving, a sharp line of dialogue, a decision made in silence, an interruption, a physical gesture, or a thought that reframes the scene.`
-  + (narrative.storySettings?.proseVoice?.trim()
-    ? `\n\nAUTHOR VOICE (mimic this style — it overrides the defaults above):\n${narrative.storySettings.proseVoice.trim()}`
-    : '')
-  + (() => {
-    const profile = narrative.proseProfile;
-    if (!profile) return '';
-    return `\n\nPROSE PROFILE — ${profile.name}:
-Register: ${profile.register} | Stance: ${profile.stance}
-Devices: ${profile.devices.join(', ')}
-Rules: ${profile.rules.slice(0, 3).join('; ')}`;
-  })();
+- Do not begin with a character name as the first word.${!hasVoiceOverride ? `
+- CRITICAL: Do NOT open with weather, atmosphere, air quality, scent, or environmental description. Instead: mid-dialogue, a character's body in motion, a close-up on an object, an internal thought, a sound, a tactile sensation.
+- Do NOT end with philosophical musings, rhetorical questions, or atmospheric fade-outs. End with: a character leaving, a sharp line of dialogue, a decision made in silence, an interruption, a physical gesture.` : ''}`;
 
   const sceneBlock = sceneContext(narrative, scene);
 
@@ -566,13 +597,13 @@ THREE PILLARS — the prose must honour all three:
 2. THREADS: Every thread shift must land at a specific dramatic moment. Show the status change through action, not narration.
 3. KNOWLEDGE: World concepts being revealed in this scene (marked in the logical requirements) must feel EARNED — discovered through demonstration, explanation, or consequence. Established world knowledge can be referenced freely. New knowledge cannot be treated as pre-existing.
 
-Every thread shift, continuity change, relationship mutation, and world knowledge reveal must appear in the prose. You MUST satisfy every logical requirement. Anchor lines must appear VERBATIM. Fill around the beats with extended dialogue, internal monologue, physical action, and sensory detail. Let scenes breathe. Write as many words as the scene demands. Err on the side of brevity; never pad.`
+Every thread shift, continuity change, relationship mutation, and world knowledge reveal must appear in the prose. You MUST satisfy every logical requirement. Anchor lines must appear VERBATIM. Fill around the beats with extended dialogue, internal monologue, physical action, and sensory detail. Let scenes breathe. Target ~${scale.estWords} words — scenes that come in significantly under feel rushed and underdeveloped. Never pad with filler, but do not cut scenes short either.`
     : `THREE PILLARS — the prose must honour all three:
 1. CONTINUITY: POV character can only perceive what their senses and existing knowledge allow. New continuity mutations must be discovered through specific mechanisms — never referenced before their revelation moment.
 2. THREADS: Every thread shift must land at a specific dramatic moment. Show the status change through action, not narration.
 3. KNOWLEDGE: World concepts being revealed in this scene (marked in the logical requirements) must feel EARNED — discovered through demonstration, explanation, or consequence. Established world knowledge can be referenced freely. New knowledge cannot be treated as pre-existing.
 
-Every thread shift, continuity change, relationship mutation, and world knowledge reveal listed above must be dramatised — these are the structural deliveries of this scene. You MUST satisfy every logical requirement. Fill around them with extended dialogue exchanges, internal monologue, physical action, environmental detail, and character interaction. Let scenes breathe. Foreshadow future events through subtle imagery, offhand remarks, and environmental details — never telegraph. Write as many words as the scene demands — a quiet scene with few deliveries may need only 800 words, a dense convergence scene may need 3000+. Err on the side of brevity for delivery; never pad.`;
+Every thread shift, continuity change, relationship mutation, and world knowledge reveal listed above must be dramatised — these are the structural deliveries of this scene. You MUST satisfy every logical requirement. Fill around them with extended dialogue exchanges, internal monologue, physical action, environmental detail, and character interaction. Let scenes breathe. Foreshadow future events through subtle imagery, offhand remarks, and environmental details — never telegraph. Target ~${scale.estWords} words — scenes that come in significantly under feel rushed and underdeveloped. Never pad with filler, but do not cut scenes short either.`;
 
   const prompt = `BRANCH CONTEXT (for continuity — do not summarise or repeat this):
 ${fullContext}

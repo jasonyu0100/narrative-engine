@@ -9,7 +9,8 @@ import { CastSlide } from './CastSlide';
 import { ForcesOverviewSlide } from './ForcesOverviewSlide';
 import { KeyMomentsSlide } from './KeyMomentsSlide';
 import { ForceDecompositionSlide } from './ForceDecompositionSlide';
-import { StateMachineSlide } from './StateMachineSlide';
+import { PacingProfileSlide } from './PacingProfileSlide';
+import { BeatProfileSlide } from './BeatProfileSlide';
 import { ThreadLifecycleSlide } from './ThreadLifecycleSlide';
 import { SwingAnalysisSlide } from './SwingAnalysisSlide';
 import { ReportCardSlide } from './ReportCardSlide';
@@ -24,7 +25,8 @@ type SlideSpec =
   | { type: 'forces' }
   | { type: 'moment'; sceneIdx: number; kind: 'peak' | 'valley' }
   | { type: 'decomposition' }
-  | { type: 'state-machine' }
+  | { type: 'pacing-profile' }
+  | { type: 'beat-profile' }
   | { type: 'threads' }
   | { type: 'swing' }
   | { type: 'report' }
@@ -54,7 +56,11 @@ function buildSlideList(data: SlidesData): SlideSpec[] {
 
   slides.push({ type: 'decomposition' });
   slides.push({ type: 'swing' });
-  slides.push({ type: 'state-machine' });
+  slides.push({ type: 'pacing-profile' });
+
+  if (data.beatSequence.length > 0) {
+    slides.push({ type: 'beat-profile' });
+  }
 
   if (data.threadLifecycles.length > 0) {
     slides.push({ type: 'threads' });
@@ -74,7 +80,8 @@ function slideLabel(spec: SlideSpec): string {
     case 'forces': return 'Forces';
     case 'moment': return `${spec.kind === 'peak' ? 'Peak' : 'Valley'} · Scene ${spec.sceneIdx + 1}`;
     case 'decomposition': return 'Decomposition';
-    case 'state-machine': return 'State Machine';
+    case 'pacing-profile': return 'Pacing Profile';
+    case 'beat-profile': return 'Beat Profile';
     case 'threads': return 'Threads';
     case 'swing': return 'Swing';
     case 'report': return 'Report Card';
@@ -329,8 +336,10 @@ function renderSlide(spec: SlideSpec, data: SlidesData, onClose: () => void): Re
       return <KeyMomentsSlide data={data} sceneIdx={spec.sceneIdx} kind={spec.kind} />;
     case 'decomposition':
       return <ForceDecompositionSlide data={data} />;
-    case 'state-machine':
-      return <StateMachineSlide data={data} />;
+    case 'pacing-profile':
+      return <PacingProfileSlide data={data} />;
+    case 'beat-profile':
+      return <BeatProfileSlide data={data} />;
     case 'threads':
       return <ThreadLifecycleSlide data={data} />;
     case 'swing':

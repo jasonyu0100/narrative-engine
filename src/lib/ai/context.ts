@@ -541,32 +541,29 @@ ${movementLines.length > 0 ? `\n<movements>\n${movementLines.join('\n')}\n</move
 
 /** Estimate scene complexity to drive dynamic length guidance.
  *  Returns { prose: { min, max, tokens }, plan: { words } } */
-export function sceneScale(scene: Scene): { proseMin: number; proseMax: number; proseTokens: number; planWords: string } {
+export function sceneScale(scene: Scene): { estWords: number; proseTokens: number; planWords: string } {
   const mutations = scene.threadMutations.length + scene.continuityMutations.length + scene.relationshipMutations.length;
   const events = scene.events.length;
   const movements = scene.characterMovements ? Object.keys(scene.characterMovements).length : 0;
   const participants = scene.participantIds.length;
   const summaryLen = scene.summary.length;
 
-  // Complexity score: more mutations, events, participants, and longer summaries = bigger scene
+  // Complexity score: mutations, events, participants, and longer summaries
   const complexity = mutations * 2 + events * 1.5 + movements + participants * 0.5 + (summaryLen > 200 ? 2 : 0) + (summaryLen > 400 ? 3 : 0);
 
-  let proseMin: number;
-  let proseMax: number;
-  if (complexity <= 4) { proseMin = 800; proseMax = 1200; }
-  else if (complexity <= 8) { proseMin = 1000; proseMax = 1500; }
-  else if (complexity <= 14) { proseMin = 1200; proseMax = 2500; }
-  else if (complexity <= 20) { proseMin = 1500; proseMax = 3500; }
-  else { proseMin = 2000; proseMax = 5000; }
+  // Linear fit from 682 scenes across 9 published works (R²=0.09 — complexity is a weak
+  // predictor, but the intercept is the real value: most scenes land around 800-1800 words).
+  // Formula: words ≈ 12 * complexity + 822, floored at 600.
+  const estWords = Math.max(600, Math.round(12 * complexity + 822));
 
-  // Token budget: ~1.3 tokens per word + headroom
-  const proseTokens = Math.ceil(proseMax * 1.5);
-  // Plan scales proportionally — roughly 40-60% of prose length in words
-  const planMin = Math.round(proseMin * 0.4);
-  const planMax = Math.round(proseMax * 0.5);
-  const planWords = `${planMin}-${planMax}`;
+  // Token budget: generous ceiling so the LLM can write longer when warranted.
+  // ~1.5 tokens per word, with headroom above the estimate.
+  const proseTokens = Math.ceil(estWords * 2.5);
 
-  return { proseMin, proseMax, proseTokens, planWords };
+  // Plan word guidance for prompts
+  const planWords = `${Math.round(estWords * 0.3)}-${Math.round(estWords * 0.5)}`;
+
+  return { estWords, proseTokens, planWords };
 }
 
 /**

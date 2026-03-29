@@ -1135,7 +1135,7 @@
           {
             "fn": "expand",
             "mechanism": "narration",
-            "what": "The narrator details the four Ministries—Truth, Peace, Love, Plenty—and their Newspeak names, emphasizing their imposing presence.",
+            "what": "The narrator details the four Ministries\u2014Truth, Peace, Love, Plenty\u2014and their Newspeak names, emphasizing their imposing presence.",
             "anchor": "The Ministry of Truth--Minitrue, in Newspeak [...] was startlingly different from any other object in sight."
           },
           {
@@ -2350,7 +2350,7 @@
           "characterId": "C-NIN-01",
           "nodeId": "K-NIN-057",
           "action": "added",
-          "content": "The symbolic significance of his dream encounters—the sinking family representing lost love and sacrifice, and the defiant girl embodying rebellion.",
+          "content": "The symbolic significance of his dream encounters\u2014the sinking family representing lost love and sacrifice, and the defiant girl embodying rebellion.",
           "nodeType": "symbolic_interpretation"
         },
         {
@@ -4687,7 +4687,7 @@
       ],
       "relationshipMutations": [],
       "prose": "But the rest of the story had got to be written down. He wrote:\n\nI turned up the lamp. When I saw her in the light----\n\nAfter the darkness the feeble light of the paraffin lamp had seemed very\nbright. For the first time he could see the woman properly. He had taken a\nstep towards her and then halted, full of lust and terror. He was painfully\nconscious of the risk he had taken in coming here. It was perfectly\npossible that the patrols would catch him on the way out: for that matter\nthey might be waiting outside the door at this moment. If he went away\nwithout even doing what he had come here to do----!\n\nIt had got to be written down, it had got to be confessed. What he had\nsuddenly seen in the lamplight was that the woman was OLD. The paint was\nplastered so thick on her face that it looked as though it might crack\nlike a cardboard mask. There were streaks of white in her hair; but the\ntruly dreadful detail was that her mouth had fallen a little open,\nrevealing nothing except a cavernous blackness. She had no teeth at all.\n\nHe wrote hurriedly, in scrabbling handwriting:\n\nWhen I saw her in the light she was quite an old woman, fifty years old\nat least. But I went ahead and did it just the same.\n\nHe pressed his fingers against his eyelids again. He had written it down\nat last, but it made no difference. The therapy had not worked. The urge\nto shout filthy words at the top of his voice was as strong as ever.",
-      "summary": "Winston forces himself to continue writing about the encounter with the prostitute. He recalls the dim lamplight revealing her true aged appearance—heavily painted, with white streaks in her hair and a cavernous, toothless mouth. Despite his disgust, he writes down the final act, acknowledging his own participation.",
+      "summary": "Winston forces himself to continue writing about the encounter with the prostitute. He recalls the dim lamplight revealing her true aged appearance\u2014heavily painted, with white streaks in her hair and a cavernous, toothless mouth. Despite his disgust, he writes down the final act, acknowledging his own participation.",
       "plan": {
         "beats": [
           {
@@ -11877,7 +11877,7 @@
           {
             "fn": "breathe",
             "mechanism": "thought",
-            "what": "Winston’s heart pounds with fear and a sense of rashness, overwhelmed by the intimidating opulence of the Inner Party dwelling.",
+            "what": "Winston\u2019s heart pounds with fear and a sense of rashness, overwhelmed by the intimidating opulence of the Inner Party dwelling.",
             "anchor": "Winston's heart was thumping so hard that he doubted whether he would be able to speak."
           },
           {
@@ -17314,7 +17314,7 @@
           {
             "fn": "breathe",
             "mechanism": "thought",
-            "what": "Winston contrasts Julia’s naive assertion about inner immunity with O'Brien’s grim truth about permanent psychological damage.",
+            "what": "Winston contrasts Julia\u2019s naive assertion about inner immunity with O'Brien\u2019s grim truth about permanent psychological damage.",
             "anchor": "'They can't get inside you,' she had said. But they could get inside you."
           },
           {
@@ -18487,7 +18487,7 @@
                 {
                   "id": "K-NIN-057",
                   "type": "symbolic_interpretation",
-                  "content": "The symbolic significance of his dream encounters—the sinking family representing lost love and sacrifice, and the defiant girl embodying rebellion."
+                  "content": "The symbolic significance of his dream encounters\u2014the sinking family representing lost love and sacrifice, and the defiant girl embodying rebellion."
                 },
                 {
                   "id": "K-NIN-058",
@@ -22388,7 +22388,7 @@
     "WX-NIN-002": {
       "kind": "world_build",
       "id": "WX-NIN-002",
-      "summary": "Chunks 4–6: +8 characters, +2 locations, +2 threads",
+      "summary": "Chunks 4\u20136: +8 characters, +2 locations, +2 threads",
       "expansionManifest": {
         "characters": [
           {
@@ -22699,7 +22699,7 @@
     "WX-NIN-003": {
       "kind": "world_build",
       "id": "WX-NIN-003",
-      "summary": "Chunks 7–9: +9 characters, +10 locations, +3 threads",
+      "summary": "Chunks 7\u20139: +9 characters, +10 locations, +3 threads",
       "expansionManifest": {
         "characters": [
           {
@@ -23218,7 +23218,7 @@
     "WX-NIN-004": {
       "kind": "world_build",
       "id": "WX-NIN-004",
-      "summary": "Chunks 10–12: +0 characters, +5 locations, +2 threads",
+      "summary": "Chunks 10\u201312: +0 characters, +5 locations, +2 threads",
       "expansionManifest": {
         "characters": [],
         "locations": [
@@ -23420,7 +23420,7 @@
     "WX-NIN-005": {
       "kind": "world_build",
       "id": "WX-NIN-005",
-      "summary": "Chunks 13–15: +1 characters, +4 locations, +2 threads",
+      "summary": "Chunks 13\u201315: +1 characters, +4 locations, +2 threads",
       "expansionManifest": {
         "characters": [
           {
@@ -23597,7 +23597,7 @@
     "WX-NIN-006": {
       "kind": "world_build",
       "id": "WX-NIN-006",
-      "summary": "Chunks 16–18: +7 characters, +1 locations, +0 threads",
+      "summary": "Chunks 16\u201318: +7 characters, +1 locations, +0 threads",
       "expansionManifest": {
         "characters": [
           {
@@ -23811,7 +23811,7 @@
     "WX-NIN-007": {
       "kind": "world_build",
       "id": "WX-NIN-007",
-      "summary": "Chunks 19–21: +1 characters, +2 locations, +3 threads",
+      "summary": "Chunks 19\u201321: +1 characters, +2 locations, +3 threads",
       "expansionManifest": {
         "characters": [
           {
@@ -24076,156 +24076,28 @@
   "createdAt": 1773816106931,
   "updatedAt": 1773980666391,
   "proseProfile": {
-    "title": "Nineteen Eighty-Four",
-    "scenesAnalyzed": 72,
-    "totalBeats": 1023,
-    "avgBeatsPerKWord": 13.3,
-    "beatDistribution": {
-      "breathe": 0.163,
-      "inform": 0.212,
-      "advance": 0.223,
-      "bond": 0.053,
-      "turn": 0.058,
-      "reveal": 0.109,
-      "shift": 0.022,
-      "expand": 0.077,
-      "foreshadow": 0.037,
-      "resolve": 0.045
-    },
-    "mechanismDistribution": {
-      "dialogue": 0.238,
-      "thought": 0.212,
-      "action": 0.21,
-      "environment": 0.146,
-      "narration": 0.155,
-      "memory": 0.019,
-      "document": 0.02,
-      "comic": 0.001
-    },
-    "markovTransitions": {
-      "breathe": {
-        "breathe": 0.099,
-        "advance": 0.241,
-        "reveal": 0.074,
-        "inform": 0.407,
-        "resolve": 0.012,
-        "expand": 0.037,
-        "turn": 0.049,
-        "foreshadow": 0.025,
-        "bond": 0.049,
-        "shift": 0.006
-      },
-      "inform": {
-        "breathe": 0.094,
-        "reveal": 0.178,
-        "expand": 0.127,
-        "advance": 0.333,
-        "turn": 0.028,
-        "inform": 0.085,
-        "shift": 0.033,
-        "bond": 0.042,
-        "foreshadow": 0.052,
-        "resolve": 0.028
-      },
-      "advance": {
-        "inform": 0.199,
-        "turn": 0.125,
-        "reveal": 0.134,
-        "bond": 0.056,
-        "advance": 0.176,
-        "expand": 0.069,
-        "breathe": 0.111,
-        "resolve": 0.065,
-        "shift": 0.028,
-        "foreshadow": 0.037
-      },
-      "bond": {
-        "resolve": 0.137,
-        "inform": 0.216,
-        "expand": 0.118,
-        "advance": 0.137,
-        "breathe": 0.098,
-        "reveal": 0.137,
-        "bond": 0.059,
-        "turn": 0.059,
-        "shift": 0.039
-      },
-      "turn": {
-        "advance": 0.327,
-        "breathe": 0.073,
-        "inform": 0.145,
-        "resolve": 0.073,
-        "reveal": 0.164,
-        "bond": 0.091,
-        "expand": 0.055,
-        "shift": 0.036,
-        "foreshadow": 0.036
-      },
-      "reveal": {
-        "breathe": 0.069,
-        "expand": 0.069,
-        "inform": 0.265,
-        "advance": 0.255,
-        "turn": 0.069,
-        "bond": 0.108,
-        "resolve": 0.078,
-        "shift": 0.029,
-        "foreshadow": 0.029,
-        "reveal": 0.029
-      },
-      "shift": {
-        "advance": 0.4,
-        "expand": 0.1,
-        "breathe": 0.05,
-        "turn": 0.1,
-        "bond": 0.05,
-        "inform": 0.25,
-        "reveal": 0.05
-      },
-      "expand": {
-        "foreshadow": 0.117,
-        "expand": 0.104,
-        "advance": 0.13,
-        "reveal": 0.117,
-        "inform": 0.351,
-        "breathe": 0.104,
-        "bond": 0.039,
-        "resolve": 0.039
-      },
-      "foreshadow": {
-        "expand": 0.091,
-        "inform": 0.121,
-        "breathe": 0.121,
-        "advance": 0.242,
-        "turn": 0.182,
-        "reveal": 0.091,
-        "shift": 0.03,
-        "bond": 0.061,
-        "resolve": 0.061
-      },
-      "resolve": {
-        "breathe": 0.5,
-        "shift": 0.045,
-        "advance": 0.091,
-        "expand": 0.091,
-        "inform": 0.182,
-        "reveal": 0.045,
-        "foreshadow": 0.045
-      }
-    },
-    "sampleAnchors": [
-      "It was a bright cold day in April, and the clocks were striking thirteen.",
-      "BIG BROTHER IS WATCHING YOU, the caption beneath it ran.",
-      "The instrument (the telescreen, it was called) could be dimmed, but there was no way of shutting it off completely.",
-      "You had to live--did live, from habit that became instinct--in the assumption that every sound you made was overheard, and, except in darkness, every movement scrutinized.",
-      "The Ministry of Love was the really frightening one.",
-      "The stuff was like nitric acid",
-      "a peculiarly beautiful book",
-      "if detected it was reasonably certain that it would be punished by death",
-      "To mark the paper was the decisive act.",
-      "The telescreen had changed over to strident military music."
+    "register": "clinical",
+    "stance": "close_third",
+    "tense": "past",
+    "sentenceRhythm": "varied",
+    "interiority": "deep",
+    "dialogueWeight": "sparse",
+    "devices": [
+      "dramatic_irony",
+      "motif",
+      "juxtaposition",
+      "foreshadowing"
     ],
-    "id": "nineteen_eighty_four",
-    "builtIn": true
+    "rules": [
+      "No metaphor unless it serves political irony \u2014 ornament is decadence",
+      "Sentences carry exactly one idea \u2014 no compound thoughts, no subordinate flourishes",
+      "Physical sensation described with clinical precision \u2014 pain is anatomical not poetic",
+      "Bureaucratic language used without irony by the system and with horror by the narrator",
+      "Every scene must contain one detail of physical decay or deprivation",
+      "Hope appears only to be crushed \u2014 never let optimism survive a paragraph",
+      "Interiority is compulsive self-surveillance \u2014 Winston monitors his own face and thoughts",
+      "No beautiful prose \u2014 beauty is suspicious in this world",
+      "Clarity is the weapon \u2014 every word must be load-bearing"
+    ]
   }
 }

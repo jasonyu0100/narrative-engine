@@ -9,6 +9,7 @@ import type {
   Character,
   Location,
   RelationshipEdge,
+  GraphViewMode,
 } from '@/types/narrative';
 import EvalBar from '@/components/timeline/EvalBar';
 import KnowledgeGraphView, { FullscreenButton } from './KnowledgeGraphView';
@@ -1196,13 +1197,13 @@ export default function WorldGraph() {
                 <>
                   <button
                     className={`px-2 py-1 rounded transition-colors ${isLocal ? 'bg-white/10 text-text-primary' : 'text-text-dim hover:text-text-default hover:bg-white/4'}`}
-                    onClick={() => dispatch({ type: 'SET_GRAPH_VIEW_MODE', mode: pair.local as import('@/types/narrative').GraphViewMode })}
+                    onClick={() => dispatch({ type: 'SET_GRAPH_VIEW_MODE', mode: pair.local as GraphViewMode })}
                   >
                     Local
                   </button>
                   <button
                     className={`px-2 py-1 rounded transition-colors ${!isLocal ? 'bg-white/10 text-text-primary' : 'text-text-dim hover:text-text-default hover:bg-white/4'}`}
-                    onClick={() => dispatch({ type: 'SET_GRAPH_VIEW_MODE', mode: pair.global as import('@/types/narrative').GraphViewMode })}
+                    onClick={() => dispatch({ type: 'SET_GRAPH_VIEW_MODE', mode: pair.global as GraphViewMode })}
                   >
                     Global
                   </button>

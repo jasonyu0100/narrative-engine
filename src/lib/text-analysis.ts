@@ -10,7 +10,7 @@
 import type {
   NarrativeState, AnalysisChunkResult, AnalysisJob,
   Character, Location, Thread, Arc, Scene, RelationshipEdge, Artifact,
-  WorldBuild, Branch,
+  WorldBuild, Branch, ProseProfile,
 } from '@/types/narrative';
 import { THREAD_ACTIVE_STATUSES, THREAD_TERMINAL_STATUSES, THREAD_STATUS_LABELS } from '@/types/narrative';
 import { ANALYSIS_TARGET_SECTIONS_PER_CHUNK, ANALYSIS_TARGET_CHUNK_WORDS, ANALYSIS_MODEL, MAX_TOKENS_DEFAULT, ANALYSIS_TEMPERATURE } from '@/lib/constants';
@@ -1196,6 +1196,7 @@ export async function assembleNarrative(
         })(),
         prose: s.prose || undefined,
         summary: s.summary ?? '',
+        locked: !!s.prose,
       };
 
       scenes[sceneId] = scene;
@@ -1401,6 +1402,7 @@ export async function assembleNarrative(
   let rules: string[] = [];
   let worldSystems: NarrativeState['worldSystems'] = [];
   let imageStyle: string | undefined;
+  let proseProfile: ProseProfile | undefined;
 
   try {
     const metaResult = await callAnalysis(
@@ -1411,6 +1413,16 @@ export async function assembleNarrative(
 2. WORLD SYSTEMS (0-6): Structured mechanics that define how this world uniquely operates. A system is any distinct mechanic, institution, force, or structure that shapes the world. For each system provide: name, description, principles (how it works), constraints (hard limits/costs), and interactions (cross-system connections). Simple/realistic worlds may have few or no systems — don't force them. Complex fantasy/sci-fi worlds with unique power systems, economies, or social structures should have several.
 
 3. IMAGE STYLE: A short (1-2 sentence) visual style description for consistent imagery.
+
+4. PROSE PROFILE: Infer the author's distinctive voice and style from the text. Use your own words — choose values that accurately describe this specific work, not generic labels.
+   - register: the tonal register of the narration (choose a single descriptive word or short phrase)
+   - stance: the narrative perspective and distance
+   - tense: grammatical tense
+   - sentenceRhythm: the structural cadence of the prose
+   - interiority: how deeply the narrator enters character interiority
+   - dialogueWeight: the role and proportion of dialogue
+   - devices: 2-5 literary devices this author characteristically employs (specific, not generic)
+   - rules: 2-4 prose rules that capture this author's constraints as imperatives (e.g. "Characters never say what they mean directly")
 
 WORLD SUMMARY: ${worldSummary.slice(0, 2000)}
 
@@ -1426,14 +1438,38 @@ Return JSON:
   "worldSystems": [
     {"name": "System Name", "description": "One-line summary", "principles": ["How it works"], "constraints": ["Hard limits"], "interactions": ["Cross-system connections"]}
   ],
-  "imageStyle": "style directive"
+  "imageStyle": "style directive",
+  "proseProfile": {
+    "register": "string",
+    "stance": "string",
+    "tense": "string",
+    "sentenceRhythm": "string",
+    "interiority": "string",
+    "dialogueWeight": "string",
+    "devices": ["device1", "device2"],
+    "rules": ["prose rule 1", "prose rule 2"]
+  }
 }`,
-      'You are a world-building analyst. Extract the implicit rules, mechanical systems, and visual style of a narrative universe. Return only valid JSON.',
+      'You are a world-building and literary analyst. Extract the implicit rules, mechanical systems, visual style, and prose voice of a narrative universe. Return only valid JSON.',
       onToken,
     );
     const metaParsed = JSON.parse(extractJSON(metaResult));
     rules = metaParsed.rules ?? [];
     imageStyle = metaParsed.imageStyle;
+    if (metaParsed.proseProfile && typeof metaParsed.proseProfile === 'object') {
+      const pp = metaParsed.proseProfile;
+      const str = (v: unknown) => typeof v === 'string' && v.trim() ? v.trim() : undefined;
+      proseProfile = {
+        register:       str(pp.register)       ?? '',
+        stance:         str(pp.stance)         ?? '',
+        tense:          str(pp.tense),
+        sentenceRhythm: str(pp.sentenceRhythm),
+        interiority:    str(pp.interiority),
+        dialogueWeight: str(pp.dialogueWeight),
+        devices:        Array.isArray(pp.devices) ? pp.devices.filter((d: unknown) => typeof d === 'string') : [],
+        rules:          Array.isArray(pp.rules)   ? pp.rules.filter((r: unknown) => typeof r === 'string')   : [],
+      };
+    }
     if (Array.isArray(metaParsed.worldSystems)) {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       worldSystems = metaParsed.worldSystems.filter((s: any) => s && typeof s.name === 'string').map((s: any) => ({
@@ -1467,6 +1503,7 @@ Return JSON:
     rules,
     worldSystems,
     imageStyle,
+    proseProfile,
     createdAt: Date.now() - 86400000,
     updatedAt: Date.now(),
   };

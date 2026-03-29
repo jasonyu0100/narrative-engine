@@ -1,8 +1,10 @@
 import type {
   NarrativeState, Scene, ForceSnapshot, CubeCornerKey,
   Character, Location, Thread, ProseScore,
+  BeatSampler,
 } from '@/types/narrative';
 import { NARRATIVE_CUBE, isScene, resolveEntry } from '@/types/narrative';
+import { computeSamplerFromPlans } from '@/lib/beat-profiles';
 import {
   computeForceSnapshots,
   computeRawForceTotals,
@@ -19,6 +21,9 @@ import {
   type DeliveryPoint,
   type NarrativeShape,
   type ForceGrades,
+  type NarrativeArchetype,
+  type NarrativeScale,
+  type WorldDensity,
 } from '@/lib/narrative-utils';
 
 // ── Types ──────────────────────────────────────────────────────────────────────
@@ -116,11 +121,16 @@ export type SlidesData = {
   topLocations: { location: Location; sceneCount: number }[];
 
   overallGrades: ForceGrades;
-  archetype: import('@/lib/narrative-utils').NarrativeArchetype;
-  scale: import('@/lib/narrative-utils').NarrativeScale;
-  density: import('@/lib/narrative-utils').WorldDensity;
+  archetype: NarrativeArchetype;
+  scale: NarrativeScale;
+  density: WorldDensity;
   arcGrades: ArcGrade[];
   avgProseScore: ProseScore | null;
+
+  /** Beat profile sampler computed from scene plans (null if no plans) */
+  beatSampler: BeatSampler | null;
+  /** Ordered sequence of beat functions from all scene plans */
+  beatSequence: string[];
 
   /** ID → name lookup maps for resolving scene references */
   characterNames: Record<string, string>;
@@ -308,6 +318,15 @@ export function computeSlidesData(
 
   const overallGrades = gradeForces(rawForces.payoff, rawForces.change, rawForces.knowledge, swings);
 
+  // Beat profile data from scene plans
+  const beatSampler = computeSamplerFromPlans(scenes);
+  const beatSequence: string[] = [];
+  for (const s of scenes) {
+    if (s.plan?.beats) {
+      for (const b of s.plan.beats) beatSequence.push(b.fn);
+    }
+  }
+
   // Average prose scores
   const proseScores = scenes.map((s) => s.proseScore).filter((p): p is ProseScore => !!p && typeof p.overall === 'number');
   const avgProseScore = proseScores.length > 0
@@ -357,6 +376,8 @@ export function computeSlidesData(
     ),
     arcGrades,
     avgProseScore,
+    beatSampler,
+    beatSequence,
     characterNames: Object.fromEntries(Object.entries(narrative.characters).map(([id, c]) => [id, c.name])),
     locationNames: Object.fromEntries(Object.entries(narrative.locations).map(([id, l]) => [id, l.name])),
     threadDescriptions: Object.fromEntries(Object.entries(narrative.threads).map(([id, t]) => [id, t.description])),

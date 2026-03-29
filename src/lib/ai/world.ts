@@ -616,7 +616,17 @@ Return JSON with this exact structure:
   "rules": ["World rule 1", "World rule 2"],
   "worldSystems": [
     {"id": "WS-01", "name": "System Name", "description": "One-line summary of what this system is", "principles": ["How it works"], "constraints": ["Hard limits and costs"], "interactions": ["How it connects to other systems"]}
-  ]
+  ],
+  "proseProfile": {
+    "register": "the tonal register that best fits this world's voice (conversational/literary/raw/clinical/sardonic/lyrical/mythic/journalistic or other)",
+    "stance": "narrative stance (close_third/intimate_first_person/omniscient_ironic/detached_observer/unreliable_first or other)",
+    "tense": "past or present",
+    "sentenceRhythm": "terse/varied/flowing/staccato/periodic or other",
+    "interiority": "surface/moderate/deep/embedded",
+    "dialogueWeight": "sparse/moderate/heavy/almost_none",
+    "devices": ["2-4 literary devices that suit this world's tone"],
+    "rules": ["2-3 prose rules that capture the ideal authorial voice for this story — imperatives, e.g. 'Ground every revelation in a physical gesture'"]
+  }
 }
 
 HARD MINIMUMS — the world MUST contain at least these counts. Generating fewer is a failure:
@@ -814,6 +824,20 @@ The goal is to make the world feel like a coherent machine where systems interlo
         interactions: Array.isArray(s.interactions) ? s.interactions.filter((x: unknown) => typeof x === 'string') : [],
       })
     ) : [],
+    proseProfile: (() => {
+      const pp = parsed.proseProfile;
+      if (!pp || typeof pp !== 'object') return undefined;
+      return {
+        register:       typeof pp.register       === 'string' ? pp.register       : 'conversational',
+        stance:         typeof pp.stance         === 'string' ? pp.stance         : 'close_third',
+        tense:          typeof pp.tense          === 'string' ? pp.tense          : undefined,
+        sentenceRhythm: typeof pp.sentenceRhythm === 'string' ? pp.sentenceRhythm : undefined,
+        interiority:    typeof pp.interiority    === 'string' ? pp.interiority    : undefined,
+        dialogueWeight: typeof pp.dialogueWeight === 'string' ? pp.dialogueWeight : undefined,
+        devices:        Array.isArray(pp.devices) ? pp.devices.filter((d: unknown) => typeof d === 'string') : [],
+        rules:          Array.isArray(pp.rules)   ? pp.rules.filter((r: unknown) => typeof r === 'string')   : [],
+      };
+    })(),
     createdAt: now,
     updatedAt: now,
   };

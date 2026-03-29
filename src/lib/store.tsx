@@ -1,7 +1,7 @@
 'use client';
 
 import React, { createContext, useContext, useReducer, useEffect, useRef, useMemo, type ReactNode } from 'react';
-import type { AppState, InspectorContext, NarrativeState, NarrativeEntry, WizardStep, WizardData, Scene, Arc, Branch, Character, Location, Thread, RelationshipEdge, GraphViewMode, AutoConfig, AutoRunLog, WorldBuild, WorldKnowledgeGraph, WorldKnowledgeNode, WorldKnowledgeEdge, WorldKnowledgeMutation, ApiLogEntry, StorySettings, AnalysisJob, ChatThread, ChatMessage, Note, PlanningQueue, PlanningPhase, Artifact, BranchEvaluation, WorldSystem } from '@/types/narrative';
+import type { AppState, InspectorContext, NarrativeState, NarrativeEntry, WizardStep, WizardData, Scene, Arc, Branch, Character, Location, Thread, RelationshipEdge, GraphViewMode, AutoConfig, AutoRunLog, WorldBuild, WorldKnowledgeGraph, WorldKnowledgeNode, WorldKnowledgeEdge, WorldKnowledgeMutation, ApiLogEntry, StorySettings, AnalysisJob, ChatThread, ChatMessage, Note, PlanningQueue, PlanningPhase, Artifact, BranchEvaluation, WorldSystem, ProseProfile, BeatProfilePreset } from '@/types/narrative';
 import { resolveEntrySequence, nextId, computeForceSnapshots, computeSwingMagnitudes, computeDeliveryCurve, classifyNarrativeShape, classifyArchetype, classifyScale, classifyWorldDensity, gradeForces, computeRawForceTotals, FORCE_REFERENCE_MEANS } from '@/lib/narrative-utils';
 import { initMatrixPresets } from '@/lib/markov';
 import { initBeatProfilePresets } from '@/lib/beat-profiles';
@@ -295,6 +295,7 @@ const initialState: AppState = {
   analysisJobs: [],
   activeChatThreadId: null,
   activeNoteId: null,
+  beatProfilePresets: [],
 };
 
 // ── Actions ──────────────────────────────────────────────────────────────────
@@ -351,6 +352,8 @@ export type Action =
   | { type: 'SET_RULES'; rules: string[] }
   | { type: 'SET_WORLD_SYSTEMS'; systems: WorldSystem[] }
   | { type: 'SET_STORY_SETTINGS'; settings: StorySettings }
+  | { type: 'SET_PROSE_PROFILE'; profile: ProseProfile | undefined }
+  | { type: 'SET_BEAT_PROFILE_PRESETS'; presets: BeatProfilePreset[] }
   // Analysis
   | { type: 'ADD_ANALYSIS_JOB'; job: AnalysisJob }
   | { type: 'UPDATE_ANALYSIS_JOB'; id: string; updates: Partial<AnalysisJob> }
@@ -1012,6 +1015,12 @@ function reducer(state: AppState, action: Action): AppState {
     case 'SET_STORY_SETTINGS':
       return updateNarrative(state, (n) => ({ ...n, storySettings: action.settings }));
 
+    case 'SET_PROSE_PROFILE':
+      return updateNarrative(state, (n) => ({ ...n, proseProfile: action.profile }));
+
+    case 'SET_BEAT_PROFILE_PRESETS':
+      return { ...state, beatProfilePresets: action.presets };
+
     // ── Analysis ──────────────────────────────────────────────────────────
     case 'ADD_ANALYSIS_JOB':
       return { ...state, analysisJobs: [...state.analysisJobs, action.job] };
@@ -1291,7 +1300,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       }
       if (worksForPresets.length > 0) {
         initMatrixPresets(worksForPresets);
-        initBeatProfilePresets(worksForPresets);
+        const beatPresets = initBeatProfilePresets(worksForPresets);
+        dispatch({ type: 'SET_BEAT_PROFILE_PRESETS', presets: beatPresets });
       }
 
       dispatch({ type: 'HYDRATE_NARRATIVES', entries: [...playgroundEntries, ...analysisEntries, ...userEntries] });

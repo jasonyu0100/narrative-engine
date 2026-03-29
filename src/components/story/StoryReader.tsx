@@ -3,11 +3,12 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
 import type { NarrativeState, Scene, StorySettings, AlignmentReport, ContinuityPlan, BeatPlan } from '@/types/narrative';
 import { resolveEntry, isScene, DEFAULT_STORY_SETTINGS } from '@/types/narrative';
-import { generateSceneProse, rewriteSceneProse, runAlignment, buildContinuityPlan, buildFixAnalysis, runFixWindows } from '@/lib/ai';
+import { generateScenePlan, generateSceneProse, rewriteSceneProse, runAlignment, buildContinuityPlan, buildFixAnalysis, runFixWindows } from '@/lib/ai';
 import type { AlignmentProgress } from '@/lib/ai';
 import { useStore } from '@/lib/store';
 import { exportEpub } from '@/lib/epub-export';
-import { PROSE_CONCURRENCY, ALIGNMENT_CONCURRENCY, ALIGNMENT_WINDOW_SIZE, ALIGNMENT_STRIDE } from '@/lib/constants';
+import { PROSE_CONCURRENCY, PLAN_CONCURRENCY, ALIGNMENT_CONCURRENCY, ALIGNMENT_WINDOW_SIZE, ALIGNMENT_STRIDE } from '@/lib/constants';
+import { sceneScale } from '@/lib/ai/context';
 
 type ContentCache = Record<string, { text: string; status: 'loading' | 'ready' | 'error'; error?: string }>;
 type BulkState = { running: boolean; completed: number; total: number; errors: number } | null;
@@ -46,6 +47,8 @@ export function StoryReader({
   const [viewMode, setViewMode] = useState<'summary' | 'plan' | 'prose'>('summary');
   const [proseCache, setProseCache] = useState<ContentCache>({});
   const [planCache, setPlanCache] = useState<Record<string, { plan: BeatPlan | null; status: 'loading' | 'ready' | 'error'; error?: string }>>({});
+  const [planReasoning, setPlanReasoning] = useState<Record<string, string>>({});
+  const [planMeta, setPlanMeta] = useState<Record<string, { targetBeats: number; estWords: number }>>({});
   const contentRef = useRef<HTMLDivElement>(null);
   const activeSceneRef = useRef<HTMLButtonElement>(null);
   const [proseBulk, setProseBulk] = useState<BulkState>(null);
@@ -79,12 +82,26 @@ export function StoryReader({
 
 
   // ── Plan generation ──────────────────────────────────────────────────
-  // TODO: generateScenePlan will be updated to return BeatPlan directly.
-  // For now, plan generation is disabled — plans are created by the scene generation pipeline.
-  const generatePlan = useCallback(async (_s: Scene) => {
-    // Plan generation temporarily disabled — being updated to structured BeatPlan format
-    void _s;
-  }, []);
+  const generatePlan = useCallback(async (s: Scene) => {
+    setPlanCache((prev) => ({ ...prev, [s.id]: { plan: null, status: 'loading' } }));
+    setPlanReasoning((prev) => ({ ...prev, [s.id]: '' }));
+    try {
+      const plan = await generateScenePlan(narrative, s, resolvedKeys, (token) => {
+        setPlanReasoning((prev) => ({ ...prev, [s.id]: (prev[s.id] ?? '') + token }));
+      }, (meta) => {
+        setPlanMeta((prev) => ({ ...prev, [s.id]: meta }));
+      });
+      setPlanCache((prev) => ({ ...prev, [s.id]: { plan, status: 'ready' } }));
+      setPlanReasoning((prev) => { const next = { ...prev }; delete next[s.id]; return next; });
+      setPlanMeta((prev) => { const next = { ...prev }; delete next[s.id]; return next; });
+      dispatch({ type: 'UPDATE_SCENE', sceneId: s.id, updates: { plan } });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      setPlanCache((prev) => ({ ...prev, [s.id]: { plan: null, status: 'error', error: message } }));
+      setPlanReasoning((prev) => { const next = { ...prev }; delete next[s.id]; return next; });
+      setPlanMeta((prev) => { const next = { ...prev }; delete next[s.id]; return next; });
+    }
+  }, [narrative, resolvedKeys, dispatch]);
 
   // ── Prose generation ─────────────────────────────────────────────────
   const generateProse = useCallback(async (s: Scene) => {
@@ -168,10 +185,10 @@ export function StoryReader({
     setState({ running: false, completed, total: items.length, errors });
   }, []);
 
-  // TODO: Bulk plan generation disabled — being updated to structured BeatPlan format
   const bulkPlan = useCallback(() => {
-    // Disabled — plan generation being updated to structured format
-  }, []);
+    const missing = scenes.filter((s) => !s.plan && planCache[s.id]?.status !== 'ready');
+    runBulk(missing, PLAN_CONCURRENCY, (s) => generatePlan(s), setPlanBulk);
+  }, [scenes, planCache, generatePlan, runBulk]);
 
   const bulkProse = useCallback(() => {
     // Only generate prose for scenes that have plans but no prose yet
@@ -682,9 +699,8 @@ export function StoryReader({
                   </button>
                   <button
                     onClick={() => {
-                      dispatch({ type: 'UPDATE_SCENE', sceneId: scene.id, updates: { plan: undefined, prose: undefined, proseScore: undefined } });
+                      dispatch({ type: 'UPDATE_SCENE', sceneId: scene.id, updates: { plan: undefined } });
                       setPlanCache((prev) => { const next = { ...prev }; delete next[scene.id]; return next; });
-                      setProseCache((prev) => { const next = { ...prev }; delete next[scene.id]; return next; });
                     }}
                     className="text-[9px] px-2 py-1 rounded text-text-dim/50 hover:text-red-400/80 hover:bg-red-500/5 transition"
                   >
@@ -983,10 +999,10 @@ export function StoryReader({
                     </button>
                   ) : (
                     <button
-                      onClick={() => { setViewMode('plan'); generatePlan(scene); }}
-                      className="text-[11px] px-5 py-2 rounded-full bg-sky-500/10 border border-sky-500/20 text-sky-400 hover:bg-sky-500/15 transition"
+                      onClick={() => setViewMode('plan')}
+                      className="text-[11px] text-sky-400/80 hover:text-sky-400 transition"
                     >
-                      Generate Plan
+                      Generate Plan &rarr;
                     </button>
                   )}
                 </div>
@@ -996,16 +1012,36 @@ export function StoryReader({
             {/* ── PLAN VIEW ──────────────────────────────────────────── */}
             {viewMode === 'plan' && (
               <>
-                {isPlanLoading && !planCached?.plan && (
-                  <div className="flex flex-col items-center justify-center py-20 gap-3">
-                    <div className="w-5 h-5 border-2 border-sky-400/30 border-t-sky-400/80 rounded-full animate-spin" />
-                    <p className="text-[11px] text-text-dim">Generating plan...</p>
-                  </div>
-                )}
+                {isPlanLoading && !planCached?.plan && (() => {
+                  const reasoning = scene ? planReasoning[scene.id] : '';
+                  const meta = scene ? planMeta[scene.id] : undefined;
+                  return (
+                    <div>
+                      <div className="flex items-center gap-2 mb-4">
+                        <div className="w-3 h-3 border-2 border-sky-400/30 border-t-sky-400/80 rounded-full animate-spin" />
+                        <span className="text-[9px] text-text-dim">Generating plan...</span>
+                        {meta && (
+                          <span className="text-[9px] text-text-dim/40">
+                            {meta.targetBeats} beats &middot; ~{meta.estWords.toLocaleString()} words
+                          </span>
+                        )}
+                      </div>
+                      {reasoning && (
+                        <p className="text-[11px] text-text-dim/60 leading-relaxed whitespace-pre-wrap">{reasoning}</p>
+                      )}
+                    </div>
+                  );
+                })()}
 
                 {hasPlanError && (
-                  <div className="py-12 text-center">
-                    <p className="text-[11px] text-red-400/80 mb-3">{planCached?.error}</p>
+                  <div className="flex flex-col items-center justify-center py-12 gap-3">
+                    <p className="text-[11px] text-red-400/80">{planCached?.error}</p>
+                    <button
+                      onClick={() => generatePlan(scene)}
+                      className="text-[11px] px-4 py-1.5 rounded-full bg-white/5 border border-white/10 text-text-secondary hover:text-text-primary hover:bg-white/8 transition"
+                    >
+                      Retry
+                    </button>
                   </div>
                 )}
 
@@ -1073,7 +1109,12 @@ export function StoryReader({
                 {!hasPlan && !isPlanLoading && !hasPlanError && (
                   <div className="flex flex-col items-center justify-center py-20 gap-4">
                     <p className="text-[11px] text-text-dim">No plan yet for this scene.</p>
-                    <p className="text-[10px] text-text-dim/50">Plans are created during scene generation.</p>
+                    <button
+                      onClick={() => generatePlan(scene)}
+                      className="text-[11px] px-5 py-2 rounded-full bg-sky-500/10 border border-sky-500/20 text-sky-400 hover:bg-sky-500/15 transition"
+                    >
+                      Generate Plan
+                    </button>
                   </div>
                 )}
               </>
@@ -1082,12 +1123,18 @@ export function StoryReader({
             {/* ── PROSE VIEW ─────────────────────────────────────────── */}
             {viewMode === 'prose' && (
               <>
-                {isProseLoading && !proseCached?.text && (
-                  <div className="flex flex-col items-center justify-center py-20 gap-3">
-                    <div className="w-5 h-5 border-2 border-white/20 border-t-white/60 rounded-full animate-spin" />
-                    <p className="text-[11px] text-text-dim">Generating prose...</p>
-                  </div>
-                )}
+                {isProseLoading && !proseCached?.text && (() => {
+                  const est = scene ? sceneScale(scene).estWords : undefined;
+                  return (
+                    <div className="flex items-center gap-2 mb-6">
+                      <div className="w-3 h-3 border-2 border-white/20 border-t-white/60 rounded-full animate-spin" />
+                      <span className="text-[9px] text-text-dim">Generating prose...</span>
+                      {est && (
+                        <span className="text-[9px] text-text-dim/40">~{est.toLocaleString()} words</span>
+                      )}
+                    </div>
+                  );
+                })()}
 
                 {isProseLoading && proseCached?.text && (
                   <div className="prose-content">
@@ -1132,10 +1179,10 @@ export function StoryReader({
                       <>
                         <p className="text-[11px] text-text-dim">Create a plan first, then generate prose.</p>
                         <button
-                          onClick={() => { setViewMode('plan'); generatePlan(scene); }}
-                          className="text-[11px] px-5 py-2 rounded-full bg-sky-500/10 border border-sky-500/20 text-sky-400 hover:bg-sky-500/15 transition"
+                          onClick={() => setViewMode('plan')}
+                          className="text-[11px] text-sky-400/80 hover:text-sky-400 transition"
                         >
-                          Generate Plan
+                          Go to Plan &rarr;
                         </button>
                       </>
                     )}
