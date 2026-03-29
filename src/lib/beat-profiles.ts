@@ -194,6 +194,7 @@ export function initBeatProfilePresets(works: { key: string; name: string; narra
       dialogueWeight: narrative.proseProfile.dialogueWeight,
       devices:        narrative.proseProfile.devices        ?? [],
       rules:          narrative.proseProfile.rules          ?? [],
+      antiPatterns:   narrative.proseProfile.antiPatterns    ?? [],
     };
 
     // Compute sampler from scene plans, fallback to stored markovTransitions
