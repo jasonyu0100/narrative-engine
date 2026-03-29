@@ -65,12 +65,26 @@ export default function ChatPanel() {
 
   const buildSystemPrompt = useCallback(() => {
     if (!state.activeNarrative) return '';
+    const n = state.activeNarrative;
     const currentSceneId = state.resolvedEntryKeys[contextSceneIndex];
-    const currentScene = currentSceneId ? state.activeNarrative.scenes[currentSceneId] : null;
+    const currentScene = currentSceneId ? n.scenes[currentSceneId] : null;
+    const currentEntry = currentSceneId ? resolveEntry(n, currentSceneId) : null;
+
+    // Build a current-scene anchor that every context mode can reference
+    let sceneAnchor = '';
+    if (currentScene) {
+      const povName = n.characters[currentScene.povId]?.name ?? currentScene.povId;
+      const locName = n.locations[currentScene.locationId]?.name ?? currentScene.locationId;
+      const arcName = currentScene.arcId ? n.arcs[currentScene.arcId]?.name ?? '' : '';
+      sceneAnchor = `\nCURRENT SCENE (what the user is looking at right now):\n  Index: ${contextSceneIndex + 1} / ${state.resolvedEntryKeys.length}\n  Arc: ${arcName}\n  POV: ${povName} | Location: ${locName}\n  Summary: ${currentScene.summary}`;
+    } else if (currentEntry?.kind === 'world_build') {
+      sceneAnchor = `\nCURRENT POSITION: World commit at index ${contextSceneIndex + 1} / ${state.resolvedEntryKeys.length} — "${currentEntry.summary}"`;
+    }
 
     if (contextMode === 'scene' && currentScene) {
-      const ctx = sceneContext(state.activeNarrative, currentScene);
-      return `You are a narrative consultant for the story "${state.activeNarrative.title}", focused on the current scene: ${currentScene.id} — "${currentScene.summary}".
+      const ctx = sceneContext(n, currentScene);
+      return `You are a narrative consultant for the story "${n.title}".
+${sceneAnchor}
 
 Answer questions about this specific scene, its characters, location, and events. Be concise and specific.
 
@@ -78,8 +92,9 @@ ${ctx}`;
     }
 
     if (contextMode === 'outline') {
-      const ctx = outlineContext(state.activeNarrative, state.resolvedEntryKeys, contextSceneIndex);
-      return `You are a narrative consultant for the story "${state.activeNarrative.title}". You have a condensed outline of the entire story up to scene ${contextSceneIndex + 1}.
+      const ctx = outlineContext(n, state.resolvedEntryKeys, contextSceneIndex);
+      return `You are a narrative consultant for the story "${n.title}". You have a condensed outline of the entire story.
+${sceneAnchor}
 
 Answer questions about story progression, recap events, identify patterns, or discuss where the narrative stands. You see the arc structure and scene summaries but not full mutation detail. Be concise and specific.
 
@@ -87,31 +102,24 @@ ${ctx}`;
     }
 
     if (contextMode === 'world') {
-      const ctx = worldContext(state.activeNarrative, state.resolvedEntryKeys, contextSceneIndex);
+      const ctx = worldContext(n, state.resolvedEntryKeys, contextSceneIndex);
       const currentKey = state.resolvedEntryKeys[contextSceneIndex];
-      const wb = state.activeNarrative.worldBuilds[currentKey];
-      const commitLabel = wb ? ` viewing world commit: ${currentKey} — "${wb.summary}"` : '';
-      return `You are a narrative consultant for the story "${state.activeNarrative.title}". You have a cumulative view of the world as it has been built up to this point in the timeline.${commitLabel}
+      const wb = n.worldBuilds[currentKey];
+      const commitLabel = wb ? ` Viewing world commit: ${currentKey} — "${wb.summary}".` : '';
+      return `You are a narrative consultant for the story "${n.title}". You have a cumulative view of the world as it has been built up to this point in the timeline.${commitLabel}
+${sceneAnchor}
 
 Answer questions about the world's characters, locations, threads, and lore. Explain what was introduced when, identify gaps or contradictions, or discuss how the world has evolved. Be concise and specific.
 
 ${ctx}`;
     }
 
-    const ctx = narrativeContext(
-      state.activeNarrative,
-      state.resolvedEntryKeys,
-      contextSceneIndex,
-    );
-    const sceneLabel = currentScene
-      ? `\nCURRENT SCENE: ${currentScene.id} — "${currentScene.summary}"`
-      : '';
+    const ctx = narrativeContext(n, state.resolvedEntryKeys, contextSceneIndex);
 
-    return `You are a narrative consultant for the story "${state.activeNarrative.title}". You have deep knowledge of the story's world, characters, threads, and scene history up to the current point in the timeline.
+    return `You are a narrative consultant for the story "${n.title}". You have deep knowledge of the story's world, characters, threads, and scene history up to the current point in the timeline.
+${sceneAnchor}
 
 Answer questions about the narrative, suggest story directions, analyze character dynamics, identify plot holes, or discuss themes. Be concise and specific, referencing characters and events by name. When suggesting directions, consider the existing threads and their maturity.
-
-You are viewing the story at scene ${contextSceneIndex + 1} of ${state.resolvedEntryKeys.length}.${sceneLabel}
 
 ${ctx}`;
   }, [state.activeNarrative, state.resolvedEntryKeys, contextSceneIndex, contextMode]);
