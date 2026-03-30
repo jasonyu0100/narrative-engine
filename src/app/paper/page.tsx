@@ -99,31 +99,104 @@ function ShapeCurve({
   );
 }
 
-const ARC_BREAKDOWN_ROWS = [
-  { call: "generateScenes", count: "1", input: "~40K", output: "~4K", reasoning: "~2K", cost: "$0.027", model: "2.5 Flash" },
-  { call: "generateScenePlan", count: "5", input: "~28K", output: "~250", reasoning: "~2K", cost: "$0.104", model: "3 Flash" },
-  { call: "generateSceneProse", count: "5", input: "~35K", output: "~4K", reasoning: "~2K", cost: "$0.177", model: "3 Flash" },
-  { call: "refreshDirection", count: "1", input: "~32K", output: "~300", reasoning: "~2K", cost: "$0.015", model: "2.5 Flash" },
-  { call: "Other", count: "3", input: "~25K", output: "~250", reasoning: "~2K", cost: "$0.039", model: "2.5 Flash" },
+// ── Cost calculation reference ────────────────────────────────────────────────
+// 2.5 Flash: $0.30/M input, $2.50/M output+reasoning — structure, planning, analysis
+// 3 Flash:   $0.50/M input, $3.00/M output+reasoning — prose only
+//
+// GENERATION (per arc, ~5 scenes):
+//   generateScenes      1× 2.5F  40K in + 4K out + 2K rsn  = $0.03
+//   generateScenePlan   5× 2.5F  28K in + 0.5K out + 2K rsn = $0.07
+//   generateSceneProse  5× 3F    35K in + 4K out + 2K rsn   = $0.18
+//   refreshDirection    1× 2.5F  32K in + 0.3K out + 2K rsn = $0.02
+//   expandWorld         1× 2.5F  25K in + 0.6K out + 1K rsn = $0.01
+//   phaseCompletionRpt  1× 2.5F  25K in + 0.3K out + 1K rsn = $0.01
+//   generatePhaseDir    1× 2.5F  28K in + 0.5K out + 1K rsn = $0.01
+//                                                    Total  = $0.33/arc
+//
+// EVALUATION & REVISION (per arc, ~5 scenes, 25% edit rate):
+//   evaluateBranch        1× 2.5F  12K in + 2K out + 2K rsn         = $0.01
+//   editScene            ~1× 2.5F  30K in + 0.5K out + 1K rsn       = $0.01
+//   evaluateProseQuality  1× 2.5F  10K in + 0.5K out + 1K rsn       = $0.01
+//   rewriteSceneProse    ~1× 3F    35K in + 4K out + 2K rsn          = $0.03
+//                                                    Total  ≈ $0.06/arc
+// (rewriteSceneProse in StoryReader is spot-fix only — not in this estimate)
+//
+// ANALYSIS (per corpus, no reasoning):
+//   analyzeChunkParallel  N× 2.5F  8K in + 2K out × N chunks = ~$0.01/chunk
+//   revEngScenePlan       N× 2.5F  3K in + 0.5K out × N scenes = ~$0.002/scene (optional)
+//   reconcileResults      1× 2.5F  5K in + 1K out = ~$0.004 (once)
+//   assembleNarrative     1× 2.5F  35K in + 2K out = ~$0.016 (once)
+//   100K novel (25 chunks, no plans):  25×$0.010 + $0.004 + $0.016 = ~$0.24
+//   500K series (125 chunks, no plans): 125×$0.010 + $0.004 + $0.016 = ~$1.12
+
+type BreakdownRow = { call: string; count: string; model: '2.5 Flash' | '3 Flash'; note: string; cost: string };
+type BreakdownCategory = { label: string; unit: string; rows: BreakdownRow[]; subtotal: { calls: string; cost: string } | null };
+
+const BREAKDOWN_CATEGORIES: BreakdownCategory[] = [
+  {
+    label: 'Generation',
+    unit: 'per arc  ·  ~5 scenes',
+    rows: [
+      { call: 'generateScenes',          count: '×1',  model: '2.5 Flash', note: 'Scene structures & mutations',           cost: '$0.03' },
+      { call: 'generateScenePlan',        count: '×5',  model: '2.5 Flash', note: 'Beat plan per scene',                    cost: '$0.07' },
+      { call: 'generateSceneProse',       count: '×5',  model: '3 Flash',   note: '~1K words of prose per scene',           cost: '$0.18' },
+      { call: 'refreshDirection',         count: '×1',  model: '2.5 Flash', note: 'Arc direction & constraints',             cost: '$0.02' },
+      { call: 'expandWorld',              count: '×1',  model: '2.5 Flash', note: 'New characters, locations & threads',    cost: '$0.01' },
+      { call: 'phaseCompletionReport',    count: '×1',  model: '2.5 Flash', note: 'Phase retrospective',                    cost: '$0.01' },
+      { call: 'generatePhaseDirection',   count: '×1',  model: '2.5 Flash', note: 'Next phase objectives & constraints',    cost: '$0.01' },
+    ],
+    subtotal: { calls: '15 calls', cost: '$0.33' },
+  },
+  {
+    label: 'Evaluation & Revision',
+    unit: 'per arc  ·  ~5 scenes  ·  25% edit rate',
+    rows: [
+      { call: 'evaluateBranch',       count: '×1',  model: '2.5 Flash', note: 'Structure verdicts + thematic critique',  cost: '$0.01' },
+      { call: 'editScene',            count: '×~1', model: '2.5 Flash', note: 'Scene structure edit (summary + mutations)', cost: '$0.01' },
+      { call: 'evaluateProseQuality', count: '×1',  model: '2.5 Flash', note: 'Prose quality scores + critique',         cost: '$0.01' },
+      { call: 'rewriteSceneProse',    count: '×~1', model: '3 Flash',   note: '~1K words rewritten (25% rate)',          cost: '$0.03' },
+    ],
+    subtotal: { calls: '~4 calls', cost: '~$0.06' },
+  },
+  {
+    label: 'Analysis',
+    unit: 'per arc  ·  ~5K words  ·  no reasoning',
+    rows: [
+      { call: 'analyzeChunkParallel',       count: '×~1', model: '2.5 Flash', note: 'Text extraction',                            cost: '~$0.01' },
+      { call: 'reverseEngineerScenePlan',   count: '×~5', model: '2.5 Flash', note: 'Beat plan per scene (optional)',              cost: '~$0.01' },
+      { call: 'reconcileResults',           count: '×1',  model: '2.5 Flash', note: 'Entity deduplication — once per corpus',     cost: '~$0.01' },
+      { call: 'assembleNarrative',          count: '×1',  model: '2.5 Flash', note: 'Rules, world systems, profile — once',       cost: '~$0.02' },
+    ],
+    subtotal: { calls: '~8 calls', cost: '~$0.05' },
+  },
 ];
+
+function ModelPill({ model }: { model: '2.5 Flash' | '3 Flash' }) {
+  return (
+    <span className={`text-[9px] px-1.5 py-0.5 rounded font-mono whitespace-nowrap ${
+      model === '3 Flash'
+        ? 'bg-amber-500/10 text-amber-400/60'
+        : 'bg-emerald-500/10 text-emerald-400/60'
+    }`}>{model}</span>
+  );
+}
 
 function CostEstimates() {
   const [showBreakdown, setShowBreakdown] = useState(false);
   return (
-    <div className="my-5 px-3 sm:px-5 py-4 rounded-lg bg-white/[0.03] border border-white/6">
+    <div className="my-5 px-3 sm:px-5 py-4 rounded-lg bg-white/3 border border-white/6">
       <span className="text-[10px] uppercase tracking-wider text-white/20 block mb-3 font-mono">
-        End-to-End Estimates (~5 scenes/arc, ~1K words/scene)
+        End-to-End Estimates  ·  ~5 scenes/arc  ·  ~1K words/scene
       </span>
+
+      {/* Generation estimates */}
       <div className="space-y-2 text-[11px] text-white/45">
         {[
-          { scale: "Short (~2 arcs, ~10 scenes, ~10K words)", cost: "~$0.73" },
-          { scale: "Story (~7 arcs, ~35 scenes, ~35K words)", cost: "~$2.54" },
-          { scale: "Novel (~17 arcs, ~85 scenes, ~85K words)", cost: "~$6.17" },
-          { scale: "Epic (~40 arcs, ~200 scenes, ~200K words)", cost: "~$14.52" },
-          { scale: "Serial (~100 arcs, ~500 scenes, ~500K words)", cost: "~$36.30" },
-          { scale: "Analysis of existing 100K-word novel (no reasoning)", cost: "~$0.24" },
-          { scale: "Analysis of existing 500K-word series (no reasoning)", cost: "~$1.12" },
-          { scale: "Evaluation — structure + prose (per branch)", cost: "~$0.05" },
+          { scale: "Short story (~10K words)",  cost: "~$0.66"  },
+          { scale: "Novella (~35K words)",       cost: "~$2.30"  },
+          { scale: "Novel (~85K words)",         cost: "~$5.60"  },
+          { scale: "Epic (~200K words)",         cost: "~$13.20" },
+          { scale: "Serial (~500K words)",       cost: "~$33.00" },
         ].map(({ scale, cost }, i) => (
           <div key={scale} className={`flex justify-between${i > 0 ? ' border-t border-white/5 pt-2' : ''}`}>
             <span>{scale}</span>
@@ -131,59 +204,76 @@ function CostEstimates() {
           </div>
         ))}
       </div>
+
+      {/* Analysis + revision estimates */}
+      <div className="mt-3 pt-3 border-t border-white/8 space-y-2 text-[11px] text-white/35">
+        {[
+          { scale: "Analyze existing 100K-word novel",          cost: "~$0.24"  },
+          { scale: "Analyze existing 500K-word series",         cost: "~$1.12"  },
+          { scale: "Evaluate + reconstruct (per branch)",       cost: "~$0.10"  },
+          { scale: "Prose quality loop (per scene)",            cost: "~$0.04"  },
+        ].map(({ scale, cost }, i) => (
+          <div key={scale} className={`flex justify-between${i > 0 ? ' border-t border-white/5 pt-2' : ''}`}>
+            <span>{scale}</span>
+            <span className="font-mono text-white/50">{cost}</span>
+          </div>
+        ))}
+      </div>
+
       <p className="text-[10px] text-white/25 mt-3">
-        Structure &amp; analysis: Gemini 2.5 Flash ($0.30/M input, $2.50/M output &amp; reasoning).
-        Plans &amp; prose: Gemini 3 Flash ($0.50/M input, $3.00/M output &amp; reasoning).
-        Low reasoning (~2K tokens/call). Cost per arc is constant once the story exceeds the 50-scene time horizon.
+        Structure, planning &amp; analysis: <span className="text-emerald-500/40">Gemini 2.5 Flash</span> ($0.30/M in · $2.50/M out+reasoning).
+        Prose only: <span className="text-amber-500/40">Gemini 3 Flash</span> ($0.50/M in · $3.00/M out+reasoning).
+        Generation cost per arc is constant once the story exceeds the 50-scene context window.
       </p>
 
       <button
         onClick={() => setShowBreakdown(!showBreakdown)}
         className="mt-3 flex items-center gap-1.5 text-[10px] text-white/25 hover:text-white/40 transition-colors cursor-pointer"
       >
-        <svg
-          width="10" height="10" viewBox="0 0 12 12"
-          className={`transition-transform duration-200 ${showBreakdown ? 'rotate-180' : ''}`}
-        >
+        <svg width="10" height="10" viewBox="0 0 12 12" className={`transition-transform duration-200 ${showBreakdown ? 'rotate-180' : ''}`}>
           <path d="M3 4.5L6 7.5L9 4.5" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
         </svg>
-        <span>Per-arc breakdown (15 calls &middot; $0.36/arc)</span>
+        <span>Per-arc breakdown</span>
       </button>
 
       {showBreakdown && (
-        <div className="overflow-x-auto mt-3 pt-3 border-t border-white/5">
-          <table className="w-full text-[11px]">
-            <thead>
-              <tr className="text-white/30 text-left">
-                <th className="pb-2 font-mono font-normal">Call</th>
-                <th className="pb-2 font-mono font-normal text-right">Count</th>
-                <th className="pb-2 font-mono font-normal text-right">Avg Input</th>
-                <th className="pb-2 font-mono font-normal text-right">Avg Output</th>
-                <th className="pb-2 font-mono font-normal text-right">Avg Reasoning</th>
-                <th className="pb-2 font-mono font-normal text-right">Cost</th>
-              </tr>
-            </thead>
-            <tbody className="text-white/45">
-              {ARC_BREAKDOWN_ROWS.map(({ call, count, input, output, reasoning, cost }) => (
-                <tr key={call} className="border-t border-white/5">
-                  <td className="py-1.5 text-white/50 font-mono">{call}</td>
-                  <td className="py-1.5 text-right font-mono">{count}</td>
-                  <td className="py-1.5 text-right font-mono">{input}</td>
-                  <td className="py-1.5 text-right font-mono">{output}</td>
-                  <td className="py-1.5 text-right font-mono">{reasoning}</td>
-                  <td className="py-1.5 text-right font-mono">{cost}</td>
-                </tr>
-              ))}
-              <tr className="border-t border-white/10">
-                <td className="py-1.5 text-white/60 font-medium">Total per arc</td>
-                <td className="py-1.5 text-right font-mono text-white/60">15</td>
-                <td className="py-1.5 text-right font-mono text-white/60">~462K</td>
-                <td className="py-1.5 text-right font-mono text-white/60">~26K</td>
-                <td className="py-1.5 text-right font-mono text-white/60">~30K</td>
-                <td className="py-1.5 text-right font-mono text-white/60">$0.36</td>
-              </tr>
-            </tbody>
-          </table>
+        <div className="mt-3 pt-3 border-t border-white/5 space-y-5">
+          {BREAKDOWN_CATEGORIES.map((cat) => (
+            <div key={cat.label}>
+              {/* Category header */}
+              <div className="flex items-baseline gap-2 mb-1.5">
+                <span className="text-[10px] font-mono text-white/50 uppercase tracking-wider">{cat.label}</span>
+                <span className="text-[9px] text-white/20">{cat.unit}</span>
+              </div>
+              <table className="w-full text-[11px] table-fixed">
+                <colgroup>
+                  <col className="w-[28%]" />
+                  <col className="w-[6%]" />
+                  <col className="w-[14%]" />
+                  <col className="w-[38%]" />
+                  <col className="w-[14%]" />
+                </colgroup>
+                <tbody>
+                  {cat.rows.map((row) => (
+                    <tr key={row.call} className="border-t border-white/4">
+                      <td className="py-1.5 font-mono text-white/50 pr-3 truncate">{row.call}</td>
+                      <td className="py-1.5 font-mono text-white/25 text-right pr-3">{row.count}</td>
+                      <td className="py-1.5 pr-3"><ModelPill model={row.model} /></td>
+                      <td className="py-1.5 text-white/30 text-[10px] pr-3">{row.note}</td>
+                      <td className="py-1.5 font-mono text-white/55 text-right">{row.cost}</td>
+                    </tr>
+                  ))}
+                  {cat.subtotal && (
+                    <tr className="border-t border-white/10">
+                      <td className="pt-1.5 text-white/40 font-mono text-[10px]" colSpan={3}>{cat.subtotal.calls}</td>
+                      <td />
+                      <td className="pt-1.5 font-mono text-white/60 text-right font-semibold">{cat.subtotal.cost}</td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          ))}
         </div>
       )}
     </div>
