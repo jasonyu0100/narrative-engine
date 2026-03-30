@@ -524,74 +524,91 @@ function JobDetail({ job }: { job: AnalysisJob }) {
               )}
             </div>
 
-            {/* Plans phase: scene list, or stream for selected scene */}
+            {/* Plans phase — mirrors extraction layout exactly */}
             {isPlanExtracting ? (
               <div className="flex-1 flex flex-col min-h-0">
-                {selectedPlanKey !== null && activePlanStream ? (
-                  <>
-                    <div className="shrink-0 px-2 py-1.5 border-b border-white/4 flex items-center gap-2">
-                      <button
-                        onClick={() => setSelectedPlanKey(null)}
-                        className="text-[9px] text-white/25 hover:text-white/50 transition font-mono"
-                      >
-                        ← scenes
-                      </button>
-                    </div>
-                    <pre
-                      ref={streamRef}
-                      className="flex-1 text-[10px] text-white/20 font-mono px-3 py-2 overflow-y-auto leading-relaxed whitespace-pre-wrap break-all"
-                      style={{ scrollbarWidth: 'thin' }}
-                    >
-                      {activePlanStream}
-                    </pre>
-                  </>
-                ) : (
-                  <div className="flex-1 overflow-y-auto py-1" style={{ scrollbarWidth: 'thin' }}>
-                    {allExtractedScenes.map((scene, si) => {
-                      const isInFlight = planInFlightSet.has(scene.key);
-                      const hasPlan = !!scene.plan;
+                {/* In-flight scene tabs */}
+                {planInFlightKeys.length > 0 && (
+                  <div className="shrink-0 px-2 py-1.5 border-b border-white/4 flex gap-1 overflow-x-auto" style={{ scrollbarWidth: 'thin' }}>
+                    {planInFlightKeys.map((key) => {
+                      const si = allExtractedScenes.findIndex((s) => s.key === key);
                       return (
                         <button
-                          key={scene.key}
-                          onClick={() => setSelectedPlanKey(selectedPlanKey === scene.key ? null : scene.key)}
-                          disabled={!hasPlan && !isInFlight}
-                          className={`w-full text-left px-3 py-2 transition-all flex items-start gap-2 border-b border-white/3 last:border-0 ${
-                            hasPlan ? 'hover:bg-indigo-500/8 cursor-pointer'
-                            : isInFlight ? 'bg-indigo-400/4 cursor-pointer'
-                            : 'opacity-40 cursor-default'
+                          key={key}
+                          onClick={() => setSelectedPlanKey(key)}
+                          className={`flex items-center gap-1.5 px-2 py-1 rounded text-[10px] font-mono transition shrink-0 ${
+                            selectedPlanKey === key
+                              ? 'bg-indigo-400/15 text-indigo-400/70 ring-1 ring-indigo-400/20'
+                              : 'bg-white/3 text-white/25 hover:text-white/40'
                           }`}
                         >
-                          {isInFlight ? (
-                            <svg className="w-2.5 h-2.5 text-indigo-400/50 animate-spin shrink-0 mt-0.5" viewBox="0 0 24 24" fill="none">
-                              <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="2.5" opacity="0.2" />
-                              <path d="M12 2a10 10 0 0 1 10 10" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" />
-                            </svg>
-                          ) : hasPlan ? (
-                            <div className="w-2 h-2 rounded-full bg-indigo-400/40 shrink-0 mt-1" />
-                          ) : (
-                            <div className="w-2 h-2 rounded-full border border-white/10 shrink-0 mt-1" />
-                          )}
-                          <div className="min-w-0 flex-1">
-                            <div className={`text-[10px] font-medium truncate ${hasPlan ? 'text-white/50' : isInFlight ? 'text-indigo-400/40' : 'text-white/15'}`}>
-                              {si + 1}. {scene.povName || `Scene ${si + 1}`}
-                            </div>
-                            {scene.summary && (
-                              <div className="text-[9px] text-white/18 leading-snug mt-0.5 line-clamp-2">{scene.summary}</div>
-                            )}
-                            {hasPlan && (
-                              <div className="text-[8px] text-indigo-400/30 font-mono mt-0.5">{scene.plan!.beats.length} beats</div>
-                            )}
-                          </div>
+                          <svg className="w-2.5 h-2.5 animate-spin" viewBox="0 0 24 24" fill="none">
+                            <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="2.5" opacity="0.2" />
+                            <path d="M12 2a10 10 0 0 1 10 10" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" />
+                          </svg>
+                          {si + 1}
                         </button>
                       );
                     })}
+                  </div>
+                )}
+
+                {/* Stream output for selected scene */}
+                {selectedPlanKey !== null && activePlanStream ? (
+                  <pre
+                    ref={streamRef}
+                    className="flex-1 text-[10px] text-white/20 font-mono px-3 py-2 overflow-y-auto leading-relaxed whitespace-pre-wrap break-all"
+                    style={{ scrollbarWidth: 'thin' }}
+                  >
+                    <span className="text-white/8 select-none">scene {(allExtractedScenes.findIndex((s) => s.key === selectedPlanKey) + 1)} &gt; </span>
+                    {activePlanStream}
+                  </pre>
+                ) : (
+                  /* Grid of all scenes */
+                  <div className="flex-1 overflow-y-auto px-3 py-3" style={{ scrollbarWidth: 'thin' }}>
+                    <div className="grid grid-cols-2 gap-1.5">
+                      {allExtractedScenes.map((scene, si) => {
+                        const isInFlight = planInFlightSet.has(scene.key);
+                        const hasPlan = !!scene.plan;
+                        return (
+                          <div
+                            key={scene.key}
+                            onClick={() => isInFlight ? setSelectedPlanKey(scene.key) : undefined}
+                            className={`flex items-center gap-2 px-2 py-1.5 rounded text-[10px] font-mono transition-all ${
+                              hasPlan ? 'bg-indigo-500/8' : isInFlight ? 'bg-indigo-400/8 cursor-pointer hover:bg-indigo-400/12' : 'bg-white/2'
+                            }`}
+                          >
+                            {isInFlight ? (
+                              <svg className="w-3 h-3 text-indigo-400/50 animate-spin shrink-0" viewBox="0 0 24 24" fill="none">
+                                <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="2.5" opacity="0.2" />
+                                <path d="M12 2a10 10 0 0 1 10 10" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" />
+                              </svg>
+                            ) : hasPlan ? (
+                              <svg className="w-3 h-3 text-indigo-400/50 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                                <polyline points="20 6 9 17 4 12" />
+                              </svg>
+                            ) : (
+                              <div className="w-3 h-3 rounded-full border border-white/8 shrink-0" />
+                            )}
+                            <span className={hasPlan ? 'text-indigo-400/40' : isInFlight ? 'text-indigo-400/40' : 'text-white/10'}>
+                              {si + 1}
+                            </span>
+                            {hasPlan && (
+                              <span className="text-white/15 ml-auto text-[8px]">
+                                {scene.plan!.beats.length}b
+                              </span>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
                   </div>
                 )}
               </div>
             ) : !isReconciling && !isAssembling ? (
               /* Extraction phase: chunk stream tabs + stream viewer */
               <div className="flex-1 flex flex-col min-h-0">
-                {/* Chunk tabs — scrollable row of in-flight + recently completed */}
+                {/* In-flight chunk tabs */}
                 {inFlightIndices.length > 0 && (
                   <div className="shrink-0 px-2 py-1.5 border-b border-white/4 flex gap-1 overflow-x-auto" style={{ scrollbarWidth: 'thin' }}>
                     {inFlightIndices.map((idx) => (
@@ -625,7 +642,7 @@ function JobDetail({ job }: { job: AnalysisJob }) {
                     {activeChunkStream}
                   </pre>
                 ) : (
-                  /* Compact batch grid when no stream is active */
+                  /* Grid of all chunks */
                   <div className="flex-1 overflow-y-auto px-3 py-3" style={{ scrollbarWidth: 'thin' }}>
                     <div className="grid grid-cols-2 gap-1.5">
                       {liveJob.chunks.map((_, i) => {
@@ -1189,25 +1206,26 @@ function NewJobSetup({ sourceText, onCreated }: { sourceText: string; onCreated:
         </div>
 
         {/* Beat plan toggle */}
-        <button
-          onClick={() => setExtractPlans((v) => !v)}
-          className="flex items-center gap-3 w-full text-left group py-0.5"
-        >
-          <div className={`relative w-9 h-5 rounded-full transition-colors shrink-0 ${extractPlans ? 'bg-indigo-500/40' : 'bg-white/8 group-hover:bg-white/12'}`}>
-            <div className={`absolute top-0.5 bottom-0.5 aspect-square rounded-full transition-all duration-200 ${extractPlans ? 'bg-indigo-400 left-[calc(100%-1.125rem)]' : 'bg-white/25 left-0.5'}`} />
+        <label className="flex items-center gap-2.5 cursor-pointer group">
+          <div
+            onClick={() => setExtractPlans((v) => !v)}
+            className={`w-3.5 h-3.5 rounded-sm border transition shrink-0 flex items-center justify-center ${
+              extractPlans ? 'bg-indigo-500/50 border-indigo-400/60' : 'bg-white/4 border-white/15 group-hover:border-white/25'
+            }`}
+          >
+            {extractPlans && (
+              <svg className="w-2.5 h-2.5 text-indigo-300" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="2 5 4 7 8 3" />
+              </svg>
+            )}
           </div>
-          <div className="min-w-0">
-            <div className={`text-[11px] font-medium transition ${extractPlans ? 'text-indigo-300' : 'text-white/40 group-hover:text-white/60'}`}>
-              Extract beat plans
-            </div>
-            <div className="text-[10px] text-white/20 leading-snug mt-0.5">
-              Reverse-engineer structural beat sequences from each scene's prose — one extra LLM call per scene
-            </div>
-          </div>
-        </button>
+          <span className={`text-[11px] transition select-none ${extractPlans ? 'text-white/60' : 'text-white/30 group-hover:text-white/45'}`}>
+            Extract beat plans <span className="text-white/20">· +1 LLM call per scene</span>
+          </span>
+        </label>
 
         <div className="text-[11px] text-white/20 leading-relaxed">
-          {chunks.length} chunks analyzed in parallel — extracts characters, locations, threads, scenes, and world knowledge, then reconciles and assembles.{extractPlans ? ' Beat plan extraction runs as a second pass after structural analysis.' : ''}
+          {chunks.length} chunks analyzed in parallel — extracts characters, locations, threads, scenes, and world knowledge, then reconciles and assembles.
         </div>
 
         <div className="flex gap-2">
