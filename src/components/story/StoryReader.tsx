@@ -733,7 +733,7 @@ export function StoryReader({
                 )}
 
                 {/* Mutations summary */}
-                {(scene.threadMutations.length > 0 || scene.continuityMutations.length > 0 || scene.relationshipMutations.length > 0) && (
+                {(scene.threadMutations.length > 0 || scene.continuityMutations.length > 0 || scene.relationshipMutations.length > 0 || (scene.worldKnowledgeMutations && (scene.worldKnowledgeMutations.addedNodes.length > 0 || scene.worldKnowledgeMutations.addedEdges.length > 0))) && (
                   <div className="space-y-4">
                     {scene.threadMutations.length > 0 && (
                       <div>
@@ -760,6 +760,21 @@ export function StoryReader({
                           const fromName = narrative.characters[rm.from]?.name ?? rm.from;
                           const toName = narrative.characters[rm.to]?.name ?? rm.to;
                           return <p key={i} className="text-[11px] text-text-secondary leading-relaxed">{fromName} &rarr; {toName}: {rm.type} ({rm.valenceDelta >= 0 ? '+' : ''}{Math.round(rm.valenceDelta * 100) / 100})</p>;
+                        })}
+                      </div>
+                    )}
+                    {scene.worldKnowledgeMutations && (scene.worldKnowledgeMutations.addedNodes.length > 0 || scene.worldKnowledgeMutations.addedEdges.length > 0) && (
+                      <div>
+                        <h4 className="text-[9px] uppercase tracking-widest text-text-dim mb-2">World Knowledge</h4>
+                        {scene.worldKnowledgeMutations.addedNodes.map((n, i) => (
+                          <p key={`n${i}`} className="text-[11px] text-text-secondary leading-relaxed">{n.type}: {n.concept}</p>
+                        ))}
+                        {scene.worldKnowledgeMutations.addedEdges.map((e, i) => {
+                          const fromNode = scene.worldKnowledgeMutations!.addedNodes.find((n) => n.id === e.from) ?? narrative.worldKnowledge.nodes[e.from];
+                          const toNode = scene.worldKnowledgeMutations!.addedNodes.find((n) => n.id === e.to) ?? narrative.worldKnowledge.nodes[e.to];
+                          const fromLabel = fromNode?.concept ?? e.from;
+                          const toLabel = toNode?.concept ?? e.to;
+                          return <p key={`e${i}`} className="text-[11px] text-text-secondary leading-relaxed">{fromLabel} &rarr; {toLabel}: {e.relation}</p>;
                         })}
                       </div>
                     )}

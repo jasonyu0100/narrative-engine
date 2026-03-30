@@ -1886,7 +1886,7 @@ export default function PaperPage() {
               verdicts. <B>Reconstruction</B> creates a new versioned branch,
               applying verdicts in parallel — edits revise content, merges
               combine scenes, inserts generate new scenes to fill gaps,
-              deferred beats are removed for later, cuts are omitted. World
+              cuts are omitted. To relocate a scene: cut + insert. World
               commits pass through at their original positions. The original
               branch is never modified.
             </P>
@@ -1914,14 +1914,6 @@ export default function PaperPage() {
                 </span>
                 <span className="text-white/50">
                   Absorbed into another scene. Both scenes&apos; best elements combined into one denser beat.
-                </span>
-              </div>
-              <div className="flex gap-2 px-3 py-2 rounded-lg border border-white/6 bg-white/2">
-                <span className="text-violet-400 font-mono w-14 shrink-0">
-                  defer
-                </span>
-                <span className="text-white/50">
-                  Beat is valid but premature. Removed now, noted for reintroduction later.
                 </span>
               </div>
               <div className="flex gap-2 px-3 py-2 rounded-lg border border-white/6 bg-white/2">

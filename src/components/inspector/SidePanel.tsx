@@ -15,6 +15,7 @@ import ChatPanel from '@/components/sidebar/ChatPanel';
 import NotesPanel from '@/components/sidebar/NotesPanel';
 import BranchEval from '@/components/timeline/BranchEval';
 import ProseEval from '@/components/timeline/ProseEval';
+import PlanEval from '@/components/timeline/PlanEval';
 import { isScene, type TimelineEntry } from '@/types/narrative';
 
 type Tab = 'inspector' | 'chat' | 'notes' | 'eval';
@@ -23,7 +24,7 @@ const TAB_LABELS: Record<Tab, string> = {
   inspector: 'Inspector',
   chat: 'Chat',
   notes: 'Notes',
-  eval: 'Eval',
+  eval: 'Evaluation',
 };
 
 function getDefaultContext(state: ReturnType<typeof useStore>['state']) {
@@ -84,7 +85,7 @@ export default function SidePanel() {
   const { state } = useStore();
   const ctx = state.inspectorContext ?? getDefaultContext(state);
   const [tab, setTab] = useState<Tab>('inspector');
-  const [evalMode, setEvalMode] = useState<'branch' | 'prose'>('branch');
+  const [evalMode, setEvalMode] = useState<'branch' | 'prose' | 'plan'>('branch');
 
   function renderInspector() {
     if (!ctx) return <EmptyState />;
@@ -153,18 +154,20 @@ export default function SidePanel() {
         {tab === 'eval' && (
           <div className="flex-1 min-h-0 flex flex-col">
             <div className="shrink-0 flex border-b border-white/5">
-              {(['branch', 'prose'] as const).map((m) => (
+              {(['branch', 'plan', 'prose'] as const).map((m) => (
                 <button
                   key={m}
                   onClick={() => setEvalMode(m)}
                   className={`flex-1 text-[10px] py-1.5 font-medium transition-colors ${evalMode === m ? 'text-text-primary border-b border-accent' : 'text-text-dim hover:text-text-secondary'}`}
                 >
-                  {m === 'branch' ? 'Structure' : 'Prose'}
+                  {{ branch: 'Structure', plan: 'Plan', prose: 'Prose' }[m]}
                 </button>
               ))}
             </div>
-            <div className="flex-1 min-h-0">
-              {evalMode === 'branch' ? <BranchEval /> : <ProseEval />}
+            <div className="flex-1 min-h-0 relative">
+              <div className={`absolute inset-0 ${evalMode === 'branch' ? '' : 'hidden'}`}><BranchEval /></div>
+              <div className={`absolute inset-0 ${evalMode === 'plan' ? '' : 'hidden'}`}><PlanEval /></div>
+              <div className={`absolute inset-0 ${evalMode === 'prose' ? '' : 'hidden'}`}><ProseEval /></div>
             </div>
           </div>
         )}

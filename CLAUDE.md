@@ -9,7 +9,7 @@ Narratives are modelled as a **knowledge graph** that mutates scene by scene. An
 - **Markov chain pacing** — transition matrices derived from published works shape scene-by-scene rhythm
 - **MCTS search** — explores branching narrative paths, each expansion guided by a fresh Markov pacing sequence
 - **Planning with course correction** — direction vectors rewritten after each arc based on thread tension, character cost, rhythm, freshness, momentum
-- **Iterative revision** — evaluate branches by summary → per-scene verdicts (ok/edit/merge/insert/defer/cut) → reconstruct versioned branches
+- **Iterative revision** — evaluate branches by summary → per-scene verdicts (ok/edit/merge/insert/cut) → reconstruct versioned branches
 - **Analysis engine** — compiles existing text into arcs and scenes via chunked window-function processing
 - **Pacing presets** — curated cube position sequences that bypass Markov sampling for targeted arcs
 
@@ -91,7 +91,7 @@ src/
 - **Scene** — povId, locationId, participantIds, events, threadMutations, continuityMutations, relationshipMutations, characterMovements, plan, prose, proseScore
 - **Thread** — trackable narrative threads with lifecycle status; mutations record payoff/change per scene
 - **Branch** — git-like branching for story timelines; entryIds interleave scenes + world commits
-- **BranchEvaluation** — per-scene verdicts (ok/edit/merge/insert/defer/cut), overall critique, repetition patterns, thematic question
+- **BranchEvaluation** — per-scene verdicts (ok/edit/merge/insert/cut), overall critique, repetition patterns, thematic question
 - **Arc** — world-building arcs that group scenes and expand the narrative world
 - **CubeCorner** — one of 8 narrative modes defined by high/low combinations of the three forces
 
@@ -154,8 +154,7 @@ Stories are divided into **phases** with objectives and scene allocations. When 
 - **edit** — revise content — may change POV, location, participants, mutations, summary
 - **merge** — absorbed into another scene, combining both into one denser beat
 - **insert** — new scene generated to fill a pacing gap, missing transition, or stalled thread
-- **defer** — valid beat but premature, removed and carried forward for later
-- **cut** — redundant, remove entirely
+- **cut** — redundant, remove entirely (to relocate a scene: cut + insert at new position)
 
 **Reconstruction** creates a new versioned branch (v2, v3, v4...), applying verdicts in parallel. World commits pass through at original positions. Supports external guidance (paste feedback from another AI or human editor). Converges in 2–3 passes.
 

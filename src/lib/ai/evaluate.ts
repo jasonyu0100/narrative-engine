@@ -1,4 +1,4 @@
-import type { NarrativeState, BranchEvaluation, ProseEvaluation, ProseSceneEval, SceneEval, SceneVerdict, Scene, Arc } from '@/types/narrative';
+import type { NarrativeState, BranchEvaluation, ProseEvaluation, ProseSceneEval, PlanEvaluation, PlanSceneEval, SceneEval, SceneVerdict, Scene, Arc } from '@/types/narrative';
 import { resolveEntry, isScene, REASONING_BUDGETS } from '@/types/narrative';
 import { callGenerate, SYSTEM_PROMPT } from './api';
 import { parseJson } from './json';
@@ -52,7 +52,7 @@ export async function evaluateBranch(
   // Build a compact scene list — summaries only
   const sceneBlock = sceneSummaries
     .map((s) => `[${s.idx}] ${s.id} | Arc: "${s.arc}" | POV: ${s.pov} | Loc: ${s.location}\n    ${s.summary}`)
-    .join('\n');
+    .join('\n────────────────────────────────\n');
 
   // Thread overview for context
   const threads = Object.values(narrative.threads);
@@ -94,15 +94,16 @@ For EACH scene, assign a verdict. These map to concrete operations:
 - "edit" — scene should exist but needs revision. You may change ANYTHING: POV, location, participants, summary, events, mutations. Use for: wrong POV for this moment, repetitive beats that need variation, weak execution, continuity breaks, scenes that need restructuring while keeping their place in the timeline.
 - "merge" — this scene covers the same beat as another and should be ABSORBED into the stronger one. You MUST specify "mergeInto" with the target scene ID. The two become one denser scene. Use when two scenes advance the same thread with similar dramatic shape.
 - "cut" — scene is redundant and adds nothing. The story is tighter without it.
-- "defer" — good beat, wrong timing. This scene should be removed from the current arc and carried forward as a priority for the next arc. You MUST specify "deferredBeat" describing what should happen later. Use when a scene introduces something that would land better after other events have played out.
 - "insert" — a new scene should be CREATED at this position to fill a pacing gap, advance a stalled thread, or add a missing beat. You MUST specify "insertAfter" with the scene ID it follows. The "reason" field is the generation brief: describe what happens, who is involved, the location, which threads advance, and any specific beats. The "sceneId" should be a placeholder like "INSERT-1", "INSERT-2", etc.
+
+To RELOCATE a scene (move it earlier or later): "cut" it from its current position and "insert" the same beat at the desired position. This is how reordering works.
 
 STRUCTURAL OPERATIONS GUIDE:
 - If 5 scenes cover the same beat: keep the strongest as "ok", merge 1-2 into it, cut the rest.
 - If a thread has 8 scenes but only 3 distinct beats: merge within each beat, cut the remainder.
-- If a scene is fine but premature: defer it so the next arc can execute it with proper setup.
+- If a scene is premature: cut it and insert the beat at the right position later in the timeline.
 - If there is a missing transition, an unearned payoff, or a thread that needs setup before it pays off: insert a new scene at the right position.
-- "mergeInto" must reference a scene that is NOT itself cut/merged/deferred.
+- "mergeInto" must reference a scene that is NOT itself cut/merged.
 - Prefer merge over cut when the weaker scene has unique content worth absorbing.
 - Use insert sparingly — only when the gap is structural, not cosmetic.
 
@@ -120,7 +121,7 @@ Before writing reasons, mentally map the full set of changes you're proposing an
 
 RULES FOR EDIT REASONS:
 - If scene A's edit removes, adds, or changes a fact that scene B depends on, scene B's reason MUST say: "Note: [scene A] is being edited to [specific change] — this scene must be consistent with that."
-- If two scenes currently contradict each other, decide which edit is authoritative and make the other defer to it explicitly in its reason.
+- If two scenes currently contradict each other, decide which edit is authoritative and make the other move to it explicitly in its reason.
 - If a scene is being cut or merged, any surviving scene that referenced it must have a reason that accounts for its removal.
 - Edit reasons are instructions to a rewriter who cannot see the rest of the branch. Make them complete.
 
@@ -128,7 +129,7 @@ Return JSON:
 {
   "overall": "3-5 paragraph critique. Name scenes, characters, patterns. End with the thematic question.",
   "sceneEvals": [
-    { "sceneId": "SC-001", "verdict": "ok|edit|merge|cut|defer|insert", "reason": "For edit: 1-3 sentences instructing the rewriter. For insert: full generation brief — what happens, who, where, which threads. For merge/cut/defer: one sentence.", "mergeInto": "SC-XXX (merge only)", "deferredBeat": "description (defer only)", "insertAfter": "SC-XXX (insert only)" }
+    { "sceneId": "SC-001", "verdict": "ok|edit|merge|cut|insert", "reason": "For edit: 1-3 sentences instructing the rewriter. For insert: full generation brief — what happens, who, where, which threads. For merge/cut: one sentence.", "mergeInto": "SC-XXX (merge only)", "insertAfter": "SC-XXX (insert only)" }
   ],
   "repetitions": ["pattern 1", "pattern 2"],
   "thematicQuestion": "The human question underneath the plot"
@@ -143,35 +144,29 @@ Every scene must appear in sceneEvals. Use the exact scene IDs from above.${guid
   try {
     const parsed = parseJson(raw, 'evaluateBranch') as {
       overall?: string;
-      sceneEvals?: { sceneId?: string; verdict?: string; reason?: string; mergeInto?: string; deferredBeat?: string; insertAfter?: string }[];
+      sceneEvals?: { sceneId?: string; verdict?: string; reason?: string; mergeInto?: string; insertAfter?: string }[];
       repetitions?: string[];
       thematicQuestion?: string;
     };
 
-    const validVerdicts = new Set<SceneVerdict>(['ok', 'edit', 'merge', 'cut', 'defer', 'insert']);
+    const validVerdicts = new Set<SceneVerdict>(['ok', 'edit', 'merge', 'cut', 'insert']);
     const sceneEvals: SceneEval[] = (parsed.sceneEvals ?? [])
       .filter((e) => e.sceneId && (narrative.scenes[e.sceneId] || e.verdict === 'insert'))
       .map((e) => {
-        // Accept 'rewrite' from older models and map to 'edit'
-        let rawVerdict = e.verdict as string;
-        if (rawVerdict === 'rewrite') rawVerdict = 'edit';
+        const rawVerdict = e.verdict as string;
         const verdict = validVerdicts.has(rawVerdict as SceneVerdict) ? (rawVerdict as SceneVerdict) : 'ok';
         const eval_: SceneEval = { sceneId: e.sceneId!, verdict, reason: e.reason ?? '' };
         if (verdict === 'merge') {
-          // Validate merge target: must exist AND not itself be cut/merged/deferred
           const targetEval = parsed.sceneEvals?.find((t) => t.sceneId === e.mergeInto);
           const targetVerdict = targetEval?.verdict;
           const targetInvalid = !e.mergeInto || !narrative.scenes[e.mergeInto]
-            || targetVerdict === 'cut' || targetVerdict === 'merge' || targetVerdict === 'defer';
+            || targetVerdict === 'cut' || targetVerdict === 'merge';
           if (targetInvalid) {
             eval_.verdict = 'cut';
             eval_.reason = `${eval_.reason} (merge target invalid or also removed, converted to cut)`;
           } else {
             eval_.mergeInto = e.mergeInto;
           }
-        }
-        if (verdict === 'defer') {
-          eval_.deferredBeat = e.deferredBeat ?? eval_.reason;
         }
         if (verdict === 'insert') {
           eval_.insertAfter = e.insertAfter;
@@ -252,8 +247,8 @@ ${profile.rules?.length ? `Rules:\n${profile.rules.map((r) => `  - ${r}`).join('
 
   // Build scene blocks with prose
   const sceneBlocks = scenesWithProse.map((s) =>
-    `[${s.id}] POV: ${s.pov} | Loc: ${s.location} | ${s.wordCount} words\nSummary: ${s.summary}\n---\n${s.prose}\n---`
-  ).join('\n\n');
+    `[${s.id}] POV: ${s.pov} | Loc: ${s.location} | ${s.wordCount} words\nSummary: ${s.summary}\n${s.prose}`
+  ).join('\n\n════════════════════════════════\n\n');
 
   const prompt = `You are a prose editor reviewing the actual written prose of a serialized narrative. You have both summaries and full prose text. Evaluate prose QUALITY — not plot structure.
 ${guidanceBlock}
@@ -322,6 +317,136 @@ Every scene with prose must appear in sceneEvals. Use the exact scene IDs.${guid
       createdAt: new Date().toISOString(),
       overall: 'Prose evaluation parse failed. Raw response logged.',
       sceneEvals: scenesWithProse.map((s) => ({ sceneId: s.id, verdict: 'ok' as const, issues: ['Parse failed — defaulted'] })),
+      patterns: [],
+    };
+  }
+}
+
+// ── Plan Quality Evaluation ─────────────────────────────────────────────────
+
+export async function evaluatePlanQuality(
+  narrative: NarrativeState,
+  resolvedKeys: string[],
+  branchId: string,
+  guidance?: string,
+): Promise<PlanEvaluation> {
+  // Collect scenes that have beat plans
+  const sceneList: Scene[] = [];
+  for (const key of resolvedKeys) {
+    const entry = resolveEntry(narrative, key);
+    if (entry && isScene(entry)) sceneList.push(entry as Scene);
+  }
+
+  const scenesWithPlans: { id: string; pov: string; location: string; beats: string }[] = [];
+  for (let i = 0; i < sceneList.length; i++) {
+    const scene = sceneList[i];
+    if (!scene.plan?.beats?.length) continue;
+    scenesWithPlans.push({
+      id: scene.id,
+      pov: narrative.characters[scene.povId]?.name ?? scene.povId,
+      location: narrative.locations[scene.locationId]?.name ?? scene.locationId,
+      beats: scene.plan.beats.map((b, j) => `  ${j + 1}. [${b.fn}:${b.mechanism}] ${b.what} — anchor: "${b.anchor}"`).join('\n'),
+    });
+  }
+
+  if (scenesWithPlans.length === 0) {
+    return {
+      id: `PLEVAL-${Date.now().toString(36)}`,
+      branchId,
+      createdAt: new Date().toISOString(),
+      overall: 'No scenes with beat plans to evaluate.',
+      sceneEvals: [],
+      patterns: [],
+    };
+  }
+
+  const threadBlock = Object.values(narrative.threads)
+    .map((t) => `${t.id}: ${t.description} [${t.status}]`).join('\n');
+
+  const charBlock = Object.values(narrative.characters)
+    .filter((c) => c.continuity?.nodes?.length)
+    .map((c) => `${c.name}: ${c.continuity!.nodes.map((n) => `${n.type}: ${n.content}`).join('; ')}`)
+    .join('\n');
+
+  const guidanceBlock = guidance?.trim()
+    ? `\nPRIORITY GUIDANCE FROM THE AUTHOR — You MUST address every point below.\n\n${guidance.trim()}`
+    : '';
+
+  const sceneBlocks = scenesWithPlans.map((s) =>
+    `[${s.id}] POV: ${s.pov} | Loc: ${s.location}\n${s.beats}`
+  ).join('\n\n────────────────────────────────\n\n');
+
+  const prompt = `You are a continuity editor reviewing beat plans. Each scene has a beat-by-beat blueprint and declared mutations. Your job: verify the BEATS are internally consistent, cross-scene continuous, and actually deliver the declared mutations.
+${guidanceBlock}
+
+TITLE: "${narrative.title}"
+
+THREADS:
+${threadBlock}
+
+CHARACTER KNOWLEDGE:
+${charBlock || '(none tracked yet)'}
+
+SCENES WITH BEAT PLANS (${scenesWithPlans.length} scenes):
+${sceneBlocks}
+
+For each scene, check:
+1. **BEAT-TO-MUTATION ALIGNMENT** — Do the beats actually show what the declared mutations claim? If a thread mutation says T-03 escalates, which specific beat delivers that escalation? If no beat does, flag it.
+2. **CROSS-PLAN CONTINUITY** — Does this plan's opening beats follow logically from the previous plan's closing beats? Character positions, emotional states, knowledge, injuries.
+3. **INTERNAL BEAT LOGIC** — Do beats within the plan follow causally? Does beat 5 depend on something beat 3 established?
+4. **CHARACTER KNOWLEDGE** — Does any beat have a character act on information they haven't learned yet in prior scenes or earlier beats?
+5. **SPATIAL/TEMPORAL** — Are characters where they should be? Can all beats plausibly occur in one scene?
+
+Verdicts:
+- "ok" — beats are consistent, mutations are earned by specific beats
+- "edit" — issues found. Each issue must reference a specific beat number and what's wrong.
+
+Be precise: "Beat 4 declares Fang Yuan recognises the seal pattern, but no prior beat or scene establishes he has seen this pattern before" — not "continuity error."
+
+Return JSON:
+{
+  "overall": "2-3 paragraph analysis focused on beat quality and mutation alignment.",
+  "sceneEvals": [
+    { "sceneId": "S-001", "verdict": "ok|edit", "issues": ["Beat N: specific issue"] }
+  ],
+  "patterns": ["recurring issue across multiple plans"]
+}
+
+Every scene with a plan must appear.${guidance?.trim() ? `\n\nREMINDER — The author asked you to address: "${guidance.trim()}".` : ''}`;
+
+  const reasoningBudget = REASONING_BUDGETS[narrative.storySettings?.reasoningLevel ?? 'low'] || undefined;
+  const raw = await callGenerate(prompt, SYSTEM_PROMPT, MAX_TOKENS_DEFAULT, 'evaluatePlanQuality', ANALYSIS_MODEL, reasoningBudget);
+
+  try {
+    const parsed = parseJson(raw, 'evaluatePlanQuality') as {
+      overall?: string;
+      sceneEvals?: { sceneId?: string; verdict?: string; issues?: string[] }[];
+      patterns?: string[];
+    };
+
+    const sceneEvals: PlanSceneEval[] = (parsed.sceneEvals ?? [])
+      .filter((e) => e.sceneId && scenesWithPlans.some((s) => s.id === e.sceneId))
+      .map((e) => ({
+        sceneId: e.sceneId!,
+        verdict: (e.verdict === 'edit' ? 'edit' : 'ok') as PlanSceneEval['verdict'],
+        issues: Array.isArray(e.issues) ? e.issues.filter((i): i is string => typeof i === 'string') : [],
+      }));
+
+    return {
+      id: `PLEVAL-${Date.now().toString(36)}`,
+      branchId,
+      createdAt: new Date().toISOString(),
+      overall: parsed.overall ?? 'Plan evaluation failed.',
+      sceneEvals,
+      patterns: parsed.patterns ?? [],
+    };
+  } catch {
+    return {
+      id: `PLEVAL-${Date.now().toString(36)}`,
+      branchId,
+      createdAt: new Date().toISOString(),
+      overall: 'Plan evaluation parse failed.',
+      sceneEvals: scenesWithPlans.map((s) => ({ sceneId: s.id, verdict: 'ok' as const, issues: ['Parse failed'] })),
       patterns: [],
     };
   }

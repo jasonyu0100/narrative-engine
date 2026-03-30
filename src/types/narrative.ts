@@ -447,7 +447,7 @@ export type ContinuityPlan = {
 // ── Branch Evaluation ─────────────────────────────────────────────────────
 
 /** Per-scene verdict from a branch evaluation pass */
-export type SceneVerdict = 'ok' | 'edit' | 'merge' | 'cut' | 'defer' | 'insert';
+export type SceneVerdict = 'ok' | 'edit' | 'merge' | 'cut' | 'insert';
 
 /** One scene's evaluation entry */
 export type SceneEval = {
@@ -457,8 +457,6 @@ export type SceneEval = {
   reason: string;
   /** For "merge" verdicts: ID of the scene to merge INTO (the surviving scene absorbs this one's content) */
   mergeInto?: string;
-  /** For "defer" verdicts: brief description of the beat to carry forward into the next arc's direction */
-  deferredBeat?: string;
   /** For "insert" verdicts: ID of the scene to insert AFTER */
   insertAfter?: string;
 };
@@ -498,6 +496,29 @@ export type ProseEvaluation = {
   /** Per-scene prose verdicts */
   sceneEvals: ProseSceneEval[];
   /** Recurring prose issues across scenes */
+  patterns: string[];
+};
+
+// ── Plan Evaluation ──────────────────────────────────────────────────────────
+
+export type PlanVerdict = 'ok' | 'edit';
+
+export type PlanSceneEval = {
+  sceneId: string;
+  verdict: PlanVerdict;
+  /** Specific continuity or structural issues found in the beat plan */
+  issues: string[];
+};
+
+export type PlanEvaluation = {
+  id: string;
+  branchId: string;
+  createdAt: string;
+  /** High-level continuity analysis */
+  overall: string;
+  /** Per-scene plan verdicts */
+  sceneEvals: PlanSceneEval[];
+  /** Recurring continuity issues across scenes */
   patterns: string[];
 };
 
@@ -583,6 +604,8 @@ export type NarrativeState = {
   branchEvaluations?: Record<string, BranchEvaluation>;
   /** Prose evaluations keyed by branch ID — most recent prose eval per branch */
   proseEvaluations?: Record<string, ProseEvaluation>;
+  /** Plan evaluations keyed by branch ID — most recent plan eval per branch */
+  planEvaluations?: Record<string, PlanEvaluation>;
   createdAt: number;
   updatedAt: number;
 };

@@ -66,7 +66,7 @@ export async function reconstructBranch(
   evaluation: BranchEvaluation,
   callbacks: ReconstructionCallbacks,
   cancelledRef: { current: boolean },
-): Promise<{ branchId: string; branch: Branch; scenes: Scene[]; arcs: Record<string, Arc>; deferredBeats: string[] }> {
+): Promise<{ branchId: string; branch: Branch; scenes: Scene[]; arcs: Record<string, Arc> }> {
   // Build verdict lookup
   const verdictMap = new Map<string, SceneEval>();
   const insertEvals: SceneEval[] = [];
@@ -131,8 +131,8 @@ export async function reconstructBranch(
     } else if (isScene(entry)) {
       const ev = verdictMap.get(entry.id);
       const verdict = ev?.verdict ?? 'ok';
-      if (verdict === 'cut' || verdict === 'merge' || verdict === 'defer') {
-        // Cut, merge-source, and deferred scenes are removed from the timeline
+      if (verdict === 'cut' || verdict === 'merge') {
+        // Cut and merge-source scenes are removed from the timeline
         cutSceneIds.push(entry.id);
         continue;
       }
@@ -241,18 +241,37 @@ export async function reconstructBranch(
   progress.phase = 'restructuring';
   callbacks.onProgress({ ...progress });
 
-  const newScenes: Scene[] = sceneEntries.map((s) => ({ ...s.scene, id: s.newId }));
-  const arcSceneMap = new Map<string, string[]>();
+  // Generate new arc IDs so reconstruction doesn't clobber the original branch's arcs
+  const allExistingArcIds = new Set(Object.keys(narrative.arcs));
+  const usedNewArcIds = new Set<string>();
+  const arcIdRemap = new Map<string, string>(); // old arc ID → new arc ID
+  const arcSceneMap = new Map<string, string[]>(); // old arc ID → new scene IDs
   for (const s of sceneEntries) {
     const list = arcSceneMap.get(s.scene.arcId) ?? [];
     list.push(s.newId);
     arcSceneMap.set(s.scene.arcId, list);
+    if (!arcIdRemap.has(s.scene.arcId)) {
+      const newArcId = nextId('ARC', [...allExistingArcIds, ...usedNewArcIds]);
+      usedNewArcIds.add(newArcId);
+      arcIdRemap.set(s.scene.arcId, newArcId);
+    }
   }
 
+  // Build scenes with remapped arc IDs
+  const newScenes: Scene[] = sceneEntries.map((s) => ({
+    ...s.scene,
+    id: s.newId,
+    arcId: arcIdRemap.get(s.scene.arcId) ?? s.scene.arcId,
+  }));
+
+  // Build arcs with new IDs, dropping empty ones
   const newArcs: Record<string, Arc> = {};
-  for (const [arcId, sceneIds] of arcSceneMap) {
-    const original = narrative.arcs[arcId];
-    if (original) newArcs[arcId] = { ...original, sceneIds };
+  for (const [oldArcId, sceneIds] of arcSceneMap) {
+    const original = narrative.arcs[oldArcId];
+    const newArcId = arcIdRemap.get(oldArcId) ?? oldArcId;
+    if (original && sceneIds.length > 0) {
+      newArcs[newArcId] = { ...original, id: newArcId, sceneIds };
+    }
   }
 
   // Branch entryIds: world builds + scenes interleaved in original order
@@ -287,7 +306,7 @@ export async function reconstructBranch(
         narrative, resolvedKeys, item.scene, mergeSources, item.reason, evaluation,
         item.index, sceneEntries,
       );
-      newScenes[item.index] = { ...merged, id: item.newId, arcId: item.scene.arcId };
+      newScenes[item.index] = { ...merged, id: item.newId, arcId: newScenes[item.index].arcId };
       callbacks.onSceneReady(newScenes[item.index], 'edited');
     } catch (err) {
       console.warn(`[reconstruct] merge failed for ${item.scene.id}:`, err);
@@ -310,7 +329,7 @@ export async function reconstructBranch(
         narrative, resolvedKeys, item.scene, item.reason, evaluation,
         item.index, sceneEntries,
       );
-      newScenes[item.index] = { ...edited, id: item.newId, arcId: item.scene.arcId };
+      newScenes[item.index] = { ...edited, id: item.newId, arcId: newScenes[item.index].arcId };
       callbacks.onSceneReady(newScenes[item.index], 'edited');
     } catch (err) {
       console.warn(`[reconstruct] edit failed for ${item.scene.id}:`, err);
@@ -331,9 +350,9 @@ export async function reconstructBranch(
     try {
       const inserted = await insertScene(
         narrative, resolvedKeys, item.reason, evaluation,
-        item.index, sceneEntries,
+        item.index,
       );
-      newScenes[item.index] = { ...inserted, id: item.newId, arcId: item.scene.arcId };
+      newScenes[item.index] = { ...inserted, id: item.newId, arcId: newScenes[item.index].arcId };
       callbacks.onSceneReady(newScenes[item.index], 'edited');
     } catch (err) {
       console.warn(`[reconstruct] insert failed for ${item.scene.id}:`, err);
@@ -347,13 +366,7 @@ export async function reconstructBranch(
   progress.phase = 'done';
   callbacks.onProgress({ ...progress, completed });
 
-  // Collect deferred beats — these should feed into the next arc's direction
-  const deferredBeats = evaluation.sceneEvals
-    .filter((ev) => ev.verdict === 'defer')
-    .map((ev) => ev.deferredBeat ?? ev.reason)
-    .filter(Boolean);
-
-  return { branchId: newBranchId, branch: newBranch, scenes: newScenes, arcs: newArcs, deferredBeats };
+  return { branchId: newBranchId, branch: newBranch, scenes: newScenes, arcs: newArcs };
 }
 
 // ── Scene summary edit (lightweight) ─────────────────────────────────────────
@@ -562,18 +575,9 @@ async function insertScene(
   brief: string,
   evaluation: BranchEvaluation,
   timelineIndex: number,
-  timeline: { scene: Scene; verdict: SceneVerdict; reason: string }[],
 ): Promise<Scene> {
   const contextIndex = Math.min(timelineIndex, resolvedKeys.length - 1);
   const ctx = branchContext(narrative, resolvedKeys, contextIndex);
-
-  const prevScene = timelineIndex > 0 ? timeline[timelineIndex - 1].scene : null;
-  const nextScene = timelineIndex < timeline.length - 1 ? timeline[timelineIndex + 1].scene : null;
-
-  const surroundingContext = [
-    prevScene ? `PREVIOUS SCENE (${prevScene.id}): ${prevScene.summary}` : '',
-    nextScene ? `NEXT SCENE (${nextScene.id}): ${nextScene.summary}` : '',
-  ].filter(Boolean).join('\n');
 
   const prompt = `${ctx}
 
@@ -583,11 +587,7 @@ GENERATION BRIEF: ${brief}
 ${evaluation.thematicQuestion ? `THEMATIC QUESTION: "${evaluation.thematicQuestion}"` : ''}
 ${evaluation.repetitions.length > 0 ? `PATTERNS TO AVOID: ${evaluation.repetitions.join('; ')}` : ''}
 
-${surroundingContext}
-
-Generate a complete scene that fits between the previous and next scenes above. The scene must:
-- Address the generation brief directly
-- Maintain continuity with surrounding scenes
+Generate a complete scene that addresses the generation brief. The scene must:
 - Use only existing character, location, and thread IDs from the context
 - Advance at least one thread with a status transition
 
@@ -612,8 +612,8 @@ Return JSON:
     kind: 'scene',
     id: '', // caller sets this
     arcId: '', // caller sets this
-    locationId: parsed.locationId ?? (prevScene?.locationId ?? ''),
-    povId: parsed.povId ?? (prevScene?.povId ?? ''),
+    locationId: parsed.locationId ?? '',
+    povId: parsed.povId ?? '',
     participantIds: parsed.participantIds ?? [],
     events: parsed.events ?? [],
     threadMutations: parsed.threadMutations ?? [],

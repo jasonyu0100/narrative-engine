@@ -2,36 +2,36 @@
 
 import { useState, useCallback, useRef } from 'react';
 import { useStore } from '@/lib/store';
-import { evaluateProseQuality } from '@/lib/ai/evaluate';
-import { rewriteSceneProse } from '@/lib/ai';
+import { evaluatePlanQuality } from '@/lib/ai/evaluate';
+import { generateScenePlan } from '@/lib/ai/scenes';
 import { resolveEntry, isScene } from '@/types/narrative';
-import type { ProseEvaluation, ProseVerdict, Scene, Arc } from '@/types/narrative';
-import { PROSE_CONCURRENCY } from '@/lib/constants';
+import type { PlanEvaluation, PlanVerdict, Scene, Arc } from '@/types/narrative';
+import { PLAN_CONCURRENCY } from '@/lib/constants';
 
 // ── Verdict visuals ──────────────────────────────────────────────────────────
 
-const VERDICT_CONFIG: Record<ProseVerdict, { icon: string; color: string; bg: string; label: string }> = {
+const VERDICT_CONFIG: Record<PlanVerdict, { icon: string; color: string; bg: string; label: string }> = {
   ok:   { icon: '✓', color: 'text-emerald-400', bg: 'bg-emerald-500/15', label: 'OK' },
-  edit: { icon: '✎', color: 'text-amber-400',   bg: 'bg-amber-500/15',  label: 'Edit' },
+  edit: { icon: '~', color: 'text-amber-400',   bg: 'bg-amber-500/15',  label: 'Edit' },
 };
 
 // ── Scene node ───────────────────────────────────────────────────────────────
 
-function ProseNode({
+function PlanNode({
   scene,
   arc,
   verdict,
   issues,
   isLast,
-  rewriteStatus,
+  replanStatus,
   onClick,
 }: {
   scene: Scene;
   arc?: Arc;
-  verdict: ProseVerdict;
+  verdict: PlanVerdict;
   issues: string[];
   isLast: boolean;
-  rewriteStatus?: 'pending' | 'running' | 'done' | 'error';
+  replanStatus?: 'pending' | 'running' | 'done' | 'error';
   onClick: () => void;
 }) {
   const cfg = VERDICT_CONFIG[verdict];
@@ -41,9 +41,9 @@ function ProseNode({
     <div className="flex gap-0 min-h-0">
       <div className="flex flex-col items-center shrink-0 w-7">
         <div
-          className={`w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold ${cfg.bg} ${cfg.color} shrink-0 border border-current/20 ${rewriteStatus === 'running' ? 'animate-pulse ring-1 ring-current/40' : ''}`}
+          className={`w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold ${cfg.bg} ${cfg.color} shrink-0 border border-current/20 ${replanStatus === 'running' ? 'animate-pulse ring-1 ring-current/40' : ''}`}
         >
-          {rewriteStatus === 'running' ? '◎' : rewriteStatus === 'done' ? '✓' : cfg.icon}
+          {replanStatus === 'running' ? '◎' : replanStatus === 'done' ? '✓' : cfg.icon}
         </div>
         {!isLast && <div className="w-px flex-1 bg-white/10 min-h-3" />}
       </div>
@@ -59,9 +59,9 @@ function ProseNode({
           <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${cfg.bg} ${cfg.color}`}>
             {cfg.label}
           </span>
-          {rewriteStatus && rewriteStatus !== 'pending' && (
-            <span className={`text-[9px] font-mono ${rewriteStatus === 'done' ? 'text-emerald-400/60' : rewriteStatus === 'running' ? 'text-white/50 animate-pulse' : rewriteStatus === 'error' ? 'text-red-400/60' : 'text-white/20'}`}>
-              {rewriteStatus === 'done' ? '✓' : rewriteStatus === 'running' ? '◎' : rewriteStatus === 'error' ? '✕' : '·'}
+          {replanStatus && replanStatus !== 'pending' && (
+            <span className={`text-[9px] font-mono ${replanStatus === 'done' ? 'text-emerald-400/60' : replanStatus === 'running' ? 'text-white/50 animate-pulse' : replanStatus === 'error' ? 'text-red-400/60' : 'text-white/20'}`}>
+              {replanStatus === 'done' ? '✓' : replanStatus === 'running' ? '◎' : replanStatus === 'error' ? '✕' : '·'}
             </span>
           )}
           {issues.length > 0 && (
@@ -88,53 +88,31 @@ function ProseNode({
   );
 }
 
-// ── Stats bar ────────────────────────────────────────────────────────────────
-
-function ProseStatsBar({ sceneEvals }: { sceneEvals: ProseEvaluation['sceneEvals'] }) {
-  const ok = sceneEvals.filter((e) => e.verdict === 'ok').length;
-  const edit = sceneEvals.filter((e) => e.verdict === 'edit').length;
-  const total = sceneEvals.length || 1;
-
-  return (
-    <div className="flex items-center gap-3 text-[10px] font-mono">
-      <span className="text-emerald-400 flex items-center gap-1">
-        <span className="w-4 h-4 rounded-full flex items-center justify-center bg-emerald-500/15 text-[9px] font-bold">✓</span>
-        {ok} ({Math.round((ok / total) * 100)}%)
-      </span>
-      <span className="text-amber-400 flex items-center gap-1">
-        <span className="w-4 h-4 rounded-full flex items-center justify-center bg-amber-500/15 text-[9px] font-bold">✎</span>
-        {edit} ({Math.round((edit / total) * 100)}%)
-      </span>
-    </div>
-  );
-}
-
 // ── Main component ───────────────────────────────────────────────────────────
 
-export default function ProseEval() {
+export default function PlanEval() {
   const { state, dispatch } = useStore();
   const narrative = state.activeNarrative;
   const resolvedKeys = state.resolvedEntryKeys;
   const branchId = state.activeBranchId;
 
-  const persisted = branchId ? narrative?.proseEvaluations?.[branchId] ?? null : null;
-  const [evaluation, setEvaluation] = useState<ProseEvaluation | null>(persisted);
+  const persisted = branchId ? narrative?.planEvaluations?.[branchId] ?? null : null;
+  const [evaluation, setEvaluation] = useState<PlanEvaluation | null>(persisted);
   const [loading, setLoading] = useState(false);
-  const [rewriting, setRewriting] = useState(false);
-  const [rewriteStatuses, setRewriteStatuses] = useState<Record<string, 'pending' | 'running' | 'done' | 'error'>>({});
-  const [rewriteProgress, setRewriteProgress] = useState<{ completed: number; total: number } | null>(null);
+  const [replanning, setReplanning] = useState(false);
+  const [replanStatuses, setReplanStatuses] = useState<Record<string, 'pending' | 'running' | 'done' | 'error'>>({});
+  const [replanProgress, setReplanProgress] = useState<{ completed: number; total: number } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [guidance, setGuidance] = useState('');
   const [showGuidance, setShowGuidance] = useState(false);
   const cancelledRef = useRef(false);
 
-  // Sync from store when branch changes
   const lastBranchRef = useRef(branchId);
   if (branchId !== lastBranchRef.current) {
     lastBranchRef.current = branchId;
-    setEvaluation(branchId ? narrative?.proseEvaluations?.[branchId] ?? null : null);
-    setRewriteStatuses({});
-    setRewriteProgress(null);
+    setEvaluation(branchId ? narrative?.planEvaluations?.[branchId] ?? null : null);
+    setReplanStatuses({});
+    setReplanProgress(null);
     setError(null);
   }
 
@@ -145,10 +123,10 @@ export default function ProseEval() {
     cancelledRef.current = false;
 
     try {
-      const result = await evaluateProseQuality(narrative, resolvedKeys, branchId, guidance || undefined);
+      const result = await evaluatePlanQuality(narrative, resolvedKeys, branchId, guidance || undefined);
       if (!cancelledRef.current) {
         setEvaluation(result);
-        dispatch({ type: 'SET_PROSE_EVALUATION', branchId, evaluation: result });
+        dispatch({ type: 'SET_PLAN_EVALUATION', branchId, evaluation: result });
       }
     } catch (err) {
       if (!cancelledRef.current) {
@@ -159,20 +137,19 @@ export default function ProseEval() {
     }
   }, [narrative, resolvedKeys, branchId, guidance, dispatch]);
 
-  const runRewrites = useCallback(async () => {
+  const runReplans = useCallback(async () => {
     if (!narrative || !evaluation) return;
     const edits = evaluation.sceneEvals.filter((e) => e.verdict === 'edit' && e.issues.length > 0);
     if (edits.length === 0) return;
 
-    setRewriting(true);
+    setReplanning(true);
     setError(null);
     cancelledRef.current = false;
 
-    // Initialize statuses
     const statuses: Record<string, 'pending' | 'running' | 'done' | 'error'> = {};
     for (const e of edits) statuses[e.sceneId] = 'pending';
-    setRewriteStatuses({ ...statuses });
-    setRewriteProgress({ completed: 0, total: edits.length });
+    setReplanStatuses({ ...statuses });
+    setReplanProgress({ completed: 0, total: edits.length });
 
     let completed = 0;
     let nextIdx = 0;
@@ -183,54 +160,53 @@ export default function ProseEval() {
         if (idx >= edits.length) break;
         const ev = edits[idx];
         const scene = narrative.scenes[ev.sceneId];
-        if (!scene?.prose) {
+        if (!scene) {
           completed++;
-          setRewriteStatuses((prev) => ({ ...prev, [ev.sceneId]: 'done' }));
-          setRewriteProgress({ completed, total: edits.length });
+          setReplanStatuses((prev) => ({ ...prev, [ev.sceneId]: 'done' }));
+          setReplanProgress({ completed, total: edits.length });
           continue;
         }
 
-        setRewriteStatuses((prev) => ({ ...prev, [ev.sceneId]: 'running' }));
+        setReplanStatuses((prev) => ({ ...prev, [ev.sceneId]: 'running' }));
 
         try {
-          const analysis = `PROSE EVALUATION ISSUES — fix all of these:\n${ev.issues.map((i) => `- ${i}`).join('\n')}`;
-          const { prose } = await rewriteSceneProse(narrative, scene, resolvedKeys, scene.prose, analysis);
+          const newPlan = await generateScenePlan(narrative, scene, resolvedKeys);
           if (!cancelledRef.current) {
-            dispatch({ type: 'UPDATE_SCENE', sceneId: ev.sceneId, updates: { prose } });
+            dispatch({ type: 'UPDATE_SCENE', sceneId: ev.sceneId, updates: { plan: newPlan } });
           }
-          setRewriteStatuses((prev) => ({ ...prev, [ev.sceneId]: 'done' }));
+          setReplanStatuses((prev) => ({ ...prev, [ev.sceneId]: 'done' }));
         } catch {
-          setRewriteStatuses((prev) => ({ ...prev, [ev.sceneId]: 'error' }));
+          setReplanStatuses((prev) => ({ ...prev, [ev.sceneId]: 'error' }));
         }
         completed++;
-        setRewriteProgress({ completed, total: edits.length });
+        setReplanProgress({ completed, total: edits.length });
       }
     };
 
-    await Promise.all(Array.from({ length: Math.min(PROSE_CONCURRENCY, edits.length) }, () => runWorker()));
-    setRewriting(false);
+    await Promise.all(Array.from({ length: Math.min(PLAN_CONCURRENCY, edits.length) }, () => runWorker()));
+    setReplanning(false);
   }, [narrative, resolvedKeys, evaluation, dispatch]);
 
   const cancel = useCallback(() => {
     cancelledRef.current = true;
     setLoading(false);
-    setRewriting(false);
+    setReplanning(false);
   }, []);
 
   // Build lookup
-  const verdictMap = new Map<string, { verdict: ProseVerdict; issues: string[] }>();
+  const verdictMap = new Map<string, { verdict: PlanVerdict; issues: string[] }>();
   if (evaluation) {
     for (const e of evaluation.sceneEvals) {
       verdictMap.set(e.sceneId, { verdict: e.verdict, issues: e.issues });
     }
   }
 
-  // Resolve scenes
+  // Resolve scenes with plans
   const scenes: { scene: Scene; arc?: Arc }[] = [];
   if (narrative) {
     for (const key of resolvedKeys) {
       const entry = resolveEntry(narrative, key);
-      if (entry && isScene(entry) && (entry as Scene).prose) {
+      if (entry && isScene(entry) && (entry as Scene).plan?.beats?.length) {
         scenes.push({
           scene: entry as Scene,
           arc: narrative.arcs[(entry as Scene).arcId],
@@ -243,7 +219,7 @@ export default function ProseEval() {
     return <div className="p-4 text-text-dim text-xs">No narrative loaded.</div>;
   }
 
-  const busy = loading || rewriting;
+  const busy = loading || replanning;
   const hasWork = evaluation && evaluation.sceneEvals.some((e) => e.verdict === 'edit');
 
   return (
@@ -251,7 +227,7 @@ export default function ProseEval() {
       {/* Header */}
       <div className="px-3 py-2 border-b border-white/5 shrink-0">
         <div className="flex items-center justify-between">
-          <h3 className="text-xs font-medium text-text-primary">Prose Evaluation</h3>
+          <h3 className="text-xs font-medium text-text-primary">Plan Evaluation</h3>
           <div className="flex items-center gap-1.5">
             {busy ? (
               <button
@@ -265,7 +241,6 @@ export default function ProseEval() {
                 <button
                   onClick={() => setShowGuidance(true)}
                   className={`text-[10px] px-2 py-0.5 rounded transition-colors ${guidance ? 'bg-violet-500/15 text-violet-400' : 'bg-white/5 text-text-dim hover:text-text-secondary'}`}
-                  title="Add guidance before evaluating"
                 >
                   {guidance ? '✦ Guided' : '+ Guidance'}
                 </button>
@@ -278,7 +253,7 @@ export default function ProseEval() {
                 </button>
                 {hasWork && (
                   <button
-                    onClick={runRewrites}
+                    onClick={runReplans}
                     className="text-[10px] px-2 py-0.5 rounded bg-violet-500/15 text-violet-400 hover:bg-violet-500/25 transition-colors"
                   >
                     Reconstruct
@@ -294,14 +269,11 @@ export default function ProseEval() {
             <textarea
               value={guidance}
               onChange={(e) => setGuidance(e.target.value)}
-              placeholder="Describe prose issues to focus on — e.g. 'too much figurative language', 'dialogue feels modern'..."
+              placeholder="Describe continuity issues to focus on — e.g. 'character positions after the battle', 'who knows about the betrayal'..."
               className="w-full h-20 bg-white/4 border border-white/8 rounded px-2 py-1.5 text-[11px] text-text-secondary placeholder:text-text-dim/50 resize-y focus:outline-none focus:border-violet-500/30"
             />
             {guidance && (
-              <button
-                onClick={() => setGuidance('')}
-                className="text-[9px] text-text-dim hover:text-text-secondary mt-0.5"
-              >
+              <button onClick={() => setGuidance('')} className="text-[9px] text-text-dim hover:text-text-secondary mt-0.5">
                 Clear guidance
               </button>
             )}
@@ -314,22 +286,22 @@ export default function ProseEval() {
               <div className="w-full h-1 bg-white/5 rounded-full overflow-hidden">
                 <div className="h-full bg-white/20 rounded-full animate-[eval-sweep_2s_ease-in-out_infinite]" />
               </div>
-              <span className="text-[10px] text-text-dim shrink-0">Reading {scenes.length} scenes...</span>
+              <span className="text-[10px] text-text-dim shrink-0">Reading {scenes.length} plans...</span>
             </div>
             <style>{`@keyframes eval-sweep { 0% { width: 5%; margin-left: 0; } 50% { width: 40%; margin-left: 30%; } 100% { width: 5%; margin-left: 95%; } }`}</style>
           </div>
         )}
 
-        {rewriting && rewriteProgress && (
+        {replanning && replanProgress && (
           <div className="mt-1.5 space-y-1">
             <div className="flex items-center justify-between text-[10px]">
-              <span className="text-text-dim">Rewriting prose...</span>
-              <span className="text-text-secondary font-mono">{rewriteProgress.completed}/{rewriteProgress.total}</span>
+              <span className="text-text-dim">Regenerating plans...</span>
+              <span className="text-text-secondary font-mono">{replanProgress.completed}/{replanProgress.total}</span>
             </div>
             <div className="w-full h-1 bg-white/5 rounded-full overflow-hidden">
               <div
                 className="h-full rounded-full transition-all duration-300 bg-violet-500/60"
-                style={{ width: `${Math.max(2, Math.round((rewriteProgress.completed / rewriteProgress.total) * 100))}%` }}
+                style={{ width: `${Math.max(2, Math.round((replanProgress.completed / replanProgress.total) * 100))}%` }}
               />
             </div>
           </div>
@@ -338,8 +310,17 @@ export default function ProseEval() {
         {error && <p className="mt-1 text-[10px] text-red-400">{error}</p>}
 
         {evaluation && !busy && (
-          <div className="mt-1.5">
-            <ProseStatsBar sceneEvals={evaluation.sceneEvals} />
+          <div className="mt-1.5 flex items-center gap-2 text-[10px] font-mono">
+            {(() => {
+              const ok = evaluation.sceneEvals.filter((e) => e.verdict === 'ok').length;
+              const edit = evaluation.sceneEvals.filter((e) => e.verdict === 'edit').length;
+              return (
+                <>
+                  {ok > 0 && <span className="text-emerald-400 flex items-center gap-0.5"><span className="text-[9px]">✓</span>{ok}</span>}
+                  {edit > 0 && <span className="text-amber-400 flex items-center gap-0.5"><span className="text-[9px]">~</span>{edit}</span>}
+                </>
+              );
+            })()}
           </div>
         )}
       </div>
@@ -372,14 +353,14 @@ export default function ProseEval() {
             {scenes.map(({ scene, arc }, i) => {
               const ev = verdictMap.get(scene.id);
               return (
-                <ProseNode
+                <PlanNode
                   key={scene.id}
                   scene={scene}
                   arc={arc}
                   verdict={ev?.verdict ?? 'ok'}
                   issues={ev?.issues ?? []}
                   isLast={i === scenes.length - 1}
-                  rewriteStatus={rewriteStatuses[scene.id]}
+                  replanStatus={replanStatuses[scene.id]}
                   onClick={() => {
                     const idx = resolvedKeys.indexOf(scene.id);
                     if (idx >= 0) {
@@ -413,13 +394,13 @@ export default function ProseEval() {
           <div className="text-center py-8 text-text-dim text-xs">
             {scenes.length > 0 ? (
               <>
-                <p>Run an evaluation to review prose quality.</p>
-                <p className="mt-1 text-[10px]">{scenes.length} scenes with prose</p>
+                <p>Run an evaluation to review plan continuity.</p>
+                <p className="mt-1 text-[10px]">{scenes.length} scenes with plans</p>
               </>
             ) : (
               <>
-                <p>No scenes have prose yet.</p>
-                <p className="mt-1 text-[10px]">Select a scene and generate prose from the story reader.</p>
+                <p>No scenes have beat plans yet.</p>
+                <p className="mt-1 text-[10px]">Select a scene and generate a plan from the story reader.</p>
               </>
             )}
           </div>

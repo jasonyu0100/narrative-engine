@@ -14,7 +14,6 @@ const VERDICT_CONFIG: Record<SceneVerdict, { icon: string; color: string; bg: st
   edit:    { icon: '~', color: 'text-amber-400',   bg: 'bg-amber-500/15',   label: 'Edit' },
   merge:   { icon: '⊕', color: 'text-blue-400',    bg: 'bg-blue-500/15',    label: 'Merge' },
   cut:     { icon: '✕', color: 'text-white/30',    bg: 'bg-white/5',        label: 'Cut' },
-  defer:   { icon: '→', color: 'text-purple-400',  bg: 'bg-purple-500/15',  label: 'Defer' },
   insert:  { icon: '+', color: 'text-cyan-400',    bg: 'bg-cyan-500/15',    label: 'Insert' },
 };
 
@@ -56,7 +55,7 @@ function SceneNode({
         <div
           className={`w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold ${cfg.bg} ${cfg.color} shrink-0 border border-current/20 ${reconStatus === 'running' ? 'animate-pulse ring-1 ring-current/40' : ''}`}
         >
-          {reconStatus === 'running' ? '◎' : reconStatus === 'done' && verdict === 'edit' ? '✎' : reconStatus === 'done' && verdict === 'merge' ? '⊕' : reconStatus === 'done' && verdict === 'cut' ? '⌀' : reconStatus === 'done' && verdict === 'defer' ? '→' : cfg.icon}
+          {reconStatus === 'running' ? '◎' : reconStatus === 'done' && verdict === 'edit' ? '✎' : reconStatus === 'done' && verdict === 'merge' ? '⊕' : reconStatus === 'done' && verdict === 'cut' ? '⌀' : cfg.icon}
         </div>
         {!isLast && (
           <div className="w-px flex-1 bg-white/10 min-h-3" />
@@ -119,11 +118,11 @@ function SceneNode({
 // ── Stats bar ────────────────────────────────────────────────────────────────
 
 function StatsBar({ sceneEvals }: { sceneEvals: BranchEvaluation['sceneEvals'] }) {
-  const counts: Record<SceneVerdict, number> = { ok: 0, edit: 0, merge: 0, cut: 0, defer: 0, insert: 0 };
+  const counts: Record<SceneVerdict, number> = { ok: 0, edit: 0, merge: 0, cut: 0, insert: 0 };
   for (const e of sceneEvals) counts[e.verdict]++;
   return (
     <div className="flex items-center gap-2 text-[10px] font-mono">
-      {(['ok', 'edit', 'merge', 'cut', 'defer', 'insert'] as SceneVerdict[]).filter((v) => counts[v] > 0).map((v) => {
+      {(['ok', 'edit', 'merge', 'cut', 'insert'] as SceneVerdict[]).filter((v) => counts[v] > 0).map((v) => {
         const cfg = VERDICT_CONFIG[v];
         return (
           <span key={v} className={`${cfg.color} flex items-center gap-0.5`}>
@@ -236,19 +235,15 @@ export default function BranchEval() {
       );
 
       if (!cancelledRef.current) {
-        // Commit the finished branch + all scenes to the store in one shot
+        // Commit the finished branch + all scenes + arcs to the store
         dispatch({ type: 'CREATE_BRANCH', branch: result.branch });
-        const seenArcs = new Set<string>();
-        for (const scene of result.scenes) {
-          if (!seenArcs.has(scene.arcId)) {
-            seenArcs.add(scene.arcId);
-            const arc = result.arcs[scene.arcId];
-            if (arc) {
-              dispatch({ type: 'BULK_ADD_SCENES', scenes: result.scenes.filter((s) => s.arcId === arc.id), arc, branchId: result.branch.id });
-            }
-          }
-        }
-        // Now switch — the branch has fully processed scenes
+        // Use RECONSTRUCT_BRANCH to set arcs with replacement semantics (not append)
+        dispatch({
+          type: 'RECONSTRUCT_BRANCH',
+          branchId: result.branch.id,
+          scenes: result.scenes,
+          arcs: result.arcs,
+        });
         dispatch({ type: 'SWITCH_BRANCH', branchId: result.branch.id });
       }
     } catch (err) {
@@ -466,7 +461,7 @@ export default function BranchEval() {
                     if (!evaluation || !branchId) return;
                     const updated = { ...evaluation, sceneEvals: evaluation.sceneEvals.map((e) => {
                       if (e.sceneId === scene.id) {
-                        return { ...e, verdict: newVerdict, mergeInto: undefined, deferredBeat: undefined };
+                        return { ...e, verdict: newVerdict, mergeInto: undefined };
                       }
                       // If this scene was a merge target and the source is being overridden, leave it alone
                       // If this scene merges INTO the overridden scene, convert to ok
