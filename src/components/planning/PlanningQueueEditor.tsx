@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { useStore } from '@/lib/store';
 import { BUILT_IN_PROFILES, profileToQueue } from '@/lib/planning-profiles';
-import { generatePhaseDirection, generateCustomPlan } from '@/lib/planning-engine';
+import { generatePhaseDirection, generateCustomPlan, generatePlanDocument } from '@/lib/planning-engine';
 import { expandWorld } from '@/lib/ai';
 import { nextId } from '@/lib/narrative-utils';
 import { DEFAULT_STORY_SETTINGS } from '@/types/narrative';
@@ -370,21 +370,59 @@ export function PlanningQueueEditor({ onClose, onStartAuto }: Props) {
 
               {/* Auto */}
               {createMode === 'ai' && (
-                <div className="flex flex-col items-center justify-center py-8 gap-4">
-                  <div className="text-center max-w-sm">
-                    <p className="text-xs text-text-secondary leading-relaxed">
-                      Analyse the current narrative state — characters, threads, world knowledge, and scene history — and design the optimal structure for continuing this story.
-                    </p>
-                  </div>
-                  <button
-                    onClick={() => generateFromDocument(
-                      'Analyse the current narrative state — characters, threads, world knowledge, and scene history — and design the optimal superstructure for continuing this story. Consider thread maturity, character arcs, and pacing.',
-                    )}
-                    disabled={generating}
-                    className="px-6 py-2.5 text-xs font-semibold rounded-lg bg-white/10 hover:bg-white/16 text-text-primary transition disabled:opacity-30"
-                  >
-                    {generating ? 'Analysing narrative...' : 'Generate Plan'}
-                  </button>
+                <div className="flex flex-col gap-3">
+                  <p className="text-[11px] text-text-dim leading-relaxed">
+                    Generate a plan from the current story state — characters, threads, tensions, and pacing. The AI writes a detailed plan document, then parses it into phases with source text.
+                  </p>
+                  {!planDocument ? (
+                    <button
+                      onClick={async () => {
+                        const narrative = state.activeNarrative;
+                        if (!narrative) return;
+                        setGenerating(true);
+                        try {
+                          const doc = await generatePlanDocument(narrative, state.resolvedEntryKeys, state.currentSceneIndex);
+                          setPlanDocument(doc);
+                        } catch (err) {
+                          console.error('[planning-queue] plan document generation failed:', err);
+                        } finally {
+                          setGenerating(false);
+                        }
+                      }}
+                      disabled={generating}
+                      className="self-start px-5 py-2 text-xs font-semibold rounded-lg bg-white/10 hover:bg-white/16 text-text-primary transition disabled:opacity-30"
+                    >
+                      {generating ? 'Generating plan...' : 'Generate Plan'}
+                    </button>
+                  ) : (
+                    <>
+                      <textarea
+                        value={planDocument}
+                        onChange={(e) => setPlanDocument(e.target.value)}
+                        className="bg-bg-elevated border border-border rounded-lg px-3 py-2.5 text-[11px] text-text-primary font-mono w-full h-64 resize-y outline-none focus:border-white/16 transition"
+                      />
+                      <div className="flex items-center justify-between">
+                        <span className="text-[10px] text-text-dim">
+                          {planDocument.split(/\n/).length} lines · {Math.round(planDocument.length / 4)} tokens est.
+                        </span>
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={() => setPlanDocument('')}
+                            className="text-[10px] px-2 py-1 text-text-dim hover:text-text-secondary transition-colors"
+                          >
+                            Clear
+                          </button>
+                          <button
+                            onClick={() => generateFromDocument(planDocument)}
+                            disabled={generating}
+                            className="px-5 py-2 text-xs font-semibold rounded-lg bg-white/10 hover:bg-white/16 text-text-primary transition disabled:opacity-30"
+                          >
+                            {generating ? 'Parsing plan...' : 'Generate Queue'}
+                          </button>
+                        </div>
+                      </div>
+                    </>
+                  )}
                 </div>
               )}
 

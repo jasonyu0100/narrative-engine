@@ -218,6 +218,54 @@ Return JSON:
 }
 
 /**
+ * Generate a rich narrative plan document from the current story state.
+ * This produces a structured treatment (like a story bible) that can then be
+ * fed into generateCustomPlan to create phases with sourceText.
+ */
+export async function generatePlanDocument(
+  narrative: NarrativeState,
+  resolvedKeys: string[],
+  currentIndex: number,
+): Promise<string> {
+  const ctx = branchContext(narrative, resolvedKeys, currentIndex);
+
+  const prompt = `${ctx}
+
+TASK: You are a narrative architect designing the next major movement of this story. Analyse the current narrative state — characters, threads, world knowledge, scene history, thread maturity, and unresolved tensions — and write a DETAILED narrative treatment for what comes next.
+
+Write a plan document in the style of a story bible or arc treatment. This document will be used as the authoritative reference for automated scene generation, so it must be rich and specific.
+
+YOUR DOCUMENT MUST INCLUDE:
+
+1. **PHILOSOPHY** — 2-3 paragraphs on what this phase of the story is about thematically. What questions are being interrogated? What tensions are at their ripest?
+
+2. **PARTS/SECTIONS** — Divide the plan into 4-8 distinct sections, each representing a narrative movement. For each section:
+   - A title that captures the energy (e.g. "The Accumulation", "The Crossing")
+   - Which chapters/scenes it covers and how many
+   - A detailed treatment: what happens, who drives it, where it takes place
+   - Specific character beats — what each major character does, learns, loses, or becomes
+   - Thread progression — which threads advance and how (status transitions)
+   - Key moments — specific scenes described in enough detail that a writer could execute them
+   - Prose guidance — tone, register, internal monologue style, pacing notes
+
+3. **CHARACTER NOTES** — For each major character involved, describe their arc through this plan. What do they want? What do they get? How do they change?
+
+4. **STRUCTURAL NOTES** — Pacing guidance, where to accelerate, where to breathe. Thread intercutting strategy. Any technical ambitions (montage chapters, POV switches, parallel timelines).
+
+RULES:
+- Use character NAMES and location NAMES from the narrative context, never raw IDs.
+- Be specific about plot beats — not "something bad happens" but "Kael discovers the seal was broken from the inside, implicating Mira."
+- Include prose samples or dialogue snippets where they help convey tone.
+- Each section should have enough detail that it could be used as a standalone writing brief.
+- The plan should feel like it was written by someone who deeply understands this story and its characters.
+
+Write the document as markdown prose. Do NOT return JSON — return the raw plan document text.`;
+
+  const reasoningBudget = REASONING_BUDGETS[narrative.storySettings?.reasoningLevel ?? 'medium'] || undefined;
+  return await callGenerate(prompt, SYSTEM_PROMPT, MAX_TOKENS_LARGE, 'generatePlanDocument', undefined, reasoningBudget);
+}
+
+/**
  * Check if the active planning phase has reached its scene allocation.
  * Returns the phase if complete, null otherwise.
  */
