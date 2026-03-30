@@ -8,6 +8,7 @@
  */
 
 import { analyzeChunkParallel, reconcileResults, assembleNarrative } from '@/lib/text-analysis';
+import { reverseEngineerScenePlan } from '@/lib/ai/scenes';
 import type { AnalysisJob, AnalysisChunkResult } from '@/types/narrative';
 import type { Action } from '@/lib/store';
 import { ANALYSIS_CONCURRENCY, ANALYSIS_STAGGER_DELAY_MS, ANALYSIS_MAX_CHUNK_RETRIES } from '@/lib/constants';
@@ -260,6 +261,57 @@ class AnalysisRunner {
           return;
         }
       }
+    }
+
+    if (entry.cancelled) {
+      d({ type: 'UPDATE_ANALYSIS_JOB', id: job.id, updates: { status: 'paused', results: [...results] } });
+      this.cleanup(job.id);
+      return;
+    }
+
+    // ── Phase 1.5: Plan extraction ────────────────────────────────────────
+    // Reverse-engineer beat plans from scene prose in parallel (non-fatal per scene)
+    type ScenePlanTask = { chunkIdx: number; sceneIdx: number; prose: string; summary: string };
+    const planTasks: ScenePlanTask[] = [];
+    for (let i = 0; i < results.length; i++) {
+      const r = results[i];
+      if (!r) continue;
+      for (let j = 0; j < (r.scenes ?? []).length; j++) {
+        const s = r.scenes[j];
+        if (s.prose) planTasks.push({ chunkIdx: i, sceneIdx: j, prose: s.prose, summary: s.summary });
+      }
+    }
+
+    if (planTasks.length > 0) {
+      this.emitStream(job.id, `Phase 1.5: Extracting beat plans from ${planTasks.length} scenes...`);
+      let plansDone = 0;
+      const planQueue = [...planTasks];
+      let planActive = 0;
+      let planResolve!: () => void;
+      const planDone = new Promise<void>((resolve) => { planResolve = resolve; });
+
+      const launchPlan = (task: ScenePlanTask) => {
+        planActive++;
+        reverseEngineerScenePlan(task.prose, task.summary)
+          .then((plan) => {
+            const r = results[task.chunkIdx];
+            if (r?.scenes[task.sceneIdx]) r.scenes[task.sceneIdx].plan = plan;
+            plansDone++;
+            this.emitStream(job.id, `Phase 1.5: ${plansDone}/${planTasks.length} beat plans extracted`);
+          })
+          .catch(() => { /* non-fatal — scene proceeds without plan */ })
+          .finally(() => {
+            planActive--;
+            if (!entry.cancelled && planQueue.length > 0) launchPlan(planQueue.shift()!);
+            if (planActive === 0 && planQueue.length === 0) planResolve();
+          });
+      };
+
+      const planBatch = Math.min(MAX_CONCURRENCY, planQueue.length);
+      for (let i = 0; i < planBatch; i++) launchPlan(planQueue.shift()!);
+      await planDone;
+
+      d({ type: 'UPDATE_ANALYSIS_JOB', id: job.id, updates: { results: [...results] } });
     }
 
     if (entry.cancelled) {

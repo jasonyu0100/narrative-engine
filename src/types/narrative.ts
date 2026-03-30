@@ -894,6 +894,7 @@ export type AnalysisChunkResult = {
       addedNodes: { concept: string; type: string }[];
       addedEdges: { fromConcept: string; toConcept: string; relation: string }[];
     };
+    plan?: BeatPlan;
   }[];
   relationships: { from: string; to: string; type: string; valence: number }[];
 };

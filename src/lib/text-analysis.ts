@@ -1281,6 +1281,7 @@ export async function assembleNarrative(
           return { addedNodes, addedEdges };
         })(),
         prose: s.prose || undefined,
+        plan: s.plan || undefined,
         summary: s.summary ?? '',
         locked: !!s.prose,
       };

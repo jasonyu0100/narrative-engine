@@ -6,6 +6,7 @@ import { useStore } from '@/lib/store';
 import { splitCorpusIntoChunks } from '@/lib/text-analysis';
 import { analysisRunner } from '@/lib/analysis-runner';
 import type { AnalysisJob, AnalysisChunkResult } from '@/types/narrative';
+import { BEAT_FN_LIST } from '@/types/narrative';
 import { ANALYSIS_MAX_CORPUS_WORDS, DEFAULT_MODEL } from '@/lib/constants';
 
 /* ── Word Node type ─────────────────────────────────────────────────────── */
@@ -138,12 +139,50 @@ function JobDetail({ job }: { job: AnalysisJob }) {
     });
   }, []);
 
+  // Beat function colors — 10 distinct hues
+  const BEAT_FN_COLORS: Record<string, string> = {
+    breathe: '#2dd4bf', inform: '#38bdf8', advance: '#34d399', bond: '#f472b6',
+    turn: '#fb923c', reveal: '#fbbf24', shift: '#f87171', expand: '#a78bfa',
+    foreshadow: '#818cf8', resolve: '#a3e635',
+  };
+
   const completedChunks = liveJob.results.filter((r) => r !== null).length;
   const totalChunks = liveJob.chunks.length;
   const isReconciling = completedChunks === totalChunks && liveJob.status === 'running' && !liveJob.narrativeId && streamText.includes('Reconcil');
   const isAssembling = completedChunks === totalChunks && liveJob.status === 'running' && !isReconciling;
 
   const completed = liveJob.results.filter((r): r is AnalysisChunkResult => r !== null);
+  const assembledNarrative = liveJob.narrativeId
+    ? (state.narratives as { id: string; narrative?: import('@/types/narrative').NarrativeState }[]).find((e) => e.id === liveJob.narrativeId)?.narrative ?? null
+    : null;
+  const beatStats = useMemo(() => {
+    const fnCounts: Record<string, number> = {};
+    for (const fn of BEAT_FN_LIST) fnCounts[fn] = 0;
+    let planCount = 0;
+
+    // Prefer assembled narrative scenes (covers pre-existing works + post-assembly plans)
+    const narrativeScenes = assembledNarrative ? Object.values(assembledNarrative.scenes) : [];
+    if (narrativeScenes.some((s) => s.plan)) {
+      for (const s of narrativeScenes) {
+        if (!s.plan) continue;
+        planCount++;
+        for (const b of s.plan.beats) fnCounts[b.fn] = (fnCounts[b.fn] ?? 0) + 1;
+      }
+    } else {
+      // Fall back to chunk results (mid-run or pre-assembly)
+      for (const r of completed) {
+        for (const s of r.scenes ?? []) {
+          if (!s.plan) continue;
+          planCount++;
+          for (const b of s.plan.beats) fnCounts[b.fn] = (fnCounts[b.fn] ?? 0) + 1;
+        }
+      }
+    }
+
+    const totalBeats = Object.values(fnCounts).reduce((a, b) => a + b, 0);
+    return { fnCounts, totalBeats, planCount };
+  }, [completed, assembledNarrative]);
+
   const charCount = new Set(completed.flatMap((r) => r.characters.map((c) => c.name))).size;
   const locCount = new Set(completed.flatMap((r) => r.locations.map((l) => l.name))).size;
   const sceneCount = completed.reduce((sum, r) => sum + (r.scenes?.length ?? 0), 0);
@@ -164,8 +203,8 @@ function JobDetail({ job }: { job: AnalysisJob }) {
       character: { cls: 'text-white/90', glow: 'rgba(255,255,255,0.12)' },
       location: { cls: 'text-emerald-400', glow: 'rgba(52,211,153,0.18)' },
       thread: { cls: 'text-sky-400', glow: 'rgba(56,189,248,0.15)' },
-      knowledge: { cls: node.knowledgeType === 'law' ? 'text-amber-400' : node.knowledgeType === 'system' ? 'text-sky-300' : node.knowledgeType === 'tension' ? 'text-rose-400' : 'text-violet-400', glow: node.knowledgeType === 'law' ? 'rgba(251,191,36,0.18)' : node.knowledgeType === 'tension' ? 'rgba(251,113,133,0.18)' : 'rgba(167,139,250,0.18)' },
-      artifact: { cls: node.significance === 'key' ? 'text-amber-400' : node.significance === 'notable' ? 'text-amber-500' : 'text-amber-700', glow: 'rgba(245,158,11,0.18)' },
+      knowledge: { cls: node.knowledgeType === 'law' ? 'text-yellow-300' : node.knowledgeType === 'system' ? 'text-teal-400' : node.knowledgeType === 'tension' ? 'text-rose-400' : 'text-violet-400', glow: node.knowledgeType === 'law' ? 'rgba(253,224,71,0.18)' : node.knowledgeType === 'system' ? 'rgba(45,212,191,0.15)' : node.knowledgeType === 'tension' ? 'rgba(251,113,133,0.18)' : 'rgba(167,139,250,0.18)' },
+      artifact: { cls: node.significance === 'key' ? 'text-orange-300' : node.significance === 'notable' ? 'text-orange-400' : 'text-orange-600', glow: 'rgba(251,146,60,0.18)' },
     };
     const styles = styleMap[node.type];
 
@@ -214,7 +253,8 @@ function JobDetail({ job }: { job: AnalysisJob }) {
               { value: sceneCount, color: 'text-white/35', dot: 'bg-white/20', label: 'scn' },
               { value: threadCount, color: 'text-sky-400/50', dot: 'bg-sky-400/30', label: 'thr' },
               { value: knowledgeCount, color: 'text-violet-400/60', dot: 'bg-violet-400/40', label: 'wk' },
-              { value: artifactCount, color: 'text-amber-400/60', dot: 'bg-amber-400/40', label: 'art' },
+              { value: artifactCount, color: 'text-orange-400/60', dot: 'bg-orange-400/40', label: 'art' },
+              ...(beatStats.planCount > 0 ? [{ value: beatStats.planCount, color: 'text-pink-400/60', dot: 'bg-pink-400/40', label: 'pln' }] : []),
             ].map((s) => (
               <div key={s.label} className="flex items-center gap-1.5">
                 <div className={`w-1 h-1 rounded-full ${s.dot}`} />
@@ -364,7 +404,7 @@ function JobDetail({ job }: { job: AnalysisJob }) {
               {artifacts.length > 0 && (
                 <div>
                   <div className="flex items-center gap-2 mb-3">
-                    <div className="w-1.5 h-1.5 rounded-full bg-amber-400/50" />
+                    <div className="w-1.5 h-1.5 rounded-full bg-orange-400/50" />
                     <span className="text-[9px] uppercase tracking-[0.2em] text-white/20 font-mono">Artifacts ({artifacts.length})</span>
                   </div>
                   <div className="flex flex-wrap items-baseline gap-x-4 gap-y-1.5">
@@ -382,6 +422,38 @@ function JobDetail({ job }: { job: AnalysisJob }) {
                   </div>
                   <div className="flex flex-wrap items-baseline gap-x-4 gap-y-1.5">
                     {knowledge.map(renderNode)}
+                  </div>
+                </div>
+              )}
+
+              {/* Beat Distribution */}
+              {beatStats.planCount > 0 && (
+                <div>
+                  <div className="flex items-center gap-2 mb-3">
+                    <div className="w-1.5 h-1.5 rounded-full bg-pink-400/50" />
+                    <span className="text-[9px] uppercase tracking-[0.2em] text-white/20 font-mono">
+                      Beat Structure — {beatStats.totalBeats} beats across {beatStats.planCount} scenes
+                    </span>
+                  </div>
+                  {/* Proportional stacked bar */}
+                  <div className="h-2 rounded-full overflow-hidden flex mb-3">
+                    {BEAT_FN_LIST.filter((fn) => beatStats.fnCounts[fn] > 0).map((fn) => (
+                      <div
+                        key={fn}
+                        style={{ width: `${(beatStats.fnCounts[fn] / beatStats.totalBeats) * 100}%`, backgroundColor: BEAT_FN_COLORS[fn] }}
+                        title={`${fn}: ${beatStats.fnCounts[fn]}`}
+                      />
+                    ))}
+                  </div>
+                  {/* Legend */}
+                  <div className="flex flex-wrap gap-x-5 gap-y-1.5">
+                    {BEAT_FN_LIST.filter((fn) => beatStats.fnCounts[fn] > 0).map((fn) => (
+                      <div key={fn} className="flex items-center gap-1.5">
+                        <div className="w-2 h-2 rounded-sm shrink-0" style={{ backgroundColor: BEAT_FN_COLORS[fn] }} />
+                        <span className="text-[10px] text-white/40">{fn}</span>
+                        <span className="text-[10px] text-white/20 tabular-nums">{beatStats.fnCounts[fn]}</span>
+                      </div>
+                    ))}
                   </div>
                 </div>
               )}

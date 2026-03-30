@@ -425,6 +425,64 @@ Generate a structured beat plan for this scene.${recentProseBlock ? ' Opening be
 }
 
 /**
+ * Reverse-engineer a beat plan from existing prose.
+ * Lighter than generateScenePlan — no branch context or profile needed,
+ * just reads the prose structure and maps it to the beat taxonomy.
+ */
+export async function reverseEngineerScenePlan(
+  prose: string,
+  summary: string,
+): Promise<BeatPlan> {
+  const systemPrompt = `You are a beat analyst. Given existing prose, identify its structural beat sequence — what each beat does, how it's delivered, and the key sensory anchor.
+
+Return ONLY valid JSON matching this schema:
+{
+  "beats": [
+    {
+      "fn": "${BEAT_FN_LIST.join('|')}",
+      "mechanism": "${BEAT_MECHANISM_LIST.join('|')}",
+      "what": "One sentence: the concrete action or event",
+      "anchor": "The one sensory detail that makes this beat physical"
+    }
+  ],
+  "anchors": ["0-5 standout lines from the prose — verbatim or near-verbatim lines a reader would highlight or remember"]
+}
+
+Beat functions: ${BEAT_FN_LIST.join(', ')}
+Mechanisms: ${BEAT_MECHANISM_LIST.join(', ')}
+
+Rules:
+- Identify one beat per meaningful unit of action, dialogue, or shift. Aim for 8-20 beats per scene.
+- Every beat must map to a specific moment in the prose.
+- anchors: Pick 0-5 lines that define the scene. Quote them exactly from the prose.
+- Return ONLY valid JSON.`;
+
+  const prompt = `SCENE SUMMARY: ${summary}
+
+PROSE:
+${prose}
+
+Identify the beat structure of this scene.`;
+
+  const raw = await callGenerate(prompt, systemPrompt, MAX_TOKENS_SMALL, 'reverseEngineerScenePlan', GENERATE_MODEL);
+  const parsed = parseJson(raw, 'reverseEngineerScenePlan') as { beats?: unknown[]; anchors?: string[] };
+  const beats = (parsed.beats ?? []).map((b: unknown) => {
+    const beat = b as Record<string, unknown>;
+    return {
+      fn: ((BEAT_FN_LIST as readonly string[]).includes(String(beat.fn)) ? beat.fn : 'advance') as BeatPlan['beats'][0]['fn'],
+      mechanism: ((BEAT_MECHANISM_LIST as readonly string[]).includes(String(beat.mechanism)) ? beat.mechanism : 'action') as BeatPlan['beats'][0]['mechanism'],
+      what: String(beat.what ?? ''),
+      anchor: String(beat.anchor ?? ''),
+    };
+  });
+
+  return {
+    beats,
+    anchors: (parsed.anchors ?? []).filter((a): a is string => typeof a === 'string'),
+  };
+}
+
+/**
  * Rewrite a scene plan guided by user-provided analysis/critique.
  * Preserves the plan structure (OPENING STATE, DELIVERIES, DIALOGUE SEEDS,
  * CLOSING STATE) but revises content based on the feedback.
