@@ -54,6 +54,7 @@ export function PlanningQueueEditor({ onClose, onStartAuto }: Props) {
           structuralRules: p.structuralRules,
           direction: '',
           worldExpansionHints: p.worldExpansionHints,
+          sourceText: p.sourceText,
         })),
         activePhaseIndex: 0,
       };
@@ -75,7 +76,7 @@ export function PlanningQueueEditor({ onClose, onStartAuto }: Props) {
     try {
       const expansion = await expandWorld(
         narrative, state.resolvedEntryKeys, state.currentSceneIndex,
-        phase.worldExpansionHints, 'medium',
+        phase.worldExpansionHints, 'medium', undefined, phase.sourceText,
       );
       dispatch({
         type: 'EXPAND_WORLD',
@@ -204,7 +205,7 @@ export function PlanningQueueEditor({ onClose, onStartAuto }: Props) {
       if (firstPhase.worldExpansionHints) {
         setActivatingStep('Expanding world...');
         const strategy = narrative.storySettings?.expansionStrategy ?? 'dynamic';
-        const expansion = await expandWorld(narrative, resolvedKeys, currentIndex, firstPhase.worldExpansionHints, 'medium', strategy);
+        const expansion = await expandWorld(narrative, resolvedKeys, currentIndex, firstPhase.worldExpansionHints, 'medium', strategy, firstPhase.sourceText);
         dispatch({
           type: 'EXPAND_WORLD',
           worldBuildId: nextId('WB', Object.keys(narrative.worldBuilds), 3),
@@ -425,119 +426,156 @@ export function PlanningQueueEditor({ onClose, onStartAuto }: Props) {
               </div>
 
               <div className="flex flex-col gap-2">
-                {queue.phases.map((phase, i) => (
-                  <div
-                    key={phase.id}
-                    className={`rounded-lg border p-3 ${
-                      phase.status === 'active' ? 'bg-amber-500/5 border-amber-500/20'
-                        : phase.status === 'completed' ? 'bg-green-500/5 border-green-500/20 opacity-60'
-                        : 'bg-bg-elevated border-border'
-                    }`}
-                  >
-                    <div className="flex items-start gap-2">
-                      <span className="text-[10px] text-text-dim font-mono mt-1 shrink-0 w-4">{i + 1}</span>
-                      <div className="flex-1 min-w-0">
-                        <input
-                          value={phase.name}
-                          onChange={(e) => updatePhase(i, { name: e.target.value })}
-                          className="bg-transparent text-xs text-text-primary font-medium w-full outline-none border-b border-transparent focus:border-white/20 pb-0.5"
-                          disabled={phase.status === 'completed'}
-                        />
-                        <textarea
-                          value={phase.objective}
-                          onChange={(e) => updatePhase(i, { objective: e.target.value })}
-                          placeholder="What should this phase achieve?"
-                          className="bg-transparent text-[11px] text-text-secondary w-full outline-none resize-none mt-1 placeholder:text-text-dim"
-                          rows={2}
-                          disabled={phase.status === 'completed'}
-                        />
-                        <div className="flex items-center gap-3 mt-1.5">
-                          <div className="flex items-center gap-1">
-                            <span className="text-[10px] text-text-dim">Scenes:</span>
+                {queue.phases.map((phase, i) => {
+                  const isActive = phase.status === 'active';
+                  const isCompleted = phase.status === 'completed';
+                  const isPending = phase.status === 'pending';
+
+                  return (
+                    <div
+                      key={phase.id}
+                      className={`rounded-lg border p-3 ${
+                        isActive ? 'bg-amber-500/5 border-amber-500/20'
+                          : isCompleted ? 'bg-green-500/5 border-green-500/20 opacity-60'
+                          : 'bg-bg-elevated border-border'
+                      }`}
+                    >
+                      <div className="flex items-start gap-2">
+                        <span className="text-[10px] text-text-dim font-mono mt-1 shrink-0 w-4">{i + 1}</span>
+                        <div className="flex-1 min-w-0">
+                          {/* Header: name + scenes */}
+                          <div className="flex items-center gap-2">
                             <input
-                              type="number" min={1} max={50}
-                              value={phase.sceneAllocation}
-                              onChange={(e) => updatePhase(i, { sceneAllocation: Math.max(1, Number(e.target.value)) })}
-                              className="bg-bg-overlay border border-border rounded px-1.5 py-0.5 text-[10px] text-text-primary w-12 outline-none text-center"
-                              disabled={phase.status === 'completed'}
+                              value={phase.name}
+                              onChange={(e) => updatePhase(i, { name: e.target.value })}
+                              className="bg-transparent text-xs text-text-primary font-medium flex-1 outline-none border-b border-transparent focus:border-white/20 pb-0.5"
+                              disabled={isCompleted}
                             />
+                            <div className="flex items-center gap-1.5 shrink-0">
+                              <input
+                                type="number" min={1} max={50}
+                                value={phase.sceneAllocation}
+                                onChange={(e) => updatePhase(i, { sceneAllocation: Math.max(1, Number(e.target.value)) })}
+                                className="bg-bg-overlay border border-border rounded px-1.5 py-0.5 text-[10px] text-text-primary w-10 outline-none text-center"
+                                disabled={isCompleted}
+                                title="Scene allocation"
+                              />
+                              {isActive && <span className="text-[10px] text-amber-400 font-medium">{phase.scenesCompleted}/{phase.sceneAllocation}</span>}
+                              {isCompleted && <span className="text-[10px] text-green-400 font-medium">Done</span>}
+                            </div>
                           </div>
-                          {phase.status === 'active' && (
-                            <span className="text-[10px] text-amber-400 uppercase tracking-wider">{phase.scenesCompleted}/{phase.sceneAllocation} done</span>
+
+                          {/* Objective */}
+                          <textarea
+                            value={phase.objective}
+                            onChange={(e) => updatePhase(i, { objective: e.target.value })}
+                            placeholder="What should this phase achieve?"
+                            className="bg-transparent text-[11px] text-text-secondary w-full outline-none resize-none mt-1 placeholder:text-text-dim leading-relaxed"
+                            rows={2}
+                            disabled={isCompleted}
+                          />
+
+                          {/* Active phase: direction + actions */}
+                          {isActive && phase.direction && existingQueue && (
+                            <details className="mt-2" open>
+                              <summary className="text-[9px] text-amber-400/70 uppercase tracking-wider cursor-pointer hover:text-amber-400">Direction</summary>
+                              <p className="mt-1 text-[10px] text-text-secondary leading-relaxed">{phase.direction}</p>
+                            </details>
                           )}
-                          {phase.status === 'completed' && (
-                            <span className="text-[10px] text-green-400 uppercase tracking-wider">Completed</span>
+
+                          {/* Expandable fields — only for non-completed */}
+                          {!isCompleted && (
+                            <details className="mt-2" open={isActive && !phase.direction}>
+                              <summary className="text-[10px] text-text-dim cursor-pointer hover:text-text-secondary select-none">
+                                {phase.sourceText ? `Source · ${Math.round(phase.sourceText.length / 4)}t` : 'Settings'}
+                                {phase.constraints ? ' · constraints' : ''}
+                                {phase.worldExpansionHints ? ' · expansion' : ''}
+                              </summary>
+                              <div className="mt-1.5 flex flex-col gap-2">
+                                {/* Source text — prominent when present */}
+                                {phase.sourceText && (
+                                  <div>
+                                    <label className="text-[9px] text-text-dim uppercase tracking-wider block mb-0.5">Source Text</label>
+                                    <textarea
+                                      value={phase.sourceText}
+                                      onChange={(e) => updatePhase(i, { sourceText: e.target.value })}
+                                      className="bg-bg-overlay border border-border rounded px-2 py-1.5 text-[10px] text-text-primary font-mono w-full outline-none resize-y leading-relaxed"
+                                      rows={8}
+                                    />
+                                  </div>
+                                )}
+
+                                {/* Constraints */}
+                                <div>
+                                  <label className="text-[9px] text-text-dim uppercase tracking-wider block mb-0.5">Constraints</label>
+                                  <textarea
+                                    value={phase.constraints}
+                                    onChange={(e) => updatePhase(i, { constraints: e.target.value })}
+                                    placeholder="What must NOT happen in this phase..."
+                                    className="bg-bg-overlay border border-border rounded px-2 py-1.5 text-[10px] text-text-primary w-full outline-none placeholder:text-text-dim resize-none leading-relaxed"
+                                    rows={2}
+                                  />
+                                </div>
+
+                                {/* World expansion + structural rules — single row */}
+                                <div>
+                                  <label className="text-[9px] text-text-dim uppercase tracking-wider block mb-0.5">World Expansion</label>
+                                  <textarea
+                                    value={phase.worldExpansionHints}
+                                    onChange={(e) => updatePhase(i, { worldExpansionHints: e.target.value })}
+                                    placeholder="New characters, locations, or systems to add..."
+                                    className="bg-bg-overlay border border-border rounded px-2 py-1.5 text-[10px] text-text-primary w-full outline-none placeholder:text-text-dim resize-none leading-relaxed"
+                                    rows={1}
+                                  />
+                                </div>
+
+                                {phase.structuralRules && (
+                                  <div>
+                                    <label className="text-[9px] text-text-dim uppercase tracking-wider block mb-0.5">Structural Rules</label>
+                                    <textarea
+                                      value={phase.structuralRules}
+                                      onChange={(e) => updatePhase(i, { structuralRules: e.target.value })}
+                                      className="bg-bg-overlay border border-border rounded px-2 py-1.5 text-[10px] text-text-primary w-full outline-none resize-none leading-relaxed"
+                                      rows={3}
+                                    />
+                                  </div>
+                                )}
+
+                                {/* Actions for active phase */}
+                                {isActive && existingQueue && (
+                                  <div className="flex gap-2">
+                                    <button onClick={() => regenerateWorld(i)} disabled={regenerating !== null || !phase.worldExpansionHints}
+                                      className="text-[10px] px-2 py-1 rounded bg-white/5 text-text-dim hover:text-text-secondary hover:bg-white/10 transition-colors disabled:opacity-30">
+                                      {regenerating === 'world' ? 'Expanding...' : 'Re-expand World'}
+                                    </button>
+                                    <button onClick={() => regenerateDirection(i)} disabled={regenerating !== null}
+                                      className="text-[10px] px-2 py-1 rounded bg-white/5 text-text-dim hover:text-text-secondary hover:bg-white/10 transition-colors disabled:opacity-30">
+                                      {regenerating === 'direction' ? 'Generating...' : 'Re-generate Direction'}
+                                    </button>
+                                  </div>
+                                )}
+                              </div>
+                            </details>
+                          )}
+
+                          {/* Completed phase: completion report */}
+                          {isCompleted && phase.completionReport && (
+                            <p className="text-[10px] text-text-dim mt-1 leading-relaxed italic">{phase.completionReport}</p>
                           )}
                         </div>
 
-                        {phase.status !== 'completed' && (
-                          <details className="mt-2" open={phase.status === 'active'}>
-                            <summary className="text-[10px] text-text-dim cursor-pointer hover:text-text-secondary">Configuration</summary>
-                            <div className="mt-1.5 flex flex-col gap-2">
-                              <div>
-                                <label className="text-[9px] text-text-dim uppercase tracking-wider block mb-0.5">Constraints</label>
-                                <textarea
-                                  value={phase.constraints}
-                                  onChange={(e) => updatePhase(i, { constraints: e.target.value })}
-                                  placeholder="What must NOT happen in this phase..."
-                                  className="bg-bg-overlay border border-border rounded px-2 py-1.5 text-[10px] text-text-primary w-full outline-none placeholder:text-text-dim resize-none leading-relaxed"
-                                  rows={2}
-                                />
-                              </div>
-                              <div>
-                                <label className="text-[9px] text-text-dim uppercase tracking-wider block mb-0.5">World Expansion</label>
-                                <textarea
-                                  value={phase.worldExpansionHints}
-                                  onChange={(e) => updatePhase(i, { worldExpansionHints: e.target.value })}
-                                  placeholder="New characters, locations, or systems to add..."
-                                  className="bg-bg-overlay border border-border rounded px-2 py-1.5 text-[10px] text-text-primary w-full outline-none placeholder:text-text-dim resize-none leading-relaxed"
-                                  rows={2}
-                                />
-                              </div>
-                              {phase.structuralRules && (
-                                <details>
-                                  <summary className="text-[9px] text-text-dim uppercase tracking-wider cursor-pointer hover:text-text-secondary">Structural Rules</summary>
-                                  <textarea
-                                    value={phase.structuralRules}
-                                    onChange={(e) => updatePhase(i, { structuralRules: e.target.value })}
-                                    className="mt-1 bg-bg-overlay border border-border rounded px-2 py-1.5 text-[10px] text-text-primary w-full outline-none resize-none leading-relaxed"
-                                    rows={5}
-                                  />
-                                </details>
-                              )}
-                              {phase.status === 'active' && existingQueue && (
-                                <div className="flex gap-2 mt-1">
-                                  <button onClick={() => regenerateWorld(i)} disabled={regenerating !== null || !phase.worldExpansionHints}
-                                    className="text-[10px] px-2 py-1 rounded bg-white/5 text-text-dim hover:text-text-secondary hover:bg-white/10 transition-colors disabled:opacity-30">
-                                    {regenerating === 'world' ? 'Expanding...' : 'Regenerate World'}
-                                  </button>
-                                  <button onClick={() => regenerateDirection(i)} disabled={regenerating !== null}
-                                    className="text-[10px] px-2 py-1 rounded bg-white/5 text-text-dim hover:text-text-secondary hover:bg-white/10 transition-colors disabled:opacity-30">
-                                    {regenerating === 'direction' ? 'Generating...' : 'Regenerate Direction'}
-                                  </button>
-                                </div>
-                              )}
-                              {phase.direction && (
-                                <div className="mt-1 rounded bg-bg-overlay/50 px-2 py-1.5">
-                                  <span className="text-[9px] text-text-dim uppercase tracking-wider block mb-0.5">Current Direction</span>
-                                  <p className="text-[10px] text-text-secondary leading-relaxed">{phase.direction}</p>
-                                </div>
-                              )}
-                            </div>
-                          </details>
+                        {/* Reorder / remove controls */}
+                        {isPending && (
+                          <div className="flex flex-col gap-0.5 shrink-0">
+                            <button onClick={() => movePhase(i, -1)} disabled={i === 0} className="text-text-dim hover:text-text-primary disabled:opacity-20 text-[10px]">&#9650;</button>
+                            <button onClick={() => movePhase(i, 1)} disabled={i === queue.phases.length - 1} className="text-text-dim hover:text-text-primary disabled:opacity-20 text-[10px]">&#9660;</button>
+                            <button onClick={() => removePhase(i)} className="text-text-dim hover:text-payoff text-[10px] mt-1" title="Remove phase">&times;</button>
+                          </div>
                         )}
                       </div>
-
-                      {phase.status !== 'completed' && (
-                        <div className="flex flex-col gap-0.5 shrink-0">
-                          <button onClick={() => movePhase(i, -1)} disabled={i === 0} className="text-text-dim hover:text-text-primary disabled:opacity-20 text-[10px]">&#9650;</button>
-                          <button onClick={() => movePhase(i, 1)} disabled={i === queue.phases.length - 1} className="text-text-dim hover:text-text-primary disabled:opacity-20 text-[10px]">&#9660;</button>
-                          <button onClick={() => removePhase(i)} className="text-text-dim hover:text-payoff text-[10px] mt-1" title="Remove phase">&times;</button>
-                        </div>
-                      )}
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
           )}

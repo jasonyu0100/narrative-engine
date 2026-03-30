@@ -4,7 +4,7 @@ import { callGenerate, SYSTEM_PROMPT } from './api';
 import { branchContext } from './context';
 import { buildThreadHealthPrompt, buildCompletedBeatsPrompt } from './prompts';
 import { parseJson } from './json';
-import { MAX_TOKENS_SMALL } from '@/lib/constants';
+import { MAX_TOKENS_SMALL, MAX_TOKENS_DEFAULT } from '@/lib/constants';
 
 /**
  * Course-correct direction and constraints after each arc.
@@ -66,6 +66,7 @@ PHASE OBJECTIVE: ${phase.objective}
 PROGRESS: ${phase.scenesCompleted} / ${phase.sceneAllocation} scenes
 ${phase.constraints ? `PHASE CONSTRAINTS: ${phase.constraints}` : ''}
 ${phase.structuralRules ? `STRUCTURAL RULES (mechanical requirements — audit compliance and enforce in next direction):\n${phase.structuralRules}` : ''}
+${phase.sourceText ? `\nSOURCE MATERIAL (verbatim from plan document — this is the AUTHORITATIVE reference for what should happen in this phase. Your direction MUST serve the plot beats, character actions, and structural guidance described here. Quote specific details from it.):\n${phase.sourceText}` : ''}
 CURRENT DIRECTION: ${currentDirection || '(none set)'}
 CURRENT CONSTRAINTS: ${currentConstraints || '(none set)'}
 
@@ -104,43 +105,47 @@ Review the scene history and thread velocity report through these lenses:
 CRITICAL OUTPUT RULES:
 - The direction you write REPLACES the current direction entirely. It is NOT appended. Write it as a fresh, standalone brief.
 - Do NOT restate the previous direction. If the previous direction asked for something and it HAPPENED, move on. If it didn't happen, escalate the ask — don't repeat it.
-- PHASE OBJECTIVE ANCHOR: The phase objective above is your north star. Every direction you write must serve that objective. If the objective says "establish the alliance," every arc's direction must either build toward establishing it, deal with obstacles to it, or pay it off. You may adjust tactics (different characters, different mechanisms) but you must NOT drift away from the objective. If the objective is partially achieved, the direction must address the remaining parts.
-- Do NOT be analytical or explanatory. This is a directive, not a report. No "this will", "this should", "this move should" — use imperative voice: "Fang Yuan diverts the grain. Mo Bei Liu calls an emergency session."
-- Keep it tight. 3-5 sentences maximum. Every sentence is a specific action with a named character, a verb, and a consequence.
+${phase.sourceText ? `- SOURCE MATERIAL ANCHOR: The SOURCE MATERIAL above is your PRIMARY reference — more authoritative than the phase objective. Your process:
+  1. Read the SOURCE MATERIAL carefully. List every distinct plot beat, character action, and structural moment it describes.
+  2. Compare against the completed scene summaries in the branch context above. Mark each source beat as COVERED or UNCOVERED.
+  3. Your direction MUST target the NEXT UNCOVERED beats — quote or closely paraphrase them. Do not abstract or summarise — use the source's own language, character names, locations, and specific actions.
+  4. If the source includes prose samples, dialogue, internal monologue style, or pacing guidance, reference these explicitly in your direction (e.g. "Fang Yuan's internal monologue should catalogue each person in the room — their ambitions, expiry dates, usefulness — as black comedy").
+  5. Do NOT invent constraints that contradict the source material. If the source says a character goes somewhere or meets someone, do not constrain them from doing so.
+- PHASE OBJECTIVE ANCHOR: The phase objective is your secondary compass. Every direction you write must serve that objective, but the source material provides the specific beats that fulfil it.` : `- PHASE OBJECTIVE ANCHOR: The phase objective above is your north star. Every direction you write must serve that objective. If the objective says "establish the alliance," every arc's direction must either build toward establishing it, deal with obstacles to it, or pay it off. You may adjust tactics (different characters, different mechanisms) but you must NOT drift away from the objective. If the objective is partially achieved, the direction must address the remaining parts.`}
+- Do NOT be analytical or explanatory. This is a directive, not a report. Use imperative voice: "Fang Yuan diverts the grain. Mo Bei Liu calls an emergency session."
 - Use thread IDs and target statuses alongside character names — technical precision helps. e.g. "Fang Yuan diverts the grain, pushing T-41 to critical."
 
 Write direction, constraints, and scene budget:
-- Direction (3-5 sentences): Imperative orders for the next arc. Each sentence: [Character] [does specific thing] [at specific place] [causing specific consequence] [thread target]. At least one sentence must describe a COLLISION — two threads forced into the same scene.
 
-MODEL DIRECTION (each sentence: character + action + location + consequence + thread target):
-"Kael breaks the seal at the Sunken Vault, releasing the thing Mira spent three arcs trying to contain — forcing her to choose between hunting him or evacuating the Lowlands (T-12 → critical). Dara trades the cipher to the Voss Syndicate in exchange for passage across the Reach, not knowing the cipher is the key to the weapon Rhen is building (T-08 collides with T-15). Rhen's prototype detonates prematurely in the Foundry, killing two of his apprentices and destroying his credibility with the Council — his next move must be desperate, not calculated (T-15 → escalating, character cost). The grain shortage hits the Midwall district visibly: a riot, a child dead, a merchant hanged by a mob — making the resource thread impossible for any faction to ignore (T-03 → critical via civilian cost)."
+${phase.sourceText ? `- Direction: A BEAT-SPECIFIC prose blueprint for the next arc, drawn from the SOURCE MATERIAL. For each scene the arc should produce, write a paragraph that:
+  • Quotes or closely paraphrases the specific source beat being realized
+  • Names the POV character, location, and participants
+  • References prose style or internal monologue guidance from the source if applicable
+  • Specifies thread transitions (e.g. T-XX dormant → active)
+  Be as detailed as the source material warrants — if 5 distinct beats remain, describe all 5 as separate paragraphs.` : `- Direction (3-5 sentences): Imperative orders for the next arc. Each sentence: [Character] [does specific thing] [at specific place] [causing specific consequence] [thread target]. At least one sentence must describe a COLLISION — two threads forced into the same scene.`}
 
-- Constraints (3-5 sentences — equally important as direction): What MUST NOT happen. Reference the SPENT BEATS section above — explicitly ban re-staging, re-confirming, or re-witnessing any beat already delivered. Ban confirmation scenes (character reacts to known state without changing it). Ban stale patterns and protect threads meant for later phases. Each constraint must name a specific thread, character, or beat.
+- Constraints (3-5 sentences): What MUST NOT happen. Ban re-staging or re-confirming any beat already delivered. Ban confirmation scenes. Ban stale patterns. Protect threads meant for later phases. Each constraint must name a specific thread, character, or beat.${phase.sourceText ? ' Do NOT invent constraints that contradict the source material.' : ''}
 
-MODEL CONSTRAINTS (each sentence: specific prohibition + what to do instead):
-"The seal is already broken — no more 'Kael investigates the vault' or 'tremors suggest the seal is weakening' scenes; the ONLY valid next beat is the consequence of what escaped (T-12). Mira's betrayal was revealed in scene 34 — do not write scenes where other characters discover or react to it unless their reaction triggers a new alliance or defection. No more 'Dara gathers information' scenes — she has the cipher, the next scene must show her USING it and paying a price. Rhen must not succeed at anything cleanly this arc — every action must have visible collateral that compounds his problems. No eavesdropping or overheard-conversation discoveries — the last three arcs used this mechanism; secrets must be revealed through action, confrontation, or evidence."
+- Scene budget (object): For each active thread, how many scenes it should appear in during the next arc. Threads that collide share a budget slot.
 
-- Scene budget (object): For each active thread, specify how many scenes it should appear in during the next arc. This prevents thread bloat — a thread that needs 1 more beat gets 1 scene, not 4. Threads that should collide in the same scene share a budget slot.
-
-MODEL SCENE BUDGET:
-{"T-12": 2, "T-08+T-15": 2, "T-03": 1}
-(This means: T-12 gets 2 scenes, T-08 and T-15 share 2 collision scenes, T-03 gets 1 scene = 5 total arc scenes, each advancing its thread.)
+All three fields MUST be plain strings in the JSON — never arrays or objects. Write all detail as prose inside the string.
 
 Return JSON:
 {
-  "direction": "3-5 imperative sentences with specific mechanisms and thread targets, including at least one thread collision",
-  "constraints": "3-5 sentences with specific prohibitions referencing spent beats",
+  "direction": "prose string — ${phase.sourceText ? 'beat-specific scene blueprint, as long as needed' : '3-5 imperative sentences'}",
+  "constraints": "prose string — 3-5 sentences with specific prohibitions",
   "sceneBudget": {"T-XX": 2, "T-YY+T-ZZ": 1}
 }`;
 
   const reasoningBudget = REASONING_BUDGETS[narrative.storySettings?.reasoningLevel ?? 'low'] || undefined;
-  const raw = await callGenerate(prompt, SYSTEM_PROMPT, MAX_TOKENS_SMALL, 'refreshDirection', undefined, reasoningBudget);
+  const maxTokens = phase.sourceText ? MAX_TOKENS_DEFAULT : MAX_TOKENS_SMALL;
+  const raw = await callGenerate(prompt, SYSTEM_PROMPT, maxTokens, 'refreshDirection', undefined, reasoningBudget);
 
   try {
     const parsed = parseJson(raw, 'refreshDirection') as { direction?: string; constraints?: string; sceneBudget?: Record<string, number> };
     // Embed scene budget into direction text so it flows through to generateScenes
     // without needing a new StorySettings field
-    let direction = parsed.direction ?? currentDirection;
+    let direction = parsed.direction ? String(parsed.direction) : currentDirection;
     if (parsed.sceneBudget && Object.keys(parsed.sceneBudget).length > 0) {
       const budgetLines = Object.entries(parsed.sceneBudget)
         .map(([threads, count]) => `  ${threads}: ${count} scene${count !== 1 ? 's' : ''}`)
@@ -149,7 +154,7 @@ Return JSON:
     }
     return {
       direction,
-      constraints: parsed.constraints ?? currentConstraints,
+      constraints: parsed.constraints ? String(parsed.constraints) : currentConstraints,
       sceneBudget: parsed.sceneBudget,
     };
   } catch {

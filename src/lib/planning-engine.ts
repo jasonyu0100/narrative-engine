@@ -2,7 +2,15 @@ import type { NarrativeState, PlanningQueue, PlanningPhase } from '@/types/narra
 import { REASONING_BUDGETS } from '@/types/narrative';
 import { callGenerate, SYSTEM_PROMPT } from './ai/api';
 import { branchContext } from './ai/context';
-import { MAX_TOKENS_SMALL, MAX_TOKENS_DEFAULT } from '@/lib/constants';
+import { MAX_TOKENS_SMALL, MAX_TOKENS_DEFAULT, MAX_TOKENS_LARGE } from '@/lib/constants';
+
+/** Coerce a value to string — stringify objects/arrays instead of returning "[object Object]" */
+function asString(v: unknown, fallback = ''): string {
+  if (typeof v === 'string') return v;
+  if (v == null) return fallback;
+  if (typeof v === 'number' || typeof v === 'boolean') return String(v);
+  return JSON.stringify(v, null, 2);
+}
 
 /**
  * Generate a completion report for a phase that has finished its scene allocation.
@@ -25,6 +33,7 @@ OBJECTIVE: ${phase.objective}
 SCENES ALLOCATED: ${phase.sceneAllocation}
 SCENES COMPLETED: ${phase.scenesCompleted}
 ${phase.constraints ? `CONSTRAINTS: ${phase.constraints}` : ''}
+${phase.sourceText ? `\nSOURCE MATERIAL (the original plan for this phase):\n${phase.sourceText}` : ''}
 
 Produce a concise completion report covering:
 1. Was the objective met? (Yes/Partially/No)
@@ -75,32 +84,40 @@ SCENES ALLOCATED: ${phase.sceneAllocation}
 ${phase.constraints ? `PHASE CONSTRAINTS: ${phase.constraints}` : ''}
 ${phase.structuralRules ? `\nSTRUCTURAL RULES (these are mechanical requirements — enforce them in every arc):\n${phase.structuralRules}` : ''}
 ${phase.worldExpansionHints ? `WORLD EXPANSION CONTEXT: ${phase.worldExpansionHints}` : ''}
+${phase.sourceText ? `\nSOURCE MATERIAL (verbatim from plan document — this is the authoritative reference for this phase's content, plot beats, prose style, character details, and structural guidance):\n${phase.sourceText}` : ''}
 
 ${completedSummary ? `COMPLETED PHASES:\n${completedSummary}\n` : ''}
 ${remaining ? `UPCOMING PHASES:\n${remaining}\n` : ''}
 
-Generate:
+${phase.sourceText ? `Generate a BEAT-SPECIFIC direction that translates the SOURCE MATERIAL into concrete scene instructions.
+
+The direction is a SINGLE STRING containing a scene-by-scene blueprint drawn from the source material. Write it as prose paragraphs — one paragraph per scene beat. For each beat: quote or paraphrase the specific source moment, name the POV character and location, reference prose style or dialogue guidance from the source, and note which threads advance.
+
+The constraints should protect later phases — draw prohibitions from the source material's own structure (e.g. if the source says "she does not yet know," that's a constraint). Do NOT invent constraints that contradict the source material.` : `Generate:
 1. A DIRECTION prompt (2-4 sentences) — advisory guidance, not a script. Describe the FEEL and TRAJECTORY of this phase: what kind of energy it should have, which threads are ripe for development, what the reader should experience. Name characters and threads that are ready to move, but leave room for emergent storytelling. If artifacts already exist in the world, note which ones are ripe — who should acquire, use, or lose them. The world will be expanded before generation — the direction should guide how the new and existing elements interact. The direction must be compatible with the STRUCTURAL RULES above — if the rules demand convergence density or protagonist gravity, the direction must create conditions for those mechanics to fire.
-2. A CONSTRAINTS prompt (1-2 sentences) — what must NOT happen yet. Protect threads, reveals, and artifact transfers that belong to later phases. Keep it to absolute prohibitions, not creative restrictions.
+2. A CONSTRAINTS prompt (1-2 sentences) — what must NOT happen yet. Protect threads, reveals, and artifact transfers that belong to later phases. Keep it to absolute prohibitions, not creative restrictions.`}
 
 Use character NAMES, location NAMES, and thread DESCRIPTIONS — never raw IDs.
 
+CRITICAL: Both "direction" and "constraints" MUST be plain strings, not arrays or objects. All detail goes inside the string as prose.
+
 Return JSON:
 {
-  "direction": "...",
-  "constraints": "..."
+  "direction": "single string with all direction detail as prose paragraphs",
+  "constraints": "single string with all constraints as prose"
 }`;
 
   const reasoningBudget = REASONING_BUDGETS[narrative.storySettings?.reasoningLevel ?? 'low'] || undefined;
-  const response = await callGenerate(prompt, SYSTEM_PROMPT, MAX_TOKENS_SMALL, 'planningEngine', undefined, reasoningBudget);
+  const maxTokens = phase.sourceText ? MAX_TOKENS_DEFAULT : MAX_TOKENS_SMALL;
+  const response = await callGenerate(prompt, SYSTEM_PROMPT, maxTokens, 'planningEngine', undefined, reasoningBudget);
 
   try {
     const match = response.match(/\{[\s\S]*\}/);
     if (match) {
       const parsed = JSON.parse(match[0]);
       return {
-        direction: parsed.direction ?? '',
-        constraints: parsed.constraints ?? '',
+        direction: asString(parsed.direction),
+        constraints: asString(parsed.constraints),
       };
     }
   } catch {
@@ -124,7 +141,7 @@ export async function generateCustomPlan(
   resolvedKeys: string[],
   currentIndex: number,
   planDocument: string,
-): Promise<{ name: string; phases: { name: string; objective: string; sceneAllocation: number; constraints: string; structuralRules?: string; worldExpansionHints: string }[] }> {
+): Promise<{ name: string; phases: { name: string; objective: string; sceneAllocation: number; constraints: string; structuralRules?: string; worldExpansionHints: string; sourceText?: string }[] }> {
   const ctx = branchContext(narrative, resolvedKeys, currentIndex);
 
   const prompt = `${ctx}
@@ -145,15 +162,17 @@ CRITICAL RULES:
    - Large chapter blocks (6+): cap at 12 scenes
    - Minimum per phase: 2 scenes
 
-3. PHASES ARE ADVISORY, NOT SCRIPTS. Each phase describes the FEEL and TRAJECTORY — which threads are ready to move, what the reader should experience, what energy is required. The AI makes specific scene decisions; phases guide the current, not the individual waves.
+3. sourceText IS THE MOST IMPORTANT FIELD. For each phase, extract the COMPLETE verbatim text from the plan document that corresponds to this phase. Include ALL of it — plot beats, prose samples, character notes, structural guidance, dialogue excerpts, internal monologue examples, pacing notes, everything. Do not summarise, do not compress, do not paraphrase. Copy the full section text exactly as written. This is the source of truth that will guide scene generation. If the document has a 2,000-word section for a phase, the sourceText should be 2,000 words.
 
-4. STRUCTURAL RULES are mechanical requirements — convergence density (how many threads must collide per arc), payoff density (setup-to-payoff ratio), scene function variety (required/banned beat types), protagonist gravity (appearance frequency). Be specific and enforceable.
+4. objective is a SHORT compass heading (2-4 sentences) for display purposes. The detail lives in sourceText.
 
-5. WORLD EXPANSION HINTS: identify what new characters, locations, or systems the world needs before this phase can be told. The world grows phase by phase. If a section introduces a new setting (e.g. Central Plains), flag the entities that must be expanded into the world first.
+5. STRUCTURAL RULES are mechanical requirements — convergence density, payoff density, scene function variety, protagonist gravity. Be specific and enforceable.
 
-6. CONSTRAINTS protect threads and reveals belonging to later phases — absolute prohibitions only. One sentence.
+6. WORLD EXPANSION HINTS: identify what new characters, locations, or systems the world needs before this phase can be told.
 
-7. Use character NAMES, location NAMES, and thread DESCRIPTIONS — never raw IDs.
+7. CONSTRAINTS protect threads and reveals belonging to later phases — absolute prohibitions only. One sentence.
+
+8. Use character NAMES, location NAMES, and thread DESCRIPTIONS — never raw IDs.
 
 Return JSON:
 {
@@ -161,17 +180,18 @@ Return JSON:
   "phases": [
     {
       "name": "Phase name matching the document section title (2-6 words)",
-      "objective": "Advisory objective (2-4 sentences). The feel of this phase, which threads are ready to develop, what the reader should experience. Reference specific characters and locations by name. Not a plot outline — a compass heading.",
+      "objective": "Short compass heading (2-4 sentences) for display. The feel and trajectory of this phase.",
+      "sourceText": "VERBATIM extraction of the COMPLETE section from the plan document that maps to this phase. Include every word — plot beats, prose samples, character notes, dialogue, pacing guidance, structural notes. This is the generation source of truth. Do NOT summarise.",
       "sceneAllocation": 4,
       "constraints": "What must NOT happen yet (1 sentence). Protect later phases.",
-      "structuralRules": "Mechanical requirements across 4 dimensions: CONVERGENCE (how many threads must collide per arc, causal vs spatial), PAYOFF DENSITY (thread transitions per arc, setup-to-payoff ratio), SCENE FUNCTION VARIETY (required/banned beat types, max consecutive same-function scenes), PROTAGONIST GRAVITY (appearance frequency, causal centrality). Be specific and enforceable.",
+      "structuralRules": "Mechanical requirements across 4 dimensions: CONVERGENCE, PAYOFF DENSITY, SCENE FUNCTION VARIETY, PROTAGONIST GRAVITY. Be specific and enforceable.",
       "worldExpansionHints": "New characters, locations, or world systems needed for this phase that don't yet exist in the world. Empty string if existing world is sufficient."
     }
   ]
 }`;
 
   const reasoningBudget = REASONING_BUDGETS[narrative.storySettings?.reasoningLevel ?? 'low'] || undefined;
-  const raw = await callGenerate(prompt, SYSTEM_PROMPT, MAX_TOKENS_DEFAULT, 'generateCustomPlan', undefined, reasoningBudget);
+  const raw = await callGenerate(prompt, SYSTEM_PROMPT, MAX_TOKENS_LARGE, 'generateCustomPlan', undefined, reasoningBudget);
 
   try {
     const match = raw.match(/\{[\s\S]*\}/);
@@ -180,12 +200,13 @@ Return JSON:
       return {
         name: parsed.name ?? 'Custom Plan',
         phases: (parsed.phases ?? []).map((p: Record<string, unknown>) => ({
-          name: String(p.name ?? 'Untitled Phase'),
-          objective: String(p.objective ?? ''),
+          name: asString(p.name, 'Untitled Phase'),
+          objective: asString(p.objective),
           sceneAllocation: Number(p.sceneAllocation) || 4,
-          constraints: String(p.constraints ?? ''),
-          structuralRules: p.structuralRules ? String(p.structuralRules) : undefined,
-          worldExpansionHints: String(p.worldExpansionHints ?? ''),
+          constraints: asString(p.constraints),
+          structuralRules: p.structuralRules ? asString(p.structuralRules) : undefined,
+          worldExpansionHints: asString(p.worldExpansionHints),
+          sourceText: p.sourceText ? asString(p.sourceText) : undefined,
         })),
       };
     }

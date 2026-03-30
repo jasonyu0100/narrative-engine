@@ -747,6 +747,8 @@ export type PlanningPhase = {
   worldBuildId?: string;
   /** Hints for world expansion when transitioning into this phase */
   worldExpansionHints: string;
+  /** Verbatim section from the plan document that maps to this phase — the source of truth for generation */
+  sourceText?: string;
 };
 
 /** A named superstructure template that populates the queue */
@@ -767,6 +769,7 @@ export type PlanningProfile = {
     /** Structural mechanics rules — convergence, payoff density, scene function variety, protagonist gravity */
     structuralRules?: string;
     worldExpansionHints: string;
+    sourceText?: string;
   }[];
 };
 

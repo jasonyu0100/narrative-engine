@@ -165,7 +165,16 @@ export function useAutoPlay() {
       cycleConstraints = freshConfig.narrativeConstraints;
 
       // Generate arc — cap scene count to fit planning phase allocation
-      const directive = buildActionDirective(action, activeNarrative, freshConfig, directiveCtx);
+      let directive = buildActionDirective(action, activeNarrative, freshConfig, directiveCtx);
+
+      // Inject phase sourceText into the directive so scene generation has the full plan detail
+      if (pq) {
+        const ap = pq.phases[pq.activePhaseIndex];
+        if (ap?.sourceText) {
+          directive += `\n\nPLAN SOURCE MATERIAL (verbatim from story plan — this is the authoritative reference for what should happen. Generate scenes that execute the specific plot beats, character actions, dialogue moments, and structural moves described here. If the source describes a specific scene or chapter, your generated scenes should realize it faithfully.):\n${ap.sourceText}`;
+        }
+      }
+
       let sceneCount = pickArcLength(autoConfig, action);
 
       // If a planning queue phase is active, cap to remaining scenes exactly

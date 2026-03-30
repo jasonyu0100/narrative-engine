@@ -341,6 +341,8 @@ export async function expandWorld(
   directive: string,
   size: WorldExpansionSize = 'medium',
   strategy: WorldExpansionStrategy = 'dynamic',
+  /** Verbatim plan document section — guides entity creation with specific character/location/system details */
+  sourceText?: string,
 ): Promise<WorldExpansion> {
   const ctx = branchContext(narrative, resolvedKeys, currentIndex);
 
@@ -386,6 +388,7 @@ ${m.recommendation === 'depth' ? EXPANSION_STRATEGY_PROMPTS.depth : m.recommenda
   const prompt = `${ctx}
 
 ${directive.trim() ? `EXPAND the world based on this directive: ${directive}` : 'EXPAND the world — analyze the current narrative state and add characters, locations, and threads that would create the most interesting new possibilities based on existing tensions and unexplored areas.'}
+${sourceText ? `\nSOURCE MATERIAL (verbatim from plan document — use this as the authoritative guide for what characters, locations, systems, and entities to create. If the source names specific characters, places, or objects, create them with those exact names and roles. The source material takes priority over generic expansion.):\n${sourceText}` : ''}
 
 ${strategyBlock}
 

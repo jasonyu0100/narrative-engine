@@ -55,35 +55,7 @@ export function usePlanningQueue() {
     lastProcessedRef.current = completionKey;
 
     if (isAutoRunning) {
-      // Auto mode: check if the phase reached a natural stopping point
-      // If threads are mid-escalation (active/escalating but not critical/resolved),
-      // extend the phase by a few scenes instead of forcing transition
-      const s = stateRef.current;
-      const narrative = s.activeNarrative;
-      if (narrative && activePhase) {
-        const activeThreads = Object.values(narrative.threads).filter(
-          (t) => t.status === 'active' || t.status === 'escalating'
-        );
-        const criticalOrResolved = Object.values(narrative.threads).filter(
-          (t) => t.status === 'critical' || t.status === 'resolved' || t.status === 'subverted'
-        );
-        // If many threads are mid-escalation and few have reached crisis/resolution,
-        // the phase hasn't reached a natural boundary — extend it
-        const midEscalation = activeThreads.length;
-        const concluded = criticalOrResolved.length;
-        if (midEscalation > concluded + 2 && activePhase.sceneAllocation < 15) {
-          // Extend by 3 scenes (one more mini-arc)
-          dispatch({
-            type: 'UPDATE_PLANNING_PHASE',
-            branchId,
-            phaseIndex: queue.activePhaseIndex,
-            updates: { sceneAllocation: activePhase.sceneAllocation + 3 },
-          });
-          lastProcessedRef.current = null; // Reset so it can re-trigger
-          return;
-        }
-      }
-      // Natural stopping point reached — advance
+      // Auto mode: advance to next phase
       runTransition(queue, branchId);
     } else {
       // Manual / idle: generate report and wait for user decision
@@ -168,7 +140,7 @@ export function usePlanningQueue() {
           const strategy = freshNarrative1.storySettings?.expansionStrategy ?? 'dynamic';
           const expansion = await expandWorld(
             freshNarrative1, freshState1.resolvedEntryKeys, freshState1.currentSceneIndex,
-            nextPhase.worldExpansionHints, 'medium', strategy,
+            nextPhase.worldExpansionHints, 'medium', strategy, nextPhase.sourceText,
           );
           dispatch({
             type: 'EXPAND_WORLD',
