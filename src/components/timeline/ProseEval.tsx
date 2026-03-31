@@ -216,7 +216,7 @@ export default function ProseEval() {
       }
     } catch (err) {
       if (!cancelledRef.current) {
-        setError(err instanceof Error ? err.message : 'Evaluation failed');
+        setError(err instanceof Error ? err.message : 'Review failed');
       }
     } finally {
       setLoading(false);
@@ -314,7 +314,7 @@ export default function ProseEval() {
       {/* Header */}
       <div className="px-3 py-2 border-b border-white/5 shrink-0">
         <div className="flex items-center justify-between">
-          <h3 className="text-xs font-medium text-text-primary">Prose Evaluation</h3>
+          <h3 className="text-xs font-medium text-text-primary">Prose Review</h3>
           <div className="flex items-center gap-1.5">
             {busy ? (
               <button
@@ -337,7 +337,7 @@ export default function ProseEval() {
                   disabled={scenes.length === 0}
                   className="text-[10px] px-2 py-0.5 rounded bg-white/8 text-text-secondary hover:bg-white/12 transition-colors disabled:opacity-30"
                 >
-                  {evaluation ? 'Re-evaluate' : 'Evaluate'}
+                  {evaluation ? 'Re-review' : 'Review'}
                 </button>
                 {hasWork && (
                   <button
@@ -374,7 +374,7 @@ export default function ProseEval() {
         {loading && (
           <div className="mt-1.5 space-y-1">
             <div className="flex items-center justify-between text-[10px]">
-              <span className="text-text-dim">Evaluating {scenes.length} scenes...</span>
+              <span className="text-text-dim">Reviewing {scenes.length} scenes...</span>
             </div>
             <div className="w-full h-1 bg-white/5 rounded-full overflow-hidden">
               <div className="h-full bg-white/20 rounded-full animate-[eval-sweep_2s_ease-in-out_infinite]" />
@@ -504,7 +504,7 @@ export default function ProseEval() {
           <div className="text-center py-8 text-text-dim text-xs">
             {scenes.length > 0 ? (
               <>
-                <p>Run an evaluation to review prose quality.</p>
+                <p>Run a review to check prose quality.</p>
                 <p className="mt-1 text-[10px]">{scenes.length} scenes with prose</p>
               </>
             ) : (

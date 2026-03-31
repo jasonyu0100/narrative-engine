@@ -1,4 +1,4 @@
-import type { NarrativeState, BranchEvaluation, ProseEvaluation, ProseSceneEval, PlanEvaluation, PlanSceneEval, SceneEval, SceneVerdict, Scene, Arc } from '@/types/narrative';
+import type { NarrativeState, StructureReview, ProseEvaluation, ProseSceneEval, PlanEvaluation, PlanSceneEval, SceneEval, SceneVerdict, Scene, Arc } from '@/types/narrative';
 import { resolveEntry, isScene, REASONING_BUDGETS } from '@/types/narrative';
 import { callGenerate, SYSTEM_PROMPT } from './api';
 import { parseJson } from './json';
@@ -17,7 +17,7 @@ export async function evaluateBranch(
   branchId: string,
   /** Optional external guidance — e.g. paste from ChatGPT, editor notes, specific focus areas */
   guidance?: string,
-): Promise<BranchEvaluation> {
+): Promise<StructureReview> {
   // Collect scenes with their arc context
   const sceneSummaries: { idx: number; id: string; arc: string; pov: string; location: string; summary: string }[] = [];
   for (let i = 0; i < resolvedKeys.length; i++) {

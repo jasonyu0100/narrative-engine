@@ -464,7 +464,7 @@ export type SceneEval = {
 };
 
 /** Full branch evaluation — overall critique + per-scene verdicts */
-export type BranchEvaluation = {
+export type StructureReview = {
   id: string;
   branchId: string;
   createdAt: string;
@@ -603,7 +603,7 @@ export type NarrativeState = {
   /** Notes keyed by note ID — persisted with the narrative */
   notes?: Record<string, Note>;
   /** Branch evaluations keyed by branch ID — most recent eval per branch */
-  branchEvaluations?: Record<string, BranchEvaluation>;
+  structureReviews?: Record<string, StructureReview>;
   /** Prose evaluations keyed by branch ID — most recent prose eval per branch */
   proseEvaluations?: Record<string, ProseEvaluation>;
   /** Plan evaluations keyed by branch ID — most recent plan eval per branch */

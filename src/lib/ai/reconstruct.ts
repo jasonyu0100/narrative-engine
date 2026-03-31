@@ -1,4 +1,4 @@
-import type { NarrativeState, BranchEvaluation, SceneEval, SceneVerdict, Scene, Arc, Branch } from '@/types/narrative';
+import type { NarrativeState, StructureReview, SceneEval, SceneVerdict, Scene, Arc, Branch } from '@/types/narrative';
 import { resolveEntry, isScene, isWorldBuild, REASONING_BUDGETS } from '@/types/narrative';
 import { nextId } from '@/lib/narrative-utils';
 import { callGenerate, SYSTEM_PROMPT } from './api';
@@ -63,7 +63,7 @@ async function parallelBatch<T>(
 export async function reconstructBranch(
   narrative: NarrativeState,
   resolvedKeys: string[],
-  evaluation: BranchEvaluation,
+  evaluation: StructureReview,
   callbacks: ReconstructionCallbacks,
   cancelledRef: { current: boolean },
 ): Promise<{ branchId: string; branch: Branch; scenes: Scene[]; arcs: Record<string, Arc> }> {
@@ -434,7 +434,7 @@ async function editScene(
   resolvedKeys: string[],
   scene: Scene,
   reason: string,
-  evaluation: BranchEvaluation,
+  evaluation: StructureReview,
   timelineIndex: number,
   timeline: { scene: Scene; verdict: SceneVerdict; reason: string }[],
 ): Promise<Scene> {
@@ -529,7 +529,7 @@ async function mergeScenes(
   targetScene: Scene,
   sourcesToAbsorb: Scene[],
   reason: string,
-  evaluation: BranchEvaluation,
+  evaluation: StructureReview,
   timelineIndex: number,
   timeline: { scene: Scene; verdict: SceneVerdict; reason: string }[],
 ): Promise<Scene> {
@@ -627,7 +627,7 @@ async function insertScene(
   narrative: NarrativeState,
   resolvedKeys: string[],
   brief: string,
-  evaluation: BranchEvaluation,
+  evaluation: StructureReview,
   timelineIndex: number,
 ): Promise<Scene> {
   const contextIndex = Math.min(timelineIndex, resolvedKeys.length - 1);

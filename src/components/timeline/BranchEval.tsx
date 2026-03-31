@@ -5,24 +5,26 @@ import { useStore } from '@/lib/store';
 import { evaluateBranch } from '@/lib/ai/evaluate';
 import { reconstructBranch, type ReconstructionProgress } from '@/lib/ai/reconstruct';
 import { resolveEntry, isScene } from '@/types/narrative';
-import type { BranchEvaluation, SceneEval, SceneVerdict, Scene, Arc } from '@/types/narrative';
+import type { StructureReview, SceneEval, SceneVerdict, Scene, Arc } from '@/types/narrative';
+import { IconCheck, IconTilde, IconMerge, IconCross, IconPlus, IconArrowRight, IconRunning, IconDot, IconDash, IconPencil, IconSlashCircle, IconReset, IconSparkle } from '@/components/icons/EvalIcons';
+import type { ReactNode } from 'react';
 
 // ── Verdict visuals ──────────────────────────────────────────────────────────
 
-const VERDICT_CONFIG: Record<SceneVerdict, { icon: string; color: string; bg: string; label: string }> = {
-  ok:      { icon: '✓', color: 'text-emerald-400', bg: 'bg-emerald-500/15', label: 'OK' },
-  edit:    { icon: '~', color: 'text-amber-400',   bg: 'bg-amber-500/15',   label: 'Edit' },
-  merge:   { icon: '⊕', color: 'text-blue-400',    bg: 'bg-blue-500/15',    label: 'Merge' },
-  cut:     { icon: '✕', color: 'text-white/30',    bg: 'bg-white/5',        label: 'Cut' },
-  insert:  { icon: '+', color: 'text-cyan-400',    bg: 'bg-cyan-500/15',    label: 'Insert' },
-  move:    { icon: '→', color: 'text-blue-400',    bg: 'bg-blue-500/15',    label: 'Move' },
+const VERDICT_CONFIG: Record<SceneVerdict, { icon: ReactNode; color: string; bg: string; label: string }> = {
+  ok:      { icon: <IconCheck size={10} />,       color: 'text-emerald-400', bg: 'bg-emerald-500/15', label: 'OK' },
+  edit:    { icon: <IconTilde size={10} />,       color: 'text-amber-400',   bg: 'bg-amber-500/15',   label: 'Edit' },
+  merge:   { icon: <IconMerge size={10} />,       color: 'text-blue-400',    bg: 'bg-blue-500/15',    label: 'Merge' },
+  cut:     { icon: <IconCross size={10} />,       color: 'text-white/30',    bg: 'bg-white/5',        label: 'Cut' },
+  insert:  { icon: <IconPlus size={10} />,        color: 'text-cyan-400',    bg: 'bg-cyan-500/15',    label: 'Insert' },
+  move:    { icon: <IconArrowRight size={10} />,  color: 'text-blue-400',    bg: 'bg-blue-500/15',    label: 'Move' },
 };
 
-const STEP_STATUS_ICON: Record<string, string> = {
-  pending: '·',
-  running: '◎',
-  done: '✓',
-  skipped: '–',
+const STEP_STATUS_ICON: Record<string, ReactNode> = {
+  pending: <IconDot size={8} />,
+  running: <IconRunning size={8} />,
+  done: <IconCheck size={8} />,
+  skipped: <IconDash size={8} />,
 };
 
 // ── Scene node in the vertical tree ──────────────────────────────────────────
@@ -201,7 +203,7 @@ function SceneNode({
 
 // ── Stats bar ────────────────────────────────────────────────────────────────
 
-function StatsBar({ sceneEvals }: { sceneEvals: BranchEvaluation['sceneEvals'] }) {
+function StatsBar({ sceneEvals }: { sceneEvals: StructureReview['sceneEvals'] }) {
   const counts: Record<SceneVerdict, number> = { ok: 0, edit: 0, merge: 0, cut: 0, insert: 0, move: 0 };
   for (const e of sceneEvals) counts[e.verdict]++;
   return (
@@ -256,8 +258,8 @@ export default function BranchEval() {
   const branchId = state.activeBranchId;
 
   // Load persisted evaluation for current branch — this is the immutable LLM result
-  const persisted = branchId ? narrative?.branchEvaluations?.[branchId] ?? null : null;
-  const [baseEvaluation, setBaseEvaluation] = useState<BranchEvaluation | null>(persisted);
+  const persisted = branchId ? narrative?.structureReviews?.[branchId] ?? null : null;
+  const [baseEvaluation, setBaseEvaluation] = useState<StructureReview | null>(persisted);
   // User overrides layer: sceneId → partial overrides (verdict, reason)
   const [overrides, setOverrides] = useState<Map<string, SceneOverride>>(new Map());
   const [loading, setLoading] = useState(false);
@@ -269,7 +271,7 @@ export default function BranchEval() {
   const cancelledRef = useRef(false);
 
   // Merge base evaluation + overrides into effective evaluation for display and reconstruction
-  const evaluation = useMemo<BranchEvaluation | null>(() => {
+  const evaluation = useMemo<StructureReview | null>(() => {
     if (!baseEvaluation) return null;
     if (overrides.size === 0) return baseEvaluation;
     return {
@@ -294,7 +296,7 @@ export default function BranchEval() {
   const lastBranchRef = useRef(branchId);
   if (branchId !== lastBranchRef.current) {
     lastBranchRef.current = branchId;
-    const restored = branchId ? narrative?.branchEvaluations?.[branchId] ?? null : null;
+    const restored = branchId ? narrative?.structureReviews?.[branchId] ?? null : null;
     setBaseEvaluation(restored);
     setOverrides(new Map());
     setReconProgress(null);
@@ -312,11 +314,11 @@ export default function BranchEval() {
       if (!cancelledRef.current) {
         setBaseEvaluation(result);
         setOverrides(new Map());
-        dispatch({ type: 'SET_BRANCH_EVALUATION', branchId, evaluation: result });
+        dispatch({ type: 'SET_STRUCTURE_REVIEW', branchId, evaluation: result });
       }
     } catch (err) {
       if (!cancelledRef.current) {
-        setError(err instanceof Error ? err.message : 'Evaluation failed');
+        setError(err instanceof Error ? err.message : 'Review failed');
       }
     } finally {
       setLoading(false);
@@ -460,7 +462,7 @@ export default function BranchEval() {
       {/* Header */}
       <div className="px-3 py-2 border-b border-white/5 shrink-0">
         <div className="flex items-center justify-between">
-          <h3 className="text-xs font-medium text-text-primary">Branch Evaluation</h3>
+          <h3 className="text-xs font-medium text-text-primary">Structure Review</h3>
           <div className="flex items-center gap-1.5">
             {busy ? (
               <button
@@ -482,7 +484,7 @@ export default function BranchEval() {
                   onClick={runEvaluation}
                   className="text-[10px] px-2 py-0.5 rounded bg-white/8 text-text-secondary hover:bg-white/12 transition-colors"
                 >
-                  {evaluation ? 'Re-evaluate' : 'Evaluate'}
+                  {evaluation ? 'Re-review' : 'Review'}
                 </button>
                 {hasWork && (
                   <button
@@ -519,7 +521,7 @@ export default function BranchEval() {
         {loading && (
           <div className="mt-1.5 space-y-1">
             <div className="flex items-center justify-between text-[10px]">
-              <span className="text-text-dim">Evaluating {scenes.length} scenes...</span>
+              <span className="text-text-dim">Reviewing {scenes.length} scenes...</span>
             </div>
             <div className="w-full h-1 bg-white/5 rounded-full overflow-hidden">
               <div className="h-full bg-white/20 rounded-full animate-[eval-sweep_2s_ease-in-out_infinite]" />
@@ -656,7 +658,7 @@ export default function BranchEval() {
           </div>
         ) : !busy ? (
           <div className="text-center py-8 text-text-dim text-xs">
-            <p>Run an evaluation to see per-scene verdicts.</p>
+            <p>Run a review to see per-scene verdicts.</p>
             <p className="mt-1 text-[10px]">{scenes.length} scenes on this branch</p>
           </div>
         ) : null}

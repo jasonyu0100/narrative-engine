@@ -1,7 +1,7 @@
 'use client';
 
 import React, { createContext, useContext, useReducer, useEffect, useRef, useMemo, type ReactNode } from 'react';
-import type { AppState, InspectorContext, NarrativeState, NarrativeEntry, WizardStep, WizardData, Scene, Arc, Branch, Character, Location, Thread, RelationshipEdge, GraphViewMode, AutoConfig, AutoRunLog, WorldBuild, WorldKnowledgeGraph, WorldKnowledgeNode, WorldKnowledgeEdge, WorldKnowledgeMutation, ApiLogEntry, StorySettings, AnalysisJob, ChatThread, ChatMessage, Note, PlanningQueue, PlanningPhase, Artifact, BranchEvaluation, ProseEvaluation, PlanEvaluation, WorldSystem, ProseProfile, BeatProfilePreset } from '@/types/narrative';
+import type { AppState, InspectorContext, NarrativeState, NarrativeEntry, WizardStep, WizardData, Scene, Arc, Branch, Character, Location, Thread, RelationshipEdge, GraphViewMode, AutoConfig, AutoRunLog, WorldBuild, WorldKnowledgeGraph, WorldKnowledgeNode, WorldKnowledgeEdge, WorldKnowledgeMutation, ApiLogEntry, StorySettings, AnalysisJob, ChatThread, ChatMessage, Note, PlanningQueue, PlanningPhase, Artifact, StructureReview, ProseEvaluation, PlanEvaluation, WorldSystem, ProseProfile, BeatProfilePreset } from '@/types/narrative';
 import { resolveEntrySequence, nextId, computeForceSnapshots, computeSwingMagnitudes, computeDeliveryCurve, classifyNarrativeShape, classifyArchetype, classifyScale, classifyWorldDensity, gradeForces, computeRawForceTotals, FORCE_REFERENCE_MEANS } from '@/lib/narrative-utils';
 import { initMatrixPresets } from '@/lib/markov';
 import { initBeatProfilePresets } from '@/lib/beat-profiles';
@@ -325,7 +325,7 @@ export type Action =
   | { type: 'DELETE_BRANCH'; branchId: string }
   | { type: 'RENAME_BRANCH'; branchId: string; name: string }
   | { type: 'REMOVE_BRANCH_ENTRY'; entryId: string; branchId: string }
-  | { type: 'SET_BRANCH_EVALUATION'; branchId: string; evaluation: BranchEvaluation }
+  | { type: 'SET_STRUCTURE_REVIEW'; branchId: string; evaluation: StructureReview }
   | { type: 'SET_PROSE_EVALUATION'; branchId: string; evaluation: ProseEvaluation }
   | { type: 'SET_PLAN_EVALUATION'; branchId: string; evaluation: PlanEvaluation }
   // Bulk AI-generated content
@@ -686,10 +686,10 @@ function reducer(state: AppState, action: Action): AppState {
       return newState;
     }
 
-    case 'SET_BRANCH_EVALUATION':
+    case 'SET_STRUCTURE_REVIEW':
       return updateNarrative(state, (n) => ({
         ...n,
-        branchEvaluations: { ...n.branchEvaluations, [action.branchId]: action.evaluation },
+        structureReviews: { ...n.structureReviews, [action.branchId]: action.evaluation },
       }));
 
     case 'SET_PROSE_EVALUATION':

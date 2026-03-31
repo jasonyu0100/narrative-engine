@@ -24,7 +24,7 @@ const TAB_LABELS: Record<Tab, string> = {
   inspector: 'Inspector',
   chat: 'Chat',
   notes: 'Notes',
-  eval: 'Evaluation',
+  eval: 'Review',
 };
 
 function getDefaultContext(state: ReturnType<typeof useStore>['state']) {

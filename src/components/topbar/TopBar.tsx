@@ -156,8 +156,8 @@ function exportBranch(narrative: NarrativeState, branchId: string) {
     storySettings: narrative.storySettings,
     imageStyle: narrative.imageStyle,
     coverImageUrl: narrative.coverImageUrl,
-    branchEvaluations: narrative.branchEvaluations?.[branchId]
-      ? { [branchId]: narrative.branchEvaluations[branchId] }
+    structureReviews: narrative.structureReviews?.[branchId]
+      ? { [branchId]: narrative.structureReviews[branchId] }
       : undefined,
     createdAt: narrative.createdAt,
     updatedAt: narrative.updatedAt,

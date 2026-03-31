@@ -79,7 +79,7 @@ src/
 │   ├── epub-export.ts      # EPUB export
 │   └── api-logger.ts       # API call logging & token tracking
 ├── types/
-│   ├── narrative.ts        # Domain types: Scene, Character, Location, Thread, Arc, BranchEvaluation, etc.
+│   ├── narrative.ts        # Domain types: Scene, Character, Location, Thread, Arc, StructureEvaluation, etc.
 │   └── mcts.ts             # MCTS-specific types
 ├── hooks/                  # useAutoPlay, useMCTS, useFeatureAccess
 └── data/                   # Seed narratives (HP, LOTR, Star Wars, GoT, Reverend Insanity)
@@ -87,11 +87,11 @@ src/
 
 ## Domain Model (src/types/narrative.ts)
 
-- **NarrativeState** — top-level: characters, locations, threads, arcs, scenes, worldBuilds, branches, branchEvaluations
+- **NarrativeState** — top-level: characters, locations, threads, arcs, scenes, worldBuilds, branches, structureEvaluations
 - **Scene** — povId, locationId, participantIds, events, threadMutations, continuityMutations, relationshipMutations, characterMovements, plan, prose, proseScore
 - **Thread** — trackable narrative threads with lifecycle status; mutations record payoff/change per scene
 - **Branch** — git-like branching for story timelines; entryIds interleave scenes + world commits
-- **BranchEvaluation** — per-scene verdicts (ok/edit/merge/insert/cut), overall critique, repetition patterns, thematic question
+- **StructureEvaluation** — per-scene verdicts (ok/edit/merge/insert/cut), overall critique, repetition patterns, thematic question
 - **Arc** — world-building arcs that group scenes and expand the narrative world
 - **CubeCorner** — one of 8 narrative modes defined by high/low combinations of the three forces
 
