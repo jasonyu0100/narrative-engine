@@ -1107,12 +1107,14 @@ export default function TopBar() {
             <button
               onClick={() => setSlidesOpen(true)}
               className="px-2.5 py-1 rounded-full transition-colors flex items-center gap-1.5 text-[12px] border border-white/8 text-text-secondary hover:text-text-primary hover:bg-white/5 hover:border-white/15"
-              title="Play analysis slides"
+              title="View slides"
             >
-              <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="currentColor" stroke="none">
-                <polygon points="6 3 20 12 6 21" />
+              <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <rect x="2" y="3" width="20" height="14" rx="2" />
+                <path d="M8 21h8" />
+                <path d="M12 17v4" />
               </svg>
-              <span>Play</span>
+              <span>Slides</span>
             </button>
           </>
         )}
