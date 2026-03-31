@@ -177,6 +177,7 @@ export function PlanningQueueEditor({ onClose, onStartAuto }: Props) {
 
   const [activating, setActivating] = useState(false);
   const [activatingStep, setActivatingStep] = useState<string | null>(null);
+  const [activatingReasoning, setActivatingReasoning] = useState('');
   const [showModeChoice, setShowModeChoice] = useState(false);
 
   /** Save the queue to the store without running any generation */
@@ -196,14 +197,16 @@ export function PlanningQueueEditor({ onClose, onStartAuto }: Props) {
     if (!firstPhase || (firstPhase.status === 'active' && firstPhase.direction)) return;
 
     setActivating(true);
+    setActivatingReasoning('');
     try {
       const resolvedKeys = state.resolvedEntryKeys;
       const currentIndex = state.currentSceneIndex;
+      const onReasoning = (token: string) => setActivatingReasoning((prev) => prev + token);
 
       if (queue.expandWorld !== false) {
         setActivatingStep('Expanding world...');
         const strategy = narrative.storySettings?.expansionStrategy ?? 'dynamic';
-        const expansion = await expandWorld(narrative, resolvedKeys, currentIndex, firstPhase.worldExpansionHints || '', 'medium', strategy, firstPhase.sourceText);
+        const expansion = await expandWorld(narrative, resolvedKeys, currentIndex, firstPhase.worldExpansionHints || '', 'medium', strategy, firstPhase.sourceText, onReasoning);
         dispatch({
           type: 'EXPAND_WORLD',
           worldBuildId: nextId('WB', Object.keys(narrative.worldBuilds), 3),
@@ -214,7 +217,8 @@ export function PlanningQueueEditor({ onClose, onStartAuto }: Props) {
       }
 
       setActivatingStep('Generating direction...');
-      const { direction, constraints } = await generatePhaseDirection(narrative, resolvedKeys, currentIndex, firstPhase, queue);
+      setActivatingReasoning('');
+      const { direction, constraints } = await generatePhaseDirection(narrative, resolvedKeys, currentIndex, firstPhase, queue, onReasoning);
       // Activate the first phase: set status, direction, and activePhaseIndex
       const activatedQueue: PlanningQueue = {
         ...queue,
@@ -283,7 +287,7 @@ export function PlanningQueueEditor({ onClose, onStartAuto }: Props) {
   // ── Loading / Auto prompt states ──────────────────────────────────────
 
   if (activating) {
-    return <PlanningLoadingModal step={activatingStep ?? 'Initializing...'} subtitle="Preparing the first phase" />;
+    return <PlanningLoadingModal step={activatingStep ?? 'Initializing...'} subtitle="Preparing the first phase" reasoning={activatingReasoning || undefined} />;
   }
 
   if (showModeChoice) {
@@ -476,6 +480,11 @@ export function PlanningQueueEditor({ onClose, onStartAuto }: Props) {
                       {generating ? 'Parsing...' : 'Generate Queue'}
                     </button>
                   </div>
+                  {generating && generatingReasoning && (
+                    <div className="bg-bg-elevated border border-border rounded-lg px-3 py-2 text-[10px] text-text-dim font-mono max-h-32 overflow-y-auto whitespace-pre-wrap">
+                      {generatingReasoning}
+                    </div>
+                  )}
                 </div>
               )}
 
@@ -570,6 +579,11 @@ export function PlanningQueueEditor({ onClose, onStartAuto }: Props) {
                       {generating ? 'Parsing plan...' : 'Generate Queue'}
                     </button>
                   </div>
+                  {generating && generatingReasoning && (
+                    <div className="bg-bg-elevated border border-border rounded-lg px-3 py-2 text-[10px] text-text-dim font-mono max-h-32 overflow-y-auto whitespace-pre-wrap">
+                      {generatingReasoning}
+                    </div>
+                  )}
                 </div>
               )}
             </div>

@@ -343,6 +343,7 @@ export async function expandWorld(
   strategy: WorldExpansionStrategy = 'dynamic',
   /** Verbatim plan document section — guides entity creation with specific character/location/system details */
   sourceText?: string,
+  onReasoning?: (token: string) => void,
 ): Promise<WorldExpansion> {
   const ctx = branchContext(narrative, resolvedKeys, currentIndex);
 
@@ -510,7 +511,9 @@ worldKnowledgeMutations define the FOUNDATIONAL abstractions this expansion esta
 - Focus on the structural WHY behind the expansion — what abstract rules, power structures, or tensions make these new entities meaningful?`;
 
   const reasoningBudget = REASONING_BUDGETS[narrative.storySettings?.reasoningLevel ?? 'low'] || undefined;
-  const raw = await callGenerate(prompt, SYSTEM_PROMPT, undefined, 'expandWorld', undefined, reasoningBudget);
+  const raw = onReasoning
+    ? await callGenerateStream(prompt, SYSTEM_PROMPT, () => {}, undefined, 'expandWorld', undefined, reasoningBudget, onReasoning)
+    : await callGenerate(prompt, SYSTEM_PROMPT, undefined, 'expandWorld', undefined, reasoningBudget);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const parsed = parseJson(raw, 'expandWorld') as any;
 

@@ -59,6 +59,7 @@ export async function generatePhaseDirection(
   currentIndex: number,
   phase: PlanningPhase,
   queue: PlanningQueue,
+  onReasoning?: (token: string) => void,
 ): Promise<{ direction: string; constraints: string }> {
   const ctx = branchContext(narrative, resolvedKeys, currentIndex);
 
@@ -117,7 +118,9 @@ Return JSON:
 
   const reasoningBudget = REASONING_BUDGETS[narrative.storySettings?.reasoningLevel ?? 'low'] || undefined;
   const maxTokens = phase.sourceText ? MAX_TOKENS_DEFAULT : MAX_TOKENS_SMALL;
-  const response = await callGenerate(prompt, SYSTEM_PROMPT, maxTokens, 'planningEngine', undefined, reasoningBudget);
+  const response = onReasoning
+    ? await callGenerateStream(prompt, SYSTEM_PROMPT, () => {}, maxTokens, 'planningEngine', undefined, reasoningBudget, onReasoning)
+    : await callGenerate(prompt, SYSTEM_PROMPT, maxTokens, 'planningEngine', undefined, reasoningBudget);
 
   try {
     const match = response.match(/\{[\s\S]*\}/);
