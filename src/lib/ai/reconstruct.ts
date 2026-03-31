@@ -89,9 +89,20 @@ export async function reconstructBranch(
     }
   }
 
+  // Build move-after lookup: moveAfter target ID → list of scenes to place there
+  // Moved scenes are removed from their original position and injected after moveAfter.
+  const moveAfterMap = new Map<string, SceneEval[]>();
+  for (const ev of evaluation.sceneEvals) {
+    if (ev.verdict === 'move' && ev.moveAfter) {
+      const list = moveAfterMap.get(ev.moveAfter) ?? [];
+      list.push(ev);
+      moveAfterMap.set(ev.moveAfter, list);
+    }
+  }
+
   // Walk the full resolved timeline preserving world commits in order.
-  // Only include world builds owned by the source branch itself — inherited
-  // ones come from the parent chain and would be duplicated if included here.
+  // The reconstructed branch is a root (no parent), so ALL entries —
+  // including world builds inherited from parents — must be in entryIds.
   type TimelineItem =
     | { type: 'world_build'; id: string }
     | { type: 'scene'; index: number; scene: Scene; verdict: SceneVerdict; reason: string; newId: string };
@@ -115,25 +126,68 @@ export async function reconstructBranch(
     }
   }
 
-  // Entries owned by the source branch (not inherited from parents)
   const sourceBranch = narrative.branches[evaluation.branchId];
-  const ownedEntryIds = new Set(sourceBranch?.entryIds ?? []);
+
+  // Helper to inject inserts after a given ID, following chains recursively.
+  // Uses lastArcScene to inherit arcId/locationId/povId for placeholders.
+  let lastSceneEntry: Scene | null = null;
+  const injectInsertsAfter = (afterId: string) => {
+    const inserts = insertAfterMap.get(afterId);
+    if (!inserts) return;
+    const ref = lastSceneEntry;
+    for (const ins of inserts) {
+      const insertId = nextId('S', [...allExistingSceneIds, ...usedNewIds], 3);
+      usedNewIds.add(insertId);
+      const placeholder: Scene = {
+        kind: 'scene',
+        id: insertId,
+        arcId: ref?.arcId ?? '',
+        locationId: ref?.locationId ?? '',
+        povId: ref?.povId ?? '',
+        participantIds: [],
+        events: [],
+        threadMutations: [],
+        continuityMutations: [],
+        relationshipMutations: [],
+        summary: ins.reason,
+      };
+      const insertItem: Extract<TimelineItem, { type: 'scene' }> = {
+        type: 'scene',
+        index: sceneEntries.length,
+        scene: placeholder,
+        verdict: 'insert',
+        reason: ins.reason,
+        newId: insertId,
+      };
+      items.push(insertItem);
+      sceneEntries.push(insertItem);
+      // Follow the chain: INSERT-2 → insertAfter: "INSERT-1", etc.
+      injectInsertsAfter(ins.sceneId);
+    }
+  };
 
   for (const key of resolvedKeys) {
     const entry = resolveEntry(narrative, key);
     if (!entry) continue;
 
     if (isWorldBuild(entry)) {
-      // Only include world builds owned by the source branch
-      if (ownedEntryIds.has(entry.id)) {
-        items.push({ type: 'world_build', id: entry.id });
-      }
+      items.push({ type: 'world_build', id: entry.id });
     } else if (isScene(entry)) {
+      lastSceneEntry = entry;
       const ev = verdictMap.get(entry.id);
       const verdict = ev?.verdict ?? 'ok';
       if (verdict === 'cut' || verdict === 'merge') {
-        // Cut and merge-source scenes are removed from the timeline
+        // Cut and merge-source scenes are removed from the timeline,
+        // but still check for inserts placed after them
         cutSceneIds.push(entry.id);
+        injectInsertsAfter(entry.id);
+        continue;
+      }
+
+      if (verdict === 'move') {
+        // Moved scenes are held out and injected at their moveAfter target below.
+        // Do NOT inject inserts here — they will be injected at the new position
+        // after the scene is placed, preventing double injection.
         continue;
       }
 
@@ -151,38 +205,29 @@ export async function reconstructBranch(
       items.push(item);
       sceneEntries.push(item);
 
-      // Inject any inserts that follow this scene
-      const inserts = insertAfterMap.get(entry.id);
-      if (inserts) {
-        for (const ins of inserts) {
-          const insertId = nextId('S', [...allExistingSceneIds, ...usedNewIds], 3);
-          usedNewIds.add(insertId);
-          // Create a placeholder scene that will be generated
-          const placeholder: Scene = {
-            kind: 'scene',
-            id: insertId,
-            arcId: entry.arcId,
-            locationId: entry.locationId,
-            povId: entry.povId,
-            participantIds: [],
-            events: [],
-            threadMutations: [],
-            continuityMutations: [],
-            relationshipMutations: [],
-            summary: ins.reason,
-          };
-          const insertItem: Extract<TimelineItem, { type: 'scene' }> = {
+      // Inject any moved scenes that should land after this scene
+      const movedHere = moveAfterMap.get(entry.id);
+      if (movedHere) {
+        for (const moveEv of movedHere) {
+          const movedScene = narrative.scenes[moveEv.sceneId];
+          if (!movedScene) continue;
+          const movedId = nextId('S', [...allExistingSceneIds, ...usedNewIds], 3);
+          usedNewIds.add(movedId);
+          const movedItem: Extract<TimelineItem, { type: 'scene' }> = {
             type: 'scene',
             index: sceneEntries.length,
-            scene: placeholder,
-            verdict: 'insert',
-            reason: ins.reason,
-            newId: insertId,
+            scene: movedScene,
+            verdict: 'move',
+            reason: moveEv.reason,
+            newId: movedId,
           };
-          items.push(insertItem);
-          sceneEntries.push(insertItem);
+          items.push(movedItem);
+          sceneEntries.push(movedItem);
+          injectInsertsAfter(moveEv.sceneId);
         }
       }
+
+      injectInsertsAfter(entry.id);
     }
   }
 
@@ -191,7 +236,7 @@ export async function reconstructBranch(
     ...sceneEntries.map((s) => ({
       sceneId: s.scene.id,
       verdict: s.verdict,
-      status: s.verdict === 'ok' ? 'done' as const : 'pending' as const,
+      status: (s.verdict === 'ok' || s.verdict === 'move') ? 'done' as const : 'pending' as const,
     })),
     ...cutSceneIds.map((id) => ({
       sceneId: id,
@@ -199,9 +244,6 @@ export async function reconstructBranch(
       status: 'done' as const,
     })),
   ];
-  // Total work = merge targets + edit scenes + insert scenes
-  const mergeTargetIds = new Set(mergeTargetSources.keys());
-  const total = sceneEntries.filter((s) => mergeTargetIds.has(s.scene.id) || s.verdict === 'insert' || (s.verdict === 'edit' && !mergeTargetIds.has(s.scene.id))).length;
   let completed = 0;
 
   // Create new branch
@@ -222,8 +264,12 @@ export async function reconstructBranch(
       }, existing.length > 0 ? 1 : 0);
       return `${stripped} v${maxVersion + 1}`;
     })(),
-    parentBranchId: sourceBranch?.parentBranchId ?? null,
-    forkEntryId: sourceBranch?.forkEntryId ?? null,
+    // Reconstruction builds a complete standalone timeline (all resolved scenes
+    // get new IDs in entryIds), so the new branch must be a root — otherwise
+    // resolveEntrySequence would prepend the parent chain entries, duplicating
+    // every inherited scene.
+    parentBranchId: null,
+    forkEntryId: null,
     entryIds: [], // set below
     createdAt: Date.now(),
   };
@@ -232,7 +278,7 @@ export async function reconstructBranch(
     phase: 'preparing',
     steps,
     completed: 0,
-    total,
+    total: 0, // updated below once work arrays are computed
     branchId: newBranchId,
   };
   callbacks.onProgress({ ...progress });
@@ -279,9 +325,9 @@ export async function reconstructBranch(
     item.type === 'world_build' ? item.id : item.newId,
   );
 
-  // Notify — ok scenes are already ready
+  // Notify — ok and move scenes are already ready (no LLM work needed)
   for (const s of sceneEntries) {
-    if (s.verdict === 'ok') callbacks.onSceneReady(newScenes[s.index], 'keep');
+    if (s.verdict === 'ok' || s.verdict === 'move') callbacks.onSceneReady(newScenes[s.index], 'keep');
   }
   callbacks.onBranchCreated(newBranch, newScenes, newArcs);
 
@@ -292,6 +338,7 @@ export async function reconstructBranch(
   const mergeItems = sceneEntries.filter((s) => mergeTargetSources.has(s.scene.id));
   const editItems = sceneEntries.filter((s) => s.verdict === 'edit' && !mergeTargetSources.has(s.scene.id));
   const insertItems = sceneEntries.filter((s) => s.verdict === 'insert');
+  progress.total = mergeItems.length + editItems.length + insertItems.length;
 
   // Process merges first
   await parallelBatch(mergeItems, PROSE_CONCURRENCY, async (item) => {

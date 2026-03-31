@@ -15,6 +15,7 @@ const VERDICT_CONFIG: Record<SceneVerdict, { icon: string; color: string; bg: st
   merge:   { icon: '⊕', color: 'text-blue-400',    bg: 'bg-blue-500/15',    label: 'Merge' },
   cut:     { icon: '✕', color: 'text-white/30',    bg: 'bg-white/5',        label: 'Cut' },
   insert:  { icon: '+', color: 'text-cyan-400',    bg: 'bg-cyan-500/15',    label: 'Insert' },
+  move:    { icon: '→', color: 'text-blue-400',    bg: 'bg-blue-500/15',    label: 'Move' },
 };
 
 const STEP_STATUS_ICON: Record<string, string> = {
@@ -31,6 +32,7 @@ function SceneNode({
   arc,
   verdict,
   reason,
+  moveAfter,
   isLast,
   reconStatus,
   onClick,
@@ -40,6 +42,7 @@ function SceneNode({
   arc?: Arc;
   verdict: SceneVerdict;
   reason: string;
+  moveAfter?: string;
   isLast: boolean;
   reconStatus?: 'pending' | 'running' | 'done' | 'skipped';
   onClick: () => void;
@@ -55,7 +58,7 @@ function SceneNode({
         <div
           className={`w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold ${cfg.bg} ${cfg.color} shrink-0 border border-current/20 ${reconStatus === 'running' ? 'animate-pulse ring-1 ring-current/40' : ''}`}
         >
-          {reconStatus === 'running' ? '◎' : reconStatus === 'done' && verdict === 'edit' ? '✎' : reconStatus === 'done' && verdict === 'merge' ? '⊕' : reconStatus === 'done' && verdict === 'cut' ? '⌀' : cfg.icon}
+          {reconStatus === 'running' ? '◎' : reconStatus === 'done' && verdict === 'edit' ? '✎' : reconStatus === 'done' && verdict === 'merge' ? '⊕' : reconStatus === 'done' && verdict === 'cut' ? '⌀' : reconStatus === 'done' && verdict === 'move' ? '→' : cfg.icon}
         </div>
         {!isLast && (
           <div className="w-px flex-1 bg-white/10 min-h-3" />
@@ -69,13 +72,18 @@ function SceneNode({
           className="text-left w-full"
         >
           {/* Top line: scene ID + verdict badge */}
-          <div className="flex items-center gap-1.5">
+          <div className="flex items-center gap-1.5 flex-wrap">
             <span className="font-mono text-[10px] bg-white/6 text-text-secondary px-1.5 py-0.5 rounded shrink-0">
               {scene.id}
             </span>
             <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${cfg.bg} ${cfg.color}`}>
               {cfg.label}
             </span>
+            {verdict === 'move' && moveAfter && (
+              <span className="text-[10px] font-mono text-blue-400/70 flex items-center gap-0.5 shrink-0">
+                → after <span className="bg-blue-500/15 px-1 py-0.5 rounded">{moveAfter}</span>
+              </span>
+            )}
             {reconStatus && reconStatus !== 'skipped' && (
               <span className={`text-[9px] font-mono ${reconStatus === 'done' ? 'text-emerald-400/60' : reconStatus === 'running' ? 'text-white/50 animate-pulse' : 'text-white/20'}`}>
                 {STEP_STATUS_ICON[reconStatus]}
@@ -89,7 +97,7 @@ function SceneNode({
           </div>
 
           {/* Summary */}
-          <p className={`text-xs mt-0.5 leading-snug ${verdict === 'cut' ? 'text-text-dim line-through' : 'text-text-secondary'}`}>
+          <p className={`text-xs mt-0.5 leading-snug ${verdict === 'cut' ? 'text-text-dim line-through' : verdict === 'move' ? 'text-text-dim/70 italic' : 'text-text-secondary'}`}>
             {scene.summary}
           </p>
 
@@ -118,11 +126,14 @@ function SceneNode({
 // ── Stats bar ────────────────────────────────────────────────────────────────
 
 function StatsBar({ sceneEvals }: { sceneEvals: BranchEvaluation['sceneEvals'] }) {
-  const counts: Record<SceneVerdict, number> = { ok: 0, edit: 0, merge: 0, cut: 0, insert: 0 };
+  const counts: Record<SceneVerdict, number> = { ok: 0, edit: 0, merge: 0, cut: 0, insert: 0, move: 0 };
+  // Count merge targets (unique scenes doing absorb work), not merge sources
+  const mergeTargets = new Set(sceneEvals.filter((e) => e.verdict === 'merge' && e.mergeInto).map((e) => e.mergeInto!));
   for (const e of sceneEvals) counts[e.verdict]++;
+  counts.merge = mergeTargets.size;
   return (
     <div className="flex items-center gap-2 text-[10px] font-mono">
-      {(['ok', 'edit', 'merge', 'cut', 'insert'] as SceneVerdict[]).filter((v) => counts[v] > 0).map((v) => {
+      {(['ok', 'edit', 'merge', 'cut', 'insert', 'move'] as SceneVerdict[]).filter((v) => counts[v] > 0).map((v) => {
         const cfg = VERDICT_CONFIG[v];
         return (
           <span key={v} className={`${cfg.color} flex items-center gap-0.5`}>
@@ -262,10 +273,10 @@ export default function BranchEval() {
   }, []);
 
   // Build verdict + reconstruction status lookups
-  const verdictMap = new Map<string, { verdict: SceneVerdict; reason: string }>();
+  const verdictMap = new Map<string, { verdict: SceneVerdict; reason: string; moveAfter?: string }>();
   if (evaluation) {
     for (const e of evaluation.sceneEvals) {
-      verdictMap.set(e.sceneId, { verdict: e.verdict, reason: e.reason });
+      verdictMap.set(e.sceneId, { verdict: e.verdict, reason: e.reason, moveAfter: e.moveAfter });
     }
   }
   const reconStatusMap = new Map<string, 'pending' | 'running' | 'done' | 'skipped'>();
@@ -296,15 +307,19 @@ export default function BranchEval() {
           scene: entry,
           arc: narrative.arcs[entry.arcId],
         });
-        // Inject any inserts that follow this scene
-        const inserts = insertAfterLookup.get(entry.id);
-        if (inserts) {
+        // Inject any inserts that follow this scene, including chained inserts
+        const injectInserts = (afterId: string) => {
+          const inserts = insertAfterLookup.get(afterId);
+          if (!inserts) return;
           for (const ins of inserts) {
             scenes.push({
               scene: { kind: 'scene', id: ins.sceneId, arcId: entry.arcId, locationId: '', povId: '', participantIds: [], events: [], threadMutations: [], continuityMutations: [], relationshipMutations: [], summary: ins.reason },
             });
+            // Follow chain: INSERT-2 → insertAfter: "INSERT-1", etc.
+            injectInserts(ins.sceneId);
           }
-        }
+        };
+        injectInserts(entry.id);
       }
     }
   }
@@ -448,6 +463,7 @@ export default function BranchEval() {
                   arc={arc}
                   verdict={ev?.verdict ?? 'ok'}
                   reason={ev?.reason ?? ''}
+                  moveAfter={ev?.moveAfter}
                   isLast={i === scenes.length - 1}
                   reconStatus={reconStatusMap.get(scene.id)}
                   onClick={() => {

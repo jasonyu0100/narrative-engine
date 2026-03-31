@@ -7,7 +7,7 @@ import { ANALYSIS_MODEL, MAX_TOKENS_DEFAULT } from '@/lib/constants';
 /**
  * Evaluate a branch by reading only scene summaries.
  *
- * Produces a per-scene verdict (ok / edit / rewrite / cut) and an overall
+ * Produces a per-scene verdict (ok / edit / merge / cut / insert / move) and an overall
  * critique covering structure, pacing, repetition, character arcs, and theme.
  * Designed to be cheap — no prose, no mutations, just summaries + arc names.
  */
@@ -51,7 +51,7 @@ export async function evaluateBranch(
 
   // Build a compact scene list — summaries only
   const sceneBlock = sceneSummaries
-    .map((s) => `[${s.idx}] ${s.id} | Arc: "${s.arc}" | POV: ${s.pov} | Loc: ${s.location}\n    ${s.summary}`)
+    .map((s) => `${s.id} | Arc: "${s.arc}" | POV: ${s.pov} | Loc: ${s.location}\n    ${s.summary}`)
     .join('\n────────────────────────────────\n');
 
   // Thread overview for context
@@ -63,7 +63,7 @@ export async function evaluateBranch(
   const guidanceBlock = guidance?.trim()
     ? `
 
-PRIORITY GUIDANCE FROM THE AUTHOR — These are specific issues the author has identified. You MUST address every point below. For each issue raised, identify the specific scenes affected and flag them as "edit" or "rewrite". Your overall critique MUST discuss these issues. Do not ignore any of them.
+PRIORITY GUIDANCE FROM THE AUTHOR — These are specific issues the author has identified. You MUST address every point below. For each issue raised, identify the specific scenes affected and flag them as "edit". Your overall critique MUST discuss these issues. Do not ignore any of them.
 
 ${guidance.trim()}`
     : '';
@@ -94,17 +94,20 @@ For EACH scene, assign a verdict. These map to concrete operations:
 - "edit" — scene should exist but needs revision. You may change ANYTHING: POV, location, participants, summary, events, mutations. Use for: wrong POV for this moment, repetitive beats that need variation, weak execution, continuity breaks, scenes that need restructuring while keeping their place in the timeline.
 - "merge" — this scene covers the same beat as another and should be ABSORBED into the stronger one. You MUST specify "mergeInto" with the target scene ID. The two become one denser scene. Use when two scenes advance the same thread with similar dramatic shape.
 - "cut" — scene is redundant and adds nothing. The story is tighter without it.
+- "move" — scene content is correct but it is in the wrong position. You MUST specify "moveAfter" with the scene ID it should follow. The scene is lifted from its current position and re-planted there with NO content changes. Use for sequencing adjustments: a scene that reveals information too early, a payoff arriving before its setup, an out-of-order character introduction. Combine with "edit" by using "move" on the scene and a separate "edit" if content also needs changing.
 - "insert" — a new scene should be CREATED at this position to fill a pacing gap, advance a stalled thread, or add a missing beat. You MUST specify "insertAfter" with the scene ID it follows. The "reason" field is the generation brief: describe what happens, who is involved, the location, which threads advance, and any specific beats. The "sceneId" should be a placeholder like "INSERT-1", "INSERT-2", etc.
-
-To RELOCATE a scene (move it earlier or later): "cut" it from its current position and "insert" the same beat at the desired position. This is how reordering works.
 
 STRUCTURAL OPERATIONS GUIDE:
 - If 5 scenes cover the same beat: keep the strongest as "ok", merge 1-2 into it, cut the rest.
 - If a thread has 8 scenes but only 3 distinct beats: merge within each beat, cut the remainder.
-- If a scene is premature: cut it and insert the beat at the right position later in the timeline.
+- If a scene is premature but otherwise good: use "move" to place it after the scene that sets it up.
+- If a payoff arrives before its setup: "move" the payoff to after the setup scene.
+- If a scene needs to be BOTH moved AND revised: "move" it to the right position, and also mark it "edit" — wait, these are separate verdicts. Instead: move it, and in the reason note that content also needs changing so the editor can apply a follow-up edit pass.
 - If there is a missing transition, an unearned payoff, or a thread that needs setup before it pays off: insert a new scene at the right position.
-- "mergeInto" must reference a scene that is NOT itself cut/merged.
+- "mergeInto" must reference a scene that is NOT itself cut/merged/moved.
+- "moveAfter" must reference a scene that is NOT itself being cut/merged. It can reference an INSERT placeholder ID if the scene should follow a newly inserted scene.
 - Prefer merge over cut when the weaker scene has unique content worth absorbing.
+- Prefer move over cut+insert when the scene content is sound — moving preserves the exact prose.
 - Use insert sparingly — only when the gap is structural, not cosmetic.
 
 CONTINUITY IS PARAMOUNT. Scenes that contradict established knowledge, misplace characters, or leak information must be flagged — never "ok".
@@ -129,13 +132,13 @@ Return JSON:
 {
   "overall": "3-5 paragraph critique. Name scenes, characters, patterns. End with the thematic question.",
   "sceneEvals": [
-    { "sceneId": "SC-001", "verdict": "ok|edit|merge|cut|insert", "reason": "For edit: 1-3 sentences instructing the rewriter. For insert: full generation brief — what happens, who, where, which threads. For merge/cut: one sentence.", "mergeInto": "SC-XXX (merge only)", "insertAfter": "SC-XXX (insert only)" }
+    { "sceneId": "S-001", "verdict": "ok|edit|merge|cut|move|insert", "reason": "For edit: 1-3 sentences instructing the rewriter. For move: one sentence explaining why this position is wrong and where it belongs. For insert: full generation brief. For merge/cut: one sentence.", "mergeInto": "S-002 (merge only)", "moveAfter": "S-003 (move only — exact scene ID this scene should follow)", "insertAfter": "S-004 (insert only — exact scene ID or INSERT placeholder)" }
   ],
   "repetitions": ["pattern 1", "pattern 2"],
   "thematicQuestion": "The human question underneath the plot"
 }
 
-Every scene must appear in sceneEvals. Use the exact scene IDs from above.${guidance?.trim() ? `\n\nREMINDER — The author specifically asked you to address: "${guidance.trim()}". Your overall critique and scene verdicts MUST reflect this. Any scene affected by this guidance MUST NOT be marked "ok".` : ''}`;
+Every scene must appear in sceneEvals. Use the EXACT scene IDs shown above (e.g. "S-001", not "1" or "scene 1").${guidance?.trim() ? `\n\nREMINDER — The author specifically asked you to address: "${guidance.trim()}". Your overall critique and scene verdicts MUST reflect this. Any scene affected by this guidance MUST NOT be marked "ok".` : ''}`;
 
   const maxTokens = MAX_TOKENS_DEFAULT;
   const reasoningBudget = REASONING_BUDGETS[narrative.storySettings?.reasoningLevel ?? 'low'] || undefined;
@@ -144,12 +147,12 @@ Every scene must appear in sceneEvals. Use the exact scene IDs from above.${guid
   try {
     const parsed = parseJson(raw, 'evaluateBranch') as {
       overall?: string;
-      sceneEvals?: { sceneId?: string; verdict?: string; reason?: string; mergeInto?: string; insertAfter?: string }[];
+      sceneEvals?: { sceneId?: string; verdict?: string; reason?: string; mergeInto?: string; insertAfter?: string; moveAfter?: string }[];
       repetitions?: string[];
       thematicQuestion?: string;
     };
 
-    const validVerdicts = new Set<SceneVerdict>(['ok', 'edit', 'merge', 'cut', 'insert']);
+    const validVerdicts = new Set<SceneVerdict>(['ok', 'edit', 'merge', 'cut', 'insert', 'move']);
     const sceneEvals: SceneEval[] = (parsed.sceneEvals ?? [])
       .filter((e) => e.sceneId && (narrative.scenes[e.sceneId] || e.verdict === 'insert'))
       .map((e) => {
@@ -160,7 +163,7 @@ Every scene must appear in sceneEvals. Use the exact scene IDs from above.${guid
           const targetEval = parsed.sceneEvals?.find((t) => t.sceneId === e.mergeInto);
           const targetVerdict = targetEval?.verdict;
           const targetInvalid = !e.mergeInto || !narrative.scenes[e.mergeInto]
-            || targetVerdict === 'cut' || targetVerdict === 'merge';
+            || targetVerdict === 'cut' || targetVerdict === 'merge' || targetVerdict === 'move';
           if (targetInvalid) {
             eval_.verdict = 'cut';
             eval_.reason = `${eval_.reason} (merge target invalid or also removed, converted to cut)`;
@@ -170,6 +173,9 @@ Every scene must appear in sceneEvals. Use the exact scene IDs from above.${guid
         }
         if (verdict === 'insert') {
           eval_.insertAfter = e.insertAfter;
+        }
+        if (verdict === 'move') {
+          eval_.moveAfter = e.moveAfter;
         }
         return eval_;
       });

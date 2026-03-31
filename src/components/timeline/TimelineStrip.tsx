@@ -145,7 +145,7 @@ export default function TimelineStrip() {
           <select
             value={state.activeBranchId ?? ''}
             onChange={(e) => dispatch({ type: 'SWITCH_BRANCH', branchId: e.target.value })}
-            className="bg-transparent text-[10px] text-text-secondary uppercase tracking-wider cursor-pointer outline-none appearance-none pr-3"
+            className="bg-transparent text-[10px] text-text-secondary uppercase tracking-wider cursor-pointer outline-none appearance-none pr-3 w-full truncate"
             style={{ backgroundImage: 'none' }}
           >
             {branchList.map((b) => (

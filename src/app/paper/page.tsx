@@ -1886,7 +1886,8 @@ export default function PaperPage() {
               verdicts. <B>Reconstruction</B> creates a new versioned branch,
               applying verdicts in parallel — edits revise content, merges
               combine scenes, inserts generate new scenes to fill gaps,
-              cuts are omitted. To relocate a scene: cut + insert. World
+              moves reposition scenes without any LLM call,
+              cuts are omitted. World
               commits pass through at their original positions. The original
               branch is never modified.
             </P>
@@ -1930,6 +1931,14 @@ export default function PaperPage() {
                 </span>
                 <span className="text-white/50">
                   Redundant. Removed — the narrative is tighter without it.
+                </span>
+              </div>
+              <div className="flex gap-2 px-3 py-2 rounded-lg border border-white/6 bg-white/2">
+                <span className="text-blue-400 font-mono w-14 shrink-0">
+                  move
+                </span>
+                <span className="text-white/50">
+                  Content correct but wrong position. Repositioned after a target scene using <code className="text-blue-300/70">moveAfter</code>. No LLM call — prose preserved exactly.
                 </span>
               </div>
             </div>
