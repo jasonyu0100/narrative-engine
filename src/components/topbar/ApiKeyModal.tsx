@@ -12,13 +12,13 @@ type Props = {
 export default function ApiKeyModal({ access, onClose }: Props) {
   const [orKey, setOrKey] = useState(access.openRouterKey);
   const [repKey, setRepKey] = useState(access.replicateKey);
-  const [elKey, setElKey] = useState(access.elevenLabsKey);
-  const [showAdvanced, setShowAdvanced] = useState(!!access.replicateKey || !!access.elevenLabsKey);
+  const [oaiKey, setOaiKey] = useState(access.openAiKey);
+  const [showAdvanced, setShowAdvanced] = useState(!!access.replicateKey || !!access.openAiKey);
 
   function handleSave() {
     access.setOpenRouterKey(orKey.trim());
     access.setReplicateKey(repKey.trim());
-    access.setElevenLabsKey(elKey.trim());
+    access.setOpenAiKey(oaiKey.trim());
     onClose();
   }
 
@@ -59,39 +59,43 @@ export default function ApiKeyModal({ access, onClose }: Props) {
           </button>
 
           {showAdvanced && (
-            <div className="border-t border-white/5 pt-2">
-              <label className="block text-[10px] font-medium text-text-secondary mb-1">
-                Replicate <span className="text-text-dim/60">optional</span>
-              </label>
-              <input
-                type="password"
-                value={repKey}
-                onChange={(e) => setRepKey(e.target.value)}
-                placeholder="r8_..."
-                className="w-full bg-white/5 border border-border rounded px-3 py-2 text-xs text-text-primary placeholder:text-text-dim focus:outline-none focus:border-white/20 transition-colors"
-              />
-              <p className="text-[9px] text-text-dim mt-0.5">Image generation</p>
+            <div className="border-t border-white/5 pt-2 space-y-3">
+              <div>
+                <label className="block text-[10px] font-medium text-text-secondary mb-1">
+                  Replicate <span className="text-text-dim/60">optional</span>
+                </label>
+                <input
+                  type="password"
+                  value={repKey}
+                  onChange={(e) => setRepKey(e.target.value)}
+                  placeholder="r8_..."
+                  className="w-full bg-white/5 border border-border rounded px-3 py-2 text-xs text-text-primary placeholder:text-text-dim focus:outline-none focus:border-white/20 transition-colors"
+                />
+                <p className="text-[9px] text-text-dim mt-0.5">Image generation</p>
+              </div>
 
-              <label className="block text-[10px] font-medium text-text-secondary mb-1 mt-3">
-                ElevenLabs <span className="text-text-dim/60">optional</span>
-              </label>
-              <input
-                type="password"
-                value={elKey}
-                onChange={(e) => setElKey(e.target.value)}
-                placeholder="sk_..."
-                className="w-full bg-white/5 border border-border rounded px-3 py-2 text-xs text-text-primary placeholder:text-text-dim focus:outline-none focus:border-white/20 transition-colors"
-              />
-              <p className="text-[9px] text-text-dim mt-0.5">Audiobook TTS</p>
+              <div>
+                <label className="block text-[10px] font-medium text-text-secondary mb-1">
+                  OpenAI <span className="text-text-dim/60">optional</span>
+                </label>
+                <input
+                  type="password"
+                  value={oaiKey}
+                  onChange={(e) => setOaiKey(e.target.value)}
+                  placeholder="sk-..."
+                  className="w-full bg-white/5 border border-border rounded px-3 py-2 text-xs text-text-primary placeholder:text-text-dim focus:outline-none focus:border-white/20 transition-colors"
+                />
+                <p className="text-[9px] text-text-dim mt-0.5">Audiobook TTS</p>
+              </div>
             </div>
           )}
         </div>
 
       </ModalBody>
       <ModalFooter>
-        {(access.hasOpenRouterKey || access.hasReplicateKey || access.hasElevenLabsKey) && (
+        {(access.hasOpenRouterKey || access.hasReplicateKey || access.hasOpenAiKey) && (
           <button
-            onClick={() => { access.clearKeys(); setOrKey(''); setRepKey(''); setElKey(''); }}
+            onClick={() => { access.clearKeys(); setOrKey(''); setRepKey(''); setOaiKey(''); }}
             className="text-[10px] text-red-400/60 hover:text-red-400 transition-colors mr-auto"
           >
             Clear

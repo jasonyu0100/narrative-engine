@@ -719,10 +719,10 @@ export type StorySettings = {
   usePacingChain: boolean;
   /** Whether to use the beat profile Markov chain for plan generation. */
   useBeatChain: boolean;
-  /** Voice description for audiobook TTS — describes the narrator's voice style */
-  audioVoiceDescription: string;
-  /** Generated voice ID from ElevenLabs voice design (set after sampling) */
-  audioVoiceId: string;
+  /** OpenAI TTS voice — one of: alloy, echo, fable, onyx, nova, shimmer */
+  audioVoice: string;
+  /** OpenAI TTS model — tts-1 (faster/cheaper) or tts-1-hd (higher quality) */
+  audioModel: string;
 };
 
 export const BRANCH_TIME_HORIZON_OPTIONS = [25, 50, 100, 200] as const;
@@ -747,8 +747,8 @@ export const DEFAULT_STORY_SETTINGS: StorySettings = {
   beatProfilePreset: '',
   usePacingChain: true,
   useBeatChain: true,
-  audioVoiceDescription: 'A warm, expressive narrator with a rich timbre. Clear diction, measured pacing, and a storytelling quality that draws listeners in.',
-  audioVoiceId: '',
+  audioVoice: 'nova',
+  audioModel: 'tts-1',
 };
 
 // ── Planning Queue ──────────────────────────────────────────────────────────

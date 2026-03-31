@@ -1,8 +1,9 @@
 'use client';
 
 import { useState, useRef, useCallback } from 'react';
-import { useStore } from '@/lib/store';
+import { apiHeaders } from '@/lib/api-headers';
 import { useFeatureAccess } from '@/hooks/useFeatureAccess';
+import { useStore } from '@/lib/store';
 import { Modal, ModalHeader, ModalBody, ModalFooter } from '@/components/Modal';
 import type { StorySettings, POVMode, WorldFocusMode, ReasoningLevel, NarrativeState } from '@/types/narrative';
 import { DEFAULT_STORY_SETTINGS, BRANCH_TIME_HORIZON_OPTIONS, REASONING_BUDGETS } from '@/types/narrative';
@@ -11,7 +12,6 @@ import type { CubeCornerKey } from '@/types/narrative';
 import { MATRIX_PRESETS, type TransitionMatrix } from '@/lib/markov';
 import { DEFAULT_BEAT_SAMPLER, BEAT_PROFILE_PRESETS, computeSamplerFromPlans } from '@/lib/beat-profiles';
 import { IconChevronDown } from '@/components/icons';
-import { IconSpinner } from '@/components/icons';
 
 type Tab = 'direction' | 'style' | 'pov' | 'audio' | 'other';
 
@@ -155,7 +155,6 @@ function AdvancedSection({ settings, update, narrative, resolvedEntryKeys }: {
 
 export function StorySettingsModal({ onClose }: { onClose: () => void }) {
   const { state, dispatch } = useStore();
-  const access = useFeatureAccess();
   const narrative = state.activeNarrative;
   const [tab, setTab] = useState<Tab>('direction');
   const [settings, setSettings] = useState<StorySettings>({
@@ -172,118 +171,54 @@ export function StorySettingsModal({ onClose }: { onClose: () => void }) {
     onClose();
   }
 
-  // ── Audio voice sampling state ──
-  const [voicePreviews, setVoicePreviews] = useState<{ id: string; audioUrl: string }[]>([]);
-  const [voiceLoading, setVoiceLoading] = useState(false);
-  const [voiceError, setVoiceError] = useState<string | null>(null);
-  const [savingVoiceId, setSavingVoiceId] = useState<string | null>(null);
-  const [selectedPreviewId, setSelectedPreviewId] = useState<string | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
-  const [playingPreview, setPlayingPreview] = useState<string | null>(null);
+  const access = useFeatureAccess();
+  const [previewLoading, setPreviewLoading] = useState(false);
+  const [previewError, setPreviewError] = useState<string | null>(null);
+  const [isPlaying, setIsPlaying] = useState(false);
 
-  const sampleVoice = useCallback(async () => {
-    if (!settings.audioVoiceDescription.trim()) return;
-
-    // Guard: require ElevenLabs key
-    if (access.userApiKeys && !access.hasElevenLabsKey) {
+  const previewVoice = useCallback(async () => {
+    if (access.userApiKeys && !access.hasOpenAiKey) {
       window.dispatchEvent(new Event('open-api-keys'));
       return;
     }
+    if (audioRef.current) { audioRef.current.pause(); audioRef.current = null; setIsPlaying(false); }
 
-    setVoiceLoading(true);
-    setVoiceError(null);
-    setVoicePreviews([]);
-    setSelectedPreviewId(null);
+    const fallback = 'The morning light crept through the shutters, casting long shadows across the floor.';
+    let text = fallback;
+    if (narrative) {
+      const prose = Object.values(narrative.scenes).find((s) => s.prose)?.prose;
+      if (prose) {
+        const sentences = prose.match(/[^.!?]+[.!?]+/g);
+        text = sentences ? sentences.slice(0, 2).join(' ').trim() : prose.slice(0, 200);
+      }
+    }
+
+    setPreviewLoading(true);
+    setPreviewError(null);
     try {
-      const fallback = 'The morning light crept through the shutters, casting long shadows across the room. She stood at the window, watching the world below stir to life.';
-      let sampleText = fallback;
-      if (narrative) {
-        const prose = Object.values(narrative.scenes).find((s) => s.prose)?.prose;
-        if (prose) {
-          // Extract first 2-3 sentences
-          const sentences = prose.match(/[^.!?]+[.!?]+/g);
-          sampleText = sentences ? sentences.slice(0, 3).join(' ').trim() : prose.slice(0, 200);
-        }
-      }
-
-      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
-      if (access.userApiKeys && access.elevenLabsKey) {
-        headers['x-elevenlabs-key'] = access.elevenLabsKey;
-      }
       const res = await fetch('/api/generate-audio', {
         method: 'POST',
-        headers,
-        body: JSON.stringify({
-          action: 'design',
-          voiceDescription: settings.audioVoiceDescription,
-          previewText: sampleText,
-        }),
+        headers: apiHeaders(),
+        body: JSON.stringify({ voice: settings.audioVoice, model: settings.audioModel, text }),
       });
       if (!res.ok) {
-        const err = await res.json();
-        throw new Error(err.error || 'Voice design failed');
+        const err = await res.json().catch(() => ({ error: 'Preview failed' }));
+        throw new Error(err.error || 'Preview failed');
       }
-      const data = await res.json();
-      const previews = (data.previews || []).map((p: { generated_voice_id: string; audio_base_64: string }) => ({
-        id: p.generated_voice_id,
-        audioUrl: `data:audio/mpeg;base64,${p.audio_base_64}`,
-      }));
-      setVoicePreviews(previews);
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const audio = new Audio(url);
+      audio.onended = () => { setIsPlaying(false); URL.revokeObjectURL(url); };
+      audio.play();
+      audioRef.current = audio;
+      setIsPlaying(true);
     } catch (err) {
-      setVoiceError(err instanceof Error ? err.message : 'Voice sampling failed');
+      setPreviewError(err instanceof Error ? err.message : 'Preview failed');
     } finally {
-      setVoiceLoading(false);
+      setPreviewLoading(false);
     }
-  }, [settings.audioVoiceDescription, narrative, access]);
-
-  const selectVoice = useCallback(async (generatedVoiceId: string) => {
-    setSavingVoiceId(generatedVoiceId);
-    setSelectedPreviewId(generatedVoiceId);
-    setVoiceError(null);
-    try {
-      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
-      if (access.userApiKeys && access.elevenLabsKey) {
-        headers['x-elevenlabs-key'] = access.elevenLabsKey;
-      }
-      const res = await fetch('/api/generate-audio', {
-        method: 'POST',
-        headers,
-        body: JSON.stringify({
-          action: 'add-voice',
-          generatedVoiceId,
-          voiceName: 'Story Narrator',
-          voiceDescription: settings.audioVoiceDescription,
-        }),
-      });
-      if (!res.ok) {
-        const err = await res.json();
-        throw new Error(err.error || 'Failed to save voice');
-      }
-      const data = await res.json();
-      update({ audioVoiceId: data.voiceId });
-    } catch (err) {
-      setSelectedPreviewId(null);
-      setVoiceError(err instanceof Error ? err.message : 'Failed to save voice');
-    } finally {
-      setSavingVoiceId(null);
-    }
-  }, [settings.audioVoiceDescription, access]);
-
-  const playPreview = useCallback((previewId: string, audioUrl: string) => {
-    if (audioRef.current) {
-      audioRef.current.pause();
-      audioRef.current = null;
-    }
-    if (playingPreview === previewId) {
-      setPlayingPreview(null);
-      return;
-    }
-    const audio = new Audio(audioUrl);
-    audio.onended = () => setPlayingPreview(null);
-    audio.play();
-    audioRef.current = audio;
-    setPlayingPreview(previewId);
-  }, [playingPreview]);
+  }, [settings.audioVoice, settings.audioModel, narrative, access]);
 
   const allCharacters = narrative
     ? Object.values(narrative.characters)
@@ -676,95 +611,68 @@ export function StorySettingsModal({ onClose }: { onClose: () => void }) {
 
           {tab === 'audio' && (
             <>
-              {/* Voice Description */}
+              {/* Voice picker */}
               <div>
                 <label className="text-[10px] text-text-dim uppercase tracking-wider block mb-2">
                   Narrator Voice
                 </label>
-                <textarea
-                  value={settings.audioVoiceDescription}
-                  onChange={(e) => update({ audioVoiceDescription: e.target.value })}
-                  placeholder="Describe the voice — e.g. 'A deep, gravelly male voice with a British accent. Slow, deliberate pacing with dramatic pauses.'"
-                  className="w-full bg-bg-elevated border border-white/10 rounded-lg px-3 py-2 text-[11px] text-text-primary placeholder:text-text-dim/40 outline-none focus:border-blue-500/40 resize-none h-24"
-                />
-                <p className="text-[9px] text-text-dim/50 mt-1">
-                  Describe the narrator&apos;s voice style, accent, pacing, and tone. ElevenLabs will generate a matching voice.
-                </p>
+                <div className="grid grid-cols-3 gap-1.5">
+                  {(['alloy', 'echo', 'fable', 'onyx', 'nova', 'shimmer'] as const).map((v) => (
+                    <button
+                      key={v}
+                      onClick={() => update({ audioVoice: v })}
+                      className={`px-2 py-1.5 rounded text-[11px] capitalize border transition-colors ${
+                        settings.audioVoice === v
+                          ? 'border-violet-500/50 bg-violet-500/15 text-violet-300'
+                          : 'border-white/10 text-text-dim hover:bg-white/5 hover:text-text-secondary'
+                      }`}
+                    >
+                      {v}
+                    </button>
+                  ))}
+                </div>
+                <p className="text-[9px] text-text-dim/50 mt-1.5">OpenAI TTS voices — nova and shimmer are warm/feminine, onyx and fable are deep/masculine.</p>
               </div>
 
-              {/* Sample / Preview */}
+              {/* Model picker */}
               <div>
-                <div className="flex items-center gap-2 mb-2">
-                  <label className="text-[10px] text-text-dim uppercase tracking-wider">
-                    Voice Preview
-                  </label>
-                  {settings.audioVoiceId && (
-                    <span className="text-[9px] text-emerald-400/60 font-mono">voice selected</span>
-                  )}
+                <label className="text-[10px] text-text-dim uppercase tracking-wider block mb-2">
+                  Quality
+                </label>
+                <div className="flex gap-2">
+                  {([['tts-1', 'Standard', 'Faster, cheaper'], ['tts-1-hd', 'HD', 'Higher quality, 2× cost']] as const).map(([id, label, desc]) => (
+                    <button
+                      key={id}
+                      onClick={() => update({ audioModel: id })}
+                      className={`flex-1 px-3 py-2 rounded border text-left transition-colors ${
+                        settings.audioModel === id
+                          ? 'border-violet-500/50 bg-violet-500/15'
+                          : 'border-white/10 hover:bg-white/5'
+                      }`}
+                    >
+                      <div className="text-[11px] text-text-primary">{label}</div>
+                      <div className="text-[9px] text-text-dim">{desc}</div>
+                    </button>
+                  ))}
                 </div>
+              </div>
 
+              {/* Preview */}
+              <div className="flex items-center gap-3">
                 <button
-                  onClick={sampleVoice}
-                  disabled={voiceLoading || !settings.audioVoiceDescription.trim()}
-                  className="text-[10px] px-3 py-1.5 rounded-md bg-violet-500/20 text-violet-300 hover:bg-violet-500/30 transition-colors font-semibold disabled:opacity-30 disabled:cursor-not-allowed flex items-center gap-1.5"
+                  onClick={previewVoice}
+                  disabled={previewLoading}
+                  className="text-[10px] px-3 py-1.5 rounded-md bg-violet-500/15 border border-violet-500/20 text-violet-300 hover:bg-violet-500/25 transition disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-1.5"
                 >
-                  {voiceLoading ? (
-                    <>
-                      <IconSpinner size={10} className="animate-spin" />
-                      Generating samples...
-                    </>
+                  {previewLoading ? (
+                    <><span className="w-3 h-3 border border-violet-400/40 border-t-violet-300 rounded-full animate-spin inline-block" />Generating...</>
+                  ) : isPlaying ? (
+                    <>■ Playing...</>
                   ) : (
-                    'Sample Voice'
+                    '▶ Preview voice'
                   )}
                 </button>
-
-                {voiceError && (
-                  <p className="text-[10px] text-red-400 mt-2">{voiceError}</p>
-                )}
-
-                {voicePreviews.length > 0 && (
-                  <div className="mt-3 space-y-2">
-                    {voicePreviews.map((preview, i) => (
-                      <div
-                        key={preview.id}
-                        className={`flex items-center gap-3 px-3 py-2 rounded-lg border transition-colors cursor-pointer ${
-                          selectedPreviewId === preview.id
-                            ? 'border-violet-500/50 bg-violet-500/10'
-                            : 'border-white/5 bg-white/2 hover:bg-white/5'
-                        } ${savingVoiceId && savingVoiceId !== preview.id ? 'pointer-events-none opacity-50' : ''}`}
-                        onClick={() => !savingVoiceId && selectVoice(preview.id)}
-                      >
-                        <button
-                          onClick={(e) => { e.stopPropagation(); playPreview(preview.id, preview.audioUrl); }}
-                          className="w-7 h-7 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center transition shrink-0"
-                        >
-                          {playingPreview === preview.id ? (
-                            <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16" rx="1" /><rect x="14" y="4" width="4" height="16" rx="1" /></svg>
-                          ) : (
-                            <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor"><polygon points="6,3 20,12 6,21" /></svg>
-                          )}
-                        </button>
-                        <div className="flex-1 min-w-0">
-                          <span className="text-[11px] text-text-primary">Voice {i + 1}</span>
-                          <span className="text-[9px] text-text-dim ml-2 font-mono">{preview.id.slice(0, 12)}...</span>
-                        </div>
-                        {savingVoiceId === preview.id ? (
-                          <span className="text-[9px] text-text-dim shrink-0 flex items-center gap-1">
-                            <IconSpinner size={9} className="animate-spin" />saving...
-                          </span>
-                        ) : selectedPreviewId === preview.id ? (
-                          <span className="text-[9px] text-violet-400 shrink-0">selected</span>
-                        ) : null}
-                      </div>
-                    ))}
-                  </div>
-                )}
-
-                {!voicePreviews.length && !voiceLoading && settings.audioVoiceId && (
-                  <p className="text-[9px] text-text-dim/50 mt-2">
-                    Voice saved from a previous session. Sample again to preview or change.
-                  </p>
-                )}
+                {previewError && <p className="text-[10px] text-red-400">{previewError}</p>}
               </div>
             </>
           )}

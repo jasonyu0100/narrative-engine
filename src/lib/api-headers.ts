@@ -14,9 +14,11 @@ export function apiHeaders(extra?: Record<string, string>): Record<string, strin
 
   const orKey = localStorage.getItem('ne_openrouter_key');
   const repKey = localStorage.getItem('ne_replicate_key');
+  const oaiKey = localStorage.getItem('ne_openai_key');
 
   if (orKey) headers['x-openrouter-key'] = orKey;
   if (repKey) headers['x-replicate-key'] = repKey;
+  if (oaiKey) headers['x-openai-key'] = oaiKey;
 
   return headers;
 }

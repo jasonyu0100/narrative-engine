@@ -7,9 +7,10 @@ import { generateScenePlan, generateSceneProse, rewriteSceneProse } from '@/lib/
 import { useStore } from '@/lib/store';
 import { exportEpub } from '@/lib/epub-export';
 import { IconDocument, IconBook, IconSettings, IconLocationPin, IconEye, IconPeople, IconPlus, IconClose, IconChevronLeft, IconChevronRight } from '@/components/icons';
-import { PROSE_CONCURRENCY, PLAN_CONCURRENCY } from '@/lib/constants';
+import { PROSE_CONCURRENCY, PLAN_CONCURRENCY, AUDIO_CONCURRENCY } from '@/lib/constants';
 import { sceneScale } from '@/lib/ai/context';
 import { useFeatureAccess } from '@/hooks/useFeatureAccess';
+import { apiHeaders } from '@/lib/api-headers';
 
 type ContentCache = Record<string, { text: string; status: 'loading' | 'ready' | 'error'; error?: string }>;
 type BulkState = { running: boolean; completed: number; total: number; errors: number } | null;
@@ -203,25 +204,21 @@ export function StoryReader({
   const generateAudio = useCallback(async (s: Scene) => {
     const prose = proseCache[s.id]?.status === 'ready' ? proseCache[s.id].text : s.prose;
     if (!prose) return;
-    const voiceId = narrative.storySettings?.audioVoiceId;
-    if (!voiceId) return;
+    const voice = narrative.storySettings?.audioVoice || 'nova';
+    const model = narrative.storySettings?.audioModel || 'tts-1';
 
-    // Guard: require ElevenLabs key
-    if (access.userApiKeys && !access.hasElevenLabsKey) {
+    // Guard: require OpenAI key
+    if (access.userApiKeys && !access.hasOpenAiKey) {
       window.dispatchEvent(new Event('open-api-keys'));
       return;
     }
 
     setAudioCache((prev) => ({ ...prev, [s.id]: { url: '', status: 'loading' } }));
     try {
-      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
-      if (access.userApiKeys && access.elevenLabsKey) {
-        headers['x-elevenlabs-key'] = access.elevenLabsKey;
-      }
       const res = await fetch('/api/generate-audio', {
         method: 'POST',
-        headers,
-        body: JSON.stringify({ action: 'generate', voiceId, text: prose }),
+        headers: apiHeaders(),
+        body: JSON.stringify({ voice, model, text: prose }),
       });
       if (!res.ok) {
         const err = await res.json().catch(() => ({ error: 'TTS failed' }));
@@ -241,12 +238,22 @@ export function StoryReader({
     }
   }, [narrative, proseCache, access]);
 
+  const clearAudio = useCallback((sceneId: string) => {
+    if (audioRef.current && playingAudioId === sceneId) {
+      audioRef.current.pause();
+      audioRef.current = null;
+      setPlayingAudioId(null);
+    }
+    setAudioCache((prev) => { const next = { ...prev }; delete next[sceneId]; return next; });
+    dispatch({ type: 'CLEAR_SCENE_AUDIO', sceneId });
+  }, [playingAudioId, dispatch]);
+
   const bulkAudio = useCallback(() => {
     const withProse = scenes.filter((s) =>
       (s.prose || proseCache[s.id]?.status === 'ready') &&
       audioCache[s.id]?.status !== 'ready'
     );
-    runBulk(withProse, 2, (s) => generateAudio(s), setAudioBulk);
+    runBulk(withProse, AUDIO_CONCURRENCY, (s) => generateAudio(s), setAudioBulk);
   }, [scenes, proseCache, audioCache, generateAudio, runBulk]);
 
   const playAudio = useCallback((sceneId: string) => {
@@ -283,10 +290,21 @@ export function StoryReader({
     if (scene.plan && !planCache[scene.id]) {
       setPlanCache((prev) => ({ ...prev, [scene.id]: { plan: scene.plan!, status: 'ready' as const } }));
     }
-    if (scene.audioUrl && !audioCache[scene.id]) {
-      setAudioCache((prev) => ({ ...prev, [scene.id]: { url: scene.audioUrl!, status: 'ready' } }));
+  }, [scene, proseCache, planCache]);
+
+  // ── Seed audioCache for all scenes that have persisted audio ─────────
+  useEffect(() => {
+    const entries: typeof audioCache = {};
+    for (const s of scenes) {
+      if (s.audioUrl && !audioCache[s.id]) {
+        entries[s.id] = { url: s.audioUrl, status: 'ready' };
+      }
     }
-  }, [scene, proseCache, planCache, audioCache]);
+    if (Object.keys(entries).length > 0) {
+      setAudioCache((prev) => ({ ...entries, ...prev }));
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Reset state when changing scenes
   useEffect(() => { setShowRewrite(false); setRewriteAnalysis(''); }, [currentIndex]);
@@ -591,7 +609,8 @@ export function StoryReader({
             const sArc = Object.values(narrative.arcs).find((a) => a.sceneIds.includes(s.id));
             const hasPlanDot = planCache[s.id]?.status === 'ready' || !!s.plan;
             const hasProseDot = proseCache[s.id]?.status === 'ready' || !!s.prose;
-            const isGen = proseCache[s.id]?.status === 'loading' || planCache[s.id]?.status === 'loading';
+            const isAudioGen = audioCache[s.id]?.status === 'loading';
+            const isGen = proseCache[s.id]?.status === 'loading' || planCache[s.id]?.status === 'loading' || isAudioGen;
             const score = s.proseScore;
             return (
               <button
@@ -608,7 +627,7 @@ export function StoryReader({
                 </div>
                 <div className="flex items-center gap-2 mt-0.5 ml-5">
                   {sArc && <span className="text-[9px] text-text-dim">{sArc.name}</span>}
-                  {isGen && <div className="w-2.5 h-2.5 border border-white/30 border-t-white/70 rounded-full animate-spin shrink-0" />}
+                  {isGen && <div className={`w-2.5 h-2.5 border rounded-full animate-spin shrink-0 ${isAudioGen ? 'border-violet-500/30 border-t-violet-400' : 'border-white/30 border-t-white/70'}`} />}
                   {!isGen && hasPlanDot && <span className="w-1.5 h-1.5 rounded-full bg-sky-400/60 shrink-0" />}
                   {!isGen && hasProseDot && <span className="w-1.5 h-1.5 rounded-full bg-emerald-400/60 shrink-0" />}
                   {!isGen && audioCache[s.id]?.status === 'ready' && <span className="w-1.5 h-1.5 rounded-full bg-violet-400/60 shrink-0" />}
@@ -1246,7 +1265,7 @@ export function StoryReader({
                 {(() => {
                   const cached = audioCache[scene.id];
                   const hasProse = !!(proseCache[scene.id]?.status === 'ready' ? proseCache[scene.id].text : scene.prose);
-                  const hasVoice = !!narrative.storySettings?.audioVoiceId;
+                  const hasVoice = !!narrative.storySettings?.audioVoice;
                   const isLoading = cached?.status === 'loading';
                   const isReady = cached?.status === 'ready';
                   const hasError = cached?.status === 'error';
@@ -1256,7 +1275,7 @@ export function StoryReader({
                       <div className="text-center py-16 space-y-3 text-text-dim">
                         <svg className="mx-auto w-8 h-8 text-text-dim/30" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>
                         <p className="text-[11px]">No voice configured yet.</p>
-                        <p className="text-[10px] text-text-dim/60">Go to Story Settings &rarr; Audio tab to describe and sample a voice.</p>
+                        <p className="text-[10px] text-text-dim/60">Go to Story Settings &rarr; Audio tab to select a voice.</p>
                       </div>
                     );
                   }
@@ -1327,18 +1346,24 @@ export function StoryReader({
                           >
                             Generate Audio
                           </button>
-                          <p className="text-[10px] text-text-dim/50">Uses ElevenLabs TTS with your configured voice.</p>
+                          <p className="text-[10px] text-text-dim/50">Uses OpenAI TTS with your configured voice.</p>
                         </div>
                       )}
 
-                      {/* Regenerate if already ready */}
+                      {/* Regenerate / clear if already ready */}
                       {isReady && (
-                        <div className="text-center">
+                        <div className="flex items-center justify-center gap-4">
                           <button
                             onClick={() => generateAudio(scene)}
                             className="text-[10px] text-text-dim hover:text-text-secondary transition"
                           >
-                            Regenerate audio
+                            Regenerate
+                          </button>
+                          <button
+                            onClick={() => clearAudio(scene.id)}
+                            className="text-[10px] text-red-400/50 hover:text-red-400 transition"
+                          >
+                            Clear
                           </button>
                         </div>
                       )}

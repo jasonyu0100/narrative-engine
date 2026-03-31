@@ -92,6 +92,9 @@ export const PLAN_CONCURRENCY = 10;
 /** Concurrent prose generation slots (Story modal bulk write) */
 export const PROSE_CONCURRENCY = 10;
 
+/** Concurrent audio generation slots (Story modal bulk audio) */
+export const AUDIO_CONCURRENCY = 10;
+
 /** Concurrent prose rewrite slots */
 export const REWRITE_CONCURRENCY = 10;
 

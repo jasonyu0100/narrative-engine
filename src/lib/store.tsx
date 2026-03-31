@@ -349,6 +349,7 @@ export type Action =
   | { type: 'UPDATE_NARRATIVE_META'; narrativeId: string; title?: string; description?: string }
   | { type: 'SET_SCENE_IMAGE'; sceneId: string; imageUrl: string }
   | { type: 'SET_SCENE_AUDIO'; sceneId: string; audioUrl: string }
+  | { type: 'CLEAR_SCENE_AUDIO'; sceneId: string }
   | { type: 'SET_CHARACTER_IMAGE'; characterId: string; imageUrl: string }
   | { type: 'SET_LOCATION_IMAGE'; locationId: string; imageUrl: string }
   | { type: 'SET_ARTIFACT_IMAGE'; artifactId: string; imageUrl: string }
@@ -961,6 +962,14 @@ function reducer(state: AppState, action: Action): AppState {
         const scene = n.scenes[action.sceneId];
         if (!scene) return n;
         return { ...n, scenes: { ...n.scenes, [action.sceneId]: { ...scene, audioUrl: action.audioUrl } } };
+      });
+
+    case 'CLEAR_SCENE_AUDIO':
+      return updateNarrative(state, (n) => {
+        const scene = n.scenes[action.sceneId];
+        if (!scene) return n;
+        const { audioUrl: _, ...rest } = scene;
+        return { ...n, scenes: { ...n.scenes, [action.sceneId]: rest } };
       });
 
     case 'SET_CHARACTER_IMAGE': {

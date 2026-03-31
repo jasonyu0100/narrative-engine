@@ -1,117 +1,87 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { resolveKey } from '@/lib/resolve-api-key';
 
-const ELEVENLABS_BASE = 'https://api.elevenlabs.io/v1';
+const OPENAI_TTS_URL = 'https://api.openai.com/v1/audio/speech';
+const CHUNK_SIZE = 4000; // leave headroom under 4096
 
-type DesignRequest = {
-  action: 'design';
-  voiceDescription: string;
-  previewText: string;
-};
+/** Split text into chunks ≤ CHUNK_SIZE characters, breaking on sentence boundaries. */
+function chunkText(text: string): string[] {
+  if (text.length <= CHUNK_SIZE) return [text];
 
-type AddVoiceRequest = {
-  action: 'add-voice';
-  generatedVoiceId: string;
-  voiceName: string;
-  voiceDescription: string;
-};
+  const chunks: string[] = [];
+  let remaining = text.trim();
 
-type GenerateRequest = {
-  action: 'generate';
-  voiceId: string;
-  text: string;
-  modelId?: string;
-};
+  while (remaining.length > CHUNK_SIZE) {
+    // Find last sentence boundary within the limit
+    const slice = remaining.slice(0, CHUNK_SIZE);
+    const lastBreak = Math.max(
+      slice.lastIndexOf('. '),
+      slice.lastIndexOf('! '),
+      slice.lastIndexOf('? '),
+      slice.lastIndexOf('\n'),
+    );
+    const cutAt = lastBreak > CHUNK_SIZE / 2 ? lastBreak + 1 : CHUNK_SIZE;
+    chunks.push(remaining.slice(0, cutAt).trim());
+    remaining = remaining.slice(cutAt).trim();
+  }
+
+  if (remaining.length > 0) chunks.push(remaining);
+  return chunks;
+}
+
+async function synthesiseChunk(text: string, voice: string, model: string, apiKey: string): Promise<ArrayBuffer> {
+  const res = await fetch(OPENAI_TTS_URL, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${apiKey}`,
+    },
+    body: JSON.stringify({ model, input: text, voice }),
+  });
+
+  if (!res.ok) {
+    const err = await res.text();
+    throw new Error(`OpenAI TTS failed: ${err}`);
+  }
+
+  return res.arrayBuffer();
+}
 
 export async function POST(req: NextRequest) {
-  const apiKey = resolveKey(req, 'x-elevenlabs-key', 'ELEVEN_LABS_API_KEY');
+  const apiKey = resolveKey(req, 'x-openai-key', 'OPENAI_API_KEY');
   if (!apiKey) {
-    return NextResponse.json({ error: 'ElevenLabs API key required' }, { status: 401 });
+    return NextResponse.json({ error: 'OpenAI API key required' }, { status: 401 });
   }
 
   try {
-    const body = await req.json() as DesignRequest | AddVoiceRequest | GenerateRequest;
+    const body = await req.json() as { voice?: string; model?: string; text: string };
+    const voice = body.voice || 'nova';
+    const model = body.model || 'tts-1';
+    const chunks = chunkText(body.text);
 
-    if (body.action === 'design') {
-      // Design a voice from description — returns previews with generated_voice_id
-      const res = await fetch(`${ELEVENLABS_BASE}/text-to-voice/create-previews`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'xi-api-key': apiKey,
-        },
-        body: JSON.stringify({
-          voice_description: body.voiceDescription,
-          text: body.previewText.slice(0, 1000),
-        }),
-      });
+    // Synthesise all chunks in parallel
+    const buffers = await Promise.all(
+      chunks.map((chunk) => synthesiseChunk(chunk, voice, model, apiKey))
+    );
 
-      if (!res.ok) {
-        const err = await res.text();
-        return NextResponse.json({ error: `ElevenLabs voice design failed: ${err}` }, { status: res.status });
-      }
-
-      const data = await res.json();
-      return NextResponse.json(data);
+    // Concatenate MP3 buffers (MP3 is safely byte-concatenable)
+    const totalBytes = buffers.reduce((sum, b) => sum + b.byteLength, 0);
+    const combined = new Uint8Array(totalBytes);
+    let offset = 0;
+    for (const buf of buffers) {
+      combined.set(new Uint8Array(buf), offset);
+      offset += buf.byteLength;
     }
 
-    if (body.action === 'add-voice') {
-      // Save a generated preview voice to the user's ElevenLabs library
-      const res = await fetch(`${ELEVENLABS_BASE}/text-to-voice`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'xi-api-key': apiKey,
-        },
-        body: JSON.stringify({
-          voice_name: body.voiceName,
-          voice_description: body.voiceDescription,
-          generated_voice_id: body.generatedVoiceId,
-        }),
-      });
-
-      if (!res.ok) {
-        const err = await res.text();
-        return NextResponse.json({ error: `ElevenLabs add voice failed: ${err}` }, { status: res.status });
-      }
-
-      const data = await res.json();
-      return NextResponse.json({ voiceId: data.voice_id });
-    }
-
-    if (body.action === 'generate') {
-      // Generate speech for a text chunk using a voice ID
-      const modelId = body.modelId || 'eleven_multilingual_v2';
-      const res = await fetch(`${ELEVENLABS_BASE}/text-to-speech/${body.voiceId}`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'xi-api-key': apiKey,
-          'Accept': 'audio/mpeg',
-        },
-        body: JSON.stringify({
-          text: body.text,
-          model_id: modelId,
-        }),
-      });
-
-      if (!res.ok) {
-        const err = await res.text();
-        return NextResponse.json({ error: `ElevenLabs TTS failed: ${err}` }, { status: res.status });
-      }
-
-      const audioBuffer = await res.arrayBuffer();
-      return new NextResponse(audioBuffer, {
-        headers: {
-          'Content-Type': 'audio/mpeg',
-          'Content-Length': String(audioBuffer.byteLength),
-        },
-      });
-    }
-
-    return NextResponse.json({ error: 'Invalid action' }, { status: 400 });
+    return new NextResponse(combined, {
+      headers: {
+        'Content-Type': 'audio/mpeg',
+        'Content-Length': String(totalBytes),
+      },
+    });
   } catch (err) {
     console.error('[generate-audio]', err);
-    return NextResponse.json({ error: String(err) }, { status: 500 });
+    const message = err instanceof Error ? err.message : String(err);
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }
