@@ -57,23 +57,94 @@ function formatCost(v: number): string {
   return `$${v.toFixed(4)}`;
 }
 
-/** Group entries by day — fills gaps so every day between first and last is shown */
-function bucketByDay(logs: ApiLogEntry[]): { label: string; shortLabel: string; entries: ApiLogEntry[] }[] {
+/** Group entries into per-month buckets for all time */
+function bucketByMonth(logs: ApiLogEntry[]): { label: string; shortLabel: string; entries: ApiLogEntry[] }[] {
   const success = logs.filter((l) => l.status === 'success');
   if (success.length === 0) return [];
+
   const map = new Map<string, ApiLogEntry[]>();
+  let minTs = Infinity;
   for (const log of success) {
+    const d = new Date(log.timestamp);
+    const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+    if (!map.has(key)) map.set(key, []);
+    map.get(key)!.push(log);
+    if (log.timestamp < minTs) minTs = log.timestamp;
+  }
+
+  const result: { label: string; shortLabel: string; entries: ApiLogEntry[] }[] = [];
+  const cursor = new Date(minTs);
+  cursor.setDate(1);
+  cursor.setHours(0, 0, 0, 0);
+  const now = new Date();
+  while (cursor <= now) {
+    const key = `${cursor.getFullYear()}-${String(cursor.getMonth() + 1).padStart(2, '0')}`;
+    const shortLabel = `${String(cursor.getMonth() + 1).padStart(2, '0')}/${String(cursor.getFullYear()).slice(2)}`;
+    result.push({ label: key, shortLabel, entries: map.get(key) ?? [] });
+    cursor.setMonth(cursor.getMonth() + 1);
+  }
+  return result;
+}
+
+/** Group entries into per-week buckets for the last 12 weeks */
+function bucketByWeek(logs: ApiLogEntry[]): { label: string; shortLabel: string; entries: ApiLogEntry[] }[] {
+  const now = new Date();
+  now.setHours(23, 59, 59, 999);
+  const start = new Date(now);
+  start.setDate(start.getDate() - 83); // 12 weeks
+  start.setHours(0, 0, 0, 0);
+  const windowStart = start.getTime();
+
+  const map = new Map<string, ApiLogEntry[]>();
+  for (const log of logs) {
+    if (log.status !== 'success' || log.timestamp < windowStart) continue;
+    const d = new Date(log.timestamp);
+    // Week key: year + ISO week number
+    const dayOfWeek = d.getDay() === 0 ? 6 : d.getDay() - 1; // Mon=0
+    const weekStart = new Date(d);
+    weekStart.setDate(d.getDate() - dayOfWeek);
+    weekStart.setHours(0, 0, 0, 0);
+    const key = weekStart.getTime().toString();
+    if (!map.has(key)) map.set(key, []);
+    map.get(key)!.push(log);
+  }
+
+  const result: { label: string; shortLabel: string; entries: ApiLogEntry[] }[] = [];
+  const cursor = new Date(start);
+  // Align to Monday
+  const dayOfWeek = cursor.getDay() === 0 ? 6 : cursor.getDay() - 1;
+  cursor.setDate(cursor.getDate() - dayOfWeek);
+  cursor.setHours(0, 0, 0, 0);
+  while (cursor <= now) {
+    const key = cursor.getTime().toString();
+    const shortLabel = `${String(cursor.getMonth() + 1).padStart(2, '0')}/${String(cursor.getDate()).padStart(2, '0')}`;
+    result.push({ label: key, shortLabel, entries: map.get(key) ?? [] });
+    cursor.setDate(cursor.getDate() + 7);
+  }
+  return result;
+}
+
+/** Group entries into per-day buckets for the last 30 days ending now */
+function bucketByDay(logs: ApiLogEntry[]): { label: string; shortLabel: string; entries: ApiLogEntry[] }[] {
+  const now = new Date();
+  now.setHours(23, 59, 59, 999);
+  const start = new Date(now);
+  start.setDate(start.getDate() - 29);
+  start.setHours(0, 0, 0, 0);
+  const windowStart = start.getTime();
+
+  const map = new Map<string, ApiLogEntry[]>();
+  for (const log of logs) {
+    if (log.status !== 'success' || log.timestamp < windowStart) continue;
     const d = new Date(log.timestamp);
     const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
     if (!map.has(key)) map.set(key, []);
     map.get(key)!.push(log);
   }
-  // Fill gaps between first and last day
-  const sorted = Array.from(map.keys()).sort();
+
   const result: { label: string; shortLabel: string; entries: ApiLogEntry[] }[] = [];
-  const cursor = new Date(sorted[0] + 'T00:00:00');
-  const end = new Date(sorted[sorted.length - 1] + 'T00:00:00');
-  while (cursor <= end) {
+  const cursor = new Date(start);
+  while (cursor <= now) {
     const key = `${cursor.getFullYear()}-${String(cursor.getMonth() + 1).padStart(2, '0')}-${String(cursor.getDate()).padStart(2, '0')}`;
     result.push({ label: key, shortLabel: key.slice(5), entries: map.get(key) ?? [] });
     cursor.setDate(cursor.getDate() + 1);
@@ -81,52 +152,59 @@ function bucketByDay(logs: ApiLogEntry[]): { label: string; shortLabel: string; 
   return result;
 }
 
-/** Group entries by hour — fills gaps so every hour between first and last is shown */
+/** Group entries into per-hour buckets for the last 24 hours ending now */
 function bucketByHour(logs: ApiLogEntry[]): { label: string; shortLabel: string; entries: ApiLogEntry[] }[] {
-  const success = logs.filter((l) => l.status === 'success');
-  if (success.length === 0) return [];
+  const now = new Date();
+  now.setMinutes(59, 59, 999);
+  const start = new Date(now);
+  start.setHours(start.getHours() - 23);
+  start.setMinutes(0, 0, 0);
+  const windowStart = start.getTime();
+
   const map = new Map<string, ApiLogEntry[]>();
-  for (const log of success) {
+  for (const log of logs) {
+    if (log.status !== 'success' || log.timestamp < windowStart) continue;
     const d = new Date(log.timestamp);
-    const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')} ${String(d.getHours()).padStart(2, '0')}:00`;
+    const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')} ${String(d.getHours()).padStart(2, '0')}`;
     if (!map.has(key)) map.set(key, []);
     map.get(key)!.push(log);
   }
-  const sorted = Array.from(map.keys()).sort();
+
   const result: { label: string; shortLabel: string; entries: ApiLogEntry[] }[] = [];
-  const cursor = new Date(sorted[0].replace(' ', 'T') + ':00');
-  const end = new Date(sorted[sorted.length - 1].replace(' ', 'T') + ':00');
-  while (cursor <= end) {
-    const key = `${cursor.getFullYear()}-${String(cursor.getMonth() + 1).padStart(2, '0')}-${String(cursor.getDate()).padStart(2, '0')} ${String(cursor.getHours()).padStart(2, '0')}:00`;
-    result.push({ label: key, shortLabel: key.slice(5), entries: map.get(key) ?? [] });
-    cursor.setTime(cursor.getTime() + 3600_000);
+  const cursor = new Date(start);
+  while (cursor <= now) {
+    const key = `${cursor.getFullYear()}-${String(cursor.getMonth() + 1).padStart(2, '0')}-${String(cursor.getDate()).padStart(2, '0')} ${String(cursor.getHours()).padStart(2, '0')}`;
+    const shortLabel = `${String(cursor.getDate()).padStart(2, '0')}/${String(cursor.getHours()).padStart(2, '0')}h`;
+    result.push({ label: key, shortLabel, entries: map.get(key) ?? [] });
+    cursor.setTime(cursor.getTime() + 3_600_000);
   }
   return result;
 }
 
-/** Group entries by minute — fills gaps so every minute between first and last is shown */
+/** Group entries into per-minute buckets for the last 60 minutes ending now */
 function bucketByMinute(logs: ApiLogEntry[]): { label: string; shortLabel: string; entries: ApiLogEntry[] }[] {
-  const success = logs.filter((l) => l.status === 'success');
-  if (success.length === 0) return [];
+  const now = new Date();
+  now.setSeconds(59, 999);
+  const start = new Date(now);
+  start.setMinutes(start.getMinutes() - 59);
+  start.setSeconds(0, 0);
+  const windowStart = start.getTime();
+
   const map = new Map<string, ApiLogEntry[]>();
-  let minTs = Infinity, maxTs = -Infinity;
-  for (const log of success) {
+  for (const log of logs) {
+    if (log.status !== 'success' || log.timestamp < windowStart) continue;
     const d = new Date(log.timestamp);
-    const key = `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+    const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
     if (!map.has(key)) map.set(key, []);
     map.get(key)!.push(log);
-    if (log.timestamp < minTs) minTs = log.timestamp;
-    if (log.timestamp > maxTs) maxTs = log.timestamp;
   }
-  // Fill minute-by-minute from first to last timestamp
+
   const result: { label: string; shortLabel: string; entries: ApiLogEntry[] }[] = [];
-  const cursor = new Date(minTs);
-  cursor.setSeconds(0, 0);
-  const end = new Date(maxTs);
-  end.setSeconds(0, 0);
-  while (cursor <= end) {
-    const key = `${String(cursor.getHours()).padStart(2, '0')}:${String(cursor.getMinutes()).padStart(2, '0')}`;
-    result.push({ label: key, shortLabel: key, entries: map.get(key) ?? [] });
+  const cursor = new Date(start);
+  while (cursor <= now) {
+    const key = `${cursor.getFullYear()}-${String(cursor.getMonth() + 1).padStart(2, '0')}-${String(cursor.getDate()).padStart(2, '0')} ${String(cursor.getHours()).padStart(2, '0')}:${String(cursor.getMinutes()).padStart(2, '0')}`;
+    const shortLabel = `${String(cursor.getHours()).padStart(2, '0')}:${String(cursor.getMinutes()).padStart(2, '0')}`;
+    result.push({ label: key, shortLabel, entries: map.get(key) ?? [] });
     cursor.setTime(cursor.getTime() + 60_000);
   }
   return result;
@@ -323,7 +401,7 @@ function BarChart({
 
 export function UsageDropdown({ logs }: { logs: ApiLogEntry[] }) {
   const [view, setView] = useState<'cost' | 'tokens' | 'calls' | 'speed'>('cost');
-  const [granularity, setGranularity] = useState<'minute' | 'hour' | 'day'>('day');
+  const [granularity, setGranularity] = useState<'minute' | 'hour' | 'day' | 'week' | 'month'>('day');
 
   const successLogs = useMemo(() => logs.filter((l) => l.status === 'success'), [logs]);
 
@@ -372,7 +450,7 @@ export function UsageDropdown({ logs }: { logs: ApiLogEntry[] }) {
   }, [successLogs]);
 
   const chartData = useMemo(() => {
-    const buckets = granularity === 'minute' ? bucketByMinute(logs) : granularity === 'hour' ? bucketByHour(logs) : bucketByDay(logs);
+    const buckets = granularity === 'minute' ? bucketByMinute(logs) : granularity === 'hour' ? bucketByHour(logs) : granularity === 'week' ? bucketByWeek(logs) : granularity === 'month' ? bucketByMonth(logs) : bucketByDay(logs);
     return buckets.map((b): BarDatum => {
       if (view === 'tokens') {
         let v1 = 0, v2 = 0, v3 = 0;
@@ -433,15 +511,15 @@ export function UsageDropdown({ logs }: { logs: ApiLogEntry[] }) {
           ))}
         </div>
         <div className="flex items-center rounded border border-white/8 overflow-hidden">
-          {(['minute', 'hour', 'day'] as const).map((g) => (
+          {(['minute', 'hour', 'day', 'week', 'month'] as const).map((g) => (
             <button
               key={g}
               onClick={() => setGranularity(g)}
-              className={`text-[9px] px-2.5 py-0.5 capitalize transition ${
+              className={`text-[9px] px-2.5 py-0.5 transition ${
                 granularity === g ? 'bg-white/10 text-text-primary' : 'text-text-dim hover:text-text-secondary'
               }`}
             >
-              {g === 'minute' ? 'Minute' : g === 'hour' ? 'Hourly' : 'Daily'}
+              {g === 'minute' ? '60m' : g === 'hour' ? '24h' : g === 'day' ? '30d' : g === 'week' ? '12w' : 'All'}
             </button>
           ))}
         </div>
