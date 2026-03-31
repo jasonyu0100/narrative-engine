@@ -11,6 +11,7 @@ import { DEFAULT_STORY_SETTINGS } from '@/types/narrative';
 import { PacingStrip, CubeBadge } from './PacingStrip';
 import { MarkovGraph } from './MarkovGraph';
 import { GuidanceFields } from './GuidanceFields';
+import { Modal, ModalHeader, ModalBody } from '@/components/Modal';
 
 type Mode = 'continuation' | 'world';
 
@@ -210,14 +211,15 @@ export function GeneratePanel({ onClose }: { onClose: () => void }) {
   const showPreview = !!previewSequence && mode === 'continuation' && !loading;
 
   return (
-    <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center" onClick={loading ? undefined : onClose}>
-      <div className="bg-bg-base border border-white/10 max-w-xl w-full rounded-2xl p-6 relative max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
-        {!loading && <button onClick={onClose} className="absolute top-4 right-4 text-text-dim hover:text-text-primary text-lg leading-none">&times;</button>}
-
-        <h2 className="text-sm font-semibold text-text-primary mb-1">Generate</h2>
-
+    <Modal onClose={loading ? () => {} : onClose} size="xl" maxHeight="90vh">
+      <ModalHeader onClose={loading ? () => {} : onClose}>
+        <div>
+          <h2 className="text-sm font-semibold text-text-primary">Generate</h2>
+        </div>
+      </ModalHeader>
+      <ModalBody className="p-6 space-y-4">
         {/* Mode tabs */}
-        <div className="flex gap-1 bg-bg-elevated rounded-lg p-0.5 mb-4">
+        <div className="flex gap-1 bg-bg-elevated rounded-lg p-0.5">
           {([
             { label: 'Continuation', value: 'continuation' as Mode },
             { label: 'Expand World', value: 'world' as Mode },
@@ -586,7 +588,7 @@ export function GeneratePanel({ onClose }: { onClose: () => void }) {
             )}
           </div>
         )}
-      </div>
-    </div>
+      </ModalBody>
+    </Modal>
   );
 }

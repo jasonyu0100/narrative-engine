@@ -9,6 +9,7 @@ import type { Scene } from '@/types/narrative';
 import { computeForceSnapshots, detectCubeCorner, computeDeliveryCurve, classifyCurrentPosition } from '@/lib/narrative-utils';
 import { useStore } from '@/lib/store';
 import { GuidanceFields } from '@/components/generation/GuidanceFields';
+import { Modal, ModalHeader, ModalBody, ModalFooter } from '@/components/Modal';
 
 /** Hook that ticks every second while active, returning elapsed seconds since startedAt */
 function useElapsedSeconds(startedAt: number | null, isActive: boolean): number {
@@ -1185,17 +1186,16 @@ export function MCTSPanel({ isOpen, onClose, mcts }: { isOpen: boolean; onClose:
 
   if (isIdle && !hasTree) {
     return (
-      <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center">
-        <div className="glass max-w-lg w-full rounded-2xl p-6 relative max-h-[85vh] flex flex-col">
-          <button onClick={onClose} className="absolute top-4 right-4 text-text-dim hover:text-text-primary text-lg leading-none">&times;</button>
-
-          <h2 className="text-sm font-semibold text-text-primary mb-1">MCTS Explorer</h2>
-          <p className="text-[10px] text-text-dim uppercase tracking-wider mb-3">
-            Monte Carlo Tree Search
-          </p>
-
+      <Modal onClose={onClose} size="lg" maxHeight="85vh">
+        <ModalHeader onClose={onClose}>
+          <div>
+            <h2 className="text-sm font-semibold text-text-primary">MCTS Explorer</h2>
+            <p className="text-[10px] text-text-dim uppercase tracking-wider">Monte Carlo Tree Search</p>
+          </div>
+        </ModalHeader>
+        <ModalBody className="p-6 space-y-4">
           {/* Tabs */}
-          <div className="flex gap-1 bg-bg-elevated rounded-lg p-0.5 mb-4 shrink-0">
+          <div className="flex gap-1 bg-bg-elevated rounded-lg p-0.5 shrink-0">
             {([
               { label: 'Search', value: 'search' as ConfigTab },
               { label: 'Move', value: 'move' as ConfigTab },
@@ -1216,7 +1216,7 @@ export function MCTSPanel({ isOpen, onClose, mcts }: { isOpen: boolean; onClose:
             ))}
           </div>
 
-          <div className="flex-1 overflow-y-auto flex flex-col gap-4 min-h-0">
+          <div className="flex flex-col gap-4">
             {configTab === 'search' && (
               <>
                 {/* Stop mode */}
@@ -1451,18 +1451,16 @@ export function MCTSPanel({ isOpen, onClose, mcts }: { isOpen: boolean; onClose:
             )}
 
           </div>
-
-          {/* Footer */}
-          <div className="flex gap-2 pt-4 mt-4 border-t border-border shrink-0">
-            <button
-              onClick={() => start(config)}
-              className="flex-1 text-xs font-semibold py-2 rounded-lg bg-white/12 text-text-primary hover:bg-white/16 transition-colors"
-            >
-              Start Search
-            </button>
-          </div>
-        </div>
-      </div>
+        </ModalBody>
+        <ModalFooter>
+          <button
+            onClick={() => start(config)}
+            className="flex-1 text-xs font-semibold py-2 rounded-lg bg-white/12 text-text-primary hover:bg-white/16 transition-colors"
+          >
+            Start Search
+          </button>
+        </ModalFooter>
+      </Modal>
     );
   }
 
