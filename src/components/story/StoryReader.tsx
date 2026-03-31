@@ -1,8 +1,8 @@
 'use client';
 
 import { useState, useCallback, useRef, useEffect } from 'react';
-import type { NarrativeState, Scene, StorySettings, BeatPlan } from '@/types/narrative';
-import { resolveEntry, isScene, DEFAULT_STORY_SETTINGS } from '@/types/narrative';
+import type { NarrativeState, Scene, StorySettings, BeatPlan, Beat, BeatFn, BeatMechanism } from '@/types/narrative';
+import { resolveEntry, isScene, DEFAULT_STORY_SETTINGS, BEAT_FN_LIST, BEAT_MECHANISM_LIST } from '@/types/narrative';
 import { generateScenePlan, generateSceneProse, rewriteSceneProse } from '@/lib/ai';
 import { useStore } from '@/lib/store';
 import { exportEpub } from '@/lib/epub-export';
@@ -857,6 +857,46 @@ export function StoryReader({
                     dialogue: '💬', thought: '💭', action: '⚡', environment: '🌍',
                     narration: '📖', memory: '🔙', document: '📄', comic: '😄',
                   };
+
+                  const updateBeat = (beatIdx: number, updates: Partial<Beat>) => {
+                    const newBeats = activePlan.beats.map((b, i) => i === beatIdx ? { ...b, ...updates } : b);
+                    const newPlan: BeatPlan = { ...activePlan, beats: newBeats };
+                    setPlanCache((prev) => ({ ...prev, [scene.id]: { plan: newPlan, status: 'ready' } }));
+                    dispatch({ type: 'UPDATE_SCENE', sceneId: scene.id, updates: { plan: newPlan } });
+                  };
+                  const deleteBeat = (beatIdx: number) => {
+                    const newBeats = activePlan.beats.filter((_, i) => i !== beatIdx);
+                    const newPlan: BeatPlan = { ...activePlan, beats: newBeats };
+                    setPlanCache((prev) => ({ ...prev, [scene.id]: { plan: newPlan, status: 'ready' } }));
+                    dispatch({ type: 'UPDATE_SCENE', sceneId: scene.id, updates: { plan: newPlan } });
+                  };
+                  const insertBeat = (afterIdx: number) => {
+                    const newBeat: Beat = { fn: 'advance', mechanism: 'action', what: '', anchor: '' };
+                    const newBeats = [...activePlan.beats];
+                    newBeats.splice(afterIdx + 1, 0, newBeat);
+                    const newPlan: BeatPlan = { ...activePlan, beats: newBeats };
+                    setPlanCache((prev) => ({ ...prev, [scene.id]: { plan: newPlan, status: 'ready' } }));
+                    dispatch({ type: 'UPDATE_SCENE', sceneId: scene.id, updates: { plan: newPlan } });
+                  };
+                  /* cycleFn / cycleMechanism removed — using dropdowns instead */
+                  const updateAnchor = (anchorIdx: number, value: string) => {
+                    const newAnchors = activePlan.anchors.map((a, i) => i === anchorIdx ? value : a);
+                    const newPlan: BeatPlan = { ...activePlan, anchors: newAnchors };
+                    setPlanCache((prev) => ({ ...prev, [scene.id]: { plan: newPlan, status: 'ready' } }));
+                    dispatch({ type: 'UPDATE_SCENE', sceneId: scene.id, updates: { plan: newPlan } });
+                  };
+                  const deleteAnchor = (anchorIdx: number) => {
+                    const newAnchors = activePlan.anchors.filter((_, i) => i !== anchorIdx);
+                    const newPlan: BeatPlan = { ...activePlan, anchors: newAnchors };
+                    setPlanCache((prev) => ({ ...prev, [scene.id]: { plan: newPlan, status: 'ready' } }));
+                    dispatch({ type: 'UPDATE_SCENE', sceneId: scene.id, updates: { plan: newPlan } });
+                  };
+                  const addAnchor = () => {
+                    const newPlan: BeatPlan = { ...activePlan, anchors: [...activePlan.anchors, ''] };
+                    setPlanCache((prev) => ({ ...prev, [scene.id]: { plan: newPlan, status: 'ready' } }));
+                    dispatch({ type: 'UPDATE_SCENE', sceneId: scene.id, updates: { plan: newPlan } });
+                  };
+
                   return (
                     <div className="space-y-3">
                       {/* Beat timeline */}
@@ -870,33 +910,115 @@ export function StoryReader({
                                 {i < activePlan.beats.length - 1 && <div className="flex-1 w-px bg-white/8 mt-0.5" />}
                               </div>
 
-                              {/* Beat content */}
+                              {/* Beat content — editable */}
                               <div className="flex-1 min-w-0 -mt-0.5">
                                 <div className="flex items-center gap-2 mb-1">
-                                  <span className="text-[9px] font-semibold uppercase tracking-wider" style={{ color: FN_COLORS[beat.fn] ?? '#666' }}>{beat.fn}</span>
-                                  <span className="text-[9px] text-text-dim/50">{MECH_ICONS[beat.mechanism] ?? '•'} {beat.mechanism}</span>
-                                  <span className="text-[8px] text-text-dim/30 font-mono ml-auto opacity-0 group-hover:opacity-100 transition-opacity">{i + 1}/{activePlan.beats.length}</span>
+                                  <select
+                                    value={beat.fn}
+                                    onChange={(e) => updateBeat(i, { fn: e.target.value as BeatFn })}
+                                    className="text-[9px] font-semibold uppercase tracking-wider bg-transparent border-none outline-none cursor-pointer appearance-none pr-3"
+                                    style={{ color: FN_COLORS[beat.fn] ?? '#666' }}
+                                  >
+                                    {BEAT_FN_LIST.map((fn) => (
+                                      <option key={fn} value={fn} className="bg-bg-panel text-text-primary">{fn}</option>
+                                    ))}
+                                  </select>
+                                  <select
+                                    value={beat.mechanism}
+                                    onChange={(e) => updateBeat(i, { mechanism: e.target.value as BeatMechanism })}
+                                    className="text-[9px] text-text-dim/50 bg-transparent border-none outline-none cursor-pointer appearance-none pr-3"
+                                  >
+                                    {BEAT_MECHANISM_LIST.map((m) => (
+                                      <option key={m} value={m} className="bg-bg-panel text-text-primary">{(MECH_ICONS[m] ?? '•') + ' ' + m}</option>
+                                    ))}
+                                  </select>
+                                  <div className="ml-auto flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                    <button
+                                      onClick={() => insertBeat(i)}
+                                      className="w-5 h-5 flex items-center justify-center rounded hover:bg-emerald-500/15 text-text-dim/40 hover:text-emerald-400 transition-all"
+                                      title="Insert beat after"
+                                    >
+                                      <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="1.5"><line x1="5" y1="1" x2="5" y2="9"/><line x1="1" y1="5" x2="9" y2="5"/></svg>
+                                    </button>
+                                    <button
+                                      onClick={() => deleteBeat(i)}
+                                      className="w-5 h-5 flex items-center justify-center rounded hover:bg-red-500/15 text-text-dim/40 hover:text-red-400 transition-all"
+                                      title="Delete beat"
+                                    >
+                                      <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="1.5"><line x1="2" y1="2" x2="8" y2="8"/><line x1="8" y1="2" x2="2" y2="8"/></svg>
+                                    </button>
+                                    <span className="text-[8px] text-text-dim/30 font-mono ml-0.5">{i + 1}/{activePlan.beats.length}</span>
+                                  </div>
                                 </div>
-                                <p className="text-[11px] text-text-secondary leading-relaxed">{beat.what}</p>
-                                {beat.anchor && (
-                                  <p className="text-[10px] text-text-dim/60 mt-0.5 italic">{beat.anchor}</p>
-                                )}
+                                <p
+                                  contentEditable
+                                  suppressContentEditableWarning
+                                  className="text-[11px] text-text-secondary leading-relaxed outline-none focus:bg-white/3 rounded px-1 -mx-1"
+                                  onBlur={(e) => {
+                                    const text = e.currentTarget.textContent ?? '';
+                                    if (text !== beat.what) updateBeat(i, { what: text });
+                                  }}
+                                >
+                                  {beat.what}
+                                </p>
+                                <p
+                                  contentEditable
+                                  suppressContentEditableWarning
+                                  className="text-[10px] text-text-dim/60 mt-0.5 italic outline-none focus:bg-white/3 rounded px-1 -mx-1"
+                                  onBlur={(e) => {
+                                    const text = e.currentTarget.textContent ?? '';
+                                    if (text !== beat.anchor) updateBeat(i, { anchor: text });
+                                  }}
+                                  data-placeholder="anchor..."
+                                >
+                                  {beat.anchor}
+                                </p>
                               </div>
                             </div>
                           ))}
                         </div>
                       )}
 
-                      {/* Anchors */}
-                      {activePlan.anchors.length > 0 && (
+                      {/* Add beat button */}
+                      <button
+                        onClick={() => insertBeat(activePlan.beats.length - 1)}
+                        className="text-[9px] text-text-dim/40 hover:text-emerald-400/60 transition-colors w-full text-center py-1"
+                      >
+                        + Add beat
+                      </button>
+
+                      {/* Anchors — editable */}
+                      {(activePlan.anchors.length > 0 || true) && (
                         <div className="mt-2 pt-3 border-t border-white/5">
                           <h4 className="text-[9px] uppercase tracking-widest text-amber-400/50 mb-2">Anchor Lines</h4>
                           <div className="space-y-2">
                             {activePlan.anchors.map((a, i) => (
-                              <div key={i} className="pl-3 border-l-2 border-amber-400/30">
-                                <p className="text-[11px] text-amber-300/80 leading-relaxed italic">&ldquo;{a}&rdquo;</p>
+                              <div key={i} className="group/anchor pl-3 border-l-2 border-amber-400/30 flex items-start gap-1">
+                                <p
+                                  contentEditable
+                                  suppressContentEditableWarning
+                                  className="flex-1 text-[11px] text-amber-300/80 leading-relaxed italic outline-none focus:bg-white/3 rounded px-1 -mx-1"
+                                  onBlur={(e) => {
+                                    const text = e.currentTarget.textContent ?? '';
+                                    if (text !== a) updateAnchor(i, text);
+                                  }}
+                                >
+                                  {a}
+                                </p>
+                                <button
+                                  onClick={() => deleteAnchor(i)}
+                                  className="text-[9px] text-text-dim/20 hover:text-red-400 opacity-0 group-hover/anchor:opacity-100 transition-all shrink-0 mt-0.5"
+                                >
+                                  ✕
+                                </button>
                               </div>
                             ))}
+                            <button
+                              onClick={addAnchor}
+                              className="text-[9px] text-amber-400/30 hover:text-amber-400/60 transition-colors"
+                            >
+                              + Add anchor line
+                            </button>
                           </div>
                         </div>
                       )}

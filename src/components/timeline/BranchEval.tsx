@@ -517,12 +517,12 @@ export default function BranchEval() {
         )}
 
         {loading && (
-          <div className="mt-1.5">
-            <div className="flex items-center gap-2">
-              <div className="w-full h-1 bg-white/5 rounded-full overflow-hidden">
-                <div className="h-full bg-white/20 rounded-full animate-[eval-sweep_2s_ease-in-out_infinite]" />
-              </div>
-              <span className="text-[10px] text-text-dim shrink-0">Reading {scenes.length} scenes...</span>
+          <div className="mt-1.5 space-y-1">
+            <div className="flex items-center justify-between text-[10px]">
+              <span className="text-text-dim">Evaluating {scenes.length} scenes...</span>
+            </div>
+            <div className="w-full h-1 bg-white/5 rounded-full overflow-hidden">
+              <div className="h-full bg-white/20 rounded-full animate-[eval-sweep_2s_ease-in-out_infinite]" />
             </div>
             <style>{`@keyframes eval-sweep { 0% { width: 5%; margin-left: 0; } 50% { width: 40%; margin-left: 30%; } 100% { width: 5%; margin-left: 95%; } }`}</style>
           </div>

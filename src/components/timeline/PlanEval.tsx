@@ -3,7 +3,7 @@
 import { useState, useCallback, useRef, useMemo } from 'react';
 import { useStore } from '@/lib/store';
 import { evaluatePlanQuality } from '@/lib/ai/evaluate';
-import { generateScenePlan } from '@/lib/ai/scenes';
+import { editScenePlan } from '@/lib/ai/scenes';
 import { resolveEntry, isScene } from '@/types/narrative';
 import type { PlanEvaluation, PlanSceneEval, PlanVerdict, Scene, Arc } from '@/types/narrative';
 import { PLAN_CONCURRENCY } from '@/lib/constants';
@@ -224,7 +224,7 @@ export default function PlanEval() {
         if (idx >= edits.length) break;
         const ev = edits[idx];
         const scene = narrative.scenes[ev.sceneId];
-        if (!scene) {
+        if (!scene || !scene.plan) {
           completed++;
           setReplanStatuses((prev) => ({ ...prev, [ev.sceneId]: 'done' }));
           setReplanProgress({ completed, total: edits.length });
@@ -234,7 +234,7 @@ export default function PlanEval() {
         setReplanStatuses((prev) => ({ ...prev, [ev.sceneId]: 'running' }));
 
         try {
-          const newPlan = await generateScenePlan(narrative, scene, resolvedKeys);
+          const newPlan = await editScenePlan(narrative, scene, resolvedKeys, ev.issues);
           if (!cancelledRef.current) {
             dispatch({ type: 'UPDATE_SCENE', sceneId: ev.sceneId, updates: { plan: newPlan } });
           }
@@ -320,7 +320,7 @@ export default function PlanEval() {
                     onClick={runReplans}
                     className="text-[10px] px-2 py-0.5 rounded bg-violet-500/15 text-violet-400 hover:bg-violet-500/25 transition-colors"
                   >
-                    Reconstruct
+                    Rewrite Plans
                   </button>
                 )}
               </>
@@ -345,31 +345,34 @@ export default function PlanEval() {
         )}
 
         {loading && (
-          <div className="mt-1.5">
-            <div className="flex items-center gap-2">
-              <div className="w-full h-1 bg-white/5 rounded-full overflow-hidden">
-                <div className="h-full bg-white/20 rounded-full animate-[eval-sweep_2s_ease-in-out_infinite]" />
-              </div>
-              <span className="text-[10px] text-text-dim shrink-0">Reading {scenes.length} plans...</span>
+          <div className="mt-1.5 space-y-1">
+            <div className="flex items-center justify-between text-[10px]">
+              <span className="text-text-dim">Evaluating {scenes.length} plans...</span>
+            </div>
+            <div className="w-full h-1 bg-white/5 rounded-full overflow-hidden">
+              <div className="h-full bg-white/20 rounded-full animate-[eval-sweep_2s_ease-in-out_infinite]" />
             </div>
             <style>{`@keyframes eval-sweep { 0% { width: 5%; margin-left: 0; } 50% { width: 40%; margin-left: 30%; } 100% { width: 5%; margin-left: 95%; } }`}</style>
           </div>
         )}
 
-        {replanning && replanProgress && (
-          <div className="mt-1.5 space-y-1">
-            <div className="flex items-center justify-between text-[10px]">
-              <span className="text-text-dim">Regenerating plans...</span>
-              <span className="text-text-secondary font-mono">{replanProgress.completed}/{replanProgress.total}</span>
+        {replanning && replanProgress && (() => {
+          const pct = replanProgress.total > 0 ? Math.round((replanProgress.completed / replanProgress.total) * 100) : 0;
+          return (
+            <div className="mt-1.5 space-y-1">
+              <div className="flex items-center justify-between text-[10px]">
+                <span className="text-text-dim">Rewriting plans...</span>
+                <span className="text-text-secondary font-mono">{replanProgress.completed}/{replanProgress.total} ({pct}%)</span>
+              </div>
+              <div className="w-full h-1 bg-white/5 rounded-full overflow-hidden">
+                <div
+                  className="h-full rounded-full transition-all duration-300 bg-white/30"
+                  style={{ width: `${Math.max(2, pct)}%` }}
+                />
+              </div>
             </div>
-            <div className="w-full h-1 bg-white/5 rounded-full overflow-hidden">
-              <div
-                className="h-full rounded-full transition-all duration-300 bg-violet-500/60"
-                style={{ width: `${Math.max(2, Math.round((replanProgress.completed / replanProgress.total) * 100))}%` }}
-              />
-            </div>
-          </div>
-        )}
+          );
+        })()}
 
         {error && <p className="mt-1 text-[10px] text-red-400">{error}</p>}
 

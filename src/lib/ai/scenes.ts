@@ -428,6 +428,77 @@ Generate a structured beat plan for this scene.${recentProseBlock ? ' Opening be
 }
 
 /**
+ * Edit an existing beat plan to address specific issues from plan evaluation.
+ * Unlike generateScenePlan, this receives the current plan + issues and returns
+ * a surgically modified plan — only the beats with problems are changed.
+ */
+export async function editScenePlan(
+  narrative: NarrativeState,
+  scene: Scene,
+  resolvedKeys: string[],
+  issues: string[],
+): Promise<BeatPlan> {
+  const plan = scene.plan;
+  if (!plan) throw new Error('Scene has no plan to edit');
+
+  const sceneIdx = resolvedKeys.indexOf(scene.id);
+  const contextIndex = sceneIdx >= 0 ? sceneIdx : resolvedKeys.length - 1;
+  const fullContext = branchContext(narrative, resolvedKeys, contextIndex);
+  const sceneBlock = sceneContext(narrative, scene);
+
+  const currentPlanJson = JSON.stringify({
+    beats: plan.beats.map((b, i) => ({ idx: i + 1, fn: b.fn, mechanism: b.mechanism, what: b.what, anchor: b.anchor })),
+    anchors: plan.anchors,
+  }, null, 2);
+
+  const issueBlock = issues.map((iss, i) => `${i + 1}. ${iss}`).join('\n');
+
+  const prompt = `${fullContext}
+
+${sceneBlock}
+
+CURRENT BEAT PLAN:
+${currentPlanJson}
+
+ISSUES TO FIX:
+${issueBlock}
+
+Edit the beat plan to address every issue above. You may:
+- Modify a beat's fn, mechanism, what, or anchor
+- Add new beats (to fill gaps or add missing setups)
+- Remove beats (if redundant or contradictory)
+- Reorder beats (if sequencing is wrong)
+
+Keep beats that have NO issues exactly as they are — do not rewrite beats that are working.
+Return the COMPLETE plan (all beats, not just changed ones) as JSON:
+{
+  "beats": [
+    { "fn": "${BEAT_FN_LIST.join('|')}", "mechanism": "${BEAT_MECHANISM_LIST.join('|')}", "what": "...", "anchor": "..." }
+  ],
+  "anchors": ["..."]
+}`;
+
+  const reasoningBudget = REASONING_BUDGETS[narrative.storySettings?.reasoningLevel ?? 'low'] || undefined;
+  const raw = await callGenerate(prompt, SYSTEM_PROMPT, MAX_TOKENS_SMALL, 'editScenePlan', GENERATE_MODEL, reasoningBudget);
+
+  const parsed = parseJson(raw, 'editScenePlan') as { beats?: unknown[]; anchors?: string[] };
+  const beats = (parsed.beats ?? []).map((b: unknown) => {
+    const beat = b as Record<string, unknown>;
+    return {
+      fn: ((BEAT_FN_LIST as readonly string[]).includes(String(beat.fn)) ? beat.fn : 'advance') as BeatPlan['beats'][0]['fn'],
+      mechanism: ((BEAT_MECHANISM_LIST as readonly string[]).includes(String(beat.mechanism)) ? beat.mechanism : 'action') as BeatPlan['beats'][0]['mechanism'],
+      what: String(beat.what ?? ''),
+      anchor: String(beat.anchor ?? ''),
+    };
+  });
+
+  return {
+    beats,
+    anchors: (parsed.anchors ?? []).filter((a): a is string => typeof a === 'string'),
+  };
+}
+
+/**
  * Reverse-engineer a beat plan from existing prose.
  * Lighter than generateScenePlan — no branch context or profile needed,
  * just reads the prose structure and maps it to the beat taxonomy.
