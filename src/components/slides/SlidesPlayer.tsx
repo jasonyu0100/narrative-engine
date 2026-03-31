@@ -8,6 +8,7 @@ import { ShapeSlide } from './ShapeSlide';
 import { CastSlide } from './CastSlide';
 import { ForcesOverviewSlide } from './ForcesOverviewSlide';
 import { KeyMomentsSlide } from './KeyMomentsSlide';
+import { IconClose, IconPause, IconPlay, IconChevronLeft, IconChevronRight } from '@/components/icons';
 import { ForceDecompositionSlide } from './ForceDecompositionSlide';
 import { PacingProfileSlide } from './PacingProfileSlide';
 import { BeatProfileSlide } from './BeatProfileSlide';
@@ -192,9 +193,7 @@ export function SlidesPlayer({
             className="w-7 h-7 rounded-lg flex items-center justify-center bg-red-500/10 text-red-400/70 hover:bg-red-500/20 hover:text-red-400 border border-red-500/15 hover:border-red-500/30 transition-all"
             title="Close (Esc)"
           >
-            <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
-              <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
-            </svg>
+            <IconClose className="w-3.5 h-3.5" />
           </button>
           <span className="text-[11px] text-white/40">
             {slideLabel(currentSlide)}
@@ -223,13 +222,9 @@ export function SlidesPlayer({
             title={isPlaying ? 'Pause (P)' : 'Play (P)'}
           >
             {isPlaying ? (
-              <svg className="w-3 h-3" viewBox="0 0 24 24" fill="currentColor">
-                <rect x="6" y="4" width="4" height="16" rx="1" /><rect x="14" y="4" width="4" height="16" rx="1" />
-              </svg>
+              <IconPause className="w-3 h-3" />
             ) : (
-              <svg className="w-3 h-3 ml-0.5" viewBox="0 0 24 24" fill="currentColor">
-                <polygon points="6,3 20,12 6,21" />
-              </svg>
+              <IconPlay className="w-3 h-3 ml-0.5" />
             )}
           </button>
         </div>
@@ -260,9 +255,7 @@ export function SlidesPlayer({
           className="w-7 h-7 rounded-full flex items-center justify-center text-white/30 hover:text-white/60 hover:bg-white/5 disabled:opacity-0 disabled:pointer-events-none transition-all"
           title="Previous"
         >
-          <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-            <polyline points="15 18 9 12 15 6" />
-          </svg>
+          <IconChevronLeft className="w-3.5 h-3.5" />
         </button>
 
         {/* Center: page number + progress dots */}
@@ -295,9 +288,7 @@ export function SlidesPlayer({
           className="w-7 h-7 rounded-full flex items-center justify-center text-white/30 hover:text-white/60 hover:bg-white/5 disabled:opacity-0 disabled:pointer-events-none transition-all"
           title="Next"
         >
-          <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-            <polyline points="9 18 15 12 9 6" />
-          </svg>
+          <IconChevronRight className="w-3.5 h-3.5" />
         </button>
       </div>
 

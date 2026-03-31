@@ -6,6 +6,7 @@ import type { NarrativeState, Scene } from '@/types/narrative';
 import { THREAD_TERMINAL_STATUSES, resolveEntry } from '@/types/narrative';
 import { computeThreadStatuses } from '@/lib/narrative-utils';
 import { computeGroups } from './graph-utils';
+import { IconChevronLeft, IconChevronRight, IconRefresh } from '@/components/icons';
 
 // ── Status colors & glow ────────────────────────────────────────────────────
 
@@ -490,7 +491,7 @@ export default function ThreadGraphView({
             onClick={() => navigateGroup('prev')}
             title="Previous group"
           >
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M15 18l-6-6 6-6" /></svg>
+            <IconChevronLeft size={12} />
           </button>
           <span className="text-text-dim px-0.5 tabular-nums">
             {focusedGroup !== null
@@ -502,7 +503,7 @@ export default function ThreadGraphView({
             onClick={() => navigateGroup('next')}
             title="Next group"
           >
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 18l6-6-6-6" /></svg>
+            <IconChevronRight size={12} />
           </button>
           {focusedGroup !== null && (
             <>
@@ -512,7 +513,7 @@ export default function ThreadGraphView({
                 onClick={() => navigateGroup('reset')}
                 title="Reset view"
               >
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" /><path d="M3 3v5h5" /></svg>
+                <IconRefresh size={12} />
               </button>
             </>
           )}

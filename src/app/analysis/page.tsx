@@ -8,6 +8,8 @@ import { analysisRunner } from '@/lib/analysis-runner';
 import type { AnalysisJob, AnalysisChunkResult } from '@/types/narrative';
 import { BEAT_FN_LIST } from '@/types/narrative';
 import { ANALYSIS_MAX_CORPUS_WORDS, DEFAULT_MODEL } from '@/lib/constants';
+import { IconSpinner, IconChevronLeft } from '@/components/icons';
+import { IconCheck } from '@/components/icons/EvalIcons';
 
 /* ── Word Node type ─────────────────────────────────────────────────────── */
 
@@ -542,10 +544,7 @@ function JobDetail({ job }: { job: AnalysisJob }) {
                               : 'bg-white/3 text-white/25 hover:text-white/40'
                           }`}
                         >
-                          <svg className="w-2.5 h-2.5 animate-spin" viewBox="0 0 24 24" fill="none">
-                            <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="2.5" opacity="0.2" />
-                            <path d="M12 2a10 10 0 0 1 10 10" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" />
-                          </svg>
+                          <IconSpinner size={10} className="animate-spin" />
                           {si + 1}
                         </button>
                       );
@@ -579,14 +578,9 @@ function JobDetail({ job }: { job: AnalysisJob }) {
                             }`}
                           >
                             {isInFlight ? (
-                              <svg className="w-3 h-3 text-indigo-400/50 animate-spin shrink-0" viewBox="0 0 24 24" fill="none">
-                                <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="2.5" opacity="0.2" />
-                                <path d="M12 2a10 10 0 0 1 10 10" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" />
-                              </svg>
+                              <IconSpinner size={12} className="text-indigo-400/50 animate-spin shrink-0" />
                             ) : hasPlan ? (
-                              <svg className="w-3 h-3 text-indigo-400/50 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                                <polyline points="20 6 9 17 4 12" />
-                              </svg>
+                              <IconCheck size={12} className="text-indigo-400/50 shrink-0" />
                             ) : (
                               <div className="w-3 h-3 rounded-full border border-white/8 shrink-0" />
                             )}
@@ -621,10 +615,7 @@ function JobDetail({ job }: { job: AnalysisJob }) {
                             : 'bg-white/3 text-white/25 hover:text-white/40'
                         }`}
                       >
-                        <svg className="w-2.5 h-2.5 animate-spin" viewBox="0 0 24 24" fill="none">
-                          <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="2.5" opacity="0.2" />
-                          <path d="M12 2a10 10 0 0 1 10 10" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" />
-                        </svg>
+                        <IconSpinner size={10} className="animate-spin" />
                         {idx + 1}
                       </button>
                     ))}
@@ -658,14 +649,9 @@ function JobDetail({ job }: { job: AnalysisJob }) {
                             }`}
                           >
                             {isInFlight ? (
-                              <svg className="w-3 h-3 text-change/50 animate-spin shrink-0" viewBox="0 0 24 24" fill="none">
-                                <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="2.5" opacity="0.2" />
-                                <path d="M12 2a10 10 0 0 1 10 10" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" />
-                              </svg>
+                              <IconSpinner size={12} className="text-change/50 animate-spin shrink-0" />
                             ) : done ? (
-                              <svg className="w-3 h-3 text-emerald-400/50 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                                <polyline points="20 6 9 17 4 12" />
-                              </svg>
+                              <IconCheck size={12} className="text-emerald-400/50 shrink-0" />
                             ) : (
                               <div className="w-3 h-3 rounded-full border border-white/8 shrink-0" />
                             )}
@@ -988,10 +974,7 @@ function JobDetail({ job }: { job: AnalysisJob }) {
                     title={scene.povName ? `${scene.povName}${scene.summary ? ': ' + scene.summary.slice(0, 60) : ''}` : `Scene ${si + 1}`}
                   >
                     {isInFlight ? (
-                      <svg className="absolute inset-0 m-auto w-4 h-4 text-indigo-400/50 animate-spin" viewBox="0 0 24 24" fill="none">
-                        <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="2" opacity="0.2" />
-                        <path d="M12 2a10 10 0 0 1 10 10" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-                      </svg>
+                      <IconSpinner size={16} className="absolute inset-0 m-auto text-indigo-400/50 animate-spin" />
                     ) : (
                       <span className={`text-[9px] font-mono absolute top-1.5 inset-x-0 flex items-center justify-center transition ${
                         isSelected ? 'text-white/80 font-semibold'
@@ -1051,10 +1034,7 @@ function JobDetail({ job }: { job: AnalysisJob }) {
                       : isInFlight ? `Chunk ${i + 1}: extracting...` : `Chunk ${i + 1}: pending`}
                   >
                     {isInFlight ? (
-                      <svg className="absolute inset-0 m-auto w-4 h-4 text-change/60 animate-spin" viewBox="0 0 24 24" fill="none">
-                        <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="2" opacity="0.2" />
-                        <path d="M12 2a10 10 0 0 1 10 10" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-                      </svg>
+                      <IconSpinner size={16} className="absolute inset-0 m-auto text-change/60 animate-spin" />
                     ) : (
                       <span className={`text-[10px] font-mono absolute top-1.5 inset-x-0 flex items-center justify-center transition ${
                         isSelected ? 'text-white/80 font-semibold'
@@ -1214,9 +1194,7 @@ function NewJobSetup({ sourceText, onCreated }: { sourceText: string; onCreated:
             }`}
           >
             {extractPlans && (
-              <svg className="w-2.5 h-2.5 text-indigo-300" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                <polyline points="2 5 4 7 8 3" />
-              </svg>
+              <IconCheck size={10} className="text-indigo-300" />
             )}
           </div>
           <span className={`text-[11px] transition select-none ${extractPlans ? 'text-white/60' : 'text-white/30 group-hover:text-white/45'}`}>
@@ -1375,7 +1353,7 @@ function AnalysisPageInner() {
             onClick={() => router.push('/')}
             className="text-[10px] uppercase tracking-[0.15em] text-white/30 font-mono hover:text-white/60 transition flex items-center gap-1.5"
           >
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M15 18l-6-6 6-6" /></svg>
+            <IconChevronLeft size={12} />
             Home
           </button>
           <h1 className="text-[10px] uppercase tracking-[0.15em] text-white/40 font-mono">Analysis</h1>

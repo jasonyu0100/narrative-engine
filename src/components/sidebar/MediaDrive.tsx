@@ -7,6 +7,7 @@ import { apiHeaders } from '@/lib/api-headers';
 import { logApiCall, updateApiLog } from '@/lib/api-logger';
 import { useFeatureAccess } from '@/hooks/useFeatureAccess';
 import MediaPreview from '@/components/sidebar/MediaPreview';
+import { IconSpinner, IconImage, IconSettings, IconRefresh } from '@/components/icons';
 import type { MediaItem } from '@/components/sidebar/MediaPreview';
 import type { Scene, Character, Location, Artifact } from '@/types/narrative';
 
@@ -51,9 +52,7 @@ async function generateImage(
 
 function Spinner() {
   return (
-    <svg width="10" height="10" viewBox="0 0 10 10" className="animate-spin">
-      <circle cx="5" cy="5" r="4" stroke="currentColor" strokeWidth="1.5" fill="none" strokeDasharray="12 8" />
-    </svg>
+    <IconSpinner size={10} className="animate-spin" />
   );
 }
 
@@ -66,11 +65,7 @@ function GenerateButton({ onClick, disabled, generating }: { onClick: () => void
       title="Generate image"
     >
       {generating ? <Spinner /> : (
-        <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
-          <rect x="1" y="2" width="8" height="6" rx="1" stroke="currentColor" strokeWidth="1" />
-          <circle cx="3.5" cy="4.5" r="1" stroke="currentColor" strokeWidth="0.8" fill="none" />
-          <path d="M1 7L4 5L6 6.5L8 4.5L9 5.5V7.5C9 7.8 8.8 8 8.5 8H1.5C1.2 8 1 7.8 1 7.5V7Z" fill="currentColor" opacity="0.4" />
-        </svg>
+        <IconImage size={10} />
       )}
     </button>
   );
@@ -339,10 +334,7 @@ export default function MediaDrive() {
           onClick={() => setShowStyleEditor(!showStyleEditor)}
           className="w-full flex items-center gap-1.5 px-2 py-1.5 text-[10px] text-text-dim hover:text-text-secondary transition-colors"
         >
-          <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
-            <circle cx="5" cy="5" r="3.5" stroke="currentColor" strokeWidth="1" />
-            <circle cx="5" cy="5" r="1.5" fill="currentColor" />
-          </svg>
+          <IconSettings size={10} />
           <span className="flex-1 text-left truncate">
             {narrative.imageStyle ? `Style: ${narrative.imageStyle.slice(0, 30)}...` : 'Set image style'}
           </span>
@@ -490,9 +482,7 @@ export default function MediaDrive() {
                   title="Regenerate"
                 >
                   {generating === scene.id ? <Spinner /> : (
-                    <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" /><path d="M3 3v5h5" />
-                    </svg>
+                    <IconRefresh size={8} />
                   )}
                 </button>
               </div>

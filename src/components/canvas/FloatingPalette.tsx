@@ -4,6 +4,7 @@ import { useState, useCallback, useMemo, useRef, useEffect } from 'react';
 import { useStore } from '@/lib/store';
 import { useFeatureAccess } from '@/hooks/useFeatureAccess';
 import { resolveEntry, isScene, type Scene } from '@/types/narrative';
+import { IconChevronLeft, IconChevronRight, IconSearch, IconFlask, IconAutoLoop, IconList, IconSettings, IconTrash } from '@/components/icons';
 
 /** Highlight all occurrences of `query` within `text` */
 function HighlightText({ text, query }: { text: string; query: string }) {
@@ -140,10 +141,7 @@ export default function FloatingPalette() {
           style={{ background: '#1a1a1a', boxShadow: '0 8px 32px rgba(0,0,0,0.5)' }}
         >
           <div className="px-3 py-2.5 border-b border-white/5 flex items-center gap-2 shrink-0">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" className="text-text-dim shrink-0">
-              <circle cx="11" cy="11" r="8" />
-              <path d="M21 21l-4.35-4.35" />
-            </svg>
+            <IconSearch size={14} className="text-text-dim shrink-0" />
             <input
               ref={searchInputRef}
               type="text"
@@ -213,7 +211,7 @@ export default function FloatingPalette() {
               onClick={() => dispatch({ type: 'PREV_SCENE' })}
               aria-label="Previous scene"
             >
-              &#9664;
+              <IconChevronLeft size={14} />
             </button>
 
             {/* Search */}
@@ -228,10 +226,7 @@ export default function FloatingPalette() {
               aria-label="Search scenes"
               title="Search scenes"
             >
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                <circle cx="11" cy="11" r="8" />
-                <path d="M21 21l-4.35-4.35" />
-              </svg>
+              <IconSearch size={12} />
             </button>
 
             {/* Next */}
@@ -241,7 +236,7 @@ export default function FloatingPalette() {
               onClick={() => dispatch({ type: 'NEXT_SCENE' })}
               aria-label="Next scene"
             >
-              &#9654;
+              <IconChevronRight size={14} />
             </button>
 
             {/* Divider */}
@@ -275,11 +270,7 @@ export default function FloatingPalette() {
               }}
               title="MCTS Explorer"
             >
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M9 2v6l-5 10a1 1 0 0 0 .9 1.4h14.2a1 1 0 0 0 .9-1.4L15 8V2" />
-                <path d="M9 2h6" />
-                <path d="M7 16h10" />
-              </svg>
+              <IconFlask size={14} />
             </button>
 
             {/* Auto */}
@@ -295,20 +286,7 @@ export default function FloatingPalette() {
               }}
               title="Auto mode"
             >
-              <svg
-                width="14"
-                height="14"
-                viewBox="0 0 16 16"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="1.5"
-                strokeLinecap="round"
-              >
-                <path d="M1 8a7 7 0 0 1 12.5-4.3" />
-                <path d="M15 8a7 7 0 0 1-12.5 4.3" />
-                <polyline points="13.5 1 13.5 4 10.5 4" />
-                <polyline points="2.5 15 2.5 12 5.5 12" />
-              </svg>
+              <IconAutoLoop size={14} />
             </button>
 
             {/* Divider */}
@@ -323,14 +301,7 @@ export default function FloatingPalette() {
           onClick={() => window.dispatchEvent(new CustomEvent('open-planning-queue'))}
           title="Planning queue"
         >
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-            <line x1="8" y1="6" x2="21" y2="6" />
-            <line x1="8" y1="12" x2="21" y2="12" />
-            <line x1="8" y1="18" x2="21" y2="18" />
-            <line x1="3" y1="6" x2="3.01" y2="6" />
-            <line x1="3" y1="12" x2="3.01" y2="12" />
-            <line x1="3" y1="18" x2="3.01" y2="18" />
-          </svg>
+          <IconList size={14} />
         </button>
 
         {/* Story Settings — always visible */}
@@ -340,10 +311,7 @@ export default function FloatingPalette() {
           onClick={() => window.dispatchEvent(new CustomEvent('open-story-settings'))}
           title="Story settings"
         >
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-            <circle cx="12" cy="12" r="3" />
-            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
-          </svg>
+          <IconSettings size={14} />
         </button>
       </div>
 
@@ -356,10 +324,7 @@ export default function FloatingPalette() {
             title="Another branch forks from this scene — delete that branch first"
             className="w-8 h-8 flex items-center justify-center rounded-full glass-pill text-text-dim opacity-30 cursor-not-allowed"
           >
-            <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <polyline points="3 6 5 6 21 6" />
-              <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
-            </svg>
+            <IconTrash size={14} />
           </button>
         ) : deleteConfirm ? (
           <div className="glass-pill px-2 py-1.5 flex items-center gap-1.5">
@@ -385,10 +350,7 @@ export default function FloatingPalette() {
             className="w-8 h-8 flex items-center justify-center rounded-full glass-pill text-text-dim hover:text-red-400 hover:bg-red-500/10 transition-colors"
             title="Delete head scene"
           >
-            <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <polyline points="3 6 5 6 21 6" />
-              <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
-            </svg>
+            <IconTrash size={14} />
           </button>
         )
       )}

@@ -9,6 +9,7 @@ import { computeSlidesData, type SlidesData } from '@/lib/slides-data';
 import { detectCubeCorner } from '@/lib/narrative-utils';
 import { generateReportAnalysis, type ReportAnalysis } from '@/lib/ai/report';
 import { MOMENT_SPARKLINE_WINDOW } from '@/lib/constants';
+import { IconClose, IconRefresh } from '@/components/icons';
 
 // ── Constants ────────────────────────────────────────────────────────────────
 
@@ -518,7 +519,7 @@ export function NarrativeReport({
       <div className="report-toolbar flex items-center justify-between h-11 px-5 shrink-0 border-b border-white/[0.06] bg-white/[0.01]">
         <div className="flex items-center gap-3">
           <button onClick={onClose} className="w-7 h-7 rounded flex items-center justify-center text-white/25 hover:text-white/50 hover:bg-white/5 transition-all" title="Close (Esc)">
-            <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
+            <IconClose size={16} />
           </button>
           <div className="w-px h-4 bg-white/[0.06]" />
           <span className="text-[11px] text-white/30 tracking-wide">Analysis Report</span>
@@ -534,7 +535,7 @@ export function NarrativeReport({
           )}
           {analysis && !analysisLoading && (
             <button onClick={handleGenerate} className="h-7 px-2.5 rounded text-[11px] text-white/25 hover:text-white/40 hover:bg-white/[0.04] transition-all flex items-center gap-1.5">
-              <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+              <IconRefresh size={12} />
               Regenerate
             </button>
           )}

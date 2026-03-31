@@ -7,6 +7,7 @@ import { generateNarrative } from '@/lib/ai';
 import { logApiCall, updateApiLog } from '@/lib/api-logger';
 import { DEFAULT_MODEL } from '@/lib/constants';
 import type { CharacterSketch, LocationSketch, ThreadSketch, WorldSystemSketch } from '@/types/narrative';
+import { IconQuestion, IconChevronRight } from '@/components/icons';
 
 const ROLES: CharacterSketch['role'][] = ['anchor', 'recurring', 'transient'];
 
@@ -681,16 +682,12 @@ export function CreationWizard() {
               }}
               className="flex items-center gap-3 w-full rounded-lg border border-dashed border-white/8 hover:border-white/16 px-4 py-3 transition group"
             >
-              <svg className="w-4 h-4 text-white/20 group-hover:text-white/40 transition shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                <circle cx="12" cy="12" r="10" />
-                <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
-                <line x1="12" y1="17" x2="12.01" y2="17" />
-              </svg>
+              <IconQuestion size={16} className="text-white/20 group-hover:text-white/40 transition shrink-0" />
               <div className="text-left">
                 <p className="text-[11px] text-white/50 group-hover:text-white/70 transition font-medium">Not sure where to start?</p>
                 <p className="text-[10px] text-white/25 group-hover:text-white/35 transition">Answer a few questions to discover and refine your world first.</p>
               </div>
-              <svg className="w-3.5 h-3.5 text-white/15 group-hover:text-white/35 transition ml-auto shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M9 18l6-6-6-6" /></svg>
+              <IconChevronRight className="w-3.5 h-3.5 text-white/15 group-hover:text-white/35 transition ml-auto shrink-0" />
             </button>
           )}
         </div>

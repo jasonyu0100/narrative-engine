@@ -8,6 +8,7 @@ import { apiHeaders } from '@/lib/api-headers';
 import { logApiCall, updateApiLog } from '@/lib/api-logger';
 import { DEFAULT_MODEL } from '@/lib/constants';
 import { useFeatureAccess } from '@/hooks/useFeatureAccess';
+import { IconChevronDown, IconEdit, IconTrash, IconSend } from '@/components/icons';
 
 export default function ChatPanel() {
   const { state, dispatch } = useStore();
@@ -260,9 +261,7 @@ ${ctx}`;
           <span className="text-[11px] font-medium text-text-secondary truncate group-hover:text-text-primary transition-colors">
             {activeThread ? activeThread.name : 'No thread'}
           </span>
-          <svg className={`w-2.5 h-2.5 shrink-0 text-text-dim transition-transform ${threadPickerOpen ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
-          </svg>
+          <IconChevronDown size={10} className={`shrink-0 text-text-dim transition-transform ${threadPickerOpen ? 'rotate-180' : ''}`} />
         </button>
         <button
           onClick={createNewThread}
@@ -331,19 +330,14 @@ ${ctx}`;
                                 className="p-1 rounded text-text-dim hover:text-text-secondary hover:bg-white/8 transition-colors"
                                 title="Rename"
                               >
-                                <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                  <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
-                                  <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
-                                </svg>
+                                <IconEdit size={9} />
                               </button>
                               <button
                                 onClick={(e) => { e.stopPropagation(); dispatch({ type: 'DELETE_CHAT_THREAD', threadId: thread.id }); }}
                                 className="p-1 rounded text-text-dim hover:text-payoff hover:bg-white/8 transition-colors"
                                 title="Delete"
                               >
-                                <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                  <polyline points="3 6 5 6 21 6" /><path d="M19 6l-1 14H6L5 6" /><path d="M10 11v6M14 11v6" /><path d="M9 6V4h6v2" />
-                                </svg>
+                                <IconTrash size={9} />
                               </button>
                             </div>
                           </div>
@@ -438,9 +432,7 @@ ${ctx}`;
             disabled={!input.trim() || loading}
             className="shrink-0 w-7 h-7 flex items-center justify-center rounded-lg bg-accent/20 text-accent hover:bg-accent/30 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
           >
-            <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
-              <path d="M1 11L11 6L1 1V5L8 6L1 7V11Z" fill="currentColor" />
-            </svg>
+            <IconSend size={12} />
           </button>
         </div>
       </div>

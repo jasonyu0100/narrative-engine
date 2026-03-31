@@ -2,6 +2,7 @@
 
 import { useEffect, useCallback } from 'react';
 import { createPortal } from 'react-dom';
+import { IconClose, IconChevronLeft, IconChevronRight } from '@/components/icons';
 
 export type MediaItem = {
   id: string;
@@ -58,9 +59,7 @@ export default function MediaPreview({ items, currentIndex, onNavigate, onClose 
           onClick={onClose}
           className="absolute -top-2 -right-2 z-10 w-7 h-7 flex items-center justify-center rounded-full bg-black/60 border border-white/10 text-white/60 hover:text-white hover:bg-black/80 transition-colors"
         >
-          <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-            <path d="M2 2l8 8M10 2l-8 8" />
-          </svg>
+          <IconClose size={12} />
         </button>
 
         {/* Image */}
@@ -89,9 +88,7 @@ export default function MediaPreview({ items, currentIndex, onNavigate, onClose 
             onClick={goPrev}
             className="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-12 w-9 h-9 flex items-center justify-center rounded-full bg-black/50 border border-white/10 text-white/50 hover:text-white hover:bg-black/70 transition-colors"
           >
-            <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M9 3L5 7l4 4" />
-            </svg>
+            <IconChevronLeft size={14} />
           </button>
         )}
         {hasNext && (
@@ -99,9 +96,7 @@ export default function MediaPreview({ items, currentIndex, onNavigate, onClose 
             onClick={goNext}
             className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-12 w-9 h-9 flex items-center justify-center rounded-full bg-black/50 border border-white/10 text-white/50 hover:text-white hover:bg-black/70 transition-colors"
           >
-            <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M5 3l4 4-4 4" />
-            </svg>
+            <IconChevronRight size={14} />
           </button>
         )}
       </div>

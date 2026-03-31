@@ -7,12 +7,15 @@ import { rewriteSceneProse } from '@/lib/ai';
 import { resolveEntry, isScene } from '@/types/narrative';
 import type { ProseEvaluation, ProseSceneEval, ProseVerdict, Scene, Arc } from '@/types/narrative';
 import { PROSE_CONCURRENCY } from '@/lib/constants';
+import { IconCheck, IconPencil, IconRunning, IconCross, IconDot, IconReset, IconSparkle, IconPlus } from '@/components/icons/EvalIcons';
+import SceneRangeSelector, { filterKeysBySceneRange, type SceneRange } from './SceneRangeSelector';
+import type { ReactNode } from 'react';
 
 // ── Verdict visuals ──────────────────────────────────────────────────────────
 
-const VERDICT_CONFIG: Record<ProseVerdict, { icon: string; color: string; bg: string; label: string }> = {
-  ok:   { icon: '✓', color: 'text-emerald-400', bg: 'bg-emerald-500/15', label: 'OK' },
-  edit: { icon: '✎', color: 'text-amber-400',   bg: 'bg-amber-500/15',  label: 'Edit' },
+const VERDICT_CONFIG: Record<ProseVerdict, { icon: ReactNode; color: string; bg: string; label: string }> = {
+  ok:   { icon: <IconCheck size={10} />,  color: 'text-emerald-400', bg: 'bg-emerald-500/15', label: 'OK' },
+  edit: { icon: <IconPencil size={10} />, color: 'text-amber-400',   bg: 'bg-amber-500/15',  label: 'Edit' },
 };
 
 type ProseOverride = { verdict?: ProseVerdict; issues?: string[] };
@@ -53,7 +56,7 @@ function ProseNode({
         <div
           className={`w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold ${cfg.bg} ${cfg.color} shrink-0 border border-current/20 ${rewriteStatus === 'running' ? 'animate-pulse ring-1 ring-current/40' : ''}`}
         >
-          {rewriteStatus === 'running' ? '◎' : rewriteStatus === 'done' ? '✓' : cfg.icon}
+          {rewriteStatus === 'running' ? <IconRunning size={10} /> : rewriteStatus === 'done' ? <IconCheck size={10} /> : cfg.icon}
         </div>
         {!isLast && <div className="w-px flex-1 bg-white/10 min-h-3" />}
       </div>
@@ -75,7 +78,7 @@ function ProseNode({
             )}
             {rewriteStatus && rewriteStatus !== 'pending' && (
               <span className={`text-[9px] font-mono ${rewriteStatus === 'done' ? 'text-emerald-400/60' : rewriteStatus === 'running' ? 'text-white/50 animate-pulse' : rewriteStatus === 'error' ? 'text-red-400/60' : 'text-white/20'}`}>
-                {rewriteStatus === 'done' ? '✓' : rewriteStatus === 'running' ? '◎' : rewriteStatus === 'error' ? '✕' : '·'}
+                {rewriteStatus === 'done' ? <IconCheck size={8} /> : rewriteStatus === 'running' ? <IconRunning size={8} /> : rewriteStatus === 'error' ? <IconCross size={8} /> : <IconDot size={8} />}
               </span>
             )}
             {issues.length > 0 && (
@@ -123,7 +126,7 @@ function ProseNode({
                     onClick={onReset}
                     className="text-[9px] px-1.5 py-0.5 rounded bg-white/5 text-violet-400/70 hover:text-violet-400 transition-all ml-auto"
                   >
-                    ↺ Reset to original
+                    <IconReset size={9} /> Reset to original
                   </button>
                 )}
               </div>
@@ -145,11 +148,11 @@ function ProseStatsBar({ sceneEvals }: { sceneEvals: ProseEvaluation['sceneEvals
   return (
     <div className="flex items-center gap-3 text-[10px] font-mono">
       <span className="text-emerald-400 flex items-center gap-1">
-        <span className="w-4 h-4 rounded-full flex items-center justify-center bg-emerald-500/15 text-[9px] font-bold">✓</span>
+        <span className="w-4 h-4 rounded-full flex items-center justify-center bg-emerald-500/15"><IconCheck size={9} /></span>
         {ok} ({Math.round((ok / total) * 100)}%)
       </span>
       <span className="text-amber-400 flex items-center gap-1">
-        <span className="w-4 h-4 rounded-full flex items-center justify-center bg-amber-500/15 text-[9px] font-bold">✎</span>
+        <span className="w-4 h-4 rounded-full flex items-center justify-center bg-amber-500/15"><IconPencil size={9} /></span>
         {edit} ({Math.round((edit / total) * 100)}%)
       </span>
     </div>
@@ -158,11 +161,16 @@ function ProseStatsBar({ sceneEvals }: { sceneEvals: ProseEvaluation['sceneEvals
 
 // ── Main component ───────────────────────────────────────────────────────────
 
-export default function ProseEval() {
+export default function ProseEval({ sceneRange, onRangeChange }: { sceneRange?: SceneRange; onRangeChange?: (r: SceneRange) => void }) {
   const { state, dispatch } = useStore();
   const narrative = state.activeNarrative;
   const resolvedKeys = state.resolvedEntryKeys;
   const branchId = state.activeBranchId;
+
+  const filteredKeys = useMemo(
+    () => filterKeysBySceneRange(resolvedKeys, narrative, sceneRange ?? null),
+    [resolvedKeys, narrative, sceneRange],
+  );
 
   const persisted = branchId ? narrative?.proseEvaluations?.[branchId] ?? null : null;
   const [baseEvaluation, setBaseEvaluation] = useState<ProseEvaluation | null>(persisted);
@@ -174,6 +182,7 @@ export default function ProseEval() {
   const [error, setError] = useState<string | null>(null);
   const [guidance, setGuidance] = useState('');
   const [showGuidance, setShowGuidance] = useState(false);
+  const [reasoning, setReasoning] = useState('');
   const cancelledRef = useRef(false);
 
   // Merge base + overrides
@@ -208,7 +217,10 @@ export default function ProseEval() {
     cancelledRef.current = false;
 
     try {
-      const result = await evaluateProseQuality(narrative, resolvedKeys, branchId, guidance || undefined);
+      setReasoning('');
+      const result = await evaluateProseQuality(narrative, filteredKeys, branchId, guidance || undefined, (token) => {
+        setReasoning((prev) => prev + token);
+      });
       if (!cancelledRef.current) {
         setBaseEvaluation(result);
         setOverrides(new Map());
@@ -221,7 +233,7 @@ export default function ProseEval() {
     } finally {
       setLoading(false);
     }
-  }, [narrative, resolvedKeys, branchId, guidance, dispatch]);
+  }, [narrative, filteredKeys, branchId, guidance, dispatch]);
 
   const runRewrites = useCallback(async () => {
     if (!narrative || !evaluation) return;
@@ -257,7 +269,7 @@ export default function ProseEval() {
 
         try {
           const analysis = `PROSE EVALUATION ISSUES — fix all of these:\n${ev.issues.map((i) => `- ${i}`).join('\n')}`;
-          const { prose } = await rewriteSceneProse(narrative, scene, resolvedKeys, scene.prose, analysis);
+          const { prose } = await rewriteSceneProse(narrative, scene, filteredKeys, scene.prose, analysis);
           if (!cancelledRef.current) {
             dispatch({ type: 'UPDATE_SCENE', sceneId: ev.sceneId, updates: { prose } });
           }
@@ -272,7 +284,7 @@ export default function ProseEval() {
 
     await Promise.all(Array.from({ length: Math.min(PROSE_CONCURRENCY, edits.length) }, () => runWorker()));
     setRewriting(false);
-  }, [narrative, resolvedKeys, evaluation, dispatch]);
+  }, [narrative, filteredKeys, evaluation, dispatch]);
 
   const cancel = useCallback(() => {
     cancelledRef.current = true;
@@ -291,7 +303,7 @@ export default function ProseEval() {
   // Resolve scenes
   const scenes: { scene: Scene; arc?: Arc }[] = [];
   if (narrative) {
-    for (const key of resolvedKeys) {
+    for (const key of filteredKeys) {
       const entry = resolveEntry(narrative, key);
       if (entry && isScene(entry) && (entry as Scene).prose) {
         scenes.push({
@@ -330,7 +342,7 @@ export default function ProseEval() {
                   className={`text-[10px] px-2 py-0.5 rounded transition-colors ${guidance ? 'bg-violet-500/15 text-violet-400' : 'bg-white/5 text-text-dim hover:text-text-secondary'}`}
                   title="Add guidance before evaluating"
                 >
-                  {guidance ? '✦ Guided' : '+ Guidance'}
+                  {guidance ? <><IconSparkle size={9} /> Guided</> : <><IconPlus size={9} /> Guidance</>}
                 </button>
                 <button
                   onClick={runEvaluation}
@@ -380,6 +392,9 @@ export default function ProseEval() {
               <div className="h-full bg-white/20 rounded-full animate-[eval-sweep_2s_ease-in-out_infinite]" />
             </div>
             <style>{`@keyframes eval-sweep { 0% { width: 5%; margin-left: 0; } 50% { width: 40%; margin-left: 30%; } 100% { width: 5%; margin-left: 95%; } }`}</style>
+            {reasoning && (
+              <p className="text-[10px] text-text-dim/60 leading-relaxed mt-1 max-h-40 overflow-y-auto whitespace-pre-wrap">{reasoning}</p>
+            )}
           </div>
         )}
 
@@ -403,10 +418,13 @@ export default function ProseEval() {
 
         {error && <p className="mt-1 text-[10px] text-red-400">{error}</p>}
 
-        {evaluation && !busy && (
+        {!busy && (
           <div className="mt-1.5 flex items-center justify-between">
-            <ProseStatsBar sceneEvals={evaluation.sceneEvals} />
-            {overrides.size > 0 && (
+            <div className="flex items-center gap-2">
+              {onRangeChange && <SceneRangeSelector range={sceneRange ?? null} onChange={onRangeChange} />}
+              {evaluation && <ProseStatsBar sceneEvals={evaluation.sceneEvals} />}
+            </div>
+            {evaluation && overrides.size > 0 && (
               <button
                 onClick={() => setOverrides(new Map())}
                 className="text-[9px] px-1.5 py-0.5 rounded bg-white/5 text-text-dim hover:text-text-secondary transition-colors"

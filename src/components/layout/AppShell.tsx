@@ -2,6 +2,7 @@
 
 import { type ReactNode, useState, useCallback, useRef } from 'react';
 import TopBar from '@/components/topbar/TopBar';
+import { IconChevronLeft, IconChevronRight } from '@/components/icons';
 
 type AppShellProps = {
   children: ReactNode;
@@ -127,13 +128,7 @@ export default function AppShell({ children, sidebar, sidepanel }: AppShellProps
             title={left.collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
             className="pointer-events-auto flex items-center justify-center w-5 h-9 rounded-full bg-bg-panel border border-border text-text-dim shadow-md opacity-25 hover:opacity-100 transition-opacity cursor-pointer"
           >
-            <svg width="6" height="10" viewBox="0 0 6 10">
-              {left.collapsed ? (
-                <path d="M1 1l4 4-4 4" stroke="currentColor" strokeWidth="1.5" fill="none" />
-              ) : (
-                <path d="M5 1l-4 4 4 4" stroke="currentColor" strokeWidth="1.5" fill="none" />
-              )}
-            </svg>
+            {left.collapsed ? <IconChevronRight size={6} /> : <IconChevronLeft size={6} />}
           </button>
         </div>
 
@@ -147,13 +142,7 @@ export default function AppShell({ children, sidebar, sidepanel }: AppShellProps
             title={right.collapsed ? 'Expand inspector' : 'Collapse inspector'}
             className="pointer-events-auto flex items-center justify-center w-5 h-9 rounded-full bg-bg-panel border border-border text-text-dim shadow-md opacity-25 hover:opacity-100 transition-opacity cursor-pointer"
           >
-            <svg width="6" height="10" viewBox="0 0 6 10">
-              {right.collapsed ? (
-                <path d="M5 1l-4 4 4 4" stroke="currentColor" strokeWidth="1.5" fill="none" />
-              ) : (
-                <path d="M1 1l4 4-4 4" stroke="currentColor" strokeWidth="1.5" fill="none" />
-              )}
-            </svg>
+            {right.collapsed ? <IconChevronLeft size={6} /> : <IconChevronRight size={6} />}
           </button>
         </div>
       </div>

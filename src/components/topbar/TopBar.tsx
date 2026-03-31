@@ -22,6 +22,7 @@ import { ThreadGraphModal } from '@/components/topbar/ThreadGraphModal';
 import { NarrativeEditModal } from '@/components/topbar/NarrativeEditModal';
 import { UsageDropdown, computeTotalCost } from '@/components/topbar/UsageAnalyticsModal';
 import type { NarrativeEntry } from '@/types/narrative';
+import { IconHome, IconChevronDown, IconChevronRight, IconPlus, IconImport, IconSettings, IconDownload, IconFork, IconDocument, IconDollar, IconScorecard, IconBook } from '@/components/icons';
 
 
 function downloadJson(data: object, filename: string) {
@@ -499,9 +500,7 @@ export default function TopBar() {
           className="px-2 py-1 rounded hover:bg-bg-elevated transition-colors text-text-dim hover:text-text-primary"
           title="All series"
         >
-          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-4 0a1 1 0 01-1-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 01-1 1h-2z" />
-          </svg>
+          <IconHome size={16} />
         </button>
 
         {/* Narrative selector */}
@@ -513,15 +512,7 @@ export default function TopBar() {
             <span className="text-text-primary truncate max-w-50 text-[12px] font-medium">
               {narrative ? narrative.title : 'Select Narrative'}
             </span>
-            <svg
-              className={`w-3 h-3 text-text-dim transition-transform ${selectorOpen ? 'rotate-180' : ''}`}
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-              strokeWidth={2}
-            >
-              <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
-            </svg>
+            <IconChevronDown size={12} className={`text-text-dim transition-transform ${selectorOpen ? 'rotate-180' : ''}`} />
           </button>
 
           {selectorOpen && (
@@ -548,9 +539,7 @@ export default function TopBar() {
                         onClick={() => setPickerSections((s) => ({ ...s, [key]: !s[key] }))}
                         className="flex items-center gap-1.5 w-full px-3 py-1.5 text-left group"
                       >
-                        <svg width="7" height="7" viewBox="0 0 8 8" className={`shrink-0 text-text-dim transition-transform ${pickerSections[key] ? 'rotate-90' : ''}`}>
-                          <path d="M2 1l4 3-4 3" stroke="currentColor" strokeWidth="1.5" fill="none" strokeLinecap="round" strokeLinejoin="round" />
-                        </svg>
+                        <IconChevronRight size={7} className={`shrink-0 text-text-dim transition-transform ${pickerSections[key] ? 'rotate-90' : ''}`} />
                         <span className="text-[10px] font-semibold text-text-dim uppercase tracking-widest group-hover:text-text-secondary transition-colors">{label}</span>
                         <span className="text-[10px] text-text-dim ml-auto">{entries.length}</span>
                       </button>
@@ -618,14 +607,14 @@ export default function TopBar() {
                     onClick={() => { dispatch({ type: 'OPEN_WIZARD' }); setSelectorOpen(false); }}
                     className="flex-1 flex items-center justify-center gap-1.5 px-2 py-1.5 rounded-md text-[11px] text-text-secondary hover:text-text-primary hover:bg-white/5 transition-colors border border-white/6"
                   >
-                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                    <IconPlus size={10} />
                     New
                   </button>
                   <button
                     onClick={() => { handleImport(); }}
                     className="flex-1 flex items-center justify-center gap-1.5 px-2 py-1.5 rounded-md text-[11px] text-text-secondary hover:text-text-primary hover:bg-white/5 transition-colors border border-white/6"
                   >
-                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="16 16 12 12 8 16"/><line x1="12" y1="12" x2="12" y2="21"/><path d="M20.39 18.39A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.3"/></svg>
+                    <IconImport size={10} />
                     Import
                   </button>
                 </div>
@@ -644,7 +633,7 @@ export default function TopBar() {
                         onClick={() => { setEditingEntry(activeEntry); setSelectorOpen(false); }}
                         className="w-full flex items-center gap-2.5 px-3 py-1.5 text-[12px] text-text-secondary hover:text-text-primary hover:bg-white/5 transition-colors"
                       >
-                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-text-dim shrink-0"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+                        <IconSettings size={12} className="text-text-dim shrink-0" />
                         Settings
                       </button>
                     ) : null;
@@ -658,7 +647,7 @@ export default function TopBar() {
                     onClick={() => { exportNarrative(narrative); setSelectorOpen(false); }}
                     className="w-full flex items-center gap-2.5 px-3 py-1.5 text-[12px] text-text-secondary hover:text-text-primary hover:bg-white/5 transition-colors"
                   >
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-text-dim shrink-0"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                    <IconDownload size={12} className="text-text-dim shrink-0" />
                     Full JSON
                   </button>
                   {state.activeBranchId && (
@@ -666,7 +655,7 @@ export default function TopBar() {
                       onClick={() => { exportBranch(narrative, state.activeBranchId!); setSelectorOpen(false); }}
                       className="w-full flex items-center gap-2.5 px-3 py-1.5 text-[12px] text-text-secondary hover:text-text-primary hover:bg-white/5 transition-colors"
                     >
-                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-text-dim shrink-0"><line x1="6" y1="3" x2="6" y2="15"/><circle cx="18" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M18 9a9 9 0 0 1-9 9"/></svg>
+                      <IconFork size={12} className="text-text-dim shrink-0" />
                       Branch JSON
                     </button>
                   )}
@@ -674,7 +663,7 @@ export default function TopBar() {
                     onClick={() => { setReportOpen(true); setSelectorOpen(false); }}
                     className="w-full flex items-center gap-2.5 px-3 py-1.5 text-[12px] text-text-secondary hover:text-text-primary hover:bg-white/5 transition-colors"
                   >
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-text-dim shrink-0"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+                    <IconDocument size={12} className="text-text-dim shrink-0" />
                     Analysis Report
                   </button>
                 </div>
@@ -779,9 +768,7 @@ export default function TopBar() {
             }`}
             title="Usage Analytics"
           >
-            <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
-            </svg>
+            <IconDollar size={14} />
             <span className="font-semibold font-mono text-emerald-400">
               {usageCost >= 1 ? `$${usageCost.toFixed(2)}` : usageCost >= 0.01 ? `$${usageCost.toFixed(3)}` : `$${usageCost.toFixed(4)}`}
             </span>
@@ -801,10 +788,7 @@ export default function TopBar() {
               }`}
               title="Force Scorecard"
             >
-              <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <rect x="2" y="3" width="20" height="18" rx="2" />
-                <path d="M8 7v10M12 7v10M16 7v10" />
-              </svg>
+              <IconScorecard size={14} />
               <span className={`font-semibold font-mono ${
                 scorecard.grades.overall >= 90 ? 'text-green-400' :
                 scorecard.grades.overall >= 80 ? 'text-lime-400' :
@@ -1098,10 +1082,7 @@ export default function TopBar() {
               className="px-2.5 py-1 rounded-full transition-colors flex items-center gap-1.5 text-[12px] border border-white/8 text-text-secondary hover:text-text-primary hover:bg-white/5 hover:border-white/15"
               title="Read full story"
             >
-              <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
-                <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" />
-              </svg>
+              <IconBook size={14} />
               <span>Story</span>
             </button>
             <button

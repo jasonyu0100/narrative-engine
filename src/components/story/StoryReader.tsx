@@ -6,6 +6,8 @@ import { resolveEntry, isScene, DEFAULT_STORY_SETTINGS, BEAT_FN_LIST, BEAT_MECHA
 import { generateScenePlan, generateSceneProse, rewriteSceneProse } from '@/lib/ai';
 import { useStore } from '@/lib/store';
 import { exportEpub } from '@/lib/epub-export';
+import { IconDocument, IconBook, IconSettings, IconLocationPin, IconEye, IconPeople, IconPlus, IconClose, IconChevronLeft, IconChevronRight } from '@/components/icons';
+import { IconDot } from '@/components/icons/EvalIcons';
 import { PROSE_CONCURRENCY, PLAN_CONCURRENCY } from '@/lib/constants';
 import { sceneScale } from '@/lib/ai/context';
 
@@ -294,7 +296,7 @@ export function StoryReader({
                 const missingPlans = scenes.filter((s) => !s.plan && planCache[s.id]?.status !== 'ready').length;
                 return missingPlans > 0 ? (
                   <button onClick={bulkPlan} className="text-[10px] px-2.5 py-1 rounded-full border border-white/10 text-text-dim hover:text-sky-400 hover:border-sky-400/20 transition flex items-center gap-1.5" title={`Generate plans for ${missingPlans} scenes`}>
-                    <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" /><line x1="16" y1="13" x2="8" y2="13" /><line x1="16" y1="17" x2="8" y2="17" /></svg>
+                    <IconDocument size={12} />
                     Plan All ({missingPlans})
                   </button>
                 ) : null;
@@ -313,7 +315,7 @@ export function StoryReader({
                 );
                 return (
                   <button onClick={bulkProse} className="text-[10px] px-2.5 py-1 rounded-full border border-white/10 text-text-dim hover:text-text-secondary hover:border-white/15 transition flex items-center gap-1.5" title={`Generate prose for ${missingProse} scenes`}>
-                    <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" /><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" /></svg>
+                    <IconBook size={12} />
                     Write All ({missingProse})
                   </button>
                 );
@@ -449,10 +451,7 @@ export function StoryReader({
             className="px-2 py-1 rounded hover:bg-white/10 transition-colors text-text-dim hover:text-text-primary flex items-center gap-1"
             title="Prose & Plan settings"
           >
-            <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <circle cx="12" cy="12" r="3" />
-              <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
-            </svg>
+            <IconSettings size={14} />
             <span className="text-[10px]">Settings</span>
           </button>
           <button onClick={onClose} className="text-text-dim hover:text-text-primary text-lg leading-none transition">&times;</button>
@@ -485,8 +484,8 @@ export function StoryReader({
                 <div className="flex items-center gap-2 mt-0.5 ml-5">
                   {sArc && <span className="text-[9px] text-text-dim">{sArc.name}</span>}
                   {isGen && <div className="w-2.5 h-2.5 border border-white/30 border-t-white/70 rounded-full animate-spin shrink-0" />}
-                  {!isGen && hasPlanDot && <span className="text-[8px] text-sky-400/60">●</span>}
-                  {!isGen && hasProseDot && <span className="text-[8px] text-emerald-400/60">●</span>}
+                  {!isGen && hasPlanDot && <IconDot size={6} className="text-sky-400/60" />}
+                  {!isGen && hasProseDot && <IconDot size={6} className="text-emerald-400/60" />}
                   {score && typeof score.overall === 'number' && <span className={`text-[9px] font-mono ${scoreColor(score.overall)}`}>{score.overall}</span>}
                   {s.locked && (
                     <span className="text-[8px] text-text-dim/40" title="Locked — skipped by bulk operations">&#128274;</span>
@@ -704,18 +703,18 @@ export function StoryReader({
                 <div className="flex items-center gap-4 text-[10px] text-text-dim mb-8">
                   {location && (
                     <span className="flex items-center gap-1">
-                      <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" /><circle cx="12" cy="10" r="3" /></svg>
+                      <IconLocationPin size={12} />
                       {location.name}
                     </span>
                   )}
                   {pov && (
                     <span className="flex items-center gap-1">
-                      <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" /><circle cx="12" cy="12" r="3" /></svg>
+                      <IconEye size={12} />
                       {pov.name}
                     </span>
                   )}
                   <span className="flex items-center gap-1">
-                    <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M23 21v-2a4 4 0 0 0-3-3.87" /><path d="M16 3.13a4 4 0 0 1 0 7.75" /></svg>
+                    <IconPeople size={12} />
                     {scene.participantIds.map((pid) => narrative.characters[pid]?.name ?? pid).join(', ')}
                   </span>
                 </div>
@@ -938,14 +937,14 @@ export function StoryReader({
                                       className="w-5 h-5 flex items-center justify-center rounded hover:bg-emerald-500/15 text-text-dim/40 hover:text-emerald-400 transition-all"
                                       title="Insert beat after"
                                     >
-                                      <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="1.5"><line x1="5" y1="1" x2="5" y2="9"/><line x1="1" y1="5" x2="9" y2="5"/></svg>
+                                      <IconPlus size={10} />
                                     </button>
                                     <button
                                       onClick={() => deleteBeat(i)}
                                       className="w-5 h-5 flex items-center justify-center rounded hover:bg-red-500/15 text-text-dim/40 hover:text-red-400 transition-all"
                                       title="Delete beat"
                                     >
-                                      <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="1.5"><line x1="2" y1="2" x2="8" y2="8"/><line x1="8" y1="2" x2="2" y2="8"/></svg>
+                                      <IconClose size={10} />
                                     </button>
                                     <span className="text-[8px] text-text-dim/30 font-mono ml-0.5">{i + 1}/{activePlan.beats.length}</span>
                                   </div>
@@ -1125,7 +1124,7 @@ export function StoryReader({
           disabled={currentIndex === 0}
           className="text-[10px] px-3.5 py-1.5 rounded-full border border-white/8 text-text-dim hover:text-text-secondary hover:border-white/12 transition disabled:opacity-30 disabled:pointer-events-none flex items-center gap-1.5"
         >
-          <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6" /></svg>
+          <IconChevronLeft size={12} />
           Previous
         </button>
         <div className="text-[9px] text-text-dim/50">Arrow keys to navigate &middot; Esc to close</div>
@@ -1135,7 +1134,7 @@ export function StoryReader({
           className="text-[10px] px-3.5 py-1.5 rounded-full border border-white/8 text-text-dim hover:text-text-secondary hover:border-white/12 transition disabled:opacity-30 disabled:pointer-events-none flex items-center gap-1.5"
         >
           Next
-          <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6" /></svg>
+          <IconChevronRight size={12} />
         </button>
       </div>
 

@@ -1,6 +1,6 @@
 import type { NarrativeState, StructureReview, ProseEvaluation, ProseSceneEval, PlanEvaluation, PlanSceneEval, SceneEval, SceneVerdict, Scene, Arc } from '@/types/narrative';
 import { resolveEntry, isScene, REASONING_BUDGETS } from '@/types/narrative';
-import { callGenerate, SYSTEM_PROMPT } from './api';
+import { callGenerate, callGenerateStream, SYSTEM_PROMPT } from './api';
 import { parseJson } from './json';
 import { ANALYSIS_MODEL, MAX_TOKENS_DEFAULT } from '@/lib/constants';
 
@@ -17,6 +17,8 @@ export async function evaluateBranch(
   branchId: string,
   /** Optional external guidance — e.g. paste from ChatGPT, editor notes, specific focus areas */
   guidance?: string,
+  /** Stream reasoning tokens as the model thinks */
+  onReasoning?: (token: string) => void,
 ): Promise<StructureReview> {
   // Collect scenes with their arc context
   const sceneSummaries: { idx: number; id: string; arc: string; pov: string; location: string; summary: string }[] = [];
@@ -142,7 +144,9 @@ Every scene must appear in sceneEvals. Use the EXACT scene IDs shown above (e.g.
 
   const maxTokens = MAX_TOKENS_DEFAULT;
   const reasoningBudget = REASONING_BUDGETS[narrative.storySettings?.reasoningLevel ?? 'low'] || undefined;
-  const raw = await callGenerate(prompt, SYSTEM_PROMPT, maxTokens, 'evaluateBranch', ANALYSIS_MODEL, reasoningBudget);
+  const raw = onReasoning
+    ? await callGenerateStream(prompt, SYSTEM_PROMPT, () => {}, maxTokens, 'evaluateBranch', ANALYSIS_MODEL, reasoningBudget, onReasoning)
+    : await callGenerate(prompt, SYSTEM_PROMPT, maxTokens, 'evaluateBranch', ANALYSIS_MODEL, reasoningBudget);
 
   try {
     const parsed = parseJson(raw, 'evaluateBranch') as {
@@ -209,6 +213,7 @@ export async function evaluateProseQuality(
   resolvedKeys: string[],
   branchId: string,
   guidance?: string,
+  onReasoning?: (token: string) => void,
 ): Promise<ProseEvaluation> {
   // Collect scenes that have prose
   const scenesWithProse: { id: string; pov: string; location: string; summary: string; prose: string; wordCount: number }[] = [];
@@ -291,7 +296,9 @@ Return JSON:
 Every scene with prose must appear in sceneEvals. Use the exact scene IDs.${guidance?.trim() ? `\n\nREMINDER — The author specifically asked you to address: "${guidance.trim()}". Your overall critique and scene verdicts MUST reflect this.` : ''}`;
 
   const reasoningBudget = REASONING_BUDGETS[narrative.storySettings?.reasoningLevel ?? 'low'] || undefined;
-  const raw = await callGenerate(prompt, SYSTEM_PROMPT, MAX_TOKENS_DEFAULT, 'evaluateProseQuality', ANALYSIS_MODEL, reasoningBudget);
+  const raw = onReasoning
+    ? await callGenerateStream(prompt, SYSTEM_PROMPT, () => {}, MAX_TOKENS_DEFAULT, 'evaluateProseQuality', ANALYSIS_MODEL, reasoningBudget, onReasoning)
+    : await callGenerate(prompt, SYSTEM_PROMPT, MAX_TOKENS_DEFAULT, 'evaluateProseQuality', ANALYSIS_MODEL, reasoningBudget);
 
   try {
     const parsed = parseJson(raw, 'evaluateProseQuality') as {
@@ -335,6 +342,7 @@ export async function evaluatePlanQuality(
   resolvedKeys: string[],
   branchId: string,
   guidance?: string,
+  onReasoning?: (token: string) => void,
 ): Promise<PlanEvaluation> {
   // Collect scenes that have beat plans
   const sceneList: Scene[] = [];
@@ -421,7 +429,9 @@ Return JSON:
 Every scene with a plan must appear.${guidance?.trim() ? `\n\nREMINDER — The author asked you to address: "${guidance.trim()}".` : ''}`;
 
   const reasoningBudget = REASONING_BUDGETS[narrative.storySettings?.reasoningLevel ?? 'low'] || undefined;
-  const raw = await callGenerate(prompt, SYSTEM_PROMPT, MAX_TOKENS_DEFAULT, 'evaluatePlanQuality', ANALYSIS_MODEL, reasoningBudget);
+  const raw = onReasoning
+    ? await callGenerateStream(prompt, SYSTEM_PROMPT, () => {}, MAX_TOKENS_DEFAULT, 'evaluatePlanQuality', ANALYSIS_MODEL, reasoningBudget, onReasoning)
+    : await callGenerate(prompt, SYSTEM_PROMPT, MAX_TOKENS_DEFAULT, 'evaluatePlanQuality', ANALYSIS_MODEL, reasoningBudget);
 
   try {
     const parsed = parseJson(raw, 'evaluatePlanQuality') as {

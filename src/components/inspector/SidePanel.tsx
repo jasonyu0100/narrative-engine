@@ -16,6 +16,7 @@ import NotesPanel from '@/components/sidebar/NotesPanel';
 import BranchEval from '@/components/timeline/BranchEval';
 import ProseEval from '@/components/timeline/ProseEval';
 import PlanEval from '@/components/timeline/PlanEval';
+import { type SceneRange } from '@/components/timeline/SceneRangeSelector';
 import { isScene, type TimelineEntry } from '@/types/narrative';
 
 type Tab = 'inspector' | 'chat' | 'notes' | 'eval';
@@ -86,6 +87,7 @@ export default function SidePanel() {
   const ctx = state.inspectorContext ?? getDefaultContext(state);
   const [tab, setTab] = useState<Tab>('inspector');
   const [evalMode, setEvalMode] = useState<'branch' | 'prose' | 'plan'>('branch');
+  const [evalRange, setEvalRange] = useState<SceneRange>(null);
 
   function renderInspector() {
     if (!ctx) return <EmptyState />;
@@ -165,9 +167,9 @@ export default function SidePanel() {
               ))}
             </div>
             <div className="flex-1 min-h-0 relative">
-              <div className={`absolute inset-0 ${evalMode === 'branch' ? '' : 'hidden'}`}><BranchEval /></div>
-              <div className={`absolute inset-0 ${evalMode === 'plan' ? '' : 'hidden'}`}><PlanEval /></div>
-              <div className={`absolute inset-0 ${evalMode === 'prose' ? '' : 'hidden'}`}><ProseEval /></div>
+              <div className={`absolute inset-0 ${evalMode === 'branch' ? '' : 'hidden'}`}><BranchEval sceneRange={evalRange} onRangeChange={setEvalRange} /></div>
+              <div className={`absolute inset-0 ${evalMode === 'plan' ? '' : 'hidden'}`}><PlanEval sceneRange={evalRange} onRangeChange={setEvalRange} /></div>
+              <div className={`absolute inset-0 ${evalMode === 'prose' ? '' : 'hidden'}`}><ProseEval sceneRange={evalRange} onRangeChange={setEvalRange} /></div>
             </div>
           </div>
         )}

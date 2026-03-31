@@ -9,6 +9,7 @@ import { NARRATIVE_CUBE } from '@/types/narrative';
 import type { CubeCornerKey } from '@/types/narrative';
 import { MATRIX_PRESETS, type TransitionMatrix } from '@/lib/markov';
 import { DEFAULT_BEAT_SAMPLER, BEAT_PROFILE_PRESETS, computeSamplerFromPlans } from '@/lib/beat-profiles';
+import { IconChevronDown } from '@/components/icons';
 
 type Tab = 'direction' | 'style' | 'pov' | 'other';
 
@@ -39,12 +40,7 @@ function AdvancedSection({ settings, update, narrative, resolvedEntryKeys }: {
         onClick={() => setOpen(!open)}
         className="flex items-center gap-1.5 text-[10px] text-text-dim hover:text-text-secondary transition-colors cursor-pointer"
       >
-        <svg
-          width="10" height="10" viewBox="0 0 12 12"
-          className={`transition-transform duration-200 ${open ? 'rotate-180' : ''}`}
-        >
-          <path d="M3 4.5L6 7.5L9 4.5" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-        </svg>
+        <IconChevronDown size={10} className={`transition-transform duration-200 ${open ? 'rotate-180' : ''}`} />
         <span className="uppercase tracking-wider">Advanced</span>
       </button>
 

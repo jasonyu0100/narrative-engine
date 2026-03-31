@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { IconSpinner, IconPause, IconPlay, IconStop, IconExpand } from '@/components/icons';
 import type { MCTSRunState } from '@/types/mcts';
 
 type Props = {
@@ -55,10 +56,7 @@ export function MCTSControlBar({ runState, onPause, onResume, onStop, onOpenPane
         {/* Status indicator */}
         <div className="flex items-center gap-1.5">
           {isRunning ? (
-            <svg className="w-3.5 h-3.5 text-blue-400 animate-spin" viewBox="0 0 16 16" fill="none">
-              <circle cx="8" cy="8" r="6" stroke="currentColor" strokeWidth="2" strokeOpacity="0.25" />
-              <path d="M14 8a6 6 0 0 0-6-6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-            </svg>
+            <IconSpinner size={14} className="text-blue-400 animate-spin" />
           ) : (
             <div className={`w-2 h-2 rounded-full ${
               isComplete ? 'bg-green-400' : isPaused ? 'bg-amber-400' : 'bg-text-dim'
@@ -117,33 +115,21 @@ export function MCTSControlBar({ runState, onPause, onResume, onStop, onOpenPane
         {/* Controls */}
         {isRunning && (
           <button onClick={onPause} className="w-6 h-6 flex items-center justify-center text-text-secondary hover:text-text-primary hover:bg-white/6 rounded transition-colors" title="Pause">
-            <svg width="10" height="10" viewBox="0 0 10 10" fill="currentColor">
-              <rect x="1" y="1" width="3" height="8" rx="0.5" />
-              <rect x="6" y="1" width="3" height="8" rx="0.5" />
-            </svg>
+            <IconPause size={10} />
           </button>
         )}
         {isPaused && (
           <button onClick={onResume} className="w-6 h-6 flex items-center justify-center text-blue-400 hover:bg-white/6 rounded transition-colors" title="Resume">
-            <svg width="10" height="10" viewBox="0 0 10 10" fill="currentColor">
-              <path d="M2 1L9 5L2 9Z" />
-            </svg>
+            <IconPlay size={10} />
           </button>
         )}
 
         <button onClick={onStop} className="w-6 h-6 flex items-center justify-center text-text-dim hover:text-payoff hover:bg-white/6 rounded transition-colors" title="Stop">
-          <svg width="10" height="10" viewBox="0 0 10 10" fill="currentColor">
-            <rect x="1" y="1" width="8" height="8" rx="1" />
-          </svg>
+          <IconStop size={10} />
         </button>
 
         <button onClick={onOpenPanel} className="w-6 h-6 flex items-center justify-center text-text-dim hover:text-text-primary hover:bg-white/6 rounded transition-colors" title="Open MCTS panel">
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M15 3h6v6" />
-            <path d="M9 21H3v-6" />
-            <path d="M21 3l-7 7" />
-            <path d="M3 21l7-7" />
-          </svg>
+          <IconExpand size={12} />
         </button>
       </div>
     </div>

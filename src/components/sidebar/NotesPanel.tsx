@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { useStore } from '@/lib/store';
 import type { Note } from '@/types/narrative';
+import { IconArrowLeft, IconTrash, IconPlus, IconNotepad, IconEdit, IconChevronLeft } from '@/components/icons';
 
 function noteGroups(notes: Note[]): { label: string; items: Note[] }[] {
   const now = Date.now();
@@ -109,9 +110,7 @@ export default function NotesPanel() {
             className="p-1 text-text-dim hover:text-text-secondary transition-colors"
             title="Back to notes"
           >
-            <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-              <path d="M9 2L4 7l5 5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-            </svg>
+            <IconChevronLeft size={14} />
           </button>
           {renamingId === activeNote.id ? (
             <input
@@ -139,9 +138,7 @@ export default function NotesPanel() {
             className="p-1 text-text-dim hover:text-red-400 transition-colors"
             title="Delete note"
           >
-            <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
-              <path d="M2 3h8M5 3V2h2v1M4 3v6h4V3H4z" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" />
-            </svg>
+            <IconTrash size={12} />
           </button>
         </div>
 
@@ -168,9 +165,7 @@ export default function NotesPanel() {
           className="flex items-center gap-1 px-1.5 py-0.5 text-[10px] text-text-dim hover:text-text-primary transition-colors"
           title="New note"
         >
-          <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
-            <path d="M5 1v8M1 5h8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-          </svg>
+          <IconPlus size={10} />
           New
         </button>
       </div>
@@ -179,10 +174,7 @@ export default function NotesPanel() {
       <div className="flex-1 overflow-y-auto">
         {sorted.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full gap-3 p-6 text-center">
-            <svg width="28" height="28" viewBox="0 0 28 28" fill="none" className="text-text-dim/40">
-              <rect x="5" y="4" width="18" height="20" rx="2" stroke="currentColor" strokeWidth="1.5" />
-              <path d="M9 10h10M9 14h10M9 18h6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-            </svg>
+            <IconNotepad size={28} className="text-text-dim/40" />
             <p className="text-[11px] text-text-dim">No notes yet</p>
             <button
               onClick={createNote}
@@ -229,18 +221,14 @@ export default function NotesPanel() {
                       className="p-1 text-text-dim hover:text-text-secondary transition-colors"
                       title="Rename"
                     >
-                      <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
-                        <path d="M1 9l2-2 5-5L7 1 2 6 1 9z" stroke="currentColor" strokeWidth="1.1" strokeLinecap="round" strokeLinejoin="round" />
-                      </svg>
+                      <IconEdit size={10} />
                     </button>
                     <button
                       onClick={(e) => { e.stopPropagation(); deleteNote(note.id); }}
                       className="p-1 text-text-dim hover:text-red-400 transition-colors"
                       title="Delete"
                     >
-                      <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
-                        <path d="M2 2.5h6M4 2.5V2h2v.5M3.5 2.5v5h3v-5h-3z" stroke="currentColor" strokeWidth="1.1" strokeLinecap="round" strokeLinejoin="round" />
-                      </svg>
+                      <IconTrash size={10} />
                     </button>
                   </div>
                   {renamingId !== note.id && (

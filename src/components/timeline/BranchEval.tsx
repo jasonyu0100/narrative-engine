@@ -7,6 +7,7 @@ import { reconstructBranch, type ReconstructionProgress } from '@/lib/ai/reconst
 import { resolveEntry, isScene } from '@/types/narrative';
 import type { StructureReview, SceneEval, SceneVerdict, Scene, Arc } from '@/types/narrative';
 import { IconCheck, IconTilde, IconMerge, IconCross, IconPlus, IconArrowRight, IconRunning, IconDot, IconDash, IconPencil, IconSlashCircle, IconReset, IconSparkle } from '@/components/icons/EvalIcons';
+import SceneRangeSelector, { filterKeysBySceneRange, type SceneRange } from './SceneRangeSelector';
 import type { ReactNode } from 'react';
 
 // ── Verdict visuals ──────────────────────────────────────────────────────────
@@ -76,7 +77,7 @@ function SceneNode({
         <div
           className={`w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold ${cfg.bg} ${cfg.color} shrink-0 border border-current/20 ${reconStatus === 'running' ? 'animate-pulse ring-1 ring-current/40' : ''}`}
         >
-          {reconStatus === 'running' ? '◎' : reconStatus === 'done' && verdict === 'edit' ? '✎' : reconStatus === 'done' && verdict === 'merge' ? '⊕' : reconStatus === 'done' && verdict === 'cut' ? '⌀' : reconStatus === 'done' && verdict === 'move' ? '→' : cfg.icon}
+          {reconStatus === 'running' ? <IconRunning size={10} /> : reconStatus === 'done' && verdict === 'edit' ? <IconPencil size={10} /> : reconStatus === 'done' && verdict === 'merge' ? <IconMerge size={10} /> : reconStatus === 'done' && verdict === 'cut' ? <IconSlashCircle size={10} /> : reconStatus === 'done' && verdict === 'move' ? <IconArrowRight size={10} /> : cfg.icon}
         </div>
         {!isLast && (
           <div className="w-px flex-1 bg-white/10 min-h-3" />
@@ -102,7 +103,7 @@ function SceneNode({
             )}
             {verdict === 'move' && moveAfter && (
               <span className="text-[10px] font-mono text-blue-400/70 flex items-center gap-0.5 shrink-0">
-                → after <span className="bg-blue-500/15 px-1 py-0.5 rounded">{moveAfter}</span>
+                <IconArrowRight size={9} /> after <span className="bg-blue-500/15 px-1 py-0.5 rounded">{moveAfter}</span>
               </span>
             )}
             {reconStatus && reconStatus !== 'skipped' && (
@@ -189,7 +190,7 @@ function SceneNode({
                     onClick={onReset}
                     className="text-[9px] px-1.5 py-0.5 rounded bg-white/5 text-violet-400/70 hover:text-violet-400 transition-all ml-auto"
                   >
-                    ↺ Reset to original
+                    <IconReset size={9} /> Reset to original
                   </button>
                 )}
               </div>
@@ -251,11 +252,17 @@ function ReconProgress({ progress }: { progress: ReconstructionProgress }) {
 
 // ── Main component ───────────────────────────────────────────────────────────
 
-export default function BranchEval() {
+export default function BranchEval({ sceneRange, onRangeChange }: { sceneRange?: SceneRange; onRangeChange?: (r: SceneRange) => void }) {
   const { state, dispatch } = useStore();
   const narrative = state.activeNarrative;
   const resolvedKeys = state.resolvedEntryKeys;
   const branchId = state.activeBranchId;
+
+  // Filter resolvedKeys by scene range for evaluation
+  const filteredKeys = useMemo(
+    () => filterKeysBySceneRange(resolvedKeys, narrative, sceneRange ?? null),
+    [resolvedKeys, narrative, sceneRange],
+  );
 
   // Load persisted evaluation for current branch — this is the immutable LLM result
   const persisted = branchId ? narrative?.structureReviews?.[branchId] ?? null : null;
@@ -268,6 +275,7 @@ export default function BranchEval() {
   const [error, setError] = useState<string | null>(null);
   const [guidance, setGuidance] = useState('');
   const [showGuidance, setShowGuidance] = useState(false);
+  const [reasoning, setReasoning] = useState('');
   const cancelledRef = useRef(false);
 
   // Merge base evaluation + overrides into effective evaluation for display and reconstruction
@@ -310,7 +318,10 @@ export default function BranchEval() {
     cancelledRef.current = false;
 
     try {
-      const result = await evaluateBranch(narrative, resolvedKeys, branchId, guidance || undefined);
+      setReasoning('');
+      const result = await evaluateBranch(narrative, filteredKeys, branchId, guidance || undefined, (token) => {
+        setReasoning((prev) => prev + token);
+      });
       if (!cancelledRef.current) {
         setBaseEvaluation(result);
         setOverrides(new Map());
@@ -323,7 +334,7 @@ export default function BranchEval() {
     } finally {
       setLoading(false);
     }
-  }, [narrative, resolvedKeys, branchId, guidance, dispatch]);
+  }, [narrative, filteredKeys, branchId, guidance, dispatch]);
 
   const runReconstruction = useCallback(async () => {
     if (!narrative || !branchId || !evaluation) return;
@@ -333,6 +344,9 @@ export default function BranchEval() {
 
     try {
       // All work happens in memory — nothing touches the store until done.
+      // Use full resolvedKeys for reconstruction — not filteredKeys.
+      // The range only controls which scenes are evaluated; reconstruction
+      // needs the complete timeline so un-evaluated scenes carry over as "ok".
       const result = await reconstructBranch(
         narrative,
         resolvedKeys,
@@ -436,7 +450,7 @@ export default function BranchEval() {
       }
     };
 
-    for (const key of resolvedKeys) {
+    for (const key of filteredKeys) {
       const entry = resolveEntry(narrative, key);
       if (entry && isScene(entry)) {
         // Skip moved scenes at their original position — they appear at their target
@@ -478,7 +492,7 @@ export default function BranchEval() {
                   className={`text-[10px] px-2 py-0.5 rounded transition-colors ${guidance ? 'bg-violet-500/15 text-violet-400' : 'bg-white/5 text-text-dim hover:text-text-secondary'}`}
                   title="Add external guidance before evaluating"
                 >
-                  {guidance ? '✦ Guided' : '+ Guidance'}
+                  {guidance ? <><IconSparkle size={9} /> Guided</> : <><IconPlus size={9} /> Guidance</>}
                 </button>
                 <button
                   onClick={runEvaluation}
@@ -527,6 +541,9 @@ export default function BranchEval() {
               <div className="h-full bg-white/20 rounded-full animate-[eval-sweep_2s_ease-in-out_infinite]" />
             </div>
             <style>{`@keyframes eval-sweep { 0% { width: 5%; margin-left: 0; } 50% { width: 40%; margin-left: 30%; } 100% { width: 5%; margin-left: 95%; } }`}</style>
+            {reasoning && (
+              <p className="text-[10px] text-text-dim/60 leading-relaxed mt-1 max-h-40 overflow-y-auto whitespace-pre-wrap">{reasoning}</p>
+            )}
           </div>
         )}
 
@@ -538,10 +555,13 @@ export default function BranchEval() {
           <p className="mt-1 text-[10px] text-red-400">{error}</p>
         )}
 
-        {evaluation && !busy && (
+        {!busy && (
           <div className="mt-1.5 flex items-center justify-between">
-            <StatsBar sceneEvals={evaluation.sceneEvals} />
-            {overrides.size > 0 && (
+            <div className="flex items-center gap-2">
+              {onRangeChange && <SceneRangeSelector range={sceneRange ?? null} onChange={onRangeChange} />}
+              {evaluation && <StatsBar sceneEvals={evaluation.sceneEvals} />}
+            </div>
+            {evaluation && overrides.size > 0 && (
               <button
                 onClick={() => setOverrides(new Map())}
                 className="text-[9px] px-1.5 py-0.5 rounded bg-white/5 text-text-dim hover:text-text-secondary transition-colors"

@@ -12,6 +12,7 @@ import {
   type PremiseSystemSketch,
 } from '@/lib/ai/premise';
 import { CreationWizard } from '@/components/wizard/CreationWizard';
+import { IconCheck, IconChevronRight, IconRefresh, IconUndo } from '@/components/icons';
 import { saveDiscoveryInquiry, deleteDiscoveryInquiry, loadDiscoveryInquiries } from '@/lib/persistence';
 import type { DiscoveryInquiry, DiscoveryInquiryState, DiscoveryPhase, DiscoverySnapshot } from '@/types/narrative';
 import * as d3 from 'd3';
@@ -334,9 +335,7 @@ function ChoiceCard({ label, description, selected, onClick, disabled }: {
         selected ? 'border-white/40 bg-white/15' : 'border-white/15 bg-white/3'
       }`}>
         {selected && (
-          <svg className="w-2.5 h-2.5 text-white/80" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M2.5 6l2.5 2.5 4.5-5" />
-          </svg>
+          <IconCheck size={10} className="text-white/80" />
         )}
       </div>
       <div className="min-w-0">
@@ -659,9 +658,7 @@ export function DiscoverPage({ inquiryId: initialInquiryId }: { inquiryId?: stri
               return (
                 <div key={key} className="flex items-center">
                   {idx > 0 && (
-                    <svg className="w-4 h-4 mx-0.5 text-white/10" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
-                      <path d="M6 4l4 4-4 4" strokeLinecap="round" strokeLinejoin="round" />
-                    </svg>
+                    <IconChevronRight size={16} className="mx-0.5 text-white/10" />
                   )}
                   <button
                     onClick={() => handleSwitchPhase(key)}
@@ -711,12 +708,7 @@ export function DiscoverPage({ inquiryId: initialInquiryId }: { inquiryId?: stri
                     title="Get a different question"
                     className="text-white/20 hover:text-white/50 transition disabled:opacity-30"
                   >
-                    <svg className="w-3 h-3" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M13.5 2.5v4h-4" />
-                      <path d="M2.5 13.5v-4h4" />
-                      <path d="M4.5 5.5a5 5 0 0 1 8.12-.88L13.5 6.5" />
-                      <path d="M11.5 10.5a5 5 0 0 1-8.12.88L2.5 9.5" />
-                    </svg>
+                    <IconRefresh size={12} />
                   </button>
                   {state.history.length > 0 && (
                     <button
@@ -725,10 +717,7 @@ export function DiscoverPage({ inquiryId: initialInquiryId }: { inquiryId?: stri
                       title="Undo last round"
                       className="text-white/20 hover:text-white/50 transition disabled:opacity-30"
                     >
-                      <svg className="w-3 h-3" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                        <path d="M3 6h7a4 4 0 0 1 0 8H7" />
-                        <path d="M6 3L3 6l3 3" />
-                      </svg>
+                      <IconUndo size={12} />
                     </button>
                   )}
                 </div>

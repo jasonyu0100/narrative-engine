@@ -12,6 +12,7 @@ import { PacingStrip, CubeBadge } from './PacingStrip';
 import { MarkovGraph } from './MarkovGraph';
 import { GuidanceFields } from './GuidanceFields';
 import { Modal, ModalHeader, ModalBody } from '@/components/Modal';
+import { IconDice, IconChevronRight } from '@/components/icons';
 
 type Mode = 'continuation' | 'world';
 
@@ -351,14 +352,7 @@ export function GeneratePanel({ onClose }: { onClose: () => void }) {
                 className="h-9 px-3 rounded-lg border border-white/8 text-text-dim hover:text-text-primary hover:border-white/15 transition disabled:opacity-30 flex items-center gap-1.5 text-[11px]"
                 title="Reroll from transition matrix"
               >
-                <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <rect x="3" y="3" width="18" height="18" rx="3" />
-                  <circle cx="8.5" cy="8.5" r="1.2" fill="currentColor" />
-                  <circle cx="15.5" cy="8.5" r="1.2" fill="currentColor" />
-                  <circle cx="8.5" cy="15.5" r="1.2" fill="currentColor" />
-                  <circle cx="15.5" cy="15.5" r="1.2" fill="currentColor" />
-                  <circle cx="12" cy="12" r="1.2" fill="currentColor" />
-                </svg>
+                <IconDice size={14} />
                 Reroll
               </button>
               <button
@@ -427,10 +421,7 @@ export function GeneratePanel({ onClose }: { onClose: () => void }) {
                 <div>
                   <button onClick={() => setAdvancedOpen((v) => !v)}
                     className="flex items-center gap-1.5 text-[10px] uppercase tracking-widest text-text-dim hover:text-text-secondary transition-colors">
-                    <svg className={`w-3 h-3 transition-transform ${advancedOpen ? 'rotate-90' : ''}`}
-                      fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
-                    </svg>
+                    <IconChevronRight size={12} className={`transition-transform ${advancedOpen ? 'rotate-90' : ''}`} />
                     Advanced
                   </button>
                   {advancedOpen && (
@@ -508,14 +499,7 @@ export function GeneratePanel({ onClose }: { onClose: () => void }) {
                     disabled={!newArc && !currentArc}
                     className="py-2.5 px-4 rounded-lg border border-white/8 hover:bg-white/6 text-text-dim hover:text-text-primary transition disabled:opacity-30 flex items-center justify-center gap-2 text-[12px]"
                   >
-                    <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <rect x="3" y="3" width="18" height="18" rx="3" />
-                      <circle cx="8.5" cy="8.5" r="1.2" fill="currentColor" />
-                      <circle cx="15.5" cy="15.5" r="1.2" fill="currentColor" />
-                      <circle cx="8.5" cy="15.5" r="1.2" fill="currentColor" />
-                      <circle cx="15.5" cy="8.5" r="1.2" fill="currentColor" />
-                      <circle cx="12" cy="12" r="1.2" fill="currentColor" />
-                    </svg>
+                    <IconDice size={16} />
                     Roll Route
                   </button>
                 </div>

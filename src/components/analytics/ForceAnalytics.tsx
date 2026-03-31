@@ -5,6 +5,7 @@ import * as d3 from 'd3';
 import { useStore } from '@/lib/store';
 import { resolveEntry, isScene, type Scene, type ForceSnapshot, type CubeCornerKey } from '@/types/narrative';
 import { computeForceSnapshots, computeWindowedForces, computeRawForceTotals, computeSwingMagnitudes, detectCubeCorner, gradeForces, FORCE_REFERENCE_MEANS, zScoreNormalize, movingAverage, FORCE_WINDOW_SIZE, computeDeliveryCurve, classifyCurrentPosition, type DeliveryPoint } from '@/lib/narrative-utils';
+import { IconLineChart, IconPencilDraw } from '@/components/icons';
 
 type ForceKey = 'payoff' | 'change' | 'knowledge' | 'swing' | 'delivery';
 
@@ -1348,10 +1349,7 @@ export function ForceAnalytics({ onClose }: { onClose: () => void }) {
             }`}
             title="Toggle raw absolute force values (non-normalised)"
           >
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M3 3v18h18" />
-              <path d="M7 16l4-8 4 4 4-10" />
-            </svg>
+            <IconLineChart size={12} />
             Raw
           </button>}
           {/* Sliding window toggle */}
@@ -1388,10 +1386,7 @@ export function ForceAnalytics({ onClose }: { onClose: () => void }) {
                 : 'bg-transparent border-border text-text-dim hover:text-text-secondary hover:border-white/12'
             }`}
           >
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-              <path d="M12 20h9" />
-              <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
-            </svg>
+            <IconPencilDraw size={12} />
             {drawing ? 'Drawing' : 'Draw'}
           </button>
           {hasDrawings && (

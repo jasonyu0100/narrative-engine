@@ -5,6 +5,7 @@ import { useStore } from '@/lib/store';
 import type { Arc, Scene } from '@/types/narrative';
 import { resolveEntry, isScene } from '@/types/narrative';
 import { computeRawForceTotals, computeSwingMagnitudes, gradeForces, FORCE_REFERENCE_MEANS } from '@/lib/narrative-utils';
+import { IconChevronDown, IconFork } from '@/components/icons';
 
 const NODE_RADIUS = 8;
 const NODE_SPACING = 50;
@@ -154,9 +155,7 @@ export default function TimelineStrip() {
               </option>
             ))}
           </select>
-          <svg width="8" height="5" viewBox="0 0 8 5" className="-ml-2 pointer-events-none">
-            <path d="M0 0L4 5L8 0" fill="currentColor" className="text-text-dim" />
-          </svg>
+          <IconChevronDown size={8} className="-ml-2 pointer-events-none text-text-dim" />
         </div>
       )}
       <div
@@ -368,13 +367,7 @@ export default function TimelineStrip() {
           onClick={() => window.dispatchEvent(new CustomEvent('open-branch-modal'))}
           className="w-7 h-7 flex items-center justify-center text-text-dim hover:text-text-primary hover:bg-white/6 rounded-md transition-colors"
         >
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <circle cx="12" cy="18" r="3" />
-            <circle cx="6" cy="6" r="3" />
-            <circle cx="18" cy="6" r="3" />
-            <path d="M18 9v2c0 .6-.4 1-1 1H7c-.6 0-1-.4-1-1V9" />
-            <path d="M12 12v3" />
-          </svg>
+          <IconFork size={14} />
         </button>
       </div>
     </div>

@@ -10,6 +10,8 @@ import { computeForceSnapshots, detectCubeCorner, computeDeliveryCurve, classify
 import { useStore } from '@/lib/store';
 import { GuidanceFields } from '@/components/generation/GuidanceFields';
 import { Modal, ModalHeader, ModalBody, ModalFooter } from '@/components/Modal';
+import { IconDice, IconLocationPin, IconEye } from '@/components/icons';
+import { IconDot } from '@/components/icons/EvalIcons';
 
 /** Hook that ticks every second while active, returning elapsed seconds since startedAt */
 function useElapsedSeconds(startedAt: number | null, isActive: boolean): number {
@@ -232,12 +234,7 @@ function TreeNode({
             >
               {/* Markov indicator */}
               <span className="w-7 shrink-0 flex items-center justify-center">
-                <svg className="w-3.5 h-3.5 text-amber-500/60" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <rect x="3" y="3" width="18" height="18" rx="3" />
-                  <circle cx="8.5" cy="8.5" r="1.2" fill="currentColor" />
-                  <circle cx="15.5" cy="15.5" r="1.2" fill="currentColor" />
-                  <circle cx="12" cy="12" r="1.2" fill="currentColor" />
-                </svg>
+                <IconDice size={14} className="text-amber-500/60" />
               </span>
               <span className="font-mono text-[12px] font-bold w-7 text-right shrink-0 text-amber-500/50">···</span>
               <span className="text-[11px] text-amber-400/70 truncate flex-1 animate-pulse">
@@ -288,12 +285,7 @@ function TreeNode({
           <span className="flex items-center gap-1.5 w-full">
             {/* Markov indicator */}
             <span className="w-7 shrink-0 flex items-center justify-center">
-              <svg className="w-3.5 h-3.5 text-text-dim" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <rect x="3" y="3" width="18" height="18" rx="3" />
-                <circle cx="8.5" cy="8.5" r="1.2" fill="currentColor" />
-                <circle cx="15.5" cy="15.5" r="1.2" fill="currentColor" />
-                <circle cx="12" cy="12" r="1.2" fill="currentColor" />
-              </svg>
+              <IconDice size={14} className="text-text-dim" />
             </span>
             <span className={`font-mono text-[12px] font-bold w-7 text-right shrink-0 ${scoreColorClass(sc)}`}>{sc}</span>
             <span className={`text-[11px] truncate flex-1 ${
@@ -464,12 +456,7 @@ function MCTSTreeView({
           >
             {/* Markov indicator */}
             <span className="w-7 shrink-0 flex items-center justify-center">
-              <svg className="w-3.5 h-3.5 text-amber-500/60" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <rect x="3" y="3" width="18" height="18" rx="3" />
-                <circle cx="8.5" cy="8.5" r="1.2" fill="currentColor" />
-                <circle cx="15.5" cy="15.5" r="1.2" fill="currentColor" />
-                <circle cx="12" cy="12" r="1.2" fill="currentColor" />
-              </svg>
+              <IconDice size={14} className="text-amber-500/60" />
             </span>
             <span className="font-mono text-[12px] font-bold w-7 text-right shrink-0 text-amber-500/50">···</span>
             <span className="text-[11px] text-amber-400/70 truncate flex-1 animate-pulse">
@@ -536,15 +523,10 @@ function PendingInspector({ pending }: { pending: PendingExpansion }) {
       <div>
         <div className="flex items-center gap-2">
           <h2 className="text-[10px] uppercase tracking-widest text-amber-400/70">Generating</h2>
-          <span className="animate-pulse text-amber-400">●</span>
+          <IconDot size={8} className="animate-pulse text-amber-400" />
         </div>
         <div className="flex items-center gap-2 mt-1">
-          <svg className="w-4 h-4 text-amber-500/60" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <rect x="3" y="3" width="18" height="18" rx="3" />
-            <circle cx="8.5" cy="8.5" r="1.2" fill="currentColor" />
-            <circle cx="15.5" cy="15.5" r="1.2" fill="currentColor" />
-            <circle cx="12" cy="12" r="1.2" fill="currentColor" />
-          </svg>
+          <IconDice size={16} className="text-amber-500/60" />
           <span className="text-sm text-text-primary font-medium">Markov sequence</span>
         </div>
       </div>
@@ -904,19 +886,13 @@ function NodeInspector({ node, tree }: { node: MCTSNode; tree: MCTSTree }) {
           {/* Location + POV */}
           <div className="flex flex-col gap-1.5">
             <div className="flex items-center gap-1.5 text-xs text-text-secondary">
-              <svg className="w-3.5 h-3.5 shrink-0 text-text-dim" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z" />
-                <circle cx="12" cy="9" r="2.5" />
-              </svg>
+              <IconLocationPin size={14} className="shrink-0 text-text-dim" />
               <span className="text-[10px] uppercase tracking-wider text-text-dim mr-1">Location</span>
               {loc?.name ?? scene.locationId}
             </div>
             {(pov || scene.povId) && (
               <div className="flex items-center gap-1.5 text-xs text-text-secondary">
-                <svg className="w-3.5 h-3.5 shrink-0 text-text-dim" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
-                  <circle cx="12" cy="12" r="3" />
-                </svg>
+                <IconEye size={14} className="shrink-0 text-text-dim" />
                 <span className="text-[10px] uppercase tracking-wider text-text-dim mr-1">POV</span>
                 {pov?.name ?? scene.povId}
               </div>

@@ -7,12 +7,15 @@ import { editScenePlan } from '@/lib/ai/scenes';
 import { resolveEntry, isScene } from '@/types/narrative';
 import type { PlanEvaluation, PlanSceneEval, PlanVerdict, Scene, Arc } from '@/types/narrative';
 import { PLAN_CONCURRENCY } from '@/lib/constants';
+import { IconCheck, IconTilde, IconRunning, IconCross, IconDot, IconReset, IconSparkle, IconPlus } from '@/components/icons/EvalIcons';
+import SceneRangeSelector, { filterKeysBySceneRange, type SceneRange } from './SceneRangeSelector';
+import type { ReactNode } from 'react';
 
 // ── Verdict visuals ──────────────────────────────────────────────────────────
 
-const VERDICT_CONFIG: Record<PlanVerdict, { icon: string; color: string; bg: string; label: string }> = {
-  ok:   { icon: '✓', color: 'text-emerald-400', bg: 'bg-emerald-500/15', label: 'OK' },
-  edit: { icon: '~', color: 'text-amber-400',   bg: 'bg-amber-500/15',  label: 'Edit' },
+const VERDICT_CONFIG: Record<PlanVerdict, { icon: ReactNode; color: string; bg: string; label: string }> = {
+  ok:   { icon: <IconCheck size={10} />, color: 'text-emerald-400', bg: 'bg-emerald-500/15', label: 'OK' },
+  edit: { icon: <IconTilde size={10} />, color: 'text-amber-400',   bg: 'bg-amber-500/15',  label: 'Edit' },
 };
 
 type PlanOverride = { verdict?: PlanVerdict; issues?: string[] };
@@ -53,7 +56,7 @@ function PlanNode({
         <div
           className={`w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold ${cfg.bg} ${cfg.color} shrink-0 border border-current/20 ${replanStatus === 'running' ? 'animate-pulse ring-1 ring-current/40' : ''}`}
         >
-          {replanStatus === 'running' ? '◎' : replanStatus === 'done' ? '✓' : cfg.icon}
+          {replanStatus === 'running' ? <IconRunning size={10} /> : replanStatus === 'done' ? <IconCheck size={10} /> : cfg.icon}
         </div>
         {!isLast && <div className="w-px flex-1 bg-white/10 min-h-3" />}
       </div>
@@ -75,7 +78,7 @@ function PlanNode({
             )}
             {replanStatus && replanStatus !== 'pending' && (
               <span className={`text-[9px] font-mono ${replanStatus === 'done' ? 'text-emerald-400/60' : replanStatus === 'running' ? 'text-white/50 animate-pulse' : replanStatus === 'error' ? 'text-red-400/60' : 'text-white/20'}`}>
-                {replanStatus === 'done' ? '✓' : replanStatus === 'running' ? '◎' : replanStatus === 'error' ? '✕' : '·'}
+                {replanStatus === 'done' ? <IconCheck size={8} /> : replanStatus === 'running' ? <IconRunning size={8} /> : replanStatus === 'error' ? <IconCross size={8} /> : <IconDot size={8} />}
               </span>
             )}
             {issues.length > 0 && (
@@ -123,7 +126,7 @@ function PlanNode({
                     onClick={onReset}
                     className="text-[9px] px-1.5 py-0.5 rounded bg-white/5 text-violet-400/70 hover:text-violet-400 transition-all ml-auto"
                   >
-                    ↺ Reset to original
+                    <IconReset size={9} /> Reset to original
                   </button>
                 )}
               </div>
@@ -137,11 +140,16 @@ function PlanNode({
 
 // ── Main component ───────────────────────────────────────────────────────────
 
-export default function PlanEval() {
+export default function PlanEval({ sceneRange, onRangeChange }: { sceneRange?: SceneRange; onRangeChange?: (r: SceneRange) => void }) {
   const { state, dispatch } = useStore();
   const narrative = state.activeNarrative;
   const resolvedKeys = state.resolvedEntryKeys;
   const branchId = state.activeBranchId;
+
+  const filteredKeys = useMemo(
+    () => filterKeysBySceneRange(resolvedKeys, narrative, sceneRange ?? null),
+    [resolvedKeys, narrative, sceneRange],
+  );
 
   const persisted = branchId ? narrative?.planEvaluations?.[branchId] ?? null : null;
   const [baseEvaluation, setBaseEvaluation] = useState<PlanEvaluation | null>(persisted);
@@ -153,6 +161,7 @@ export default function PlanEval() {
   const [error, setError] = useState<string | null>(null);
   const [guidance, setGuidance] = useState('');
   const [showGuidance, setShowGuidance] = useState(false);
+  const [reasoning, setReasoning] = useState('');
   const cancelledRef = useRef(false);
 
   // Merge base + overrides
@@ -186,7 +195,10 @@ export default function PlanEval() {
     cancelledRef.current = false;
 
     try {
-      const result = await evaluatePlanQuality(narrative, resolvedKeys, branchId, guidance || undefined);
+      setReasoning('');
+      const result = await evaluatePlanQuality(narrative, filteredKeys, branchId, guidance || undefined, (token) => {
+        setReasoning((prev) => prev + token);
+      });
       if (!cancelledRef.current) {
         setBaseEvaluation(result);
         setOverrides(new Map());
@@ -199,7 +211,7 @@ export default function PlanEval() {
     } finally {
       setLoading(false);
     }
-  }, [narrative, resolvedKeys, branchId, guidance, dispatch]);
+  }, [narrative, filteredKeys, branchId, guidance, dispatch]);
 
   const runReplans = useCallback(async () => {
     if (!narrative || !evaluation) return;
@@ -234,7 +246,7 @@ export default function PlanEval() {
         setReplanStatuses((prev) => ({ ...prev, [ev.sceneId]: 'running' }));
 
         try {
-          const newPlan = await editScenePlan(narrative, scene, resolvedKeys, ev.issues);
+          const newPlan = await editScenePlan(narrative, scene, filteredKeys, ev.issues);
           if (!cancelledRef.current) {
             dispatch({ type: 'UPDATE_SCENE', sceneId: ev.sceneId, updates: { plan: newPlan } });
           }
@@ -249,7 +261,7 @@ export default function PlanEval() {
 
     await Promise.all(Array.from({ length: Math.min(PLAN_CONCURRENCY, edits.length) }, () => runWorker()));
     setReplanning(false);
-  }, [narrative, resolvedKeys, evaluation, dispatch]);
+  }, [narrative, filteredKeys, evaluation, dispatch]);
 
   const cancel = useCallback(() => {
     cancelledRef.current = true;
@@ -268,7 +280,7 @@ export default function PlanEval() {
   // Resolve scenes with plans
   const scenes: { scene: Scene; arc?: Arc }[] = [];
   if (narrative) {
-    for (const key of resolvedKeys) {
+    for (const key of filteredKeys) {
       const entry = resolveEntry(narrative, key);
       if (entry && isScene(entry) && (entry as Scene).plan?.beats?.length) {
         scenes.push({
@@ -306,7 +318,7 @@ export default function PlanEval() {
                   onClick={() => setShowGuidance(true)}
                   className={`text-[10px] px-2 py-0.5 rounded transition-colors ${guidance ? 'bg-violet-500/15 text-violet-400' : 'bg-white/5 text-text-dim hover:text-text-secondary'}`}
                 >
-                  {guidance ? '✦ Guided' : '+ Guidance'}
+                  {guidance ? <><IconSparkle size={9} /> Guided</> : <><IconPlus size={9} /> Guidance</>}
                 </button>
                 <button
                   onClick={runEvaluation}
@@ -353,6 +365,9 @@ export default function PlanEval() {
               <div className="h-full bg-white/20 rounded-full animate-[eval-sweep_2s_ease-in-out_infinite]" />
             </div>
             <style>{`@keyframes eval-sweep { 0% { width: 5%; margin-left: 0; } 50% { width: 40%; margin-left: 30%; } 100% { width: 5%; margin-left: 95%; } }`}</style>
+            {reasoning && (
+              <p className="text-[10px] text-text-dim/60 leading-relaxed mt-1 max-h-40 overflow-y-auto whitespace-pre-wrap">{reasoning}</p>
+            )}
           </div>
         )}
 
@@ -376,21 +391,22 @@ export default function PlanEval() {
 
         {error && <p className="mt-1 text-[10px] text-red-400">{error}</p>}
 
-        {evaluation && !busy && (
+        {!busy && (
           <div className="mt-1.5 flex items-center justify-between">
-            <div className="flex items-center gap-2 text-[10px] font-mono">
-              {(() => {
+            <div className="flex items-center gap-2">
+              {onRangeChange && <SceneRangeSelector range={sceneRange ?? null} onChange={onRangeChange} />}
+              {evaluation && (() => {
                 const ok = evaluation.sceneEvals.filter((e) => e.verdict === 'ok').length;
                 const edit = evaluation.sceneEvals.filter((e) => e.verdict === 'edit').length;
                 return (
-                  <>
-                    {ok > 0 && <span className="text-emerald-400 flex items-center gap-0.5"><span className="text-[9px]">✓</span>{ok}</span>}
-                    {edit > 0 && <span className="text-amber-400 flex items-center gap-0.5"><span className="text-[9px]">~</span>{edit}</span>}
-                  </>
+                  <div className="flex items-center gap-2 text-[10px] font-mono">
+                    {ok > 0 && <span className="text-emerald-400 flex items-center gap-0.5"><IconCheck size={9} />{ok}</span>}
+                    {edit > 0 && <span className="text-amber-400 flex items-center gap-0.5"><IconTilde size={9} />{edit}</span>}
+                  </div>
                 );
               })()}
             </div>
-            {overrides.size > 0 && (
+            {evaluation && overrides.size > 0 && (
               <button
                 onClick={() => setOverrides(new Map())}
                 className="text-[9px] px-1.5 py-0.5 rounded bg-white/5 text-text-dim hover:text-text-secondary transition-colors"

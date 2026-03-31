@@ -136,8 +136,8 @@ export async function reconstructBranch(
     for (const moveEv of movedHere) {
       const movedScene = narrative.scenes[moveEv.sceneId];
       if (!movedScene) continue;
-      const movedId = nextId('S', [...allExistingSceneIds, ...usedNewIds], 3);
-      usedNewIds.add(movedId);
+      // Moves don't change content — reuse original ID
+      const movedId = movedScene.id;
       const movedItem: Extract<TimelineItem, { type: 'scene' }> = {
         type: 'scene',
         index: sceneEntries.length,
@@ -217,8 +217,12 @@ export async function reconstructBranch(
         continue;
       }
 
-      const newId = nextId('S', [...allExistingSceneIds, ...usedNewIds], 3);
-      usedNewIds.add(newId);
+      // Reuse original ID for unchanged scenes; only mint new IDs for scenes that will be modified
+      const needsNewId = verdict === 'edit';
+      const newId = needsNewId
+        ? nextId('S', [...allExistingSceneIds, ...usedNewIds], 3)
+        : entry.id;
+      if (needsNewId) usedNewIds.add(newId);
 
       const item: Extract<TimelineItem, { type: 'scene' }> = {
         type: 'scene',
@@ -294,30 +298,35 @@ export async function reconstructBranch(
   progress.phase = 'restructuring';
   callbacks.onProgress({ ...progress });
 
-  // Generate new arc IDs so reconstruction doesn't clobber the original branch's arcs
+  // Build arc mappings — only remap arcs that contain modified scenes
   const allExistingArcIds = new Set(Object.keys(narrative.arcs));
   const usedNewArcIds = new Set<string>();
-  const arcIdRemap = new Map<string, string>(); // old arc ID → new arc ID
-  const arcSceneMap = new Map<string, string[]>(); // old arc ID → new scene IDs
+  const arcSceneMap = new Map<string, string[]>(); // old arc ID → scene IDs in new branch
+  const arcHasModified = new Set<string>(); // arcs that need new IDs
   for (const s of sceneEntries) {
     const list = arcSceneMap.get(s.scene.arcId) ?? [];
     list.push(s.newId);
     arcSceneMap.set(s.scene.arcId, list);
-    if (!arcIdRemap.has(s.scene.arcId)) {
-      const newArcId = nextId('ARC', [...allExistingArcIds, ...usedNewArcIds]);
-      usedNewArcIds.add(newArcId);
-      arcIdRemap.set(s.scene.arcId, newArcId);
+    if (s.verdict !== 'ok' && s.verdict !== 'move') {
+      arcHasModified.add(s.scene.arcId);
     }
   }
+  // Only mint new arc IDs for arcs containing edited/inserted/merged scenes
+  const arcIdRemap = new Map<string, string>();
+  for (const arcId of arcHasModified) {
+    const newArcId = nextId('ARC', [...allExistingArcIds, ...usedNewArcIds]);
+    usedNewArcIds.add(newArcId);
+    arcIdRemap.set(arcId, newArcId);
+  }
 
-  // Build scenes with remapped arc IDs
+  // Build scenes — only remap arcId for scenes in modified arcs
   const newScenes: Scene[] = sceneEntries.map((s) => ({
     ...s.scene,
     id: s.newId,
     arcId: arcIdRemap.get(s.scene.arcId) ?? s.scene.arcId,
   }));
 
-  // Build arcs with new IDs, dropping empty ones
+  // Build arcs — reuse original for unchanged, new ID for modified
   const newArcs: Record<string, Arc> = {};
   for (const [oldArcId, sceneIds] of arcSceneMap) {
     const original = narrative.arcs[oldArcId];
