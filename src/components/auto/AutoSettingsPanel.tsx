@@ -23,7 +23,7 @@ export function AutoSettingsPanel({ onClose, onStart }: { onClose: () => void; o
     const base = { ...state.autoConfig };
     const storyDir = state.activeNarrative?.storySettings?.storyDirection?.trim();
     const storyCon = state.activeNarrative?.storySettings?.storyConstraints?.trim();
-    if (!base.northStarPrompt && storyDir) base.northStarPrompt = storyDir;
+    if (!base.direction && storyDir) base.direction = storyDir;
     if (!base.narrativeConstraints && storyCon) base.narrativeConstraints = storyCon;
     // When planning queue is active, default to planning_complete instead of scene_count
     if (hasPlanningQueue && !base.endConditions.some(c => c.type === 'planning_complete')) {
@@ -203,9 +203,9 @@ export function AutoSettingsPanel({ onClose, onStart }: { onClose: () => void; o
 
               {/* Direction + Constraints */}
               <GuidanceFields
-                direction={config.northStarPrompt}
+                direction={config.direction}
                 constraints={config.narrativeConstraints}
-                onDirectionChange={(v) => update({ northStarPrompt: v })}
+                onDirectionChange={(v) => update({ direction: v })}
                 onConstraintsChange={(v) => update({ narrativeConstraints: v })}
               />
             </>

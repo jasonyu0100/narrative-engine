@@ -1,6 +1,6 @@
 import type { NarrativeState, PlanningQueue, PlanningPhase } from '@/types/narrative';
 import { REASONING_BUDGETS } from '@/types/narrative';
-import { callGenerate, SYSTEM_PROMPT } from './ai/api';
+import { callGenerate, callGenerateStream, SYSTEM_PROMPT } from './ai/api';
 import { branchContext } from './ai/context';
 import { MAX_TOKENS_SMALL, MAX_TOKENS_DEFAULT, MAX_TOKENS_LARGE } from '@/lib/constants';
 
@@ -149,6 +149,7 @@ export async function generateCustomPlan(
   resolvedKeys: string[],
   currentIndex: number,
   planDocument: string,
+  onReasoning?: (token: string) => void,
 ): Promise<{ name: string; phases: { name: string; objective: string; sceneAllocation: number; constraints: string; structuralRules?: string; worldExpansionHints: string; sourceText?: string }[] }> {
   const ctx = branchContext(narrative, resolvedKeys, currentIndex);
 
@@ -199,7 +200,9 @@ Return JSON:
 }`;
 
   const reasoningBudget = REASONING_BUDGETS[narrative.storySettings?.reasoningLevel ?? 'low'] || undefined;
-  const raw = await callGenerate(prompt, SYSTEM_PROMPT, MAX_TOKENS_LARGE, 'generateCustomPlan', undefined, reasoningBudget);
+  const raw = onReasoning
+    ? await callGenerateStream(prompt, SYSTEM_PROMPT, () => {}, MAX_TOKENS_LARGE, 'generateCustomPlan', undefined, reasoningBudget, onReasoning)
+    : await callGenerate(prompt, SYSTEM_PROMPT, MAX_TOKENS_LARGE, 'generateCustomPlan', undefined, reasoningBudget);
 
   try {
     const match = raw.match(/\{[\s\S]*\}/);
@@ -234,6 +237,7 @@ export async function generatePlanDocument(
   narrative: NarrativeState,
   resolvedKeys: string[],
   currentIndex: number,
+  onReasoning?: (token: string) => void,
 ): Promise<string> {
   const ctx = branchContext(narrative, resolvedKeys, currentIndex);
 
@@ -270,7 +274,84 @@ RULES:
 Write the document as markdown prose. Do NOT return JSON — return the raw plan document text.`;
 
   const reasoningBudget = REASONING_BUDGETS[narrative.storySettings?.reasoningLevel ?? 'medium'] || undefined;
+  if (onReasoning) {
+    return await callGenerateStream(prompt, SYSTEM_PROMPT, () => {}, MAX_TOKENS_LARGE, 'generatePlanDocument', undefined, reasoningBudget, onReasoning);
+  }
   return await callGenerate(prompt, SYSTEM_PROMPT, MAX_TOKENS_LARGE, 'generatePlanDocument', undefined, reasoningBudget);
+}
+
+/**
+ * Generate a lightweight outline from the current story state.
+ * Produces phases with objectives, scene allocations, and constraints — no sourceText.
+ * The generation system uses these as dynamic guidelines with creative freedom.
+ */
+export async function generateOutline(
+  narrative: NarrativeState,
+  resolvedKeys: string[],
+  currentIndex: number,
+  onReasoning?: (token: string) => void,
+): Promise<{ name: string; phases: { name: string; objective: string; sceneAllocation: number; constraints: string; worldExpansionHints: string }[] }> {
+  const ctx = branchContext(narrative, resolvedKeys, currentIndex);
+
+  const prompt = `${ctx}
+
+TASK: Analyse the current narrative state and design a story outline — a sequence of phases that guide automated scene generation. This is a DYNAMIC OUTLINE, not a rigid script. Each phase describes the feel, trajectory, and objectives, leaving room for emergent storytelling.
+
+For each phase, consider:
+- What narrative energy should this phase have? (building tension, release, discovery, intimacy, chaos)
+- Which threads are ripe for development? Which characters need screen time?
+- What must happen before the story can move to the next phase?
+- What must NOT happen yet? (protect reveals, climaxes, and resolutions for later phases)
+
+RULES:
+- Design 3-6 phases that tell a complete arc or a satisfying volume
+- Scene allocations should total 20-40 scenes for a complete arc, 15-25 for a volume
+- Use character NAMES and location NAMES, never raw IDs
+- Objectives should describe the FEEL and TRAJECTORY, not prescribe specific scenes
+- Constraints should be absolute prohibitions only — protect later-phase content
+
+Return JSON:
+{
+  "name": "Short name for this outline (2-5 words)",
+  "phases": [
+    {
+      "name": "Phase name (2-6 words)",
+      "objective": "2-4 sentences describing the energy, trajectory, and what this phase should achieve. Name characters and threads that are ripe.",
+      "sceneAllocation": 6,
+      "constraints": "What must NOT happen yet (1-2 sentences). Protect later phases.",
+      "worldExpansionHints": "New characters, locations, or systems needed. Empty string if existing world suffices."
+    }
+  ]
+}`;
+
+  const reasoningBudget = REASONING_BUDGETS[narrative.storySettings?.reasoningLevel ?? 'low'] || undefined;
+  let raw: string;
+  if (onReasoning) {
+    raw = await callGenerateStream(prompt, SYSTEM_PROMPT, () => {}, MAX_TOKENS_DEFAULT, 'generateOutline', undefined, reasoningBudget, onReasoning);
+  } else {
+    raw = await callGenerate(prompt, SYSTEM_PROMPT, MAX_TOKENS_DEFAULT, 'generateOutline', undefined, reasoningBudget);
+  }
+
+  try {
+    const match = raw.match(/\{[\s\S]*\}/);
+    if (match) {
+      const parsed = JSON.parse(match[0]);
+      return {
+        name: parsed.name ?? 'AI Outline',
+        phases: (parsed.phases ?? []).map((p: Record<string, unknown>) => ({
+          name: asString(p.name, 'Untitled Phase'),
+          objective: asString(p.objective),
+          sceneAllocation: Number(p.sceneAllocation) || 4,
+          constraints: asString(p.constraints),
+          worldExpansionHints: asString(p.worldExpansionHints),
+        })),
+      };
+    }
+  } catch (err) {
+    console.error('[generateOutline] JSON parse failed:', err);
+  }
+
+  throw new Error('Failed to generate outline');
 }
 
 /**

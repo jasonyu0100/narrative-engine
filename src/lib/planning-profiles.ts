@@ -364,6 +364,7 @@ export function getProfile(id: string): PlanningProfile | undefined {
 export function profileToQueue(profile: PlanningProfile): PlanningQueue {
   return {
     profileId: profile.id,
+    mode: profile.phases.some((p) => p.sourceText) ? 'plan' : 'outline',
     phases: profile.phases.map((p, i) => ({
       id: `phase-${i}`,
       name: p.name,

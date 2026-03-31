@@ -438,7 +438,7 @@ Return JSON:
   "continuityMutations": [{"characterId": "C-XX", "nodeId": "K-NEW-001", "action": "added", "content": "what they learned", "nodeType": "type"}],
   "relationshipMutations": [{"from": "C-XX", "to": "C-YY", "type": "description", "valenceDelta": 0.1}],
   "worldKnowledgeMutations": {"addedNodes": [], "addedEdges": []},
-  "summary": "3-5 RICH sentences — named character + physical action + concrete consequence. No emotions/realizations as endings."
+  "summary": "Rich prose sentences using character NAMES and location NAMES (never raw IDs). Include specifics and context that shapes prose. No emotions/realizations as endings."
 }`;
 
   const reasoningBudget = REASONING_BUDGETS[narrative.storySettings?.reasoningLevel ?? 'low'] || undefined;
@@ -525,7 +525,7 @@ MERGE RULES:
 - You may change POV, location, and participants if the absorbed content demands it.
 - Combine thread mutations from all scenes — if the target advances T-01 and a source advances T-03, the merged scene should advance both.
 - Combine continuity and relationship mutations — deduplicate but preserve unique knowledge.
-- The summary must be 4-5 RICH sentences that weave the best elements from all inputs into a cohesive narrative beat.
+- The summary must use character NAMES and location NAMES (never raw IDs) and weave the best elements from all inputs into a cohesive narrative beat.
 - Do NOT simply concatenate summaries. Synthesize them into a single dramatic moment.
 - Use only existing character, location, and thread IDs from the context above.
 
@@ -539,7 +539,7 @@ Return JSON:
   "continuityMutations": [{"characterId": "C-XX", "nodeId": "K-NEW-001", "action": "added", "content": "what they learned", "nodeType": "type"}],
   "relationshipMutations": [{"from": "C-XX", "to": "C-YY", "type": "description", "valenceDelta": 0.1}],
   "worldKnowledgeMutations": {"addedNodes": [], "addedEdges": []},
-  "summary": "4-5 RICH sentences combining the strongest elements from all merged scenes."
+  "summary": "Rich prose sentences using character NAMES (never IDs) combining the strongest elements from all merged scenes."
 }`;
 
   const reasoningBudget = REASONING_BUDGETS[narrative.storySettings?.reasoningLevel ?? 'low'] || undefined;
@@ -601,7 +601,7 @@ Return JSON:
   "continuityMutations": [{"characterId": "C-XX", "nodeId": "K-NEW-001", "action": "added", "content": "what they learned", "nodeType": "type"}],
   "relationshipMutations": [{"from": "C-XX", "to": "C-YY", "type": "description", "valenceDelta": 0.1}],
   "worldKnowledgeMutations": {"addedNodes": [], "addedEdges": []},
-  "summary": "3-5 RICH sentences — named character + physical action + concrete consequence. No emotions/realizations as endings."
+  "summary": "Rich prose sentences using character NAMES and location NAMES (never raw IDs). Include specifics and context that shapes prose. No emotions/realizations as endings."
 }`;
 
   const reasoningBudget = REASONING_BUDGETS[narrative.storySettings?.reasoningLevel ?? 'low'] || undefined;

@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { useStore } from '@/lib/store';
 import { BUILT_IN_PROFILES, profileToQueue } from '@/lib/planning-profiles';
-import { generatePhaseDirection, generateCustomPlan, generatePlanDocument } from '@/lib/planning-engine';
+import { generatePhaseDirection, generateCustomPlan, generatePlanDocument, generateOutline } from '@/lib/planning-engine';
 import { expandWorld } from '@/lib/ai';
 import { nextId } from '@/lib/narrative-utils';
 import { DEFAULT_STORY_SETTINGS } from '@/types/narrative';
@@ -16,7 +16,7 @@ type Props = {
   onStartAuto?: () => void;
 };
 
-type CreateMode = 'templates' | 'ai' | 'custom';
+type CreateMode = 'templates' | 'ai-outline' | 'custom-outline' | 'ai-plan' | 'custom-plan';
 
 export function PlanningQueueEditor({ onClose, onStartAuto }: Props) {
   const { state, dispatch } = useStore();
@@ -28,6 +28,7 @@ export function PlanningQueueEditor({ onClose, onStartAuto }: Props) {
   const [selectedProfileId, setSelectedProfileId] = useState<string | null>(existingQueue?.profileId ?? null);
   const [planDocument, setPlanDocument] = useState('');
   const [generating, setGenerating] = useState(false);
+  const [generatingReasoning, setGeneratingReasoning] = useState('');
   const [regenerating, setRegenerating] = useState<'world' | 'direction' | null>(null);
   const [createMode, setCreateMode] = useState<CreateMode>('templates');
 
@@ -37,12 +38,16 @@ export function PlanningQueueEditor({ onClose, onStartAuto }: Props) {
     const narrative = state.activeNarrative;
     if (!narrative || !doc.trim()) return;
     setGenerating(true);
+    setGeneratingReasoning('');
     try {
       const result = await generateCustomPlan(
         narrative, state.resolvedEntryKeys, state.currentSceneIndex, doc,
+        (token) => setGeneratingReasoning((prev) => prev + token),
       );
+      const hasSourceText = result.phases.some((p) => p.sourceText);
       const newQueue: PlanningQueue = {
         profileId: null,
+        mode: hasSourceText ? 'plan' : 'outline',
         phases: result.phases.map((p, i) => ({
           id: `phase-${i}`,
           name: p.name,
@@ -62,6 +67,41 @@ export function PlanningQueueEditor({ onClose, onStartAuto }: Props) {
       setSelectedProfileId('custom');
     } catch (err) {
       console.error('[planning-queue] plan generation failed:', err);
+    } finally {
+      setGenerating(false);
+    }
+  }
+
+  async function generateFromOutlineAI() {
+    const narrative = state.activeNarrative;
+    if (!narrative) return;
+    setGenerating(true);
+    setGeneratingReasoning('');
+    try {
+      const result = await generateOutline(
+        narrative, state.resolvedEntryKeys, state.currentSceneIndex,
+        (token) => setGeneratingReasoning((prev) => prev + token),
+      );
+      const newQueue: PlanningQueue = {
+        profileId: null,
+        mode: 'outline',
+        phases: result.phases.map((p, i) => ({
+          id: `phase-${i}`,
+          name: p.name,
+          objective: p.objective,
+          sceneAllocation: p.sceneAllocation,
+          scenesCompleted: 0,
+          status: i === 0 ? 'active' : 'pending',
+          constraints: p.constraints,
+          direction: '',
+          worldExpansionHints: p.worldExpansionHints,
+        })),
+        activePhaseIndex: 0,
+      };
+      setQueue(newQueue);
+      setSelectedProfileId('ai-outline');
+    } catch (err) {
+      console.error('[planning-queue] outline generation failed:', err);
     } finally {
       setGenerating(false);
     }
@@ -294,7 +334,9 @@ export function PlanningQueueEditor({ onClose, onStartAuto }: Props) {
         <div>
           <h2 className="text-sm font-semibold text-text-primary">Planning Queue</h2>
           <p className="text-[10px] text-text-dim mt-0.5">
-            {queue ? `${queue.phases.length} phases · ${totalScenes} scenes` : 'Choose how to structure your story'}
+            {queue
+              ? `${queue.mode === 'plan' ? 'Plan' : 'Outline'} · ${queue.phases.length} phases · ${totalScenes} scenes`
+              : 'Choose how to structure your story'}
           </p>
         </div>
       </ModalHeader>
@@ -303,25 +345,57 @@ export function PlanningQueueEditor({ onClose, onStartAuto }: Props) {
           {/* ── Create view ──────────────────────────────────────────── */}
           {!queue && (
             <div className="p-6">
-              {/* Mode tabs */}
-              <div className="flex items-center gap-0 rounded-lg bg-white/4 p-0.5 mb-5">
-                {([
-                  { mode: 'templates' as const, label: 'Templates' },
-                  { mode: 'ai' as const, label: 'Auto' },
-                  { mode: 'custom' as const, label: 'Plan Document' },
-                ]).map(({ mode, label }) => (
-                  <button
-                    key={mode}
-                    onClick={() => setCreateMode(mode)}
-                    className={`flex-1 py-2 text-[11px] font-medium rounded-md transition-colors ${
-                      createMode === mode
-                        ? 'bg-white/10 text-text-primary'
-                        : 'text-text-dim hover:text-text-secondary'
-                    }`}
-                  >
-                    {label}
-                  </button>
-                ))}
+              {/* Paradigm selector */}
+              <div className="grid grid-cols-2 gap-3 mb-5">
+                {/* Outlines */}
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="text-[10px] uppercase tracking-widest text-text-dim font-mono">Outlines</span>
+                    <span className="text-[9px] text-text-dim leading-snug">Dynamic guidelines with creative freedom</span>
+                  </div>
+                  {([
+                    { mode: 'templates' as const, label: 'Templates', desc: 'Story structure archetypes' },
+                    { mode: 'ai-outline' as const, label: 'AI Outline', desc: 'Generated from story state' },
+                    { mode: 'custom-outline' as const, label: 'Custom Outline', desc: 'Write your own outline' },
+                  ]).map(({ mode, label, desc }) => (
+                    <button
+                      key={mode}
+                      onClick={() => setCreateMode(mode)}
+                      className={`w-full text-left rounded-lg border px-3 py-2 transition ${
+                        createMode === mode
+                          ? 'border-white/20 bg-white/8'
+                          : 'border-white/6 bg-white/2 hover:border-white/12 hover:bg-white/4'
+                      }`}
+                    >
+                      <span className="text-[11px] font-medium text-text-primary block">{label}</span>
+                      <span className="text-[9px] text-text-dim">{desc}</span>
+                    </button>
+                  ))}
+                </div>
+                {/* Plans */}
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="text-[10px] uppercase tracking-widest text-text-dim font-mono">Plans</span>
+                    <span className="text-[9px] text-text-dim leading-snug">Explicit instructions trickled into scenes</span>
+                  </div>
+                  {([
+                    { mode: 'ai-plan' as const, label: 'AI Plan', desc: 'Full treatment from story state' },
+                    { mode: 'custom-plan' as const, label: 'Custom Plan', desc: 'Paste a story bible or treatment' },
+                  ]).map(({ mode, label, desc }) => (
+                    <button
+                      key={mode}
+                      onClick={() => setCreateMode(mode)}
+                      className={`w-full text-left rounded-lg border px-3 py-2 transition ${
+                        createMode === mode
+                          ? 'border-white/20 bg-white/8'
+                          : 'border-white/6 bg-white/2 hover:border-white/12 hover:bg-white/4'
+                      }`}
+                    >
+                      <span className="text-[11px] font-medium text-text-primary block">{label}</span>
+                      <span className="text-[9px] text-text-dim">{desc}</span>
+                    </button>
+                  ))}
+                </div>
               </div>
 
               {/* Templates */}
@@ -357,11 +431,59 @@ export function PlanningQueueEditor({ onClose, onStartAuto }: Props) {
                 </div>
               )}
 
-              {/* Auto */}
-              {createMode === 'ai' && (
+              {/* AI Outline */}
+              {createMode === 'ai-outline' && (
                 <div className="flex flex-col gap-3">
                   <p className="text-[11px] text-text-dim leading-relaxed">
-                    Generate a plan from the current story state — characters, threads, tensions, and pacing. The AI writes a detailed plan document, then parses it into phases with source text.
+                    Analyse the current story state and generate a dynamic outline — phase objectives, scene allocations, and constraints. The system has creative freedom within each phase.
+                  </p>
+                  <button
+                    onClick={generateFromOutlineAI}
+                    disabled={generating}
+                    className="self-start px-5 py-2 text-xs font-semibold rounded-lg bg-white/10 hover:bg-white/16 text-text-primary transition disabled:opacity-30"
+                  >
+                    {generating ? 'Generating outline...' : 'Generate Outline'}
+                  </button>
+                  {generating && generatingReasoning && (
+                    <div className="bg-bg-elevated border border-border rounded-lg px-3 py-2 text-[10px] text-text-dim font-mono max-h-32 overflow-y-auto whitespace-pre-wrap">
+                      {generatingReasoning}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Custom Outline */}
+              {createMode === 'custom-outline' && (
+                <div className="flex flex-col gap-3">
+                  <p className="text-[11px] text-text-dim leading-relaxed">
+                    Paste a rough outline — phase names, objectives, and scene counts. The system will use these as dynamic guidelines with creative freedom within each phase.
+                  </p>
+                  <textarea
+                    value={planDocument}
+                    onChange={(e) => setPlanDocument(e.target.value)}
+                    placeholder={"## Phase 1: The Setup (6 scenes)\nIntroduce the protagonist and establish the world...\n\n## Phase 2: Rising Tension (8 scenes)\nEscalate the central conflict..."}
+                    className="bg-bg-elevated border border-border rounded-lg px-3 py-2.5 text-[11px] text-text-primary font-mono w-full h-48 resize-y outline-none placeholder:text-text-dim/50 focus:border-white/16 transition"
+                  />
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] text-text-dim">
+                      {planDocument.trim() ? `${planDocument.split(/\n/).length} lines` : 'Lightweight structure — objectives and scene counts'}
+                    </span>
+                    <button
+                      onClick={() => generateFromDocument(planDocument)}
+                      disabled={!planDocument.trim() || generating}
+                      className="px-5 py-2 text-xs font-semibold rounded-lg bg-white/10 hover:bg-white/16 text-text-primary transition disabled:opacity-30"
+                    >
+                      {generating ? 'Parsing...' : 'Generate Queue'}
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* AI Plan */}
+              {createMode === 'ai-plan' && (
+                <div className="flex flex-col gap-3">
+                  <p className="text-[11px] text-text-dim leading-relaxed">
+                    Generate a detailed narrative treatment from the current story state. The AI writes a full plan document with prose samples, character beats, and structural guidance, then parses it into phases with source text that trickles down into every scene.
                   </p>
                   {!planDocument ? (
                     <button
@@ -369,8 +491,12 @@ export function PlanningQueueEditor({ onClose, onStartAuto }: Props) {
                         const narrative = state.activeNarrative;
                         if (!narrative) return;
                         setGenerating(true);
+                        setGeneratingReasoning('');
                         try {
-                          const doc = await generatePlanDocument(narrative, state.resolvedEntryKeys, state.currentSceneIndex);
+                          const doc = await generatePlanDocument(
+                            narrative, state.resolvedEntryKeys, state.currentSceneIndex,
+                            (token) => setGeneratingReasoning((prev) => prev + token),
+                          );
                           setPlanDocument(doc);
                         } catch (err) {
                           console.error('[planning-queue] plan document generation failed:', err);
@@ -412,24 +538,29 @@ export function PlanningQueueEditor({ onClose, onStartAuto }: Props) {
                       </div>
                     </>
                   )}
+                  {generating && generatingReasoning && (
+                    <div className="bg-bg-elevated border border-border rounded-lg px-3 py-2 text-[10px] text-text-dim font-mono max-h-32 overflow-y-auto whitespace-pre-wrap">
+                      {generatingReasoning}
+                    </div>
+                  )}
                 </div>
               )}
 
-              {/* Plan Document */}
-              {createMode === 'custom' && (
+              {/* Custom Plan */}
+              {createMode === 'custom-plan' && (
                 <div className="flex flex-col gap-3">
                   <p className="text-[11px] text-text-dim leading-relaxed">
-                    Paste a structured plan document — arc treatments, story bibles, chapter outlines. The AI will map each section to a phase and derive scene allocations from chapter counts.
+                    Paste a detailed plan document — arc treatments, story bibles, chapter outlines with prose samples and structural guidance. Each section becomes a phase with source text that trickles down into direction, summaries, and prose.
                   </p>
                   <textarea
                     value={planDocument}
                     onChange={(e) => setPlanDocument(e.target.value)}
-                    placeholder={"# Arc One: The Mountain and the Flower\n\n## Part One: The Weight of Five Hundred Years\n### Chapters 1-3 — The Stage, Set Small\n...\n\n## Part Two: The Flower in Another Garden\n### Chapters 4-5 — What Feng Jin Huang Inherited\n..."}
+                    placeholder={"# Arc One: The Mountain and the Flower\n\n## Part One: The Weight of Five Hundred Years\n### Chapters 1-3 — The Stage, Set Small\n\nOpen *in medias res* — not the rebirth, but the instant before it...\n\n## Part Two: The Flower in Another Garden\n### Chapters 4-5 — What Feng Jin Huang Inherited\n..."}
                     className="bg-bg-elevated border border-border rounded-lg px-3 py-2.5 text-[11px] text-text-primary font-mono w-full h-64 resize-y outline-none placeholder:text-text-dim/50 focus:border-white/16 transition"
                   />
                   <div className="flex items-center justify-between">
                     <span className="text-[10px] text-text-dim">
-                      {planDocument.trim() ? `${planDocument.split(/\n/).length} lines · ${Math.round(planDocument.length / 4)} tokens est.` : 'Supports full arc treatments and story bibles'}
+                      {planDocument.trim() ? `${planDocument.split(/\n/).length} lines · ${Math.round(planDocument.length / 4)} tokens est.` : 'Full arc treatments with prose samples and structural notes'}
                     </span>
                     <button
                       onClick={() => generateFromDocument(planDocument)}

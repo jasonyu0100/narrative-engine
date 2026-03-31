@@ -1117,7 +1117,7 @@ export function MCTSPanel({ isOpen, onClose, mcts }: { isOpen: boolean; onClose:
     const storyCon = state.activeNarrative?.storySettings?.storyConstraints?.trim();
     return {
       ...DEFAULT_MCTS_CONFIG,
-      ...(storyDir ? { northStarPrompt: storyDir } : {}),
+      ...(storyDir ? { direction: storyDir } : {}),
       ...(storyCon ? { constraintsPrompt: storyCon } : {}),
     };
   });
@@ -1399,9 +1399,9 @@ export function MCTSPanel({ isOpen, onClose, mcts }: { isOpen: boolean; onClose:
             {configTab === 'direction' && (
               <>
                 <GuidanceFields
-                  direction={config.northStarPrompt ?? ''}
+                  direction={config.direction ?? ''}
                   constraints={config.constraintsPrompt ?? ''}
-                  onDirectionChange={(v) => setConfig((c) => ({ ...c, northStarPrompt: v || undefined }))}
+                  onDirectionChange={(v) => setConfig((c) => ({ ...c, direction: v || undefined }))}
                   onConstraintsChange={(v) => setConfig((c) => ({ ...c, constraintsPrompt: v || undefined }))}
                 />
 

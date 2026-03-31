@@ -773,8 +773,8 @@ export function buildActionDirective(
 
   const toneClause = config.toneGuidance ? `\nTone: ${config.toneGuidance}` : '';
   const constraintClause = config.narrativeConstraints ? `\nConstraints: ${config.narrativeConstraints}` : '';
-  const directionClause = config.northStarPrompt
-    ? `\nSTORY DIRECTION (steer the narrative toward this): ${config.northStarPrompt}`
+  const directionClause = config.direction
+    ? `\nSTORY DIRECTION (steer the narrative toward this): ${config.direction}`
     : '';
 
   // Direction and constraints are the primary guidance — no objective clause needed

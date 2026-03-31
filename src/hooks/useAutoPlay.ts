@@ -29,6 +29,22 @@ export function useAutoPlay() {
     if (pq) {
       const ap = pq.phases[pq.activePhaseIndex];
       if (ap?.status === 'active' && ap.scenesCompleted >= ap.sceneAllocation) {
+        // Check if this is the last phase — if so, stop immediately
+        const isLastPhase = pq.activePhaseIndex >= pq.phases.length - 1
+          || pq.phases.slice(pq.activePhaseIndex + 1).every((p) => p.status === 'completed');
+        if (isLastPhase) {
+          dispatch({
+            type: 'LOG_AUTO_CYCLE',
+            entry: {
+              cycle: autoRunState.currentCycle + 1, timestamp: Date.now(), action: 'LHL',
+              reason: 'Planning queue completed — all phases done',
+              scenesGenerated: 0, worldExpanded: false,
+              endConditionMet: { type: 'planning_complete' },
+            },
+          });
+          dispatch({ type: 'STOP_AUTO_RUN' });
+          return;
+        }
         // Phase just completed — skip this tick, let usePlanningQueue handle transition
         return;
       }
@@ -167,11 +183,11 @@ export function useAutoPlay() {
       const freshConfig = { ...autoConfig };
       const freshDir = activeNarrative.storySettings?.storyDirection?.trim();
       const freshCon = activeNarrative.storySettings?.storyConstraints?.trim();
-      if (freshDir) freshConfig.northStarPrompt = freshDir;
+      if (freshDir) freshConfig.direction = freshDir;
       if (freshCon) freshConfig.narrativeConstraints = freshCon;
 
       // Capture direction/constraints for logging
-      cycleDirection = freshConfig.northStarPrompt;
+      cycleDirection = freshConfig.direction;
       cycleConstraints = freshConfig.narrativeConstraints;
 
       // Generate arc directive
@@ -180,10 +196,12 @@ export function useAutoPlay() {
       // Use it directly as the directive — cube-based framing would dilute or override it.
       // Re-read queue from latest state — pq may be stale after first-phase init dispatch
       const freshPq = stateRef.current.activeNarrative?.branches[activeBranchId]?.planningQueue ?? pq;
-      const activePhaseHasSource = freshPq?.phases[freshPq.activePhaseIndex]?.sourceText;
+      // Plan mode: direction is the primary directive, bypass cube framing
+      // Outline mode: direction is secondary, cube framing drives narrative
+      const isPlanMode = freshPq?.mode === 'plan';
       let directive: string;
-      if (activePhaseHasSource && freshConfig.northStarPrompt) {
-        directive = freshConfig.northStarPrompt;
+      if (isPlanMode && freshConfig.direction) {
+        directive = freshConfig.direction;
         if (freshConfig.narrativeConstraints) {
           directive += `\n\nCONSTRAINTS: ${freshConfig.narrativeConstraints}`;
         }

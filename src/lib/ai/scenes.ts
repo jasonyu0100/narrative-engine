@@ -954,7 +954,7 @@ ${planContext}
 ${priorSummaries ? `SCENES ALREADY WRITTEN IN THIS ARC (do NOT repeat any action, discovery, or confrontation from these):\n${priorSummaries}\n` : ''}
 ${stepPrompt}
 
-Generate exactly ONE scene. Every sentence in the summary must have: named character + physical action verb + concrete consequence. No sentences ending in emotions or realizations.
+Generate exactly ONE scene. The summary must use character NAMES and location NAMES (never raw IDs). Include specifics and any context that shapes how the prose should be written (time span, technique, tone). No sentences ending in emotions or realizations.
 
 Return JSON:
 {
@@ -970,7 +970,7 @@ Return JSON:
   "relationshipMutations": [{"from": "C-XX", "to": "C-YY", "type": "desc", "valenceDelta": 0.1}],
   "worldKnowledgeMutations": {"addedNodes": [], "addedEdges": []},
   "ownershipMutations": [],
-  "summary": "REQUIRED: 3-5 RICH sentences with specific details — names, objects, locations, dialogue snippets, physical consequences. Each: named character + physical action + concrete consequence. NO thin generic summaries."
+  "summary": "Rich prose sentences using character NAMES and location NAMES — never raw IDs. Include specifics and any context that shapes prose (time span, technique, tone). NO thin generic summaries."
 }
 
 ${PROMPT_SUMMARY_REQUIREMENT}

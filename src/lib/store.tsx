@@ -284,7 +284,7 @@ const initialState: AppState = {
     maxArcLength: 5,
     maxActiveThreads: 6,
     threadStagnationThreshold: 5,
-    northStarPrompt: '',
+    direction: '',
     toneGuidance: '',
     narrativeConstraints: '',
     characterRotationEnabled: true,

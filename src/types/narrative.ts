@@ -798,10 +798,17 @@ export type PlanningProfile = {
   }[];
 };
 
+/** Queue paradigm — determines how direction flows into scene generation */
+export type QueueMode = 'outline' | 'plan';
+
 /** Branch-scoped planning queue */
 export type PlanningQueue = {
   /** The profile that populated this queue (null if manually built) */
   profileId: string | null;
+  /** Queue paradigm: 'outline' = dynamic guidelines (cube framing + direction as secondary),
+   *  'plan' = explicit quotable instructions (direction bypasses cube, source text trickles down).
+   *  Defaults to 'outline' for backward compatibility. */
+  mode?: QueueMode;
   /** Ordered list of phases */
   phases: PlanningPhase[];
   /** Index of the currently active phase (-1 if none active yet) */
@@ -835,7 +842,7 @@ export type AutoConfig = {
   maxActiveThreads: number;
   threadStagnationThreshold: number;
   /** High-level north star that steers every arc */
-  northStarPrompt: string;
+  direction: string;
   toneGuidance: string;
   /** Constraints prompt — defaults from StorySettings.storyConstraints, overridable here */
   narrativeConstraints: string;

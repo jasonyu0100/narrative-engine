@@ -140,7 +140,7 @@ export type MCTSConfig = {
   directionMode: DirectionMode; // Whether to use cube corners or delivery arc directions
   branchingFactor: number;    // Max children per node (derived from mode: direction count for freedom/constrained, Infinity for baseline)
   worldBuildFocusId?: string; // Optional world build commit to seed all generations with
-  northStarPrompt?: string;   // Optional high-level guidance that steers every generation in the search
+  direction?: string;   // Optional high-level guidance that steers every generation in the search
   /** Constraints prompt — defaults from StorySettings.storyConstraints, overridable here */
   constraintsPrompt?: string;
 };
