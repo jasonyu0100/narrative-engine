@@ -4,7 +4,7 @@ import { nextId } from '@/lib/narrative-utils';
 import { callGenerate, SYSTEM_PROMPT } from './api';
 import { parseJson } from './json';
 import { GENERATE_MODEL, PROSE_CONCURRENCY, MAX_TOKENS_SMALL } from '@/lib/constants';
-import { branchContext } from './context';
+import { narrativeContext } from './context';
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -298,41 +298,26 @@ export async function reconstructBranch(
   progress.phase = 'restructuring';
   callbacks.onProgress({ ...progress });
 
-  // Build arc mappings — only remap arcs that contain modified scenes
-  const allExistingArcIds = new Set(Object.keys(narrative.arcs));
-  const usedNewArcIds = new Set<string>();
-  const arcSceneMap = new Map<string, string[]>(); // old arc ID → scene IDs in new branch
-  const arcHasModified = new Set<string>(); // arcs that need new IDs
+  // Build arc → scene mappings, always reusing original arc IDs
+  const arcSceneMap = new Map<string, string[]>(); // arc ID → scene IDs in new branch
   for (const s of sceneEntries) {
     const list = arcSceneMap.get(s.scene.arcId) ?? [];
     list.push(s.newId);
     arcSceneMap.set(s.scene.arcId, list);
-    if (s.verdict !== 'ok' && s.verdict !== 'move') {
-      arcHasModified.add(s.scene.arcId);
-    }
-  }
-  // Only mint new arc IDs for arcs containing edited/inserted/merged scenes
-  const arcIdRemap = new Map<string, string>();
-  for (const arcId of arcHasModified) {
-    const newArcId = nextId('ARC', [...allExistingArcIds, ...usedNewArcIds]);
-    usedNewArcIds.add(newArcId);
-    arcIdRemap.set(arcId, newArcId);
   }
 
-  // Build scenes — only remap arcId for scenes in modified arcs
+  // Scenes keep their original arcId — only their own ID changes when edited
   const newScenes: Scene[] = sceneEntries.map((s) => ({
     ...s.scene,
     id: s.newId,
-    arcId: arcIdRemap.get(s.scene.arcId) ?? s.scene.arcId,
   }));
 
-  // Build arcs — reuse original for unchanged, new ID for modified
+  // Arcs reuse their original IDs with updated sceneIds
   const newArcs: Record<string, Arc> = {};
-  for (const [oldArcId, sceneIds] of arcSceneMap) {
-    const original = narrative.arcs[oldArcId];
-    const newArcId = arcIdRemap.get(oldArcId) ?? oldArcId;
+  for (const [arcId, sceneIds] of arcSceneMap) {
+    const original = narrative.arcs[arcId];
     if (original && sceneIds.length > 0) {
-      newArcs[newArcId] = { ...original, id: newArcId, sceneIds };
+      newArcs[arcId] = { ...original, sceneIds };
     }
   }
 
@@ -449,7 +434,7 @@ async function editScene(
 ): Promise<Scene> {
   const sceneIdx = resolvedKeys.indexOf(scene.id);
   const contextIndex = sceneIdx >= 0 ? sceneIdx : resolvedKeys.length - 1;
-  const ctx = branchContext(narrative, resolvedKeys, contextIndex);
+  const ctx = narrativeContext(narrative, resolvedKeys, contextIndex);
 
   const prevScene = timelineIndex > 0 ? timeline[timelineIndex - 1].scene : null;
   const nextScene = timelineIndex < timeline.length - 1 ? timeline[timelineIndex + 1].scene : null;
@@ -521,7 +506,7 @@ Return JSON:
     summary: parsed.summary ?? scene.summary,
     prose: undefined,
     plan: undefined,
-    proseScore: undefined,
+    audioUrl: undefined,
   };
 }
 
@@ -544,7 +529,7 @@ async function mergeScenes(
 ): Promise<Scene> {
   const sceneIdx = resolvedKeys.indexOf(targetScene.id);
   const contextIndex = sceneIdx >= 0 ? sceneIdx : resolvedKeys.length - 1;
-  const ctx = branchContext(narrative, resolvedKeys, contextIndex);
+  const ctx = narrativeContext(narrative, resolvedKeys, contextIndex);
 
   const prevScene = timelineIndex > 0 ? timeline[timelineIndex - 1].scene : null;
   const nextScene = timelineIndex < timeline.length - 1 ? timeline[timelineIndex + 1].scene : null;
@@ -622,7 +607,7 @@ Return JSON:
     summary: parsed.summary ?? targetScene.summary,
     prose: undefined,
     plan: undefined,
-    proseScore: undefined,
+    audioUrl: undefined,
   };
 }
 
@@ -640,7 +625,7 @@ async function insertScene(
   timelineIndex: number,
 ): Promise<Scene> {
   const contextIndex = Math.min(timelineIndex, resolvedKeys.length - 1);
-  const ctx = branchContext(narrative, resolvedKeys, contextIndex);
+  const ctx = narrativeContext(narrative, resolvedKeys, contextIndex);
 
   const prompt = `${ctx}
 

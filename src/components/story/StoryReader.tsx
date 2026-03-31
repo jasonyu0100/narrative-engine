@@ -15,11 +15,6 @@ import { apiHeaders } from '@/lib/api-headers';
 type ContentCache = Record<string, { text: string; status: 'loading' | 'ready' | 'error'; error?: string }>;
 type BulkState = { running: boolean; completed: number; total: number; errors: number } | null;
 
-function scoreColor(score: number): string {
-  if (score >= 7.5) return 'text-emerald-400';
-  if (score >= 5) return 'text-amber-400';
-  return 'text-red-400';
-}
 
 
 export function StoryReader({
@@ -143,7 +138,7 @@ export function StoryReader({
       });
       setProseCache((prev) => ({ ...prev, [s.id]: { text: prose, status: 'ready' } }));
       if (changelog) setRewriteChangelogs((prev) => ({ ...prev, [s.id]: changelog }));
-      dispatch({ type: 'UPDATE_SCENE', sceneId: s.id, updates: { prose, proseScore: undefined } });
+      dispatch({ type: 'UPDATE_SCENE', sceneId: s.id, updates: { prose } });
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
       setProseCache((prev) => ({ ...prev, [s.id]: { text: currentProse, status: 'error', error: message } }));
@@ -529,9 +524,9 @@ export function StoryReader({
                       a.click();
                       URL.revokeObjectURL(url);
                     }}
-                    className="text-[10px] px-2.5 py-1 rounded-full border border-violet-500/20 text-violet-400/80 hover:text-violet-400 hover:border-violet-500/30 transition"
+                    className="text-[10px] px-2.5 py-1 rounded-full border border-white/10 text-text-dim hover:text-text-secondary hover:border-white/20 transition"
                   >
-                    Audiobook ({audioScenes.length})
+                    Audiobook
                   </button>
                 );
               })()}
@@ -564,7 +559,7 @@ export function StoryReader({
                       onClick={() => {
                         if (clearAllConfirm === narrative.title) {
                           for (const s of scenes) {
-                            dispatch({ type: 'UPDATE_SCENE', sceneId: s.id, updates: { plan: undefined, prose: undefined, proseScore: undefined, locked: false } });
+                            dispatch({ type: 'UPDATE_SCENE', sceneId: s.id, updates: { plan: undefined, prose: undefined, locked: false } });
                           }
                           setPlanCache({});
                           setProseCache({});
@@ -611,7 +606,6 @@ export function StoryReader({
             const hasProseDot = proseCache[s.id]?.status === 'ready' || !!s.prose;
             const isAudioGen = audioCache[s.id]?.status === 'loading';
             const isGen = proseCache[s.id]?.status === 'loading' || planCache[s.id]?.status === 'loading' || isAudioGen;
-            const score = s.proseScore;
             return (
               <button
                 key={s.id}
@@ -631,7 +625,6 @@ export function StoryReader({
                   {!isGen && hasPlanDot && <span className="w-1.5 h-1.5 rounded-full bg-sky-400/60 shrink-0" />}
                   {!isGen && hasProseDot && <span className="w-1.5 h-1.5 rounded-full bg-emerald-400/60 shrink-0" />}
                   {!isGen && audioCache[s.id]?.status === 'ready' && <span className="w-1.5 h-1.5 rounded-full bg-violet-400/60 shrink-0" />}
-                  {score && typeof score.overall === 'number' && <span className={`text-[9px] font-mono ${scoreColor(score.overall)}`}>{score.overall}</span>}
                   {s.locked && (
                     <span className="text-[8px] text-text-dim/40" title="Locked — skipped by bulk operations">&#128274;</span>
                   )}
@@ -726,13 +719,13 @@ export function StoryReader({
                         Rewrite
                       </button>
                       <button
-                        onClick={() => { dispatch({ type: 'UPDATE_SCENE', sceneId: scene.id, updates: { prose: undefined, proseScore: undefined } }); generateProse(scene); }}
+                        onClick={() => { dispatch({ type: 'UPDATE_SCENE', sceneId: scene.id, updates: { prose: undefined } }); generateProse(scene); }}
                         className="text-[9px] px-2 py-1 rounded text-text-dim hover:text-text-secondary hover:bg-white/5 transition"
                       >
                         Regenerate
                       </button>
                       <button
-                        onClick={() => { setProseCache((prev) => { const next = { ...prev }; delete next[scene.id]; return next; }); dispatch({ type: 'UPDATE_SCENE', sceneId: scene.id, updates: { prose: undefined, proseScore: undefined } }); }}
+                        onClick={() => { setProseCache((prev) => { const next = { ...prev }; delete next[scene.id]; return next; }); dispatch({ type: 'UPDATE_SCENE', sceneId: scene.id, updates: { prose: undefined } }); }}
                         className="text-[9px] px-2 py-1 rounded text-text-dim/50 hover:text-red-400/80 hover:bg-red-500/5 transition"
                       >
                         Clear

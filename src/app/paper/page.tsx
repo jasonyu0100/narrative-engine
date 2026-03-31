@@ -116,7 +116,7 @@ function ShapeCurve({
 // EVALUATION & REVISION (per arc, ~5 scenes, 25% edit rate):
 //   evaluateBranch        1× 2.5F  12K in + 2K out + 2K rsn         = $0.01
 //   editScene            ~1× 2.5F  30K in + 0.5K out + 1K rsn       = $0.01
-//   evaluateProseQuality  1× 2.5F  10K in + 0.5K out + 1K rsn       = $0.01
+//   evaluateProseQuality  1× 2.5F  10K in + 0.5K out + 1K rsn       = $0.01  (edit verdicts + critique)
 //   rewriteSceneProse    ~1× 3F    35K in + 4K out + 2K rsn          = $0.03
 //                                                    Total  ≈ $0.06/arc
 // (rewriteSceneProse in StoryReader is spot-fix only — not in this estimate)
@@ -153,7 +153,7 @@ const BREAKDOWN_CATEGORIES: BreakdownCategory[] = [
     rows: [
       { call: 'evaluateBranch',       count: '×1',  model: '2.5 Flash', note: 'Structure verdicts + thematic critique',  cost: '$0.01' },
       { call: 'editScene',            count: '×~1', model: '2.5 Flash', note: 'Scene structure edit (summary + mutations)', cost: '$0.01' },
-      { call: 'evaluateProseQuality', count: '×1',  model: '2.5 Flash', note: 'Prose quality scores + critique',         cost: '$0.01' },
+      { call: 'evaluateProseQuality', count: '×1',  model: '2.5 Flash', note: 'Prose quality edit verdicts + critique',  cost: '$0.01' },
       { call: 'rewriteSceneProse',    count: '×~1', model: '3 Flash',   note: '~1K words rewritten (25% rate)',          cost: '$0.03' },
     ],
     subtotal: { calls: '~4 calls', cost: '~$0.06' },

@@ -1,6 +1,6 @@
 import type {
   NarrativeState, Scene, ForceSnapshot, CubeCornerKey,
-  Character, Location, Thread, ProseScore,
+  Character, Location, Thread,
   BeatSampler,
 } from '@/types/narrative';
 import { NARRATIVE_CUBE, isScene, resolveEntry } from '@/types/narrative';
@@ -125,7 +125,6 @@ export type SlidesData = {
   scale: NarrativeScale;
   density: WorldDensity;
   arcGrades: ArcGrade[];
-  avgProseScore: ProseScore | null;
 
   /** Beat profile sampler computed from scene plans (null if no plans) */
   beatSampler: BeatSampler | null;
@@ -327,19 +326,6 @@ export function computeSlidesData(
     }
   }
 
-  // Average prose scores
-  const proseScores = scenes.map((s) => s.proseScore).filter((p): p is ProseScore => !!p && typeof p.overall === 'number');
-  const avgProseScore = proseScores.length > 0
-    ? {
-        overall: avg(proseScores.map((p) => p.overall)),
-        voice: avg(proseScores.map((p) => p.voice)),
-        pacing: avg(proseScores.map((p) => p.pacing)),
-        dialogue: avg(proseScores.map((p) => p.dialogue)),
-        sensory: avg(proseScores.map((p) => p.sensory)),
-        mutationCoverage: avg(proseScores.map((p) => p.mutationCoverage)),
-      }
-    : null;
-
   return {
     title: narrative.title,
     description: narrative.description,
@@ -375,7 +361,6 @@ export function computeSlidesData(
       Object.keys(narrative.worldKnowledge?.nodes ?? {}).length,
     ),
     arcGrades,
-    avgProseScore,
     beatSampler,
     beatSequence,
     characterNames: Object.fromEntries(Object.entries(narrative.characters).map(([id, c]) => [id, c.name])),

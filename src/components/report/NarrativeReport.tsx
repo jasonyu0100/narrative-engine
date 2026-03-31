@@ -941,23 +941,6 @@ export function NarrativeReport({
             </Section>
           )}
 
-          {/* ── 10 Prose Quality ── */}
-          {data.avgProseScore && (
-            <Section title="Prose Quality" number={++sec}>
-              <div className="grid grid-cols-3 gap-px rounded-lg overflow-hidden border border-white/[0.05] mt-5">
-                {(['overall', 'voice', 'pacing', 'dialogue', 'sensory', 'mutationCoverage'] as const).map((key) => {
-                  const val = data.avgProseScore![key];
-                  const label = key === 'mutationCoverage' ? 'Coverage' : key.charAt(0).toUpperCase() + key.slice(1);
-                  return (
-                    <div key={key} className="flex flex-col items-center py-4 bg-white/[0.01]">
-                      <span className="text-[18px] font-mono font-light" style={{ color: gradeColor(val * 10) + 'BB' }}>{val.toFixed(1)}</span>
-                      <span className="text-[9px] text-white/20 uppercase tracking-[0.12em] mt-1">{label}</span>
-                    </div>
-                  );
-                })}
-              </div>
-            </Section>
-          )}
 
           {/* ── Conclusion ── */}
           <Section title="Conclusion & Recommendations" number={++sec}>

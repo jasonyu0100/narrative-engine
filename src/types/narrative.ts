@@ -328,16 +328,6 @@ export type ExpansionManifest = {
   artifacts?: Artifact[];
 };
 
-export type ProseScore = {
-  overall: number;
-  voice: number;
-  pacing: number;
-  dialogue: number;
-  sensory: number;
-  mutationCoverage: number;
-  /** Per-dimension critique notes from the grading pass */
-  critique?: string;
-};
 
 export type CharacterMovement = {
   locationId: string;
@@ -366,8 +356,6 @@ export type Scene = {
   /** Structured beat plan — delivery-by-delivery scene blueprint detailing HOW mutations unfold */
   plan?: BeatPlan;
   prose?: string;
-  /** Prose quality score from the last rewrite pass */
-  proseScore?: ProseScore;
   summary: string;
   imageUrl?: string;
   audioUrl?: string;
