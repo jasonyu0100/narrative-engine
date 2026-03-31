@@ -210,9 +210,9 @@ export function GeneratePanel({ onClose }: { onClose: () => void }) {
   const showPreview = !!previewSequence && mode === 'continuation' && !loading;
 
   return (
-    <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center">
-      <div className="bg-bg-base border border-white/10 max-w-xl w-full rounded-2xl p-6 relative max-h-[90vh] overflow-y-auto">
-        <button onClick={onClose} className="absolute top-4 right-4 text-text-dim hover:text-text-primary text-lg leading-none">&times;</button>
+    <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center" onClick={loading ? undefined : onClose}>
+      <div className="bg-bg-base border border-white/10 max-w-xl w-full rounded-2xl p-6 relative max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+        {!loading && <button onClick={onClose} className="absolute top-4 right-4 text-text-dim hover:text-text-primary text-lg leading-none">&times;</button>}
 
         <h2 className="text-sm font-semibold text-text-primary mb-1">Generate</h2>
 

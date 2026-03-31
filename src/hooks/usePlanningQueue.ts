@@ -24,6 +24,7 @@ export function usePlanningQueue() {
 
   const [transitioning, setTransitioning] = useState(false);
   const [transitionStep, setTransitionStep] = useState<string | null>(null);
+  const [phaseJustCompleted, setPhaseJustCompleted] = useState<{ name: string; summary: string; nextPhaseName?: string } | null>(null);
   const transitioningRef = useRef(false);
   const lastProcessedRef = useRef<string | null>(null);
 
@@ -92,7 +93,16 @@ export function usePlanningQueue() {
       const nextPhaseIdx = phaseIdx + 1;
       const nextPhase = q.phases[nextPhaseIdx];
 
-      // 3. In auto mode, run world expansion + direction for the next phase
+      // 3. In manual mode, notify the user so they can set up the next phase
+      if (!isAutoRunning) {
+        setPhaseJustCompleted({
+          name: phase.name,
+          summary: phase.completionReport ?? `${phase.scenesCompleted} scenes completed.`,
+          nextPhaseName: nextPhase?.name,
+        });
+      }
+
+      // 4. In auto mode, run world expansion + direction for the next phase
       if (nextPhase && isAutoRunning) {
         const freshState1 = stateRef.current;
         const freshNarrative1 = freshState1.activeNarrative ?? narrative;
@@ -168,11 +178,15 @@ export function usePlanningQueue() {
     lastProcessedRef.current = null;
   }, [branchId, queue, dispatch]);
 
+  const dismissCompletion = useCallback(() => setPhaseJustCompleted(null), []);
+
   return {
     queue,
     activePhase,
     transitioning,
     transitionStep,
     extendPhase,
+    phaseJustCompleted,
+    dismissCompletion,
   };
 }

@@ -1247,7 +1247,7 @@ export function MCTSPanel({ isOpen, onClose, mcts }: { isOpen: boolean; onClose:
                       <label className="text-[10px] uppercase tracking-widest text-text-dim">Time budget</label>
                       <span className="text-xs font-mono text-text-primary">{config.timeLimitSeconds}s</span>
                     </div>
-                    <input type="range" min={15} max={300} step={15} value={config.timeLimitSeconds} onChange={(e) => setConfig((c) => ({ ...c, timeLimitSeconds: Number(e.target.value) }))} className="w-full accent-blue-500" />
+                    <input type="range" min={15} max={300} step={15} value={config.timeLimitSeconds} onChange={(e) => setConfig((c) => ({ ...c, timeLimitSeconds: Number(e.target.value) }))} className="w-full h-1 appearance-none bg-white/10 rounded-full accent-white/60 cursor-pointer [&::-webkit-slider-thumb]:w-3 [&::-webkit-slider-thumb]:h-3 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-white/80 [&::-webkit-slider-thumb]:appearance-none" />
                     <p className="text-[9px] text-text-dim mt-0.5">Search runs until this time elapses. More time = more nodes explored.</p>
                   </div>
                 )}
@@ -1259,7 +1259,7 @@ export function MCTSPanel({ isOpen, onClose, mcts }: { isOpen: boolean; onClose:
                       <label className="text-[10px] uppercase tracking-widest text-text-dim">Max {config.moveType === 'scene' ? 'Scenes' : 'Arcs'} (LLM calls)</label>
                       <span className="text-xs font-mono text-text-primary">{config.maxNodes}</span>
                     </div>
-                    <input type="range" min={5} max={200} step={5} value={config.maxNodes} onChange={(e) => setConfig((c) => ({ ...c, maxNodes: Number(e.target.value) }))} className="w-full accent-blue-500" />
+                    <input type="range" min={5} max={200} step={5} value={config.maxNodes} onChange={(e) => setConfig((c) => ({ ...c, maxNodes: Number(e.target.value) }))} className="w-full h-1 appearance-none bg-white/10 rounded-full accent-white/60 cursor-pointer [&::-webkit-slider-thumb]:w-3 [&::-webkit-slider-thumb]:h-3 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-white/80 [&::-webkit-slider-thumb]:appearance-none" />
                     <p className="text-[9px] text-text-dim mt-0.5">Total {config.moveType === 'scene' ? 'scenes' : 'arcs'} to generate across the whole tree. Each {config.moveType === 'scene' ? 'scene' : 'arc'} = one LLM call. With {config.parallelism} parallel workers, expect ~{Math.ceil(config.maxNodes / config.parallelism)} rounds of generation.</p>
                   </div>
                 )}
@@ -1354,7 +1354,7 @@ export function MCTSPanel({ isOpen, onClose, mcts }: { isOpen: boolean; onClose:
                         <span className="text-[10px] text-text-secondary">Target score per layer</span>
                         <span className="text-xs font-mono text-text-primary">{config.baselineScore}</span>
                       </div>
-                      <input type="range" min={50} max={90} step={5} value={config.baselineScore} onChange={(e) => setConfig((c) => ({ ...c, baselineScore: Number(e.target.value) }))} className="w-full accent-blue-500" />
+                      <input type="range" min={50} max={90} step={5} value={config.baselineScore} onChange={(e) => setConfig((c) => ({ ...c, baselineScore: Number(e.target.value) }))} className="w-full h-1 appearance-none bg-white/10 rounded-full accent-white/60 cursor-pointer [&::-webkit-slider-thumb]:w-3 [&::-webkit-slider-thumb]:h-3 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-white/80 [&::-webkit-slider-thumb]:appearance-none" />
                       <p className="text-[9px] text-text-dim mt-0.5">Search continues at each depth until an arc scores at least this value. Higher = pickier but slower.</p>
                     </div>
                   )}

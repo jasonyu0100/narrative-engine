@@ -241,10 +241,9 @@ export function PlanningQueueEditor({ onClose, onStartAuto }: Props) {
     onClose();
   }
 
-  function handleAutoMode() {
+  async function handleAutoMode() {
     setShowModeChoice(false);
-    // Auto mode skips the blocking world+direction init — the auto loop handles
-    // direction via refreshDirection and world expansion via phase transitions.
+    await initFirstPhase();
     onStartAuto?.();
     onClose();
   }
@@ -306,21 +305,24 @@ export function PlanningQueueEditor({ onClose, onStartAuto }: Props) {
         <ModalBody className="p-6">
           <div className="flex flex-col gap-2.5">
             <button
-              onClick={handleManualGenerate}
-              className="w-full text-left rounded-lg border border-white/8 bg-white/3 hover:bg-white/6 hover:border-white/15 p-4 transition-colors group"
+              onClick={handleAutoMode}
+              className="w-full text-left rounded-lg border border-white/15 bg-white/6 hover:bg-white/10 hover:border-white/20 p-4 transition-colors group"
             >
-              <p className="text-[12px] font-medium text-text-primary group-hover:text-white transition-colors">Manual Generate</p>
+              <div className="flex items-center gap-2">
+                <p className="text-[12px] font-medium text-text-primary group-hover:text-white transition-colors">Auto Mode</p>
+                <span className="text-[9px] uppercase tracking-wider text-emerald-400/80 font-medium">Recommended</span>
+              </div>
               <p className="text-[11px] text-text-dim mt-0.5 leading-relaxed">
-                Prepare the world and direction, then generate scenes yourself. You control the pace.
+                Generate world and direction, then auto-generate scenes through every phase until complete.
               </p>
             </button>
             <button
-              onClick={handleAutoMode}
+              onClick={handleManualGenerate}
               className="w-full text-left rounded-lg border border-white/8 bg-white/3 hover:bg-white/6 hover:border-white/15 p-4 transition-colors group"
             >
-              <p className="text-[12px] font-medium text-text-primary group-hover:text-white transition-colors">Auto Mode</p>
+              <p className="text-[12px] font-medium text-text-primary group-hover:text-white transition-colors">Manual</p>
               <p className="text-[11px] text-text-dim mt-0.5 leading-relaxed">
-                Prepare the world and direction, then auto-generate scenes through every phase until complete.
+                Generate world and direction, then generate scenes yourself. You control the pace.
               </p>
             </button>
           </div>

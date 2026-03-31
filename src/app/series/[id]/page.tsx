@@ -15,6 +15,7 @@ import NarrativePanel from '@/components/narrative/NarrativePanel';
 import { CreationWizard } from '@/components/wizard/CreationWizard';
 import { GeneratePanel } from '@/components/generation/GeneratePanel';
 import { BranchModal } from '@/components/generation/BranchModal';
+import { Modal, ModalHeader, ModalBody, ModalFooter } from '@/components/Modal';
 import { AutoSettingsPanel } from '@/components/auto/AutoSettingsPanel';
 import { AutoControlBar } from '@/components/auto/AutoControlBar';
 import { AutoLogModal } from '@/components/auto/AutoLogModal';
@@ -215,6 +216,43 @@ export default function SeriesPage() {
             autoPlay.start();
           }}
         />
+      )}
+      {planning.phaseJustCompleted && (
+        <Modal onClose={planning.dismissCompletion} size="sm">
+          <ModalHeader onClose={planning.dismissCompletion}>
+            <div>
+              <h2 className="text-sm font-semibold text-text-primary">Phase Complete</h2>
+              <p className="text-[10px] text-text-dim mt-0.5">{planning.phaseJustCompleted.name}</p>
+            </div>
+          </ModalHeader>
+          <ModalBody>
+            <p className="text-[11px] text-text-secondary leading-relaxed">{planning.phaseJustCompleted.summary}</p>
+            {planning.phaseJustCompleted.nextPhaseName && (
+              <div className="mt-4 rounded-lg border border-white/8 bg-white/3 p-3">
+                <p className="text-[10px] text-text-dim uppercase tracking-wider mb-1">Next Phase</p>
+                <p className="text-xs text-text-primary font-medium">{planning.phaseJustCompleted.nextPhaseName}</p>
+                <p className="text-[10px] text-text-dim mt-1">Generate world and direction for the next phase, or skip to generate scenes with existing settings.</p>
+              </div>
+            )}
+            {!planning.phaseJustCompleted.nextPhaseName && (
+              <div className="mt-4 rounded-lg border border-emerald-500/20 bg-emerald-500/5 p-3">
+                <p className="text-xs text-emerald-400 font-medium">All phases complete</p>
+              </div>
+            )}
+          </ModalBody>
+          <ModalFooter>
+            <button onClick={planning.dismissCompletion}
+              className="px-4 text-xs font-medium py-2 rounded-lg text-text-dim hover:text-text-secondary hover:bg-white/6 transition-colors">
+              Skip
+            </button>
+            {planning.phaseJustCompleted.nextPhaseName && (
+              <button onClick={() => { planning.dismissCompletion(); setPlanningQueueOpen(true); }}
+                className="px-4 text-xs font-semibold py-2 rounded-lg bg-white/12 text-text-primary hover:bg-white/16 transition-colors">
+                Set Up Next Phase
+              </button>
+            )}
+          </ModalFooter>
+        </Modal>
       )}
       <MCTSPanel isOpen={mctsOpen} onClose={() => setMctsOpen(false)} mcts={mcts} />
       {isMobile && (
