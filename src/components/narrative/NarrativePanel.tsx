@@ -14,6 +14,16 @@ export default function NarrativePanel() {
 
   if (!entry) return null;
 
+  // Compute positional label (Scene 3, World 2, etc.)
+  let sceneNum = 0;
+  let worldNum = 0;
+  let positionLabel = '';
+  for (let i = 0; i <= state.currentSceneIndex && i < state.resolvedEntryKeys.length; i++) {
+    const k = state.resolvedEntryKeys[i];
+    if (narrative.scenes[k]) { sceneNum++; if (i === state.currentSceneIndex) positionLabel = `Scene ${sceneNum}`; }
+    else if (narrative.worldBuilds[k]) { worldNum++; if (i === state.currentSceneIndex) positionLabel = `World ${worldNum}`; }
+  }
+
   // World build commit view
   if (entry.kind === 'world_build') {
     const m = entry.expansionManifest;
@@ -21,7 +31,7 @@ export default function NarrativePanel() {
       <div className="h-[180px] shrink-0 glass-panel border-t border-border overflow-y-auto px-4 py-3">
         <div className="flex items-center gap-2 mb-3">
           <span className="text-[10px] font-semibold uppercase tracking-wider text-amber-400 bg-amber-400/10 px-2 py-0.5 rounded">
-            World Expansion
+            {positionLabel || 'World Expansion'}
           </span>
           <span className="font-mono text-[10px] text-text-dim">{entry.id}</span>
         </div>
@@ -80,6 +90,9 @@ export default function NarrativePanel() {
     <div className="h-[180px] shrink-0 glass-panel border-t border-border overflow-y-auto px-4 py-3">
       <div className="flex items-baseline justify-between gap-2 mb-2">
         <div className="flex items-baseline gap-2 min-w-0">
+          <span className="text-[10px] font-semibold uppercase tracking-wider text-blue-400 bg-blue-400/10 px-2 py-0.5 rounded">
+            {positionLabel}
+          </span>
           <span className="font-mono text-[10px] text-text-dim">{scene.id}</span>
           {arc && (
             <span className="text-[10px] text-text-dim uppercase tracking-wider">

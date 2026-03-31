@@ -31,7 +31,19 @@ export default function SceneInfoBar() {
     return { total: arcOrder.length, currentArc, arcOrder };
   }, [narrative, state.resolvedEntryKeys, state.currentSceneIndex]);
 
-  const totalScenes = state.resolvedEntryKeys.length;
+  // Scene-only navigation (excludes world commits)
+  const sceneNav = useMemo(() => {
+    if (!narrative) return { sceneIndices: [] as number[], total: 0, currentSceneNum: 0 };
+    const sceneIndices: number[] = [];
+    for (let i = 0; i < state.resolvedEntryKeys.length; i++) {
+      if (narrative.scenes[state.resolvedEntryKeys[i]]) sceneIndices.push(i);
+    }
+    let currentSceneNum = 0;
+    for (let i = 0; i < sceneIndices.length; i++) {
+      if (sceneIndices[i] <= state.currentSceneIndex) currentSceneNum = i + 1;
+    }
+    return { sceneIndices, total: sceneIndices.length, currentSceneNum };
+  }, [narrative, state.resolvedEntryKeys, state.currentSceneIndex]);
 
   // Inline editing
   const [editField, setEditField] = useState<'scene' | 'arc' | null>(null);
@@ -47,7 +59,11 @@ export default function SceneInfoBar() {
     const n = parseInt(editValue, 10);
     if (!isNaN(n) && n >= 1) {
       if (editField === 'scene') {
-        dispatch({ type: 'SET_SCENE_INDEX', index: Math.min(n - 1, totalScenes - 1) });
+        // Navigate to the nth scene (skipping world commits)
+        const idx = Math.min(n - 1, sceneNav.sceneIndices.length - 1);
+        if (sceneNav.sceneIndices[idx] !== undefined) {
+          dispatch({ type: 'SET_SCENE_INDEX', index: sceneNav.sceneIndices[idx] });
+        }
       } else if (editField === 'arc') {
         const idx = Math.min(n - 1, arcNav.arcOrder.length - 1);
         if (arcNav.arcOrder[idx]) {
@@ -56,9 +72,9 @@ export default function SceneInfoBar() {
       }
     }
     setEditField(null);
-  }, [editValue, editField, totalScenes, arcNav, dispatch]);
+  }, [editValue, editField, sceneNav, arcNav, dispatch]);
 
-  if (!narrative || totalScenes === 0) return null;
+  if (!narrative || sceneNav.total === 0) return null;
 
   return (
     <div className="absolute top-2 left-1/2 -translate-x-1/2 z-30">
@@ -92,7 +108,7 @@ export default function SceneInfoBar() {
 
         <div className="w-px h-4 bg-white/8" />
 
-        {/* Scene position */}
+        {/* Scene position (scenes only, no world commits) */}
         <div className="flex items-center gap-1.5 shrink-0">
           <span className="text-[9px] uppercase tracking-widest text-text-dim">Scene</span>
           {editField === 'scene' ? (
@@ -100,7 +116,7 @@ export default function SceneInfoBar() {
               ref={inputRef}
               type="number"
               min={1}
-              max={totalScenes}
+              max={sceneNav.total}
               value={editValue}
               onChange={(e) => setEditValue(e.target.value)}
               onKeyDown={(e) => { if (e.key === 'Enter') commit(); if (e.key === 'Escape') setEditField(null); }}
@@ -110,13 +126,13 @@ export default function SceneInfoBar() {
           ) : (
             <button
               type="button"
-              onClick={() => { setEditField('scene'); setEditValue(String(state.currentSceneIndex + 1)); }}
+              onClick={() => { setEditField('scene'); setEditValue(String(sceneNav.currentSceneNum)); }}
               className="text-[11px] font-mono text-text-primary hover:text-white transition-colors bg-white/5 rounded px-1.5 py-0.5 hover:bg-white/10"
             >
-              {state.currentSceneIndex + 1}
+              {sceneNav.currentSceneNum}
             </button>
           )}
-          <span className="text-[9px] text-text-dim font-mono">/ {totalScenes}</span>
+          <span className="text-[9px] text-text-dim font-mono">/ {sceneNav.total}</span>
         </div>
       </div>
     </div>
