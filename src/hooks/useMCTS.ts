@@ -433,6 +433,7 @@ export function useMCTS() {
       // For each depth, collect all nodes (or root) at the current frontier and
       // generate exactly branchingFactor children for each, using parallel workers.
       // Branching factor = direction count. Stops when shouldStop() triggers.
+      // Uses sliding window to display nodes as they complete.
 
       for (let depth = 0; !shouldStop(); depth++) {
 
@@ -454,39 +455,62 @@ export function useMCTS() {
           const remaining = config.branchingFactor - existingChildCount;
           if (remaining <= 0) continue;
 
-          // Generate `remaining` children in parallel batches
+          // Generate `remaining` children using sliding window for immediate display
           const inFlightGoals = new Map<MCTSNodeId | 'root', (string | null)[]>();
           let generated = 0;
 
-          while (generated < remaining && !shouldStop()) {
-            const batchSize = Math.min(config.parallelism, remaining - generated);
-            const batch: Promise<ExpansionResult | null>[] = [];
+          type ConstrainedSlotEntry = {
+            seq: number;
+            goal: string | null;
+            promise: Promise<{ result: ExpansionResult | null; seq: number }>;
+          };
+          const activeSlots: ConstrainedSlotEntry[] = [];
+          let slotSeq = 0;
 
-            for (let i = 0; i < batchSize; i++) {
-              const prep = prepareSlot(parentTarget, inFlightGoals);
-              if (!prep) break;
+          const tryStartConstrainedSlot = (): boolean => {
+            if (cancelledRef.current || shouldStop() || generated + activeSlots.length >= remaining) return false;
 
-              const goal = prep.cubeGoal ?? prep.deliveryGoal;
-              inFlightGoals.set(parentTarget, [...(inFlightGoals.get(parentTarget) ?? []), goal]);
+            const prep = prepareSlot(parentTarget, inFlightGoals);
+            if (!prep) return false;
 
-              batch.push(runSingleExpansion(
-                prep.targetId, prep.parentNarrative, prep.parentKeys, prep.parentIndex,
-                prep.direction, prep.cubeGoal, prep.deliveryGoal, prep.ancestorChain, prep.allPriorScenes,
-                activeBranchId,
-                tree.rootNarrative, tree.rootResolvedKeys, tree.rootCurrentIndex, worldBuildFocus,
-                config.direction, config.constraintsPrompt, config.moveType, prep.existingArc,
-              ));
-            }
+            const goal = prep.cubeGoal ?? prep.deliveryGoal;
+            inFlightGoals.set(parentTarget, [...(inFlightGoals.get(parentTarget) ?? []), goal]);
 
-            if (batch.length === 0) break;
+            const seq = slotSeq++;
+            const promise = runSingleExpansion(
+              prep.targetId, prep.parentNarrative, prep.parentKeys, prep.parentIndex,
+              prep.direction, prep.cubeGoal, prep.deliveryGoal, prep.ancestorChain, prep.allPriorScenes,
+              activeBranchId,
+              tree.rootNarrative, tree.rootResolvedKeys, tree.rootCurrentIndex, worldBuildFocus,
+              config.direction, config.constraintsPrompt, config.moveType, prep.existingArc,
+            ).then((result) => ({ result, seq }));
 
-            const results = await Promise.all(batch);
-            inFlightGoals.delete(parentTarget);
+            activeSlots.push({ seq, goal, promise });
+            return true;
+          };
 
-            for (const result of results) {
-              if (cancelledRef.current) break;
-              if (!result) continue;
+          // Fill initial slots up to parallelism
+          for (let i = 0; i < Math.min(config.parallelism, remaining); i++) {
+            if (!tryStartConstrainedSlot()) break;
+          }
 
+          // Sliding window: process results and refill
+          while (activeSlots.length > 0 && !cancelledRef.current) {
+            const { result, seq } = await Promise.race(activeSlots.map((s) => s.promise));
+
+            const completedIdx = activeSlots.findIndex((s) => s.seq === seq);
+            if (completedIdx === -1) continue;
+            const completed = activeSlots.splice(completedIdx, 1)[0];
+
+            // Release in-flight goal
+            const targetGoals = inFlightGoals.get(parentTarget) ?? [];
+            const goalIdx = targetGoals.indexOf(completed.goal);
+            if (goalIdx >= 0) targetGoals.splice(goalIdx, 1);
+            if (targetGoals.length === 0) inFlightGoals.delete(parentTarget);
+
+            if (result && !cancelledRef.current) {
+              nodesGenerated++;
+              generated++;
               const nodeId = nextNodeId();
               tree = addChildNode(
                 tree, result.targetId === 'root' ? 'root' : result.targetId,
@@ -495,17 +519,20 @@ export function useMCTS() {
                 result.score, config.moveType,
               );
               tree = backpropagate(tree, nodeId);
-              nodesGenerated++;
-              generated++;
+
+              const best = bestPath(tree, config.pathStrategy);
+              setRunState((prev) => ({
+                ...prev,
+                tree,
+                iterationsCompleted: nodesGenerated,
+                bestPath: best,
+              }));
             }
 
-            const best = bestPath(tree, config.pathStrategy);
-            setRunState((prev) => ({
-              ...prev,
-              tree,
-              iterationsCompleted: nodesGenerated,
-              bestPath: best,
-            }));
+            // Start replacement if we still need more children
+            if (generated + activeSlots.length < remaining && !shouldStop() && !cancelledRef.current) {
+              tryStartConstrainedSlot();
+            }
           }
         }
       }
@@ -515,6 +542,7 @@ export function useMCTS() {
       // At each depth, generate branchingFactor children in parallel for the
       // current target parent, pick the highest-scoring child, descend to it,
       // and repeat. Produces a single deep path through the search space.
+      // Uses sliding window to display nodes as they complete.
 
       let parentTarget: MCTSNodeId | 'root' = 'root';
 
@@ -523,36 +551,58 @@ export function useMCTS() {
         const inFlightGoals = new Map<MCTSNodeId | 'root', (string | null)[]>();
         let generated = 0;
 
-        // Generate branchingFactor children in parallel batches
-        while (generated < childrenToGenerate && !shouldStop()) {
-          const batchSize = Math.min(config.parallelism, childrenToGenerate - generated);
-          const batch: Promise<ExpansionResult | null>[] = [];
+        type GreedySlotEntry = {
+          seq: number;
+          goal: string | null;
+          promise: Promise<{ result: ExpansionResult | null; seq: number }>;
+        };
+        const activeSlots: GreedySlotEntry[] = [];
+        let slotSeq = 0;
 
-          for (let i = 0; i < batchSize; i++) {
-            const prep = prepareSlot(parentTarget, inFlightGoals);
-            if (!prep) break;
+        const tryStartGreedySlot = (): boolean => {
+          if (cancelledRef.current || shouldStop() || generated + activeSlots.length >= childrenToGenerate) return false;
 
-            const goal = prep.cubeGoal ?? prep.deliveryGoal;
-            inFlightGoals.set(parentTarget, [...(inFlightGoals.get(parentTarget) ?? []), goal]);
+          const prep = prepareSlot(parentTarget, inFlightGoals);
+          if (!prep) return false;
 
-            batch.push(runSingleExpansion(
-              prep.targetId, prep.parentNarrative, prep.parentKeys, prep.parentIndex,
-              prep.direction, prep.cubeGoal, prep.deliveryGoal, prep.ancestorChain, prep.allPriorScenes,
-              activeBranchId,
-              tree.rootNarrative, tree.rootResolvedKeys, tree.rootCurrentIndex, worldBuildFocus,
-              config.direction, config.constraintsPrompt, config.moveType, prep.existingArc,
-            ));
-          }
+          const goal = prep.cubeGoal ?? prep.deliveryGoal;
+          inFlightGoals.set(parentTarget, [...(inFlightGoals.get(parentTarget) ?? []), goal]);
 
-          if (batch.length === 0) break;
+          const seq = slotSeq++;
+          const promise = runSingleExpansion(
+            prep.targetId, prep.parentNarrative, prep.parentKeys, prep.parentIndex,
+            prep.direction, prep.cubeGoal, prep.deliveryGoal, prep.ancestorChain, prep.allPriorScenes,
+            activeBranchId,
+            tree.rootNarrative, tree.rootResolvedKeys, tree.rootCurrentIndex, worldBuildFocus,
+            config.direction, config.constraintsPrompt, config.moveType, prep.existingArc,
+          ).then((result) => ({ result, seq }));
 
-          const results = await Promise.all(batch);
-          inFlightGoals.delete(parentTarget);
+          activeSlots.push({ seq, goal, promise });
+          return true;
+        };
 
-          for (const result of results) {
-            if (cancelledRef.current) break;
-            if (!result) continue;
+        // Fill initial slots up to parallelism
+        for (let i = 0; i < Math.min(config.parallelism, childrenToGenerate); i++) {
+          if (!tryStartGreedySlot()) break;
+        }
 
+        // Sliding window: process results and refill
+        while (activeSlots.length > 0 && !cancelledRef.current) {
+          const { result, seq } = await Promise.race(activeSlots.map((s) => s.promise));
+
+          const completedIdx = activeSlots.findIndex((s) => s.seq === seq);
+          if (completedIdx === -1) continue;
+          const completed = activeSlots.splice(completedIdx, 1)[0];
+
+          // Release in-flight goal
+          const targetGoals = inFlightGoals.get(parentTarget) ?? [];
+          const goalIdx = targetGoals.indexOf(completed.goal);
+          if (goalIdx >= 0) targetGoals.splice(goalIdx, 1);
+          if (targetGoals.length === 0) inFlightGoals.delete(parentTarget);
+
+          if (result && !cancelledRef.current) {
+            nodesGenerated++;
+            generated++;
             const nodeId = nextNodeId();
             tree = addChildNode(
               tree, result.targetId === 'root' ? 'root' : result.targetId,
@@ -561,17 +611,20 @@ export function useMCTS() {
               result.score, config.moveType,
             );
             tree = backpropagate(tree, nodeId);
-            nodesGenerated++;
-            generated++;
+
+            const best = bestPath(tree, config.pathStrategy);
+            setRunState((prev) => ({
+              ...prev,
+              tree,
+              iterationsCompleted: nodesGenerated,
+              bestPath: best,
+            }));
           }
 
-          const best = bestPath(tree, config.pathStrategy);
-          setRunState((prev) => ({
-            ...prev,
-            tree,
-            iterationsCompleted: nodesGenerated,
-            bestPath: best,
-          }));
+          // Start replacement if we still need more children for this parent
+          if (generated + activeSlots.length < childrenToGenerate && !shouldStop() && !cancelledRef.current) {
+            tryStartGreedySlot();
+          }
         }
 
         // Greedy descent: pick the best-scoring child and descend
