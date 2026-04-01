@@ -22,6 +22,7 @@ import { NarrativeEditModal } from '@/components/topbar/NarrativeEditModal';
 import { UsageDropdown, computeTotalCost } from '@/components/topbar/UsageAnalyticsModal';
 import type { NarrativeEntry } from '@/types/narrative';
 import { IconHome, IconChevronDown, IconChevronRight, IconPlus, IconImport, IconSettings, IconDownload, IconFork, IconDocument, IconDollar, IconScorecard } from '@/components/icons';
+import { NowPlayingPill } from '@/components/canvas/AudioMiniPlayer';
 
 
 function downloadJson(data: object, filename: string) {
@@ -1076,7 +1077,7 @@ export default function TopBar() {
         {/* Quick actions */}
         {hasNarrative && (
           <>
-
+            <NowPlayingPill />
             <button
               onClick={() => setSlidesOpen(true)}
               className="px-2.5 py-1 rounded-full transition-colors flex items-center gap-1.5 text-[12px] border border-white/8 text-text-secondary hover:text-text-primary hover:bg-white/5 hover:border-white/15"

@@ -9,6 +9,7 @@ import SidePanel from '@/components/inspector/SidePanel';
 import WorldGraph from '@/components/canvas/WorldGraph';
 import FloatingPalette from '@/components/canvas/FloatingPalette';
 import { CanvasTopBar } from '@/components/canvas/CanvasTopBar';
+import { AudioPlayerProvider } from '@/hooks/useAudioPlayer';
 import TimelineStrip from '@/components/timeline/TimelineStrip';
 import ForceCharts from '@/components/timeline/ForceCharts';
 import NarrativePanel from '@/components/narrative/NarrativePanel';
@@ -135,6 +136,7 @@ export default function SeriesPage() {
   const showMctsBar = mcts.runState.status !== 'idle' || Object.keys(mcts.runState.tree.nodes).length > 0;
 
   return (
+    <AudioPlayerProvider>
     <>
       <AppShell
         sidebar={<Sidebar />}
@@ -271,5 +273,6 @@ export default function SeriesPage() {
         </div>
       )}
     </>
+    </AudioPlayerProvider>
   );
 }
