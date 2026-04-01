@@ -716,47 +716,53 @@ Identify duplicates and SIMILAR entries, then produce merge maps. For each group
 Return JSON:
 {
   "characterMerges": {
-    "variant name": "canonical name",
-    "another variant": "canonical name"
+    "variant name": "canonical name"
   },
   "threadMerges": {
-    "variant thread description": "canonical thread description",
-    "another variant": "canonical description"
+    "variant thread description": "canonical thread description"
   },
   "locationMerges": {
     "variant location name": "canonical location name"
   },
   "worldKnowledgeMerges": {
-    "variant concept": "canonical concept",
-    "another variant": "canonical concept"
+    "variant concept": "canonical concept"
   }
 }
 
 RULES:
-- Only include entries where the variant differs from the canonical (i.e., actual merges needed)
-- If a name appears in multiple chunks with identical spelling, do NOT include it — it's already consistent
-- For characters, merge name variants like "Professor McGonagall" / "Minerva McGonagall" / "McGonagall"
-- For locations, merge different names for the same place
+- Only include entries where the variant differs from the canonical
+- If a name appears identically across chunks, do NOT include it
+
+CHARACTER MERGING:
+- Merge name variants like "Professor McGonagall" / "Minerva McGonagall" / "McGonagall"
+
+LOCATION MERGING:
+- Merge different names for the same place
 
 THREAD MERGING — BE AGGRESSIVE:
-- Merge threads that describe the SAME underlying narrative tension, even if worded differently
-- Merge threads that are facets of the same conflict (e.g. "Harry's distrust of Snape" and "Snape's suspicious behavior" → single thread about the Harry/Snape tension)
-- Merge threads where one is a subset of another (e.g. "Will they escape the dungeon?" is part of "The quest to defeat the Dark Lord")
-- Merge threads about the same relationship dynamic (e.g. "Ron's jealousy of Harry" and "The strain on Harry and Ron's friendship" → one thread)
-- The goal is FEWER, SHARPER threads. When in doubt, merge. A story should have ~8-15 major threads, not 30+ overlapping ones.
-- Pick the most encompassing description as canonical — it should capture the core tension broadly enough to cover all the variants
+- Merge threads describing the SAME narrative tension, even if worded differently
+- Merge facets of the same conflict (e.g. "Harry's distrust of Snape" + "Snape's suspicious behavior" → single thread)
+- Merge threads where one is a subset of another
+- Merge threads about the same relationship dynamic
+- Goal: 8-15 major threads, not 30+ overlapping ones. When in doubt, merge.
+- Pick the most encompassing description as canonical
 
 WORLD KNOWLEDGE MERGING:
-- Only merge concepts that are clearly the same idea in different words (e.g. "Sorting Hat ceremony" and "The Sorting")
-- Related but distinct concepts should remain separate — they serve as independent connection points in the knowledge graph
+- Only merge concepts that are clearly the same idea in different words
+- Related but distinct concepts should remain separate
 
-- If there are no duplicates for a category, return an empty object {}`;
+If no duplicates for a category, return empty object {}`;
 
   const reconciliationSystem = `You are a data reconciliation engine. Identify and merge duplicate entities from independently-extracted narrative data. Return only valid JSON.`;
 
   const raw = await callAnalysis(reconciliationPrompt, reconciliationSystem, onToken);
   const json = extractJSON(raw);
-  let merges: { characterMerges: CharacterNameMap; threadMerges: Record<string, string>; locationMerges: Record<string, string>; worldKnowledgeMerges?: Record<string, string> };
+  let merges: {
+    characterMerges: CharacterNameMap;
+    threadMerges: Record<string, string>;
+    locationMerges: Record<string, string>;
+    worldKnowledgeMerges?: Record<string, string>;
+  };
   try {
     merges = JSON.parse(json);
   } catch {
@@ -901,6 +907,58 @@ WORLD KNOWLEDGE MERGING:
   return reconciled;
 }
 
+/**
+ * Phase 2b: Analyze thread dependencies on canonical (post-merge) thread list.
+ * Runs after reconciliation to identify causal relationships between distinct threads.
+ */
+export async function analyzeThreading(
+  canonicalThreads: string[],
+  onToken?: (token: string, accumulated: string) => void,
+): Promise<Record<string, string[]>> {
+  if (canonicalThreads.length < 2) return {};
+
+  const prompt = `You are analyzing narrative threads to identify causal dependencies.
+
+CANONICAL THREADS (post-merge, deduplicated):
+${canonicalThreads.map((d, i) => `${i + 1}. "${d}"`).join('\n')}
+
+Identify which threads CAUSALLY DEPEND on other threads. A depends on B means:
+- A's resolution is affected by B's trajectory
+- B must progress or resolve for A to advance
+- They converge at critical story moments
+
+Return JSON:
+{
+  "threadDependencies": {
+    "exact thread description": ["exact dependent thread 1", "exact dependent thread 2"]
+  }
+}
+
+RULES:
+- Use EXACT thread descriptions from the list above — copy-paste precisely
+- A thread can depend on multiple others; dependencies can be mutual
+- NOT dependencies: threads that are merely thematic, or share characters without causal interaction
+- Focus on structural narrative connections, not surface-level similarities
+- If no dependencies exist, return { "threadDependencies": {} }`;
+
+  const system = `You are a narrative structure analyst. Identify causal dependencies between story threads. Return only valid JSON.`;
+
+  const raw = await callAnalysis(prompt, system, onToken);
+  const json = extractJSON(raw);
+
+  try {
+    const parsed = JSON.parse(json);
+    return parsed.threadDependencies ?? {};
+  } catch {
+    const repaired = json
+      .replace(/[\u201C\u201D]/g, '"')
+      .replace(/[\u2018\u2019]/g, "'")
+      .replace(/[\x00-\x1F\x7F]/g, (ch) => ch === '\n' || ch === '\t' ? ch : '');
+    const parsed = JSON.parse(repaired);
+    return parsed.threadDependencies ?? {};
+  }
+}
+
 /** Normalize free-form LLM status strings to the canonical vocabulary */
 function normalizeStatus(raw: string): string {
   const s = raw.trim().toLowerCase();
@@ -1034,6 +1092,7 @@ function buildMetaContext(
 export async function assembleNarrative(
   title: string,
   results: AnalysisChunkResult[],
+  threadDependencies: Record<string, string[]>,
   onToken?: (token: string, accumulated: string) => void,
 ): Promise<NarrativeState> {
   const PREFIX = title.replace(/[^a-zA-Z]/g, '').slice(0, 3).toUpperCase() || 'TXT';
@@ -1197,13 +1256,6 @@ export async function assembleNarrative(
           }
         }
       }
-      // Accumulate thread convergence — resolve related descriptions to thread IDs
-      for (const relDesc of t.relatedThreadDescriptions ?? []) {
-        const relId = getThreadId(relDesc);
-        if (relId !== id && !threads[id].dependents.includes(relId)) {
-          threads[id].dependents.push(relId);
-        }
-      }
     }
 
     // Scenes (one arc per chunk)
@@ -1361,6 +1413,19 @@ export async function assembleNarrative(
         existing.valence = r.valence;
       } else {
         relationshipMap[key] = { from: fromId, to: toId, type: r.type, valence: r.valence };
+      }
+    }
+  }
+
+  // Apply thread dependencies from reconciliation (description → array of dependent descriptions)
+  const threadDescToIdMap = new Map(Object.values(threads).map((t) => [t.description, t.id]));
+  for (const [desc, depDescs] of Object.entries(threadDependencies)) {
+    const threadId = threadDescToIdMap.get(desc);
+    if (!threadId || !threads[threadId]) continue;
+    for (const depDesc of depDescs) {
+      const depId = threadDescToIdMap.get(depDesc);
+      if (depId && depId !== threadId && !threads[threadId].dependents.includes(depId)) {
+        threads[threadId].dependents.push(depId);
       }
     }
   }

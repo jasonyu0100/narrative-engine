@@ -89,7 +89,7 @@ export function AnalysisPanel({ jobId, sourceText, title: initialTitle, onClose 
 
     try {
       const completedResults = results.filter((r): r is AnalysisChunkResult => r !== null);
-      const narrative = await assembleNarrative(job.title, completedResults);
+      const narrative = await assembleNarrative(job.title, completedResults, {});
 
       dispatch({ type: 'ADD_NARRATIVE', narrative });
       dispatch({ type: 'UPDATE_ANALYSIS_JOB', id: job.id, updates: { status: 'completed', narrativeId: narrative.id } });
@@ -293,7 +293,7 @@ export function AnalysisPanel({ jobId, sourceText, title: initialTitle, onClose 
                 } else {
                   // Fallback: assemble if runner didn't (e.g. old paused job)
                   const completedResults = currentJob.results.filter((r): r is AnalysisChunkResult => r !== null);
-                  const narrative = await assembleNarrative(currentJob.title, completedResults);
+                  const narrative = await assembleNarrative(currentJob.title, completedResults, {});
                   dispatch({ type: 'ADD_NARRATIVE', narrative });
                   dispatch({ type: 'UPDATE_ANALYSIS_JOB', id: currentJob.id, updates: { narrativeId: narrative.id } });
                   router.push(`/series/${narrative.id}`);

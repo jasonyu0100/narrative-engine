@@ -933,6 +933,9 @@ export type AnalysisChunkResult = {
   relationships: { from: string; to: string; type: string; valence: number }[];
 };
 
+/** Analysis pipeline phases */
+export type AnalysisPhase = 'extraction' | 'plans' | 'reconciliation' | 'finalization' | 'assembly';
+
 export type AnalysisJob = {
   id: string;
   title: string;
@@ -942,6 +945,8 @@ export type AnalysisJob = {
   /** Results per chunk (same indices as chunks) */
   results: (AnalysisChunkResult | null)[];
   status: 'pending' | 'running' | 'paused' | 'completed' | 'failed';
+  /** Current pipeline phase — more reliable than parsing stream text */
+  phase?: AnalysisPhase;
   currentChunkIndex: number;
   error?: string;
   /** Whether to run Phase 2 beat-plan extraction (opt-in, adds one LLM call per scene) */

@@ -44,7 +44,7 @@ function buildLinks(narrative: NarrativeState, nodeIds: Set<string>): TLink[] {
   const links: TLink[] = [];
   const seen = new Set<string>();
 
-  // Explicit dependents
+  // Explicit dependents only
   for (const t of Object.values(narrative.threads)) {
     if (!nodeIds.has(t.id)) continue;
     for (const depId of t.dependents) {
@@ -53,27 +53,6 @@ function buildLinks(narrative: NarrativeState, nodeIds: Set<string>): TLink[] {
       if (!seen.has(key)) {
         seen.add(key);
         links.push({ source: t.id, target: depId, relation: 'dependent' });
-      }
-    }
-  }
-
-  // Shared participants
-  const pMap = new Map<string, string[]>();
-  for (const t of Object.values(narrative.threads)) {
-    if (!nodeIds.has(t.id)) continue;
-    for (const p of t.participants) {
-      if (!pMap.has(p.id)) pMap.set(p.id, []);
-      pMap.get(p.id)!.push(t.id);
-    }
-  }
-  for (const [, ids] of pMap) {
-    for (let i = 0; i < ids.length; i++) {
-      for (let j = i + 1; j < ids.length; j++) {
-        const key = [ids[i], ids[j]].sort().join('|');
-        if (!seen.has(key)) {
-          seen.add(key);
-          links.push({ source: ids[i], target: ids[j], relation: 'participant' });
-        }
       }
     }
   }

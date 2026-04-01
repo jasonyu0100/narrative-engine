@@ -2,12 +2,15 @@
  * Singleton analysis runner — persists across React component mounts/unmounts.
  * Jobs continue running even when the user navigates away from the analysis page.
  *
- * Two-phase parallel pipeline:
+ * Five-phase pipeline:
  *   Phase 1 — Parallel extraction: all chunks analyzed simultaneously (no cumulative context)
- *   Phase 2 — Sequential reconciliation: deduplicate characters, stitch threads, merge name variants
+ *   Phase 2 — Plan extraction: reverse-engineer beat plans from prose (optional, if extractPlans enabled)
+ *   Phase 3 — Reconciliation: deduplicate characters, stitch threads, merge name variants
+ *   Phase 4 — Finalization: thread dependencies, structural analysis
+ *   Phase 5 — Assembly: build final NarrativeState from reconciled data
  */
 
-import { analyzeChunkParallel, reconcileResults, assembleNarrative } from '@/lib/text-analysis';
+import { analyzeChunkParallel, reconcileResults, analyzeThreading, assembleNarrative } from '@/lib/text-analysis';
 import { reverseEngineerScenePlan } from '@/lib/ai/scenes';
 import type { AnalysisJob, AnalysisChunkResult } from '@/types/narrative';
 import type { Action } from '@/lib/store';
@@ -135,7 +138,7 @@ class AnalysisRunner {
     const entry: RunningJob = { cancelled: false, inFlightIndices: new Set(), chunkStreams: new Map(), planInFlightKeys: new Set(), planStreams: new Map() };
     this.running.set(job.id, entry);
     this.streamTexts.set(job.id, '');
-    d({ type: 'UPDATE_ANALYSIS_JOB', id: job.id, updates: { status: 'running' } });
+    d({ type: 'UPDATE_ANALYSIS_JOB', id: job.id, updates: { status: 'running', phase: 'extraction' } });
 
     try {
     await this.runPipeline(job, entry, d);
@@ -320,6 +323,7 @@ class AnalysisRunner {
     }
 
     if (job.extractPlans && planTasks.length > 0) {
+      d({ type: 'UPDATE_ANALYSIS_JOB', id: job.id, updates: { phase: 'plans' } });
       this.emitStream(job.id, `Phase 2: Extracting beat plans from ${planTasks.length} scenes...`);
       let plansDone = 0;
       const planQueue = [...planTasks];
@@ -366,13 +370,13 @@ class AnalysisRunner {
     }
 
     // ── Phase 3: Reconciliation ───────────────────────────────────────────
-    this.emitStream(job.id, 'Phase 3: Reconciling entities across chunks...');
-    d({ type: 'UPDATE_ANALYSIS_JOB', id: job.id, updates: { currentChunkIndex: totalChunks } });
+    d({ type: 'UPDATE_ANALYSIS_JOB', id: job.id, updates: { phase: 'reconciliation', currentChunkIndex: totalChunks } });
+    this.emitStream(job.id, 'Phase 3: Reconciling entities...');
 
     try {
       const rawResults = results.filter((r): r is AnalysisChunkResult => r !== null);
       const reconciledResults = await reconcileResults(rawResults, (_token, accumulated) => {
-        this.emitStream(job.id, `Phase 2: Reconciling...\n${accumulated}`);
+        this.emitStream(job.id, `Phase 3: Reconciling...\n${accumulated}`);
       });
 
       if (entry.cancelled) {
@@ -391,16 +395,42 @@ class AnalysisRunner {
     } catch (err) {
       // Reconciliation failure is non-fatal — continue with unreconciled results
       console.warn('[AnalysisRunner] Reconciliation failed, using raw results:', err);
-      this.emitStream(job.id, 'Phase 2: Reconciliation failed (non-fatal), using raw results...');
+      this.emitStream(job.id, 'Phase 3: Reconciliation failed (non-fatal), using raw results...');
     }
 
-    // ── Phase 3: Assemble narrative ───────────────────────────────────────
-    this.emitStream(job.id, 'Assembling narrative...');
+    // ── Phase 4: Finalization (thread dependencies, future analysis) ─────
+    d({ type: 'UPDATE_ANALYSIS_JOB', id: job.id, updates: { phase: 'finalization' } });
+    let threadDependencies: Record<string, string[]> = {};
+    try {
+      const completedResults = results.filter((r): r is AnalysisChunkResult => r !== null);
+      // Extract canonical thread descriptions (deduplicated)
+      const canonicalThreads = [...new Set(completedResults.flatMap((r) => (r.threads ?? []).map((t) => t.description)))];
+
+      if (canonicalThreads.length >= 2) {
+        this.emitStream(job.id, 'Phase 4: Finalizing...');
+        threadDependencies = await analyzeThreading(canonicalThreads, (_token, accumulated) => {
+          this.emitStream(job.id, `Phase 4: Finalizing...\n${accumulated}`);
+        });
+      }
+
+      if (entry.cancelled) {
+        d({ type: 'UPDATE_ANALYSIS_JOB', id: job.id, updates: { status: 'paused' } });
+        return;
+      }
+    } catch (err) {
+      // Finalization failure is non-fatal — continue without dependencies
+      console.warn('[AnalysisRunner] Finalization failed:', err);
+      this.emitStream(job.id, 'Phase 4: Finalization failed (non-fatal), continuing...');
+    }
+
+    // ── Phase 5: Assemble narrative ───────────────────────────────────────
+    d({ type: 'UPDATE_ANALYSIS_JOB', id: job.id, updates: { phase: 'assembly' } });
+    this.emitStream(job.id, 'Phase 5: Assembling narrative...');
 
     try {
       const completedResults = results.filter((r): r is AnalysisChunkResult => r !== null);
-      const narrative = await assembleNarrative(job.title, completedResults, (_token, accumulated) => {
-        this.emitStream(job.id, `Assembling narrative...\n${accumulated}`);
+      const narrative = await assembleNarrative(job.title, completedResults, threadDependencies, (_token, accumulated) => {
+        this.emitStream(job.id, `Phase 5: Assembling...\n${accumulated}`);
       });
 
       d({ type: 'ADD_NARRATIVE', narrative });

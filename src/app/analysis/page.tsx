@@ -174,9 +174,12 @@ function JobDetail({ job }: { job: AnalysisJob }) {
 
   const completedChunks = liveJob.results.filter((r) => r !== null).length;
   const totalChunks = liveJob.chunks.length;
-  const isReconciling = completedChunks === totalChunks && liveJob.status === 'running' && !liveJob.narrativeId && streamText.includes('Reconcil');
-  const isPlanExtracting = completedChunks === totalChunks && liveJob.status === 'running' && !liveJob.narrativeId && streamText.includes('Phase 2');
-  const isAssembling = completedChunks === totalChunks && liveJob.status === 'running' && !liveJob.narrativeId && streamText.includes('Assembl');
+  // Use explicit phase field for reliable phase detection
+  const isExtracting = liveJob.phase === 'extraction';
+  const isPlanExtracting = liveJob.phase === 'plans';
+  const isReconciling = liveJob.phase === 'reconciliation';
+  const isFinalizing = liveJob.phase === 'finalization';
+  const isAssembling = liveJob.phase === 'assembly';
 
   const completed = liveJob.results.filter((r): r is AnalysisChunkResult => r !== null);
   const assembledNarrative = liveJob.narrativeId && state.activeNarrative?.id === liveJob.narrativeId
@@ -329,7 +332,7 @@ function JobDetail({ job }: { job: AnalysisJob }) {
                   try {
                     const { assembleNarrative } = await import('@/lib/text-analysis');
                     const completedResults = liveJob.results.filter((r): r is AnalysisChunkResult => r !== null);
-                    const narrative = await assembleNarrative(liveJob.title, completedResults);
+                    const narrative = await assembleNarrative(liveJob.title, completedResults, {});
                     dispatch({ type: 'ADD_NARRATIVE', narrative });
                     dispatch({ type: 'UPDATE_ANALYSIS_JOB', id: liveJob.id, updates: { narrativeId: narrative.id } });
                     router.push(`/series/${narrative.id}?slides=1`);
@@ -370,7 +373,7 @@ function JobDetail({ job }: { job: AnalysisJob }) {
                       ))}
                     </div>
                     <p className="text-white/12 text-xs font-mono">
-                      {isReconciling ? 'Reconciling entities...' : isAssembling ? 'Assembling narrative...' : 'Extracting entities in parallel...'}
+                      {isReconciling ? 'Reconciling entities...' : isFinalizing ? 'Analyzing thread dependencies...' : isAssembling ? 'Assembling narrative...' : 'Extracting entities in parallel...'}
                     </p>
                   </>
                 ) : liveJob.status === 'completed' ? (
@@ -381,10 +384,11 @@ function JobDetail({ job }: { job: AnalysisJob }) {
                     <p className="text-white/20 text-[11px] leading-relaxed">
                       The text has been split into {totalChunks} chunk{totalChunks !== 1 ? 's' : ''} that will be analyzed in parallel. Each chunk independently extracts characters, locations, threads, and scenes. A reconciliation pass then merges duplicates and stitches continuity across chunks.
                     </p>
-                    <div className="grid grid-cols-3 gap-3 pt-1">
+                    <div className="grid grid-cols-4 gap-2 pt-1">
                       {[
                         { label: 'Extract', desc: 'Parse entities from each chunk' },
                         { label: 'Reconcile', desc: 'Merge duplicates across chunks' },
+                        { label: 'Finalize', desc: 'Analyze thread dependencies' },
                         { label: 'Assemble', desc: 'Build the narrative structure' },
                       ].map((phase) => (
                         <div key={phase.label} className="bg-white/3 rounded-lg px-3 py-2.5">
@@ -514,14 +518,14 @@ function JobDetail({ job }: { job: AnalysisJob }) {
           <div className="w-80 shrink-0 border-l border-white/6 bg-black/40 flex flex-col min-h-0">
             {/* Header */}
             <div className="px-3 py-2 flex items-center gap-2 border-b border-white/4 shrink-0">
-              <div className={`w-1.5 h-1.5 rounded-full ${isReconciling ? 'bg-sky-400' : isAssembling ? 'bg-amber-400' : isPlanExtracting ? 'bg-indigo-400' : 'bg-change'} animate-pulse`} />
+              <div className={`w-1.5 h-1.5 rounded-full ${isReconciling ? 'bg-sky-400' : isFinalizing ? 'bg-purple-400' : isAssembling ? 'bg-amber-400' : isPlanExtracting ? 'bg-indigo-400' : isExtracting ? 'bg-change' : 'bg-white/20'} animate-pulse`} />
               <span className="text-[9px] text-white/25 font-mono uppercase tracking-wider">
-                {isReconciling ? 'Reconciliation' : isAssembling ? 'Assembly' : isPlanExtracting ? 'Beat Plans' : 'Extraction'}
+                {isReconciling ? 'Reconciliation' : isFinalizing ? 'Finalization' : isAssembling ? 'Assembly' : isPlanExtracting ? 'Beat Plans' : isExtracting ? 'Extraction' : 'Idle'}
               </span>
               {isPlanExtracting && (
                 <span className="text-[9px] text-indigo-400/40 font-mono ml-auto">{beatStats.planCount}/{sceneCount}</span>
               )}
-              {!isReconciling && !isAssembling && !isPlanExtracting && (
+              {isExtracting && (
                 <span className="text-[9px] text-white/10 font-mono ml-auto">{completedChunks}/{totalChunks}</span>
               )}
             </div>
@@ -599,7 +603,7 @@ function JobDetail({ job }: { job: AnalysisJob }) {
                   </div>
                 )}
               </div>
-            ) : !isReconciling && !isAssembling ? (
+            ) : isExtracting ? (
               /* Extraction phase: chunk stream tabs + stream viewer */
               <div className="flex-1 flex flex-col min-h-0">
                 {/* In-flight chunk tabs */}
@@ -671,7 +675,7 @@ function JobDetail({ job }: { job: AnalysisJob }) {
                 )}
               </div>
             ) : (
-              /* Reconciliation / Assembly phase: show LLM stream */
+              /* Reconciliation / Finalization / Assembly phase: show LLM stream */
               <pre
                 ref={streamRef}
                 className="flex-1 text-[10px] text-white/20 font-mono px-3 py-2 overflow-y-auto leading-relaxed whitespace-pre-wrap break-all"
@@ -916,9 +920,10 @@ function JobDetail({ job }: { job: AnalysisJob }) {
         {isRunning && (
           <div className="flex items-center gap-3 mb-2.5">
             {[
-              { label: 'Extract', active: !isPlanExtracting && !isReconciling && !isAssembling, done: completedChunks === totalChunks, color: 'bg-change' },
-              ...(liveJob.extractPlans ? [{ label: 'Plans', active: isPlanExtracting, done: isReconciling || isAssembling || liveJob.status === 'completed', color: 'bg-indigo-400' }] : []),
-              { label: 'Reconcile', active: isReconciling, done: isAssembling || liveJob.status === 'completed', color: 'bg-sky-400' },
+              { label: 'Extract', active: isExtracting, done: isPlanExtracting || isReconciling || isFinalizing || isAssembling || liveJob.status === 'completed', color: 'bg-change' },
+              ...(liveJob.extractPlans ? [{ label: 'Plans', active: isPlanExtracting, done: isReconciling || isFinalizing || isAssembling || liveJob.status === 'completed', color: 'bg-indigo-400' }] : []),
+              { label: 'Reconcile', active: isReconciling, done: isFinalizing || isAssembling || liveJob.status === 'completed', color: 'bg-sky-400' },
+              { label: 'Finalize', active: isFinalizing, done: isAssembling || liveJob.status === 'completed', color: 'bg-purple-400' },
               { label: 'Assemble', active: isAssembling, done: liveJob.status === 'completed', color: 'bg-amber-400' },
             ].map((phase, pi) => (
               <div key={phase.label} className="flex items-center gap-1.5">
