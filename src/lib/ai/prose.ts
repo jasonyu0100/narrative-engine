@@ -25,7 +25,7 @@ export async function rewriteSceneProse(
   const sceneIdx = resolvedKeys.indexOf(scene.id);
   const contextIndex = sceneIdx >= 0 ? sceneIdx : resolvedKeys.length - 1;
   const sceneBlock = sceneContext(narrative, scene, resolvedKeys, contextIndex);
-  const logicRules = deriveLogicRules(narrative, scene);
+  const logicRules = deriveLogicRules(narrative, scene, resolvedKeys, contextIndex);
 
   // Get neighboring prose for continuity
   let prevEnding: string | null = null;

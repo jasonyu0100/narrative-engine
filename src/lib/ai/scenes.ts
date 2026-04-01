@@ -272,7 +272,7 @@ export async function generateScenePlan(
   const contextIndex = sceneIdx >= 0 ? sceneIdx : resolvedKeys.length - 1;
   const fullContext = branchContext(narrative, resolvedKeys, contextIndex);
   const sceneBlock = sceneContext(narrative, scene, resolvedKeys, contextIndex);
-  const logicRules = deriveLogicRules(narrative, scene);
+  const logicRules = deriveLogicRules(narrative, scene, resolvedKeys, contextIndex);
   const logicBlock = logicRules.length > 0
     ? `\nLOGICAL CONSTRAINTS (the plan must satisfy all of these):\n${logicRules.map((r) => `  - ${r}`).join('\n')}\n`
     : '';
@@ -734,7 +734,7 @@ ${scene.plan.anchors.length > 0 ? `\nANCHOR LINES (these exact formulations must
     : '';
 
   // Derive logical constraints from the scene graph — these are hard rules the prose must obey
-  const logicRules = deriveLogicRules(narrative, scene);
+  const logicRules = deriveLogicRules(narrative, scene, resolvedKeys, contextIndex);
   const logicBlock = logicRules.length > 0
     ? `\nLOGICAL REQUIREMENTS (these are hard constraints derived from the scene graph — violating any is a failure):\n${logicRules.map((r) => `  - ${r}`).join('\n')}\n`
     : '';

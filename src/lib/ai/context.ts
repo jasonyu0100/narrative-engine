@@ -6,8 +6,8 @@ import { getIntroducedIds } from '@/lib/scene-filter';
 
 /**
  * Replay mutations up to a given timeline index to get the state at that point.
- * Returns which continuity nodes exist, relationship states, and thread statuses
- * at the specified position in the timeline.
+ * Returns which continuity nodes exist, relationship states, thread statuses,
+ * and artifact ownership at the specified position in the timeline.
  */
 export function getStateAtIndex(
   n: NarrativeState,
@@ -20,6 +20,8 @@ export function getStateAtIndex(
   relationships: RelationshipEdge[];
   /** Thread statuses at this point */
   threadStatuses: Record<string, string>;
+  /** Artifact ownership at this point (artifactId -> ownerId) */
+  artifactOwnership: Record<string, string>;
 } {
   const keysUpToCurrent = resolvedKeys.slice(0, currentIndex + 1);
 
@@ -69,10 +71,29 @@ export function getStateAtIndex(
     }
   }
 
+  // Replay artifact ownership: start with initial parentIds from worldBuilds, then apply ownershipMutations
+  const artifactOwnership: Record<string, string> = {};
+  for (const k of keysUpToCurrent) {
+    const entry = resolveEntry(n, k);
+    // WorldBuilds introduce artifacts with initial parentIds
+    if (entry?.kind === 'world_build') {
+      for (const a of entry.expansionManifest.artifacts ?? []) {
+        artifactOwnership[a.id] = a.parentId;
+      }
+    }
+    // Scenes can transfer ownership
+    if (entry?.kind === 'scene') {
+      for (const om of entry.ownershipMutations ?? []) {
+        artifactOwnership[om.artifactId] = om.toId;
+      }
+    }
+  }
+
   return {
     liveNodeIds,
     relationships: [...relMap.values()],
     threadStatuses,
+    artifactOwnership,
   };
 }
 
@@ -249,11 +270,13 @@ export function narrativeContext(
   // Knowledge: keep original (non-mutation) nodes + mutation nodes from the time horizon
   const introduced = getIntroducedIds(n.worldBuilds, resolvedKeys, currentIndex);
   const artifactEntries = Object.values(n.artifacts ?? {}).filter((a) => introduced.artifactIds.has(a.id));
+  // Use timeline-scoped ownership (who owned each artifact at this point, not final state)
   const artifactsByOwner = new Map<string, typeof artifactEntries>();
   for (const a of artifactEntries) {
-    const list = artifactsByOwner.get(a.parentId) ?? [];
+    const ownerId = timelineState.artifactOwnership[a.id] ?? a.parentId;
+    const list = artifactsByOwner.get(ownerId) ?? [];
     list.push(a);
-    artifactsByOwner.set(a.parentId, list);
+    artifactsByOwner.set(ownerId, list);
   }
 
   const characters = branchCharacters
@@ -265,7 +288,9 @@ export function narrativeContext(
       const omittedNote = omitted > 0 ? ` omitted="${omitted}"` : '';
       const owned = artifactsByOwner.get(c.id) ?? [];
       const artifactLines = owned.map((a) => {
-        const knLines = a.continuity.nodes.map((nd) => `    <knowledge type="${nd.type}">${nd.content}</knowledge>`).join('\n');
+        // Filter artifact continuity nodes to those that existed at this point in the timeline
+        const scopedNodes = a.continuity.nodes.filter((nd) => timelineState.liveNodeIds.has(nd.id));
+        const knLines = scopedNodes.map((nd) => `    <knowledge type="${nd.type}">${nd.content}</knowledge>`).join('\n');
         return `  <artifact id="${a.id}" name="${a.name}" significance="${a.significance}">${knLines ? `\n${knLines}\n  ` : ''}</artifact>`;
       });
       const continuityBlock = continuityLines.length > 0 ? `\n${continuityLines.join('\n')}` : '';
@@ -281,7 +306,9 @@ export function narrativeContext(
       const parent = l.parentId ? ` parent="${n.locations[l.parentId]?.name ?? l.parentId}"` : '';
       const owned = artifactsByOwner.get(l.id) ?? [];
       const artifactLines = owned.map((a) => {
-        const knLines = a.continuity.nodes.map((nd) => `    <knowledge type="${nd.type}">${nd.content}</knowledge>`).join('\n');
+        // Filter artifact continuity nodes to those that existed at this point in the timeline
+        const scopedNodes = a.continuity.nodes.filter((nd) => timelineState.liveNodeIds.has(nd.id));
+        const knLines = scopedNodes.map((nd) => `    <knowledge type="${nd.type}">${nd.content}</knowledge>`).join('\n');
         return `  <artifact id="${a.id}" name="${a.name}" significance="${a.significance}">${knLines ? `\n${knLines}\n  ` : ''}</artifact>`;
       });
       const continuityBlock = continuityLines.length > 0 ? `\n${continuityLines.join('\n')}` : '';
@@ -724,8 +751,27 @@ function buildDramaticIronyBlock(n: NarrativeState, resolvedKeys: string[]): str
 
 /** Deterministically derive logical rules from the scene graph — no LLM needed.
  *  Returns plain-text rules the prose must obey (spatial, POV, knowledge, relationships, threads). */
-export function deriveLogicRules(narrative: NarrativeState, scene: Scene): string[] {
+export function deriveLogicRules(
+  narrative: NarrativeState,
+  scene: Scene,
+  resolvedKeys?: string[],
+  currentIndex?: number,
+): string[] {
   const rules: string[] = [];
+
+  // Get timeline-scoped state when resolvedKeys and currentIndex are provided
+  const timelineState = resolvedKeys && currentIndex !== undefined
+    ? getStateAtIndex(narrative, resolvedKeys, currentIndex)
+    : null;
+
+  // Helper to get character's knowledge nodes scoped to timeline
+  const getCharacterKnowledge = (charId: string) => {
+    const char = narrative.characters[charId];
+    if (!char) return [];
+    return timelineState
+      ? char.continuity.nodes.filter((kn) => timelineState.liveNodeIds.has(kn.id))
+      : char.continuity.nodes;
+  };
 
   const participantNames = scene.participantIds
     .map((pid) => narrative.characters[pid]?.name)
@@ -758,15 +804,17 @@ export function deriveLogicRules(narrative: NarrativeState, scene: Scene): strin
 
   // ── POV knowledge boundary ──────────────────────────────────────────
   if (pov) {
-    const povKnowledgeIds = new Set(pov.continuity.nodes.map((kn) => kn.id));
+    // Use timeline-scoped knowledge
+    const povKnowledge = getCharacterKnowledge(pov.id);
+    const povKnowledgeIds = new Set(povKnowledge.map((kn) => kn.id));
     // Knowledge being added to POV this scene — they don't have it at the START
     const povLearnsThisScene = new Set(
       scene.continuityMutations
         .filter((km) => km.characterId === pov.id && km.action === 'added')
         .map((km) => km.nodeId),
     );
-    // POV's knowledge at scene START = current graph - things learned this scene
-    const povStartKnowledge = pov.continuity.nodes.filter(
+    // POV's knowledge at scene START = timeline-scoped graph - things learned this scene
+    const povStartKnowledge = povKnowledge.filter(
       (kn) => !povLearnsThisScene.has(kn.id),
     );
 
@@ -780,7 +828,8 @@ export function deriveLogicRules(narrative: NarrativeState, scene: Scene): strin
       if (pid === pov.id) continue;
       const other = narrative.characters[pid];
       if (!other) continue;
-      const otherExclusive = other.continuity.nodes.filter(
+      const otherKnowledge = getCharacterKnowledge(pid);
+      const otherExclusive = otherKnowledge.filter(
         (kn) => !povKnowledgeIds.has(kn.id) && !povLearnsThisScene.has(kn.id),
       );
       if (otherExclusive.length > 0) {
@@ -794,13 +843,14 @@ export function deriveLogicRules(narrative: NarrativeState, scene: Scene): strin
     const readerExclusive: string[] = [];
     for (const [, char] of Object.entries(narrative.characters)) {
       if (char.id === pov.id) continue;
-      for (const kn of char.continuity.nodes) {
+      const charKnowledge = getCharacterKnowledge(char.id);
+      for (const kn of charKnowledge) {
         if (!povKnowledgeIds.has(kn.id) && !povLearnsThisScene.has(kn.id)) {
           // Check if any other participant in THIS scene also knows it — if so, the tension is live
           const anyParticipantKnows = scene.participantIds.some((pid) => {
             if (pid === pov.id) return false;
-            const p = narrative.characters[pid];
-            return p?.continuity.nodes.some((n) => n.id === kn.id);
+            const pKnowledge = getCharacterKnowledge(pid);
+            return pKnowledge.some((n) => n.id === kn.id);
           });
           if (anyParticipantKnows) {
             readerExclusive.push(`"${kn.content}" (known to ${char.name})`);
@@ -833,7 +883,9 @@ export function deriveLogicRules(narrative: NarrativeState, scene: Scene): strin
     mutationDeltaMap.set(key, (mutationDeltaMap.get(key) ?? 0) + rm.valenceDelta);
   }
 
-  const participantRelationships = narrative.relationships.filter(
+  // Use timeline-scoped relationships when available
+  const baseRelationships = timelineState?.relationships ?? narrative.relationships;
+  const participantRelationships = baseRelationships.filter(
     (r) => participantIdSet.has(r.from) && participantIdSet.has(r.to),
   );
   for (const r of participantRelationships) {
@@ -868,7 +920,7 @@ export function deriveLogicRules(narrative: NarrativeState, scene: Scene): strin
     const fromName = narrative.characters[rm.from]?.name;
     const toName = narrative.characters[rm.to]?.name;
     if (!fromName || !toName) continue;
-    const edge = narrative.relationships.find((r) => r.from === rm.from && r.to === rm.to);
+    const edge = baseRelationships.find((r) => r.from === rm.from && r.to === rm.to);
     const postValence = edge?.valence ?? 0;
     const preValence = Math.round((postValence - rm.valenceDelta) * 100) / 100;
     const delta = Math.round(rm.valenceDelta * 100) / 100;
@@ -927,14 +979,24 @@ export function deriveLogicRules(narrative: NarrativeState, scene: Scene): strin
   }
 
   // Artifact ownership — who has what, and transfers this scene
+  // Use timeline-scoped ownership when available (not final state)
   const artifacts = narrative.artifacts ?? {};
+  const getArtifactOwner = (a: { id: string; parentId: string }) =>
+    timelineState?.artifactOwnership[a.id] ?? a.parentId;
+  const getArtifactCapabilities = (a: { continuity: { nodes: { id: string; content: string }[] } }) => {
+    const nodes = timelineState
+      ? a.continuity.nodes.filter((n) => timelineState.liveNodeIds.has(n.id))
+      : a.continuity.nodes;
+    return nodes.map((n) => n.content).join('; ');
+  };
+
   for (const pid of scene.participantIds) {
     const char = narrative.characters[pid];
     if (!char) continue;
-    const owned = Object.values(artifacts).filter((a) => a.parentId === pid);
+    const owned = Object.values(artifacts).filter((a) => getArtifactOwner(a) === pid);
     if (owned.length > 0) {
       const items = owned.map((a) => {
-        const capabilities = a.continuity.nodes.map((n) => n.content).join('; ');
+        const capabilities = getArtifactCapabilities(a);
         return `"${a.name}" (${capabilities || 'no known properties'})`;
       });
       rules.push(`${char.name} possesses: ${items.join(', ')}. These artifacts and their capabilities are available for ${char.name} to use in this scene.`);
@@ -942,7 +1004,7 @@ export function deriveLogicRules(narrative: NarrativeState, scene: Scene): strin
   }
   // Artifacts at this location
   if (location) {
-    const atLocation = Object.values(artifacts).filter((a) => a.parentId === scene.locationId);
+    const atLocation = Object.values(artifacts).filter((a) => getArtifactOwner(a) === scene.locationId);
     if (atLocation.length > 0) {
       const items = atLocation.map((a) => `"${a.name}"`);
       rules.push(`Artifacts present at ${location.name}: ${items.join(', ')}. Characters visiting this location can discover and acquire them.`);

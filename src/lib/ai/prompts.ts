@@ -430,8 +430,10 @@ export function buildCompletedBeatsPrompt(
 
     // Build transition chain: dormant→active (scene 6) → escalating (scene 15)
     const chain = beats.map((b) => `${b.to} (scene ${b.sceneIdx})`).join(' → ');
-    const isTerminal = terminalStatuses.has(thread.status);
-    const label = isTerminal ? `[${thread.status.toUpperCase()}]` : `[current: ${thread.status}]`;
+    // Use the last beat's status as current (timeline-scoped, not final state)
+    const currentStatus = beats.length > 0 ? beats[beats.length - 1].to : thread.status;
+    const isTerminal = terminalStatuses.has(currentStatus);
+    const label = isTerminal ? `[${currentStatus.toUpperCase()}]` : `[current: ${currentStatus}]`;
 
     lines.push(`"${thread.description}" [${tid}] ${label}`);
     lines.push(`  Chain: ${beats[0].from} → ${chain}`);
