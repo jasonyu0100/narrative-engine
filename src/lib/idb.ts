@@ -5,10 +5,11 @@
  */
 
 const DB_NAME = 'narrative-engine';
-const DB_VERSION = 3;
+const DB_VERSION = 4;
 const NARRATIVES_STORE = 'narratives';
 const META_STORE = 'meta';
 const API_LOGS_STORE = 'apiLogs';
+const AUDIO_STORE = 'audio';
 
 let dbPromise: Promise<IDBDatabase> | null = null;
 
@@ -29,6 +30,9 @@ export function openDB(): Promise<IDBDatabase> {
       }
       if (!db.objectStoreNames.contains(API_LOGS_STORE)) {
         db.createObjectStore(API_LOGS_STORE);
+      }
+      if (!db.objectStoreNames.contains(AUDIO_STORE)) {
+        db.createObjectStore(AUDIO_STORE);
       }
     };
     req.onsuccess = () => resolve(req.result);
@@ -115,4 +119,4 @@ export async function idbDeleteByPrefix(storeName: string, prefix: string): Prom
 
 // ── Store name constants ─────────────────────────────────────────────────────
 
-export { NARRATIVES_STORE, META_STORE, API_LOGS_STORE };
+export { NARRATIVES_STORE, META_STORE, API_LOGS_STORE, AUDIO_STORE };

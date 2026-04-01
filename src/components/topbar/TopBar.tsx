@@ -8,7 +8,6 @@ import type { NarrativeState, Branch } from '@/types/narrative';
 import { resolveEntry, isScene, type Scene } from '@/types/narrative';
 import { computeRawForceTotals, computeSwingMagnitudes, computeForceSnapshots, computeDeliveryCurve, classifyNarrativeShape, classifyArchetype, classifyScale, classifyWorldDensity, gradeForces, FORCE_REFERENCE_MEANS, resolveEntrySequence } from '@/lib/narrative-utils';
 import { ApiLogsModal } from '@/components/topbar/ApiLogsModal';
-import { StoryReader } from '@/components/story/StoryReader';
 import ApiKeyModal from '@/components/topbar/ApiKeyModal';
 import { useFeatureAccess } from '@/hooks/useFeatureAccess';
 import { CubeExplorer } from '@/components/topbar/CubeExplorer';
@@ -22,7 +21,7 @@ import { ThreadGraphModal } from '@/components/topbar/ThreadGraphModal';
 import { NarrativeEditModal } from '@/components/topbar/NarrativeEditModal';
 import { UsageDropdown, computeTotalCost } from '@/components/topbar/UsageAnalyticsModal';
 import type { NarrativeEntry } from '@/types/narrative';
-import { IconHome, IconChevronDown, IconChevronRight, IconPlus, IconImport, IconSettings, IconDownload, IconFork, IconDocument, IconDollar, IconScorecard, IconBook } from '@/components/icons';
+import { IconHome, IconChevronDown, IconChevronRight, IconPlus, IconImport, IconSettings, IconDownload, IconFork, IconDocument, IconDollar, IconScorecard } from '@/components/icons';
 
 
 function downloadJson(data: object, filename: string) {
@@ -286,7 +285,7 @@ export default function TopBar() {
   // Modal states
   const [logsOpen, setLogsOpen] = useState(false);
   const [apiKeysOpen, setApiKeysOpen] = useState(false);
-  const [storyOpen, setStoryOpen] = useState(false);
+
   const [cubeExplorerOpen, setCubeExplorerOpen] = useState(false);
   const [branchContextOpen, setBranchContextOpen] = useState(false);
   const [formulaOpen, setFormulaOpen] = useState(false);
@@ -691,7 +690,7 @@ export default function TopBar() {
           setOpenMenu={setOpenMenu}
           anyMenuOpen={openMenu !== null}
           items={[
-            { label: 'Story Reader', onClick: () => setStoryOpen(true), disabled: !hasNarrative },
+
             { label: 'Slides', onClick: () => setSlidesOpen(true), disabled: !hasNarrative },
             { separator: true },
             { label: 'Scorecard', onClick: () => setScorecardOpen((v) => !v), disabled: !hasNarrative },
@@ -1077,14 +1076,7 @@ export default function TopBar() {
         {/* Quick actions */}
         {hasNarrative && (
           <>
-            <button
-              onClick={() => setStoryOpen(true)}
-              className="px-2.5 py-1 rounded-full transition-colors flex items-center gap-1.5 text-[12px] border border-white/8 text-text-secondary hover:text-text-primary hover:bg-white/5 hover:border-white/15"
-              title="Read full story"
-            >
-              <IconBook size={14} />
-              <span>Story</span>
-            </button>
+
             <button
               onClick={() => setSlidesOpen(true)}
               className="px-2.5 py-1 rounded-full transition-colors flex items-center gap-1.5 text-[12px] border border-white/8 text-text-secondary hover:text-text-primary hover:bg-white/5 hover:border-white/15"
@@ -1104,14 +1096,7 @@ export default function TopBar() {
       {/* Modals */}
       {apiKeysOpen && <ApiKeyModal access={access} onClose={() => setApiKeysOpen(false)} />}
       {logsOpen && <ApiLogsModal onClose={() => setLogsOpen(false)} />}
-      {storyOpen && narrative && (
-        <StoryReader
-          narrative={narrative}
-          resolvedKeys={state.resolvedEntryKeys}
-          currentSceneIndex={state.currentSceneIndex}
-          onClose={() => setStoryOpen(false)}
-        />
-      )}
+
       {cubeExplorerOpen && narrative && (
         <CubeExplorer
           narrative={narrative}

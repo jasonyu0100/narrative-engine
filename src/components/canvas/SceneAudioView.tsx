@@ -5,6 +5,7 @@ import type { NarrativeState, Scene } from '@/types/narrative';
 import { useStore } from '@/lib/store';
 import { useFeatureAccess } from '@/hooks/useFeatureAccess';
 import { apiHeaders } from '@/lib/api-headers';
+import { saveAudioBlob, resolveAudioUrl, deleteAudioBlob } from '@/lib/audio-store';
 
 export function SceneAudioView({
   narrative,
@@ -16,37 +17,44 @@ export function SceneAudioView({
   const { dispatch } = useStore();
   const access = useFeatureAccess();
 
-  type AudioState = { url: string; status: 'idle' | 'loading' | 'ready' | 'error'; error?: string };
-  const [audioState, setAudioState] = useState<AudioState>(() =>
-    scene.audioUrl ? { url: scene.audioUrl, status: 'ready' } : { url: '', status: 'idle' }
+  const [status, setStatus] = useState<'idle' | 'loading' | 'ready' | 'error'>(() =>
+    scene.audioUrl ? 'ready' : 'idle'
   );
-  const [isPlaying, setIsPlaying] = useState(false);
+  const [error, setError] = useState('');
+  const [playing, setPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
-  const blobUrlRef = useRef<string | null>(null);
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  // Cleanup audio on unmount
-  useEffect(() => {
-    return () => {
-      if (audioRef.current) { audioRef.current.pause(); audioRef.current = null; }
-      if (blobUrlRef.current) { URL.revokeObjectURL(blobUrlRef.current); blobUrlRef.current = null; }
-    };
-  }, []);
+  // Get the audio URL — from scene directly
+  const audioUrl = scene.audioUrl || '';
 
-  // Sync when scene changes
+  // Reset on scene change
   useEffect(() => {
-    if (audioRef.current) { audioRef.current.pause(); audioRef.current = null; }
-    if (blobUrlRef.current) { URL.revokeObjectURL(blobUrlRef.current); blobUrlRef.current = null; }
-    setIsPlaying(false);
+    stopPlayback();
+    setStatus(scene.audioUrl ? 'ready' : 'idle');
+    setError('');
     setCurrentTime(0);
     setDuration(0);
-    setAudioState(scene.audioUrl ? { url: scene.audioUrl, status: 'ready' } : { url: '', status: 'idle' });
   }, [scene.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // No pre-load effect — create audio on play, like StoryReader does
+  function stopPlayback() {
+    if (audioRef.current) {
+      audioRef.current.pause();
+      audioRef.current = null;
+    }
+    if (timerRef.current) {
+      clearInterval(timerRef.current);
+      timerRef.current = null;
+    }
+    setPlaying(false);
+  }
+
+  // Cleanup on unmount
+  useEffect(() => () => stopPlayback(), []);
 
   const generateAudio = useCallback(async () => {
     if (!scene.prose) return;
@@ -58,7 +66,8 @@ export function SceneAudioView({
       return;
     }
 
-    setAudioState({ url: '', status: 'loading' });
+    setStatus('loading');
+    setError('');
     try {
       const res = await fetch('/api/generate-audio', {
         method: 'POST',
@@ -70,89 +79,78 @@ export function SceneAudioView({
         throw new Error(err.error || `TTS failed (${res.status})`);
       }
       const blob = await res.blob();
-      const reader = new FileReader();
-      const audioUrl: string = await new Promise((resolve) => {
-        reader.onload = () => resolve(reader.result as string);
-        reader.readAsDataURL(blob);
-      });
-      dispatch({ type: 'SET_SCENE_AUDIO', sceneId: scene.id, audioUrl });
-      setAudioState({ url: audioUrl, status: 'ready' });
+      // Store blob in IndexedDB, save lightweight marker on the scene
+      const marker = await saveAudioBlob(scene.id, blob);
+      dispatch({ type: 'SET_SCENE_AUDIO', sceneId: scene.id, audioUrl: marker });
+      setStatus('ready');
     } catch (err) {
-      const message = err instanceof Error ? err.message : String(err);
-      setAudioState({ url: '', status: 'error', error: message });
+      setError(err instanceof Error ? err.message : String(err));
+      setStatus('error');
     }
   }, [narrative, scene, access, dispatch]);
 
   const clearAudio = useCallback(() => {
-    if (audioRef.current) { audioRef.current.pause(); audioRef.current = null; }
-    setIsPlaying(false);
+    stopPlayback();
+    setStatus('idle');
     setCurrentTime(0);
     setDuration(0);
-    setAudioState({ url: '', status: 'idle' });
+    deleteAudioBlob(scene.id);
     dispatch({ type: 'CLEAR_SCENE_AUDIO', sceneId: scene.id });
   }, [scene.id, dispatch]);
 
-  // Listen for palette events
+  // Palette events
   useEffect(() => {
-    function onGenerate() { generateAudio(); }
-    function onClear() { clearAudio(); }
-    window.addEventListener('canvas:generate-audio', onGenerate);
+    const onGen = () => { generateAudio(); };
+    const onClear = () => { clearAudio(); };
+    window.addEventListener('canvas:generate-audio', onGen);
     window.addEventListener('canvas:clear-audio', onClear);
     return () => {
-      window.removeEventListener('canvas:generate-audio', onGenerate);
+      window.removeEventListener('canvas:generate-audio', onGen);
       window.removeEventListener('canvas:clear-audio', onClear);
     };
   }, [generateAudio, clearAudio]);
 
+  // Play/pause
   const togglePlay = useCallback(async () => {
-    if (!audioState.url || audioState.status !== 'ready') return;
-
-    // Pause if playing
-    if (audioRef.current && isPlaying) {
+    // If something is playing, stop it
+    if (audioRef.current) {
       audioRef.current.pause();
-      setIsPlaying(false);
+      audioRef.current = null;
+      if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null; }
+    }
+    // If was playing, just stop
+    if (playing) {
+      setPlaying(false);
       return;
     }
-
-    // Resume if paused
-    if (audioRef.current && !isPlaying) {
-      try { await audioRef.current.play(); setIsPlaying(true); } catch { /* ignore */ }
-      return;
-    }
-
-    // Convert data URL to blob URL for reliable playback
-    let playUrl = audioState.url;
-    if (audioState.url.startsWith('data:')) {
-      try {
-        const res = await fetch(audioState.url);
-        const blob = await res.blob();
-        if (blobUrlRef.current) URL.revokeObjectURL(blobUrlRef.current);
-        playUrl = URL.createObjectURL(blob);
-        blobUrlRef.current = playUrl;
-      } catch { /* fall back to data URL */ }
-    }
-
+    // Resolve audio URL — from IDB blob or legacy data URL
+    if (!audioUrl) return;
+    const playUrl = await resolveAudioUrl(audioUrl, scene.id);
+    if (!playUrl) return;
     const audio = new Audio(playUrl);
     audio.onloadedmetadata = () => setDuration(audio.duration);
-    audio.ontimeupdate = () => setCurrentTime(audio.currentTime);
-    audio.onended = () => { setIsPlaying(false); setCurrentTime(0); };
-    try { await audio.play(); } catch { /* ignore */ }
+    audio.onended = () => { setPlaying(false); setCurrentTime(0); if (timerRef.current) clearInterval(timerRef.current); };
+    audio.play();
     audioRef.current = audio;
-    setIsPlaying(true);
-  }, [audioState, isPlaying]);
+    setPlaying(true);
+    // Poll currentTime for waveform progress
+    timerRef.current = setInterval(() => {
+      if (audioRef.current) setCurrentTime(audioRef.current.currentTime);
+    }, 100);
+  }, [playing, audioUrl, scene.id]);
 
+  // Seek
   const seek = useCallback((e: React.MouseEvent<HTMLCanvasElement>) => {
     if (!duration) return;
     const rect = canvasRef.current?.getBoundingClientRect();
     if (!rect) return;
     const pct = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
-    if (audioRef.current) {
-      audioRef.current.currentTime = pct * duration;
-    }
-    setCurrentTime(pct * duration);
+    const t = pct * duration;
+    if (audioRef.current) audioRef.current.currentTime = t;
+    setCurrentTime(t);
   }, [duration]);
 
-  // Draw waveform — full width, vertically centered
+  // Draw waveform
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -175,7 +173,6 @@ export function SceneAudioView({
 
     ctx.clearRect(0, 0, w, h);
 
-    // Deterministic waveform from scene id
     const seed = scene.id.split('').reduce((a, c) => a + c.charCodeAt(0), 0);
     for (let i = 0; i < bars; i++) {
       const n1 = Math.sin(seed * 0.1 + i * 0.7) * 0.3;
@@ -185,28 +182,19 @@ export function SceneAudioView({
       const amplitude = Math.max(0.06, Math.min(0.95, n1 + n2 + n3 + n4 + 0.4));
       const barH = amplitude * h * 0.85;
       const x = i * (barW + gap);
-      const played = i / bars < progress;
-
-      if (played) {
-        ctx.fillStyle = 'rgba(139, 92, 246, 0.8)';
-      } else {
-        ctx.fillStyle = 'rgba(255, 255, 255, 0.08)';
-      }
+      ctx.fillStyle = i / bars < progress ? 'rgba(139, 92, 246, 0.8)' : 'rgba(255, 255, 255, 0.08)';
       ctx.beginPath();
       ctx.roundRect(x, mid - barH / 2, barW, barH, 1.5);
       ctx.fill();
     }
-  }, [currentTime, duration, scene.id, audioState.status]);
+  }, [currentTime, duration, scene.id, status]);
 
-  // Resize observer for canvas
+  // Resize observer
   useEffect(() => {
-    const container = containerRef.current;
-    if (!container) return;
-    const ro = new ResizeObserver(() => {
-      // Trigger redraw by updating a dummy state
-      setCurrentTime((t) => t);
-    });
-    ro.observe(container);
+    const el = containerRef.current;
+    if (!el) return;
+    const ro = new ResizeObserver(() => setCurrentTime((t) => t));
+    ro.observe(el);
     return () => ro.disconnect();
   }, []);
 
@@ -216,51 +204,38 @@ export function SceneAudioView({
     return `${m}:${sec.toString().padStart(2, '0')}`;
   };
 
-  const hasAudio = audioState.status === 'ready';
-  const isLoading = audioState.status === 'loading';
-  const hasError = audioState.status === 'error';
   const hasProse = !!scene.prose;
   const hasVoice = !!narrative.storySettings?.audioVoice;
 
   return (
     <div ref={containerRef} className="h-full flex flex-col items-center justify-center px-8">
 
-      {/* Loading */}
-      {isLoading && (
+      {status === 'loading' && (
         <div className="flex flex-col items-center gap-3">
           <div className="w-5 h-5 border-2 border-violet-500/20 border-t-violet-400 rounded-full animate-spin" />
           <p className="text-[11px] text-text-dim">Generating audio...</p>
         </div>
       )}
 
-      {/* Error */}
-      {hasError && (
+      {status === 'error' && (
         <div className="text-center">
-          <p className="text-[11px] text-red-400/80 mb-3">{audioState.error}</p>
+          <p className="text-[11px] text-red-400/80 mb-3">{error}</p>
           <button onClick={() => void generateAudio()} className="text-[10px] px-4 py-1.5 rounded-full border border-white/10 text-text-dim hover:text-text-secondary transition">Retry</button>
         </div>
       )}
 
-      {/* Audio player — full width waveform */}
-      {hasAudio && !isLoading && (
+      {status === 'ready' && (
         <div className="w-full max-w-4xl flex flex-col items-center gap-6">
-          <canvas
-            ref={canvasRef}
-            className="w-full cursor-pointer"
-            style={{ height: '20vh' }}
-            onClick={seek}
-          />
+          <canvas ref={canvasRef} className="w-full cursor-pointer" style={{ height: '20vh' }} onClick={seek} />
           <div className="flex items-center gap-5">
             <span className="text-[11px] text-text-dim font-mono tabular-nums w-12 text-right">{formatTime(currentTime)}</span>
             <button
               onClick={togglePlay}
               className={`w-14 h-14 rounded-full flex items-center justify-center transition ${
-                isPlaying
-                  ? 'bg-violet-500/25 text-violet-300 ring-2 ring-violet-500/25'
-                  : 'bg-white/10 text-text-primary hover:bg-white/15'
+                playing ? 'bg-violet-500/25 text-violet-300 ring-2 ring-violet-500/25' : 'bg-white/10 text-text-primary hover:bg-white/15'
               }`}
             >
-              {isPlaying ? (
+              {playing ? (
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16" rx="1" /><rect x="14" y="4" width="4" height="16" rx="1" /></svg>
               ) : (
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" className="ml-1"><polygon points="6,3 20,12 6,21" /></svg>
@@ -271,8 +246,7 @@ export function SceneAudioView({
         </div>
       )}
 
-      {/* Empty states */}
-      {!hasAudio && !isLoading && !hasError && (
+      {status === 'idle' && (
         <div className="flex flex-col items-center gap-3">
           {!hasVoice ? (
             <>
