@@ -710,7 +710,19 @@ function reducer(state: AppState, action: Action): AppState {
       return updateNarrative(state, (n) => {
         const newScenes = { ...n.scenes };
         for (const scene of action.scenes) newScenes[scene.id] = scene;
-        const newArcs = { ...n.arcs, ...action.arcs };
+        // Merge arcs: for existing arcs, append new sceneIds without removing originals.
+        // This prevents reconstruction from mutating arcs shared by the parent branch.
+        const newArcs = { ...n.arcs };
+        for (const [arcId, arc] of Object.entries(action.arcs)) {
+          const existing = newArcs[arcId];
+          if (!existing) {
+            newArcs[arcId] = arc;
+          } else {
+            // Merge: keep original sceneIds and add any new ones from reconstruction
+            const merged = new Set([...existing.sceneIds, ...arc.sceneIds]);
+            newArcs[arcId] = { ...existing, sceneIds: [...merged] };
+          }
+        }
         return { ...n, scenes: newScenes, arcs: newArcs };
       });
     }

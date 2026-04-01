@@ -450,9 +450,15 @@ export default function BranchEval({ sceneRange, onRangeChange }: { sceneRange?:
       }
     };
 
+    let startInserted = false;
     for (const key of filteredKeys) {
       const entry = resolveEntry(narrative, key);
       if (entry && isScene(entry)) {
+        // Inject START inserts just before the first scene
+        if (!startInserted) {
+          startInserted = true;
+          injectInserts('START', entry.arcId);
+        }
         // Skip moved scenes at their original position — they appear at their target
         if (movedSceneIds.has(entry.id)) continue;
         scenes.push({ scene: entry, arc: narrative.arcs[entry.arcId] });

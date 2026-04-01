@@ -192,6 +192,8 @@ export async function reconstructBranch(
     }
   };
 
+  let startInserted = false;
+
   for (const key of resolvedKeys) {
     const entry = resolveEntry(narrative, key);
     if (!entry) continue;
@@ -199,6 +201,12 @@ export async function reconstructBranch(
     if (isWorldBuild(entry)) {
       items.push({ type: 'world_build', id: entry.id });
     } else if (isScene(entry)) {
+      // Inject START inserts just before the first scene (after world builds)
+      if (!startInserted) {
+        startInserted = true;
+        lastSceneEntry = entry; // use first scene as reference for arcId/povId/locationId
+        injectInsertsAfter('START');
+      }
       lastSceneEntry = entry;
       const ev = verdictMap.get(entry.id);
       const verdict = ev?.verdict ?? 'ok';
@@ -239,6 +247,38 @@ export async function reconstructBranch(
       injectMovesAfter(entry.id);
 
       injectInsertsAfter(entry.id);
+    }
+  }
+
+  // Edge case: if all scenes were cut, START inserts never fired.
+  // Inject them now so they aren't silently dropped.
+  if (!startInserted) {
+    injectInsertsAfter('START');
+  }
+
+  // Edge case: inserts with invalid/hallucinated insertAfter IDs that didn't match
+  // any scene or "START". Collect orphaned inserts and append them at the end.
+  for (const ins of insertEvals) {
+    const wasPlaced = sceneEntries.some((s) => s.verdict === 'insert' && s.reason === ins.reason && s.scene.summary === ins.reason);
+    if (!wasPlaced) {
+      const ref = lastSceneEntry;
+      const insertId = nextId('S', [...allExistingSceneIds, ...usedNewIds], 3);
+      usedNewIds.add(insertId);
+      const placeholder: Scene = {
+        kind: 'scene',
+        id: insertId,
+        arcId: ref?.arcId ?? '',
+        locationId: ref?.locationId ?? '',
+        povId: ref?.povId ?? '',
+        participantIds: [],
+        events: [],
+        threadMutations: [],
+        continuityMutations: [],
+        relationshipMutations: [],
+        summary: ins.reason,
+      };
+      items.push({ type: 'scene', index: sceneEntries.length, scene: placeholder, verdict: 'insert', reason: ins.reason, newId: insertId });
+      sceneEntries.push({ type: 'scene', index: sceneEntries.length, scene: placeholder, verdict: 'insert', reason: ins.reason, newId: insertId } as Extract<TimelineItem, { type: 'scene' }>);
     }
   }
 
