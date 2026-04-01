@@ -12,7 +12,7 @@ export async function POST(req: NextRequest) {
 
   try {
     const body = await req.json();
-    const { prompt, systemPrompt, model, maxTokens, stream, temperature, reasoningBudget } = body as {
+    const { prompt, systemPrompt, model, maxTokens, stream, temperature, reasoningBudget, jsonMode } = body as {
       prompt: string;
       systemPrompt?: string;
       model?: string;
@@ -20,6 +20,7 @@ export async function POST(req: NextRequest) {
       stream?: boolean;
       temperature?: number;
       reasoningBudget?: number;
+      jsonMode?: boolean;
     };
 
     const response = await fetch(OPENROUTER_URL, {
@@ -40,6 +41,7 @@ export async function POST(req: NextRequest) {
         max_tokens: maxTokens || MAX_TOKENS_DEFAULT,
         ...(stream ? { stream: true } : {}),
         ...(reasoningBudget && reasoningBudget > 0 ? { reasoning: { max_tokens: reasoningBudget } } : {}),
+        ...(jsonMode ? { response_format: { type: 'json_object' } } : {}),
       }),
     });
 

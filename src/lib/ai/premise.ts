@@ -229,6 +229,25 @@ NAMING (applies to ALL names — entities, choices, systems, threads, title):
   };
 }
 
+// ── Suggest a random premise ────────────────────────────────────────────────
+
+export async function suggestPremise(): Promise<{ title: string; premise: string }> {
+  const systemPrompt = `You generate TV series concepts with a catchy title and a compelling premise. Think original shows that put a fresh twist on proven, commercially successful genres — crime, family drama, thriller, sci-fi, legal, medical, political. Be specific about characters, setting, and the central conflict.
+
+Respond in exactly this JSON format:
+{"title": "The Show Title", "premise": "1-2 sentence premise describing the world, characters, and central conflict."}`;
+
+  const raw = await callGenerate(
+    'Give me an original series concept with a title and premise.',
+    systemPrompt,
+    300,
+    'suggestPremise',
+    GENERATE_MODEL,
+  );
+  const parsed = parseJson(raw, 'suggestPremise') as { title?: string; premise?: string };
+  return { title: parsed.title ?? '', premise: parsed.premise ?? '' };
+}
+
 // ── Build premise text ───────────────────────────────────────────────────────
 
 export function buildPremiseText(

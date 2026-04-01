@@ -137,6 +137,17 @@ class AnalysisRunner {
     this.streamTexts.set(job.id, '');
     d({ type: 'UPDATE_ANALYSIS_JOB', id: job.id, updates: { status: 'running' } });
 
+    try {
+    await this.runPipeline(job, entry, d);
+    } catch (err) {
+      console.error('[AnalysisRunner] Unexpected error:', err);
+      d({ type: 'UPDATE_ANALYSIS_JOB', id: job.id, updates: { status: 'failed', error: err instanceof Error ? err.message : String(err) } });
+    } finally {
+      this.cleanup(job.id);
+    }
+  }
+
+  private async runPipeline(job: AnalysisJob, entry: RunningJob, d: Dispatch) {
     const results: (AnalysisChunkResult | null)[] = [...job.results];
     const totalChunks = job.chunks.length;
 
@@ -233,7 +244,6 @@ class AnalysisRunner {
       // Handle cancellation
       if (entry.cancelled) {
         d({ type: 'UPDATE_ANALYSIS_JOB', id: job.id, updates: { status: 'paused', results: [...results], currentChunkIndex: completedCount } });
-        this.cleanup(job.id);
         return;
       }
 
@@ -286,7 +296,6 @@ class AnalysisRunner {
           d({ type: 'UPDATE_ANALYSIS_JOB', id: job.id, updates: { results: [...results] } });
           const failedMsg = stillFailed.map((e) => `Chunk ${e.chunkIdx + 1}: ${e.error}`).join('; ');
           d({ type: 'UPDATE_ANALYSIS_JOB', id: job.id, updates: { status: 'failed', error: `Extraction failed after retry: ${failedMsg}` } });
-          this.cleanup(job.id);
           return;
         }
       }
@@ -294,7 +303,6 @@ class AnalysisRunner {
 
     if (entry.cancelled) {
       d({ type: 'UPDATE_ANALYSIS_JOB', id: job.id, updates: { status: 'paused', results: [...results] } });
-      this.cleanup(job.id);
       return;
     }
 
@@ -354,7 +362,6 @@ class AnalysisRunner {
 
     if (entry.cancelled) {
       d({ type: 'UPDATE_ANALYSIS_JOB', id: job.id, updates: { status: 'paused', results: [...results] } });
-      this.cleanup(job.id);
       return;
     }
 
@@ -370,7 +377,6 @@ class AnalysisRunner {
 
       if (entry.cancelled) {
         d({ type: 'UPDATE_ANALYSIS_JOB', id: job.id, updates: { status: 'paused' } });
-        this.cleanup(job.id);
         return;
       }
 
@@ -403,8 +409,6 @@ class AnalysisRunner {
       const message = err instanceof Error ? err.message : String(err);
       d({ type: 'UPDATE_ANALYSIS_JOB', id: job.id, updates: { status: 'failed', error: message } });
     }
-
-    this.cleanup(job.id);
   }
 
   private emitStream(jobId: string, text: string) {

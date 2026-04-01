@@ -18,5 +18,5 @@ export { runAlignment, buildContinuityPlan, buildFixAnalysis, runFixWindows } fr
 export type { AlignmentProgress, AlignmentPhase, FixResult } from './alignment';
 
 // Premise
-export { generatePremiseQuestion, buildPremiseText } from './premise';
+export { generatePremiseQuestion, buildPremiseText, suggestPremise } from './premise';
 export type { PremiseEntity, PremiseEdge, PremiseDecision, PremiseQuestion, PremiseQuestionResult } from './premise';

@@ -3,9 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useStore } from '@/lib/store';
-import { generateNarrative } from '@/lib/ai';
-import { logApiCall, updateApiLog } from '@/lib/api-logger';
-import { DEFAULT_MODEL } from '@/lib/constants';
+import { generateNarrative, suggestPremise } from '@/lib/ai';
 import type { CharacterSketch, LocationSketch, ThreadSketch, WorldSystemSketch } from '@/types/narrative';
 import { IconQuestion, IconChevronRight } from '@/components/icons';
 
@@ -129,19 +127,13 @@ export function CreationWizard() {
   async function handleSuggest() {
     if (suggesting) return;
     setSuggesting(true);
-    const logId = logApiCall('CreationWizard.suggest', 0, 'suggest-premise', DEFAULT_MODEL);
-    const start = performance.now();
     try {
-      const res = await fetch('/api/suggest-premise', { method: 'POST' });
-      const data = await res.json();
-      const content = JSON.stringify(data);
-      updateApiLog(logId, { status: 'success', durationMs: Math.round(performance.now() - start), responseLength: content.length, responsePreview: content });
+      const data = await suggestPremise();
       if (data.title || data.premise) {
         update({ title: data.title ?? '', premise: data.premise ?? '' });
       }
-    } catch (err) {
-      const message = err instanceof Error ? err.message : String(err);
-      updateApiLog(logId, { status: 'error', error: message, durationMs: Math.round(performance.now() - start) });
+    } catch {
+      // logged by callGenerate
     } finally {
       setSuggesting(false);
     }

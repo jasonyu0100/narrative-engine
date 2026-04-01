@@ -21,8 +21,10 @@ import { ThreadGraphModal } from '@/components/topbar/ThreadGraphModal';
 import { NarrativeEditModal } from '@/components/topbar/NarrativeEditModal';
 import { UsageDropdown, computeTotalCost } from '@/components/topbar/UsageAnalyticsModal';
 import type { NarrativeEntry } from '@/types/narrative';
-import { IconHome, IconChevronDown, IconChevronRight, IconPlus, IconImport, IconSettings, IconDownload, IconFork, IconDocument, IconDollar, IconScorecard } from '@/components/icons';
+import { IconHome, IconChevronDown, IconChevronRight, IconPlus, IconImport, IconSettings, IconDownload, IconFork, IconDocument, IconDollar, IconScorecard, IconBook } from '@/components/icons';
 import { NowPlayingPill } from '@/components/canvas/AudioMiniPlayer';
+import { exportEpub } from '@/lib/epub-export';
+import { idbGet, AUDIO_STORE } from '@/lib/idb';
 
 
 function downloadJson(data: object, filename: string) {
@@ -297,10 +299,13 @@ export default function TopBar() {
   const [threadGraphOpen, setThreadGraphOpen] = useState(false);
   const [scorecardOpen, setScorecardOpen] = useState(false);
   const [usageOpen, setUsageOpen] = useState(false);
+  const [exportOpen, setExportOpen] = useState(false);
+  const [copyToast, setCopyToast] = useState<string | null>(null);
   const [hoveredArcIdx, setHoveredArcIdx] = useState<number | null>(null);
   const [scorecardGraphView, setScorecardGraphView] = useState<'arcs' | 'delivery'>('arcs');
   const scorecardRef = useRef<HTMLDivElement>(null);
   const usageRef = useRef<HTMLDivElement>(null);
+  const exportRef = useRef<HTMLDivElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -337,9 +342,9 @@ export default function TopBar() {
     return () => document.removeEventListener('mousedown', handleClick);
   }, [selectorOpen]);
 
-  // Close scorecard / usage on outside click
+  // Close scorecard / usage / export on outside click
   useEffect(() => {
-    if (!scorecardOpen && !usageOpen) return;
+    if (!scorecardOpen && !usageOpen && !exportOpen) return;
     function handleClick(e: MouseEvent) {
       if (scorecardOpen && scorecardRef.current && !scorecardRef.current.contains(e.target as Node)) {
         setScorecardOpen(false);
@@ -347,10 +352,110 @@ export default function TopBar() {
       if (usageOpen && usageRef.current && !usageRef.current.contains(e.target as Node)) {
         setUsageOpen(false);
       }
+      if (exportOpen && exportRef.current && !exportRef.current.contains(e.target as Node)) {
+        setExportOpen(false);
+      }
     }
     document.addEventListener('mousedown', handleClick);
     return () => document.removeEventListener('mousedown', handleClick);
-  }, [scorecardOpen, usageOpen]);
+  }, [scorecardOpen, usageOpen, exportOpen]);
+
+  // Toast auto-dismiss
+  useEffect(() => {
+    if (!copyToast) return;
+    const t = setTimeout(() => setCopyToast(null), 2000);
+    return () => clearTimeout(t);
+  }, [copyToast]);
+
+  // Copy/export helpers
+  const copyAllText = useCallback((mode: 'prose' | 'plan' | 'summary') => {
+    if (!narrative) return;
+    const scenes = state.resolvedEntryKeys
+      .map((k) => resolveEntry(narrative, k))
+      .filter((e): e is Scene => !!e && isScene(e));
+
+    const parts: string[] = [];
+    for (const scene of scenes) {
+      if (mode === 'prose') {
+        const text = scene.prose;
+        if (text) parts.push(text);
+      } else if (mode === 'plan') {
+        if (scene.plan) {
+          const beats = scene.plan.beats.map((b) => `[${b.fn}/${b.mechanism}] ${b.what} — ${b.anchor}`).join('\n');
+          parts.push(`Scene: ${scene.summary}\n${beats}`);
+        }
+      } else {
+        parts.push(scene.summary);
+      }
+    }
+
+    const text = parts.join('\n\n---\n\n');
+    navigator.clipboard.writeText(text).then(() => {
+      setCopyToast(`Copied ${parts.length} ${mode === 'prose' ? 'scenes' : mode === 'plan' ? 'plans' : 'summaries'}`);
+    });
+    setExportOpen(false);
+  }, [narrative, state.resolvedEntryKeys]);
+
+  const handleExportEpub = useCallback(() => {
+    if (!narrative) return;
+    exportEpub(narrative, state.resolvedEntryKeys, {});
+    setExportOpen(false);
+  }, [narrative, state.resolvedEntryKeys]);
+
+  const handleExportAudio = useCallback(async () => {
+    if (!narrative) return;
+    setExportOpen(false);
+    const scenes = state.resolvedEntryKeys
+      .map((k) => resolveEntry(narrative, k))
+      .filter((e): e is Scene => !!e && isScene(e))
+      .filter((s) => s.audioUrl);
+
+    if (scenes.length === 0) {
+      setCopyToast('No audio to export');
+      return;
+    }
+
+    const blobs: { name: string; blob: Blob }[] = [];
+    for (let i = 0; i < scenes.length; i++) {
+      const scene = scenes[i];
+      try {
+        const blob = await idbGet<Blob>(AUDIO_STORE, scene.id);
+        if (blob) {
+          const arcName = Object.values(narrative.arcs).find((a) => a.sceneIds.includes(scene.id))?.name ?? 'Untitled';
+          blobs.push({ name: `${String(i + 1).padStart(3, '0')}_${arcName.replace(/[^a-z0-9]/gi, '_')}.mp3`, blob });
+        }
+      } catch { /* skip */ }
+    }
+
+    if (blobs.length === 0) {
+      setCopyToast('No audio blobs found');
+      return;
+    }
+
+    // Single file — download directly
+    if (blobs.length === 1) {
+      const url = URL.createObjectURL(blobs[0].blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = blobs[0].name;
+      a.click();
+      URL.revokeObjectURL(url);
+      setCopyToast('Exported 1 audio file');
+      return;
+    }
+
+    // Multiple — concatenate into one blob download
+    const allParts: BlobPart[] = [];
+    for (const b of blobs) allParts.push(b.blob);
+    const combined = new Blob(allParts, { type: 'audio/mpeg' });
+    const url = URL.createObjectURL(combined);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${narrative.title.replace(/[^a-z0-9]/gi, '_').toLowerCase()}_audio.mp3`;
+    a.click();
+    URL.revokeObjectURL(url);
+    setCopyToast(`Exported ${blobs.length} audio scenes`);
+  }, [narrative, state.resolvedEntryKeys]);
 
   // Usage: filter logs to current narrative
   const narrativeLogs = useMemo(() =>
@@ -1078,6 +1183,58 @@ export default function TopBar() {
         {hasNarrative && (
           <>
             <NowPlayingPill />
+
+            {/* Export / Copy dropdown */}
+            <div className="relative" ref={exportRef}>
+              <button
+                onClick={() => setExportOpen((v) => !v)}
+                className={`px-2.5 py-1 rounded-full transition-colors flex items-center gap-1.5 text-[12px] border ${
+                  exportOpen
+                    ? 'text-text-primary bg-white/10 border-white/15'
+                    : 'text-text-secondary hover:text-text-primary hover:bg-white/5 border-white/8 hover:border-white/15'
+                }`}
+                title="Copy & Export"
+              >
+                <IconDownload size={14} />
+                <span>Export</span>
+                <IconChevronDown size={10} className={`transition-transform ${exportOpen ? 'rotate-180' : ''}`} />
+              </button>
+              {exportOpen && (
+                <div
+                  className="absolute top-full right-0 mt-1 min-w-52 rounded-lg border border-white/10 py-1 z-50"
+                  style={{ background: '#1a1a1a', boxShadow: '0 8px 32px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.04)' }}
+                >
+                  <div className="px-3 pt-1.5 pb-1">
+                    <span className="text-[9px] font-semibold text-text-dim uppercase tracking-widest">Copy to Clipboard</span>
+                  </div>
+                  <button onClick={() => copyAllText('prose')} className="w-full flex items-center gap-2.5 px-3 py-1.5 text-[12px] text-text-secondary hover:text-text-primary hover:bg-white/5 transition-colors">
+                    <svg className="w-3.5 h-3.5 text-text-dim shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" /><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" /></svg>
+                    All Prose
+                  </button>
+                  <button onClick={() => copyAllText('plan')} className="w-full flex items-center gap-2.5 px-3 py-1.5 text-[12px] text-text-secondary hover:text-text-primary hover:bg-white/5 transition-colors">
+                    <svg className="w-3.5 h-3.5 text-text-dim shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" /><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" /></svg>
+                    All Plans
+                  </button>
+                  <button onClick={() => copyAllText('summary')} className="w-full flex items-center gap-2.5 px-3 py-1.5 text-[12px] text-text-secondary hover:text-text-primary hover:bg-white/5 transition-colors">
+                    <svg className="w-3.5 h-3.5 text-text-dim shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" /><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" /></svg>
+                    All Summaries
+                  </button>
+                  <div className="my-1 border-t border-white/8" />
+                  <div className="px-3 pt-1.5 pb-1">
+                    <span className="text-[9px] font-semibold text-text-dim uppercase tracking-widest">Export</span>
+                  </div>
+                  <button onClick={handleExportEpub} className="w-full flex items-center gap-2.5 px-3 py-1.5 text-[12px] text-text-secondary hover:text-text-primary hover:bg-white/5 transition-colors">
+                    <IconBook size={14} className="text-text-dim shrink-0" />
+                    EPUB
+                  </button>
+                  <button onClick={handleExportAudio} className="w-full flex items-center gap-2.5 px-3 py-1.5 text-[12px] text-text-secondary hover:text-text-primary hover:bg-white/5 transition-colors">
+                    <svg className="w-3.5 h-3.5 text-text-dim shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 18V5l12-2v13" /><circle cx="6" cy="18" r="3" /><circle cx="18" cy="16" r="3" /></svg>
+                    Audio
+                  </button>
+                </div>
+              )}
+            </div>
+
             <button
               onClick={() => setSlidesOpen(true)}
               className="px-2.5 py-1 rounded-full transition-colors flex items-center gap-1.5 text-[12px] border border-white/8 text-text-secondary hover:text-text-primary hover:bg-white/5 hover:border-white/15"
@@ -1091,6 +1248,13 @@ export default function TopBar() {
               <span>Slides</span>
             </button>
           </>
+        )}
+
+        {/* Copy toast */}
+        {copyToast && (
+          <div className="fixed top-14 right-4 z-[100] px-3 py-1.5 rounded-lg bg-green-500/20 border border-green-500/30 text-green-300 text-[11px] font-medium animate-in fade-in slide-in-from-top-1 duration-200">
+            {copyToast}
+          </div>
         )}
       </div>
 
