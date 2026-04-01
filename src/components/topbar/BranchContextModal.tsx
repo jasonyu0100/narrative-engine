@@ -252,8 +252,8 @@ export function BranchContextModal({ narrative, resolvedKeys, currentSceneIndex,
   const currentScene = currentEntry && isScene(currentEntry) ? currentEntry : null;
 
   const sceneCtx = useMemo(
-    () => currentScene ? sceneContext(narrative, currentScene) : null,
-    [narrative, currentScene],
+    () => currentScene ? sceneContext(narrative, currentScene, resolvedKeys, currentSceneIndex) : null,
+    [narrative, currentScene, resolvedKeys, currentSceneIndex],
   );
 
   const outlineCtx = useMemo(

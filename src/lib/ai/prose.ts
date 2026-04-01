@@ -23,7 +23,8 @@ export async function rewriteSceneProse(
   onToken?: (token: string) => void,
 ): Promise<{ prose: string; changelog: string }> {
   const sceneIdx = resolvedKeys.indexOf(scene.id);
-  const sceneBlock = sceneContext(narrative, scene);
+  const contextIndex = sceneIdx >= 0 ? sceneIdx : resolvedKeys.length - 1;
+  const sceneBlock = sceneContext(narrative, scene, resolvedKeys, contextIndex);
   const logicRules = deriveLogicRules(narrative, scene);
 
   // Get neighboring prose for continuity

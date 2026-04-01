@@ -271,7 +271,7 @@ export async function generateScenePlan(
   const sceneIdx = resolvedKeys.indexOf(scene.id);
   const contextIndex = sceneIdx >= 0 ? sceneIdx : resolvedKeys.length - 1;
   const fullContext = branchContext(narrative, resolvedKeys, contextIndex);
-  const sceneBlock = sceneContext(narrative, scene);
+  const sceneBlock = sceneContext(narrative, scene, resolvedKeys, contextIndex);
   const logicRules = deriveLogicRules(narrative, scene);
   const logicBlock = logicRules.length > 0
     ? `\nLOGICAL CONSTRAINTS (the plan must satisfy all of these):\n${logicRules.map((r) => `  - ${r}`).join('\n')}\n`
@@ -447,7 +447,7 @@ export async function editScenePlan(
   const sceneIdx = resolvedKeys.indexOf(scene.id);
   const contextIndex = sceneIdx >= 0 ? sceneIdx : resolvedKeys.length - 1;
   const fullContext = branchContext(narrative, resolvedKeys, contextIndex);
-  const sceneBlock = sceneContext(narrative, scene);
+  const sceneBlock = sceneContext(narrative, scene, resolvedKeys, contextIndex);
 
   const currentPlanJson = JSON.stringify({
     beats: plan.beats.map((b, i) => ({ idx: i + 1, fn: b.fn, mechanism: b.mechanism, what: b.what, anchor: b.anchor })),
@@ -575,7 +575,9 @@ export async function rewriteScenePlan(
   currentPlan: BeatPlan,
   analysis: string,
 ): Promise<BeatPlan> {
-  const sceneBlock = sceneContext(narrative, scene);
+  const sceneIdx = resolvedKeys.indexOf(scene.id);
+  const contextIndex = sceneIdx >= 0 ? sceneIdx : resolvedKeys.length - 1;
+  const sceneBlock = sceneContext(narrative, scene, resolvedKeys, contextIndex);
 
   const currentPlanText = currentPlan.beats.map((b, i) =>
     `${i + 1}. [${b.fn}:${b.mechanism}] ${b.what} | anchor: ${b.anchor}`
@@ -722,7 +724,7 @@ Strict output rules:
     guidance?.trim() ? `\n\nSCENE DIRECTION:\n${guidance.trim()}` : ''
   }`;
 
-  const sceneBlock = sceneContext(narrative, scene);
+  const sceneBlock = sceneContext(narrative, scene, resolvedKeys, contextIndex);
 
   // Scene plan — when available, this is the primary creative direction
   const planBlock = scene.plan

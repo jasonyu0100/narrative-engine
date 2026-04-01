@@ -83,7 +83,7 @@ export default function ChatPanel() {
     }
 
     if (contextMode === 'scene' && currentScene) {
-      const ctx = sceneContext(n, currentScene);
+      const ctx = sceneContext(n, currentScene, state.resolvedEntryKeys, contextSceneIndex);
       return `You are a narrative consultant for the story "${n.title}".
 ${sceneAnchor}
 
