@@ -327,9 +327,9 @@ export async function generateScenePlan(
   // Sample a beat sequence from the Markov chain when enabled
   let beatSequenceHint = '';
   if (storySettings.useBeatChain !== false) {
-    const sampledFns = sampleBeatSequence(sampler, targetBeats, 'breathe');
-    beatSequenceHint = `\nSUGGESTED BEAT SEQUENCE (${targetBeats} beats — follow this fn sequence, choose the best mechanism per beat based on context):
-${sampledFns.map((fn, i) => `  ${i + 1}. ${fn}`).join('\n')}\n`;
+    const sampledBeats = sampleBeatSequence(sampler, targetBeats, 'breathe');
+    beatSequenceHint = `\nBEAT SEQUENCE (${targetBeats} beats — follow this fn and mechanism assignment exactly):
+${sampledBeats.map((b, i) => `  ${i + 1}. ${b.fn}:${b.mechanism}`).join('\n')}\n`;
   }
 
   // Render profile fields directly for the plan — no hardcoded value interpretation

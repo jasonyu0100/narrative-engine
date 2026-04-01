@@ -224,16 +224,31 @@ export function initBeatProfilePresets(works: { key: string; name: string; narra
 
 // ── Sampling ─────────────────────────────────────────────────────────────────
 
+export type SampledBeat = { fn: BeatFn; mechanism: BeatMechanism };
+
+export function sampleMechanism(sampler: BeatSampler): BeatMechanism {
+  const dist = sampler.mechanismDistribution;
+  const r = Math.random();
+  let cumulative = 0;
+  for (const [mech, prob] of Object.entries(dist)) {
+    cumulative += (prob as number) ?? 0;
+    if (r <= cumulative) return mech as BeatMechanism;
+  }
+  return 'action';
+}
+
 export function sampleBeatSequence(
   sampler: BeatSampler,
   length: number,
   startFn: BeatFn = 'breathe',
-): BeatFn[] {
-  const sequence: BeatFn[] = [];
+): SampledBeat[] {
+  const sequence: SampledBeat[] = [];
   let current = startFn;
 
   for (let i = 0; i < length; i++) {
-    sequence.push(current);
+    const mechanism = sampleMechanism(sampler);
+    sequence.push({ fn: current, mechanism });
+
     const row = sampler.markov[current];
     if (!row) { current = 'advance'; continue; }
 
@@ -248,17 +263,6 @@ export function sampleBeatSequence(
   }
 
   return sequence;
-}
-
-export function sampleMechanism(sampler: BeatSampler): BeatMechanism {
-  const dist = sampler.mechanismDistribution;
-  const r = Math.random();
-  let cumulative = 0;
-  for (const [mech, prob] of Object.entries(dist)) {
-    cumulative += (prob as number) ?? 0;
-    if (r <= cumulative) return mech as BeatMechanism;
-  }
-  return 'action';
 }
 
 // ── Resolution ───────────────────────────────────────────────────────────────
