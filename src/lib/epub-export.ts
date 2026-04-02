@@ -285,7 +285,7 @@ ${chapters.map((c, i) => `    <navPoint id="${c.id}" playOrder="${i + 1}">
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
-  a.download = `${narrative.title.replace(/[^a-z0-9]/gi, '_').toLowerCase()}.epub`;
+  a.download = `${narrative.title.replace(/[^a-z0-9]/gi, '_').replace(/_+/g, '_').replace(/^_|_$/g, '').toLowerCase()}.epub`;
   document.body.appendChild(a);
   a.click();
   document.body.removeChild(a);

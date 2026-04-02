@@ -296,34 +296,6 @@ describe('rewriteSceneProse', () => {
     expect(result.changelog).toBe('• First change\n• Second change');
   });
 
-  it('handles changelog object array format', async () => {
-    const mockProse = 'Prose.';
-    const changelogArray = [
-      { original: 'old text', rewritten: 'new text', why: 'clarity' },
-      { original: '', rewritten: 'added', reason: 'tension' },
-    ];
-    vi.mocked(callGenerate)
-      .mockResolvedValueOnce(JSON.stringify({ prose: mockProse }))
-      .mockResolvedValueOnce(JSON.stringify({ changelog: changelogArray }));
-    vi.mocked(parseJson)
-      .mockReturnValueOnce({ prose: mockProse })
-      .mockReturnValueOnce({ changelog: changelogArray });
-
-    const narrative = createMinimalNarrative();
-    const scene = narrative.scenes['S-02']!;
-    const result = await rewriteSceneProse(
-      narrative,
-      scene,
-      ['S-01', 'S-02', 'S-03'],
-      'Original prose',
-      'Analysis',
-    );
-
-    expect(result.changelog).toContain('"old text" →');
-    expect(result.changelog).toContain('"new text"');
-    expect(result.changelog).toContain('clarity');
-  });
-
   it('continues gracefully when changelog generation fails', async () => {
     const mockProse = 'Good prose.';
     vi.mocked(callGenerate)

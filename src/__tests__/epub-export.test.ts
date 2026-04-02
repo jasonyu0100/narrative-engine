@@ -191,8 +191,8 @@ describe('exportEpub', () => {
 
     exportEpub(narrative, ['S-01', 'S-02'], proseCache);
 
-    // Each non-alphanumeric char becomes underscore: `: ` -> `__`, `<` -> `_`, `>` -> `_`, ` & "` -> `___`
-    expect(capturedFilename).toBe('my_story__a_tale_of__adventure_____danger_.epub');
+    // Non-alphanumeric chars become underscores, consecutive underscores collapsed, leading/trailing trimmed
+    expect(capturedFilename).toBe('my_story_a_tale_of_adventure_danger.epub');
   });
 
   it('groups scenes by arc', async () => {

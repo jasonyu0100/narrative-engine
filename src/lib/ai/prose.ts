@@ -165,27 +165,20 @@ ${onToken ? 'Write the full rewritten prose directly — no JSON, no markdown, n
   let changelog = '';
   try {
     const changelogRaw = await callGenerate(
-      `ANALYSIS ADDRESSED:\n${analysis.slice(0, 500)}\n\nSummarize the key changes between the original and rewritten prose in 3-5 SHORT bullet points. Each bullet: one sentence, no quotes, just describe the change plainly. Focus on structural and continuity changes, not word-level edits.\n\nExample format:\n• Moved Chi Shan's death to the opening to establish it immediately\n• Added Tie Ruo Nan's departure via the false trail before Fang Yuan loots\n• Removed duplicate arrival description that repeated the prior scene\n\nReturn JSON:\n{"changelog": "• bullet 1\\n• bullet 2\\n• bullet 3"}`,
-      'You are a literary editor writing a brief change summary. Return ONLY valid JSON.',
+      `ANALYSIS ADDRESSED:\n${analysis.slice(0, 500)}\n\nSummarize the key changes in 3-5 bullet points. Each bullet: one sentence, plain description, no quotes. Focus on structural changes.\n\nReturn JSON with changelog as a SINGLE STRING with bullet points separated by newlines:\n{"changelog": "• Change one\\n• Change two\\n• Change three"}`,
+      'You are a literary editor. Return ONLY valid JSON with changelog as a string.',
       800,
       'rewriteChangelog',
       ANALYSIS_MODEL,
       reasoningBudget,
     );
     const changelogParsed = parseJson(changelogRaw, 'rewriteChangelog') as { changelog: unknown };
-    // Handle both string and structured formats — LLM may return an array of objects
     const raw = changelogParsed.changelog;
+    // Normalize to string — handle array fallback for backwards compatibility
     if (typeof raw === 'string') {
       changelog = raw;
     } else if (Array.isArray(raw)) {
-      changelog = raw.map((item: unknown) => {
-        if (typeof item === 'string') return `• ${item}`;
-        if (item && typeof item === 'object') {
-          const obj = item as Record<string, string>;
-          return `• ${obj.original ? `"${obj.original}" → ` : ''}${obj.rewritten ? `"${obj.rewritten}"` : ''}${obj.why ? ` — ${obj.why}` : obj.reason ? ` — ${obj.reason}` : ''}`;
-        }
-        return '';
-      }).filter(Boolean).join('\n');
+      changelog = raw.map((item: unknown) => typeof item === 'string' ? `• ${item}` : '').filter(Boolean).join('\n');
     } else {
       changelog = String(raw ?? '');
     }

@@ -685,6 +685,10 @@ describe('computeWorldMetrics', () => {
     it('recommends balanced when signals are equal', () => {
       const narrative = createMinimalNarrative();
       // Set up a balanced world with no strong signals
+      // - 3 knowledge per char (>= 3) → no depth signal
+      // - Deep location hierarchy (depth 3 with 3 root locations) → no depth signal
+      // - All chars connected with 2 relationships each → no depth signal
+      // - Locations well distributed → no breadth signal
       narrative.characters = {
         'C-01': createCharacter('C-01', {
           continuity: { nodes: [{ id: 'K-01', type: 'fact', content: 'Fact 1' }, { id: 'K-02', type: 'fact', content: 'Fact 2' }, { id: 'K-03', type: 'fact', content: 'Fact 3' }] },
@@ -705,17 +709,18 @@ describe('computeWorldMetrics', () => {
         { from: 'C-03', to: 'C-04', type: 'ally', valence: 0.5 },
         { from: 'C-04', to: 'C-01', type: 'ally', valence: 0.5 },
       ];
+      // 3 locations with hierarchy (depth 3) to avoid shallow hierarchy signal
+      // Also 3 locs <= 3 locs condition
       narrative.locations = {
-        'L-01': createLocation('L-01'),
-        'L-02': createLocation('L-02'),
-        'L-03': createLocation('L-03'),
-        'L-04': createLocation('L-04'),
+        'L-01': createLocation('L-01'), // root
+        'L-02': { ...createLocation('L-02'), parentId: 'L-01' }, // child
+        'L-03': { ...createLocation('L-03'), parentId: 'L-02' }, // grandchild (depth 3)
       };
       narrative.scenes = {
         'S-001': createScene('S-001', { participantIds: ['C-01', 'C-02'], locationId: 'L-01' }),
         'S-002': createScene('S-002', { participantIds: ['C-02', 'C-03'], locationId: 'L-02' }),
         'S-003': createScene('S-003', { participantIds: ['C-03', 'C-04'], locationId: 'L-03' }),
-        'S-004': createScene('S-004', { participantIds: ['C-04', 'C-01'], locationId: 'L-04' }),
+        'S-004': createScene('S-004', { participantIds: ['C-04', 'C-01'], locationId: 'L-01' }),
       };
 
       const result = computeWorldMetrics(narrative, ['S-001', 'S-002', 'S-003', 'S-004']);
@@ -725,7 +730,10 @@ describe('computeWorldMetrics', () => {
 
     it('reports balanced reasoning when signals roughly equal', () => {
       const narrative = createMinimalNarrative();
-      // Create a world with roughly equal depth and breadth signals
+      // Create a world with equal depth and breadth signals (1 each)
+      // Depth signal: sparse relationships (< 2/char) - only 1 relationship / 4 chars
+      // Breadth signal: high location concentration (> 50%) - 3/4 scenes at L-01
+      // (avoid "few locations" signal by having >= 30% ratio: 2 locs / 4 chars = 50%)
       narrative.characters = {
         'C-01': createCharacter('C-01', {
           continuity: { nodes: [{ id: 'K-01', type: 'fact', content: 'Fact 1' }, { id: 'K-02', type: 'fact', content: 'Fact 2' }, { id: 'K-03', type: 'fact', content: 'Fact 3' }] },
@@ -740,29 +748,31 @@ describe('computeWorldMetrics', () => {
           continuity: { nodes: [{ id: 'K-10', type: 'fact', content: 'Fact 10' }, { id: 'K-11', type: 'fact', content: 'Fact 11' }, { id: 'K-12', type: 'fact', content: 'Fact 12' }] },
         }),
       };
+      // Only 1 relationship → 2 endpoints / 4 chars = 0.5/char (< 2) → depth signal
+      // 2 orphans (C-03, C-04) → but we need only 1 depth signal, so add more relationships
+      // Actually: 1 rel = 2 endpoints → 4 chars → 0.5/char + 2 orphans = 2 depth signals
+      // Let me use 2 rels: 4 endpoints / 4 chars = 1/char (< 2) → 1 depth signal, 0 orphans
       narrative.relationships = [
         { from: 'C-01', to: 'C-02', type: 'ally', valence: 0.5 },
-        { from: 'C-02', to: 'C-03', type: 'ally', valence: 0.5 },
         { from: 'C-03', to: 'C-04', type: 'ally', valence: 0.5 },
-        { from: 'C-04', to: 'C-01', type: 'ally', valence: 0.5 },
       ];
+      // 2 locations for 4 chars (50% >= 30%) → no "few locations" signal
+      // But use L-01 for 3/4 scenes → 75% concentration (> 50%) → breadth signal
       narrative.locations = {
         'L-01': createLocation('L-01'),
         'L-02': createLocation('L-02'),
-        'L-03': createLocation('L-03'),
-        'L-04': createLocation('L-04'),
       };
       narrative.scenes = {
         'S-001': createScene('S-001', { participantIds: ['C-01', 'C-02'], locationId: 'L-01' }),
-        'S-002': createScene('S-002', { participantIds: ['C-02', 'C-03'], locationId: 'L-02' }),
-        'S-003': createScene('S-003', { participantIds: ['C-03', 'C-04'], locationId: 'L-03' }),
-        'S-004': createScene('S-004', { participantIds: ['C-04', 'C-01'], locationId: 'L-04' }),
+        'S-002': createScene('S-002', { participantIds: ['C-02', 'C-03'], locationId: 'L-01' }),
+        'S-003': createScene('S-003', { participantIds: ['C-03', 'C-04'], locationId: 'L-01' }),
+        'S-004': createScene('S-004', { participantIds: ['C-04', 'C-01'], locationId: 'L-02' }),
       };
 
       const result = computeWorldMetrics(narrative, ['S-001', 'S-002', 'S-003', 'S-004']);
 
+      // 1 depth signal (sparse relationships) vs 1 breadth signal (high location concentration) = balanced
       expect(result.recommendation).toBe('balanced');
-      // Reasoning should contain "Balanced" (capital B) or mention no strong signals
       expect(result.reasoning.toLowerCase()).toContain('balanced');
     });
   });

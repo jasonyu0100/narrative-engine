@@ -228,10 +228,11 @@ export function computeWorldMetrics(
 
   let recommendation: 'depth' | 'breadth' | 'balanced';
   let reasoning: string;
-  if (depthSignals.length > breadthSignals.length + 1) {
+  // Simple majority — any imbalance triggers a recommendation
+  if (depthSignals.length > breadthSignals.length) {
     recommendation = 'depth';
     reasoning = `Depth recommended: ${depthSignals.join('; ')}`;
-  } else if (breadthSignals.length > depthSignals.length + 1) {
+  } else if (breadthSignals.length > depthSignals.length) {
     recommendation = 'breadth';
     reasoning = `Breadth recommended: ${breadthSignals.join('; ')}`;
   } else {

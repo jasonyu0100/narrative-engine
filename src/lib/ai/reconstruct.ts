@@ -28,6 +28,20 @@ export type ReconstructionCallbacks = {
   onBranchCreated: (branch: Branch, scenes: Scene[], arcs: Record<string, Arc>) => void;
 };
 
+// ── Helpers ──────────────────────────────────────────────────────────────────
+
+/** Normalize worldKnowledgeMutations with safe defaults for addedNodes/addedEdges */
+function normalizeWorldKnowledgeMutations(
+  parsed: Scene['worldKnowledgeMutations'] | undefined,
+  fallback: Scene['worldKnowledgeMutations'] | undefined,
+): NonNullable<Scene['worldKnowledgeMutations']> {
+  const source = parsed ?? fallback;
+  return {
+    addedNodes: source?.addedNodes ?? [],
+    addedEdges: source?.addedEdges ?? [],
+  };
+}
+
 // ── Parallel batch helper ────────────────────────────────────────────────────
 
 async function parallelBatch<T>(
@@ -542,10 +556,7 @@ Return JSON:
     threadMutations: parsed.threadMutations ?? scene.threadMutations,
     continuityMutations: parsed.continuityMutations ?? scene.continuityMutations,
     relationshipMutations: parsed.relationshipMutations ?? scene.relationshipMutations,
-    worldKnowledgeMutations: {
-      addedNodes: (parsed.worldKnowledgeMutations ?? scene.worldKnowledgeMutations)?.addedNodes ?? [],
-      addedEdges: (parsed.worldKnowledgeMutations ?? scene.worldKnowledgeMutations)?.addedEdges ?? [],
-    },
+    worldKnowledgeMutations: normalizeWorldKnowledgeMutations(parsed.worldKnowledgeMutations, scene.worldKnowledgeMutations),
     summary: parsed.summary ?? scene.summary,
     prose: undefined,
     plan: undefined,
@@ -646,10 +657,7 @@ Return JSON:
     threadMutations: parsed.threadMutations ?? targetScene.threadMutations,
     continuityMutations: parsed.continuityMutations ?? targetScene.continuityMutations,
     relationshipMutations: parsed.relationshipMutations ?? targetScene.relationshipMutations,
-    worldKnowledgeMutations: {
-      addedNodes: (parsed.worldKnowledgeMutations ?? targetScene.worldKnowledgeMutations)?.addedNodes ?? [],
-      addedEdges: (parsed.worldKnowledgeMutations ?? targetScene.worldKnowledgeMutations)?.addedEdges ?? [],
-    },
+    worldKnowledgeMutations: normalizeWorldKnowledgeMutations(parsed.worldKnowledgeMutations, targetScene.worldKnowledgeMutations),
     summary: parsed.summary ?? targetScene.summary,
     prose: undefined,
     plan: undefined,
@@ -713,10 +721,7 @@ Return JSON:
     threadMutations: parsed.threadMutations ?? [],
     continuityMutations: parsed.continuityMutations ?? [],
     relationshipMutations: parsed.relationshipMutations ?? [],
-    worldKnowledgeMutations: {
-      addedNodes: parsed.worldKnowledgeMutations?.addedNodes ?? [],
-      addedEdges: parsed.worldKnowledgeMutations?.addedEdges ?? [],
-    },
+    worldKnowledgeMutations: normalizeWorldKnowledgeMutations(parsed.worldKnowledgeMutations, undefined),
     summary: parsed.summary ?? brief,
   };
 }
