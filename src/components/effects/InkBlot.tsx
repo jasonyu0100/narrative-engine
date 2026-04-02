@@ -96,6 +96,31 @@ class SimplexNoise {
 
     return value / maxValue;
   }
+
+  // Domain warping: use noise to distort the input coordinates
+  // Creates fluid, swirling patterns like ink diffusing in water
+  warp(x: number, y: number, strength = 1, octaves = 2): number {
+    // First pass: get warp offsets
+    const warpX = this.fbm(x, y, octaves) * strength;
+    const warpY = this.fbm(x + 5.2, y + 1.3, octaves) * strength;
+
+    // Second pass: sample with warped coordinates
+    return this.fbm(x + warpX, y + warpY, 4);
+  }
+
+  // Multi-layer domain warping for more complex fluid patterns
+  warpDeep(x: number, y: number, time: number, strength = 1): number {
+    // First warp layer
+    const warp1X = this.fbm(x + time * 0.1, y, 2) * strength;
+    const warp1Y = this.fbm(x + 5.2, y + 1.3 + time * 0.1, 2) * strength;
+
+    // Second warp layer (warp the warp)
+    const warp2X = this.fbm(x + warp1X, y + warp1Y, 2) * strength * 0.5;
+    const warp2Y = this.fbm(x + warp1X + 5.2, y + warp1Y + 1.3, 2) * strength * 0.5;
+
+    // Final sample with double-warped coordinates
+    return this.fbm(x + warp1X + warp2X, y + warp1Y + warp2Y, 4);
+  }
 }
 
 /* ── Ink particle ─────────────────────────────────────────────────────────── */
@@ -219,15 +244,15 @@ export function InkBlot() {
 
     for (let i = 0; i < segments; i++) {
       const angle = (i / segments) * Math.PI * 2;
-      const noiseVal = noise.fbm(
+      // Use domain warping for fluid, swirling blob edges
+      const noiseVal = noise.warpDeep(
         Math.cos(angle) * 2 + blob.noiseOffset,
-        Math.sin(angle) * 2 + blob.noiseOffset + time * 0.0001,
-        4,
-        2,
-        0.5
+        Math.sin(angle) * 2 + blob.noiseOffset,
+        time * 0.0002,
+        0.6 // subtle warp
       );
-      // Smoother variation for softer organic look
-      const radius = blob.currentRadius * (0.7 + noiseVal * 0.35);
+      // Gentle variation for softer organic look
+      const radius = blob.currentRadius * (0.75 + noiseVal * 0.3);
       points.push([
         Math.cos(angle) * radius,
         Math.sin(angle) * radius,
@@ -251,7 +276,7 @@ export function InkBlot() {
 
     // Calculate alpha based on lifecycle
     // Quick pop-in, full visibility during expand, gradual fade
-    const maxAlpha = 0.6;
+    const maxAlpha = 0.8;
     let alpha: number;
     if (blob.phase === 'emerging') {
       // Quick elastic pop-in
@@ -392,7 +417,8 @@ export function InkBlot() {
 
       for (let x = 0; x < noiseCanvas.width; x++) {
         for (let y = 0; y < noiseCanvas.height; y++) {
-          const n = noise.fbm(x * noiseScale, y * noiseScale, 3, 2, 0.5);
+          // Use domain warping for fluid base texture
+          const n = noise.warp(x * noiseScale, y * noiseScale, 0.6, 2);
           const alpha = Math.max(0, (n + 0.4) * 0.15);
           if (alpha > 0.01) {
             noiseCtx.fillStyle = `hsla(190, 25%, 4%, ${alpha})`;
