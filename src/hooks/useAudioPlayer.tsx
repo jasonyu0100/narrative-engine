@@ -122,7 +122,7 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
 
   const generate = useCallback(async (sceneId: string, prose: string) => {
     if (!prose || !narrative) return;
-    const voice = narrative.storySettings?.audioVoice || 'nova';
+    const voice = narrative.storySettings?.audioVoice || 'onyx';
     const model = narrative.storySettings?.audioModel || 'tts-1';
 
     if (access.userApiKeys && !access.hasOpenAiKey) {

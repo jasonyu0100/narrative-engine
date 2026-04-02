@@ -26,10 +26,11 @@ function HighlightText({ text, query }: { text: string; query: string }) {
 
 type FloatingPaletteProps = {
   isBulkActive?: boolean;
+  isBulkAudioActive?: boolean;
   isMctsActive?: boolean;
 };
 
-export default function FloatingPalette({ isBulkActive = false, isMctsActive = false }: FloatingPaletteProps) {
+export default function FloatingPalette({ isBulkActive = false, isBulkAudioActive = false, isMctsActive = false }: FloatingPaletteProps) {
   const { state, dispatch } = useStore();
   const access = useFeatureAccess();
   const narrative = state.activeNarrative;
@@ -51,7 +52,7 @@ export default function FloatingPalette({ isBulkActive = false, isMctsActive = f
   const [searchQuery, setSearchQuery] = useState('');
   const searchInputRef = useRef<HTMLInputElement>(null);
   const isAutoActive = !!(state.autoRunState?.isRunning || state.autoRunState?.isPaused);
-  const isAnyModeActive = isAutoActive || isBulkActive || isMctsActive;
+  const isAnyModeActive = isAutoActive || isBulkActive || isBulkAudioActive || isMctsActive;
 
   // Scene search results
   const searchResults = useMemo(() => {
@@ -447,6 +448,13 @@ export default function FloatingPalette({ isBulkActive = false, isMctsActive = f
                       <IconClose size={14} />
                     </button>
                   )}
+                  <div className="w-px h-4 bg-white/12 mx-0.5" />
+                  <button type="button"
+                    className="w-7 h-7 flex items-center justify-center rounded-md transition-colors text-amber-400 bg-amber-500/10 hover:bg-amber-500/20"
+                    onClick={() => window.dispatchEvent(new CustomEvent('canvas:bulk-audio'))}
+                    title="Bulk generate all missing audio (requires prose)">
+                    <IconAutoLoop size={14} />
+                  </button>
                 </>
               )}
             </>

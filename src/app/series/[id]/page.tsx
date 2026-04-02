@@ -22,6 +22,7 @@ import { AutoLogModal } from '@/components/auto/AutoLogModal';
 import { NarrativeCubeViewer } from '@/components/timeline/NarrativeCubeViewer';
 import { useAutoPlay } from '@/hooks/useAutoPlay';
 import { useBulkGenerate } from '@/hooks/useBulkGenerate';
+import { useBulkAudioGenerate } from '@/hooks/useBulkAudioGenerate';
 import { ForceAnalytics } from '@/components/analytics/ForceAnalytics';
 import { CastAnalytics } from '@/components/analytics/CastAnalytics';
 import RulesPanel from '@/components/layout/RulesPanel';
@@ -68,6 +69,7 @@ export default function SeriesPage() {
   const mcts = useMCTS();
   const planning = usePlanningQueue();
   const bulk = useBulkGenerate();
+  const bulkAudio = useBulkAudioGenerate();
   const id = params.id as string;
 
   // Activate narrative from URL param
@@ -129,13 +131,16 @@ export default function SeriesPage() {
   useEffect(() => {
     function handleBulkPlan() { bulk.start('plan'); }
     function handleBulkProse() { bulk.start('prose'); }
+    function handleBulkAudio() { bulkAudio.start(); }
     window.addEventListener('canvas:bulk-plan', handleBulkPlan);
     window.addEventListener('canvas:bulk-prose', handleBulkProse);
+    window.addEventListener('canvas:bulk-audio', handleBulkAudio);
     return () => {
       window.removeEventListener('canvas:bulk-plan', handleBulkPlan);
       window.removeEventListener('canvas:bulk-prose', handleBulkProse);
+      window.removeEventListener('canvas:bulk-audio', handleBulkAudio);
     };
-  }, [bulk]);
+  }, [bulk, bulkAudio]);
 
   if (!state.activeNarrative) {
     return (
@@ -148,6 +153,7 @@ export default function SeriesPage() {
   const showAutoBar = state.autoRunState && (state.autoRunState.isRunning || state.autoRunState.isPaused || state.autoRunState.log.length > 0);
   const showMctsBar = mcts.runState.status !== 'idle' || Object.keys(mcts.runState.tree.nodes).length > 0;
   const showBulkBar = bulk.runState !== null;
+  const showBulkAudioBar = bulkAudio.runState !== null;
 
   return (
     <AudioPlayerProvider>
@@ -160,8 +166,20 @@ export default function SeriesPage() {
           <CanvasTopBar />
           <div className="flex-1 relative overflow-hidden">
             <WorldGraph />
-            {/* Mode control bars - prioritize: bulk > mcts > auto */}
-            {showBulkBar && bulk.runState && (
+            {/* Mode control bars - prioritize: bulk-audio > bulk > mcts > auto */}
+            {showBulkAudioBar && bulkAudio.runState && (
+              <ModeControlBar
+                mode="bulk-audio"
+                isRunning={bulkAudio.runState.isRunning}
+                isPaused={bulkAudio.runState.isPaused}
+                progress={bulkAudio.runState.progress}
+                statusMessage={bulkAudio.runState.statusMessage}
+                onPause={bulkAudio.pause}
+                onResume={bulkAudio.resume}
+                onStop={bulkAudio.stop}
+              />
+            )}
+            {!showBulkAudioBar && showBulkBar && bulk.runState && (
               <ModeControlBar
                 mode={bulk.runState.mode === 'plan' ? 'bulk-plan' : 'bulk-prose'}
                 isRunning={bulk.runState.isRunning}
@@ -173,7 +191,7 @@ export default function SeriesPage() {
                 onStop={bulk.stop}
               />
             )}
-            {!showBulkBar && showMctsBar && (
+            {!showBulkAudioBar && !showBulkBar && showMctsBar && (
               <ModeControlBar
                 mode="mcts"
                 runState={mcts.runState}
@@ -183,7 +201,7 @@ export default function SeriesPage() {
                 onOpenPanel={() => setMctsOpen(true)}
               />
             )}
-            {!showBulkBar && !showMctsBar && showAutoBar && (
+            {!showBulkAudioBar && !showBulkBar && !showMctsBar && showAutoBar && (
               <ModeControlBar
                 mode="auto"
                 isRunning={autoPlay.isRunning}
@@ -202,6 +220,7 @@ export default function SeriesPage() {
 
             <FloatingPalette
               isBulkActive={!!(bulk.runState?.isRunning || bulk.runState?.isPaused)}
+              isBulkAudioActive={!!(bulkAudio.runState?.isRunning || bulkAudio.runState?.isPaused)}
               isMctsActive={mcts.runState.status === 'running' || mcts.runState.status === 'paused'}
             />
             {planning.queue && (

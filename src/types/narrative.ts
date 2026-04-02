@@ -735,7 +735,7 @@ export const DEFAULT_STORY_SETTINGS: StorySettings = {
   beatProfilePreset: '',
   usePacingChain: true,
   useBeatChain: true,
-  audioVoice: 'nova',
+  audioVoice: 'onyx',
   audioModel: 'tts-1',
 };
 

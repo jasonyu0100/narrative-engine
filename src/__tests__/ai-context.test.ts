@@ -12,6 +12,7 @@ import {
   THREAD_LIFECYCLE_DOC,
 } from '@/lib/ai/context';
 import type { NarrativeState, Scene, Character, Location, Thread, Arc, WorldBuild } from '@/types/narrative';
+import { DEFAULT_STORY_SETTINGS } from '@/types/narrative';
 
 // ── Test Fixtures ────────────────────────────────────────────────────────────
 
@@ -47,12 +48,13 @@ function createMinimalNarrative(overrides: Partial<NarrativeState> = {}): Narrat
   };
 }
 
-function createCharacter(id: string, name: string, role: string = 'supporting'): Character {
+function createCharacter(id: string, name: string, role: string = 'recurring'): Character {
   return {
     id,
     name,
-    role: role as 'anchor' | 'supporting' | 'minor',
+    role: role as 'anchor' | 'recurring' | 'transient',
     continuity: { nodes: [] },
+    threadIds: [],
   };
 }
 
@@ -62,6 +64,7 @@ function createLocation(id: string, name: string, parentId?: string): Location {
     name,
     parentId: parentId ?? null,
     continuity: { nodes: [] },
+    threadIds: [],
   };
 }
 
@@ -72,6 +75,7 @@ function createThread(id: string, description: string, participants: string[] = 
     status: 'dormant',
     participants: participants.map((pid) => ({ id: pid, type: 'character' as const })),
     dependents: [],
+    openedAt: 's1',
   };
 }
 
@@ -97,13 +101,14 @@ function createWorldBuild(id: string, summary: string): WorldBuild {
   return {
     kind: 'world_build',
     id,
-    arcId: 'arc-1',
     summary,
     expansionManifest: {
       characters: [],
       locations: [],
       threads: [],
       artifacts: [],
+      relationships: [],
+      worldKnowledge: { addedNodes: [], addedEdges: [] },
     },
   };
 }
@@ -114,8 +119,9 @@ function createArc(id: string, name: string, sceneIds: string[]): Arc {
     name,
     sceneIds,
     develops: [],
-    direction: '',
-    constraints: '',
+    locationIds: [],
+    activeCharacterIds: [],
+    initialCharacterLocations: {},
   };
 }
 
@@ -253,13 +259,14 @@ describe('getStateAtIndex', () => {
         'wb1': {
           kind: 'world_build',
           id: 'wb1',
-          arcId: 'arc-1',
           summary: 'World build 1',
           expansionManifest: {
             characters: [],
             locations: [],
             threads: [],
-            artifacts: [{ id: 'art-1', parentId: 'c1' }],
+            artifacts: [{ id: 'art-1', name: 'Artifact', significance: 'minor' as const, continuity: { nodes: [] }, parentId: 'c1' }],
+            relationships: [],
+            worldKnowledge: { addedNodes: [], addedEdges: [] },
           },
         },
       },
@@ -293,7 +300,7 @@ describe('buildStorySettingsBlock', () => {
 
   it('includes POV mode when not free', () => {
     const n = createMinimalNarrative({
-      storySettings: { povMode: 'single', povCharacterIds: ['c1'] },
+      storySettings: { ...DEFAULT_STORY_SETTINGS, povMode: 'single', povCharacterIds: ['c1'] },
       characters: { c1: createCharacter('c1', 'Hero') },
     });
     const block = buildStorySettingsBlock(n);
@@ -303,7 +310,7 @@ describe('buildStorySettingsBlock', () => {
 
   it('includes pareto POV guidance', () => {
     const n = createMinimalNarrative({
-      storySettings: { povMode: 'pareto', povCharacterIds: ['c1'] },
+      storySettings: { ...DEFAULT_STORY_SETTINGS, povMode: 'pareto', povCharacterIds: ['c1'] },
       characters: { c1: createCharacter('c1', 'Protagonist') },
     });
     const block = buildStorySettingsBlock(n);
@@ -314,7 +321,7 @@ describe('buildStorySettingsBlock', () => {
 
   it('includes story direction when set', () => {
     const n = createMinimalNarrative({
-      storySettings: { storyDirection: 'The hero must defeat the villain' },
+      storySettings: { ...DEFAULT_STORY_SETTINGS, storyDirection: 'The hero must defeat the villain' },
     });
     const block = buildStorySettingsBlock(n);
     expect(block).toContain('STORY DIRECTION');
@@ -323,7 +330,7 @@ describe('buildStorySettingsBlock', () => {
 
   it('includes story constraints when set', () => {
     const n = createMinimalNarrative({
-      storySettings: { storyConstraints: 'No character deaths' },
+      storySettings: { ...DEFAULT_STORY_SETTINGS, storyConstraints: 'No character deaths' },
     });
     const block = buildStorySettingsBlock(n);
     expect(block).toContain('STORY CONSTRAINTS');
@@ -332,7 +339,7 @@ describe('buildStorySettingsBlock', () => {
 
   it('includes narrative guidance when set', () => {
     const n = createMinimalNarrative({
-      storySettings: { narrativeGuidance: 'Keep scenes tight and focused' },
+      storySettings: { ...DEFAULT_STORY_SETTINGS, narrativeGuidance: 'Keep scenes tight and focused' },
     });
     const block = buildStorySettingsBlock(n);
     expect(block).toContain('NARRATIVE GUIDANCE');
