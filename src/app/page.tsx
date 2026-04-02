@@ -1,7 +1,7 @@
 "use client";
 
-import { ArchetypeIcon } from "@/components/ArchetypeIcon";
 import ApiKeyModal from "@/components/topbar/ApiKeyModal";
+import { StoryCard } from "@/components/cards/StoryCard";
 import { CreationWizard } from "@/components/wizard/CreationWizard";
 import { useFeatureAccess } from "@/hooks/useFeatureAccess";
 import {
@@ -153,137 +153,7 @@ function ThreadLine() {
   );
 }
 
-/* ── Card color helpers ─────────────────────────────────────────────────── */
-function scoreColor(score: number): string {
-  if (score >= 80) return "#4ade80";
-  if (score >= 60) return "#facc15";
-  if (score >= 40) return "#fb923c";
-  return "#f87171";
-}
-
-/* ── Seed vertical cards ─────────────────────────────────────────────────── */
-
-function SeedCard({
-  entry,
-  index,
-  openSlides,
-  size = "md",
-}: {
-  entry: NarrativeEntry;
-  index: number;
-  openSlides?: boolean;
-  size?: "lg" | "md";
-}) {
-  const router = useRouter();
-  const isLg = size === "lg";
-
-  return (
-    <div
-      onClick={() =>
-        router.push(`/series/${entry.id}${openSlides ? "?slides=1" : ""}`)
-      }
-      className={`group relative shrink-0 cursor-pointer animate-fade-up ${isLg ? "w-56" : "w-52"}`}
-      style={{ animationDelay: `${0.5 + index * 0.08}s` }}
-    >
-      <div
-        className={`relative rounded-xl overflow-hidden border border-white/6 bg-transparent transition-all duration-300 group-hover:border-white/15 group-hover:-translate-y-1 group-hover:shadow-[0_8px_30px_-10px_rgba(80,200,160,0.2)] ${isLg ? "h-96" : "h-76"}`}
-      >
-        {entry.coverImageUrl && (
-          <div className="absolute inset-0">
-            <img
-              src={entry.coverImageUrl}
-              alt=""
-              className="w-full h-full object-cover"
-            />
-            <div className="absolute inset-0 bg-linear-to-t from-black/95 via-black/50 to-black/20" />
-          </div>
-        )}
-        <div className="relative h-full flex flex-col p-4 pt-4">
-          <p className="text-[9px] font-mono uppercase tracking-[0.15em] text-white/30">
-            {entry.sceneCount} scenes
-          </p>
-          <div className="mt-auto">
-            <h3
-              className={`font-semibold leading-snug mb-1.5 text-white/90 group-hover:text-white transition-colors ${isLg ? "text-[15px]" : "text-[14px]"}`}
-            >
-              {entry.title}
-            </h3>
-            <p
-              className={`text-white/40 leading-relaxed ${isLg ? "text-[11px] line-clamp-4" : "text-[11px] line-clamp-3"}`}
-            >
-              {entry.coverThread || entry.description}
-            </p>
-          </div>
-          <div className="mt-4 pt-3 border-t border-white/8 flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              {entry.shapeCurve && (
-                <svg
-                  width={isLg ? 22 : 20}
-                  height={isLg ? 10 : 9}
-                  viewBox={`0 0 ${isLg ? 22 : 20} ${isLg ? 10 : 9}`}
-                  className="opacity-70"
-                >
-                  <polyline
-                    points={entry.shapeCurve
-                      .map(
-                        ([x, y]) =>
-                          `${x * (isLg ? 22 : 20)},${(isLg ? 10 : 9) - y * (isLg ? 10 : 9)}`,
-                      )
-                      .join(" ")}
-                    fill="none"
-                    stroke="#fb923c"
-                    strokeWidth="1.2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  />
-                </svg>
-              )}
-              {entry.archetypeKey && (
-                <ArchetypeIcon
-                  archetypeKey={entry.archetypeKey}
-                  size={isLg ? 11 : 11}
-                />
-              )}
-              {entry.scaleKey && (
-                <svg width="11" height="11" viewBox="0 0 18 18" className="shrink-0 opacity-70">
-                  {[0, 1, 2, 3, 4].map((j) => {
-                    const scaleIdx = ['short', 'story', 'novel', 'epic', 'serial'].indexOf(entry.scaleKey!);
-                    return <rect key={j} x={2 + j * 3} y={14 - (j + 1) * 2.4} width={2} height={(j + 1) * 2.4} rx={0.5} fill={j <= scaleIdx ? '#22D3EE' : '#ffffff10'} />;
-                  })}
-                </svg>
-              )}
-              {entry.densityKey && (
-                <svg width="11" height="11" viewBox="0 0 18 18" className="shrink-0 opacity-70">
-                  {[0, 1, 2, 3, 4].map((j) => {
-                    const densityIdx = ['sparse', 'focused', 'developed', 'rich', 'sprawling'].indexOf(entry.densityKey!);
-                    return <circle key={j} cx={9} cy={9} r={2 + j * 1.8} fill="none" stroke={j <= densityIdx ? '#34D399' : '#ffffff10'} strokeWidth={0.8} />;
-                  })}
-                </svg>
-              )}
-              {entry.overallScore !== undefined && (
-                <span
-                  className="text-[10px] font-mono font-semibold"
-                  style={{ color: scoreColor(entry.overallScore) }}
-                >
-                  {entry.overallScore}
-                </span>
-              )}
-            </div>
-            <svg
-              width="13"
-              height="13"
-              viewBox="0 0 24 24"
-              fill="currentColor"
-              className="text-white/30 group-hover:text-white/60 transition-colors ml-0.5"
-            >
-              <path d="M8 5v14l11-7z" />
-            </svg>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
+/* ── Seed carousel uses imported StoryCard ─────────────────────────────── */
 
 function SeedCarousel({
   seeds,
@@ -369,12 +239,13 @@ function SeedCarousel({
         style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}
       >
         {seeds.map((entry, i) => (
-          <SeedCard
+          <StoryCard
             key={entry.id}
             entry={entry}
             index={i}
             openSlides={openSlides}
             size={size}
+            animationDelayBase={0.5}
           />
         ))}
       </div>
@@ -423,15 +294,11 @@ export default function HomePage() {
         {/* Cinematic background — aurora effect */}
         <div className="pointer-events-none fixed inset-0 overflow-hidden">
           <div className="aurora-container absolute bottom-0 left-0 right-0 h-[75%]">
-            <div className="aurora-curtain aurora-curtain-1" />
-            <div className="aurora-curtain aurora-curtain-2" />
-            <div className="aurora-curtain aurora-curtain-3" />
-            <div className="aurora-curtain aurora-curtain-4" />
-            <div className="aurora-curtain aurora-curtain-5" />
-            <div className="aurora-wisp aurora-wisp-1" />
-            <div className="aurora-wisp aurora-wisp-2" />
-            <div className="aurora-wisp aurora-wisp-3" />
-            <div className="aurora-wisp aurora-wisp-4" />
+            <div className="aurora-curtain aurora-curtain-w1" />
+            <div className="aurora-curtain aurora-curtain-w2" />
+            <div className="aurora-curtain aurora-curtain-w3" />
+            <div className="aurora-curtain aurora-curtain-w4" />
+            <div className="aurora-curtain aurora-curtain-w5" />
             <div className="aurora-glow" />
           </div>
         </div>

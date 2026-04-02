@@ -68,11 +68,12 @@ export default function AppShell({ children, sidebar, sidepanel }: AppShellProps
     <div className="h-screen bg-bg-base flex flex-col overflow-hidden relative">
       {/* Ambient aurora background — subtle version for workspace */}
       <div className="pointer-events-none fixed inset-0 overflow-hidden aurora-container aurora-workspace">
-        <div className="aurora-curtain aurora-curtain-1" />
-        <div className="aurora-curtain aurora-curtain-3" />
-        <div className="aurora-curtain aurora-curtain-5" />
-        <div className="aurora-wisp aurora-wisp-2" />
-        <div className="aurora-wisp aurora-wisp-4" />
+        <div className="aurora-curtain aurora-curtain-w1" />
+        <div className="aurora-curtain aurora-curtain-w2" />
+        <div className="aurora-curtain aurora-curtain-w3" />
+        <div className="aurora-curtain aurora-curtain-w4" />
+        <div className="aurora-curtain aurora-curtain-w5" />
+        <div className="aurora-glow" />
       </div>
 
       {/* TopBar */}

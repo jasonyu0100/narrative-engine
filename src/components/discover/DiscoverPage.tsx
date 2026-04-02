@@ -599,9 +599,11 @@ export function DiscoverPage({ inquiryId: initialInquiryId }: { inquiryId?: stri
         {/* Aurora background */}
         <div className="pointer-events-none fixed inset-0 overflow-hidden">
           <div className="aurora-container absolute bottom-0 left-0 right-0 h-[75%]">
-            <div className="aurora-curtain aurora-curtain-1" />
-            <div className="aurora-curtain aurora-curtain-3" />
-            <div className="aurora-curtain aurora-curtain-5" />
+            <div className="aurora-curtain aurora-curtain-w1" />
+            <div className="aurora-curtain aurora-curtain-w2" />
+            <div className="aurora-curtain aurora-curtain-w3" />
+            <div className="aurora-curtain aurora-curtain-w4" />
+            <div className="aurora-curtain aurora-curtain-w5" />
             <div className="aurora-glow" />
           </div>
         </div>

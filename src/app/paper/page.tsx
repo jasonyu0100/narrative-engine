@@ -505,9 +505,21 @@ export default function PaperPage() {
 
   return (
     <div className="min-h-screen bg-bg-base">
+      {/* Aurora background */}
+      <div className="pointer-events-none fixed inset-0 overflow-hidden">
+        <div className="aurora-container absolute bottom-0 left-0 right-0 h-[75%]">
+          <div className="aurora-curtain aurora-curtain-w1" />
+          <div className="aurora-curtain aurora-curtain-w2" />
+          <div className="aurora-curtain aurora-curtain-w3" />
+          <div className="aurora-curtain aurora-curtain-w4" />
+          <div className="aurora-curtain aurora-curtain-w5" />
+          <div className="aurora-glow" />
+        </div>
+      </div>
+
       <TimelineNav activeId={activeId} />
 
-      <div className="max-w-4xl mx-auto px-4 sm:px-8 pt-20 pb-32">
+      <div className="relative z-10 max-w-4xl mx-auto px-4 sm:px-8 pt-20 pb-32">
         {/* Title */}
         <div className="mb-16 animate-fade-up">
           <p className="text-[10px] font-mono uppercase tracking-[0.2em] text-white/25 mb-4">

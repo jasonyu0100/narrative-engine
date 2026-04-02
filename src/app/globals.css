@@ -162,69 +162,36 @@ button, [role="button"] {
   will-change: transform, opacity;
 }
 
-/* Curtain 1 — green (classic aurora) — far left, extends past edge */
-.aurora-curtain-1 {
-  left: -15%; width: 40%;
-  background: linear-gradient(to bottom, transparent 0%, rgba(80,220,120,0.45) 15%, rgba(60,200,140,0.35) 40%, rgba(40,160,180,0.15) 70%, transparent 100%);
-  animation: curtain-sway-1 12s ease-in-out infinite, curtain-shimmer 8s ease-in-out infinite;
+/* ── Aurora curtains — green/purple/cyan flow ───────────────────────────────── */
+/* W1: Deep emerald green */
+.aurora-curtain-w1 {
+  left: -10%; width: 35%;
+  background: linear-gradient(to bottom, transparent 0%, rgba(34,197,94,0.5) 15%, rgba(16,185,129,0.35) 40%, rgba(74,222,128,0.15) 70%, transparent 100%);
+  animation: curtain-sway-1 14s ease-in-out infinite, curtain-shimmer 9s ease-in-out infinite;
 }
-/* Curtain 2 — pink/magenta */
-.aurora-curtain-2 {
-  left: 10%; width: 32%;
-  background: linear-gradient(to bottom, transparent 0%, rgba(240,80,160,0.38) 15%, rgba(200,60,180,0.28) 40%, rgba(160,50,200,0.12) 70%, transparent 100%);
-  animation: curtain-sway-2 15s ease-in-out infinite, curtain-shimmer 9s ease-in-out 1s infinite;
+/* W2: Indigo (green-purple transition) */
+.aurora-curtain-w2 {
+  left: 15%; width: 30%;
+  background: linear-gradient(to bottom, transparent 0%, rgba(99,102,241,0.45) 15%, rgba(129,140,248,0.32) 40%, rgba(167,139,250,0.12) 70%, transparent 100%);
+  animation: curtain-sway-2 16s ease-in-out infinite, curtain-shimmer 10s ease-in-out 1s infinite;
 }
-/* Curtain 3 — cyan/teal */
-.aurora-curtain-3 {
-  left: 30%; width: 30%;
-  background: linear-gradient(to bottom, transparent 0%, rgba(60,220,240,0.36) 15%, rgba(50,180,200,0.26) 40%, rgba(40,140,220,0.11) 70%, transparent 100%);
-  animation: curtain-sway-3 18s ease-in-out infinite, curtain-shimmer 10s ease-in-out 2s infinite;
+/* W3: Violet/purple */
+.aurora-curtain-w3 {
+  left: 35%; width: 28%;
+  background: linear-gradient(to bottom, transparent 0%, rgba(167,139,250,0.5) 15%, rgba(139,92,246,0.35) 40%, rgba(124,58,237,0.14) 70%, transparent 100%);
+  animation: curtain-sway-3 18s ease-in-out infinite, curtain-shimmer 11s ease-in-out 2s infinite;
 }
-/* Curtain 4 — violet/purple */
-.aurora-curtain-4 {
-  left: 50%; width: 34%;
-  background: linear-gradient(to bottom, transparent 0%, rgba(140,80,240,0.4) 15%, rgba(120,60,220,0.3) 40%, rgba(100,40,200,0.12) 70%, transparent 100%);
-  animation: curtain-sway-4 14s ease-in-out infinite, curtain-shimmer 7s ease-in-out 3s infinite;
+/* W4: Blue-violet (purple-cyan transition) */
+.aurora-curtain-w4 {
+  left: 55%; width: 30%;
+  background: linear-gradient(to bottom, transparent 0%, rgba(129,140,248,0.4) 15%, rgba(99,179,237,0.28) 40%, rgba(56,189,248,0.12) 70%, transparent 100%);
+  animation: curtain-sway-4 15s ease-in-out infinite, curtain-shimmer 8s ease-in-out 1.5s infinite;
 }
-/* Curtain 5 — amber/gold — far right, extends past edge */
-.aurora-curtain-5 {
-  left: 68%; width: 48%;
-  background: linear-gradient(to bottom, transparent 0%, rgba(255,180,60,0.35) 15%, rgba(240,140,80,0.25) 40%, rgba(220,100,120,0.1) 70%, transparent 100%);
-  animation: curtain-sway-5 16s ease-in-out infinite, curtain-shimmer 11s ease-in-out 1.5s infinite;
-}
-
-/* Secondary wisps — thin, fast-moving, varied colors */
-.aurora-wisp {
-  position: absolute;
-  top: 10%;
-  bottom: -5%;
-  filter: blur(20px);
-  mix-blend-mode: screen;
-  will-change: transform, opacity;
-}
-/* Wisp 1 — rose, covers left edge */
-.aurora-wisp-1 {
-  left: -8%; width: 18%;
-  background: linear-gradient(to bottom, transparent 0%, rgba(255,120,160,0.22) 20%, rgba(220,80,180,0.14) 50%, transparent 80%);
-  animation: wisp-drift-1 6s ease-in-out infinite, wisp-flicker 3s ease-in-out infinite;
-}
-/* Wisp 2 — emerald */
-.aurora-wisp-2 {
-  left: 22%; width: 10%;
-  background: linear-gradient(to bottom, transparent 0%, rgba(60,240,160,0.18) 25%, rgba(40,200,180,0.12) 55%, transparent 80%);
-  animation: wisp-drift-2 7s ease-in-out infinite, wisp-flicker 4s ease-in-out 0.7s infinite;
-}
-/* Wisp 3 — electric blue */
-.aurora-wisp-3 {
-  left: 48%; width: 12%;
-  background: linear-gradient(to bottom, transparent 0%, rgba(80,140,255,0.2) 20%, rgba(60,100,240,0.12) 50%, transparent 80%);
-  animation: wisp-drift-3 5s ease-in-out infinite, wisp-flicker 3.5s ease-in-out 1.2s infinite;
-}
-/* Wisp 4 — warm amber, covers right edge */
-.aurora-wisp-4 {
-  left: 82%; width: 26%;
-  background: linear-gradient(to bottom, transparent 0%, rgba(255,200,80,0.22) 20%, rgba(240,160,100,0.14) 50%, transparent 80%);
-  animation: wisp-drift-4 8s ease-in-out infinite, wisp-flicker 4.5s ease-in-out 2s infinite;
+/* W5: Bright cyan */
+.aurora-curtain-w5 {
+  left: 75%; width: 35%;
+  background: linear-gradient(to bottom, transparent 0%, rgba(34,211,238,0.45) 15%, rgba(56,189,248,0.32) 40%, rgba(14,165,233,0.12) 70%, transparent 100%);
+  animation: curtain-sway-5 17s ease-in-out infinite, curtain-shimmer 12s ease-in-out 2.5s infinite;
 }
 
 /* Soft glow at the base */
@@ -233,8 +200,8 @@ button, [role="button"] {
   bottom: 0;
   left: -10%;
   right: -10%;
-  height: 35%;
-  background: radial-gradient(ellipse 120% 100% at 50% 100%, rgba(80,200,160,0.15), transparent 60%);
+  height: 45%;
+  background: radial-gradient(ellipse 120% 100% at 50% 100%, rgba(80,200,160,0.28), transparent 65%);
   filter: blur(50px);
   animation: curtain-shimmer 12s ease-in-out infinite;
 }
@@ -273,29 +240,6 @@ button, [role="button"] {
   45%      { transform: skewX(-2deg) translateX(2%); }
   70%      { transform: skewX(2deg) translateX(-1%); }
   90%      { transform: skewX(-1deg) translateX(1%); }
-}
-
-/* Wisp drifts — faster, more erratic */
-@keyframes wisp-drift-1 {
-  0%, 100% { transform: translateX(0%) translateY(0%) skewX(0deg); }
-  30%      { transform: translateX(15%) translateY(3%) skewX(5deg); }
-  60%      { transform: translateX(-8%) translateY(-2%) skewX(-3deg); }
-}
-@keyframes wisp-drift-2 {
-  0%, 100% { transform: translateX(0%) translateY(0%) skewX(0deg); }
-  40%      { transform: translateX(-12%) translateY(4%) skewX(-6deg); }
-  70%      { transform: translateX(10%) translateY(-1%) skewX(4deg); }
-}
-@keyframes wisp-drift-3 {
-  0%, 100% { transform: translateX(0%) translateY(0%) skewX(0deg); }
-  25%      { transform: translateX(10%) translateY(2%) skewX(4deg); }
-  55%      { transform: translateX(-14%) translateY(-3%) skewX(-5deg); }
-  80%      { transform: translateX(5%) translateY(1%) skewX(2deg); }
-}
-@keyframes wisp-drift-4 {
-  0%, 100% { transform: translateX(0%) translateY(0%) skewX(0deg); }
-  35%      { transform: translateX(-8%) translateY(3%) skewX(-4deg); }
-  65%      { transform: translateX(12%) translateY(-2%) skewX(6deg); }
 }
 
 /* Shimmer — slow breathing */
@@ -382,16 +326,6 @@ button, [role="button"] {
   }
 
   svg { overflow: visible; }
-}
-
-/* Wisp flicker — faster, more staccato brightness changes */
-@keyframes wisp-flicker {
-  0%, 100% { opacity: 0.3; }
-  15%      { opacity: 0.7; }
-  30%      { opacity: 0.4; }
-  50%      { opacity: 0.9; }
-  65%      { opacity: 0.35; }
-  85%      { opacity: 0.6; }
 }
 
 /* ── Glitch effect for "evolve" ──────────────────────────────────────────── */
