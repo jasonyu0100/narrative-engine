@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import ApiKeyModal from "@/components/topbar/ApiKeyModal";
 import { StoryCard } from "@/components/cards/StoryCard";
 import { CreationWizard } from "@/components/wizard/CreationWizard";
@@ -306,6 +307,16 @@ export default function HomePage() {
 
         {/* ── Hero ─────────────────────────────────────────────────────────── */}
         <div className="relative flex flex-col items-center pt-24 sm:pt-32 pb-10 px-4">
+          {/* Logo */}
+          <div className="animate-fade-up mb-6">
+            <Image
+              src="/logo.svg"
+              alt="InkTide"
+              width={56}
+              height={56}
+              className="opacity-90"
+            />
+          </div>
           <p className="animate-fade-up text-[10px] uppercase tracking-[0.3em] text-white/30 font-mono mb-8">
             InkTide Engine
           </p>
@@ -494,9 +505,12 @@ export default function HomePage() {
         {/* ── Footer ───────────────────────────────────────────────────── */}
         <div className="relative px-4 sm:px-10 py-8 border-t border-white/6">
           <div className="max-w-5xl mx-auto flex items-center justify-between">
-            <p className="text-[11px] font-mono text-white/20 uppercase tracking-[0.2em]">
-              InkTide
-            </p>
+            <div className="flex items-center gap-2.5">
+              <Image src="/logo.svg" alt="InkTide" width={20} height={20} className="opacity-40" />
+              <p className="text-[11px] font-mono text-white/20 uppercase tracking-[0.2em]">
+                InkTide
+              </p>
+            </div>
             <div className="flex items-center gap-5">
               <a
                 href="https://x.com/_jason_y_"
