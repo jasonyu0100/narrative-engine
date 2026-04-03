@@ -1,9 +1,36 @@
-import type { NarrativeState, Scene } from '@/types/narrative';
+import type { NarrativeState, Scene, ProseFormat } from '@/types/narrative';
 import { REASONING_BUDGETS } from '@/types/narrative';
 import { callGenerate, callGenerateStream, SYSTEM_PROMPT } from './api';
 import { WRITING_MODEL, ANALYSIS_MODEL, MAX_TOKENS_DEFAULT, MAX_TOKENS_SMALL } from '@/lib/constants';
 import { parseJson } from './json';
 import { sceneContext } from './context';
+
+// ── Format-Specific Instructions ─────────────────────────────────────────────
+
+export const FORMAT_INSTRUCTIONS: Record<ProseFormat, { systemRole: string; formatRules: string }> = {
+  prose: {
+    systemRole: 'You are a literary prose writer crafting a single scene for a novel.',
+    formatRules: `Output format:
+- Output ONLY prose. No scene titles, chapter headers, separators (---), or meta-commentary.
+- Use straight quotes (" and '), never smart/curly quotes or typographic substitutions.
+- Third-person limited POV, locked to the POV character's senses and interiority.
+- Prose should feel novelistic — dramatise through action, dialogue, and sensory texture.`,
+  },
+  screenplay: {
+    systemRole: 'You are a professional screenwriter writing in industry-standard screenplay format.',
+    formatRules: `Screenplay format:
+- Scene headings (sluglines): INT./EXT. LOCATION - DAY/NIGHT (all caps)
+- Action lines: Present tense, third person, visual only. Describe what the camera SEES and HEARS.
+- Character names: ALL CAPS centered before dialogue
+- Dialogue: Centered under character name
+- Parentheticals: Sparingly, in (lowercase), for delivery notes only
+- No internal monologue unless marked (V.O.) for voiceover
+- Action paragraphs: 3-4 lines max. White space matters.
+- Sound cues in caps when dramatically important: A GUNSHOT. The SCREECH of tires.
+- Interruptions shown with -- at the end of the cut-off line
+- Use straight quotes (" and '), never smart/curly quotes.`,
+  },
+};
 
 
 
@@ -106,29 +133,18 @@ export async function rewriteSceneProse(
   }
 
   const hasVoiceOverride = !!narrative.storySettings?.proseVoice?.trim();
+  const proseFormat = narrative.storySettings?.proseFormat ?? 'prose';
+  const formatInstructions = FORMAT_INSTRUCTIONS[proseFormat];
 
-  const systemPrompt = `You are a literary editor and prose writer. Your task is to REWRITE prose based on the provided analysis.${onToken ? '' : ' You return ONLY valid JSON — no markdown, no commentary.'}
+  const systemPrompt = `${formatInstructions.systemRole} Your task is to REWRITE based on the provided analysis.${onToken ? '' : ' You return ONLY valid JSON — no markdown, no commentary.'}
 ${hasVoiceOverride
     ? `\nAUTHOR VOICE (this is the PRIMARY creative direction — all style defaults below are subordinate to this voice):
 ${narrative.storySettings!.proseVoice!.trim()}
 `
     : ''}
-Voice & style for the rewrite${hasVoiceOverride ? ' (defer to AUTHOR VOICE when these conflict)' : ''}:
-- Third-person limited, locked to the POV character's senses and interiority.
-- Prose should feel novelistic, not summarised. Dramatise through action, dialogue, and sensory texture.${!hasVoiceOverride ? '\n- Favour subtext over exposition. Let tension live in what characters don\'t say.' : ''}
-- Match the tone and genre of the world: ${narrative.worldSummary.slice(0, 200)}.
-- Use straight quotes (" and '), never smart/curly quotes.${!hasVoiceOverride ? `
-- CRITICAL: Do NOT open with weather, atmosphere, scent, or environmental description.
-- Do NOT end with philosophical musings, rhetorical questions, or atmospheric fade-outs.` : ''}
+${formatInstructions.formatRules}
 
-Compression & implication:
-- SHOW, NEVER EXPLAIN. When a system, rule, or concept appears, dramatise it through action or consequence — never follow with a sentence explaining what it means.
-- Cut "explanation chains": action → explanation → strategic implication. Write the action. Let the reader infer.
-- Internal monologue must sound like the character thinking in the moment, not the narrator documenting a mechanic.
-
-Sentence rhythm:
-- VARY sentence length. Follow short declarative sentences with longer flowing ones. Use fragments for impact. Rotate structure — avoid 4+ sentences with identical subject-verb-object cadence.
-- The prose should read like a novel, not a storyboard.`;
+Match the tone and genre of the world: ${narrative.worldSummary.slice(0, 200)}.`;
 
   const neighborBlock = neighborContext
     || `${prevEnding ? `\nPREVIOUS SCENE ENDING:\n"...${prevEnding}"\n` : ''}${nextOpening ? `\nNEXT SCENE OPENING:\n"${nextOpening}..."\n` : ''}`;

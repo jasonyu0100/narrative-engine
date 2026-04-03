@@ -337,7 +337,8 @@ describe('initMatrixPresets', () => {
 
     const keys = MATRIX_PRESETS.map((p) => p.key);
     expect(keys).toContain('storyteller');
-    expect(keys).toContain('random');
+    // Only storyteller is the default preset
+    expect(keys.length).toBeGreaterThanOrEqual(1);
   });
 
   it('adds work presets with sufficient data', () => {

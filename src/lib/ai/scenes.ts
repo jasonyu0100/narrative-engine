@@ -7,6 +7,7 @@ import { parseJson } from './json';
 import { narrativeContext, sceneContext, deriveLogicRules, sceneScale } from './context';
 import { PROMPT_FORCE_STANDARDS, PROMPT_STRUCTURAL_RULES, PROMPT_MUTATIONS, PROMPT_ARTIFACTS, PROMPT_POV, PROMPT_CONTINUITY, PROMPT_SUMMARY_REQUIREMENT, promptThreadLifecycle, buildThreadHealthPrompt, buildCompletedBeatsPrompt } from './prompts';
 import { samplePacingSequence, buildSequencePrompt, buildSingleStepPrompt, detectCurrentMode, MATRIX_PRESETS, DEFAULT_TRANSITION_MATRIX, type PacingSequence, type ModeStep } from '@/lib/pacing-profile';
+import { FORMAT_INSTRUCTIONS } from './prose';
 
 export type GenerateScenesOptions = {
   existingArc?: Arc;
@@ -627,38 +628,19 @@ export async function generateSceneProse(
     : '';
 
   const hasVoiceOverride = !!narrative.storySettings?.proseVoice?.trim();
+  const proseFormat = narrative.storySettings?.proseFormat ?? 'prose';
+  const formatInstructions = FORMAT_INSTRUCTIONS[proseFormat];
 
-  const systemPrompt = `You are a literary prose writer crafting a single scene for a novel set in "${narrative.title}".
+  const systemPrompt = `${formatInstructions.systemRole} You are crafting a single scene for "${narrative.title}".
 
 Tone: ${narrative.worldSummary.slice(0, 200)}.
 ${hasVoiceOverride
     ? `\nAUTHOR VOICE (this is the PRIMARY creative direction — all craft defaults below are subordinate to this voice):
 ${narrative.storySettings!.proseVoice!.trim()}
 `
-    : ''}
-General craft${hasVoiceOverride ? ' (defer to AUTHOR VOICE when these conflict)' : ''}:
-- Enter late, leave early. Start in the middle of something happening.
-- Let scenes breathe. A thread shift or relationship change is a turning point — build to it, let it land.
-- Dialogue must do at least two things at once: reveal character, advance conflict, shift power, or expose subtext.
-- Sensory grounding in small, specific details. One precise image outweighs three generic ones.${!hasVoiceOverride ? '\n- Subtext over exposition. What characters don\'t say carries more weight than declarations.' : ''}
+    : ''}${profileSection}
 
-Compression & implication:
-- SHOW, NEVER EXPLAIN. When a system, rule, or concept is revealed, dramatise it through action or consequence. Do not follow it with a sentence explaining what it means or why it matters. Trust the reader to infer.
-- Cut the "explanation chain": action → explanation → strategic implication is a failure pattern. Write the action. Let the implication live in what happens next.
-- Internal monologue must sound like the CHARACTER thinking, not the narrator documenting a mechanic. "The formation had three nodes left" not "This was a tri-node defensive formation designed to..."
-- After writing any sentence that explains a concept, DELETE IT and check if the scene still works. If it does, the sentence was unnecessary.
-
-Sentence rhythm:
-- VARY sentence length deliberately. Follow two short declarative sentences with a longer flowing one. Break a tense sequence with a fragment. Let paragraphs breathe with mixed cadence.
-- Avoid chains of 4+ sentences with identical structure (subject-verb-object). Rotate between: fragments, compound sentences, dialogue interruptions, sensory inserts, and longer periodic sentences.
-- The prose should feel like a novel, not a storyboard. Storyboard prose = "He did X. She did Y. The result was Z." Novel prose = varied rhythm, texture, voice.${profileSection}
-
-Strict output rules:
-- Output ONLY the prose. No scene titles, chapter headers, separators (---), or meta-commentary.
-- Use straight quotes (" and '), never smart/curly quotes or other typographic substitutions.
-- Do not begin with a character name as the first word.${!hasVoiceOverride ? `
-- CRITICAL: Do NOT open with weather, atmosphere, air quality, scent, or environmental description. Instead: mid-dialogue, a character's body in motion, a close-up on an object, an internal thought, a sound, a tactile sensation.
-- Do NOT end with philosophical musings, rhetorical questions, or atmospheric fade-outs. End with: a character leaving, a sharp line of dialogue, a decision made in silence, an interruption, a physical gesture.` : ''}${
+${formatInstructions.formatRules}${
     guidance?.trim() ? `\n\nSCENE DIRECTION:\n${guidance.trim()}` : ''
   }`;
 

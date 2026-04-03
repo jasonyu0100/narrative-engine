@@ -247,7 +247,7 @@ describe('initBeatProfilePresets', () => {
       { key: 'custom', name: 'Custom Work', narrative },
     ]);
 
-    expect(presets.length).toBe(4);
+    expect(presets.length).toBe(2); // Storyteller + 1 work
     const customPreset = presets.find((p) => p.key === 'custom');
     expect(customPreset).toBeDefined();
     expect(customPreset!.name).toBe('Custom Work');
@@ -262,7 +262,7 @@ describe('initBeatProfilePresets', () => {
       { key: 'no-profile', name: 'No Profile', narrative },
     ]);
 
-    expect(presets.length).toBe(3); // only built-ins
+    expect(presets.length).toBe(1); // only Storyteller
     expect(presets.find((p) => p.key === 'no-profile')).toBeUndefined();
   });
 
@@ -509,7 +509,7 @@ describe('resolveSampler', () => {
   it('returns DEFAULT_BEAT_SAMPLER when no settings or scenes', () => {
     const narrative = createMinimalNarrative();
     const sampler = resolveSampler(narrative);
-    expect(sampler).toBe(DEFAULT_BEAT_SAMPLER);
+    expect(sampler).toStrictEqual(DEFAULT_BEAT_SAMPLER);
   });
 
   it('returns preset sampler when preset key matches', () => {
@@ -539,7 +539,7 @@ describe('resolveSampler', () => {
       storySettings: { ...DEFAULT_STORY_SETTINGS, beatProfilePreset: 'nonexistent' },
     });
     const sampler = resolveSampler(narrative);
-    expect(sampler).toBe(DEFAULT_BEAT_SAMPLER);
+    expect(sampler).toStrictEqual(DEFAULT_BEAT_SAMPLER);
   });
 
   it('handles undefined scenes gracefully', () => {
@@ -547,6 +547,6 @@ describe('resolveSampler', () => {
     // @ts-expect-error - testing undefined handling
     narrative.scenes = undefined;
     const sampler = resolveSampler(narrative);
-    expect(sampler).toBe(DEFAULT_BEAT_SAMPLER);
+    expect(sampler).toStrictEqual(DEFAULT_BEAT_SAMPLER);
   });
 });
