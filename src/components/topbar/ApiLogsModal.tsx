@@ -28,7 +28,8 @@ function StatusBadge({ status }: { status: ApiLogEntry['status'] }) {
 
 function LogDetail({ entry, onClose }: { entry: ApiLogEntry; onClose: () => void }) {
   const hasReasoning = !!entry.reasoningContent;
-  const [tab, setTab] = useState<'prompt' | 'response' | 'reasoning'>('prompt');
+  const hasSystemPrompt = !!entry.systemPromptPreview;
+  const [tab, setTab] = useState<'system' | 'prompt' | 'response' | 'reasoning'>('prompt');
 
   return (
     <div className="flex flex-col h-full">
@@ -65,6 +66,14 @@ function LogDetail({ entry, onClose }: { entry: ApiLogEntry; onClose: () => void
 
       {/* Tabs */}
       <div className="flex border-b border-white/8 shrink-0">
+        {hasSystemPrompt && (
+          <button
+            className={`px-4 py-2 text-[11px] transition-colors ${tab === 'system' ? 'text-cyan-400 border-b border-cyan-400/50' : 'text-text-dim hover:text-cyan-300'}`}
+            onClick={() => setTab('system')}
+          >
+            System
+          </button>
+        )}
         <button
           className={`px-4 py-2 text-[11px] transition-colors ${tab === 'prompt' ? 'text-text-primary border-b border-white/30' : 'text-text-dim hover:text-text-secondary'}`}
           onClick={() => setTab('prompt')}
@@ -90,7 +99,9 @@ function LogDetail({ entry, onClose }: { entry: ApiLogEntry; onClose: () => void
       {/* Content */}
       <div className="overflow-y-auto p-4" style={{ maxHeight: 'calc(80vh - 10rem)' }}>
         <pre className="text-[11px] leading-relaxed whitespace-pre-wrap wrap-break-word font-mono text-text-secondary">
-          {tab === 'prompt'
+          {tab === 'system'
+            ? entry.systemPromptPreview || '(no system prompt)'
+            : tab === 'prompt'
             ? entry.promptPreview || '(empty)'
             : tab === 'reasoning'
             ? entry.reasoningContent || '(no reasoning content)'

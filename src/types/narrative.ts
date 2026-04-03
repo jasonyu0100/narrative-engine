@@ -199,12 +199,15 @@ export type ProseProfile = {
   antiPatterns?: string[];
 };
 
+/** Mechanism distribution conditioned on beat function — preserves fn/mechanism correlation from source texts */
+export type FnMechanismDistribution = Partial<Record<BeatFn, Partial<Record<BeatMechanism, number>>>>;
+
 /** Beat sampling data — derived from analyzed works, separate from voice profile. */
 export type BeatSampler = {
   /** Markov chain transition probabilities between beat functions */
   markov: BeatTransitionMatrix;
-  /** How often each mechanism appears */
-  mechanismDistribution: Partial<Record<BeatMechanism, number>>;
+  /** How often each mechanism appears per beat function — preserves the correlation from source texts */
+  fnMechanismDistribution: FnMechanismDistribution;
   /** Average beats per 1000 words */
   beatsPerKWord: number;
 };
@@ -907,6 +910,8 @@ export type ApiLogEntry = {
   promptTokens: number;
   responseTokens: number | null;
   error: string | null;
+  /** Truncated system prompt preview */
+  systemPromptPreview?: string;
   /** Truncated prompt preview */
   promptPreview: string;
   /** Truncated response preview */

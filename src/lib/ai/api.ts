@@ -13,7 +13,7 @@ export async function callGenerateStream(
 ): Promise<string> {
   const resolvedModel = model ?? DEFAULT_MODEL;
   const { logApiCall, updateApiLog } = await import('@/lib/api-logger');
-  const logId = logApiCall(caller, prompt.length + (systemPrompt?.length ?? 0), prompt, resolvedModel);
+  const logId = logApiCall(caller, prompt.length + (systemPrompt?.length ?? 0), prompt, resolvedModel, systemPrompt);
   const start = performance.now();
 
   // Set up abort controller with timeout
@@ -94,7 +94,7 @@ export async function callGenerateStream(
 export async function callGenerate(prompt: string, systemPrompt: string, maxTokens?: number, caller = 'callGenerate', model?: string, reasoningBudget?: number, jsonMode = true): Promise<string> {
   const resolvedModel = model ?? DEFAULT_MODEL;
   const { logApiCall, updateApiLog } = await import('@/lib/api-logger');
-  const logId = logApiCall(caller, prompt.length + (systemPrompt?.length ?? 0), prompt, resolvedModel);
+  const logId = logApiCall(caller, prompt.length + (systemPrompt?.length ?? 0), prompt, resolvedModel, systemPrompt);
   const start = performance.now();
 
   // Set up abort controller with timeout

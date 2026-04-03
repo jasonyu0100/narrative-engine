@@ -25,7 +25,7 @@ export function setLoggerNarrativeId(id: string | null) {
 /** Estimate token count from character length (~4 chars per token for English) */
 const estimateTokens = (chars: number) => Math.ceil(chars / 4);
 
-export function logApiCall(caller: string, promptChars: number, promptPreview: string, model?: string): string {
+export function logApiCall(caller: string, promptChars: number, promptPreview: string, model?: string, systemPromptPreview?: string): string {
   const id = `api-${Date.now()}-${counter++}`;
   const entry: ApiLogEntry = {
     id,
@@ -38,6 +38,7 @@ export function logApiCall(caller: string, promptChars: number, promptPreview: s
     promptTokens: estimateTokens(promptChars),
     responseTokens: null,
     error: null,
+    systemPromptPreview,
     promptPreview: promptPreview,
     responsePreview: null,
   };

@@ -2,11 +2,12 @@ import type { NarrativeState, Scene, Arc, WorldBuild, StorySettings, BeatPlan } 
 import { DEFAULT_STORY_SETTINGS, REASONING_BUDGETS, BEAT_FN_LIST, BEAT_MECHANISM_LIST, NARRATIVE_CUBE } from '@/types/narrative';
 import { nextId, nextIds } from '@/lib/narrative-utils';
 import { callGenerate, callGenerateStream, SYSTEM_PROMPT } from './api';
-import { WRITING_MODEL, ANALYSIS_MODEL, GENERATE_MODEL, MAX_TOKENS_LARGE, MAX_TOKENS_DEFAULT, MAX_TOKENS_SMALL } from '@/lib/constants';
+import { WRITING_MODEL, ANALYSIS_MODEL, GENERATE_MODEL, MAX_TOKENS_LARGE, MAX_TOKENS_DEFAULT, MAX_TOKENS_SMALL, BEAT_DENSITY_MIN, BEAT_DENSITY_MAX, BEAT_DENSITY_DEFAULT } from '@/lib/constants';
 import { parseJson } from './json';
 import { narrativeContext, sceneContext, deriveLogicRules, sceneScale } from './context';
 import { PROMPT_FORCE_STANDARDS, PROMPT_STRUCTURAL_RULES, PROMPT_MUTATIONS, PROMPT_ARTIFACTS, PROMPT_POV, PROMPT_CONTINUITY, PROMPT_SUMMARY_REQUIREMENT, promptThreadLifecycle, buildThreadHealthPrompt, buildCompletedBeatsPrompt } from './prompts';
 import { samplePacingSequence, buildSequencePrompt, buildSingleStepPrompt, detectCurrentMode, MATRIX_PRESETS, DEFAULT_TRANSITION_MATRIX, type PacingSequence, type ModeStep } from '@/lib/pacing-profile';
+import { resolveProfile, resolveSampler, sampleBeatSequence } from '@/lib/beat-profiles';
 import { FORMAT_INSTRUCTIONS } from './prose';
 
 export type GenerateScenesOptions = {
@@ -273,21 +274,22 @@ export async function generateScenePlan(
     : '';
 
   // Prose profile context + optional Markov beat sequence
-  const { resolveProfile, resolveSampler, sampleBeatSequence } = await import('@/lib/beat-profiles');
   const profile = resolveProfile(narrative);
   const sampler = resolveSampler(narrative);
   const storySettings: StorySettings = { ...DEFAULT_STORY_SETTINGS, ...narrative.storySettings };
   const scale = sceneScale(scene);
   const estWords = scale.estWords;
-  // Clamp beatsPerKWord to sane range — real works are 9-12
-  const bpkw = Math.min(16, Math.max(6, sampler.beatsPerKWord ?? 12));
+  // Clamp beatsPerKWord to standardized range (8-14)
+  const bpkw = Math.min(BEAT_DENSITY_MAX, Math.max(BEAT_DENSITY_MIN, sampler.beatsPerKWord ?? BEAT_DENSITY_DEFAULT));
   const targetBeats = Math.max(8, Math.round(estWords * bpkw / 1000));
   onMeta?.({ targetBeats, estWords });
 
   // Sample a beat sequence from the Markov chain when enabled
+  // Continue from previous scene's ending beat, or default to 'breathe'
   let beatSequenceHint = '';
   if (storySettings.useBeatChain !== false) {
-    const sampledBeats = sampleBeatSequence(sampler, targetBeats, 'breathe');
+    const prevEndingBeat = prevPlan?.beats?.at(-1)?.fn;
+    const sampledBeats = sampleBeatSequence(sampler, targetBeats, prevEndingBeat);
     beatSequenceHint = `\nBEAT SEQUENCE (${targetBeats} beats — follow this fn and mechanism assignment exactly):
 ${sampledBeats.map((b, i) => `  ${i + 1}. ${b.fn}:${b.mechanism}`).join('\n')}\n`;
   }
@@ -310,7 +312,7 @@ ${planProfileLines.map((l) => `  ${l}`).join('\n')}
 
   const systemPrompt = `You are a scene architect. Given a scene's structural data (summary, mutations, events), produce a structured beat plan — a JSON blueprint that a prose writer can follow.
 
-The scene context includes a PROSE PROFILE. Every beat you write must reflect it — mechanism choices, beat density, and anchor language must all be consistent with the profile settings. This is not optional.
+The scene context includes a PROSE PROFILE with rules and anti-patterns. Anchors and scene-level anchor lines MUST conform to the profile's style. If the profile forbids figurative language, anchors must be plain factual statements. If the profile allows poetic language, anchors can be evocative. Read the profile rules carefully.
 
 Return ONLY valid JSON matching this schema:
 {
@@ -318,11 +320,11 @@ Return ONLY valid JSON matching this schema:
     {
       "fn": "${BEAT_FN_LIST.join('|')}",
       "mechanism": "${BEAT_MECHANISM_LIST.join('|')}",
-      "what": "One sentence: the concrete action or event",
-      "anchor": "The one sensory detail that makes this beat physical"
+      "what": "STRUCTURAL SUMMARY: what happens, not how it reads",
+      "anchor": "A sensory detail grounding this beat — MUST match the prose profile's style"
     }
   ],
-  "anchors": ["0-5 iconic lines the prose writer MUST include verbatim — the sentences a reader would quote, highlight, or remember. Craft these as polished, publication-ready prose: a striking opening image, a character's defining utterance, a metaphor that crystallizes the scene's meaning, a line of dialogue that reverberates. Not every scene needs anchors — only include them when the moment earns a standout line."]
+  "anchors": ["0-5 lines the prose writer includes verbatim. MUST match the prose profile's style. Not every scene needs anchors."]
 }
 
 BEAT FUNCTIONS (10):
@@ -337,15 +339,22 @@ BEAT FUNCTIONS (10):
   foreshadow — Plants information that pays off LATER.
   resolve    — Tension releases. Question answered, conflict settles.
 
-MECHANISMS (8):
-  dialogue    — Characters speaking.
-  thought     — Internal monologue.
-  action      — Physical movement, gesture.
-  environment — Setting, weather, arrivals, sensory details.
-  narration   — Narrator voice, commentary, rhetoric.
-  memory      — Flashback triggered by association.
-  document    — Embedded text: letter, newspaper, sign, poem.
-  comic       — Humor, physical comedy, absurdity.
+MECHANISMS (8) — the mechanism determines how prose is written, not what happens:
+  dialogue    — Characters SPEAKING to each other or aloud. Requires quoted speech ("...").
+  thought     — POV character's INTERNAL monologue. Private reasoning, not spoken.
+  action      — PHYSICAL movement, gesture, body in space. Visible and concrete.
+  environment — Setting, weather, SOUNDS, spatial context. Sensory details of the world.
+  narration   — Narrator's voice commenting. Rhetoric, time compression, exposition.
+  memory      — Flashback triggered by association. Temporal shift to the past.
+  document    — Embedded text shown literally. Letter, sign, newspaper excerpt.
+  comic       — Humor, irony, absurdity. The beat must be funny.
+
+MECHANISM EDGE CASES (important):
+  - Overhearing sounds (children shouting, distant calls) = environment, NOT dialogue
+  - POV character thinking to themselves = thought, NOT dialogue
+  - Character muttering alone = thought (unless another character hears it)
+  - Describing what someone said without quoting = narration, NOT dialogue
+  - Environmental sounds with voices in them = environment (the setting includes sound)
 
 RULES:
 - Open with 1-3 breathe beats to ground the scene physically.
@@ -355,7 +364,26 @@ RULES:
 - Knowledge gains need a discovery mechanism (overheard, read, deduced, confessed).
 - Relationship shifts need a catalytic moment.
 - Be specific: "She asks about the missing shipment; he deflects" not "A tense exchange."
-- ANCHORS: Write 1-3 polished, publication-ready sentences that would define this scene if quoted. These are the lines a reader highlights — a striking image, a defining utterance, a metaphor that crystallizes meaning. The prose writer will include these VERBATIM. Quiet scenes may have 0 anchors. Climactic scenes may have 3. Write them as finished prose, not summaries.
+- STRUCTURAL SUMMARIES ONLY: The 'what' field describes WHAT HAPPENS, not how it reads as prose.
+  • DO: "Guard confronts him about the forged papers" — structural event
+  • DON'T: "He muttered, 'The academy won't hold me long'" — pre-written prose
+  • DO: "Elders debate whether to proceed with the ceremony" — action summary
+  • DON'T: "Her voice cut through the murmur of the crowd" — literary description
+  • DO: "Mist covers the village at dawn" — simple fact
+  • DON'T: "Mist clung to the village, blurring the distinction between homes and mountain" — literary prose
+  • DO: "Child shouts about losing a Gu worm" — event
+  • DON'T: "A child's shout echoed, its tone frantic" — prose-style adverbs/adjectives
+  Strip adjectives, adverbs, and literary embellishments. State the event, not its texture. The prose writer adds texture.
+- MECHANISM CHOICE is binding: The mechanism determines HOW the prose writer MUST write each beat:
+  • dialogue: Characters MUST speak in quotes. Choose for conversations, confrontations, verbal reveals.
+  • thought: Internal monologue MUST appear. Choose for reasoning, planning, emotional processing, self-talk.
+  • action: Physical movement MUST be described. Choose for fights, gestures, physical tasks.
+  • environment: Setting details MUST ground the moment. Choose for scene establishment, atmosphere, ambient sounds.
+  • narration: Authorial voice MUST comment. Choose for time compression, exposition, thematic statements.
+  The prose writer cannot deviate — dialogue beats WILL contain quoted speech, thought beats WILL contain internal monologue.
+  CRITICAL: If the beat describes overhearing sounds or ambient noise, use environment. If the beat describes the POV character's private reasoning, use thought. Only use dialogue when characters are actually speaking to be heard.
+- ANCHORS (per-beat): Each beat's anchor is a sensory phrase that MUST appear in the prose. Write anchors as concrete details. CHECK THE PROSE PROFILE: if it forbids figurative language, anchors must be plain facts ("boots on stone", "smoke from cooking fires", "the boy's empty jar"). If figurative language is allowed, anchors can be evocative ("the metallic taste of fear", "her knuckles white on the hilt").
+- ANCHORS (scene-level): Write 0-3 polished sentences that would define this scene. The prose writer includes these VERBATIM. These MUST match the prose profile's style — if no figurative language is allowed, these lines must be plain factual prose.
 - Return ONLY valid JSON.`
   + (() => {
     const parts = [narrative.storySettings?.planGuidance?.trim(), guidance?.trim()].filter(Boolean);
@@ -365,7 +393,9 @@ RULES:
   const prompt = `${profileBlock}BRANCH CONTEXT:\n${fullContext}
 ${adjacentBlock ? `${adjacentBlock}\n\n` : ''}${sceneBlock}
 ${logicBlock}
-Generate a structured beat plan for this scene.`;
+Generate a structured beat plan for this scene.
+
+REMINDER: All anchors (per-beat and scene-level) MUST conform to the PROSE PROFILE above. If the profile forbids figurative language, write plain factual anchors only.`;
 
   const reasoningBudget = REASONING_BUDGETS[narrative.storySettings?.reasoningLevel ?? 'low'] || undefined;
   const raw = onReasoning
@@ -431,6 +461,13 @@ Edit the beat plan to address every issue above. You may:
 - Remove beats (if redundant or contradictory)
 - Reorder beats (if sequencing is wrong)
 
+CRITICAL: The 'what' field must be a STRUCTURAL SUMMARY of what happens, NOT pre-written prose.
+- DO: "Guard confronts him about the forged papers" — structural event
+- DON'T: "He muttered, 'The academy won't hold me long'" — pre-written prose with quotes
+- DO: "Mist covers the village" — simple fact
+- DON'T: "Mist clung, blurring the distinction..." — literary prose
+Strip adjectives, adverbs, literary embellishments. State the event, not its texture.
+
 Keep beats that have NO issues exactly as they are — do not rewrite beats that are working.
 Return the COMPLETE plan (all beats, not just changed ones) as JSON:
 {
@@ -478,7 +515,7 @@ Return ONLY valid JSON matching this schema:
     {
       "fn": "${BEAT_FN_LIST.join('|')}",
       "mechanism": "${BEAT_MECHANISM_LIST.join('|')}",
-      "what": "One sentence: the concrete action or event",
+      "what": "STRUCTURAL SUMMARY: what happens, not how it reads",
       "anchor": "The one sensory detail that makes this beat physical"
     }
   ],
@@ -489,8 +526,14 @@ Beat functions: ${BEAT_FN_LIST.join(', ')}
 Mechanisms: ${BEAT_MECHANISM_LIST.join(', ')}
 
 Rules:
-- Identify one beat per meaningful unit of action, dialogue, or shift. Aim for 8-20 beats per scene.
+- Identify one beat per meaningful unit of action, dialogue, or shift. Target ~${BEAT_DENSITY_MIN}-${BEAT_DENSITY_MAX} beats per 1000 words.
 - Every beat must map to a specific moment in the prose.
+- STRUCTURAL SUMMARIES ONLY: The 'what' field describes WHAT HAPPENS, not how it reads as prose.
+  • DO: "Guard confronts him about the forged papers" — structural event
+  • DON'T: "He muttered, 'The academy won't hold me long'" — pre-written prose
+  • DO: "Elders debate whether to proceed with the ceremony" — action summary
+  • DON'T: "Her voice cut through the murmur of the crowd" — literary description
+  Extract the structural action, not the prose style. What happened, not how it was written.
 - anchors: Pick 0-5 lines that define the scene. Quote them exactly from the prose.
 - Return ONLY valid JSON.`;
 
@@ -561,7 +604,14 @@ ${currentPlanText}${currentAnchors}
 EDITORIAL FEEDBACK:
 ${analysis}
 
-Revise the beat plan to address the feedback. Ensure all scene mutations are still covered.`;
+Revise the beat plan to address the feedback. Ensure all scene mutations are still covered.
+
+CRITICAL: The 'what' field must be a STRUCTURAL SUMMARY of what happens, NOT pre-written prose.
+- DO: "Guard confronts him about the forged papers" — structural event
+- DON'T: "He muttered, 'The academy won't hold me long'" — pre-written prose with quotes
+- DO: "Mist covers the village" — simple fact
+- DON'T: "Mist clung, blurring the distinction..." — literary prose
+Strip adjectives, adverbs, literary embellishments. State the event, not its texture.`;
 
   const reasoningBudget = REASONING_BUDGETS[narrative.storySettings?.reasoningLevel ?? 'low'] || undefined;
   const raw = await callGenerate(prompt, systemPrompt, MAX_TOKENS_SMALL, 'rewriteScenePlan', GENERATE_MODEL, reasoningBudget);
@@ -603,7 +653,8 @@ export async function generateSceneProse(
     ? prevProse.split('\n').filter((l) => l.trim()).slice(-3).join('\n')
     : '';
 
-  const proseProfile = narrative.proseProfile;
+  // Use resolveProfile to respect beatProfilePreset selection (same as generateScenePlan)
+  const proseProfile = resolveProfile(narrative);
 
   // Render profile fields directly — no hardcoded interpretation of specific values
   const profileLines: string[] = [];
@@ -631,6 +682,7 @@ export async function generateSceneProse(
   const proseFormat = narrative.storySettings?.proseFormat ?? 'prose';
   const formatInstructions = FORMAT_INSTRUCTIONS[proseFormat];
 
+  // System prompt is minimal — style constraints moved to user prompt for stronger compliance
   const systemPrompt = `${formatInstructions.systemRole} You are crafting a single scene for "${narrative.title}".
 
 Tone: ${narrative.worldSummary.slice(0, 200)}.
@@ -638,8 +690,7 @@ ${hasVoiceOverride
     ? `\nAUTHOR VOICE (this is the PRIMARY creative direction — all craft defaults below are subordinate to this voice):
 ${narrative.storySettings!.proseVoice!.trim()}
 `
-    : ''}${profileSection}
-
+    : ''}
 ${formatInstructions.formatRules}${
     guidance?.trim() ? `\n\nSCENE DIRECTION:\n${guidance.trim()}` : ''
   }`;
@@ -649,7 +700,9 @@ ${formatInstructions.formatRules}${
   // Scene plan — when available, this is the primary creative direction
   const planBlock = scene.plan
     ? `\nBEAT PLAN (follow this beat sequence — each beat maps to a passage of prose):
-${scene.plan.beats.map((b, i) => `  ${i + 1}. [${b.fn}:${b.mechanism}] ${b.what} | anchor: ${b.anchor}`).join('\n')}
+${scene.plan.beats.map((b, i) => `  ${i + 1}. [${b.fn}:${b.mechanism}] ${b.what} | anchor: "${b.anchor}"`).join('\n')}
+
+ANCHOR ADHERENCE: Each beat has an anchor — a sensory detail that MUST appear in the prose for that beat. Include the anchor phrase verbatim or near-verbatim. Missing anchors are a structural failure.
 ${scene.plan.anchors.length > 0 ? `\nANCHOR LINES (these exact formulations must appear in your prose):\n${scene.plan.anchors.map((a) => `  "${a}"`).join('\n')}` : ''}\n`
     : '';
 
@@ -663,22 +716,38 @@ ${scene.plan.anchors.length > 0 ? `\nANCHOR LINES (these exact formulations must
     : '';
 
   const instruction = scene.plan
-    ? `Follow the beat plan sequence — each beat maps to a passage of prose. The mechanism tells you HOW to write each beat (dialogue = conversation, thought = internal monologue, action = physical movement, etc). The anchor is the sensory detail that grounds the beat.
+    ? `Follow the beat plan sequence — each beat maps to a passage of prose. The mechanism tells you HOW to write each beat. The anchor is the sensory detail that grounds the beat.
+
+MECHANISM FIDELITY (non-negotiable — the prose structure MUST match the mechanism):
+- dialogue: The passage MUST contain quoted speech ("...") with characters speaking. Not narration about speaking.
+- thought: Internal monologue — the POV character's private reasoning, not observed externally.
+- action: Physical movement, gesture, or interaction with objects. Concrete and visible.
+- environment: Setting, weather, lighting, sensory details of the space. No character action.
+- narration: Authorial commentary, rhetoric, time compression. The narrator's voice, not a character's.
+- memory: A flashback triggered by association — marked temporal shift to the past.
+- document: Embedded text appears literally — a letter, sign, poem, excerpt shown on the page.
+- comic: Humor, irony, absurdity, bathos — the beat must be funny or undercut expectations.
+
+When a beat is marked [fn:dialogue], the prose for that beat MUST include actual quoted dialogue. When marked [fn:thought], the prose MUST be internal monologue. Violating mechanism is a structural failure.
 
 THREE PILLARS — the prose must honour all three:
 1. CONTINUITY: POV character can only perceive what their senses and existing knowledge allow. New continuity mutations must be discovered through specific mechanisms — never referenced before their revelation moment.
 2. THREADS: Every thread shift must land at a specific dramatic moment. Show the status change through action, not narration.
 3. KNOWLEDGE: World concepts being revealed in this scene (marked in the logical requirements) must feel EARNED — discovered through demonstration, consequence, or character action. Never explain a concept after showing it — let the demonstration speak. Established world knowledge can be referenced freely. New knowledge cannot be treated as pre-existing.
 
-Every thread shift, continuity change, relationship mutation, and world knowledge reveal must appear in the prose. You MUST satisfy every logical requirement. Anchor lines must appear VERBATIM. Fill around the beats with dialogue, internal monologue, physical action, and sensory detail. Write at least ~${sceneScale(scene).estWords} words — this is the minimum bar, not a target to pad toward. You are free to write more if the scene demands it.`
+Every thread shift, continuity change, relationship mutation, and world knowledge reveal must appear in the prose. You MUST satisfy every logical requirement. Anchor lines must appear VERBATIM — but if an anchor contains figurative language and the prose profile forbids it, rewrite the anchor to remove the figure while preserving the sensory detail. Fill around the beats with dialogue, internal monologue, physical action, and sensory detail. Write at least ~${sceneScale(scene).estWords} words — this is the minimum bar, not a target to pad toward. You are free to write more if the scene demands it.
+
+STYLE COMPLIANCE IS MANDATORY: Re-read the PROSE PROFILE above. Every sentence you write must conform to those rules. If the profile says "no figurative language", that means NO metaphors, NO similes, NO personification — not even one.`
     : `THREE PILLARS — the prose must honour all three:
 1. CONTINUITY: POV character can only perceive what their senses and existing knowledge allow. New continuity mutations must be discovered through specific mechanisms — never referenced before their revelation moment.
 2. THREADS: Every thread shift must land at a specific dramatic moment. Show the status change through action, not narration.
 3. KNOWLEDGE: World concepts being revealed in this scene (marked in the logical requirements) must feel EARNED — discovered through demonstration, consequence, or character action. Never explain a concept after showing it — let the demonstration speak. Established world knowledge can be referenced freely. New knowledge cannot be treated as pre-existing.
 
-Every thread shift, continuity change, relationship mutation, and world knowledge reveal listed above must be dramatised — these are the structural deliveries of this scene. You MUST satisfy every logical requirement. Foreshadow future events through subtle imagery, offhand remarks, and environmental details — never telegraph. Write at least ~${sceneScale(scene).estWords} words — this is the minimum bar, not a target to pad toward. You are free to write more if the scene demands it.`;
+Every thread shift, continuity change, relationship mutation, and world knowledge reveal listed above must be dramatised — these are the structural deliveries of this scene. You MUST satisfy every logical requirement. Foreshadow future events through subtle imagery, offhand remarks, and environmental details — never telegraph. Write at least ~${sceneScale(scene).estWords} words — this is the minimum bar, not a target to pad toward. You are free to write more if the scene demands it.
 
-  const prompt = `${adjacentProseBlock ? `${adjacentProseBlock}\n\n` : ''}${planBlock}${sceneBlock}
+STYLE COMPLIANCE IS MANDATORY: Re-read the PROSE PROFILE above. Every sentence you write must conform to those rules. If the profile says "no figurative language", that means NO metaphors, NO similes, NO personification — not even one.`;
+
+  const prompt = `${profileSection ? `${profileSection}\n\n` : ''}${adjacentProseBlock ? `${adjacentProseBlock}\n\n` : ''}${planBlock}${sceneBlock}
 ${logicBlock}
 ${instruction}`;
 
