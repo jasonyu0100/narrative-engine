@@ -780,7 +780,7 @@ const ARCHETYPES = {
   chronicle:   { key: 'chronicle',   name: 'Chronicle',   description: 'Resolutions deepen the world — each payoff reveals how things work', dominant: ['payoff', 'knowledge'] as const },
   mosaic:      { key: 'mosaic',      name: 'Mosaic',      description: 'Many lives composing a larger picture — characters transform within a deepening world', dominant: ['change', 'knowledge'] as const },
   classic:     { key: 'classic',     name: 'Classic',     description: 'Driven by resolution — threads pay off and relationships shift decisively', dominant: ['payoff'] as const },
-  anthology:   { key: 'anthology',   name: 'Anthology',   description: 'Many lives touched — the story weaves across a wide cast of characters', dominant: ['change'] as const },
+  saga:        { key: 'saga',        name: 'Saga',        description: 'People-driven — characters transform and their journeys are the heart of the story', dominant: ['change'] as const },
   tome:        { key: 'tome',        name: 'Tome',        description: 'Dense with ideas and systems — the depth of the world itself is the draw', dominant: ['knowledge'] as const },
   emerging:    { key: 'emerging',    name: 'Emerging',    description: 'No single force has reached its potential yet — the story is still finding its voice', dominant: [] as const },
 } satisfies Record<string, NarrativeArchetype>;
@@ -812,7 +812,7 @@ export function classifyArchetype(grades: ForceGrades): NarrativeArchetype {
   if (pDom && kDom)         return ARCHETYPES.chronicle;
   if (cDom && kDom)         return ARCHETYPES.mosaic;
   if (pDom)                 return ARCHETYPES.classic;
-  if (cDom)                 return ARCHETYPES.anthology;
+  if (cDom)                 return ARCHETYPES.saga;
   if (kDom)                 return ARCHETYPES.tome;
   return ARCHETYPES.emerging;
 }

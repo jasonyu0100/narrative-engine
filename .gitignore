@@ -26,6 +26,7 @@
 
 # data
 data/books
+data/movies
 
 # debug
 npm-debug.log*

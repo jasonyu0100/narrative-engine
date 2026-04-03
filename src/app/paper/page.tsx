@@ -299,10 +299,10 @@ const ARCHETYPES = [
     color: ARCHETYPE_COLORS.classic,
   },
   {
-    key: "anthology" as const,
-    name: "Anthology",
+    key: "saga" as const,
+    name: "Saga",
     desc: "Change-driven",
-    color: ARCHETYPE_COLORS.anthology,
+    color: ARCHETYPE_COLORS.saga,
   },
   {
     key: "tome" as const,
