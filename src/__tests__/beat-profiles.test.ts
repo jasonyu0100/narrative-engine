@@ -4,8 +4,6 @@ import {
   DEFAULT_MECHANISM_DIST,
   DEFAULT_BEAT_SAMPLER,
   DEFAULT_PROSE_PROFILE,
-  ACTION_PROFILE,
-  INTROSPECTIVE_PROFILE,
   computeSamplerFromPlans,
   initBeatProfilePresets,
   sampleMechanism,
@@ -123,17 +121,6 @@ describe('DEFAULT exports', () => {
     expect(DEFAULT_PROSE_PROFILE.antiPatterns!.length).toBeGreaterThan(0);
   });
 
-  it('ACTION_PROFILE favors action mechanisms', () => {
-    expect(ACTION_PROFILE.register).toBe('raw');
-    expect(ACTION_PROFILE.sentenceRhythm).toBe('terse');
-    expect(ACTION_PROFILE.interiority).toBe('surface');
-  });
-
-  it('INTROSPECTIVE_PROFILE favors thought mechanisms', () => {
-    expect(INTROSPECTIVE_PROFILE.register).toBe('literary');
-    expect(INTROSPECTIVE_PROFILE.sentenceRhythm).toBe('flowing');
-    expect(INTROSPECTIVE_PROFILE.interiority).toBe('deep');
-  });
 });
 
 // ── computeSamplerFromPlans ──────────────────────────────────────────────────
@@ -241,8 +228,8 @@ describe('initBeatProfilePresets', () => {
 
   it('includes built-in presets (storyteller, action, introspective)', () => {
     const presets = initBeatProfilePresets([]);
-    expect(presets.length).toBe(3);
-    expect(presets.map((p) => p.key)).toEqual(['storyteller', 'action', 'introspective']);
+    expect(presets.length).toBe(1);
+    expect(presets.map((p) => p.key)).toEqual(['storyteller']);
   });
 
   it('adds presets from works with proseProfile', () => {
@@ -307,8 +294,8 @@ describe('initBeatProfilePresets', () => {
 
   it('updates BEAT_PROFILE_PRESETS module variable', () => {
     initBeatProfilePresets([]);
-    expect(BEAT_PROFILE_PRESETS.length).toBe(3);
-    expect(BEAT_PROFILE_PRESETS.map((p) => p.key)).toEqual(['storyteller', 'action', 'introspective']);
+    expect(BEAT_PROFILE_PRESETS.length).toBe(1);
+    expect(BEAT_PROFILE_PRESETS.map((p) => p.key)).toEqual(['storyteller']);
   });
 });
 
@@ -463,12 +450,12 @@ describe('resolveProfile', () => {
     expect(profile).toBe(customProfile);
   });
 
-  it('returns preset profile when preset key matches', () => {
+  it('returns default profile when preset key has no match', () => {
     const narrative = createMinimalNarrative({
-      storySettings: { ...DEFAULT_STORY_SETTINGS, beatProfilePreset: 'action' },
+      storySettings: { ...DEFAULT_STORY_SETTINGS, beatProfilePreset: 'nonexistent' },
     });
     const profile = resolveProfile(narrative);
-    expect(profile).toBe(ACTION_PROFILE);
+    expect(profile).toBe(DEFAULT_PROSE_PROFILE);
   });
 
   it('returns narrative proseProfile for preset="self"', () => {
@@ -527,11 +514,10 @@ describe('resolveSampler', () => {
 
   it('returns preset sampler when preset key matches', () => {
     const narrative = createMinimalNarrative({
-      storySettings: { ...DEFAULT_STORY_SETTINGS, beatProfilePreset: 'action' },
+      storySettings: { ...DEFAULT_STORY_SETTINGS, beatProfilePreset: 'storyteller' },
     });
     const sampler = resolveSampler(narrative);
-    // ACTION sampler has beatsPerKWord of 16
-    expect(sampler.beatsPerKWord).toBe(16);
+    expect(sampler.beatsPerKWord).toBe(DEFAULT_BEAT_SAMPLER.beatsPerKWord);
   });
 
   it('computes sampler from scenes when no preset', () => {

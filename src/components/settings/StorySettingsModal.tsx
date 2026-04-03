@@ -9,7 +9,7 @@ import type { StorySettings, POVMode, WorldFocusMode, ReasoningLevel, NarrativeS
 import { DEFAULT_STORY_SETTINGS, BRANCH_TIME_HORIZON_OPTIONS, REASONING_BUDGETS } from '@/types/narrative';
 import { NARRATIVE_CUBE } from '@/types/narrative';
 import type { CubeCornerKey } from '@/types/narrative';
-import { MATRIX_PRESETS, type TransitionMatrix } from '@/lib/markov';
+import { MATRIX_PRESETS, computeMatrixFromNarrative, type TransitionMatrix } from '@/lib/markov';
 import { DEFAULT_BEAT_SAMPLER, BEAT_PROFILE_PRESETS, computeSamplerFromPlans } from '@/lib/beat-profiles';
 import { IconChevronDown } from '@/components/icons';
 
@@ -321,8 +321,34 @@ export function StorySettingsModal({ onClose }: { onClose: () => void }) {
               HHH: '#f59e0b', HHL: '#ef4444', HLH: '#a855f7', HLL: '#6366f1',
               LHH: '#22d3ee', LHL: '#22c55e', LLH: '#3b82f6', LLL: '#6b7280',
             };
+            // ── "This Story" presets — computed from current narrative ──
+            // Pacing: derive transition matrix from scene force snapshots
+            const selfPacingMatrix = narrative ? computeMatrixFromNarrative(narrative) : null;
+            const selfPacingHasData = selfPacingMatrix
+              ? CORNERS.reduce((s, from) => s + CORNERS.reduce((s2, to) => s2 + selfPacingMatrix[from][to], 0), 0) >= 0.5
+              : false;
+            // Beat: derive sampler from scene plans
+            const selfBeatHasData = Object.values(narrative?.scenes ?? {}).filter(
+              (s) => state.resolvedEntryKeys.includes(s.id) && s.plan?.beats?.length,
+            ).length >= 3;
+
+            // ── Build preset arrays: [Storyteller, This Story?, ...works] ──
+            const selfPreset = { key: 'self', name: 'This Story', description: 'Derived from the current branch.' };
+
+            const allPacingPresets = [
+              MATRIX_PRESETS[0],
+              ...(selfPacingHasData ? [{ ...selfPreset, matrix: selfPacingMatrix! }] : []),
+              ...MATRIX_PRESETS.slice(1),
+            ];
+            const allBeatPresets = [
+              { key: BEAT_PROFILE_PRESETS[0]?.key ?? '', name: BEAT_PROFILE_PRESETS[0]?.name ?? 'Storyteller', description: BEAT_PROFILE_PRESETS[0]?.description ?? 'Balanced fiction' },
+              ...(selfBeatHasData ? [selfPreset] : []),
+              ...BEAT_PROFILE_PRESETS.slice(1).map((p) => ({ key: p.key, name: p.name, description: p.description })),
+            ];
+
+            // ── Resolve active selections (fall back to Storyteller) ──
             const resolvedPacingKey = settings.rhythmPreset || 'storyteller';
-            const activePacingPreset = MATRIX_PRESETS.find((p) => p.key === resolvedPacingKey);
+            const activePacingPreset = allPacingPresets.find((p) => p.key === resolvedPacingKey) ?? allPacingPresets[0];
             const pacingMatrix: TransitionMatrix | null = activePacingPreset?.matrix ?? null;
 
             const FN_COLORS: Record<string, string> = {
@@ -331,20 +357,6 @@ export function StorySettingsModal({ onClose }: { onClose: () => void }) {
               foreshadow: '#84cc16', resolve: '#14b8a6',
             };
             const BEAT_FNS: string[] = ['breathe', 'inform', 'advance', 'bond', 'turn', 'reveal', 'shift', 'expand', 'foreshadow', 'resolve'];
-
-            // Resolve beat profile
-            const beatPresets = [
-              { key: '', label: 'Storyteller', desc: 'Balanced fiction — derived from 10 published works' },
-              { key: 'action', label: 'Action', desc: 'Fast pacing, high advance/turn — thrillers, xianxia' },
-              { key: 'introspective', label: 'Introspective', desc: 'Slow pacing, thought-heavy — literary fiction' },
-              { key: 'self', label: 'This Story', desc: 'Use this story\'s own analysed profile' },
-              { key: 'harry_potter', label: 'Harry Potter', desc: 'Conversational, comic escalation' },
-              { key: 'reverend_insanity', label: 'Reverend Insanity', desc: 'Raw, strategic introspection' },
-              { key: 'nineteen_eighty_four', label: '1984', desc: 'Clinical, ironic understatement' },
-              { key: 'the_great_gatsby', label: 'Gatsby', desc: 'Literary, sardonic first person' },
-              { key: 'a_tale_of_two_cities', label: 'Dickens', desc: 'Omniscient ironic, anaphora' },
-              { key: 'romeo_and_juliet', label: 'Shakespeare', desc: 'Detached observer, dialogue-heavy' },
-            ];
 
             return (
               <>
@@ -366,7 +378,7 @@ export function StorySettingsModal({ onClose }: { onClose: () => void }) {
                   {settings.usePacingChain && (
                     <>
                       <div className="flex gap-2 overflow-x-auto pb-2 -mx-1 px-1 mb-3">
-                        {MATRIX_PRESETS.map((preset) => {
+                        {allPacingPresets.map((preset) => {
                           const isSelected = preset.key === resolvedPacingKey;
                           return (
                             <button
@@ -441,7 +453,7 @@ export function StorySettingsModal({ onClose }: { onClose: () => void }) {
                   {settings.useBeatChain && (
                     <>
                       <div className="flex gap-2 overflow-x-auto pb-2 -mx-1 px-1 mb-3">
-                        {beatPresets.filter((p) => p.key !== 'self' || narrative?.proseProfile).map((preset) => {
+                        {allBeatPresets.map((preset) => {
                           const isSelected = (settings.beatProfilePreset || '') === preset.key;
                           return (
                             <button
@@ -451,8 +463,8 @@ export function StorySettingsModal({ onClose }: { onClose: () => void }) {
                                 isSelected ? 'border-violet-500/40 bg-violet-500/8 ring-1 ring-violet-500/20' : 'border-white/6 hover:border-white/15 hover:bg-white/3'
                               }`}
                             >
-                              <span className={`text-[11px] font-semibold leading-tight ${isSelected ? 'text-text-primary' : 'text-text-secondary'}`}>{preset.label}</span>
-                              <p className="text-[8px] text-text-dim leading-snug flex-1">{preset.desc}</p>
+                              <span className={`text-[11px] font-semibold leading-tight ${isSelected ? 'text-text-primary' : 'text-text-secondary'}`}>{preset.name}</span>
+                              <p className="text-[8px] text-text-dim leading-snug flex-1">{preset.description}</p>
                               {isSelected && <span className="text-[7px] text-violet-400 uppercase tracking-wider font-medium">Active</span>}
                             </button>
                           );

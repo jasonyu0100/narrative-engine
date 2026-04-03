@@ -1,6 +1,11 @@
 /**
  * Beat profile system — Markov chains for prose plan generation.
  *
+ * Mirrors the pacing profile system in markov.ts:
+ *   - A single built-in default (Storyteller)
+ *   - Work-derived presets populated at runtime via initBeatProfilePresets()
+ *   - A "self" option computed on-the-fly from the current narrative's scene plans
+ *
  * ProseProfile carries voice/style fields only.
  * BeatSampler carries derived beat statistics (markov, mechanisms, density).
  */
@@ -8,7 +13,7 @@
 import type { BeatFn, BeatMechanism, BeatTransitionMatrix, ProseProfile, BeatSampler, NarrativeState, Scene, BeatProfilePreset } from '@/types/narrative';
 export type { BeatProfilePreset };
 
-// ── Default Beat Sampler Data ────────────────────────────────────────────────
+// ── Default Sampler ─────────────────────────────────────────────────────────
 
 export const DEFAULT_BEAT_MATRIX: BeatTransitionMatrix = {
   breathe:    { inform: 0.52, advance: 0.19, bond: 0.05, turn: 0.04, reveal: 0.04, expand: 0.05, foreshadow: 0.03, resolve: 0.03, shift: 0.02, breathe: 0.03 },
@@ -34,41 +39,7 @@ export const DEFAULT_BEAT_SAMPLER: BeatSampler = {
   beatsPerKWord: 12,
 };
 
-const ACTION_SAMPLER: BeatSampler = {
-  beatsPerKWord: 16,
-  mechanismDistribution: { action: 0.35, dialogue: 0.30, thought: 0.10, environment: 0.12, narration: 0.05, memory: 0.03, document: 0.02, comic: 0.03 },
-  markov: {
-    breathe:    { inform: 0.40, advance: 0.30, turn: 0.08, reveal: 0.06, bond: 0.04, expand: 0.04, foreshadow: 0.03, resolve: 0.02, shift: 0.02, breathe: 0.01 },
-    inform:     { advance: 0.50, turn: 0.12, breathe: 0.08, inform: 0.08, bond: 0.05, reveal: 0.05, expand: 0.03, foreshadow: 0.04, resolve: 0.03, shift: 0.02 },
-    advance:    { advance: 0.30, inform: 0.15, turn: 0.15, breathe: 0.08, reveal: 0.08, bond: 0.06, shift: 0.06, resolve: 0.05, expand: 0.04, foreshadow: 0.03 },
-    bond:       { advance: 0.30, inform: 0.20, turn: 0.12, breathe: 0.10, reveal: 0.08, bond: 0.06, shift: 0.05, resolve: 0.04, expand: 0.03, foreshadow: 0.02 },
-    turn:       { advance: 0.35, resolve: 0.20, inform: 0.15, shift: 0.08, breathe: 0.06, reveal: 0.06, bond: 0.04, expand: 0.03, foreshadow: 0.02, turn: 0.01 },
-    reveal:     { advance: 0.35, turn: 0.15, inform: 0.15, bond: 0.10, breathe: 0.08, shift: 0.05, resolve: 0.05, expand: 0.03, foreshadow: 0.03, reveal: 0.01 },
-    shift:      { advance: 0.40, turn: 0.15, resolve: 0.15, inform: 0.10, breathe: 0.05, bond: 0.05, foreshadow: 0.04, reveal: 0.03, expand: 0.02, shift: 0.01 },
-    expand:     { advance: 0.35, inform: 0.25, breathe: 0.10, turn: 0.08, reveal: 0.06, bond: 0.05, expand: 0.04, foreshadow: 0.04, resolve: 0.02, shift: 0.01 },
-    foreshadow: { advance: 0.30, turn: 0.20, inform: 0.15, breathe: 0.10, resolve: 0.08, bond: 0.05, reveal: 0.04, expand: 0.04, shift: 0.03, foreshadow: 0.01 },
-    resolve:    { advance: 0.35, breathe: 0.20, foreshadow: 0.15, inform: 0.10, bond: 0.05, expand: 0.05, turn: 0.04, reveal: 0.03, shift: 0.02, resolve: 0.01 },
-  },
-};
-
-const INTROSPECTIVE_SAMPLER: BeatSampler = {
-  beatsPerKWord: 12,
-  mechanismDistribution: { thought: 0.30, narration: 0.22, dialogue: 0.20, environment: 0.15, action: 0.08, memory: 0.03, document: 0.01, comic: 0.01 },
-  markov: {
-    breathe:    { inform: 0.55, breathe: 0.10, advance: 0.10, reveal: 0.06, bond: 0.05, expand: 0.05, foreshadow: 0.04, turn: 0.03, resolve: 0.01, shift: 0.01 },
-    inform:     { breathe: 0.25, inform: 0.18, advance: 0.15, bond: 0.10, reveal: 0.08, turn: 0.06, expand: 0.06, foreshadow: 0.05, resolve: 0.04, shift: 0.03 },
-    advance:    { breathe: 0.25, inform: 0.25, advance: 0.12, bond: 0.10, turn: 0.08, reveal: 0.06, expand: 0.05, foreshadow: 0.04, resolve: 0.03, shift: 0.02 },
-    bond:       { breathe: 0.20, inform: 0.25, bond: 0.15, advance: 0.10, reveal: 0.10, turn: 0.06, foreshadow: 0.05, expand: 0.04, resolve: 0.03, shift: 0.02 },
-    turn:       { breathe: 0.20, inform: 0.20, resolve: 0.20, advance: 0.15, reveal: 0.08, bond: 0.06, expand: 0.04, foreshadow: 0.04, shift: 0.02, turn: 0.01 },
-    reveal:     { breathe: 0.25, inform: 0.20, bond: 0.15, advance: 0.12, turn: 0.08, reveal: 0.05, expand: 0.05, foreshadow: 0.04, resolve: 0.04, shift: 0.02 },
-    shift:      { breathe: 0.20, inform: 0.15, resolve: 0.20, advance: 0.15, bond: 0.08, turn: 0.08, foreshadow: 0.05, reveal: 0.04, expand: 0.03, shift: 0.02 },
-    expand:     { breathe: 0.25, inform: 0.25, advance: 0.15, bond: 0.08, turn: 0.07, reveal: 0.06, expand: 0.05, foreshadow: 0.04, resolve: 0.03, shift: 0.02 },
-    foreshadow: { breathe: 0.20, inform: 0.20, advance: 0.15, turn: 0.12, resolve: 0.10, bond: 0.07, reveal: 0.05, expand: 0.04, foreshadow: 0.04, shift: 0.03 },
-    resolve:    { breathe: 0.40, inform: 0.15, foreshadow: 0.15, advance: 0.10, bond: 0.05, expand: 0.05, reveal: 0.04, turn: 0.03, shift: 0.02, resolve: 0.01 },
-  },
-};
-
-// ── Built-in Prose Profiles ──────────────────────────────────────────────────
+// ── Default Prose Profile ───────────────────────────────────────────────────
 
 export const DEFAULT_PROSE_PROFILE: ProseProfile = {
   register: 'conversational',
@@ -82,39 +53,7 @@ export const DEFAULT_PROSE_PROFILE: ProseProfile = {
   ],
 };
 
-export const ACTION_PROFILE: ProseProfile = {
-  register: 'raw',
-  stance: 'close_third',
-  tense: 'past',
-  sentenceRhythm: 'terse',
-  interiority: 'surface',
-  dialogueWeight: 'heavy',
-  devices: ['dramatic_irony', 'comic_escalation'],
-  rules: ['Show urgency through short sentences and physical reactions', 'Never pause for internal monologue during action — show through body'],
-  antiPatterns: [
-    'Never explain a combat mechanic after showing it — the action IS the explanation',
-    'No strategic summaries ("He calculated that..." / "This meant that...") — show the calculation through what the character does',
-    'Do not recap what just happened — momentum only moves forward',
-  ],
-};
-
-export const INTROSPECTIVE_PROFILE: ProseProfile = {
-  register: 'literary',
-  stance: 'close_third',
-  tense: 'past',
-  sentenceRhythm: 'flowing',
-  interiority: 'deep',
-  dialogueWeight: 'sparse',
-  devices: ['free_indirect_discourse', 'ironic_understatement', 'extended_metaphor'],
-  rules: ['Emotions through landscape and object — the world reflects inner state', 'Let observations accumulate before any character acts'],
-  antiPatterns: [
-    'Do not explain subtext — if the prose needs a sentence saying what a gesture "really meant", the gesture was too weak',
-    'Do not use "He realized that..." or "She understood that..." — show the shift in perception through changed behaviour',
-    'Avoid chains of abstract nouns ("the weight of responsibility, the burden of knowledge") — ground in concrete image',
-  ],
-};
-
-// ── Compute sampler from scene plans ────────────────────────────────────────
+// ── Compute Sampler from Scene Plans ────────────────────────────────────────
 
 export function computeSamplerFromPlans(scenes: Scene[]): BeatSampler | null {
   const transitionCounts: Record<string, Record<string, number>> = {};
@@ -152,15 +91,13 @@ export function computeSamplerFromPlans(scenes: Scene[]): BeatSampler | null {
     mechanismDistribution[mech as BeatMechanism] = count / totalBeats;
   }
 
-  // Only count scenes that actually have plans; use real prose word counts when available
+  // Density: beats per 1k words — computed from scenes that have plans
   const scenesWithPlans = scenes.filter((s) => s.plan?.beats?.length);
   let avgWordsPerScene = 800;
   const withProse = scenesWithPlans.filter((s) => s.prose);
   if (withProse.length > 0) {
     avgWordsPerScene = Math.round(withProse.reduce((sum, s) => sum + s.prose!.split(/\s+/).length, 0) / withProse.length);
   }
-  // Clamp to 6-16 — real works range from 9 (RI) to 12 (default). Values outside this range
-  // indicate corrupted data (e.g. plans generated with inflated beat counts).
   const rawBpkw = Math.round((totalBeats / scenesWithPlans.length) / Math.max(avgWordsPerScene, 400) * 1000);
   const beatsPerKWord = Math.min(16, Math.max(6, rawBpkw)) || 12;
 
@@ -170,15 +107,14 @@ export function computeSamplerFromPlans(scenes: Scene[]): BeatSampler | null {
 /** @deprecated Use computeSamplerFromPlans */
 export const computeProfileFromPlans = computeSamplerFromPlans;
 
-// ── Preset management ────────────────────────────────────────────────────────
+// ── Preset Management ───────────────────────────────────────────────────────
 
 export let BEAT_PROFILE_PRESETS: BeatProfilePreset[] = [];
 
+/** Populate presets from loaded work narratives. Called once during hydration. */
 export function initBeatProfilePresets(works: { key: string; name: string; narrative: NarrativeState }[]) {
   const presets: BeatProfilePreset[] = [
-    { key: 'storyteller',   name: 'Storyteller',   description: 'Balanced fiction',                                    profile: DEFAULT_PROSE_PROFILE, sampler: DEFAULT_BEAT_SAMPLER },
-    { key: 'action',        name: 'Action',         description: 'Fast pacing, high advance/turn — action & thrillers', profile: ACTION_PROFILE,        sampler: ACTION_SAMPLER },
-    { key: 'introspective', name: 'Introspective',  description: 'Slow pacing, thought-heavy — literary fiction',       profile: INTROSPECTIVE_PROFILE, sampler: INTROSPECTIVE_SAMPLER },
+    { key: 'storyteller', name: 'Storyteller', description: 'Balanced fiction', profile: DEFAULT_PROSE_PROFILE, sampler: DEFAULT_BEAT_SAMPLER },
   ];
 
   for (const { key, name, narrative } of works) {
@@ -222,7 +158,7 @@ export function initBeatProfilePresets(works: { key: string; name: string; narra
   return presets;
 }
 
-// ── Sampling ─────────────────────────────────────────────────────────────────
+// ── Sampling ────────────────────────────────────────────────────────────────
 
 export type SampledBeat = { fn: BeatFn; mechanism: BeatMechanism };
 
@@ -265,7 +201,7 @@ export function sampleBeatSequence(
   return sequence;
 }
 
-// ── Resolution ───────────────────────────────────────────────────────────────
+// ── Resolution ──────────────────────────────────────────────────────────────
 
 export function resolveProfile(narrative: NarrativeState): ProseProfile {
   const preset = narrative.storySettings?.beatProfilePreset;
