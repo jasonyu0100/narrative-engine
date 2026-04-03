@@ -1,17 +1,18 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import {
   DEFAULT_BEAT_MATRIX,
-  DEFAULT_MECHANISM_DIST,
+  DEFAULT_FN_MECHANISM_DIST,
   DEFAULT_BEAT_SAMPLER,
   DEFAULT_PROSE_PROFILE,
   computeSamplerFromPlans,
   initBeatProfilePresets,
-  sampleMechanism,
+  sampleMechanismForFn,
   sampleBeatSequence,
   resolveProfile,
   resolveSampler,
   BEAT_PROFILE_PRESETS,
 } from '@/lib/beat-profiles';
+import { DEFAULT_MECHANISM_DIST } from '@/lib/mechanism-profiles';
 import type { Scene, NarrativeState, BeatSampler, BeatFn, BeatMechanism } from '@/types/narrative';
 import { DEFAULT_STORY_SETTINGS } from '@/types/narrative';
 
@@ -109,8 +110,8 @@ describe('DEFAULT exports', () => {
 
   it('DEFAULT_BEAT_SAMPLER has required fields', () => {
     expect(DEFAULT_BEAT_SAMPLER.markov).toBe(DEFAULT_BEAT_MATRIX);
-    expect(DEFAULT_BEAT_SAMPLER.mechanismDistribution).toBe(DEFAULT_MECHANISM_DIST);
-    expect(DEFAULT_BEAT_SAMPLER.beatsPerKWord).toBe(12);
+    expect(DEFAULT_BEAT_SAMPLER.fnMechanismDistribution).toBe(DEFAULT_FN_MECHANISM_DIST);
+    expect(DEFAULT_BEAT_SAMPLER.beatsPerKWord).toBe(11);
   });
 
   it('DEFAULT_PROSE_PROFILE has required fields', () => {
@@ -145,7 +146,7 @@ describe('computeSamplerFromPlans', () => {
     expect(result).toBeNull();
   });
 
-  it('computes mechanism distribution from beats', () => {
+  it('computes fn-conditioned mechanism distribution from beats', () => {
     const scenes = [
       createSceneWithPlan('s1', [
         { fn: 'breathe', mechanism: 'dialogue' },
@@ -157,9 +158,11 @@ describe('computeSamplerFromPlans', () => {
 
     const result = computeSamplerFromPlans(scenes);
     expect(result).not.toBeNull();
-    expect(result!.mechanismDistribution.dialogue).toBe(0.5); // 2/4
-    expect(result!.mechanismDistribution.action).toBe(0.25); // 1/4
-    expect(result!.mechanismDistribution.narration).toBe(0.25); // 1/4
+    // Each fn has 1 beat, so mechanism is 100% for that fn
+    expect(result!.fnMechanismDistribution.breathe?.dialogue).toBe(1);
+    expect(result!.fnMechanismDistribution.inform?.dialogue).toBe(1);
+    expect(result!.fnMechanismDistribution.advance?.action).toBe(1);
+    expect(result!.fnMechanismDistribution.turn?.narration).toBe(1);
   });
 
   it('computes markov transitions from beat sequences', () => {
@@ -299,36 +302,38 @@ describe('initBeatProfilePresets', () => {
   });
 });
 
-// ── sampleMechanism ──────────────────────────────────────────────────────────
+// ── sampleMechanismForFn ─────────────────────────────────────────────────────
 
-describe('sampleMechanism', () => {
+describe('sampleMechanismForFn', () => {
   it('returns a valid mechanism', () => {
-    const mechanism = sampleMechanism(DEFAULT_BEAT_SAMPLER);
+    const mechanism = sampleMechanismForFn(DEFAULT_BEAT_SAMPLER, 'breathe');
     const validMechanisms: BeatMechanism[] = ['dialogue', 'action', 'narration', 'environment', 'thought', 'document', 'memory', 'comic'];
     expect(validMechanisms).toContain(mechanism);
   });
 
-  it('returns action as fallback when distribution is empty', () => {
+  it('falls back to DEFAULT_FN_MECHANISM_DIST when sampler distribution is empty', () => {
     const emptySampler: BeatSampler = {
       markov: {},
-      mechanismDistribution: {},
+      fnMechanismDistribution: {},
       beatsPerKWord: 12,
     };
-    const mechanism = sampleMechanism(emptySampler);
-    expect(mechanism).toBe('action');
+    // When sampler has empty distribution, falls back to DEFAULT_FN_MECHANISM_DIST
+    const mechanism = sampleMechanismForFn(emptySampler, 'breathe');
+    const validMechanisms: BeatMechanism[] = ['dialogue', 'action', 'narration', 'environment', 'thought', 'document', 'memory', 'comic'];
+    expect(validMechanisms).toContain(mechanism);
   });
 
-  it('respects distribution probabilities over many samples', () => {
-    // Create a sampler with 100% dialogue
+  it('respects fn-conditioned distribution probabilities', () => {
+    // Create a sampler with 100% dialogue for breathe
     const sampler: BeatSampler = {
       markov: {},
-      mechanismDistribution: { dialogue: 1.0 },
+      fnMechanismDistribution: { breathe: { dialogue: 1.0 } },
       beatsPerKWord: 12,
     };
 
     const samples: BeatMechanism[] = [];
     for (let i = 0; i < 100; i++) {
-      samples.push(sampleMechanism(sampler));
+      samples.push(sampleMechanismForFn(sampler, 'breathe'));
     }
 
     // All samples should be dialogue
@@ -340,18 +345,31 @@ describe('sampleMechanism', () => {
 
     const sampler: BeatSampler = {
       markov: {},
-      mechanismDistribution: { dialogue: 0.5, action: 0.5 },
+      fnMechanismDistribution: { inform: { dialogue: 0.5, action: 0.5 } },
       beatsPerKWord: 12,
     };
 
     // With random = 0.15, should get dialogue (cumulative 0.5 > 0.15)
-    expect(sampleMechanism(sampler)).toBe('dialogue');
+    expect(sampleMechanismForFn(sampler, 'inform')).toBe('dialogue');
 
     vi.spyOn(Math, 'random').mockImplementation(() => 0.75);
     // With random = 0.75, should get action (cumulative 1.0 > 0.75)
-    expect(sampleMechanism(sampler)).toBe('action');
+    expect(sampleMechanismForFn(sampler, 'inform')).toBe('action');
 
     vi.restoreAllMocks();
+  });
+
+  it('uses DEFAULT_FN_MECHANISM_DIST when fn not in sampler', () => {
+    const sampler: BeatSampler = {
+      markov: {},
+      fnMechanismDistribution: {}, // Empty, will fall back to defaults
+      beatsPerKWord: 12,
+    };
+
+    // Should fall back to DEFAULT_FN_MECHANISM_DIST for breathe
+    const mechanism = sampleMechanismForFn(sampler, 'breathe');
+    const validMechanisms: BeatMechanism[] = ['dialogue', 'action', 'narration', 'environment', 'thought', 'document', 'memory', 'comic'];
+    expect(validMechanisms).toContain(mechanism);
   });
 });
 
@@ -392,7 +410,7 @@ describe('sampleBeatSequence', () => {
         breathe: { inform: 1.0 },
         // Missing 'inform' row
       },
-      mechanismDistribution: { action: 1.0 },
+      fnMechanismDistribution: { breathe: { action: 1.0 }, inform: { action: 1.0 }, advance: { action: 1.0 } },
       beatsPerKWord: 12,
     };
 
@@ -413,7 +431,7 @@ describe('sampleBeatSequence', () => {
         inform: { advance: 1.0 },
         advance: { turn: 1.0 },
       },
-      mechanismDistribution: { action: 1.0 },
+      fnMechanismDistribution: { breathe: { action: 1.0 }, inform: { action: 1.0 }, advance: { action: 1.0 }, turn: { action: 1.0 } },
       beatsPerKWord: 12,
     };
 
@@ -530,7 +548,8 @@ describe('resolveSampler', () => {
       },
     });
     const sampler = resolveSampler(narrative);
-    expect(sampler.mechanismDistribution.thought).toBe(1.0);
+    expect(sampler.fnMechanismDistribution.breathe?.thought).toBe(1);
+    expect(sampler.fnMechanismDistribution.inform?.thought).toBe(1);
     expect(sampler.markov.breathe?.inform).toBe(1);
   });
 

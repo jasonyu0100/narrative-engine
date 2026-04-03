@@ -95,7 +95,7 @@ describe('computeMechanismDist', () => {
     expect(dist!.action).toBeCloseTo(1 / 3);
   });
 
-  it('computes distribution across multiple scenes', () => {
+  it('computes distribution across multiple scenes (fn-weighted)', () => {
     const scenes = [
       createSceneWithPlan('s1', [
         { fn: 'breathe', mechanism: 'dialogue' },
@@ -106,11 +106,13 @@ describe('computeMechanismDist', () => {
         { fn: 'breathe', mechanism: 'action' },
       ]),
     ];
+    // fn-conditioned: breathe={dialogue:0.5, action:0.5}, inform={thought:1}, advance={action:1}
+    // Flattened with equal fn weights: dialogue=0.5/3, thought=1/3, action=1.5/3
     const dist = computeMechanismDist(scenes);
     expect(dist).toBeDefined();
-    expect(dist!.dialogue).toBe(0.25);
-    expect(dist!.thought).toBe(0.25);
-    expect(dist!.action).toBe(0.5);
+    expect(dist!.dialogue).toBeCloseTo(1 / 6);    // 0.5 / 3
+    expect(dist!.thought).toBeCloseTo(1 / 3);     // 1.0 / 3
+    expect(dist!.action).toBeCloseTo(0.5);        // 1.5 / 3
   });
 
   it('handles scenes without plans gracefully', () => {

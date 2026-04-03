@@ -1,6 +1,6 @@
 import type { Branch, NarrativeState, Scene, ThreadStatus, ForceSnapshot, CubeCornerKey, CubeCorner, WorldKnowledgeGraph, WorldKnowledgeNode, WorldKnowledgeEdge, WorldKnowledgeMutation, WorldBuild } from '@/types/narrative';
 import { NARRATIVE_CUBE } from '@/types/narrative';
-import { FORCE_WINDOW_SIZE, PEAK_WINDOW_SCENES_DIVISOR, SHAPE_TROUGH_BAND_LO, SHAPE_TROUGH_BAND_HI } from '@/lib/constants';
+import { FORCE_WINDOW_SIZE, PEAK_WINDOW_SCENES_DIVISOR, SHAPE_TROUGH_BAND_LO, SHAPE_TROUGH_BAND_HI, BEAT_DENSITY_MIN, BEAT_DENSITY_MAX } from '@/lib/constants';
 
 // ── Sequential ID generation ─────────────────────────────────────────────────
 
@@ -164,6 +164,25 @@ export function averageSwing(forceSnapshots: ForceSnapshot[], windowSize = FORCE
 
 /** Default rolling window size for force computation (recency, windowed normalization) */
 export { FORCE_WINDOW_SIZE } from '@/lib/constants';
+
+// ── Beat Density Metrics ─────────────────────────────────────────────────────
+
+/**
+ * Compute beat density metrics for comparing analysis vs generation.
+ * Returns beatsPerKWord, wordsPerBeat, and whether values fall within standard range (8-14).
+ */
+export function computeBeatMetrics(wordCount: number, beatCount: number) {
+  const beatsPerKWord = beatCount > 0 && wordCount > 0
+    ? (beatCount / wordCount) * 1000
+    : 0;
+  const wordsPerBeat = beatCount > 0 ? wordCount / beatCount : 0;
+
+  return {
+    beatsPerKWord: Math.round(beatsPerKWord * 10) / 10,
+    wordsPerBeat: Math.round(wordsPerBeat),
+    withinStandard: beatsPerKWord >= BEAT_DENSITY_MIN && beatsPerKWord <= BEAT_DENSITY_MAX,
+  };
+}
 
 // ── Force Computation ────────────────────────────────────────────────────────
 

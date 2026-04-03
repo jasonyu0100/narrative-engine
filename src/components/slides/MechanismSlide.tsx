@@ -1,6 +1,7 @@
 'use client';
 
 import type { SlidesData } from '@/lib/slides-data';
+import { flattenFnMechDist } from '@/lib/mechanism-profiles';
 
 const MECH_COLORS: Record<string, string> = {
   dialogue: '#3b82f6',
@@ -25,7 +26,9 @@ const MECH_DESCRIPTIONS: Record<string, string> = {
 };
 
 export function MechanismSlide({ data }: { data: SlidesData }) {
-  const mechDist = data.beatSampler?.mechanismDistribution ?? {};
+  const mechDist = data.beatSampler?.fnMechanismDistribution
+    ? flattenFnMechDist(data.beatSampler.fnMechanismDistribution)
+    : {};
   const sortedMechs = Object.entries(mechDist)
     .filter(([, v]) => v && v > 0)
     .sort(([, a], [, b]) => (b ?? 0) - (a ?? 0));

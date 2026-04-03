@@ -10,8 +10,8 @@
  * BeatSampler carries derived beat statistics (markov, mechanisms, density).
  */
 
-import type { BeatFn, BeatMechanism, BeatTransitionMatrix, ProseProfile, BeatSampler, NarrativeState, Scene, BeatProfilePreset } from '@/types/narrative';
-import { resolveMechanismDist } from '@/lib/mechanism-profiles';
+import type { BeatFn, BeatMechanism, BeatTransitionMatrix, ProseProfile, BeatSampler, NarrativeState, Scene, BeatProfilePreset, FnMechanismDistribution } from '@/types/narrative';
+import { BEAT_DENSITY_MIN, BEAT_DENSITY_MAX, BEAT_DENSITY_DEFAULT } from '@/lib/constants';
 export type { BeatProfilePreset };
 
 // ── Default Sampler ─────────────────────────────────────────────────────────
@@ -29,15 +29,29 @@ export const DEFAULT_BEAT_MATRIX: BeatTransitionMatrix = {
   resolve:    { breathe: 0.31, advance: 0.26, foreshadow: 0.13, inform: 0.10, bond: 0.05, expand: 0.05, reveal: 0.04, turn: 0.03, shift: 0.02, resolve: 0.01 },
 };
 
-export const DEFAULT_MECHANISM_DIST: Partial<Record<BeatMechanism, number>> = {
-  dialogue: 0.32, action: 0.23, narration: 0.18, environment: 0.14,
-  thought: 0.11, document: 0.01, memory: 0.005, comic: 0.005,
+/**
+ * Default function-conditioned mechanism distributions.
+ * Captures natural correlations: breathe→environment, bond→dialogue, etc.
+ * These are sensible defaults; analysis will override with source-derived correlations.
+ */
+export const DEFAULT_FN_MECHANISM_DIST: FnMechanismDistribution = {
+  breathe:    { environment: 0.45, narration: 0.25, action: 0.15, thought: 0.10, dialogue: 0.05 },
+  inform:     { dialogue: 0.40, narration: 0.25, thought: 0.20, document: 0.10, action: 0.05 },
+  advance:    { action: 0.35, dialogue: 0.35, narration: 0.15, thought: 0.10, environment: 0.05 },
+  bond:       { dialogue: 0.50, action: 0.20, thought: 0.15, narration: 0.10, environment: 0.05 },
+  turn:       { dialogue: 0.30, action: 0.30, narration: 0.20, environment: 0.10, thought: 0.10 },
+  reveal:     { action: 0.40, dialogue: 0.25, thought: 0.20, narration: 0.10, environment: 0.05 },
+  shift:      { dialogue: 0.35, action: 0.35, narration: 0.15, thought: 0.10, environment: 0.05 },
+  expand:     { narration: 0.35, dialogue: 0.25, environment: 0.20, document: 0.10, thought: 0.10 },
+  foreshadow: { environment: 0.30, dialogue: 0.25, narration: 0.20, action: 0.15, thought: 0.10 },
+  resolve:    { dialogue: 0.30, action: 0.30, narration: 0.20, thought: 0.15, environment: 0.05 },
 };
+
 
 export const DEFAULT_BEAT_SAMPLER: BeatSampler = {
   markov: DEFAULT_BEAT_MATRIX,
-  mechanismDistribution: DEFAULT_MECHANISM_DIST,
-  beatsPerKWord: 12,
+  fnMechanismDistribution: DEFAULT_FN_MECHANISM_DIST,
+  beatsPerKWord: BEAT_DENSITY_DEFAULT,
 };
 
 // ── Default Prose Profile ───────────────────────────────────────────────────
@@ -59,6 +73,9 @@ export const DEFAULT_PROSE_PROFILE: ProseProfile = {
 export function computeSamplerFromPlans(scenes: Scene[]): BeatSampler | null {
   const transitionCounts: Record<string, Record<string, number>> = {};
   const mechCounts: Record<string, number> = {};
+  // Function-conditioned mechanism counts: fnMechCounts[fn][mechanism] = count
+  const fnMechCounts: Record<string, Record<string, number>> = {};
+  const fnTotalCounts: Record<string, number> = {};
   let totalBeats = 0;
 
   for (const scene of scenes) {
@@ -68,6 +85,12 @@ export function computeSamplerFromPlans(scenes: Scene[]): BeatSampler | null {
       const beat = beats[i];
       totalBeats++;
       mechCounts[beat.mechanism] = (mechCounts[beat.mechanism] ?? 0) + 1;
+
+      // Count mechanism per function for fn-conditioned distribution
+      if (!fnMechCounts[beat.fn]) fnMechCounts[beat.fn] = {};
+      fnMechCounts[beat.fn][beat.mechanism] = (fnMechCounts[beat.fn][beat.mechanism] ?? 0) + 1;
+      fnTotalCounts[beat.fn] = (fnTotalCounts[beat.fn] ?? 0) + 1;
+
       if (i < beats.length - 1) {
         const from = beat.fn;
         const to = beats[i + 1].fn;
@@ -87,9 +110,13 @@ export function computeSamplerFromPlans(scenes: Scene[]): BeatSampler | null {
     ) as Partial<Record<BeatFn, number>>;
   }
 
-  const mechanismDistribution: Partial<Record<BeatMechanism, number>> = {};
-  for (const [mech, count] of Object.entries(mechCounts)) {
-    mechanismDistribution[mech as BeatMechanism] = count / totalBeats;
+  // Build fn-conditioned mechanism distribution
+  const fnMechanismDistribution: FnMechanismDistribution = {};
+  for (const [fn, mechMap] of Object.entries(fnMechCounts)) {
+    const fnTotal = fnTotalCounts[fn] ?? 1;
+    fnMechanismDistribution[fn as BeatFn] = Object.fromEntries(
+      Object.entries(mechMap).map(([mech, count]) => [mech, count / fnTotal])
+    ) as Partial<Record<BeatMechanism, number>>;
   }
 
   // Density: beats per 1k words — computed from scenes that have plans
@@ -100,9 +127,9 @@ export function computeSamplerFromPlans(scenes: Scene[]): BeatSampler | null {
     avgWordsPerScene = Math.round(withProse.reduce((sum, s) => sum + s.prose!.split(/\s+/).length, 0) / withProse.length);
   }
   const rawBpkw = Math.round((totalBeats / scenesWithPlans.length) / Math.max(avgWordsPerScene, 400) * 1000);
-  const beatsPerKWord = Math.min(16, Math.max(6, rawBpkw)) || 12;
+  const beatsPerKWord = Math.min(BEAT_DENSITY_MAX, Math.max(BEAT_DENSITY_MIN, rawBpkw)) || BEAT_DENSITY_DEFAULT;
 
-  return { markov, mechanismDistribution, beatsPerKWord };
+  return { markov, fnMechanismDistribution, beatsPerKWord };
 }
 
 /** @deprecated Use computeSamplerFromPlans */
@@ -137,12 +164,12 @@ export function initBeatProfilePresets(works: { key: string; name: string; narra
     // Compute sampler from scene plans, fallback to stored markovTransitions
     const fromPlans = computeSamplerFromPlans(Object.values(narrative.scenes));
     const rawMarkov = raw.markovTransitions as BeatTransitionMatrix | undefined;
-    const rawMechDist = raw.mechanismDistribution as Partial<Record<BeatMechanism, number>> | undefined;
+    const rawFnMechDist = raw.fnMechanismDistribution as FnMechanismDistribution | undefined;
     const rawBeatsPerKWord = raw.avgBeatsPerKWord as number | undefined;
     const sampler: BeatSampler = {
-      markov:                fromPlans?.markov                ?? rawMarkov    ?? DEFAULT_BEAT_MATRIX,
-      mechanismDistribution: fromPlans?.mechanismDistribution ?? rawMechDist  ?? DEFAULT_MECHANISM_DIST,
-      beatsPerKWord:         fromPlans?.beatsPerKWord         ?? rawBeatsPerKWord ?? 12,
+      markov:                fromPlans?.markov                ?? rawMarkov      ?? DEFAULT_BEAT_MATRIX,
+      fnMechanismDistribution: fromPlans?.fnMechanismDistribution ?? rawFnMechDist ?? DEFAULT_FN_MECHANISM_DIST,
+      beatsPerKWord:         fromPlans?.beatsPerKWord         ?? rawBeatsPerKWord ?? BEAT_DENSITY_DEFAULT,
     };
 
     const scenesAnalyzed = raw.scenesAnalyzed as number | undefined;
@@ -163,8 +190,14 @@ export function initBeatProfilePresets(works: { key: string; name: string; narra
 
 export type SampledBeat = { fn: BeatFn; mechanism: BeatMechanism };
 
-export function sampleMechanism(sampler: BeatSampler): BeatMechanism {
-  const dist = sampler.mechanismDistribution;
+/**
+ * Sample a mechanism for a given beat function.
+ * Uses the fn-conditioned distribution to preserve correlations from source texts.
+ */
+export function sampleMechanismForFn(sampler: BeatSampler, fn: BeatFn): BeatMechanism {
+  const dist = sampler.fnMechanismDistribution[fn] ?? DEFAULT_FN_MECHANISM_DIST[fn];
+  if (!dist) return 'action';
+
   const r = Math.random();
   let cumulative = 0;
   for (const [mech, prob] of Object.entries(dist)) {
@@ -180,10 +213,11 @@ export function sampleBeatSequence(
   startFn: BeatFn = 'breathe',
 ): SampledBeat[] {
   const sequence: SampledBeat[] = [];
-  let current = startFn;
+  let current: BeatFn = startFn;
 
   for (let i = 0; i < length; i++) {
-    const mechanism = sampleMechanism(sampler);
+    // Sample mechanism conditioned on the current function
+    const mechanism = sampleMechanismForFn(sampler, current);
     sequence.push({ fn: current, mechanism });
 
     const row = sampler.markov[current];
@@ -218,31 +252,20 @@ export function resolveProfile(narrative: NarrativeState): ProseProfile {
 export function resolveSampler(narrative: NarrativeState): BeatSampler {
   const preset = narrative.storySettings?.beatProfilePreset;
 
-  // Get markov transitions from beat profile preset
-  let markov = DEFAULT_BEAT_MATRIX;
+  // Try to get from preset first
   if (preset) {
     const found = BEAT_PROFILE_PRESETS.find((p) => p.key === preset);
-    if (found?.sampler?.markov) {
-      markov = found.sampler.markov;
+    if (found?.sampler) {
+      return found.sampler;
     }
-  } else {
-    // Compute live from scene plans if available
-    const fromPlans = computeSamplerFromPlans(Object.values(narrative.scenes ?? {}));
-    if (fromPlans?.markov) markov = fromPlans.markov;
   }
 
-  // Get mechanism distribution from mechanism profile preset (separate control)
-  const mechanismDistribution = resolveMechanismDist(narrative);
-
-  // Beats per kword from beat profile or computed
-  let beatsPerKWord = 12;
-  if (preset) {
-    const found = BEAT_PROFILE_PRESETS.find((p) => p.key === preset);
-    if (found?.sampler?.beatsPerKWord) beatsPerKWord = found.sampler.beatsPerKWord;
-  } else {
-    const fromPlans = computeSamplerFromPlans(Object.values(narrative.scenes ?? {}));
-    if (fromPlans?.beatsPerKWord) beatsPerKWord = fromPlans.beatsPerKWord;
+  // Compute live from scene plans if available
+  const fromPlans = computeSamplerFromPlans(Object.values(narrative.scenes ?? {}));
+  if (fromPlans) {
+    return fromPlans;
   }
 
-  return { markov, mechanismDistribution, beatsPerKWord };
+  // Fall back to defaults
+  return DEFAULT_BEAT_SAMPLER;
 }

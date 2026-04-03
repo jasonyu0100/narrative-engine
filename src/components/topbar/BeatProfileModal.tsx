@@ -4,6 +4,7 @@ import { useMemo, useState, useRef, useEffect } from 'react';
 import type { NarrativeState, BeatFn, BeatMechanism, Scene } from '@/types/narrative';
 import { BEAT_FN_LIST, resolveEntry, isScene } from '@/types/narrative';
 import { computeSamplerFromPlans } from '@/lib/beat-profiles';
+import { flattenFnMechDist } from '@/lib/mechanism-profiles';
 import { Modal, ModalHeader } from '@/components/Modal';
 
 // ── Types ────────────────────────────────────────────────────────────────────
@@ -336,7 +337,7 @@ export function BeatProfileModal({ narrative, resolvedKeys, onClose }: Props) {
     const total = BEAT_FN_LIST.reduce((s, from) => s + BEAT_FN_LIST.reduce((s2, to) => s2 + mat[from][to], 0), 0);
     const sampler = computeSamplerFromPlans(scenes);
 
-    return { matrix: mat, sequence: seq, stationary: stat, totalTransitions: total, mechDist: sampler?.mechanismDistribution ?? {}, density: sampler?.beatsPerKWord ?? 0 };
+    return { matrix: mat, sequence: seq, stationary: stat, totalTransitions: total, mechDist: sampler?.fnMechanismDistribution ? flattenFnMechDist(sampler.fnMechanismDistribution) : {}, density: sampler?.beatsPerKWord ?? 0 };
   }, [narrative, resolvedKeys]);
 
   const currentFn = sequence.length > 0 ? sequence[sequence.length - 1] : null;

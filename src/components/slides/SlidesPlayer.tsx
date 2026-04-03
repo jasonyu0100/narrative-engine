@@ -65,7 +65,7 @@ function buildSlideList(data: SlidesData): SlideSpec[] {
     slides.push({ type: 'beat-profile' });
   }
 
-  if (data.beatSampler?.mechanismDistribution && Object.keys(data.beatSampler.mechanismDistribution).length > 0) {
+  if (data.beatSampler?.fnMechanismDistribution && Object.keys(data.beatSampler.fnMechanismDistribution).length > 0) {
     slides.push({ type: 'mechanism' });
   }
 

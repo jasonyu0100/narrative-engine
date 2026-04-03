@@ -141,3 +141,15 @@ export const MOMENT_SPARKLINE_WINDOW = 50;
 
 /** Max recent continuity nodes shown per entity in sceneContext */
 export const SCENE_CONTEXT_RECENT_CONTINUITY = 25;
+
+// ── Beat Density Standards ──────────────────────────────────────────────────
+
+/** Beat density range (beats per 1000 words) - the core metric for comparing analysis vs generation */
+export const BEAT_DENSITY_MIN = 8;
+export const BEAT_DENSITY_MAX = 14;
+export const BEAT_DENSITY_DEFAULT = 11;
+
+/** Derived: words per beat (for reference/validation) */
+export const WORDS_PER_BEAT_MIN = Math.round(1000 / BEAT_DENSITY_MAX);     // ~71
+export const WORDS_PER_BEAT_MAX = Math.round(1000 / BEAT_DENSITY_MIN);     // ~125
+export const WORDS_PER_BEAT_DEFAULT = Math.round(1000 / BEAT_DENSITY_DEFAULT); // ~91
