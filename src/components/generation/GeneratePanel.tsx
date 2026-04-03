@@ -6,7 +6,7 @@ import { generateScenes, generateArcStepwise, expandWorld, suggestWorldExpansion
 import { resolveEntry, NARRATIVE_CUBE } from '@/types/narrative';
 import type { CubeCornerKey } from '@/types/narrative';
 import { nextId } from '@/lib/narrative-utils';
-import { samplePacingSequence, detectCurrentMode, MATRIX_PRESETS, DEFAULT_TRANSITION_MATRIX, PACING_PRESETS, buildPresetSequence, buildSequenceFromModes, type PacingSequence } from '@/lib/markov';
+import { samplePacingSequence, detectCurrentMode, MATRIX_PRESETS, DEFAULT_TRANSITION_MATRIX, PACING_PRESETS, buildPresetSequence, buildSequenceFromModes, type PacingSequence } from '@/lib/pacing-profile';
 import { DEFAULT_STORY_SETTINGS } from '@/types/narrative';
 import { PacingStrip, CubeBadge } from './PacingStrip';
 import { MarkovGraph } from './MarkovGraph';

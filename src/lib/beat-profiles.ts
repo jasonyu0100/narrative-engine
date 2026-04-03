@@ -1,7 +1,7 @@
 /**
  * Beat profile system — Markov chains for prose plan generation.
  *
- * Mirrors the pacing profile system in markov.ts:
+ * Mirrors the pacing profile system in pacing-profile.ts:
  *   - A single built-in default (Storyteller)
  *   - Work-derived presets populated at runtime via initBeatProfilePresets()
  *   - A "self" option computed on-the-fly from the current narrative's scene plans

@@ -6,7 +6,7 @@ import { MAX_TOKENS_LARGE, GENERATE_MODEL } from '@/lib/constants';
 import { parseJson } from './json';
 import { branchContext } from './context';
 import { PROMPT_FORCE_STANDARDS, PROMPT_PACING, PROMPT_MUTATIONS, PROMPT_POV, PROMPT_CONTINUITY, PROMPT_SUMMARY_REQUIREMENT } from './prompts';
-import { buildSequencePrompt, buildIntroductionSequence } from '@/lib/markov';
+import { buildSequencePrompt, buildIntroductionSequence } from '@/lib/pacing-profile';
 
 export type WorldExpansion = {
   characters: Character[];

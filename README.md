@@ -8,7 +8,7 @@ Stories have structure that readers feel but metrics miss. A reveal reframes eve
 
 InkTide makes those tides computable. It models narratives as a **knowledge graph that mutates scene by scene** — tracking how threads escalate, characters transform, relationships shift, and worlds deepen. From those mutations, deterministic formulas derive three forces (**Payoff**, **Change**, **Knowledge**) that trace the shape of a story through time. Applied to Harry Potter, the delivery curve peaks at the Sorting Hat, the troll fight, and the Quirrell confrontation — without any human labeling.
 
-Then it uses those forces to **generate** (Markov pacing + MCTS search + planning with course correction) and **revise** (evaluate → reconstruct → converge) until AI-generated narratives score in the high 80s against a benchmark where published literature lands 85–95.
+Then it uses those forces to **generate** (Markov pacing + prose profiles + MCTS search + planning with course correction) and **revise** (evaluate → reconstruct → converge) until AI-generated narratives score in the high 80s against a benchmark where published literature lands 85–95. Prose itself is shaped by **beat plans** — reverse-engineered from published works into 10 types of prose sections and 8 delivery mechanisms, with per-author Markov chains that capture how one beat type follows another.
 
 **[Read the paper →](https://inktide-sourcenovel.vercel.app/paper)** · **[Case analysis →](https://inktide-sourcenovel.vercel.app/case-analysis)** · **[Try it →](https://inktide-sourcenovel.vercel.app/)**
 
@@ -45,9 +45,19 @@ sequence = markov_walk(matrix, current_mode, n_scenes)
 # → Growth → Lore → Climax → Rest → Growth
 ```
 
-Each step becomes a per-scene directive injected into the LLM prompt — specifying which force profile the scene must produce. The LLM decides *what happens*; the Markov chain controls *how intense it is*. `src/lib/markov.ts`
+Each step becomes a per-scene directive injected into the LLM prompt — specifying which force profile the scene must produce. The LLM decides *what happens*; the Markov chain controls *how intense it is*. `src/lib/pacing-profile.ts`
 
-### 2. MCTS Narrative Search
+### 2. Prose Profiles & Beat Plans
+
+Before any prose is written, each scene is decomposed into a **beat plan** — a sequence of typed beats that specify *what happens* and *how it's delivered*. The taxonomy comes from reverse-engineering published fiction: an LLM analyzes existing prose against a fixed vocabulary of **10 beat functions** and **8 mechanisms**, then statistical profiles are built from the extracted plans.
+
+**Beat functions** (what the beat does): breathe, inform, advance, bond, turn, reveal, shift, expand, foreshadow, resolve. **Mechanisms** (how it's delivered): dialogue, thought, action, environment, narration, memory, document, comic.
+
+From ~800 analysed scenes across published works, the system builds per-work **Markov chains** over beat functions — capturing how one type of beat tends to follow another. A thriller's chain differs from literary fiction's. These chains can then guide plan generation: instead of the LLM choosing beat types freely, it follows a sampled sequence from the authorial profile.
+
+Each profile also captures voice (register, stance, rhetorical devices, rules) and density (beats per thousand words, mechanism distribution). Presets are derived from analysed works; the "self" preset computes a live profile from the current story's own plans. `src/lib/beat-profiles.ts`
+
+### 3. MCTS Narrative Search
 
 Monte Carlo Tree Search explores branching narrative paths. Nodes are full knowledge graph states. Edges are generated arcs. The evaluation function is the force grading system — no separate reward model.
 
@@ -60,7 +70,7 @@ Backprop:     propagate score up the tree
 
 Each expansion samples a different pacing sequence, so sibling nodes explore structurally different trajectories even from the same state — one gets `Rest → Growth → Epoch`, another gets `Lore → Lore → Climax → Closure`. The search naturally diversifies. `src/lib/mcts-engine.ts`
 
-### 3. Planning with Course Correction
+### 4. Planning with Course Correction
 
 Long-form stories are divided into **phases** (structural chapters with objectives and scene allocations). When a phase activates, the system generates two vectors from the current narrative state:
 
@@ -69,7 +79,7 @@ Long-form stories are divided into **phases** (structural chapters with objectiv
 
 After every arc, a **course correction** pass analyses the story through five lenses — thread tension, character cost, rhythm, freshness, momentum — and rewrites both vectors in place. The next arc generates under guidance that reflects what *actually happened*, not what was originally planned. At phase boundaries, world expansion introduces new entities seeded with knowledge asymmetries. `src/lib/ai/review.ts`
 
-### 4. Iterative Revision
+### 5. Iterative Revision
 
 Generation produces a first draft. The revision pipeline improves it without starting over, using git-like versioned branches:
 

@@ -13,7 +13,7 @@ import {
   PACING_PRESETS,
   INTRODUCTION_SEQUENCE,
   type TransitionMatrix,
-} from '@/lib/markov';
+} from '@/lib/pacing-profile';
 import type { NarrativeState, Scene, CubeCornerKey } from '@/types/narrative';
 
 // ── Test Fixtures ────────────────────────────────────────────────────────────

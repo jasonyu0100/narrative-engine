@@ -9,7 +9,7 @@ import type { StorySettings, POVMode, WorldFocusMode, ReasoningLevel, NarrativeS
 import { DEFAULT_STORY_SETTINGS, BRANCH_TIME_HORIZON_OPTIONS, REASONING_BUDGETS } from '@/types/narrative';
 import { NARRATIVE_CUBE } from '@/types/narrative';
 import type { CubeCornerKey } from '@/types/narrative';
-import { MATRIX_PRESETS, computeMatrixFromNarrative, type TransitionMatrix } from '@/lib/markov';
+import { MATRIX_PRESETS, computeMatrixFromNarrative, type TransitionMatrix } from '@/lib/pacing-profile';
 import { DEFAULT_BEAT_SAMPLER, BEAT_PROFILE_PRESETS, computeSamplerFromPlans } from '@/lib/beat-profiles';
 import { IconChevronDown } from '@/components/icons';
 

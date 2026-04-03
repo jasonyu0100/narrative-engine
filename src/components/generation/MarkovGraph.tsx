@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
 import { NARRATIVE_CUBE } from '@/types/narrative';
 import type { CubeCornerKey } from '@/types/narrative';
-import type { PacingSequence } from '@/lib/markov';
+import type { PacingSequence } from '@/lib/pacing-profile';
 
 // ── Constants ────────────────────────────────────────────────────────────────
 

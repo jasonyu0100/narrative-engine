@@ -12,6 +12,7 @@ Narratives are modelled as a **knowledge graph** that mutates scene by scene. An
 - **Iterative revision** — evaluate branches by summary → per-scene verdicts (ok/edit/merge/insert/cut) → reconstruct versioned branches
 - **Analysis engine** — compiles existing text into arcs and scenes via chunked window-function processing
 - **Pacing presets** — curated cube position sequences that bypass Markov sampling for targeted arcs
+- **Prose profiles** — reverse-engineer published prose into beat plans, build authorial Markov chains over a 10-function / 8-mechanism taxonomy
 
 ## Quick Reference
 
@@ -66,8 +67,9 @@ src/
 │   │   ├── reconstruct.ts  # reconstructBranch — versioned branch reconstruction from verdicts
 │   │   ├── prompts.ts      # Modular prompt sections (force standards, pacing, mutations, POV, continuity)
 │   │   └── json.ts         # JSON parsing utilities
+│   ├── beat-profiles.ts    # Beat Markov matrices, profile presets, sampleBeatSequence
 │   ├── narrative-utils.ts  # Force calculation formulas, cube logic, graph algorithms
-│   ├── markov.ts           # Markov chain pacing — transition matrices, sequence sampling, presets, prompt generation
+│   ├── pacing-profile.ts           # Markov chain pacing — transition matrices, sequence sampling, presets, prompt generation
 │   ├── store.tsx           # State management + reducer actions
 │   ├── text-analysis.ts    # Corpus → NarrativeState extraction (window-function chunking)
 │   ├── auto-engine.ts      # Automated story generation loop
@@ -126,7 +128,7 @@ Derived metrics:
 
 Formulas in `src/lib/narrative-utils.ts`. The **cube** model maps forces into 3D space for trajectory analysis.
 
-## Markov Chain Pacing (src/lib/markov.ts)
+## Markov Chain Pacing (src/lib/pacing-profile.ts)
 
 Scene generation is guided by **Markov chain sequences** sampled as per-scene directions. This separates *what happens* (LLM) from *how intense it is* (math).
 
@@ -142,6 +144,41 @@ Scene generation is guided by **Markov chain sequences** sampled as per-scene di
 - 3-scene: Sucker Punch, Quick Resolve, Crucible
 - 5-scene: Classic Arc, Unravelling, Pressure Cooker, Inversion, Deep Dive
 - 8-scene: Introduction, Full Arc, Slow Burn, Roller Coaster, Revelation Arc, Gauntlet
+
+## Prose Profiles & Beat Plans (src/lib/beat-profiles.ts, scripts/analyze-prose.js)
+
+Prose generation is guided by **beat plans** — structured blueprints that decompose each scene into typed beats before any prose is written. Plans are reverse-engineered from published works by having an LLM analyze existing prose against a fixed taxonomy, then building statistical profiles from the extracted plans.
+
+**10 Beat Functions** (what the beat does):
+- **breathe** — pacing, atmosphere, sensory grounding, scene establishment
+- **inform** — knowledge delivery, a character or reader learns something now
+- **advance** — forward momentum, plot moves, goals pursued, tension rises
+- **bond** — relationship shifts between characters (trust, suspicion, alliance)
+- **turn** — scene pivots, a revelation reframes everything, an interruption changes direction
+- **reveal** — character nature exposed through action or choice
+- **shift** — power dynamic inverts, leverage changes hands
+- **expand** — world-building, new rule/system/geography introduced
+- **foreshadow** — plants information that pays off later
+- **resolve** — tension releases, question answered, conflict settles
+
+**8 Mechanisms** (how the beat is delivered as prose):
+- **dialogue** — conversation with subtext
+- **thought** — internal monologue, POV character's private reasoning
+- **action** — physical movement, gesture, interaction with objects
+- **environment** — setting, weather, lighting, sensory details
+- **narration** — authorial commentary, rhetorical structures
+- **memory** — flashback triggered by association
+- **document** — embedded text (letter, newspaper, sign, excerpt)
+- **comic** — humor, irony, absurdity, bathos
+
+**Analysis pipeline** (`scripts/analyze-prose.js`):
+1. LLM extracts beat plans from existing prose scenes (fn + mechanism + what + anchor per beat)
+2. Count beat function and mechanism distributions across all scenes
+3. Build **Markov transition matrices** over beat functions (fn→fn probabilities)
+4. Compute beatsPerKWord density metric
+5. Output a `ProseProfile` (voice: register, stance, devices, rules) + `BeatSampler` (markov, mechanismDistribution, beatsPerKWord)
+
+**Presets** are derived from analysed works at runtime. The "self" preset computes a live profile from the current narrative's own scene plans. When `useBeatChain` is enabled, plan generation samples the beat function sequence from the profile's Markov chain rather than choosing freely.
 
 ## Planning with Course Correction (src/lib/ai/review.ts)
 
