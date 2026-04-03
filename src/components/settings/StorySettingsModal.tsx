@@ -5,7 +5,7 @@ import { apiHeaders } from '@/lib/api-headers';
 import { useFeatureAccess } from '@/hooks/useFeatureAccess';
 import { useStore } from '@/lib/store';
 import { Modal, ModalHeader, ModalBody, ModalFooter } from '@/components/Modal';
-import type { StorySettings, POVMode, WorldFocusMode, ReasoningLevel, NarrativeState } from '@/types/narrative';
+import type { StorySettings, POVMode, WorldFocusMode, ReasoningLevel, NarrativeState, ProseFormat } from '@/types/narrative';
 import { DEFAULT_STORY_SETTINGS, BRANCH_TIME_HORIZON_OPTIONS, REASONING_BUDGETS } from '@/types/narrative';
 import { NARRATIVE_CUBE } from '@/types/narrative';
 import type { CubeCornerKey } from '@/types/narrative';
@@ -147,6 +147,32 @@ function AdvancedSection({ settings, update, narrative, resolvedEntryKeys }: {
             <p className="text-[9px] text-text-dim/50 mt-2">
               How many recent scenes the AI sees when generating. Lower values reduce cost and keep focus tight. Higher values give the AI more narrative history to draw from.
             </p>
+          </div>
+
+          {/* Prose Format */}
+          <div>
+            <label className="text-[10px] text-text-dim uppercase tracking-wider block mb-2">
+              Output Format
+            </label>
+            <div className="space-y-1.5">
+              {([
+                { value: 'prose' as ProseFormat, label: 'Prose', desc: 'Standard literary fiction — narrative voice, internal thoughts, sensory detail' },
+                { value: 'screenplay' as ProseFormat, label: 'Screenplay', desc: 'Industry-standard format — sluglines, action blocks, centered dialogue' },
+              ]).map((opt) => (
+                <button
+                  key={opt.value}
+                  onClick={() => update({ proseFormat: opt.value })}
+                  className={`w-full text-left px-3 py-2 rounded-lg border transition-colors ${
+                    settings.proseFormat === opt.value
+                      ? 'border-blue-500/50 bg-blue-500/10'
+                      : 'border-white/5 bg-white/2 hover:bg-white/5'
+                  }`}
+                >
+                  <span className="text-[11px] font-semibold text-text-primary">{opt.label}</span>
+                  <span className="text-[10px] text-text-dim ml-2">{opt.desc}</span>
+                </button>
+              ))}
+            </div>
           </div>
         </div>
       )}
