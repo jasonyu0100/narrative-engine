@@ -28,15 +28,18 @@ function useIsMobile(breakpoint = 768) {
 
 /* ── Morph text — letters shift through similar glyphs ────────────────────── */
 const MORPH_GLYPHS: Record<string, string[]> = {
+  a: ["à", "á", "â", "ä", "ã", "å", "ā", "ą"],
+  b: ["ƀ", "ḃ", "ḅ", "ɓ", "ƃ"],
   e: ["ë", "ē", "ę", "ė", "ě", "è", "é"],
-  v: ["ν", "ʋ", "ᵥ", "ṽ"],
-  o: ["ö", "ø", "ō", "ő", "ȯ", "ò", "ó"],
-  l: ["ł", "ĺ", "ḷ", "ℓ", "ḻ"],
-  t: ["ţ", "ť", "ț", "ƭ", "ṭ"],
   h: ["ħ", "ḥ", "ȟ", "ḫ"],
   i: ["ï", "ī", "į", "ĭ", "ì", "í"],
-  n: ["ñ", "ń", "ņ", "ň", "ṅ"],
   k: ["ķ", "ƙ", "ḳ", "ǩ"],
+  l: ["ł", "ĺ", "ḷ", "ℓ", "ḻ"],
+  n: ["ñ", "ń", "ņ", "ň", "ṅ"],
+  o: ["ö", "ø", "ō", "ő", "ȯ", "ò", "ó"],
+  r: ["ŕ", "ř", "ṙ", "ṛ", "ɍ"],
+  t: ["ţ", "ť", "ț", "ƭ", "ṭ"],
+  v: ["ν", "ʋ", "ᵥ", "ṽ"],
 };
 
 function MorphText({ text }: { text: string }) {
@@ -293,14 +296,14 @@ export default function HomePage() {
   return (
     <>
       <div className="min-h-screen bg-bg-base flex flex-col">
-        {/* Cinematic background — aurora effect */}
+        {/* Cinematic background — aurora + ink blot */}
         <div className="pointer-events-none fixed inset-0 overflow-hidden">
-          {/* Ink blot effect across entire page */}
-          <div className="absolute inset-0">
+          {/* Ink blot effect — behind aurora */}
+          <div className="absolute inset-0 z-0">
             <InkBlot />
           </div>
-          {/* Aurora at bottom */}
-          <div className="aurora-container absolute bottom-0 left-0 right-0 h-[75%]">
+          {/* Aurora at bottom — renders on top of ink blots */}
+          <div className="aurora-container absolute bottom-0 left-0 right-0 h-full z-10">
             <div className="aurora-curtain aurora-curtain-1" />
             <div className="aurora-curtain aurora-curtain-2" />
             <div className="aurora-curtain aurora-curtain-3" />
@@ -327,7 +330,7 @@ export default function HomePage() {
             InkTide Engine
           </p>
 
-          <h1 className="animate-fade-up-delay-1 text-5xl sm:text-7xl font-bold tracking-[-0.03em] text-center leading-[1.05] max-w-160 whitespace-nowrap">
+          <h1 className="animate-fade-up-delay-1 text-5xl sm:text-7xl font-bold tracking-[-0.03em] text-center leading-[1.05] max-w-160 sm:whitespace-nowrap">
             <span className="text-white">Stories that </span>
             <span className="glitch-wrapper text-white italic" data-text="breathe...">
               <MorphText text="breathe" />

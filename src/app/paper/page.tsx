@@ -507,7 +507,7 @@ export default function PaperPage() {
     <div className="min-h-screen bg-bg-base">
       {/* Aurora background */}
       <div className="pointer-events-none fixed inset-0 overflow-hidden">
-        <div className="aurora-container absolute bottom-0 left-0 right-0 h-[75%]">
+        <div className="aurora-container absolute bottom-0 left-0 right-0 h-full">
           <div className="aurora-curtain aurora-curtain-1" />
           <div className="aurora-curtain aurora-curtain-2" />
           <div className="aurora-curtain aurora-curtain-3" />
