@@ -710,8 +710,9 @@ describe('generateSceneProse', () => {
     await generateSceneProse(narrative, scene, []);
 
     const callArgs = vi.mocked(callGenerate).mock.calls[0];
-    expect(callArgs[1]).toContain('PROSE PROFILE');
-    expect(callArgs[1]).toContain('literary');
-    expect(callArgs[1]).toContain('close_third');
+    // Prose profile is in user prompt (arg 0), not system prompt (arg 1)
+    expect(callArgs[0]).toContain('PROSE PROFILE');
+    expect(callArgs[0]).toContain('literary');
+    expect(callArgs[0]).toContain('close_third');
   });
 });

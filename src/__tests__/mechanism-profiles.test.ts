@@ -65,7 +65,8 @@ function createSceneWithPlan(
     characterMovements: {},
     summary: 'Test scene',
     plan: {
-      beats: beats.map((b) => ({ fn: b.fn as any, mechanism: b.mechanism, content: 'test' })),
+      beats: beats.map((b) => ({ fn: b.fn as any, mechanism: b.mechanism, what: 'test beat', anchor: 'test anchor' })),
+      anchors: [],
     },
   };
 }

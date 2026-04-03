@@ -492,7 +492,7 @@ export function StorySettingsModal({ onClose }: { onClose: () => void }) {
                     <>
                       <div className="flex gap-2 overflow-x-auto pb-2 -mx-1 px-1 mb-3">
                         {allBeatPresets.map((preset) => {
-                          const isSelected = (settings.beatProfilePreset || '') === preset.key;
+                          const isSelected = (settings.beatProfilePreset || 'storyteller') === preset.key;
                           return (
                             <button
                               key={preset.key || '_default'}
@@ -512,7 +512,7 @@ export function StorySettingsModal({ onClose }: { onClose: () => void }) {
                       {/* Beat transition matrix + mechanism distribution */}
                       {(() => {
                         // Resolve sampler generically from BEAT_PROFILE_PRESETS (no hardcoded preset keys)
-                        const presetKey = settings.beatProfilePreset || '';
+                        const presetKey = settings.beatProfilePreset || 'storyteller';
                         const activeSampler = presetKey === 'self'
                           ? (computeSamplerFromPlans(
                               Object.values(narrative?.scenes ?? {}).filter((s) => state.resolvedEntryKeys.includes(s.id))
@@ -569,7 +569,7 @@ export function StorySettingsModal({ onClose }: { onClose: () => void }) {
 
                   <div className="flex gap-2 overflow-x-auto pb-2 -mx-1 px-1 mb-3">
                     {allMechanismPresets.map((preset) => {
-                      const isSelected = (settings.mechanismProfilePreset || '') === preset.key;
+                      const isSelected = (settings.mechanismProfilePreset || 'storyteller') === preset.key;
                       return (
                         <button
                           key={preset.key || '_default'}
@@ -588,7 +588,7 @@ export function StorySettingsModal({ onClose }: { onClose: () => void }) {
 
                   {/* Mechanism distribution visualization */}
                   {(() => {
-                    const presetKey = settings.mechanismProfilePreset || '';
+                    const presetKey = settings.mechanismProfilePreset || 'storyteller';
                     const activeMechDist = presetKey === 'self'
                       ? (selfMechDist ?? DEFAULT_MECHANISM_DIST)
                       : (MECHANISM_PROFILE_PRESETS.find((p) => p.key === presetKey)?.distribution ?? DEFAULT_MECHANISM_DIST);
