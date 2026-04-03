@@ -11,6 +11,7 @@
  */
 
 import type { BeatFn, BeatMechanism, BeatTransitionMatrix, ProseProfile, BeatSampler, NarrativeState, Scene, BeatProfilePreset } from '@/types/narrative';
+import { resolveMechanismDist } from '@/lib/mechanism-profiles';
 export type { BeatProfilePreset };
 
 // ── Default Sampler ─────────────────────────────────────────────────────────
@@ -216,12 +217,32 @@ export function resolveProfile(narrative: NarrativeState): ProseProfile {
 
 export function resolveSampler(narrative: NarrativeState): BeatSampler {
   const preset = narrative.storySettings?.beatProfilePreset;
+
+  // Get markov transitions from beat profile preset
+  let markov = DEFAULT_BEAT_MATRIX;
   if (preset) {
     const found = BEAT_PROFILE_PRESETS.find((p) => p.key === preset);
-    if (found?.sampler) return found.sampler;
+    if (found?.sampler?.markov) {
+      markov = found.sampler.markov;
+    }
+  } else {
+    // Compute live from scene plans if available
+    const fromPlans = computeSamplerFromPlans(Object.values(narrative.scenes ?? {}));
+    if (fromPlans?.markov) markov = fromPlans.markov;
   }
-  // Compute live from scene plans if available
-  const fromPlans = computeSamplerFromPlans(Object.values(narrative.scenes ?? {}));
-  if (fromPlans) return fromPlans;
-  return DEFAULT_BEAT_SAMPLER;
+
+  // Get mechanism distribution from mechanism profile preset (separate control)
+  const mechanismDistribution = resolveMechanismDist(narrative);
+
+  // Beats per kword from beat profile or computed
+  let beatsPerKWord = 12;
+  if (preset) {
+    const found = BEAT_PROFILE_PRESETS.find((p) => p.key === preset);
+    if (found?.sampler?.beatsPerKWord) beatsPerKWord = found.sampler.beatsPerKWord;
+  } else {
+    const fromPlans = computeSamplerFromPlans(Object.values(narrative.scenes ?? {}));
+    if (fromPlans?.beatsPerKWord) beatsPerKWord = fromPlans.beatsPerKWord;
+  }
+
+  return { markov, mechanismDistribution, beatsPerKWord };
 }

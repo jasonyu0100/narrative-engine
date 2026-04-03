@@ -666,6 +666,9 @@ export const REASONING_BUDGETS: Record<ReasoningLevel, number> = {
   high: 24576,
 };
 
+/** Output format for prose generation */
+export type ProseFormat = 'prose' | 'screenplay';
+
 export type StorySettings = {
   /** How POV is distributed across the story */
   povMode: POVMode;
@@ -703,6 +706,8 @@ export type StorySettings = {
   reasoningLevel: ReasoningLevel;
   /** Beat profile preset key — selects a published work's beat/prose profile. Empty = default profile. */
   beatProfilePreset: string;
+  /** Mechanism profile preset key — selects delivery mechanism distribution. Empty = default. */
+  mechanismProfilePreset: string;
   /** Whether to use the pacing Markov chain (cube corners) for scene generation. */
   usePacingChain: boolean;
   /** Whether to use the beat profile Markov chain for plan generation. */
@@ -711,6 +716,8 @@ export type StorySettings = {
   audioVoice: string;
   /** OpenAI TTS model — tts-1 (faster/cheaper) or tts-1-hd (higher quality) */
   audioModel: string;
+  /** Output format for prose — standard fiction or screenplay format */
+  proseFormat: ProseFormat;
 };
 
 export const BRANCH_TIME_HORIZON_OPTIONS = [25, 50, 100, 200] as const;
@@ -733,10 +740,12 @@ export const DEFAULT_STORY_SETTINGS: StorySettings = {
   generationMode: 'batch',
   reasoningLevel: 'low',
   beatProfilePreset: '',
+  mechanismProfilePreset: '',
   usePacingChain: true,
   useBeatChain: true,
   audioVoice: 'onyx',
   audioModel: 'tts-1',
+  proseFormat: 'prose',
 };
 
 // ── Planning Queue ──────────────────────────────────────────────────────────
@@ -1092,6 +1101,7 @@ export type AppState = {
   activeChatThreadId: string | null;
   activeNoteId: string | null;
   beatProfilePresets: BeatProfilePreset[];
+  mechanismProfilePresets: MechanismProfilePreset[];
 };
 
 export type BeatProfilePreset = {
@@ -1100,4 +1110,11 @@ export type BeatProfilePreset = {
   description: string;
   profile: ProseProfile;
   sampler?: BeatSampler;
+};
+
+export type MechanismProfilePreset = {
+  key: string;
+  name: string;
+  description: string;
+  distribution: Partial<Record<BeatMechanism, number>>;
 };

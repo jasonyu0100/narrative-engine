@@ -1,10 +1,11 @@
 'use client';
 
 import React, { createContext, useContext, useReducer, useEffect, useRef, useMemo, type ReactNode } from 'react';
-import type { AppState, InspectorContext, NarrativeState, NarrativeEntry, WizardStep, WizardData, Scene, Arc, Branch, Character, Location, Thread, RelationshipEdge, GraphViewMode, AutoConfig, AutoRunLog, WorldBuild, WorldKnowledgeGraph, WorldKnowledgeNode, WorldKnowledgeEdge, WorldKnowledgeMutation, ApiLogEntry, StorySettings, AnalysisJob, ChatThread, ChatMessage, Note, PlanningQueue, PlanningPhase, Artifact, StructureReview, ProseEvaluation, PlanEvaluation, WorldSystem, ProseProfile, BeatProfilePreset } from '@/types/narrative';
+import type { AppState, InspectorContext, NarrativeState, NarrativeEntry, WizardStep, WizardData, Scene, Arc, Branch, Character, Location, Thread, RelationshipEdge, GraphViewMode, AutoConfig, AutoRunLog, WorldBuild, WorldKnowledgeGraph, WorldKnowledgeNode, WorldKnowledgeEdge, WorldKnowledgeMutation, ApiLogEntry, StorySettings, AnalysisJob, ChatThread, ChatMessage, Note, PlanningQueue, PlanningPhase, Artifact, StructureReview, ProseEvaluation, PlanEvaluation, WorldSystem, ProseProfile, BeatProfilePreset, MechanismProfilePreset } from '@/types/narrative';
 import { resolveEntrySequence, nextId, computeForceSnapshots, computeSwingMagnitudes, computeDeliveryCurve, classifyNarrativeShape, classifyArchetype, classifyScale, classifyWorldDensity, gradeForces, computeRawForceTotals, FORCE_REFERENCE_MEANS } from '@/lib/narrative-utils';
 import { initMatrixPresets } from '@/lib/pacing-profile';
 import { initBeatProfilePresets } from '@/lib/beat-profiles';
+import { initMechanismProfilePresets } from '@/lib/mechanism-profiles';
 import { resolveEntry, isScene } from '@/types/narrative';
 import { loadNarratives, saveNarrative as persistNarrative, deleteNarrative as deletePersisted, loadNarrative, saveActiveNarrativeId, loadActiveNarrativeId, saveActiveBranchId, loadActiveBranchId, migrateFromLocalStorage, loadAnalysisJobs, saveAnalysisJobs, loadApiLogs, saveApiLogs, deleteApiLogs } from '@/lib/persistence';
 import { analysisRunner as analysisRunnerRef } from '@/lib/analysis-runner';
@@ -297,6 +298,7 @@ const initialState: AppState = {
   activeChatThreadId: null,
   activeNoteId: null,
   beatProfilePresets: [],
+  mechanismProfilePresets: [],
 };
 
 // ── Actions ──────────────────────────────────────────────────────────────────
@@ -360,6 +362,7 @@ export type Action =
   | { type: 'SET_STORY_SETTINGS'; settings: StorySettings }
   | { type: 'SET_PROSE_PROFILE'; profile: ProseProfile | undefined }
   | { type: 'SET_BEAT_PROFILE_PRESETS'; presets: BeatProfilePreset[] }
+  | { type: 'SET_MECHANISM_PROFILE_PRESETS'; presets: MechanismProfilePreset[] }
   // Analysis
   | { type: 'ADD_ANALYSIS_JOB'; job: AnalysisJob }
   | { type: 'UPDATE_ANALYSIS_JOB'; id: string; updates: Partial<AnalysisJob> }
@@ -1083,6 +1086,9 @@ function reducer(state: AppState, action: Action): AppState {
     case 'SET_BEAT_PROFILE_PRESETS':
       return { ...state, beatProfilePresets: action.presets };
 
+    case 'SET_MECHANISM_PROFILE_PRESETS':
+      return { ...state, mechanismProfilePresets: action.presets };
+
     // ── Analysis ──────────────────────────────────────────────────────────
     case 'ADD_ANALYSIS_JOB':
       return { ...state, analysisJobs: [...state.analysisJobs, action.job] };
@@ -1368,6 +1374,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         initMatrixPresets(worksForPresets);
         const beatPresets = initBeatProfilePresets(worksForPresets);
         dispatch({ type: 'SET_BEAT_PROFILE_PRESETS', presets: beatPresets });
+        const mechanismPresets = initMechanismProfilePresets(worksForPresets);
+        dispatch({ type: 'SET_MECHANISM_PROFILE_PRESETS', presets: mechanismPresets });
       }
 
       dispatch({ type: 'HYDRATE_NARRATIVES', entries: [...playgroundEntries, ...analysisEntries, ...userEntries] });

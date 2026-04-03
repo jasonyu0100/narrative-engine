@@ -11,6 +11,7 @@ import { NARRATIVE_CUBE } from '@/types/narrative';
 import type { CubeCornerKey } from '@/types/narrative';
 import { MATRIX_PRESETS, computeMatrixFromNarrative, type TransitionMatrix } from '@/lib/pacing-profile';
 import { DEFAULT_BEAT_SAMPLER, BEAT_PROFILE_PRESETS, computeSamplerFromPlans } from '@/lib/beat-profiles';
+import { MECHANISM_PROFILE_PRESETS, computeMechanismDist, DEFAULT_MECHANISM_DIST } from '@/lib/mechanism-profiles';
 import { IconChevronDown } from '@/components/icons';
 
 type Tab = 'direction' | 'style' | 'pov' | 'audio' | 'other';
@@ -346,6 +347,17 @@ export function StorySettingsModal({ onClose }: { onClose: () => void }) {
               ...BEAT_PROFILE_PRESETS.slice(1).map((p) => ({ key: p.key, name: p.name, description: p.description })),
             ];
 
+            // Mechanism profile presets
+            const selfMechDist = computeMechanismDist(
+              Object.values(narrative?.scenes ?? {}).filter((s) => state.resolvedEntryKeys.includes(s.id))
+            );
+            const selfMechHasData = selfMechDist && Object.keys(selfMechDist).length >= 3;
+            const allMechanismPresets = [
+              { key: MECHANISM_PROFILE_PRESETS[0]?.key ?? '', name: MECHANISM_PROFILE_PRESETS[0]?.name ?? 'Storyteller', description: MECHANISM_PROFILE_PRESETS[0]?.description ?? 'Balanced fiction' },
+              ...(selfMechHasData ? [selfPreset] : []),
+              ...MECHANISM_PROFILE_PRESETS.slice(1).map((p) => ({ key: p.key, name: p.name, description: p.description })),
+            ];
+
             // ── Resolve active selections (fall back to Storyteller) ──
             const resolvedPacingKey = settings.rhythmPreset || 'storyteller';
             const activePacingPreset = allPacingPresets.find((p) => p.key === resolvedPacingKey) ?? allPacingPresets[0];
@@ -482,12 +494,6 @@ export function StorySettingsModal({ onClose }: { onClose: () => void }) {
                           : (BEAT_PROFILE_PRESETS.find((p) => p.key === presetKey)?.sampler ?? DEFAULT_BEAT_SAMPLER);
 
                         const markov = activeSampler.markov as Record<string, Record<string, number>>;
-                        const mechDist = activeSampler.mechanismDistribution;
-
-                        const MECH_COLORS: Record<string, string> = {
-                          dialogue: '#3b82f6', thought: '#a855f7', action: '#22c55e', environment: '#06b6d4',
-                          narration: '#f59e0b', memory: '#ec4899', document: '#84cc16', comic: '#ef4444',
-                        };
 
                         return (
                           <>
@@ -524,27 +530,65 @@ export function StorySettingsModal({ onClose }: { onClose: () => void }) {
                                 </tbody>
                               </table>
                             </div>
-
-                            <label className="text-[10px] text-text-dim uppercase tracking-wider block mb-2">Mechanism Distribution</label>
-                            <div className="space-y-1">
-                              {Object.entries(mechDist)
-                                .filter(([, v]) => v && v > 0)
-                                .sort(([, a], [, b]) => (b ?? 0) - (a ?? 0))
-                                .map(([mech, pct]) => (
-                                  <div key={mech} className="flex items-center gap-2">
-                                    <span className="text-[9px] font-mono w-16 shrink-0" style={{ color: MECH_COLORS[mech] || '#888' }}>{mech}</span>
-                                    <div className="flex-1 h-2 bg-white/5 rounded-full overflow-hidden">
-                                      <div className="h-full rounded-full" style={{ width: `${(pct ?? 0) * 100}%`, backgroundColor: MECH_COLORS[mech] || '#888', opacity: 0.7 }} />
-                                    </div>
-                                    <span className="text-[9px] text-text-dim font-mono w-8 text-right">{Math.round((pct ?? 0) * 100)}%</span>
-                                  </div>
-                                ))}
-                            </div>
                           </>
                         );
                       })()}
                     </>
                   )}
+                </div>
+
+                {/* ── MECHANISM PROFILE ── */}
+                <div>
+                  <label className="text-[10px] text-text-dim uppercase tracking-wider block mb-3">Mechanism Profile</label>
+
+                  <div className="flex gap-2 overflow-x-auto pb-2 -mx-1 px-1 mb-3">
+                    {allMechanismPresets.map((preset) => {
+                      const isSelected = (settings.mechanismProfilePreset || '') === preset.key;
+                      return (
+                        <button
+                          key={preset.key || '_default'}
+                          onClick={() => update({ mechanismProfilePreset: preset.key })}
+                          className={`shrink-0 w-32 rounded-xl text-left transition-all border p-2.5 flex flex-col gap-1 ${
+                            isSelected ? 'border-pink-500/40 bg-pink-500/8 ring-1 ring-pink-500/20' : 'border-white/6 hover:border-white/15 hover:bg-white/3'
+                          }`}
+                        >
+                          <span className={`text-[11px] font-semibold leading-tight ${isSelected ? 'text-text-primary' : 'text-text-secondary'}`}>{preset.name}</span>
+                          <p className="text-[8px] text-text-dim leading-snug flex-1">{preset.description}</p>
+                          {isSelected && <span className="text-[7px] text-pink-400 uppercase tracking-wider font-medium">Active</span>}
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  {/* Mechanism distribution visualization */}
+                  {(() => {
+                    const presetKey = settings.mechanismProfilePreset || '';
+                    const activeMechDist = presetKey === 'self'
+                      ? (selfMechDist ?? DEFAULT_MECHANISM_DIST)
+                      : (MECHANISM_PROFILE_PRESETS.find((p) => p.key === presetKey)?.distribution ?? DEFAULT_MECHANISM_DIST);
+
+                    const MECH_COLORS: Record<string, string> = {
+                      dialogue: '#3b82f6', thought: '#a855f7', action: '#22c55e', environment: '#06b6d4',
+                      narration: '#f59e0b', memory: '#ec4899', document: '#84cc16', comic: '#ef4444',
+                    };
+
+                    return (
+                      <div className="space-y-1">
+                        {Object.entries(activeMechDist)
+                          .filter(([, v]) => v && v > 0)
+                          .sort(([, a], [, b]) => (b ?? 0) - (a ?? 0))
+                          .map(([mech, pct]) => (
+                            <div key={mech} className="flex items-center gap-2">
+                              <span className="text-[9px] font-mono w-16 shrink-0" style={{ color: MECH_COLORS[mech] || '#888' }}>{mech}</span>
+                              <div className="flex-1 h-2 bg-white/5 rounded-full overflow-hidden">
+                                <div className="h-full rounded-full" style={{ width: `${(pct ?? 0) * 100}%`, backgroundColor: MECH_COLORS[mech] || '#888', opacity: 0.7 }} />
+                              </div>
+                              <span className="text-[9px] text-text-dim font-mono w-8 text-right">{Math.round((pct ?? 0) * 100)}%</span>
+                            </div>
+                          ))}
+                      </div>
+                    );
+                  })()}
                 </div>
               </>
             );
