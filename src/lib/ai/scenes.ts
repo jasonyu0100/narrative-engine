@@ -2,13 +2,115 @@ import type { NarrativeState, Scene, Arc, WorldBuild, StorySettings, Beat, BeatP
 import { DEFAULT_STORY_SETTINGS, REASONING_BUDGETS, BEAT_FN_LIST, BEAT_MECHANISM_LIST, NARRATIVE_CUBE } from '@/types/narrative';
 import { nextId, nextIds } from '@/lib/narrative-utils';
 import { callGenerate, callGenerateStream, SYSTEM_PROMPT } from './api';
-import { WRITING_MODEL, ANALYSIS_MODEL, GENERATE_MODEL, MAX_TOKENS_LARGE, MAX_TOKENS_DEFAULT, MAX_TOKENS_SMALL, BEAT_DENSITY_MIN, BEAT_DENSITY_MAX, BEAT_DENSITY_DEFAULT, WORDS_PER_BEAT_DEFAULT, ANALYSIS_TEMPERATURE } from '@/lib/constants';
+import { WRITING_MODEL, ANALYSIS_MODEL, GENERATE_MODEL, MAX_TOKENS_LARGE, MAX_TOKENS_DEFAULT, MAX_TOKENS_SMALL, BEAT_DENSITY_MIN, BEAT_DENSITY_MAX, BEAT_DENSITY_DEFAULT, WORDS_PER_BEAT_MIN, WORDS_PER_BEAT_MAX, WORDS_PER_BEAT_DEFAULT, ANALYSIS_TEMPERATURE } from '@/lib/constants';
 import { parseJson } from './json';
 import { narrativeContext, sceneContext, deriveLogicRules, sceneScale } from './context';
 import { PROMPT_FORCE_STANDARDS, PROMPT_STRUCTURAL_RULES, PROMPT_MUTATIONS, PROMPT_ARTIFACTS, PROMPT_POV, PROMPT_CONTINUITY, PROMPT_SUMMARY_REQUIREMENT, promptThreadLifecycle, buildThreadHealthPrompt, buildCompletedBeatsPrompt } from './prompts';
 import { samplePacingSequence, buildSequencePrompt, buildSingleStepPrompt, detectCurrentMode, MATRIX_PRESETS, DEFAULT_TRANSITION_MATRIX, type PacingSequence, type ModeStep } from '@/lib/pacing-profile';
 import { resolveProfile, resolveSampler, sampleBeatSequence } from '@/lib/beat-profiles';
 import { FORMAT_INSTRUCTIONS } from './prose';
+
+/**
+ * Split text into sentences, handling edge cases like abbreviations, decimals, and ellipsis.
+ * More reliable than simple regex splitting.
+ */
+function splitIntoSentences(text: string): string[] {
+  // Common abbreviations that shouldn't trigger sentence breaks
+  const abbreviations = new Set([
+    'Dr', 'Mr', 'Mrs', 'Ms', 'Prof', 'Sr', 'Jr',
+    'Fig', 'Eq', 'Vol', 'No', 'Ch', 'Sec', 'vs',
+    'etc', 'i.e', 'e.g', 'al', 'et'
+  ]);
+
+  const sentences: string[] = [];
+  let currentSentence = '';
+  let i = 0;
+
+  while (i < text.length) {
+    const char = text[i];
+    currentSentence += char;
+
+    // Check for sentence-ending punctuation
+    if (char === '.' || char === '!' || char === '?') {
+      // Look ahead for additional punctuation or ellipsis
+      let j = i + 1;
+      while (j < text.length && (text[j] === '.' || text[j] === '!' || text[j] === '?')) {
+        currentSentence += text[j];
+        j++;
+      }
+
+      // Skip closing quotes/parentheses
+      while (j < text.length && (text[j] === '"' || text[j] === "'" || text[j] === ')' || text[j] === ']')) {
+        currentSentence += text[j];
+        j++;
+      }
+
+      // Check if this is a sentence boundary
+      let isSentenceBoundary = false;
+
+      // If followed by whitespace + capital letter or end of text, likely a boundary
+      if (j >= text.length) {
+        isSentenceBoundary = true;
+      } else if (j < text.length && /\s/.test(text[j])) {
+        // Skip whitespace
+        let k = j;
+        while (k < text.length && /\s/.test(text[k])) {
+          k++;
+        }
+        // Check if next non-whitespace is capital letter or quote + capital
+        if (k < text.length) {
+          const nextChar = text[k];
+          const isCapital = /[A-Z]/.test(nextChar);
+          const isQuoteBeforeCapital = (nextChar === '"' || nextChar === "'") && k + 1 < text.length && /[A-Z]/.test(text[k + 1]);
+
+          if (isCapital || isQuoteBeforeCapital) {
+            // Check if this is an abbreviation
+            if (char === '.') {
+              // Extract the word before the period
+              const beforePeriod = currentSentence.slice(0, -1).trim();
+              const words = beforePeriod.split(/\s+/);
+              const lastWord = words[words.length - 1] || '';
+
+              // Check for common abbreviation patterns
+              const isAbbreviation = abbreviations.has(lastWord) ||
+                                      /^[A-Z]$/.test(lastWord) || // Single capital letter
+                                      /^\d+\.\d+$/.test(lastWord + '.'); // Decimal number
+
+              if (!isAbbreviation) {
+                isSentenceBoundary = true;
+              }
+            } else {
+              // ! or ? are almost always sentence boundaries
+              isSentenceBoundary = true;
+            }
+          }
+        }
+      }
+
+      if (isSentenceBoundary) {
+        // Add whitespace that follows
+        while (j < text.length && /\s/.test(text[j])) {
+          currentSentence += text[j];
+          j++;
+        }
+        sentences.push(currentSentence.trim());
+        currentSentence = '';
+        i = j - 1; // Will be incremented at end of loop
+      } else {
+        i = j - 1;
+      }
+    }
+
+    i++;
+  }
+
+  // Add any remaining text
+  if (currentSentence.trim()) {
+    sentences.push(currentSentence.trim());
+  }
+
+  return sentences;
+}
 
 /** Parse raw proposition data into Proposition objects with free-form type labels */
 function parsePropositions(rawProps: unknown[]): Proposition[] {
@@ -604,8 +706,8 @@ function splitProseEvenly(prose: string, targetChunks: number): string[] {
     return chunks;
   }
 
-  // Not enough paragraphs - split by sentences
-  const sentences = prose.split(/(?<=[.!?])\s+(?=[A-Z])/).filter(s => s.trim());
+  // Not enough paragraphs - split by sentences using proper tokenization
+  const sentences = splitIntoSentences(prose).filter(s => s.trim());
   if (sentences.length >= targetChunks) {
     const chunks: string[] = [];
     const sentencesPerChunk = sentences.length / targetChunks;
@@ -658,11 +760,28 @@ Return ONLY valid JSON matching this schema:
   ]
 }
 
-CRITICAL: Include startPara and endPara for EVERY beat to mark which paragraphs it spans.
-- Ranges must be sequential with NO GAPS: if beat N ends at X, beat N+1 starts at X+1
-- All paragraphs must be covered exactly once
-- First beat starts at 0
-- Last beat must end at the last paragraph index
+CRITICAL INDEXING RULES:
+- Chunks use 0-based indexing: [0], [1], [2], ..., [N-1] where N is total chunk count
+- Every beat MUST include startPara and endPara (both inclusive, 0-based indices)
+- Beat ranges must be sequential with NO GAPS: if beat N ends at X, beat N+1 MUST start at X+1
+- First beat MUST start at startPara: 0
+- Last beat MUST end at endPara: N-1 (the last valid chunk index)
+- All N chunks must be covered exactly once
+- DO NOT use chunk indices >= N (out of bounds)
+- Group chunks naturally (typically 1-3 chunks per beat) to stay within word count range
+
+EXAMPLE (20 chunks of ~45 words each, grouped into ~10 beats of ~90 words):
+✓ CORRECT: [
+  {"startPara": 0, "endPara": 1, "fn": "breathe", ...},  // 2 chunks = ~90 words
+  {"startPara": 2, "endPara": 2, "fn": "inform", ...},   // 1 chunk = ~45 words (acceptable for brief moment)
+  {"startPara": 3, "endPara": 5, "fn": "advance", ...},  // 3 chunks = ~135 words (acceptable for complex action)
+  {"startPara": 6, "endPara": 7, "fn": "turn", ...},     // 2 chunks = ~90 words
+  ...
+  {"startPara": 18, "endPara": 19, "fn": "resolve", ...} // Must end at last chunk (19)
+]
+✗ WRONG: endPara: 20 is out of bounds (max valid index is 19)
+✗ WRONG: gap between beats (beat ends at 5, next starts at 7)
+✗ WRONG: {"startPara": 0, "endPara": 9} - 10 chunks = ~450 words (way too large)
 
 BEAT FUNCTIONS (10):
   breathe    — Pacing, atmosphere, sensory grounding, scene establishment.
@@ -794,23 +913,35 @@ INVALID: craft goals, pacing instructions, meta-commentary.
   const wordCount = prose.split(/\s+/).length;
   const estimatedBeats = Math.max(Math.round(wordCount / WORDS_PER_BEAT_DEFAULT), 3);
 
-  // Split prose into target chunks (2x estimated beats for granularity)
+  // Split prose into fine-grained chunks (2x beats) so LLM can group naturally
   const targetChunks = estimatedBeats * 2;
   const paragraphs = splitProseEvenly(prose, targetChunks);
   const numberedProse = paragraphs.map((p, i) => `[${i}] ${p}`).join('\n\n');
 
+  const lastIndex = paragraphs.length - 1;
   const prompt = `SCENE SUMMARY: ${summary}
 
-NUMBERED PROSE (${paragraphs.length} paragraphs):
+NUMBERED PROSE (${paragraphs.length} chunks, indices [0-${lastIndex}]):
 ${numberedProse}
 
 TASK:
-1. First, determine where each beat begins and ends by identifying paragraph ranges
-2. Then, for each beat, extract its function, mechanism, what happens, and propositions
+Group these chunks into beats by identifying natural narrative boundaries. Each beat should span consecutive chunks.
 
 Extract propositions according to density guidelines - light fiction gets 1-2 props/beat, technical prose gets exhaustive extraction.
 
-CRITICAL: Every beat MUST include startPara and endPara. Ranges must be sequential with no gaps.`;
+CRITICAL CONSTRAINTS - BEAT SIZE:
+- Target beat size: ${WORDS_PER_BEAT_DEFAULT} words (acceptable range: ${WORDS_PER_BEAT_MIN}-${WORDS_PER_BEAT_MAX} words)
+- Each beat should typically span 1-3 consecutive chunks to stay within this range
+- Beats outside ${WORDS_PER_BEAT_MIN}-${WORDS_PER_BEAT_MAX} words are acceptable ONLY if required for natural narrative boundaries
+- Aim for approximately ${estimatedBeats} total beats
+
+CRITICAL CONSTRAINTS - INDEXING:
+- Valid paragraph indices: 0 to ${lastIndex} (inclusive)
+- Beat ranges must be sequential with NO GAPS: if beat N ends at X, beat N+1 MUST start at X+1
+- First beat MUST start at paragraph 0
+- Final beat MUST end at paragraph ${lastIndex}
+- All ${paragraphs.length} paragraphs must be covered exactly once
+- DO NOT use paragraph indices >= ${paragraphs.length} (out of bounds)`;
 
   let accumulated = '';
   const raw = onToken

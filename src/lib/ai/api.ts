@@ -29,10 +29,10 @@ export async function callGenerateStream(
       signal: controller.signal,
     });
     if (!res.ok) {
-      const err = await res.json();
+      const err = await res.json().catch(() => ({ error: `HTTP ${res.status}: ${res.statusText}` }));
       const message = err.error || 'Generation failed';
       updateApiLog(logId, { status: 'error', error: message, durationMs: Math.round(performance.now() - start) });
-      throw new Error(message);
+      throw new Error(`[${caller}] ${message}`);
     }
 
     const reader = res.body?.getReader();
@@ -86,9 +86,19 @@ export async function callGenerateStream(
   } catch (err) {
     clearTimeout(timeoutId);
     const isAbort = err instanceof Error && err.name === 'AbortError';
-    const message = isAbort ? 'Request timed out' : (err instanceof Error ? err.message : String(err));
+    const isFetchError = err instanceof Error && err.message.includes('fetch failed');
+    let message: string;
+
+    if (isAbort) {
+      message = `[${caller}] Request timed out after ${API_STREAM_TIMEOUT_MS || API_TIMEOUT_MS}ms (model: ${resolvedModel}, tokens: ${maxTokens ?? 'default'})`;
+    } else if (isFetchError) {
+      message = `[${caller}] Network error - fetch failed (model: ${resolvedModel}, prompt: ${prompt.length} chars). Check API connectivity.`;
+    } else {
+      message = err instanceof Error ? err.message : String(err);
+    }
+
     updateApiLog(logId, { status: 'error', error: message, durationMs: Math.round(performance.now() - start) });
-    throw isAbort ? new Error('Request timed out') : err;
+    throw new Error(message);
   }
 }
 
@@ -130,9 +140,19 @@ export async function callGenerate(prompt: string, systemPrompt: string, maxToke
   } catch (err) {
     clearTimeout(timeoutId);
     const isAbort = err instanceof Error && err.name === 'AbortError';
-    const message = isAbort ? 'Request timed out' : (err instanceof Error ? err.message : String(err));
+    const isFetchError = err instanceof Error && err.message.includes('fetch failed');
+    let message: string;
+
+    if (isAbort) {
+      message = `[${caller}] Request timed out after ${API_STREAM_TIMEOUT_MS || API_TIMEOUT_MS}ms (model: ${resolvedModel}, tokens: ${maxTokens ?? 'default'})`;
+    } else if (isFetchError) {
+      message = `[${caller}] Network error - fetch failed (model: ${resolvedModel}, prompt: ${prompt.length} chars). Check API connectivity.`;
+    } else {
+      message = err instanceof Error ? err.message : String(err);
+    }
+
     updateApiLog(logId, { status: 'error', error: message, durationMs: Math.round(performance.now() - start) });
-    throw isAbort ? new Error('Request timed out') : err;
+    throw new Error(message);
   }
 }
 

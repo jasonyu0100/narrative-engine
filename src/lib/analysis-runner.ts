@@ -355,9 +355,16 @@ class AnalysisRunner {
       const failedPlans: ScenePlanTask[] = [];
       const MAX_PLAN_RETRIES = 3;
 
-      const launchPlan = (task: ScenePlanTask) => {
+      const launchPlan = async (task: ScenePlanTask) => {
         planActive++;
         task.attempts = (task.attempts ?? 0) + 1;
+
+        // Exponential backoff for retries: 2s, 4s, 8s
+        if (task.attempts > 1) {
+          const delayMs = Math.min(2000 * Math.pow(2, task.attempts - 2), 8000);
+          await new Promise(resolve => setTimeout(resolve, delayMs));
+        }
+
         const key = `${task.chunkIdx}-${task.sceneIdx}`;
         entry.planInFlightKeys.add(key);
         entry.planStreams.set(key, '');
@@ -380,14 +387,17 @@ class AnalysisRunner {
             d({ type: 'UPDATE_ANALYSIS_JOB', id: job.id, updates: { results: [...results] } });
           })
           .catch((err) => {
-            console.warn(`[AnalysisRunner] Plan extraction failed for scene ${task.chunkIdx}-${task.sceneIdx}:`, err);
+            const errorMsg = err instanceof Error ? err.message : String(err);
+            const wordCount = task.prose.split(/\s+/).length;
+            console.warn(`[AnalysisRunner] Plan extraction failed for scene ${task.chunkIdx}-${task.sceneIdx} (${wordCount} words): ${errorMsg}`);
+
             if (task.attempts! < MAX_PLAN_RETRIES) {
               // Re-queue for retry
               planQueue.push(task);
-              this.emitStream(job.id, `Phase 2: Scene ${task.chunkIdx + 1}-${task.sceneIdx + 1} failed, will retry (${task.attempts}/${MAX_PLAN_RETRIES})`);
+              this.emitStream(job.id, `Phase 2: Scene ${task.chunkIdx + 1}-${task.sceneIdx + 1} failed (${errorMsg.split('\n')[0].substring(0, 60)}), retrying (${task.attempts}/${MAX_PLAN_RETRIES})`);
             } else {
               failedPlans.push(task);
-              this.emitStream(job.id, `Phase 2: Scene ${task.chunkIdx + 1}-${task.sceneIdx + 1} failed after ${MAX_PLAN_RETRIES} attempts`);
+              this.emitStream(job.id, `Phase 2: Scene ${task.chunkIdx + 1}-${task.sceneIdx + 1} failed after ${MAX_PLAN_RETRIES} attempts - ${errorMsg.split('\n')[0].substring(0, 80)}`);
             }
           })
           .finally(() => {
