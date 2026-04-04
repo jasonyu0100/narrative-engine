@@ -1,7 +1,7 @@
 'use client';
 
 import React, { createContext, useContext, useReducer, useEffect, useRef, useMemo, type ReactNode } from 'react';
-import type { AppState, InspectorContext, NarrativeState, NarrativeEntry, WizardStep, WizardData, Scene, Arc, Branch, Character, Location, Thread, RelationshipEdge, GraphViewMode, AutoConfig, AutoRunLog, WorldBuild, WorldKnowledgeGraph, WorldKnowledgeNode, WorldKnowledgeEdge, WorldKnowledgeMutation, ApiLogEntry, StorySettings, AnalysisJob, ChatThread, ChatMessage, Note, PlanningQueue, PlanningPhase, Artifact, StructureReview, ProseEvaluation, PlanEvaluation, WorldSystem, ProseProfile, BeatProfilePreset, MechanismProfilePreset } from '@/types/narrative';
+import type { AppState, InspectorContext, NarrativeState, NarrativeEntry, WizardStep, WizardData, Scene, Arc, Branch, Character, Location, Thread, RelationshipEdge, GraphViewMode, AutoConfig, AutoRunLog, WorldBuild, WorldKnowledgeGraph, WorldKnowledgeNode, WorldKnowledgeEdge, WorldKnowledgeMutation, ApiLogEntry, ErrorLogEntry, StorySettings, AnalysisJob, ChatThread, ChatMessage, Note, PlanningQueue, PlanningPhase, Artifact, StructureReview, ProseEvaluation, PlanEvaluation, WorldSystem, ProseProfile, BeatProfilePreset, MechanismProfilePreset } from '@/types/narrative';
 import { resolveEntrySequence, nextId, computeForceSnapshots, computeSwingMagnitudes, computeDeliveryCurve, classifyNarrativeShape, classifyArchetype, classifyScale, classifyWorldDensity, gradeForces, computeRawForceTotals, FORCE_REFERENCE_MEANS } from '@/lib/narrative-utils';
 import { initMatrixPresets } from '@/lib/pacing-profile';
 import { initBeatProfilePresets } from '@/lib/beat-profiles';
@@ -294,6 +294,7 @@ const initialState: AppState = {
   },
   autoRunState: null,
   apiLogs: [],
+  errorLogs: [],
   analysisJobs: [],
   activeChatThreadId: null,
   activeNoteId: null,
@@ -348,6 +349,9 @@ export type Action =
   | { type: 'UPDATE_API_LOG'; id: string; updates: Partial<ApiLogEntry> }
   | { type: 'CLEAR_API_LOGS' }
   | { type: 'HYDRATE_API_LOGS'; logs: ApiLogEntry[] }
+  // Error Logs
+  | { type: 'LOG_ERROR'; entry: ErrorLogEntry }
+  | { type: 'CLEAR_ERROR_LOGS' }
   | { type: 'SET_COVER_IMAGE'; narrativeId: string; imageUrl: string }
   | { type: 'UPDATE_NARRATIVE_META'; narrativeId: string; title?: string; description?: string }
   | { type: 'SET_SCENE_IMAGE'; sceneId: string; imageUrl: string }
@@ -931,6 +935,12 @@ function reducer(state: AppState, action: Action): AppState {
     case 'HYDRATE_API_LOGS':
       return { ...state, apiLogs: action.logs };
 
+    case 'LOG_ERROR':
+      return { ...state, errorLogs: [...state.errorLogs, action.entry] };
+
+    case 'CLEAR_ERROR_LOGS':
+      return { ...state, errorLogs: [] };
+
     case 'SET_COVER_IMAGE': {
       // Update the narrative entry in the list
       const updatedNarratives = state.narratives.map((e) =>
@@ -1304,6 +1314,20 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     import('@/lib/api-logger').then(({ setLoggerNarrativeId }) => {
       setLoggerNarrativeId(state.activeNarrativeId);
+    });
+  }, [state.activeNarrativeId]);
+
+  // Wire error logger to store
+  useEffect(() => {
+    import('@/lib/error-logger').then(({ onErrorLog }) => {
+      onErrorLog((entry) => dispatch({ type: 'LOG_ERROR', entry }));
+    });
+  }, []);
+
+  // Keep error logger aware of which narrative is active
+  useEffect(() => {
+    import('@/lib/error-logger').then(({ setErrorLoggerNarrativeId }) => {
+      setErrorLoggerNarrativeId(state.activeNarrativeId);
     });
   }, [state.activeNarrativeId]);
 

@@ -7,6 +7,7 @@ import type { NarrativeState, Scene, CubeCornerKey, WorldBuild } from '@/types/n
 import type { MCTSConfig, MCTSTree, MCTSRunState, MCTSNodeId, MCTSStatus, MCTSPhase, MCTSNode, DeliveryDirection, PendingExpansion } from '@/types/mcts';
 import { DEFAULT_MCTS_CONFIG } from '@/types/mcts';
 import type { Arc } from '@/types/narrative';
+import { logError } from '@/lib/error-logger';
 import {
   createTree,
   selectNode,
@@ -174,7 +175,25 @@ export function useMCTS() {
         worldBuildFocus,
         onToken,
       },
-    ).catch((err) => { console.error('[mcts] generation error:', err); return null; });
+    ).catch((err) => {
+      console.error('[mcts] generation error:', err);
+      logError(
+        'MCTS node expansion failed',
+        err,
+        {
+          source: 'mcts',
+          operation: 'node-expansion',
+          details: {
+            nodeId: targetId,
+            moveType,
+            direction: direction.substring(0, 100),
+            cubeGoal,
+            deliveryGoal,
+          },
+        }
+      );
+      return null;
+    });
 
     removePendingExpansion(slotId);
 

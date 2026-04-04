@@ -16,6 +16,7 @@ import { reverseEngineerScenePlan } from '@/lib/ai/scenes';
 import type { AnalysisJob, AnalysisChunkResult } from '@/types/narrative';
 import type { Action } from '@/lib/store';
 import { ANALYSIS_CONCURRENCY, ANALYSIS_STAGGER_DELAY_MS, ANALYSIS_MAX_CHUNK_RETRIES } from '@/lib/constants';
+import { logError, logWarning } from '@/lib/error-logger';
 
 type Dispatch = (action: Action) => void;
 
@@ -159,6 +160,19 @@ class AnalysisRunner {
       await this.runPipeline(job, entry, d);
     } catch (err) {
       console.error('[AnalysisRunner] Unexpected error:', err);
+      logError(
+        'Analysis job failed with unexpected error',
+        err,
+        {
+          source: 'analysis',
+          operation: 'analysis-job',
+          details: {
+            jobId: job.id,
+            title: job.title,
+            chunkCount: job.chunks.length,
+          },
+        }
+      );
       // Try to update status if dispatch is available
       if (this.dispatch) {
         this.dispatch({ type: 'UPDATE_ANALYSIS_JOB', id: job.id, updates: { status: 'failed', error: err instanceof Error ? err.message : String(err) } });
@@ -229,7 +243,21 @@ class AnalysisRunner {
             launchChunk(chunkIdx);
             return; // don't launch from queue or check pool — we re-incremented activeCount
           }
-          // Non-retryable or max retries exceeded
+          // Non-retryable or max retries exceeded - log the failure
+          logWarning(
+            `Chunk extraction failed after ${attempt} attempts`,
+            error,
+            {
+              source: 'analysis',
+              operation: 'chunk-extraction',
+              details: {
+                chunkIdx,
+                attempt,
+                maxRetries: MAX_CHUNK_RETRIES,
+                errorPreview: error.substring(0, 100),
+              },
+            }
+          );
           failedChunks.push({ chunkIdx, error });
         }
 
@@ -396,6 +424,21 @@ class AnalysisRunner {
               planQueue.push(task);
               this.emitStream(job.id, `Phase 2: Scene ${task.chunkIdx + 1}-${task.sceneIdx + 1} failed (${errorMsg.split('\n')[0].substring(0, 60)}), retrying (${task.attempts}/${MAX_PLAN_RETRIES})`);
             } else {
+              // Log final failure after all retries
+              logWarning(
+                `Plan extraction failed for scene ${task.chunkIdx}-${task.sceneIdx}`,
+                err,
+                {
+                  source: 'analysis',
+                  operation: 'plan-extraction',
+                  details: {
+                    chunkIdx: task.chunkIdx,
+                    sceneIdx: task.sceneIdx,
+                    wordCount,
+                    attempts: task.attempts,
+                  },
+                }
+              );
               failedPlans.push(task);
               this.emitStream(job.id, `Phase 2: Scene ${task.chunkIdx + 1}-${task.sceneIdx + 1} failed after ${MAX_PLAN_RETRIES} attempts - ${errorMsg.split('\n')[0].substring(0, 80)}`);
             }
@@ -451,6 +494,18 @@ class AnalysisRunner {
     } catch (err) {
       // Reconciliation failure is non-fatal — continue with unreconciled results
       console.warn('[AnalysisRunner] Reconciliation failed, using raw results:', err);
+      logWarning(
+        'Analysis reconciliation failed (non-fatal)',
+        err,
+        {
+          source: 'analysis',
+          operation: 'reconciliation',
+          details: {
+            jobId: job.id,
+            resultCount: results.filter(r => r !== null).length,
+          },
+        }
+      );
       this.emitStream(job.id, 'Phase 3: Reconciliation failed (non-fatal), using raw results...');
     }
 
@@ -476,6 +531,18 @@ class AnalysisRunner {
     } catch (err) {
       // Finalization failure is non-fatal — continue without dependencies
       console.warn('[AnalysisRunner] Finalization failed:', err);
+      logWarning(
+        'Analysis finalization failed (non-fatal)',
+        err,
+        {
+          source: 'analysis',
+          operation: 'finalization',
+          details: {
+            jobId: job.id,
+            threadCount: results.filter(r => r !== null).flatMap(r => r.threads ?? []).length,
+          },
+        }
+      );
       this.emitStream(job.id, 'Phase 3: Finalization failed (non-fatal), continuing...');
     }
 
@@ -493,6 +560,19 @@ class AnalysisRunner {
       d({ type: 'UPDATE_ANALYSIS_JOB', id: job.id, updates: { status: 'completed', narrativeId: narrative.id } });
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
+      logError(
+        'Analysis assembly failed',
+        err,
+        {
+          source: 'analysis',
+          operation: 'assembly',
+          details: {
+            jobId: job.id,
+            title: job.title,
+            resultCount: results.filter(r => r !== null).length,
+          },
+        }
+      );
       d({ type: 'UPDATE_ANALYSIS_JOB', id: job.id, updates: { status: 'failed', error: message } });
     }
   }

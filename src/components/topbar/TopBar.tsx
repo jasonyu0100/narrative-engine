@@ -9,6 +9,7 @@ import { resolveEntry, isScene, type Scene } from '@/types/narrative';
 import { computeRawForceTotals, computeSwingMagnitudes, computeForceSnapshots, computeDeliveryCurve, classifyNarrativeShape, classifyArchetype, classifyScale, classifyWorldDensity, gradeForces, FORCE_REFERENCE_MEANS, resolveEntrySequence } from '@/lib/narrative-utils';
 import { ApiLogsModal } from '@/components/topbar/ApiLogsModal';
 import ApiKeyModal from '@/components/topbar/ApiKeyModal';
+import ErrorLogModal from '@/components/topbar/ErrorLogModal';
 import { useFeatureAccess } from '@/hooks/useFeatureAccess';
 import { CubeExplorer } from '@/components/topbar/CubeExplorer';
 import { BranchContextModal } from '@/components/topbar/BranchContextModal';
@@ -281,6 +282,7 @@ export default function TopBar() {
   // Modal states
   const [logsOpen, setLogsOpen] = useState(false);
   const [apiKeysOpen, setApiKeysOpen] = useState(false);
+  const [errorLogsOpen, setErrorLogsOpen] = useState(false);
 
   const [cubeExplorerOpen, setCubeExplorerOpen] = useState(false);
   const [branchContextOpen, setBranchContextOpen] = useState(false);
@@ -845,6 +847,7 @@ export default function TopBar() {
           items={[
             { label: 'LLM Context', onClick: () => setBranchContextOpen(true), disabled: !hasNarrative },
             { label: 'API Logs', onClick: () => setLogsOpen(true) },
+            { label: 'Error Logs', onClick: () => setErrorLogsOpen(true) },
             ...(process.env.NEXT_PUBLIC_USER_API_KEYS === 'true'
               ? [{ label: 'API Keys', onClick: () => setApiKeysOpen(true) }]
               : []),
@@ -1253,6 +1256,7 @@ export default function TopBar() {
       {/* Modals */}
       {apiKeysOpen && <ApiKeyModal access={access} onClose={() => setApiKeysOpen(false)} />}
       {logsOpen && <ApiLogsModal onClose={() => setLogsOpen(false)} />}
+      {errorLogsOpen && <ErrorLogModal onClose={() => setErrorLogsOpen(false)} />}
 
       {cubeExplorerOpen && narrative && (
         <CubeExplorer

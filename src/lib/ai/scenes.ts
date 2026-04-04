@@ -9,6 +9,7 @@ import { PROMPT_FORCE_STANDARDS, PROMPT_STRUCTURAL_RULES, PROMPT_MUTATIONS, PROM
 import { samplePacingSequence, buildSequencePrompt, buildSingleStepPrompt, detectCurrentMode, MATRIX_PRESETS, DEFAULT_TRANSITION_MATRIX, type PacingSequence, type ModeStep } from '@/lib/pacing-profile';
 import { resolveProfile, resolveSampler, sampleBeatSequence } from '@/lib/beat-profiles';
 import { FORMAT_INSTRUCTIONS } from './prose';
+import { logWarning, logError } from '@/lib/error-logger';
 
 /**
  * Split text into sentences, handling edge cases like abbreviations, decimals, and ellipsis.
@@ -1011,18 +1012,45 @@ function tryBuildFromRanges(
     // Check if ranges exist
     if (typeof startPara !== 'number' || typeof endPara !== 'number') {
       console.warn(`[tryBuildFromRanges] Beat ${i} missing paragraph range`);
+      logWarning(
+        'Beat extraction validation failed: missing paragraph range',
+        `Beat ${i} has undefined startPara or endPara`,
+        {
+          source: 'analysis',
+          operation: 'beat-range-validation',
+          details: { beatIndex: i, startPara, endPara, totalBeats: beatsWithRanges.length },
+        }
+      );
       return null;
     }
 
     // Validate sequential (no gaps or overlaps)
     if (startPara !== lastEndPara + 1) {
       console.warn(`[tryBuildFromRanges] Beat ${i} range [${startPara}, ${endPara}] not sequential (last ended at ${lastEndPara})`);
+      logWarning(
+        'Beat extraction validation failed: non-sequential ranges',
+        `Beat ${i} range [${startPara}, ${endPara}] not sequential (last ended at ${lastEndPara})`,
+        {
+          source: 'analysis',
+          operation: 'beat-range-validation',
+          details: { beatIndex: i, startPara, endPara, lastEndPara, totalBeats: beatsWithRanges.length },
+        }
+      );
       return null;
     }
 
     // Validate bounds
     if (startPara < 0 || endPara >= paragraphs.length || startPara > endPara) {
       console.warn(`[tryBuildFromRanges] Beat ${i} has invalid range [${startPara}, ${endPara}]`);
+      logWarning(
+        'Beat extraction validation failed: out of bounds range',
+        `Beat ${i} has invalid range [${startPara}, ${endPara}] (paragraphs: ${paragraphs.length})`,
+        {
+          source: 'analysis',
+          operation: 'beat-range-validation',
+          details: { beatIndex: i, startPara, endPara, paragraphCount: paragraphs.length, totalBeats: beatsWithRanges.length },
+        }
+      );
       return null;
     }
 
@@ -1030,6 +1058,15 @@ function tryBuildFromRanges(
     const proseChunk = paragraphs.slice(startPara, endPara + 1).join('\n\n').trim();
     if (!proseChunk) {
       console.warn(`[tryBuildFromRanges] Beat ${i} has empty prose chunk`);
+      logWarning(
+        'Beat extraction validation failed: empty prose chunk',
+        `Beat ${i} has no content after joining paragraphs [${startPara}, ${endPara}]`,
+        {
+          source: 'analysis',
+          operation: 'beat-range-validation',
+          details: { beatIndex: i, startPara, endPara, totalBeats: beatsWithRanges.length },
+        }
+      );
       return null;
     }
 
@@ -1041,6 +1078,15 @@ function tryBuildFromRanges(
   // Verify full coverage (all paragraphs assigned)
   if (lastEndPara !== paragraphs.length - 1) {
     console.warn(`[tryBuildFromRanges] Incomplete coverage: ends at para ${lastEndPara}, prose has ${paragraphs.length} paras`);
+    logWarning(
+      'Beat extraction validation failed: incomplete coverage',
+      `Beats only cover paragraphs 0-${lastEndPara}, but prose has ${paragraphs.length} paragraphs`,
+      {
+        source: 'analysis',
+        operation: 'beat-range-validation',
+        details: { lastEndPara, paragraphCount: paragraphs.length, totalBeats: beatsWithRanges.length },
+      }
+    );
     return null;
   }
 
@@ -1049,6 +1095,15 @@ function tryBuildFromRanges(
   for (let i = 0; i < chunks.length; i++) {
     if (proseSet.has(chunks[i].prose)) {
       console.warn(`[tryBuildFromRanges] Duplicate prose detected at beat ${i}, rejecting mapping`);
+      logWarning(
+        'Beat extraction validation failed: duplicate prose detected',
+        `Beat ${i} has identical prose to a previous beat`,
+        {
+          source: 'analysis',
+          operation: 'beat-range-validation',
+          details: { beatIndex: i, totalBeats: chunks.length, prosePreview: chunks[i].prose.substring(0, 100) },
+        }
+      );
       return null;
     }
     proseSet.add(chunks[i].prose);

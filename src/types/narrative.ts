@@ -958,6 +958,29 @@ export type ApiLogEntry = {
   reasoningContent?: string | null;
 };
 
+// ── Error Logs ───────────────────────────────────────────────────────────────
+
+export type ErrorLogEntry = {
+  id: string;
+  timestamp: number;
+  severity: 'error' | 'warning';
+  category: 'network' | 'timeout' | 'parsing' | 'validation' | 'unknown';
+  /** Human-readable message describing what failed */
+  message: string;
+  /** Raw error message from the exception */
+  errorMessage: string;
+  /** Stack trace if available */
+  errorStack?: string;
+  /** Where the error occurred */
+  source: 'auto-play' | 'mcts' | 'manual-generation' | 'analysis' | 'world-expansion' | 'direction-generation' | 'prose-generation' | 'plan-generation' | 'other';
+  /** Current operation when error occurred */
+  operation?: string;
+  /** Additional context */
+  details?: Record<string, string | number | boolean | null | undefined>;
+  /** Narrative this error belongs to */
+  narrativeId?: string;
+};
+
 // ── Text Analysis ────────────────────────────────────────────────────────────
 
 export type AnalysisChunkResult = {
@@ -1137,6 +1160,7 @@ export type AppState = {
   autoConfig: AutoConfig;
   autoRunState: AutoRunState | null;
   apiLogs: ApiLogEntry[];
+  errorLogs: ErrorLogEntry[];
   analysisJobs: AnalysisJob[];
   activeChatThreadId: string | null;
   activeNoteId: string | null;

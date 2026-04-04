@@ -9,6 +9,7 @@ import { generatePhaseDirection } from '@/lib/planning-engine';
 import { DEFAULT_STORY_SETTINGS } from '@/types/narrative';
 import type { AutoRunLog } from '@/types/narrative';
 import { nextId } from '@/lib/narrative-utils';
+import { logError } from '@/lib/error-logger';
 
 export function useAutoPlay() {
   const { state, dispatch } = useStore();
@@ -119,7 +120,49 @@ export function useAutoPlay() {
             },
           });
         } catch (err) {
-          console.error('[auto-play] first phase init failed:', err);
+          const errorMsg = err instanceof Error ? err.message : String(err);
+          const isFetchError = errorMsg.includes('fetch failed');
+          const isTimeout = errorMsg.includes('timed out');
+
+          let detailedMsg = `[auto-play] Phase "${ap.name}" initialization failed`;
+          if (isFetchError) {
+            detailedMsg += ' - Network error (check API connectivity)';
+          } else if (isTimeout) {
+            detailedMsg += ' - Request timed out (LLM took too long)';
+          }
+          detailedMsg += `\nError: ${errorMsg}`;
+
+          console.error(detailedMsg);
+
+          // Log error with structured context
+          logError(
+            `Phase "${ap.name}" initialization failed`,
+            err,
+            {
+              source: 'auto-play',
+              operation: 'phase-init',
+              details: {
+                phaseName: ap.name,
+                sceneAllocation: ap.sceneAllocation,
+                cycle: autoRunState.currentCycle + 1,
+              },
+            }
+          );
+
+          // Log the failure to run log
+          dispatch({
+            type: 'LOG_AUTO_CYCLE',
+            entry: {
+              cycle: autoRunState.currentCycle + 1,
+              timestamp: Date.now(),
+              action: 'LLL',
+              reason: `Phase init failed: ${errorMsg.split('\n')[0].substring(0, 100)}`,
+              scenesGenerated: 0,
+              worldExpanded: false,
+              endConditionMet: null,
+              error: errorMsg,
+            },
+          });
         }
         return; // Let the next tick proceed with generation
       }
@@ -306,14 +349,85 @@ export function useAutoPlay() {
               });
             }
           } catch (err) {
-            console.error('[auto-play] direction refresh failed:', err);
+            const errorMsg = err instanceof Error ? err.message : String(err);
+            const isFetchError = errorMsg.includes('fetch failed');
+            const isTimeout = errorMsg.includes('timed out');
+
+            let detailedMsg = `[auto-play] Course correction (direction refresh) failed for phase "${freshPhase?.name}"`;
+            if (isFetchError) {
+              detailedMsg += ' - Network error';
+            } else if (isTimeout) {
+              detailedMsg += ' - Request timed out';
+            }
+            detailedMsg += `\nPhase progress: ${knownCompleted}/${freshPhase?.sceneAllocation ?? 0} scenes`;
+            detailedMsg += `\nError: ${errorMsg}`;
+
+            console.error(detailedMsg);
+
+            // Log error with structured context
+            logError(
+              `Course correction failed for phase "${freshPhase?.name}"`,
+              err,
+              {
+                source: 'auto-play',
+                operation: 'course-correction',
+                details: {
+                  phaseName: freshPhase?.name,
+                  scenesCompleted: knownCompleted,
+                  sceneAllocation: freshPhase?.sceneAllocation,
+                },
+              }
+            );
           }
         }
       }
 
     } catch (err) {
-      console.error('[auto-play] cycle error:', err);
-      cycleError = err instanceof Error ? err.message : String(err);
+      const errorMsg = err instanceof Error ? err.message : String(err);
+      const isFetchError = errorMsg.includes('fetch failed');
+      const isTimeout = errorMsg.includes('timed out');
+      const isJSON = errorMsg.includes('JSON') || errorMsg.includes('parse');
+
+      let detailedMsg = `[auto-play] Cycle ${autoRunState.currentCycle + 1} failed`;
+      detailedMsg += `\nAction: ${action} (${chosen.reason})`;
+      detailedMsg += `\nMode: ${activeNarrative.storySettings?.generationMode ?? 'batch'}`;
+      detailedMsg += `\nTarget scenes: ${sceneCount}`;
+
+      if (isFetchError) {
+        detailedMsg += '\nCause: Network error - fetch failed (check API connectivity)';
+      } else if (isTimeout) {
+        detailedMsg += '\nCause: Request timed out (LLM took too long to respond)';
+      } else if (isJSON) {
+        detailedMsg += '\nCause: JSON parsing error (LLM returned malformed data)';
+      }
+
+      if (pq) {
+        const ap = pq.phases[pq.activePhaseIndex];
+        if (ap) {
+          detailedMsg += `\nPhase: "${ap.name}" (${ap.scenesCompleted}/${ap.sceneAllocation} completed)`;
+        }
+      }
+
+      detailedMsg += `\nError: ${errorMsg}`;
+      console.error(detailedMsg);
+
+      // Log error with structured context
+      logError(
+        `Generation cycle ${autoRunState.currentCycle + 1} failed`,
+        err,
+        {
+          source: 'auto-play',
+          operation: 'scene-generation',
+          details: {
+            action,
+            generationMode: activeNarrative.storySettings?.generationMode,
+            phaseName: pq?.phases[pq.activePhaseIndex]?.name,
+            phaseProgress: pq ? `${pq.phases[pq.activePhaseIndex]?.scenesCompleted}/${pq.phases[pq.activePhaseIndex]?.sceneAllocation}` : undefined,
+          },
+        }
+      );
+
+      cycleError = errorMsg;
     }
 
     if (cancelledRef.current) return;

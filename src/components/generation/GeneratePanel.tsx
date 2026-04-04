@@ -13,6 +13,7 @@ import { MarkovGraph } from './MarkovGraph';
 import { GuidanceFields } from './GuidanceFields';
 import { Modal, ModalHeader, ModalBody } from '@/components/Modal';
 import { IconDice, IconChevronRight } from '@/components/icons';
+import { logError } from '@/lib/error-logger';
 
 type Mode = 'continuation' | 'world';
 
@@ -177,6 +178,19 @@ export function GeneratePanel({ onClose }: { onClose: () => void }) {
       }
       onClose();
     } catch (err) {
+      logError(
+        'Manual scene generation failed',
+        err,
+        {
+          source: 'manual-generation',
+          operation: 'generate-scenes',
+          details: {
+            sceneCount: count,
+            generationMode: genMode,
+            newArc,
+          },
+        }
+      );
       setError(String(err));
     } finally {
       setLoading(false);
@@ -190,7 +204,18 @@ export function GeneratePanel({ onClose }: { onClose: () => void }) {
     try {
       const suggestion = await suggestWorldExpansion(narrative, state.resolvedEntryKeys, headIndex, worldSize, worldStrategy);
       setWorldDirective(suggestion);
-    } catch (err) { setError(String(err)); } finally { setSuggesting(false); }
+    } catch (err) {
+      logError(
+        'World expansion suggestion failed',
+        err,
+        {
+          source: 'world-expansion',
+          operation: 'suggest-expansion',
+          details: { worldSize, worldStrategy },
+        }
+      );
+      setError(String(err));
+    } finally { setSuggesting(false); }
   }
 
   async function handleExpandWorld() {
@@ -206,7 +231,18 @@ export function GeneratePanel({ onClose }: { onClose: () => void }) {
         artifacts: expansion.artifacts, branchId: state.activeBranchId!,
       });
       onClose();
-    } catch (err) { setError(String(err)); } finally { setLoading(false); }
+    } catch (err) {
+      logError(
+        'World expansion generation failed',
+        err,
+        {
+          source: 'world-expansion',
+          operation: 'expand-world',
+          details: { worldSize, worldStrategy, directiveLength: worldDirective.length },
+        }
+      );
+      setError(String(err));
+    } finally { setLoading(false); }
   }
 
   const showPreview = !!previewSequence && mode === 'continuation' && !loading;
