@@ -24,41 +24,75 @@ const GRAPH_MODES = new Set<GraphViewMode>(['spatial', 'overview', 'spark', 'cod
 
 type CanvasMode = 'graph' | 'plan' | 'prose' | 'audio';
 
+// Module-level state shared with SceneProseView
+let beatPlanLinkedModeGlobal = false;
+
 function BeatPlanToggle() {
-  const [isOn, setIsOn] = useState(false);
+  const [isOn, setIsOn] = useState(() => beatPlanLinkedModeGlobal);
+
+  // Listen for toggle events from SceneProseView to stay in sync
+  useEffect(() => {
+    const handleToggled = (e: Event) => {
+      const newValue = (e as CustomEvent).detail?.value ?? !isOn;
+      setIsOn(newValue);
+      beatPlanLinkedModeGlobal = newValue;
+    };
+    window.addEventListener('canvas:beat-plan-toggled', handleToggled);
+    return () => window.removeEventListener('canvas:beat-plan-toggled', handleToggled);
+  }, [isOn]);
 
   const handleClick = () => {
-    setIsOn(!isOn);
+    const newValue = !isOn;
+    setIsOn(newValue);
+    beatPlanLinkedModeGlobal = newValue;
     window.dispatchEvent(new CustomEvent('canvas:toggle-beat-plan'));
+    window.dispatchEvent(new CustomEvent('canvas:beat-plan-toggled', { detail: { value: newValue } }));
   };
 
   return (
     <button
       onClick={handleClick}
-      className="relative inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full transition-all duration-200"
+      className="relative inline-flex items-center rounded-full transition-all duration-200 overflow-hidden"
       style={{
-        backgroundColor: isOn ? 'rgba(245, 158, 11, 0.15)' : 'rgba(255, 255, 255, 0.03)',
+        width: '64px',
+        height: '20px',
+        backgroundColor: isOn ? 'rgba(245, 158, 11, 0.2)' : 'rgba(255, 255, 255, 0.05)',
         borderWidth: '1px',
         borderStyle: 'solid',
-        borderColor: isOn ? 'rgba(245, 158, 11, 0.4)' : 'rgba(255, 255, 255, 0.08)',
+        borderColor: isOn ? 'rgba(245, 158, 11, 0.5)' : 'rgba(255, 255, 255, 0.1)',
       }}
     >
-      {/* Toggle indicator */}
+      {/* Background track with labels */}
+      <div className="absolute inset-0 flex items-center justify-between px-1.5">
+        <span
+          className="text-[8px] font-semibold transition-opacity duration-200"
+          style={{
+            opacity: isOn ? 0 : 0.4,
+            color: 'rgba(255, 255, 255, 0.4)',
+          }}
+        >
+          OFF
+        </span>
+        <span
+          className="text-[8px] font-semibold transition-opacity duration-200"
+          style={{
+            opacity: isOn ? 0.9 : 0,
+            color: 'rgb(251, 191, 36)',
+          }}
+        >
+          ON
+        </span>
+      </div>
+      {/* Sliding pill */}
       <div
-        className="w-3 h-3 rounded-full transition-all duration-200"
+        className="absolute top-0.5 bottom-0.5 rounded-full transition-all duration-200"
         style={{
-          backgroundColor: isOn ? 'rgb(251, 191, 36)' : 'rgba(255, 255, 255, 0.2)',
-          boxShadow: isOn ? '0 0 8px rgba(251, 191, 36, 0.4)' : 'none',
+          width: '30px',
+          left: isOn ? 'calc(100% - 31px)' : '1px',
+          backgroundColor: isOn ? 'rgb(251, 191, 36)' : 'rgba(255, 255, 255, 0.3)',
+          boxShadow: isOn ? '0 0 10px rgba(251, 191, 36, 0.5)' : '0 1px 3px rgba(0, 0, 0, 0.3)',
         }}
       />
-      <span
-        className="text-[10px] font-medium transition-colors duration-200"
-        style={{
-          color: isOn ? 'rgb(251, 191, 36)' : 'rgba(255, 255, 255, 0.4)',
-        }}
-      >
-        Linked
-      </span>
     </button>
   );
 }

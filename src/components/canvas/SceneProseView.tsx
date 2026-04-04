@@ -6,6 +6,24 @@ import { useStore } from "@/lib/store";
 import type { NarrativeState, Scene } from "@/types/narrative";
 import { useCallback, useEffect, useRef, useState } from "react";
 
+// Persistent state that survives component unmounts (scene navigation, world commits)
+let beatPlanLinkedModePersisted = false;
+
+// Custom hook: useState that persists across component unmounts
+function usePersistedState(initialValue: boolean): [boolean, (value: boolean | ((prev: boolean) => boolean)) => void] {
+  const [state, setState] = useState(() => beatPlanLinkedModePersisted);
+
+  const setPersistedState = useCallback((value: boolean | ((prev: boolean) => boolean)) => {
+    setState((prev) => {
+      const newValue = typeof value === 'function' ? value(prev) : value;
+      beatPlanLinkedModePersisted = newValue; // Persist across unmounts
+      return newValue;
+    });
+  }, []);
+
+  return [state, setPersistedState];
+}
+
 const FN_COLORS: Record<string, string> = {
   breathe: "#6b7280",
   inform: "#3b82f6",
@@ -52,7 +70,7 @@ export function SceneProseView({
       : { text: "", status: "idle" },
   );
   const [isEditing, setIsEditing] = useState(false);
-  const [showBeatPlan, setShowBeatPlan] = useState(false);
+  const [showBeatPlan, setShowBeatPlan] = usePersistedState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   // Sync when scene changes
@@ -183,7 +201,12 @@ export function SceneProseView({
       if (detail?.guidance) rewriteProse(detail.guidance);
     }
     function onToggleBeatPlan() {
-      setShowBeatPlan((prev) => !prev);
+      setShowBeatPlan((prev) => {
+        const newValue = !prev;
+        // Notify CanvasTopBar to sync its toggle state
+        window.dispatchEvent(new CustomEvent('canvas:beat-plan-toggled', { detail: { value: newValue } }));
+        return newValue;
+      });
     }
     window.addEventListener("canvas:generate-prose", onGenerate);
     window.addEventListener("canvas:clear-prose", onClear);
@@ -197,7 +220,7 @@ export function SceneProseView({
       window.removeEventListener("canvas:rewrite-prose", onRewrite);
       window.removeEventListener("canvas:toggle-beat-plan", onToggleBeatPlan);
     };
-  }, [generateProse, rewriteProse, isEditing, saveEdit, scene.id, dispatch]);
+  }, [generateProse, rewriteProse, isEditing, saveEdit, scene.id, dispatch, setShowBeatPlan]);
 
   // Click outside textarea to save and close editor
   const editorWrapRef = useRef<HTMLDivElement>(null);
