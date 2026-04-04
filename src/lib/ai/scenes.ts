@@ -835,41 +835,41 @@ export async function mapBeatsToProseRanges(
   if (!prose.trim() || beats.length === 0) return null;
 
   // Use consistent sentence-based splitting to ensure enough granularity
-  const targetChunks = Math.max(beats.length, Math.ceil(beats.length * 1.5));
+  // Ask for 2x beats to give LLM flexibility and reduce mapping failures
+  const targetChunks = Math.max(beats.length, Math.ceil(beats.length * 2));
   const chunks = splitProseIntoChunks(prose, targetChunks);
 
   if (chunks.length === 0) return null;
 
-  const systemPrompt = `You are a prose-to-structure alignment expert. Map beats to prose chunks with perfect accuracy.
+  const systemPrompt = `You are a prose-to-structure alignment expert. Map ${beats.length} beats to ${chunks.length} prose chunks.
 
-CRITICAL REQUIREMENTS (validation before responding):
-1. EVERY chunk [0-${chunks.length - 1}] must be assigned to EXACTLY ONE beat
-2. Ranges MUST be sequential with NO GAPS: if beat N ends at X, beat N+1 MUST start at X+1
-3. Beat 0 MUST start at chunk 0
-4. Beat ${beats.length - 1} MUST end at chunk ${chunks.length - 1}
-5. NO overlapping ranges
-6. ALL ${chunks.length} chunks must be covered
+CRITICAL: Ranges MUST be perfectly sequential with NO GAPS and NO OVERLAPS.
 
-VALIDATION CHECKLIST (verify before responding):
-☐ All ${chunks.length} chunks assigned?
-☐ No gaps in ranges (beat N ends at X, beat N+1 starts at X+1)?
-☐ No overlaps?
-☐ First beat starts at 0?
-☐ Last beat ends at ${chunks.length - 1}?
-☐ All beatIndex values from 0 to ${beats.length - 1} present?
+CORRECT EXAMPLE (3 beats, 10 chunks):
+{"mappings": [
+  {"beatIndex": 0, "startPara": 0, "endPara": 3},   ← ends at 3
+  {"beatIndex": 1, "startPara": 4, "endPara": 7},   ← starts at 4 (3+1)
+  {"beatIndex": 2, "startPara": 8, "endPara": 9}    ← starts at 8 (7+1), ends at 9 (last chunk)
+]}
 
-Return ONLY valid JSON in this exact format:
+WRONG EXAMPLES:
+❌ {"beatIndex": 1, "startPara": 3, ...}  ← overlap! Should start at 4
+❌ {"beatIndex": 1, "startPara": 5, ...}  ← gap! Missing chunk 4
+❌ {"beatIndex": 2, "endPara": 8}         ← doesn't reach last chunk (9)
+
+REQUIREMENTS:
+1. Beat 0 starts at 0
+2. Beat ${beats.length - 1} ends at ${chunks.length - 1}
+3. Each beat's startPara = previous beat's endPara + 1
+4. All ${chunks.length} chunks covered exactly once
+
+Return ONLY valid JSON (nothing before or after):
 {
   "mappings": [
-    {"beatIndex": 0, "startPara": 0, "endPara": 2},
-    {"beatIndex": 1, "startPara": 3, "endPara": 5}
+    {"beatIndex": 0, "startPara": 0, "endPara": ...},
+    ...
   ]
-}
-
-Rules:
-- beatIndex: 0-indexed, matching beat sequence order
-- startPara, endPara: inclusive chunk indices [0, ${chunks.length - 1}]
-- Adjacent beats must have consecutive ranges (no gaps, no overlaps)`;
+}`;
 
   const beatSummaries = beats.map((b, i) => `[${i}] ${b.fn}: ${b.what}`).join('\n');
   const chunksWithIndices = chunks.map((c, i) => `[${i}] ${c.substring(0, 200)}${c.length > 200 ? '...' : ''}`).join('\n\n');
@@ -1007,27 +1007,39 @@ function buildHeuristicSegmentation(
 ): BeatProse[] | null {
   if (beatCount === 0 || paragraphs.length === 0) return null;
 
-  // If paragraphs < beats, we need to split further to avoid duplicates
+  // Ensure we have at least beatCount segments to distribute
   let segments = paragraphs;
   if (paragraphs.length < beatCount) {
-    // Combine and re-split by sentences to get more granular chunks
     const fullText = paragraphs.join('\n\n');
     segments = splitProseIntoChunks(fullText, beatCount);
-  }
 
-  if (segments.length === 0) return null;
+    // If still not enough segments, fail (prose too short)
+    if (segments.length < beatCount) {
+      console.error(`[buildHeuristicSegmentation] Cannot split prose into ${beatCount} chunks (only got ${segments.length})`);
+      return null;
+    }
+  }
 
   const chunks: BeatProse[] = [];
-  const segmentsPerBeat = segments.length / beatCount;
 
-  for (let i = 0; i < beatCount; i++) {
-    const startIdx = Math.floor(i * segmentsPerBeat);
-    const endIdx = i === beatCount - 1 ? segments.length - 1 : Math.floor((i + 1) * segmentsPerBeat) - 1;
-    const prose = segments.slice(startIdx, endIdx + 1).join('\n\n');
-    chunks.push({ beatIndex: i, prose });
+  // Distribute segments across beats
+  if (segments.length === beatCount) {
+    // Perfect match - one segment per beat
+    for (let i = 0; i < beatCount; i++) {
+      chunks.push({ beatIndex: i, prose: segments[i] });
+    }
+  } else {
+    // More segments than beats - distribute evenly
+    const segmentsPerBeat = segments.length / beatCount;
+    for (let i = 0; i < beatCount; i++) {
+      const startIdx = Math.floor(i * segmentsPerBeat);
+      const endIdx = i === beatCount - 1 ? segments.length - 1 : Math.floor((i + 1) * segmentsPerBeat) - 1;
+      const prose = segments.slice(startIdx, endIdx + 1).join('\n\n');
+      chunks.push({ beatIndex: i, prose });
+    }
   }
 
-  // Verify no duplicates (should never happen with proper splitting, but validate)
+  // Verify no duplicates
   const proseSet = new Set<string>();
   for (let i = 0; i < chunks.length; i++) {
     if (proseSet.has(chunks[i].prose)) {

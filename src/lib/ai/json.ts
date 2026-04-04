@@ -1,6 +1,50 @@
 /** Clean common LLM JSON quirks: code fences, trailing commas, single-quoted keys */
 export function cleanJson(raw: string): string {
   let s = raw.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+
+  // Extract just the JSON part if LLM added extra text after
+  // Find the first { or [, then find its matching closing bracket
+  const firstBrace = s.indexOf('{');
+  const firstBracket = s.indexOf('[');
+  const start = firstBrace >= 0 && (firstBracket < 0 || firstBrace < firstBracket) ? firstBrace : firstBracket;
+
+  if (start >= 0) {
+    let depth = 0;
+    let inString = false;
+    let escaped = false;
+
+    for (let i = start; i < s.length; i++) {
+      const ch = s[i];
+
+      if (escaped) {
+        escaped = false;
+        continue;
+      }
+
+      if (ch === '\\' && inString) {
+        escaped = true;
+        continue;
+      }
+
+      if (ch === '"' && !escaped) {
+        inString = !inString;
+        continue;
+      }
+
+      if (!inString) {
+        if (ch === '{' || ch === '[') depth++;
+        if (ch === '}' || ch === ']') {
+          depth--;
+          if (depth === 0) {
+            // Found the matching closing bracket
+            s = s.substring(start, i + 1);
+            break;
+          }
+        }
+      }
+    }
+  }
+
   // Remove trailing commas before } or ]
   s = s.replace(/,\s*([}\]])/g, '$1');
   // Fix unescaped control characters inside JSON string values.
