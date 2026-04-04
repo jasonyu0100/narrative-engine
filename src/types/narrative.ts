@@ -157,10 +157,22 @@ export type BeatMechanism =
   | 'document'     // Embedded text: letter, newspaper, cited poetry
   | 'comic';       // Humor — physical comedy, ironic observation, absurdity
 
-/** A proposition — an atomic story world fact the reader must come to believe is true */
+/**
+ * A proposition — an atomic claim the reader must come to believe is true.
+ * Works for both fiction (story world facts) and non-fiction (domain facts).
+ *
+ * The number of propositions is determined by information density —
+ * extract as many as needed to faithfully reconstruct the semantic content.
+ */
 export type Proposition = {
-  /** The atomic story world fact */
+  /** The atomic claim */
   content: string;
+  /**
+   * Semantic type label — free-form string for embedding compatibility.
+   * Common types: state, claim, definition, formula, evidence, rule, comparison, example
+   * But any descriptive label works (e.g., "character_belief", "causal_mechanism", "constraint")
+   */
+  type?: string;
 };
 
 /** A single beat in a scene plan */
@@ -184,7 +196,7 @@ export type BeatPlan = {
 export type BeatProse = {
   /** Index of the beat in the scene's BeatPlan.beats array */
   beatIndex: number;
-  /** The prose generated for this beat */
+  /** The prose text for this beat */
   prose: string;
 };
 
@@ -973,7 +985,7 @@ export type AnalysisChunkResult = {
 };
 
 /** Analysis pipeline phases */
-export type AnalysisPhase = 'extraction' | 'plans' | 'reconciliation' | 'finalization' | 'assembly';
+export type AnalysisPhase = 'extraction' | 'plans' | 'mapping' | 'reconciliation' | 'finalization' | 'assembly';
 
 export type AnalysisJob = {
   id: string;

@@ -221,7 +221,7 @@ export async function deriveProseProfile(narrative: NarrativeState): Promise<Pro
   if (withProse.length > 0) {
     lines.push(`\nPROSE EXCERPTS:`);
     for (const s of withProse.slice(0, 3)) {
-      const excerpt = s.prose!.slice(0, 500);
+      const excerpt = s.prose!.slice(0, 2000);
       lines.push(`---\n${excerpt}\n---`);
     }
   }

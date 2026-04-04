@@ -73,6 +73,11 @@ export function SceneProseView({
   const [showBeatPlan, setShowBeatPlan] = usePersistedState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
+  // Sync beat plan toggle state to CanvasTopBar (after render, not during)
+  useEffect(() => {
+    window.dispatchEvent(new CustomEvent('canvas:beat-plan-toggled', { detail: { value: showBeatPlan } }));
+  }, [showBeatPlan]);
+
   // Sync when scene changes
   useEffect(() => {
     setProseState(
@@ -201,12 +206,7 @@ export function SceneProseView({
       if (detail?.guidance) rewriteProse(detail.guidance);
     }
     function onToggleBeatPlan() {
-      setShowBeatPlan((prev) => {
-        const newValue = !prev;
-        // Notify CanvasTopBar to sync its toggle state
-        window.dispatchEvent(new CustomEvent('canvas:beat-plan-toggled', { detail: { value: newValue } }));
-        return newValue;
-      });
+      setShowBeatPlan((prev) => !prev);
     }
     window.addEventListener("canvas:generate-prose", onGenerate);
     window.addEventListener("canvas:clear-prose", onClear);
@@ -253,73 +253,76 @@ export function SceneProseView({
   return (
     <div className="h-full overflow-y-auto" style={{ scrollbarWidth: "thin" }}>
       {showBeatPlan && hasBeatMapping ? (
-        // Single-scroll side-by-side linked view with improved alignment
-        <div className="max-w-[1400px] mx-auto px-16 pt-12 pb-48">
-          <div className="space-y-16">
+        // Linked view: each beat row has plan on left, prose on right
+        <div className="px-6 pt-6 pb-48">
+          <div className="space-y-0">
             {scene.beatProseMap!.chunks.map((chunk, idx) => {
               const beat = scene.plan!.beats[chunk.beatIndex];
               return (
                 <div
                   key={chunk.beatIndex}
-                  className="flex items-center gap-8 group"
+                  className="group relative flex gap-3 py-3 hover:bg-white/2 rounded-lg transition-colors"
                 >
-                  {/* Left: Beat Plan Card */}
-                  <div className="w-[40%] shrink-0">
-                    <div className="p-4 rounded-lg bg-white/3 border border-white/8 transition-all group-hover:bg-white/5 group-hover:border-white/15 group-hover:shadow-lg">
-                      <div className="flex items-center gap-2 mb-3">
-                        <div
-                          className="w-6 h-6 rounded-full flex items-center justify-center text-[11px] font-semibold border-2 shrink-0"
-                          style={{
-                            borderColor: FN_COLORS[beat.fn],
-                            backgroundColor: `${FN_COLORS[beat.fn]}18`,
-                            color: FN_COLORS[beat.fn],
-                          }}
-                        >
-                          {chunk.beatIndex + 1}
-                        </div>
-                        <span
-                          className="text-xs font-semibold uppercase tracking-wide"
-                          style={{ color: FN_COLORS[beat.fn] }}
-                        >
-                          {beat.fn}
-                        </span>
-                        <span className="text-[10px] text-text-dim/50">
-                          {MECH_ICONS[beat.mechanism]} {beat.mechanism}
-                        </span>
-                      </div>
-                      <p className="text-[11px] text-text-secondary leading-relaxed">
-                        {beat.what}
-                      </p>
-                      {beat.propositions && beat.propositions.length > 0 && (
-                        <div className="mt-3 pt-3 border-t border-white/5 space-y-1.5">
-                          {beat.propositions.map((prop, j) => (
-                            <p
-                              key={j}
-                              className="text-[10px] text-text-dim/70 italic leading-relaxed"
-                            >
-                              • {prop.content}
-                            </p>
-                          ))}
-                        </div>
-                      )}
+                  {/* Timeline indicator */}
+                  <div className="flex flex-col items-center shrink-0 w-6">
+                    <div
+                      className="w-5 h-5 rounded-full border-2 shrink-0 flex items-center justify-center text-[9px] font-semibold"
+                      style={{
+                        borderColor: FN_COLORS[beat.fn] ?? "#666",
+                        backgroundColor: `${FN_COLORS[beat.fn] ?? "#666"}18`,
+                        color: FN_COLORS[beat.fn] ?? "#666",
+                      }}
+                    >
+                      {chunk.beatIndex + 1}
                     </div>
+                    {idx < scene.beatProseMap!.chunks.length - 1 && (
+                      <div className="flex-1 w-px bg-white/8 mt-0.5" />
+                    )}
                   </div>
 
-                  {/* Connection indicator */}
-                  <div className="shrink-0 flex items-stretch py-1">
-                    <div
-                      className="w-px min-h-full opacity-10 group-hover:opacity-20 transition-opacity"
-                      style={{ backgroundColor: FN_COLORS[beat.fn] }}
-                    />
+                  {/* Left: Beat plan */}
+                  <div className="flex-1 basis-0 p-3">
+                    <div className="flex items-center gap-2 mb-1.5">
+                      <span
+                        className="text-[9px] font-semibold uppercase tracking-wider"
+                        style={{ color: FN_COLORS[beat.fn] ?? "#666" }}
+                      >
+                        {beat.fn}
+                      </span>
+                      <span className="text-[9px] text-text-dim/50">
+                        {MECH_ICONS[beat.mechanism]} {beat.mechanism}
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-text-secondary leading-relaxed">
+                      {beat.what}
+                    </p>
+                    {beat.propositions && beat.propositions.length > 0 && (
+                      <div className="mt-2 space-y-1">
+                        {beat.propositions.map((prop, j) => (
+                          <div key={j} className="flex items-start gap-1.5">
+                            <span className="shrink-0 text-[8px] px-1 py-0.5 rounded bg-white/5 text-text-dim/50 font-mono min-w-[2ch]">
+                              {prop.type || "·"}
+                            </span>
+                            <p className="text-[10px] text-text-dim/60 italic leading-relaxed">
+                              {prop.content}
+                            </p>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
 
                   {/* Right: Prose */}
-                  <div className="flex-1 min-w-0">
+                  <div className="flex-1 basis-0 p-3">
                     <div className="prose-content">
                       {chunk.prose.split("\n\n").map((para, paraIdx) => (
                         <p
                           key={paraIdx}
-                          className="text-[13px] text-text-secondary leading-[1.8] mb-5 last:mb-0 first:first-letter:text-2xl first:first-letter:font-semibold first:first-letter:text-text-primary first:first-letter:mr-0.5"
+                          className={`text-[13px] text-text-secondary leading-[1.8] mb-5 last:mb-0 ${
+                            idx === 0 && paraIdx === 0
+                              ? "first-letter:text-2xl first-letter:font-semibold first-letter:text-text-primary first-letter:mr-0.5"
+                              : ""
+                          }`}
                         >
                           {para}
                         </p>

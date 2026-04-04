@@ -526,13 +526,12 @@ describe('editScenePlan', () => {
 // ── reverseEngineerScenePlan Tests ───────────────────────────────────────────
 
 describe('reverseEngineerScenePlan', () => {
-  it('extracts beat structure from prose and returns both plan and beatProseMap', async () => {
+  it('extracts beat structure from prose and returns plan', async () => {
     const mockResponse = JSON.stringify({
       beats: [
-        { fn: 'breathe', mechanism: 'environment', what: 'Morning light', propositions: [{ content: 'golden rays' }], startPara: 0, endPara: 0 },
-        { fn: 'bond', mechanism: 'dialogue', what: 'Characters reconnect', propositions: [{ content: 'warm smile' }], startPara: 1, endPara: 1 },
+        { fn: 'breathe', mechanism: 'environment', what: 'Morning light', propositions: [{ content: 'golden rays' }] },
+        { fn: 'bond', mechanism: 'dialogue', what: 'Characters reconnect', propositions: [{ content: 'warm smile' }] },
       ],
-      propositions: [{ content: 'The morning light fell like honey.' }],
     });
     vi.mocked(callGenerate).mockResolvedValue(mockResponse);
 
@@ -542,73 +541,10 @@ describe('reverseEngineerScenePlan', () => {
     const result = await reverseEngineerScenePlan(prose, summary);
 
     expect(result.plan.beats).toHaveLength(2);
-    expect(result.plan.propositions?.[0]?.content).toContain('morning light');
-    expect(result.beatProseMap).toBeDefined();
-    expect(result.beatProseMap?.chunks).toHaveLength(2);
-    expect(result.beatProseMap?.chunks[0].beatIndex).toBe(0);
-    expect(result.beatProseMap?.chunks[0].prose).toContain('morning light');
-    expect(result.beatProseMap?.chunks[1].beatIndex).toBe(1);
-    expect(result.beatProseMap?.chunks[1].prose).toContain('missed you');
-  });
-
-  it('creates beatProseMap with valid sequential paragraph ranges', async () => {
-    const mockResponse = JSON.stringify({
-      beats: [
-        { fn: 'breathe', mechanism: 'environment', what: 'Setup', propositions: [{ content: 'fact 1' }], startPara: 0, endPara: 1 },
-        { fn: 'advance', mechanism: 'action', what: 'Action', propositions: [{ content: 'fact 2' }], startPara: 2, endPara: 3 },
-        { fn: 'resolve', mechanism: 'dialogue', what: 'Resolution', propositions: [{ content: 'fact 3' }], startPara: 4, endPara: 4 },
-      ],
-      propositions: [],
-    });
-    vi.mocked(callGenerate).mockResolvedValue(mockResponse);
-
-    const prose = 'Para 1.\n\nPara 2.\n\nPara 3.\n\nPara 4.\n\nPara 5.';
-    const result = await reverseEngineerScenePlan(prose, 'Test');
-
-    expect(result.beatProseMap).toBeDefined();
-    expect(result.beatProseMap?.chunks).toHaveLength(3);
-    expect(result.beatProseMap?.chunks[0].prose).toBe('Para 1.\n\nPara 2.');
-    expect(result.beatProseMap?.chunks[1].prose).toBe('Para 3.\n\nPara 4.');
-    expect(result.beatProseMap?.chunks[2].prose).toBe('Para 5.');
-  });
-
-  it('falls back to heuristic segmentation when LLM ranges are invalid', async () => {
-    const mockResponse = JSON.stringify({
-      beats: [
-        { fn: 'breathe', mechanism: 'environment', what: 'Beat 1', propositions: [{ content: 'fact 1' }] }, // Missing ranges
-        { fn: 'advance', mechanism: 'action', what: 'Beat 2', propositions: [{ content: 'fact 2' }] },
-      ],
-      propositions: [],
-    });
-    vi.mocked(callGenerate).mockResolvedValue(mockResponse);
-
-    const prose = 'Para 1.\n\nPara 2.\n\nPara 3.\n\nPara 4.';
-    const result = await reverseEngineerScenePlan(prose, 'Test');
-
-    // Should fall back to heuristic segmentation
-    expect(result.beatProseMap).toBeDefined();
-    expect(result.beatProseMap?.chunks).toHaveLength(2);
-    // Heuristic distributes paragraphs proportionally
-    expect(result.beatProseMap?.chunks[0].beatIndex).toBe(0);
-    expect(result.beatProseMap?.chunks[1].beatIndex).toBe(1);
-  });
-
-  it('returns null beatProseMap when ranges have gaps', async () => {
-    const mockResponse = JSON.stringify({
-      beats: [
-        { fn: 'breathe', mechanism: 'environment', what: 'Beat 1', propositions: [{ content: 'fact 1' }], startPara: 0, endPara: 0 },
-        { fn: 'advance', mechanism: 'action', what: 'Beat 2', propositions: [{ content: 'fact 2' }], startPara: 2, endPara: 2 }, // Gap! Missing para 1
-      ],
-      propositions: [],
-    });
-    vi.mocked(callGenerate).mockResolvedValue(mockResponse);
-
-    const prose = 'Para 1.\n\nPara 2.\n\nPara 3.';
-    const result = await reverseEngineerScenePlan(prose, 'Test');
-
-    // Invalid ranges should fall back to heuristic
-    expect(result.beatProseMap).toBeDefined();
-    expect(result.beatProseMap?.chunks).toHaveLength(2);
+    expect(result.plan.beats[0].fn).toBe('breathe');
+    expect(result.plan.beats[0].mechanism).toBe('environment');
+    expect(result.plan.beats[1].fn).toBe('bond');
+    expect(result.plan.beats[1].mechanism).toBe('dialogue');
   });
 
   it('validates beat functions and mechanisms to prevent invalid values', async () => {
@@ -641,13 +577,7 @@ describe('reverseEngineerScenePlan', () => {
             { notContent: 'wrong key' }, // Wrong structure
             { content: 'Another valid one' },
           ],
-          startPara: 0,
-          endPara: 0,
         },
-      ],
-      propositions: [
-        { content: 'Valid scene prop' },
-        { content: '' }, // Empty
       ],
     });
     vi.mocked(callGenerate).mockResolvedValue(mockResponse);
@@ -658,14 +588,11 @@ describe('reverseEngineerScenePlan', () => {
     expect(result.plan.beats[0].propositions).toHaveLength(2);
     expect(result.plan.beats[0].propositions[0].content).toBe('Valid proposition');
     expect(result.plan.beats[0].propositions[1].content).toBe('Another valid one');
-    expect(result.plan.propositions).toHaveLength(1);
-    expect(result.plan.propositions?.[0].content).toBe('Valid scene prop');
   });
 
   it('handles streaming with onToken callback', async () => {
     const mockResponse = JSON.stringify({
-      beats: [{ fn: 'advance', mechanism: 'action', what: 'Action beat', propositions: [{ content: 'detail' }], startPara: 0, endPara: 0 }],
-      propositions: [],
+      beats: [{ fn: 'advance', mechanism: 'action', what: 'Action beat', propositions: [{ content: 'detail' }] }],
     });
     vi.mocked(callGenerateStream).mockResolvedValue(mockResponse);
 
@@ -678,19 +605,6 @@ describe('reverseEngineerScenePlan', () => {
 
     expect(result.plan.beats).toHaveLength(1);
     expect(vi.mocked(callGenerateStream)).toHaveBeenCalled();
-  });
-
-  it('returns beatProseMap undefined when prose has no paragraphs', async () => {
-    const mockResponse = JSON.stringify({
-      beats: [{ fn: 'breathe', mechanism: 'environment', what: 'Empty', propositions: [], startPara: 0, endPara: 0 }],
-      propositions: [],
-    });
-    vi.mocked(callGenerate).mockResolvedValue(mockResponse);
-
-    const prose = '';
-    const result = await reverseEngineerScenePlan(prose, 'Test');
-
-    expect(result.beatProseMap).toBeUndefined();
   });
 });
 
@@ -844,5 +758,132 @@ describe('generateSceneProse', () => {
     expect(callArgs[0]).toContain('PROSE PROFILE');
     expect(callArgs[0]).toContain('literary');
     expect(callArgs[0]).toContain('close_third');
+  });
+
+  it('parses BEAT_END markers and creates beatProseMap', async () => {
+    const mockProse = `The morning light filtered through the window.
+
+[BEAT_END:0]
+
+She reached for her sword.
+
+[BEAT_END:1]
+
+"We must go now," he said.`;
+
+    vi.mocked(callGenerate).mockResolvedValue(mockProse);
+
+    const narrative = createMinimalNarrative();
+    const scene = createScene('S-001', {
+      plan: {
+        beats: [
+          { fn: 'breathe', mechanism: 'environment', what: 'Morning light', propositions: [] },
+          { fn: 'advance', mechanism: 'action', what: 'Reaches for sword', propositions: [] },
+          { fn: 'turn', mechanism: 'dialogue', what: 'Urgency', propositions: [] },
+        ],
+      },
+    });
+
+    const result = await generateSceneProse(narrative, scene, []);
+
+    expect(result.beatProseMap).toBeDefined();
+    expect(result.beatProseMap?.chunks).toHaveLength(3);
+    expect(result.beatProseMap?.chunks[0].prose).toBe('The morning light filtered through the window.');
+    expect(result.beatProseMap?.chunks[1].prose).toBe('She reached for her sword.');
+    expect(result.beatProseMap?.chunks[2].prose).toBe('"We must go now," he said.');
+    expect(result.prose).not.toContain('[BEAT_END:');
+  });
+
+  it('retries when BEAT_END markers are missing', async () => {
+    const proseWithoutMarkers = 'The morning light filtered through the window. She reached for her sword.';
+    const proseWithMarkers = `The morning light filtered through the window.
+
+[BEAT_END:0]
+
+She reached for her sword.`;
+
+    vi.mocked(callGenerate)
+      .mockResolvedValueOnce(proseWithoutMarkers) // First attempt - no markers
+      .mockResolvedValueOnce(proseWithMarkers);   // Second attempt - has markers
+
+    const narrative = createMinimalNarrative();
+    const scene = createScene('S-001', {
+      plan: {
+        beats: [
+          { fn: 'breathe', mechanism: 'environment', what: 'Morning light', propositions: [] },
+          { fn: 'advance', mechanism: 'action', what: 'Reaches for sword', propositions: [] },
+        ],
+      },
+    });
+
+    const result = await generateSceneProse(narrative, scene, []);
+
+    expect(vi.mocked(callGenerate)).toHaveBeenCalledTimes(2);
+    expect(result.beatProseMap).toBeDefined();
+    expect(result.beatProseMap?.chunks).toHaveLength(2);
+  });
+
+  it('returns prose without beatProseMap after max retries on marker failure', async () => {
+    const proseWithoutMarkers = 'The morning light filtered through the window. She reached for her sword.';
+
+    vi.mocked(callGenerate)
+      .mockResolvedValueOnce(proseWithoutMarkers) // First attempt
+      .mockResolvedValueOnce(proseWithoutMarkers); // Second attempt (max retries)
+
+    const narrative = createMinimalNarrative();
+    const scene = createScene('S-001', {
+      plan: {
+        beats: [
+          { fn: 'breathe', mechanism: 'environment', what: 'Morning light', propositions: [] },
+          { fn: 'advance', mechanism: 'action', what: 'Reaches for sword', propositions: [] },
+        ],
+      },
+    });
+
+    const result = await generateSceneProse(narrative, scene, []);
+
+    expect(vi.mocked(callGenerate)).toHaveBeenCalledTimes(2);
+    expect(result.beatProseMap).toBeUndefined();
+    expect(result.prose).toBe(proseWithoutMarkers);
+  });
+
+  it('handles invalid marker order gracefully', async () => {
+    const mockProse = `First beat prose.
+
+[BEAT_END:0]
+
+Second beat prose.
+
+[BEAT_END:2]
+
+Third beat prose.`; // Skipped beat 1!
+
+    vi.mocked(callGenerate)
+      .mockResolvedValueOnce(mockProse)
+      .mockResolvedValueOnce(`Fixed prose.
+
+[BEAT_END:0]
+
+Fixed prose 2.
+
+[BEAT_END:1]
+
+Fixed prose 3.`);
+
+    const narrative = createMinimalNarrative();
+    const scene = createScene('S-001', {
+      plan: {
+        beats: [
+          { fn: 'breathe', mechanism: 'environment', what: 'Beat 1', propositions: [] },
+          { fn: 'advance', mechanism: 'action', what: 'Beat 2', propositions: [] },
+          { fn: 'turn', mechanism: 'dialogue', what: 'Beat 3', propositions: [] },
+        ],
+      },
+    });
+
+    const result = await generateSceneProse(narrative, scene, []);
+
+    expect(result.beatProseMap).toBeDefined();
+    expect(result.beatProseMap?.chunks).toHaveLength(3);
   });
 });

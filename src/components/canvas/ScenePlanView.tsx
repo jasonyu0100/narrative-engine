@@ -241,14 +241,14 @@ export function ScenePlanView({
   );
 
   const updateBeatProposition = useCallback(
-    (beatIdx: number, propIdx: number, content: string) => {
+    (beatIdx: number, propIdx: number, updates: { content?: string; type?: string }) => {
       if (!activePlan) return;
       const newBeats = activePlan.beats.map((b, i) =>
         i === beatIdx
           ? {
               ...b,
               propositions: b.propositions.map((p, j) =>
-                j === propIdx ? { ...p, content } : p,
+                j === propIdx ? { ...p, ...updates, type: updates.type?.trim() || undefined } : p,
               ),
             }
           : b,
@@ -299,11 +299,11 @@ export function ScenePlanView({
   }, [activePlan, scene.id, dispatch]);
 
   const updateSceneProposition = useCallback(
-    (propIdx: number, content: string) => {
+    (propIdx: number, updates: { content?: string; type?: string }) => {
       if (!activePlan) return;
       const currentProps = activePlan.propositions ?? [];
       const newProps = currentProps.map((p, i) =>
-        i === propIdx ? { ...p, content } : p,
+        i === propIdx ? { ...p, ...updates, type: updates.type?.trim() || undefined } : p,
       );
       const newPlan: BeatPlan = { ...activePlan, propositions: newProps };
       setPlanCache({ plan: newPlan, status: "ready" });
@@ -480,6 +480,19 @@ export function ScenePlanView({
                             key={j}
                             className="group/prop flex items-start gap-1"
                           >
+                            <span
+                              contentEditable
+                              suppressContentEditableWarning
+                              className="shrink-0 text-[8px] px-1 py-0.5 rounded bg-white/5 text-text-dim/50 font-mono outline-none focus:bg-white/10 min-w-[2ch]"
+                              onBlur={(e) => {
+                                const text = e.currentTarget.textContent ?? "";
+                                if (text !== (prop.type ?? ""))
+                                  updateBeatProposition(i, j, { type: text });
+                              }}
+                              title="Proposition type (e.g., state, claim, rule)"
+                            >
+                              {prop.type || ""}
+                            </span>
                             <p
                               contentEditable
                               suppressContentEditableWarning
@@ -487,7 +500,7 @@ export function ScenePlanView({
                               onBlur={(e) => {
                                 const text = e.currentTarget.textContent ?? "";
                                 if (text !== prop.content)
-                                  updateBeatProposition(i, j, text);
+                                  updateBeatProposition(i, j, { content: text });
                               }}
                             >
                               {prop.content}
@@ -531,13 +544,26 @@ export function ScenePlanView({
                     key={i}
                     className="group/sceneprop pl-3 border-l-2 border-amber-400/30 flex items-start gap-1"
                   >
+                    <span
+                      contentEditable
+                      suppressContentEditableWarning
+                      className="shrink-0 text-[8px] px-1 py-0.5 rounded bg-amber-400/10 text-amber-400/60 font-mono outline-none focus:bg-amber-400/20 min-w-[2ch]"
+                      onBlur={(e) => {
+                        const text = e.currentTarget.textContent ?? "";
+                        if (text !== (p.type ?? ""))
+                          updateSceneProposition(i, { type: text });
+                      }}
+                      title="Proposition type"
+                    >
+                      {p.type || ""}
+                    </span>
                     <p
                       contentEditable
                       suppressContentEditableWarning
                       className="flex-1 text-[11px] text-amber-300/80 leading-relaxed italic outline-none focus:bg-white/3 rounded px-1 -mx-1"
                       onBlur={(e) => {
                         const text = e.currentTarget.textContent ?? "";
-                        if (text !== p.content) updateSceneProposition(i, text);
+                        if (text !== p.content) updateSceneProposition(i, { content: text });
                       }}
                     >
                       {p.content}

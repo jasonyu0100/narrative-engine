@@ -160,10 +160,12 @@ function JobDetail({ job }: { job: AnalysisJob }) {
 
   const handlePause = useCallback(() => { analysisRunner.pause(job.id); }, [job.id]);
   const handleStart = useCallback((j: AnalysisJob) => {
+    // Ensure dispatch is available before starting
+    analysisRunner.setDispatch(dispatch);
     analysisRunner.start(j).catch((err) => {
       console.error('[analysis] start failed:', err);
     });
-  }, []);
+  }, [dispatch]);
 
   // Beat function colors — 10 distinct hues
   const BEAT_FN_COLORS: Record<string, string> = {
@@ -177,6 +179,7 @@ function JobDetail({ job }: { job: AnalysisJob }) {
   // Use explicit phase field for reliable phase detection
   const isExtracting = liveJob.phase === 'extraction';
   const isPlanExtracting = liveJob.phase === 'plans';
+  const isMapping = liveJob.phase === 'mapping';
   const isReconciling = liveJob.phase === 'reconciliation';
   const isFinalizing = liveJob.phase === 'finalization';
   const isAssembling = liveJob.phase === 'assembly';
@@ -189,6 +192,7 @@ function JobDetail({ job }: { job: AnalysisJob }) {
     const fnCounts: Record<string, number> = {};
     for (const fn of BEAT_FN_LIST) fnCounts[fn] = 0;
     let planCount = 0;
+    let mappedCount = 0;
 
     // Prefer assembled narrative scenes (covers pre-existing works + post-assembly plans)
     const narrativeScenes = assembledNarrative ? Object.values(assembledNarrative.scenes) : [];
@@ -196,6 +200,7 @@ function JobDetail({ job }: { job: AnalysisJob }) {
       for (const s of narrativeScenes) {
         if (!s.plan) continue;
         planCount++;
+        if (s.beatProseMap) mappedCount++;
         for (const b of s.plan.beats) fnCounts[b.fn] = (fnCounts[b.fn] ?? 0) + 1;
       }
     } else {
@@ -204,13 +209,14 @@ function JobDetail({ job }: { job: AnalysisJob }) {
         for (const s of r.scenes ?? []) {
           if (!s.plan) continue;
           planCount++;
+          if (s.beatProseMap) mappedCount++;
           for (const b of s.plan.beats) fnCounts[b.fn] = (fnCounts[b.fn] ?? 0) + 1;
         }
       }
     }
 
     const totalBeats = Object.values(fnCounts).reduce((a, b) => a + b, 0);
-    return { fnCounts, totalBeats, planCount };
+    return { fnCounts, totalBeats, planCount, mappedCount };
   }, [completed, assembledNarrative]);
 
   const charCount = new Set(completed.flatMap((r) => r.characters.map((c) => c.name))).size;
@@ -276,7 +282,9 @@ function JobDetail({ job }: { job: AnalysisJob }) {
             <h2 className="text-sm font-semibold text-white/90 truncate">{liveJob.title}</h2>
             <span className="text-[9px] text-white/20 font-mono shrink-0">
               {isAssembling ? 'assembling...'
+                : isFinalizing ? 'finalizing...'
                 : isReconciling ? 'reconciling...'
+                : isMapping ? 'mapping...'
                 : isPlanExtracting ? `plans ${beatStats.planCount}/${sceneCount}`
                 : liveJob.status === 'completed' ? 'complete'
                 : liveJob.status === 'failed' ? 'failed'
@@ -518,9 +526,9 @@ function JobDetail({ job }: { job: AnalysisJob }) {
           <div className="w-80 shrink-0 border-l border-white/6 bg-black/40 flex flex-col min-h-0">
             {/* Header */}
             <div className="px-3 py-2 flex items-center gap-2 border-b border-white/4 shrink-0">
-              <div className={`w-1.5 h-1.5 rounded-full ${isReconciling ? 'bg-sky-400' : isFinalizing ? 'bg-purple-400' : isAssembling ? 'bg-amber-400' : isPlanExtracting ? 'bg-indigo-400' : isExtracting ? 'bg-change' : 'bg-white/20'} animate-pulse`} />
+              <div className={`w-1.5 h-1.5 rounded-full ${isReconciling ? 'bg-sky-400' : isFinalizing ? 'bg-purple-400' : isAssembling ? 'bg-amber-400' : isMapping ? 'bg-cyan-400' : isPlanExtracting ? 'bg-indigo-400' : isExtracting ? 'bg-change' : 'bg-white/20'} animate-pulse`} />
               <span className="text-[9px] text-white/25 font-mono uppercase tracking-wider">
-                {isReconciling ? 'Reconciliation' : isFinalizing ? 'Finalization' : isAssembling ? 'Assembly' : isPlanExtracting ? 'Beat Plans' : isExtracting ? 'Extraction' : 'Idle'}
+                {isReconciling ? 'Reconciliation' : isFinalizing ? 'Finalization' : isAssembling ? 'Assembly' : isMapping ? 'Mapping' : isPlanExtracting ? 'Beat Plans' : isExtracting ? 'Extraction' : 'Idle'}
               </span>
               {isPlanExtracting && (
                 <span className="text-[9px] text-indigo-400/40 font-mono ml-auto">{beatStats.planCount}/{sceneCount}</span>
@@ -601,6 +609,55 @@ function JobDetail({ job }: { job: AnalysisJob }) {
                       })}
                     </div>
                   </div>
+                )}
+              </div>
+            ) : isMapping ? (
+              /* Mapping phase — show scene tiles with beatProseMap status */
+              <div className="flex-1 flex flex-col min-h-0">
+                <div className="flex-1 overflow-y-auto px-3 py-3" style={{ scrollbarWidth: 'thin' }}>
+                  <div className="grid grid-cols-2 gap-1.5">
+                    {allExtractedScenes.map((scene, si) => {
+                      const result = completed.find((_, ci) => scene.chunkIdx === ci);
+                      const sceneData = result?.scenes?.[scene.sceneIdx];
+                      const hasBeatProseMap = !!sceneData?.beatProseMap;
+                      const hasPlan = !!scene.plan;
+                      const isPending = hasPlan && !hasBeatProseMap;
+                      return (
+                        <div
+                          key={scene.key}
+                          className={`flex items-center gap-2 px-2 py-1.5 rounded text-[10px] font-mono transition-all ${
+                            hasBeatProseMap ? 'bg-cyan-500/10' : isPending ? 'bg-cyan-400/5' : 'bg-white/2'
+                          }`}
+                        >
+                          {hasBeatProseMap ? (
+                            <IconCheck size={12} className="text-cyan-400/50 shrink-0" />
+                          ) : isPending ? (
+                            <IconSpinner size={12} className="text-cyan-400/40 animate-spin shrink-0" />
+                          ) : (
+                            <div className="w-3 h-3 rounded-full border border-white/8 shrink-0" />
+                          )}
+                          <span className={hasBeatProseMap ? 'text-cyan-400/50' : isPending ? 'text-cyan-400/30' : 'text-white/10'}>
+                            {si + 1}
+                          </span>
+                          {hasBeatProseMap && sceneData?.beatProseMap && (
+                            <span className="text-white/15 ml-auto text-[8px]">
+                              {sceneData.beatProseMap.chunks.length}b
+                            </span>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+                {/* Stream output */}
+                {streamText && (
+                  <pre
+                    ref={streamRef}
+                    className="shrink-0 max-h-24 text-[10px] text-white/20 font-mono px-3 py-2 overflow-y-auto leading-relaxed whitespace-pre-wrap break-all border-t border-white/4"
+                    style={{ scrollbarWidth: 'thin' }}
+                  >
+                    {streamText}
+                  </pre>
                 )}
               </div>
             ) : isExtracting ? (
@@ -692,7 +749,7 @@ function JobDetail({ job }: { job: AnalysisJob }) {
       {selectedPlanKey !== null && (() => {
         const scene = allExtractedScenes.find((s) => s.key === selectedPlanKey);
         if (!scene?.plan) return null;
-        const { beats, propositions } = scene.plan;
+        const { beats } = scene.plan;
         return (
           <div className="shrink-0 border-t border-white/8 flex flex-col" style={{ height: `${chunkPanelHeight}vh` }}>
             <div
@@ -746,20 +803,59 @@ function JobDetail({ job }: { job: AnalysisJob }) {
                     ))}
                   </div>
                 </div>
-                {/* Propositions */}
-                {propositions && propositions.length > 0 && (
-                  <div>
-                    <div className="text-[9px] uppercase tracking-[0.15em] text-text-dim font-mono mb-3">Propositions</div>
-                    <div className="space-y-1.5">
-                      {propositions.map((p, pi) => (
-                        <div key={pi} className="text-[10px] text-text-secondary leading-snug flex items-start gap-2">
-                          <span className="text-indigo-400/30 shrink-0 mt-0.5">—</span>
-                          <span>{p.content}</span>
-                        </div>
-                      ))}
+                {/* Propositions Word Cloud */}
+                {(() => {
+                  // Collect all propositions from beats
+                  const allProps = beats.flatMap((b) => b.propositions ?? []);
+                  if (allProps.length === 0) return null;
+                  // Count proposition types for sizing
+                  const typeCounts: Record<string, number> = {};
+                  for (const p of allProps) {
+                    const t = p.type ?? 'other';
+                    typeCounts[t] = (typeCounts[t] ?? 0) + 1;
+                  }
+                  const maxCount = Math.max(...Object.values(typeCounts), 1);
+                  // Type colors
+                  const typeColors: Record<string, string> = {
+                    formula: 'text-amber-400/90', definition: 'text-sky-400/80', claim: 'text-violet-400/70',
+                    evidence: 'text-emerald-400/70', parameter: 'text-orange-400/70', mechanism: 'text-rose-400/70',
+                    example: 'text-teal-400/70', rule: 'text-pink-400/70', comparison: 'text-indigo-400/70',
+                    state: 'text-slate-400/70', event: 'text-lime-400/70', method: 'text-cyan-400/70',
+                    constraint: 'text-red-400/70', other: 'text-text-dim/60',
+                  };
+                  return (
+                    <div>
+                      <div className="text-[9px] uppercase tracking-[0.15em] text-text-dim font-mono mb-3">
+                        Propositions <span className="text-text-dim/50">({allProps.length})</span>
+                      </div>
+                      <div className="flex flex-wrap gap-1.5 leading-relaxed">
+                        {allProps.map((p, pi) => {
+                          const pType = p.type ?? 'other';
+                          const typeCount = typeCounts[pType] ?? 1;
+                          const sizeClass = typeCount >= maxCount * 0.7 ? 'text-[11px]' : typeCount >= maxCount * 0.4 ? 'text-[10px]' : 'text-[9px]';
+                          const colorClass = typeColors[pType] ?? 'text-text-secondary/70';
+                          return (
+                            <span
+                              key={pi}
+                              className={`${sizeClass} ${colorClass} px-1.5 py-0.5 rounded bg-white/[0.03] hover:bg-white/[0.06] transition-colors cursor-default`}
+                              title={`[${pType}] ${p.content}`}
+                            >
+                              {p.content.length > 60 ? p.content.slice(0, 57) + '…' : p.content}
+                            </span>
+                          );
+                        })}
+                      </div>
+                      {/* Type legend */}
+                      <div className="flex flex-wrap gap-2 mt-3 pt-2 border-t border-white/5">
+                        {Object.entries(typeCounts).sort((a, b) => b[1] - a[1]).map(([type, count]) => (
+                          <span key={type} className={`text-[8px] font-mono ${typeColors[type] ?? 'text-text-dim'}`}>
+                            {type}:{count}
+                          </span>
+                        ))}
+                      </div>
                     </div>
-                  </div>
-                )}
+                  );
+                })()}
               </div>
             </div>
           </div>
@@ -920,8 +1016,9 @@ function JobDetail({ job }: { job: AnalysisJob }) {
         {isRunning && (
           <div className="flex items-center gap-3 mb-2.5">
             {[
-              { label: 'Extract', active: isExtracting, done: isPlanExtracting || isReconciling || isFinalizing || isAssembling || liveJob.status === 'completed', color: 'bg-change' },
-              { label: 'Plans', active: isPlanExtracting, done: isReconciling || isFinalizing || isAssembling || liveJob.status === 'completed', color: 'bg-indigo-400' },
+              { label: 'Extract', active: isExtracting, done: isPlanExtracting || isMapping || isReconciling || isFinalizing || isAssembling || liveJob.status === 'completed', color: 'bg-change' },
+              { label: 'Plans', active: isPlanExtracting, done: isMapping || isReconciling || isFinalizing || isAssembling || liveJob.status === 'completed', color: 'bg-indigo-400' },
+              { label: 'Map', active: isMapping, done: isReconciling || isFinalizing || isAssembling || liveJob.status === 'completed', color: 'bg-cyan-400' },
               { label: 'Reconcile', active: isReconciling, done: isFinalizing || isAssembling || liveJob.status === 'completed', color: 'bg-sky-400' },
               { label: 'Finalize', active: isFinalizing, done: isAssembling || liveJob.status === 'completed', color: 'bg-purple-400' },
               { label: 'Assemble', active: isAssembling, done: liveJob.status === 'completed', color: 'bg-amber-400' },
@@ -951,6 +1048,13 @@ function JobDetail({ job }: { job: AnalysisJob }) {
               <div className={`w-1 h-1 rounded-full ${isPlanExtracting ? 'bg-indigo-400/70 animate-pulse' : 'bg-indigo-400/40'}`} />
               <span className="text-[9px] text-white/20 font-mono uppercase tracking-wider">Plans</span>
               <span className="text-[9px] text-indigo-400/30 font-mono">{beatStats.planCount} / {sceneCount}</span>
+            </div>
+          )}
+          {beatStats.mappedCount > 0 && (
+            <div className="flex items-center gap-1.5">
+              <div className={`w-1 h-1 rounded-full ${isMapping ? 'bg-cyan-400/70 animate-pulse' : 'bg-cyan-400/40'}`} />
+              <span className="text-[9px] text-white/20 font-mono uppercase tracking-wider">Mapped</span>
+              <span className="text-[9px] text-cyan-400/30 font-mono">{beatStats.mappedCount} / {beatStats.planCount}</span>
             </div>
           )}
         </div>
@@ -995,6 +1099,45 @@ function JobDetail({ job }: { job: AnalysisJob }) {
                       </div>
                     )}
                   </button>
+                );
+              })}
+            </div>
+          ) : isMapping ? (
+            /* Mapping phase — scene tiles with beatProseMap status */
+            <div className="flex items-center gap-1">
+              {allExtractedScenes.map((scene, si) => {
+                const result = completed[scene.chunkIdx];
+                const sceneData = result?.scenes?.[scene.sceneIdx];
+                const hasBeatProseMap = !!sceneData?.beatProseMap;
+                const hasPlan = !!scene.plan;
+                const isPending = hasPlan && !hasBeatProseMap;
+                return (
+                  <div
+                    key={scene.key}
+                    className={`relative w-10 min-w-10 h-10 rounded transition-all duration-300 shrink-0 ${
+                      hasBeatProseMap
+                        ? 'bg-cyan-500/15 ring-1 ring-cyan-400/20'
+                        : isPending
+                          ? 'bg-cyan-400/8 ring-1 ring-cyan-400/15'
+                          : 'bg-white/3'
+                    }`}
+                    title={scene.povName ? `${scene.povName}${scene.summary ? ': ' + scene.summary.slice(0, 60) : ''}` : `Scene ${si + 1}`}
+                  >
+                    {isPending ? (
+                      <IconSpinner size={16} className="absolute inset-0 m-auto text-cyan-400/40 animate-spin" />
+                    ) : (
+                      <span className={`text-[9px] font-mono absolute top-1.5 inset-x-0 flex items-center justify-center transition ${
+                        hasBeatProseMap ? 'text-cyan-400/60' : 'text-white/12'
+                      }`}>
+                        {si + 1}
+                      </span>
+                    )}
+                    {!isPending && (
+                      <div className="absolute bottom-1.5 inset-x-0 flex items-center justify-center">
+                        <div className={`w-1 h-1 rounded-full transition-all duration-500 ${hasBeatProseMap ? 'bg-cyan-400/60' : 'bg-white/8'}`} />
+                      </div>
+                    )}
+                  </div>
                 );
               })}
             </div>
@@ -1127,38 +1270,42 @@ function NewJobSetup({ sourceText, onCreated }: { sourceText: string; onCreated:
   const wordCount = sourceText.split(/\s+/).length;
   const tooLarge = wordCount > ANALYSIS_MAX_CORPUS_WORDS;
 
-  const handleStart = () => {
+  const handleStart = async () => {
     if (!title.trim() || tooLarge || starting) return;
 
     setStarting(true);
     setStartError(null);
 
-    const job: AnalysisJob = {
-      id: `AJ-${Date.now().toString(36)}`,
-      title: title.trim(),
-      sourceText,
-      chunks,
-      results: new Array(chunks.length).fill(null),
-      status: 'pending',
-      currentChunkIndex: 0,
-      createdAt: Date.now(),
-      updatedAt: Date.now(),
-    };
+    try {
+      const job: AnalysisJob = {
+        id: `AJ-${Date.now().toString(36)}`,
+        title: title.trim(),
+        sourceText,
+        chunks,
+        results: new Array(chunks.length).fill(null),
+        status: 'running', // Start as 'running' so JobDetail shows correct state immediately
+        phase: 'extraction',
+        currentChunkIndex: 0,
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+      };
 
-    // Add to store first
-    dispatch({ type: 'ADD_ANALYSIS_JOB', job });
+      // Ensure dispatch is available in the analysis runner before proceeding
+      // This prevents the "Dispatch not available" error
+      analysisRunner.setDispatch(dispatch);
 
-    // Schedule the start and view switch
-    // The delay ensures the job is in the store and dispatch is available to analysisRunner
-    setTimeout(() => {
-      // Start the analysis (fire-and-forget - JobDetail will show the live status)
-      analysisRunner.start(job).catch((err) => {
-        console.error('[analysis] Failed to start:', err);
-      });
-
-      // Switch to the job view - it will show the job status updating live
+      // Add to store and switch to job view immediately
+      dispatch({ type: 'ADD_ANALYSIS_JOB', job });
       onCreated(job.id);
-    }, 150);
+
+      // Start the analysis in background - errors will be reflected in job status
+      await analysisRunner.start(job);
+    } catch (err) {
+      console.error('[analysis] Failed to start:', err);
+      setStartError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setStarting(false);
+    }
   };
 
   return (

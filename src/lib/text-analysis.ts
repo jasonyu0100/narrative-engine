@@ -1079,7 +1079,7 @@ function buildMetaContext(
           chunksWithProse.length - 1,
         ];
     const unique = [...new Set(indices)];
-    const excerpts = unique.map((i) => chunksWithProse[i].prose.slice(0, 400));
+    const excerpts = unique.map((i) => chunksWithProse[i].prose.slice(0, 2500));
     lines.push(`\nPROSE EXCERPTS (${excerpts.length} sampled from early/mid/late for voice range):\n${excerpts.map((e) => `---\n${e}\n---`).join('\n')}`);
   } else {
     lines.push('\n(no prose available — infer voice from summaries and world tone)');
