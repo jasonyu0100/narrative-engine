@@ -2,7 +2,7 @@ import type { NarrativeState, Scene, AlignmentIssue, AlignmentReport, AlignmentC
 import { REASONING_BUDGETS } from '@/types/narrative';
 import { callGenerate } from './api';
 import { rewriteSceneProse } from './prose';
-import { ANALYSIS_MODEL, MAX_TOKENS_SMALL } from '@/lib/constants';
+import { ANALYSIS_MODEL, MAX_TOKENS_SMALL, ANALYSIS_TEMPERATURE } from '@/lib/constants';
 import { parseJson } from './json';
 
 // ── Window generation ────────────────────────────────────────────────────────
@@ -161,7 +161,7 @@ If these scenes read well with no continuity problems, return {"issues": []}. An
 Be thorough but precise — check every scene boundary for state carryover, but only flag genuine problems that would jar a reader.`;
 
   const reasoningBudget = REASONING_BUDGETS[narrative.storySettings?.reasoningLevel ?? 'low'] || undefined;
-  const raw = await callGenerate(prompt, systemPrompt, MAX_TOKENS_SMALL, `alignmentAudit:window${window.index}`, ANALYSIS_MODEL, reasoningBudget);
+  const raw = await callGenerate(prompt, systemPrompt, MAX_TOKENS_SMALL, `alignmentAudit:window${window.index}`, ANALYSIS_MODEL, reasoningBudget, true, ANALYSIS_TEMPERATURE);
   const parsed = parseJson(raw, 'alignmentAudit') as { issues: RawIssue[] };
 
   if (!Array.isArray(parsed.issues)) return [];

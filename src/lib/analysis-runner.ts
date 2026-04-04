@@ -12,7 +12,7 @@
  */
 
 import { analyzeChunkParallel, reconcileResults, analyzeThreading, assembleNarrative } from '@/lib/text-analysis';
-import { reverseEngineerScenePlan, mapBeatsToProseRanges } from '@/lib/ai/scenes';
+import { reverseEngineerScenePlan } from '@/lib/ai/scenes';
 import type { AnalysisJob, AnalysisChunkResult } from '@/types/narrative';
 import type { Action } from '@/lib/store';
 import { ANALYSIS_CONCURRENCY, ANALYSIS_STAGGER_DELAY_MS, ANALYSIS_MAX_CHUNK_RETRIES } from '@/lib/constants';
@@ -367,13 +367,16 @@ class AnalysisRunner {
           entry.planStreams.set(key, accumulated);
           this.emitPlanStream(job.id, key, accumulated);
         })
-          .then(({ plan }) => {
+          .then(({ plan, beatProseMap }) => {
             const r = results[task.chunkIdx];
             if (r?.scenes[task.sceneIdx]) {
               r.scenes[task.sceneIdx].plan = plan;
+              if (beatProseMap) {
+                r.scenes[task.sceneIdx].beatProseMap = beatProseMap;
+              }
             }
             plansDone++;
-            this.emitStream(job.id, `Phase 2: ${plansDone}/${planTasks.length} beat plans extracted`);
+            this.emitStream(job.id, `Phase 2: ${plansDone}/${planTasks.length} beat plans extracted and mapped`);
             d({ type: 'UPDATE_ANALYSIS_JOB', id: job.id, updates: { results: [...results] } });
           })
           .catch((err) => {
@@ -405,96 +408,21 @@ class AnalysisRunner {
       }
     }
 
-    if (entry.cancelled) {
-      d({ type: 'UPDATE_ANALYSIS_JOB', id: job.id, updates: { status: 'paused', results: [...results] } });
-      return;
-    }
-
-    // ── Phase 3: Beat-to-prose mapping ────────────────────────────────────
-    // Map beats to paragraph ranges in a focused LLM call with retry logic
-    type MappingTask = { chunkIdx: number; sceneIdx: number; prose: string; beats: import('@/types/narrative').Beat[]; attempts?: number };
-    const mappingTasks: MappingTask[] = [];
-    for (let i = 0; i < results.length; i++) {
-      const r = results[i];
-      if (!r) continue;
-      for (let j = 0; j < (r.scenes ?? []).length; j++) {
-        const s = r.scenes[j];
-        // Map if scene has plan with beats but no beatProseMap yet
-        if (s.prose && s.plan?.beats?.length && !s.beatProseMap) {
-          mappingTasks.push({ chunkIdx: i, sceneIdx: j, prose: s.prose, beats: s.plan.beats, attempts: 0 });
-        }
-      }
-    }
-
-    if (mappingTasks.length > 0) {
-      d({ type: 'UPDATE_ANALYSIS_JOB', id: job.id, updates: { phase: 'mapping' } });
-      this.emitStream(job.id, `Phase 3: Mapping ${mappingTasks.length} scenes to prose paragraphs...`);
-      let mappingsDone = 0;
-      const mappingQueue = [...mappingTasks];
-      let mappingActive = 0;
-      let mappingResolve!: () => void;
-      const mappingDone = new Promise<void>((resolve) => { mappingResolve = resolve; });
-      const failedMappings: MappingTask[] = [];
-      const MAX_MAPPING_RETRIES = 3;
-
-      const launchMapping = (task: MappingTask) => {
-        mappingActive++;
-        task.attempts = (task.attempts ?? 0) + 1;
-        const key = `${task.chunkIdx}-${task.sceneIdx}`;
-
-        mapBeatsToProseRanges(task.prose, task.beats)
-          .then((beatProseMap) => {
-            const r = results[task.chunkIdx];
-            if (r?.scenes[task.sceneIdx] && beatProseMap) {
-              r.scenes[task.sceneIdx].beatProseMap = beatProseMap;
-              mappingsDone++;
-              this.emitStream(job.id, `Phase 3: ${mappingsDone}/${mappingTasks.length} scenes mapped`);
-              d({ type: 'UPDATE_ANALYSIS_JOB', id: job.id, updates: { results: [...results] } });
-            } else {
-              // Null result counts as failure
-              throw new Error('Mapping returned null');
-            }
-          })
-          .catch((err) => {
-            console.warn(`[AnalysisRunner] Mapping failed for scene ${key}:`, err);
-            if (task.attempts! < MAX_MAPPING_RETRIES) {
-              // Re-queue for retry
-              mappingQueue.push(task);
-              this.emitStream(job.id, `Phase 3: Scene ${task.chunkIdx + 1}-${task.sceneIdx + 1} mapping failed, will retry (${task.attempts}/${MAX_MAPPING_RETRIES})`);
-            } else {
-              failedMappings.push(task);
-              this.emitStream(job.id, `Phase 3: Scene ${task.chunkIdx + 1}-${task.sceneIdx + 1} mapping failed after ${MAX_MAPPING_RETRIES} attempts`);
-            }
-          })
-          .finally(() => {
-            mappingActive--;
-            if (!entry.cancelled && mappingQueue.length > 0) launchMapping(mappingQueue.shift()!);
-            if (mappingActive === 0 && (mappingQueue.length === 0 || entry.cancelled)) mappingResolve();
-          });
-      };
-
-      const mappingBatch = Math.min(MAX_CONCURRENCY, mappingQueue.length);
-      for (let i = 0; i < mappingBatch; i++) launchMapping(mappingQueue.shift()!);
-      await mappingDone;
-
-      if (failedMappings.length > 0) {
-        console.warn(`[AnalysisRunner] ${failedMappings.length} scenes failed mapping after retries`);
-      }
-    }
+    // Phase 3 removed - mapping now done atomically in Phase 2
 
     if (entry.cancelled) {
       d({ type: 'UPDATE_ANALYSIS_JOB', id: job.id, updates: { status: 'paused', results: [...results] } });
       return;
     }
 
-    // ── Phase 4: Reconciliation ───────────────────────────────────────────
+    // ── Phase 3: Reconciliation ───────────────────────────────────────────
     d({ type: 'UPDATE_ANALYSIS_JOB', id: job.id, updates: { phase: 'reconciliation', currentChunkIndex: totalChunks } });
-    this.emitStream(job.id, 'Phase 4: Reconciling entities...');
+    this.emitStream(job.id, 'Phase 3: Reconciling entities...');
 
     try {
       const rawResults = results.filter((r): r is AnalysisChunkResult => r !== null);
       const reconciledResults = await reconcileResults(rawResults, (_token, accumulated) => {
-        this.emitStream(job.id, `Phase 4: Reconciling...\n${accumulated}`);
+        this.emitStream(job.id, `Phase 3: Reconciling...\n${accumulated}`);
       });
 
       if (entry.cancelled) {
@@ -513,10 +441,10 @@ class AnalysisRunner {
     } catch (err) {
       // Reconciliation failure is non-fatal — continue with unreconciled results
       console.warn('[AnalysisRunner] Reconciliation failed, using raw results:', err);
-      this.emitStream(job.id, 'Phase 4: Reconciliation failed (non-fatal), using raw results...');
+      this.emitStream(job.id, 'Phase 3: Reconciliation failed (non-fatal), using raw results...');
     }
 
-    // ── Phase 5: Finalization (thread dependencies, future analysis) ─────
+    // ── Phase 3: Finalization (thread dependencies, future analysis) ─────
     d({ type: 'UPDATE_ANALYSIS_JOB', id: job.id, updates: { phase: 'finalization' } });
     let threadDependencies: Record<string, string[]> = {};
     try {
@@ -525,9 +453,9 @@ class AnalysisRunner {
       const canonicalThreads = [...new Set(completedResults.flatMap((r) => (r.threads ?? []).map((t) => t.description)))];
 
       if (canonicalThreads.length >= 2) {
-        this.emitStream(job.id, 'Phase 5: Finalizing...');
+        this.emitStream(job.id, 'Phase 3: Finalizing...');
         threadDependencies = await analyzeThreading(canonicalThreads, (_token, accumulated) => {
-          this.emitStream(job.id, `Phase 5: Finalizing...\n${accumulated}`);
+          this.emitStream(job.id, `Phase 3: Finalizing...\n${accumulated}`);
         });
       }
 
@@ -538,17 +466,17 @@ class AnalysisRunner {
     } catch (err) {
       // Finalization failure is non-fatal — continue without dependencies
       console.warn('[AnalysisRunner] Finalization failed:', err);
-      this.emitStream(job.id, 'Phase 5: Finalization failed (non-fatal), continuing...');
+      this.emitStream(job.id, 'Phase 3: Finalization failed (non-fatal), continuing...');
     }
 
-    // ── Phase 6: Assemble narrative ───────────────────────────────────────
+    // ── Phase 3: Assemble narrative ───────────────────────────────────────
     d({ type: 'UPDATE_ANALYSIS_JOB', id: job.id, updates: { phase: 'assembly' } });
-    this.emitStream(job.id, 'Phase 6: Assembling narrative...');
+    this.emitStream(job.id, 'Phase 3: Assembling narrative...');
 
     try {
       const completedResults = results.filter((r): r is AnalysisChunkResult => r !== null);
       const narrative = await assembleNarrative(job.title, completedResults, threadDependencies, (_token, accumulated) => {
-        this.emitStream(job.id, `Phase 6: Assembling...\n${accumulated}`);
+        this.emitStream(job.id, `Phase 3: Assembling...\n${accumulated}`);
       });
 
       d({ type: 'ADD_NARRATIVE', narrative });

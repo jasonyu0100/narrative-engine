@@ -4,7 +4,7 @@ import { NARRATIVE_CUBE, type CubeCornerKey, resolveEntry, isScene, REASONING_BU
 import { detectCubeCorner } from '@/lib/narrative-utils';
 import { callGenerate } from './api';
 import { parseJson } from './json';
-import { ANALYSIS_MODEL, MAX_TOKENS_SMALL } from '@/lib/constants';
+import { ANALYSIS_MODEL, MAX_TOKENS_SMALL, ANALYSIS_TEMPERATURE } from '@/lib/constants';
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -266,7 +266,7 @@ Return a JSON object with these keys. Follow the length guidance exactly — the
 }`;
 
   const reasoningBudget = REASONING_BUDGETS[narrative.storySettings?.reasoningLevel ?? 'low'] || undefined;
-  const result = await callGenerate(prompt, REPORT_SYSTEM, MAX_TOKENS_SMALL, 'generateReportAnalysis', ANALYSIS_MODEL, reasoningBudget);
+  const result = await callGenerate(prompt, REPORT_SYSTEM, MAX_TOKENS_SMALL, 'generateReportAnalysis', ANALYSIS_MODEL, reasoningBudget, true, ANALYSIS_TEMPERATURE);
   const parsed = parseJson(result, 'report-analysis') as Record<string, string>;
 
   const analysis = {} as ReportAnalysis;

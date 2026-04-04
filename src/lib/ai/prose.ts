@@ -1,7 +1,7 @@
 import type { NarrativeState, Scene, ProseFormat } from '@/types/narrative';
 import { REASONING_BUDGETS } from '@/types/narrative';
 import { callGenerate, callGenerateStream, SYSTEM_PROMPT } from './api';
-import { WRITING_MODEL, ANALYSIS_MODEL, MAX_TOKENS_DEFAULT, MAX_TOKENS_SMALL } from '@/lib/constants';
+import { WRITING_MODEL, ANALYSIS_MODEL, MAX_TOKENS_DEFAULT, MAX_TOKENS_SMALL, ANALYSIS_TEMPERATURE } from '@/lib/constants';
 import { parseJson } from './json';
 import { sceneContext } from './context';
 import { resolveProfile } from '@/lib/beat-profiles';
@@ -272,7 +272,7 @@ Return a JSON array:
 sceneIndex is 0-based. force is one of: "payoff", "change", "knowledge".`;
 
   const reasoningBudget = REASONING_BUDGETS[narrative.storySettings?.reasoningLevel ?? 'low'] || undefined;
-  const raw = await callGenerate(prompt, SYSTEM_PROMPT, MAX_TOKENS_SMALL, 'generateChartAnnotations', ANALYSIS_MODEL, reasoningBudget);
+  const raw = await callGenerate(prompt, SYSTEM_PROMPT, MAX_TOKENS_SMALL, 'generateChartAnnotations', ANALYSIS_MODEL, reasoningBudget, true, ANALYSIS_TEMPERATURE);
 
   // Parse JSON from response, handling potential markdown fences
   const cleaned = raw.replace(/```json\s*/g, '').replace(/```\s*/g, '').trim();

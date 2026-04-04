@@ -586,8 +586,8 @@ export async function reverseEngineerScenePlan(
   prose: string,
   summary: string,
   onToken?: (token: string, accumulated: string) => void,
-): Promise<{ plan: BeatPlan }> {
-  const systemPrompt = `You are a beat analyst. Given existing prose, identify its structural beat sequence — what each beat does, how it's delivered, and the propositions it establishes.
+): Promise<{ plan: BeatPlan; beatProseMap: BeatProseMap | null }> {
+  const systemPrompt = `You are a beat analyst. Given numbered prose paragraphs, identify the structural beat sequence — what each beat does, how it's delivered, which paragraphs it spans, and the propositions it establishes.
 
 Return ONLY valid JSON matching this schema:
 {
@@ -596,12 +596,20 @@ Return ONLY valid JSON matching this schema:
       "fn": "${BEAT_FN_LIST.join('|')}",
       "mechanism": "${BEAT_MECHANISM_LIST.join('|')}",
       "what": "STRUCTURAL SUMMARY: what happens, not how it reads",
+      "startPara": 0,
+      "endPara": 2,
       "propositions": [
         {"content": "atomic claim", "type": "state|claim|definition|formula|evidence|rule|comparison|example"}
       ]
     }
   ]
 }
+
+CRITICAL: Include startPara and endPara for EVERY beat to mark which paragraphs it spans.
+- Ranges must be sequential with NO GAPS: if beat N ends at X, beat N+1 starts at X+1
+- All paragraphs must be covered exactly once
+- First beat starts at 0
+- Last beat must end at the last paragraph index
 
 BEAT FUNCTIONS (10):
   breathe    — Pacing, atmosphere, sensory grounding, scene establishment.
@@ -729,18 +737,29 @@ INVALID: craft goals, pacing instructions, meta-commentary.
 
 - Return ONLY valid JSON.`;
 
+  // Split prose into numbered paragraphs for LLM reference
+  const paragraphs = prose.split(/\n\s*\n/).filter(p => p.trim());
+  const numberedProse = paragraphs.map((p, i) => `[${i}] ${p}`).join('\n\n');
+
   const prompt = `SCENE SUMMARY: ${summary}
 
-PROSE:
-${prose}
+NUMBERED PROSE (${paragraphs.length} paragraphs):
+${numberedProse}
 
-Identify the beat structure of this scene. Extract propositions according to the density guidelines - light fiction gets 1-2 props/beat, technical prose gets exhaustive extraction.`;
+TASK:
+1. First, determine where each beat begins and ends by identifying paragraph ranges
+2. Then, for each beat, extract its function, mechanism, what happens, and propositions
+
+Extract propositions according to density guidelines - light fiction gets 1-2 props/beat, technical prose gets exhaustive extraction.
+
+CRITICAL: Every beat MUST include startPara and endPara. Ranges must be sequential with no gaps.`;
 
   let accumulated = '';
   const raw = onToken
-    ? await callGenerateStream(prompt, systemPrompt, (token) => { accumulated += token; onToken(token, accumulated); }, MAX_TOKENS_SMALL, 'reverseEngineerScenePlan', GENERATE_MODEL)
-    : await callGenerate(prompt, systemPrompt, MAX_TOKENS_SMALL, 'reverseEngineerScenePlan', GENERATE_MODEL);
-  type BeatData = { fn: string; mechanism: string; what: string; propositions: unknown[] };
+    ? await callGenerateStream(prompt, systemPrompt, (token) => { accumulated += token; onToken(token, accumulated); }, MAX_TOKENS_SMALL, 'reverseEngineerScenePlan', GENERATE_MODEL, undefined, undefined, ANALYSIS_TEMPERATURE)
+    : await callGenerate(prompt, systemPrompt, MAX_TOKENS_SMALL, 'reverseEngineerScenePlan', GENERATE_MODEL, undefined, true, ANALYSIS_TEMPERATURE);
+
+  type BeatData = { fn: string; mechanism: string; what: string; propositions: unknown[]; startPara?: number; endPara?: number };
   const parsed = parseJson(raw, 'reverseEngineerScenePlan') as { beats?: unknown[] };
 
   const beats: Beat[] = (parsed.beats ?? []).map((b: unknown) => {
@@ -756,179 +775,32 @@ Identify the beat structure of this scene. Extract propositions according to the
 
   const plan: BeatPlan = { beats };
 
-  return { plan };
+  // Build BeatProseMap from LLM-provided ranges
+  const beatsWithRanges = (parsed.beats ?? []).map((b: unknown, i: number) => ({
+    beat: beats[i],
+    startPara: (b as BeatData).startPara,
+    endPara: (b as BeatData).endPara,
+  }));
+
+  const beatProseMap = buildBeatProseMap(paragraphs, beatsWithRanges);
+
+  return { plan, beatProseMap };
 }
 
-/**
- * Split prose into chunks when natural paragraph breaks are insufficient.
- * Splits by sentences, grouping them into chunks targeting WORDS_PER_BEAT_DEFAULT words each.
- */
-function splitProseIntoChunks(prose: string, targetChunks: number): string[] {
-  // Split into sentences (handle common abbreviations and edge cases)
-  const sentences = prose.split(/(?<=[.!?])\s+(?=[A-Z])/).filter(s => s.trim());
-  if (sentences.length === 0) return [prose];
-
-  // If we have enough sentences, distribute them into chunks
-  if (sentences.length >= targetChunks) {
-    const totalWords = prose.split(/\s+/).length;
-    const wordsPerChunk = Math.ceil(totalWords / targetChunks);
-    const chunks: string[] = [];
-    let currentChunk: string[] = [];
-    let currentWords = 0;
-
-    for (const sentence of sentences) {
-      const sentenceWords = sentence.split(/\s+/).length;
-      currentChunk.push(sentence);
-      currentWords += sentenceWords;
-
-      if (currentWords >= wordsPerChunk && chunks.length < targetChunks - 1) {
-        chunks.push(currentChunk.join(' '));
-        currentChunk = [];
-        currentWords = 0;
-      }
-    }
-
-    // Add remaining sentences to last chunk
-    if (currentChunk.length > 0) {
-      chunks.push(currentChunk.join(' '));
-    }
-
-    return chunks.length > 0 ? chunks : [prose];
-  }
-
-  // NOT ENOUGH SENTENCES: split by words to guarantee targetChunks
-  const allWords = prose.split(/\s+/).filter(w => w.trim());
-  if (allWords.length < targetChunks) {
-    // Extremely short prose - return one word per chunk (edge case)
-    return allWords.length > 0 ? allWords : [prose];
-  }
-
-  // Distribute words evenly across targetChunks
-  const chunks: string[] = [];
-  const wordsPerChunk = allWords.length / targetChunks;
-
-  for (let i = 0; i < targetChunks; i++) {
-    const start = Math.floor(i * wordsPerChunk);
-    const end = i === targetChunks - 1 ? allWords.length : Math.floor((i + 1) * wordsPerChunk);
-    const chunkWords = allWords.slice(start, end);
-    if (chunkWords.length > 0) {
-      chunks.push(chunkWords.join(' '));
-    }
-  }
-
-  return chunks.length > 0 ? chunks : [prose];
-}
-
-/**
- * Map beats to prose chunk ranges via a focused LLM call.
- * Separate from plan extraction to improve accuracy on both tasks.
- * Ensures 100% prose coverage — every chunk must be assigned to a beat.
- *
- * If natural paragraph breaks exist and are sufficient, uses those.
- * Otherwise, splits prose into sentence-based chunks targeting WORDS_PER_BEAT_DEFAULT.
- */
-export async function mapBeatsToProseRanges(
-  prose: string,
-  beats: Beat[],
-  onToken?: (token: string, accumulated: string) => void,
-): Promise<BeatProseMap | null> {
-  if (!prose.trim() || beats.length === 0) return null;
-
-  // Use consistent sentence-based splitting to ensure enough granularity
-  // Ask for 2x beats to give LLM flexibility and reduce mapping failures
-  const targetChunks = Math.max(beats.length, Math.ceil(beats.length * 2));
-  const chunks = splitProseIntoChunks(prose, targetChunks);
-
-  if (chunks.length === 0) return null;
-
-  const systemPrompt = `You are a prose-to-structure alignment expert. Map ${beats.length} beats to ${chunks.length} prose chunks.
-
-CRITICAL: Ranges MUST be perfectly sequential with NO GAPS and NO OVERLAPS.
-
-CORRECT EXAMPLE (3 beats, 10 chunks):
-{"mappings": [
-  {"beatIndex": 0, "startPara": 0, "endPara": 3},   ← ends at 3
-  {"beatIndex": 1, "startPara": 4, "endPara": 7},   ← starts at 4 (3+1)
-  {"beatIndex": 2, "startPara": 8, "endPara": 9}    ← starts at 8 (7+1), ends at 9 (last chunk)
-]}
-
-WRONG EXAMPLES:
-❌ {"beatIndex": 1, "startPara": 3, ...}  ← overlap! Should start at 4
-❌ {"beatIndex": 1, "startPara": 5, ...}  ← gap! Missing chunk 4
-❌ {"beatIndex": 2, "endPara": 8}         ← doesn't reach last chunk (9)
-
-REQUIREMENTS:
-1. Beat 0 starts at 0
-2. Beat ${beats.length - 1} ends at ${chunks.length - 1}
-3. Each beat's startPara = previous beat's endPara + 1
-4. All ${chunks.length} chunks covered exactly once
-
-Return ONLY valid JSON (nothing before or after):
-{
-  "mappings": [
-    {"beatIndex": 0, "startPara": 0, "endPara": ...},
-    ...
-  ]
-}`;
-
-  const beatSummaries = beats.map((b, i) => `[${i}] ${b.fn}: ${b.what}`).join('\n');
-  const chunksWithIndices = chunks.map((c, i) => `[${i}] ${c.substring(0, 200)}${c.length > 200 ? '...' : ''}`).join('\n\n');
-
-  const prompt = `BEATS (${beats.length}):
-${beatSummaries}
-
-PROSE CHUNKS (${chunks.length}):
-${chunksWithIndices}
-
-Map each beat to its corresponding chunk range. Verify all ${chunks.length} chunks are covered sequentially.`;
-
-  let accumulated = '';
-  const raw = onToken
-    ? await callGenerateStream(prompt, systemPrompt, (token) => { accumulated += token; onToken(token, accumulated); }, 4096, 'mapBeatsToProseRanges', GENERATE_MODEL, undefined, undefined, ANALYSIS_TEMPERATURE)
-    : await callGenerate(prompt, systemPrompt, 4096, 'mapBeatsToProseRanges', GENERATE_MODEL, undefined, true, ANALYSIS_TEMPERATURE);
-
-  type Mapping = { beatIndex: number; startPara: number; endPara: number };
-  const parsed = parseJson(raw, 'mapBeatsToProseRanges') as { mappings?: Mapping[] };
-  const mappings = parsed.mappings ?? [];
-
-  // Convert to beatsWithRanges format for validation
-  const beatsWithRanges: Array<{ beat: Beat; startPara?: number; endPara?: number }> = beats.map((beat, i) => {
-    const mapping = mappings.find(m => m.beatIndex === i);
-    return {
-      beat,
-      startPara: mapping?.startPara,
-      endPara: mapping?.endPara,
-    };
-  });
-
-  // Try to build from LLM ranges, fall back to heuristic if invalid
-  return buildBeatProseMap(chunks, beatsWithRanges);
-}
-
-/**
- * Build BeatProseMap from paragraph ranges with validation.
- * Falls back to heuristic segmentation if LLM ranges are invalid.
- */
 function buildBeatProseMap(
   paragraphs: string[],
   beatsWithRanges: Array<{ beat: Beat; startPara?: number; endPara?: number }>
 ): BeatProseMap | null {
   if (paragraphs.length === 0 || beatsWithRanges.length === 0) return null;
 
-  // Primary: Use LLM-extracted ranges if valid
+  // Validate and build from LLM ranges - no heuristic fallback
   const chunks = tryBuildFromRanges(paragraphs, beatsWithRanges);
   if (chunks) {
-    console.log('[buildBeatProseMap] Using LLM-extracted paragraph ranges');
     return { chunks, createdAt: Date.now() };
   }
 
-  // Fallback: Heuristic segmentation by word count
-  console.warn('[buildBeatProseMap] LLM ranges invalid, falling back to heuristic segmentation');
-  const fallbackChunks = buildHeuristicSegmentation(paragraphs, beatsWithRanges.length);
-  if (fallbackChunks) {
-    return { chunks: fallbackChunks, createdAt: Date.now() };
-  }
-
+  // Invalid ranges - return null so caller can retry
+  console.warn('[buildBeatProseMap] LLM provided invalid ranges, cannot create beat-prose map');
   return null;
 }
 
@@ -1001,56 +873,6 @@ function tryBuildFromRanges(
  * If not enough paragraphs, splits them into finer chunks to avoid duplicates.
  * Stores prose strings directly.
  */
-function buildHeuristicSegmentation(
-  paragraphs: string[],
-  beatCount: number
-): BeatProse[] | null {
-  if (beatCount === 0 || paragraphs.length === 0) return null;
-
-  // Ensure we have at least beatCount segments to distribute
-  let segments = paragraphs;
-  if (paragraphs.length < beatCount) {
-    const fullText = paragraphs.join('\n\n');
-    segments = splitProseIntoChunks(fullText, beatCount);
-
-    // If still not enough segments, fail (prose too short)
-    if (segments.length < beatCount) {
-      console.error(`[buildHeuristicSegmentation] Cannot split prose into ${beatCount} chunks (only got ${segments.length})`);
-      return null;
-    }
-  }
-
-  const chunks: BeatProse[] = [];
-
-  // Distribute segments across beats
-  if (segments.length === beatCount) {
-    // Perfect match - one segment per beat
-    for (let i = 0; i < beatCount; i++) {
-      chunks.push({ beatIndex: i, prose: segments[i] });
-    }
-  } else {
-    // More segments than beats - distribute evenly
-    const segmentsPerBeat = segments.length / beatCount;
-    for (let i = 0; i < beatCount; i++) {
-      const startIdx = Math.floor(i * segmentsPerBeat);
-      const endIdx = i === beatCount - 1 ? segments.length - 1 : Math.floor((i + 1) * segmentsPerBeat) - 1;
-      const prose = segments.slice(startIdx, endIdx + 1).join('\n\n');
-      chunks.push({ beatIndex: i, prose });
-    }
-  }
-
-  // Verify no duplicates
-  const proseSet = new Set<string>();
-  for (let i = 0; i < chunks.length; i++) {
-    if (proseSet.has(chunks[i].prose)) {
-      console.error(`[buildHeuristicSegmentation] Unexpected duplicate at beat ${i}, heuristic failed`);
-      return null;
-    }
-    proseSet.add(chunks[i].prose);
-  }
-
-  return chunks.length === beatCount ? chunks : null;
-}
 
 /**
  * Rewrite a scene plan guided by user-provided analysis/critique.

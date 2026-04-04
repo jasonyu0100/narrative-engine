@@ -2,7 +2,7 @@ import type { NarrativeState, StructureReview, ProseEvaluation, ProseSceneEval, 
 import { resolveEntry, isScene, REASONING_BUDGETS } from '@/types/narrative';
 import { callGenerate, callGenerateStream, SYSTEM_PROMPT } from './api';
 import { parseJson } from './json';
-import { ANALYSIS_MODEL, MAX_TOKENS_DEFAULT } from '@/lib/constants';
+import { ANALYSIS_MODEL, MAX_TOKENS_DEFAULT, ANALYSIS_TEMPERATURE } from '@/lib/constants';
 
 /**
  * Evaluate a branch by reading only scene summaries.
@@ -145,8 +145,8 @@ Every scene must appear in sceneEvals. Use the EXACT scene IDs shown above (e.g.
   const maxTokens = MAX_TOKENS_DEFAULT;
   const reasoningBudget = REASONING_BUDGETS[narrative.storySettings?.reasoningLevel ?? 'low'] || undefined;
   const raw = onReasoning
-    ? await callGenerateStream(prompt, SYSTEM_PROMPT, () => {}, maxTokens, 'evaluateBranch', ANALYSIS_MODEL, reasoningBudget, onReasoning)
-    : await callGenerate(prompt, SYSTEM_PROMPT, maxTokens, 'evaluateBranch', ANALYSIS_MODEL, reasoningBudget);
+    ? await callGenerateStream(prompt, SYSTEM_PROMPT, () => {}, maxTokens, 'evaluateBranch', ANALYSIS_MODEL, reasoningBudget, onReasoning, ANALYSIS_TEMPERATURE)
+    : await callGenerate(prompt, SYSTEM_PROMPT, maxTokens, 'evaluateBranch', ANALYSIS_MODEL, reasoningBudget, true, ANALYSIS_TEMPERATURE);
 
   try {
     const parsed = parseJson(raw, 'evaluateBranch') as {
@@ -297,8 +297,8 @@ Every scene with prose must appear in sceneEvals. Use the exact scene IDs.${guid
 
   const reasoningBudget = REASONING_BUDGETS[narrative.storySettings?.reasoningLevel ?? 'low'] || undefined;
   const raw = onReasoning
-    ? await callGenerateStream(prompt, SYSTEM_PROMPT, () => {}, MAX_TOKENS_DEFAULT, 'evaluateProseQuality', ANALYSIS_MODEL, reasoningBudget, onReasoning)
-    : await callGenerate(prompt, SYSTEM_PROMPT, MAX_TOKENS_DEFAULT, 'evaluateProseQuality', ANALYSIS_MODEL, reasoningBudget);
+    ? await callGenerateStream(prompt, SYSTEM_PROMPT, () => {}, MAX_TOKENS_DEFAULT, 'evaluateProseQuality', ANALYSIS_MODEL, reasoningBudget, onReasoning, ANALYSIS_TEMPERATURE)
+    : await callGenerate(prompt, SYSTEM_PROMPT, MAX_TOKENS_DEFAULT, 'evaluateProseQuality', ANALYSIS_MODEL, reasoningBudget, true, ANALYSIS_TEMPERATURE);
 
   try {
     const parsed = parseJson(raw, 'evaluateProseQuality') as {
@@ -430,8 +430,8 @@ Every scene with a plan must appear.${guidance?.trim() ? `\n\nREMINDER — The a
 
   const reasoningBudget = REASONING_BUDGETS[narrative.storySettings?.reasoningLevel ?? 'low'] || undefined;
   const raw = onReasoning
-    ? await callGenerateStream(prompt, SYSTEM_PROMPT, () => {}, MAX_TOKENS_DEFAULT, 'evaluatePlanQuality', ANALYSIS_MODEL, reasoningBudget, onReasoning)
-    : await callGenerate(prompt, SYSTEM_PROMPT, MAX_TOKENS_DEFAULT, 'evaluatePlanQuality', ANALYSIS_MODEL, reasoningBudget);
+    ? await callGenerateStream(prompt, SYSTEM_PROMPT, () => {}, MAX_TOKENS_DEFAULT, 'evaluatePlanQuality', ANALYSIS_MODEL, reasoningBudget, onReasoning, ANALYSIS_TEMPERATURE)
+    : await callGenerate(prompt, SYSTEM_PROMPT, MAX_TOKENS_DEFAULT, 'evaluatePlanQuality', ANALYSIS_MODEL, reasoningBudget, true, ANALYSIS_TEMPERATURE);
 
   try {
     const parsed = parseJson(raw, 'evaluatePlanQuality') as {
