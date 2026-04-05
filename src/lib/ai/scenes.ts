@@ -1214,20 +1214,20 @@ function tryBuildFromRanges(
       return null;
     }
 
-    // Validate beat size (warn if outside recommended range, but don't reject)
+    // Validate beat size (only warn if TREMENDOUSLY out of range)
     const wordCount = proseChunk.split(/\s+/).length;
-    if (wordCount < WORDS_PER_BEAT_MIN || wordCount > WORDS_PER_BEAT_MAX) {
+    const EXTREMELY_SHORT = 20; // Probably an error
+    const EXTREMELY_LONG = 500; // Probably an error
+    if (wordCount < EXTREMELY_SHORT || wordCount > EXTREMELY_LONG) {
       logWarning(
-        `Beat ${i} size outside recommended range`,
-        `Beat has ${wordCount} words (recommended: ${WORDS_PER_BEAT_MIN}-${WORDS_PER_BEAT_MAX})`,
+        `Beat ${i} size tremendously out of range`,
+        `Beat has ${wordCount} words (expected roughly 50-200 for most beats)`,
         {
           source: 'analysis',
           operation: 'beat-size-validation',
           details: {
             beatIndex: i,
             wordCount,
-            minWords: WORDS_PER_BEAT_MIN,
-            maxWords: WORDS_PER_BEAT_MAX,
             startPara,
             endPara,
           },
