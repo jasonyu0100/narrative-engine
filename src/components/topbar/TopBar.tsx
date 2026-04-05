@@ -457,6 +457,53 @@ export default function TopBar() {
   }, [narrative, state.resolvedEntryKeys]);
 
   // Usage: filter logs to current narrative
+  const handleCopyCurrentEntryJson = useCallback(async () => {
+    if (!narrative) {
+      setCopyToast('No narrative');
+      return;
+    }
+
+    // Check if we have a scene selected in inspector
+    if (state.inspectorContext?.type === 'scene') {
+      const scene = narrative.scenes[state.inspectorContext.sceneId];
+      if (!scene) {
+        setCopyToast('Scene not found');
+        return;
+      }
+      try {
+        await navigator.clipboard.writeText(JSON.stringify(scene, null, 2));
+        setExportOpen(false);
+        setCopyToast('Scene JSON copied');
+      } catch (err) {
+        setCopyToast('Failed to copy');
+      }
+      return;
+    }
+
+    // Otherwise, find the most recent world build
+    let worldBuild: any = null;
+    for (let i = state.resolvedEntryKeys.length - 1; i >= 0; i--) {
+      const key = state.resolvedEntryKeys[i];
+      const entry = resolveEntry(narrative, key);
+      if (entry && !isScene(entry)) {
+        worldBuild = entry;
+        break;
+      }
+    }
+
+    if (!worldBuild) {
+      setCopyToast('No world commit found');
+      return;
+    }
+    try {
+      await navigator.clipboard.writeText(JSON.stringify(worldBuild, null, 2));
+      setExportOpen(false);
+      setCopyToast('World commit JSON copied');
+    } catch (err) {
+      setCopyToast('Failed to copy');
+    }
+  }, [narrative, state.inspectorContext, state.resolvedEntryKeys]);
+
   const narrativeLogs = useMemo(() =>
     state.activeNarrativeId
       ? state.apiLogs.filter(l => l.narrativeId === state.activeNarrativeId)
@@ -1225,6 +1272,11 @@ export default function TopBar() {
                   <button onClick={handleExportAudio} disabled={!exportAvailability.hasAudio} className={`w-full flex items-center gap-2.5 px-3 py-1.5 text-[12px] transition-colors ${exportAvailability.hasAudio ? 'text-text-secondary hover:text-text-primary hover:bg-white/5' : 'text-text-dim/50 cursor-not-allowed'}`}>
                     <svg className="w-3.5 h-3.5 text-text-dim shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 18V5l12-2v13" /><circle cx="6" cy="18" r="3" /><circle cx="18" cy="16" r="3" /></svg>
                     Audio
+                  </button>
+                  <div className="my-1 border-t border-white/8" />
+                  <button onClick={handleCopyCurrentEntryJson} className="w-full flex items-center gap-2.5 px-3 py-1.5 text-[12px] transition-colors text-text-secondary hover:text-text-primary hover:bg-white/5">
+                    <svg className="w-3.5 h-3.5 text-text-dim shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" /><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" /></svg>
+                    {state.inspectorContext?.type === 'scene' ? 'Current Scene JSON' : 'Current World Commit JSON'}
                   </button>
                 </div>
               )}
