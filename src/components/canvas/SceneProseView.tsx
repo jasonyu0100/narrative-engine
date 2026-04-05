@@ -2,9 +2,11 @@
 
 import { generateSceneProse, rewriteSceneProse } from "@/lib/ai";
 import { sceneScale } from "@/lib/ai/context";
+import { useResolvedProse, useResolvedPlan } from "@/hooks/useResolvedScene";
+import { getResolvedPlanVersion } from "@/lib/narrative-utils";
 import { useStore } from "@/lib/store";
 import type { NarrativeState, Scene } from "@/types/narrative";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 // Persistent state that survives component unmounts (scene navigation, world commits)
 let beatPlanLinkedModePersisted = false;
@@ -57,7 +59,18 @@ export function SceneProseView({
   scene: Scene;
   resolvedKeys: string[];
 }) {
-  const { dispatch } = useStore();
+  const { state, dispatch } = useStore();
+
+  // Resolve prose and plan for current branch
+  const { prose: resolvedProse, beatProseMap: resolvedBeatProseMap } = useResolvedProse(scene);
+  const resolvedPlan = useResolvedPlan(scene);
+
+  // Get the current resolved plan version for tracking prose generation source
+  const currentPlanVersion = useMemo(() => {
+    const branches = state.activeNarrative?.branches ?? {};
+    const branchId = state.activeBranchId;
+    return branchId ? getResolvedPlanVersion(scene, branchId, branches) : undefined;
+  }, [scene, state.activeNarrative?.branches, state.activeBranchId]);
 
   type ProseState = {
     text: string;
@@ -65,8 +78,8 @@ export function SceneProseView({
     error?: string;
   };
   const [proseState, setProseState] = useState<ProseState>(() =>
-    scene.prose
-      ? { text: scene.prose, status: "ready" }
+    resolvedProse
+      ? { text: resolvedProse, status: "ready" }
       : { text: "", status: "idle" },
   );
   const [isEditing, setIsEditing] = useState(false);
@@ -78,15 +91,15 @@ export function SceneProseView({
     window.dispatchEvent(new CustomEvent('canvas:beat-plan-toggled', { detail: { value: showBeatPlan } }));
   }, [showBeatPlan]);
 
-  // Sync when scene changes
+  // Sync when scene or resolved prose changes
   useEffect(() => {
     setProseState(
-      scene.prose
-        ? { text: scene.prose, status: "ready" }
+      resolvedProse
+        ? { text: resolvedProse, status: "ready" }
         : { text: "", status: "idle" },
     );
     setIsEditing(false);
-  }, [scene.id]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [scene.id, resolvedProse]);
 
   const generateProse = useCallback(
     async (guidance?: string) => {
@@ -104,6 +117,7 @@ export function SceneProseView({
             }));
           },
           guidance,
+          resolvedPlan, // Pass resolved plan for versioned scenes
         );
         setProseState({ text: result.prose, status: "ready" });
         dispatch({
@@ -113,19 +127,21 @@ export function SceneProseView({
             prose: result.prose,
             beatProseMap: result.beatProseMap,
           },
+          versionType: 'generate', // Fresh AI generation creates major version
+          sourcePlanVersion: currentPlanVersion, // Track which plan was used
         });
       } catch (err) {
         const message = err instanceof Error ? err.message : String(err);
         setProseState((prev) => ({ ...prev, status: "error", error: message }));
       }
     },
-    [narrative, scene, resolvedKeys, dispatch],
+    [narrative, scene, resolvedKeys, dispatch, currentPlanVersion, resolvedPlan],
   );
 
   const rewriteProse = useCallback(
     async (guidance: string) => {
       const currentProse =
-        proseState.status === "ready" ? proseState.text : scene.prose;
+        proseState.status === "ready" ? proseState.text : resolvedProse;
       if (!currentProse) return;
       setProseState({ text: "", status: "loading" });
       setIsEditing(false);
@@ -154,13 +170,14 @@ export function SceneProseView({
             prose,
             beatProseMap: undefined, // Rewrite invalidates beat mapping
           },
+          versionType: 'rewrite', // AI rewrite creates minor version
         });
       } catch (err) {
         const message = err instanceof Error ? err.message : String(err);
         setProseState({ text: currentProse, status: "error", error: message });
       }
     },
-    [narrative, scene, resolvedKeys, proseState, dispatch],
+    [narrative, scene, resolvedKeys, proseState, dispatch, resolvedProse],
   );
 
   const saveEdit = useCallback(() => {
@@ -175,6 +192,7 @@ export function SceneProseView({
         prose: text,
         beatProseMap: undefined, // Clear mapping when manually edited
       },
+      versionType: 'edit', // Manual edit creates sub-minor version
     });
   }, [scene.id, dispatch]);
 
@@ -245,14 +263,14 @@ export function SceneProseView({
 
   // Check if beat-linked view is available
   const hasBeatMapping = !!(
-    scene.plan &&
-    scene.beatProseMap &&
-    scene.beatProseMap.chunks.length === scene.plan.beats.length &&
+    resolvedPlan &&
+    resolvedBeatProseMap &&
+    resolvedBeatProseMap.chunks.length === resolvedPlan.beats.length &&
     // Verify all chunk beatIndex values are valid
-    scene.beatProseMap.chunks.every(chunk =>
+    resolvedBeatProseMap.chunks.every(chunk =>
       typeof chunk.beatIndex === 'number' &&
       chunk.beatIndex >= 0 &&
-      chunk.beatIndex < scene.plan!.beats.length
+      chunk.beatIndex < resolvedPlan!.beats.length
     )
   );
 
@@ -262,8 +280,8 @@ export function SceneProseView({
         // Linked view: each beat row has plan on left, prose on right
         <div className="px-6 pt-6 pb-48">
           <div className="space-y-0">
-            {scene.beatProseMap!.chunks.map((chunk, idx) => {
-              const beat = scene.plan!.beats[chunk.beatIndex];
+            {resolvedBeatProseMap!.chunks.map((chunk, idx) => {
+              const beat = resolvedPlan!.beats[chunk.beatIndex];
               // Skip if beat doesn't exist (data integrity issue)
               if (!beat) {
                 console.warn(`[SceneProseView] Beat at index ${chunk.beatIndex} not found in plan.beats`);
@@ -286,7 +304,7 @@ export function SceneProseView({
                     >
                       {chunk.beatIndex + 1}
                     </div>
-                    {idx < scene.beatProseMap!.chunks.length - 1 && (
+                    {idx < resolvedBeatProseMap!.chunks.length - 1 && (
                       <div className="flex-1 w-px bg-white/8 mt-0.5" />
                     )}
                   </div>
@@ -430,7 +448,7 @@ export function SceneProseView({
           {/* Empty state */}
           {!hasProse && !isLoading && !hasError && (
             <div className="flex flex-col items-center justify-center py-20 gap-3">
-              {scene.plan ? (
+              {resolvedPlan ? (
                 <>
                   <p className="text-[11px] text-text-dim">
                     This scene hasn&apos;t been written yet.

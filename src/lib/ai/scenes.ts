@@ -1318,12 +1318,27 @@ export async function rewriteScenePlan(
     ? `\nScene Propositions: ${currentPlan.propositions.map((p) => `"${p.content}"`).join(', ')}`
     : '';
 
-  const systemPrompt = `You are a dramaturg revising a scene plan for "${narrative.title}". You receive the current beat plan and editorial feedback. Return an improved beat plan as JSON.
+  const systemPrompt = `You are a dramaturg making TARGETED REVISIONS to a scene plan for "${narrative.title}". This is NOT a regeneration — preserve the existing structure and only modify what the feedback specifically addresses.
 
-Return ONLY valid JSON: { "beats": [{ "fn": "...", "mechanism": "...", "what": "...", "propositions": [{"content": "..."}] }], "propositions": [{"content": "..."}] }
+Return ONLY valid JSON: { "beats": [{ "fn": "...", "mechanism": "...", "what": "...", "propositions": [{"content": "...", "type": "..."}] }], "propositions": [{"content": "...", "type": "..."}] }
 
 Beat functions: ${BEAT_FN_LIST.join(', ')}
-Mechanisms: ${BEAT_MECHANISM_LIST.join(', ')}`;
+Mechanisms: ${BEAT_MECHANISM_LIST.join(', ')}
+
+REWRITE RULES — STRUCTURE PRESERVATION:
+1. KEEP the same number of beats unless feedback explicitly requests adding/removing beats
+2. KEEP unchanged beats EXACTLY as they are (same fn, mechanism, what, propositions)
+3. ONLY MODIFY beats that the feedback specifically targets
+4. Preserve the overall scene arc and flow
+
+PROPOSITIONS — KEY FACTS established by each beat:
+Propositions are atomic claims that capture what the reader learns. When you modify a beat's 'what' field, update its propositions to match.
+
+Density per beat: 2-4 propositions for standard fiction
+Types: state, belief, relationship, event, rule, secret, motivation, claim, discovery
+
+Extract ONLY: concrete events, physical states, character beliefs/goals/discoveries, world rules, relationship shifts
+DO NOT include: atmospheric texture, literary devices, how things are described`;
 
   const sceneDesc = `Scene at branch head: ${scene.summary}`;
 
@@ -1335,17 +1350,23 @@ ${sceneDesc}
 CURRENT PLAN:
 ${currentPlanText}${currentProps}
 
-EDITORIAL FEEDBACK:
+TARGETED FEEDBACK:
 ${analysis}
 
-Revise the beat plan to address the feedback. Ensure all scene mutations are still covered.
+Make TARGETED REVISIONS based on the feedback above. This is a surgical edit, not a regeneration.
 
-CRITICAL: The 'what' field must be a STRUCTURAL SUMMARY of what happens, NOT pre-written prose.
-- DO: "Guard confronts him about the forged papers" — structural event
-- DON'T: "He muttered, 'The academy won't hold me long'" — pre-written prose with quotes
-- DO: "Mist covers the village" — simple fact
-- DON'T: "Mist clung, blurring the distinction..." — literary prose
-Strip adjectives, adverbs, literary embellishments. State the event, not its texture.`;
+CRITICAL — PRESERVE STRUCTURE:
+1. Return ALL ${currentPlan.beats.length} beats — do not add or remove unless feedback explicitly requests it
+2. For beats NOT mentioned in feedback: copy them EXACTLY (same fn, mechanism, what, propositions)
+3. For beats mentioned in feedback: apply the specific changes requested
+4. Maintain the scene's narrative arc and flow
+
+WHEN MODIFYING A BEAT:
+- The 'what' field must be a STRUCTURAL SUMMARY, not prose (no quotes, no literary language)
+- Update propositions to match the new content (2-4 per beat, with types: state, event, rule, discovery, etc.)
+- Keep fn and mechanism unless the feedback specifically asks for a change
+
+Scene-level "propositions" should capture the overall takeaways from the scene.`;
 
   const reasoningBudget = REASONING_BUDGETS[narrative.storySettings?.reasoningLevel ?? 'low'] || undefined;
   const raw = await callGenerate(prompt, systemPrompt, MAX_TOKENS_SMALL, 'rewriteScenePlan', GENERATE_MODEL, reasoningBudget);
@@ -1464,7 +1485,11 @@ export async function generateSceneProse(
   onToken?: (token: string) => void,
   /** Per-scene prose direction appended to the system prompt */
   guidance?: string,
+  /** Resolved plan to use (overrides scene.plan for versioned scenes) */
+  plan?: BeatPlan,
 ): Promise<{ prose: string; beatProseMap?: BeatProseMap }> {
+  // Use provided plan or fall back to scene.plan (for backward compatibility)
+  const activePlan = plan ?? scene.plan;
 
   logInfo('Starting prose generation', {
     source: 'prose-generation',
@@ -1473,7 +1498,7 @@ export async function generateSceneProse(
       narrativeId: narrative.id,
       sceneId: scene.id,
       sceneSummary: scene.summary.substring(0, 60),
-      hasPlan: !!scene.plan,
+      hasPlan: !!activePlan,
       hasGuidance: !!guidance,
     },
   });
@@ -1534,9 +1559,9 @@ ${formatInstructions.formatRules}${
   const sceneBlock = sceneContext(narrative, scene, resolvedKeys, contextIndex);
 
   // Scene plan — when available, this is the primary creative direction
-  const planBlock = scene.plan
+  const planBlock = activePlan
     ? `\nBEAT PLAN (follow this beat sequence — each beat maps to a passage of prose):
-${scene.plan.beats.map((b, i) =>
+${activePlan.beats.map((b, i) =>
   `  ${i + 1}. [${b.fn}:${b.mechanism}] ${b.what}
      Propositions: ${b.propositions.map(p => `"${p.content}"`).join('; ')}`
 ).join('\n')}
@@ -1557,7 +1582,7 @@ Given proposition: "Fang Yuan views other people as tools"
 The proposition is a belief-state to establish. HOW you establish it is craft.
 
 CRITICAL: If a proposition contains figurative language and the prose profile forbids figures of speech, REWRITE the proposition as literal fact, then transmit that. "Smoke dances like spirits" becomes "Smoke rises in twisted columns" if metaphor is forbidden.
-${scene.plan.propositions && scene.plan.propositions.length > 0 ? `\nSCENE PROPOSITIONS (story world facts spanning the whole scene):\n${scene.plan.propositions.map((p) => `  "${p.content}"`).join('\n')}` : ''}\n`
+${activePlan.propositions && activePlan.propositions.length > 0 ? `\nSCENE PROPOSITIONS (story world facts spanning the whole scene):\n${activePlan.propositions.map((p) => `  "${p.content}"`).join('\n')}` : ''}\n`
     : '';
 
   // Derive logical constraints from the scene graph — these are hard rules the prose must obey
@@ -1569,7 +1594,7 @@ ${scene.plan.propositions && scene.plan.propositions.length > 0 ? `\nSCENE PROPO
     ? `PREVIOUS SCENE ENDING (match tone, avoid repeating imagery or phrasing):\n"""${prevProseEnding}"""`
     : '';
 
-  const instruction = scene.plan
+  const instruction = activePlan
     ? `Follow the beat plan sequence — each beat maps to a passage of prose. The mechanism defines the delivery MODE (dialogue, thought, action, etc). The propositions define STORY WORLD FACTS TO TRANSMIT (what the reader must come to believe is true). Your job is to weave both into compelling, voiced prose.
 
 BEAT BOUNDARY MARKERS:
@@ -1671,12 +1696,12 @@ ${instruction}`;
     const rawProse = await generateRaw();
 
     // Parse beat boundaries if scene has a plan
-    result = scene.plan
-      ? parseBeatProseMap(rawProse, scene.plan.beats.length)
+    result = activePlan
+      ? parseBeatProseMap(rawProse, activePlan.beats.length)
       : { prose: rawProse };
 
     // Success: markers valid or no plan to check
-    if (!result.markersFailed || !scene.plan) {
+    if (!result.markersFailed || !activePlan) {
       break;
     }
 

@@ -73,6 +73,296 @@ export function resolveEntrySequence(
   return [...parentSequence, ...branch.entryIds];
 }
 
+// ── Prose/Plan Version Resolution ────────────────────────────────────────────
+// These functions resolve which prose/plan version a branch should see,
+// based on branch lineage and fork timestamps.
+
+import type { BeatPlan, BeatProseMap, ProseScore } from '@/types/narrative';
+
+export type ResolvedProse = {
+  prose?: string;
+  beatProseMap?: BeatProseMap;
+  proseScore?: ProseScore;
+};
+
+/**
+ * Resolve prose for a scene as viewed by a specific branch.
+ * Uses branch lineage and fork timestamps to find the appropriate version.
+ *
+ * Resolution order:
+ * 0. If this branch has an explicit version pointer, use that version
+ * 1. If this branch has its own version, use the latest one
+ * 2. Otherwise, check parent branch (filtered by fork time)
+ * 3. Return empty (no prose yet)
+ */
+export function resolveProseForBranch(
+  scene: Scene,
+  branchId: string,
+  branches: Record<string, Branch>,
+): ResolvedProse {
+  const branch = branches[branchId];
+  if (!branch) {
+    return { prose: undefined, beatProseMap: undefined, proseScore: undefined };
+  }
+
+  // 0. Check for explicit version pointer
+  const pointer = branch.versionPointers?.[scene.id]?.proseVersion;
+  if (pointer) {
+    const pinned = (scene.proseVersions ?? []).find(v => v.version === pointer);
+    if (pinned) {
+      return { prose: pinned.prose, beatProseMap: pinned.beatProseMap, proseScore: pinned.proseScore };
+    }
+  }
+
+  // 1. Check if this branch has its own version
+  const ownVersions = (scene.proseVersions ?? [])
+    .filter(v => v.branchId === branchId)
+    .sort((a, b) => b.timestamp - a.timestamp);
+
+  if (ownVersions.length > 0) {
+    const v = ownVersions[0];
+    return { prose: v.prose, beatProseMap: v.beatProseMap, proseScore: v.proseScore };
+  }
+
+  // 2. Check parent, filtered by fork time
+  if (branch.parentBranchId) {
+    return resolveProseAtTime(scene, branch.parentBranchId, branches, branch.createdAt);
+  }
+
+  // 3. No prose yet
+  return { prose: undefined, beatProseMap: undefined, proseScore: undefined };
+}
+
+/**
+ * Internal helper: resolve prose for a branch, only considering versions created before maxTime.
+ */
+function resolveProseAtTime(
+  scene: Scene,
+  branchId: string,
+  branches: Record<string, Branch>,
+  maxTime: number,
+): ResolvedProse {
+  const branch = branches[branchId];
+  if (!branch) {
+    return { prose: undefined, beatProseMap: undefined, proseScore: undefined };
+  }
+
+  // Versions from this branch, created before maxTime
+  const versions = (scene.proseVersions ?? [])
+    .filter(v => v.branchId === branchId && v.timestamp <= maxTime)
+    .sort((a, b) => b.timestamp - a.timestamp);
+
+  if (versions.length > 0) {
+    const v = versions[0];
+    return { prose: v.prose, beatProseMap: v.beatProseMap, proseScore: v.proseScore };
+  }
+
+  // Recurse to parent
+  if (branch.parentBranchId) {
+    const parentForkTime = Math.min(maxTime, branch.createdAt);
+    return resolveProseAtTime(scene, branch.parentBranchId, branches, parentForkTime);
+  }
+
+  return { prose: undefined, beatProseMap: undefined, proseScore: undefined };
+}
+
+/**
+ * Resolve plan for a scene as viewed by a specific branch.
+ * Uses branch lineage and fork timestamps to find the appropriate version.
+ *
+ * Resolution order:
+ * 0. If this branch has an explicit version pointer, use that version
+ * 1. If this branch has its own version, use the latest one
+ * 2. Otherwise, check parent branch (filtered by fork time)
+ * 3. Return undefined (no plan yet)
+ */
+export function resolvePlanForBranch(
+  scene: Scene,
+  branchId: string,
+  branches: Record<string, Branch>,
+): BeatPlan | undefined {
+  const branch = branches[branchId];
+  if (!branch) return undefined;
+
+  // 0. Check for explicit version pointer
+  const pointer = branch.versionPointers?.[scene.id]?.planVersion;
+  if (pointer) {
+    const pinned = (scene.planVersions ?? []).find(v => v.version === pointer);
+    if (pinned) {
+      return pinned.plan;
+    }
+  }
+
+  // 1. Check if this branch has its own version
+  const ownVersions = (scene.planVersions ?? [])
+    .filter(v => v.branchId === branchId)
+    .sort((a, b) => b.timestamp - a.timestamp);
+
+  if (ownVersions.length > 0) {
+    return ownVersions[0].plan;
+  }
+
+  // 2. Check parent, filtered by fork time
+  if (branch.parentBranchId) {
+    return resolvePlanAtTime(scene, branch.parentBranchId, branches, branch.createdAt);
+  }
+
+  // 3. No plan yet
+  return undefined;
+}
+
+/**
+ * Internal helper: resolve plan for a branch, only considering versions created before maxTime.
+ */
+function resolvePlanAtTime(
+  scene: Scene,
+  branchId: string,
+  branches: Record<string, Branch>,
+  maxTime: number,
+): BeatPlan | undefined {
+  const branch = branches[branchId];
+  if (!branch) return undefined;
+
+  // Versions from this branch, created before maxTime
+  const versions = (scene.planVersions ?? [])
+    .filter(v => v.branchId === branchId && v.timestamp <= maxTime)
+    .sort((a, b) => b.timestamp - a.timestamp);
+
+  if (versions.length > 0) {
+    return versions[0].plan;
+  }
+
+  // Recurse to parent
+  if (branch.parentBranchId) {
+    const parentForkTime = Math.min(maxTime, branch.createdAt);
+    return resolvePlanAtTime(scene, branch.parentBranchId, branches, parentForkTime);
+  }
+
+  return undefined;
+}
+
+/**
+ * Get the version string of the resolved prose for a scene and branch.
+ * Returns undefined if using legacy (unversioned) prose.
+ */
+export function getResolvedProseVersion(
+  scene: Scene,
+  branchId: string,
+  branches: Record<string, Branch>,
+): string | undefined {
+  const branch = branches[branchId];
+  if (!branch) return undefined;
+
+  // Check for explicit version pointer
+  const pointer = branch.versionPointers?.[scene.id]?.proseVersion;
+  if (pointer) {
+    const pinned = (scene.proseVersions ?? []).find(v => v.version === pointer);
+    if (pinned) return pinned.version;
+  }
+
+  // Check this branch's versions
+  const ownVersions = (scene.proseVersions ?? [])
+    .filter(v => v.branchId === branchId)
+    .sort((a, b) => b.timestamp - a.timestamp);
+
+  if (ownVersions.length > 0) {
+    return ownVersions[0].version;
+  }
+
+  // Check parent
+  if (branch.parentBranchId) {
+    return getResolvedProseVersionAtTime(scene, branch.parentBranchId, branches, branch.createdAt);
+  }
+
+  return undefined;
+}
+
+function getResolvedProseVersionAtTime(
+  scene: Scene,
+  branchId: string,
+  branches: Record<string, Branch>,
+  maxTime: number,
+): string | undefined {
+  const branch = branches[branchId];
+  if (!branch) return undefined;
+
+  const versions = (scene.proseVersions ?? [])
+    .filter(v => v.branchId === branchId && v.timestamp <= maxTime)
+    .sort((a, b) => b.timestamp - a.timestamp);
+
+  if (versions.length > 0) {
+    return versions[0].version;
+  }
+
+  if (branch.parentBranchId) {
+    const parentForkTime = Math.min(maxTime, branch.createdAt);
+    return getResolvedProseVersionAtTime(scene, branch.parentBranchId, branches, parentForkTime);
+  }
+
+  return undefined;
+}
+
+/**
+ * Get the version string of the resolved plan for a scene and branch.
+ * Returns undefined if using legacy (unversioned) plan.
+ */
+export function getResolvedPlanVersion(
+  scene: Scene,
+  branchId: string,
+  branches: Record<string, Branch>,
+): string | undefined {
+  const branch = branches[branchId];
+  if (!branch) return undefined;
+
+  // Check for explicit version pointer
+  const pointer = branch.versionPointers?.[scene.id]?.planVersion;
+  if (pointer) {
+    const pinned = (scene.planVersions ?? []).find(v => v.version === pointer);
+    if (pinned) return pinned.version;
+  }
+
+  // Check this branch's versions
+  const ownVersions = (scene.planVersions ?? [])
+    .filter(v => v.branchId === branchId)
+    .sort((a, b) => b.timestamp - a.timestamp);
+
+  if (ownVersions.length > 0) {
+    return ownVersions[0].version;
+  }
+
+  // Check parent
+  if (branch.parentBranchId) {
+    return getResolvedPlanVersionAtTime(scene, branch.parentBranchId, branches, branch.createdAt);
+  }
+
+  return undefined;
+}
+
+function getResolvedPlanVersionAtTime(
+  scene: Scene,
+  branchId: string,
+  branches: Record<string, Branch>,
+  maxTime: number,
+): string | undefined {
+  const branch = branches[branchId];
+  if (!branch) return undefined;
+
+  const versions = (scene.planVersions ?? [])
+    .filter(v => v.branchId === branchId && v.timestamp <= maxTime)
+    .sort((a, b) => b.timestamp - a.timestamp);
+
+  if (versions.length > 0) {
+    return versions[0].version;
+  }
+
+  if (branch.parentBranchId) {
+    const parentForkTime = Math.min(maxTime, branch.createdAt);
+    return getResolvedPlanVersionAtTime(scene, branch.parentBranchId, branches, parentForkTime);
+  }
+
+  return undefined;
+}
+
 /**
  * Compute thread statuses at a given scene index by replaying threadMutations.
  * Returns a map of threadId → current status.

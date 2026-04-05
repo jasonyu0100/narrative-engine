@@ -2,8 +2,10 @@
 
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { useStore } from '@/lib/store';
-import { resolveEntry, isScene, type Scene } from '@/types/narrative';
+import { resolveEntry, isScene, type Scene, type ProseVersion, type PlanVersion } from '@/types/narrative';
 import type { GraphViewMode } from '@/types/narrative';
+import { getResolvedProseVersion, getResolvedPlanVersion } from '@/lib/narrative-utils';
+import { VersionHistoryTree } from './VersionHistoryTree';
 
 const GRAPH_DOMAINS = [
   { label: 'World',     local: 'spatial' as GraphViewMode, global: 'overview' as GraphViewMode },
@@ -97,6 +99,91 @@ function BeatPlanToggle() {
   );
 }
 
+const VERSION_TYPE_COLORS = {
+  generate: 'text-emerald-400',
+  rewrite: 'text-sky-400',
+  edit: 'text-amber-400',
+};
+
+function VersionSelector({
+  versions,
+  currentVersion,
+  pinnedVersion,
+  type,
+  onSelectVersion,
+  onPinVersion,
+  planVersions,
+}: {
+  versions: ProseVersion[] | PlanVersion[];
+  currentVersion: string | undefined;
+  pinnedVersion: string | undefined;
+  type: 'prose' | 'plan';
+  onSelectVersion: (version: string) => void;
+  onPinVersion: (version: string | undefined) => void;
+  planVersions?: PlanVersion[];
+}) {
+  const [isOpen, setIsOpen] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  // Close on outside click
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleClick = (e: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
+        setIsOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClick);
+    return () => document.removeEventListener('mousedown', handleClick);
+  }, [isOpen]);
+
+  if (versions.length === 0) {
+    return (
+      <span className="text-[9px] text-text-dim/40 font-mono">
+        V0
+      </span>
+    );
+  }
+
+  // Find the version object for current version
+  const currentVersionObj = versions.find(v => v.version === currentVersion);
+  const versionType = currentVersionObj?.versionType ?? 'generate';
+
+  return (
+    <div className="relative" ref={dropdownRef}>
+      <button
+        onClick={() => setIsOpen(!isOpen)}
+        className={`flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-mono transition-colors hover:bg-white/10 ${
+          pinnedVersion ? 'ring-1 ring-inset ring-amber-400/40' : ''
+        }`}
+      >
+        <span className={VERSION_TYPE_COLORS[versionType]}>
+          V{currentVersion ?? '0'}
+        </span>
+        {pinnedVersion && <span className="text-amber-400">{"\u25C9"}</span>}
+        <span className="text-text-dim/40">{"\u25BC"}</span>
+      </button>
+
+      {isOpen && (
+        <div className="absolute top-full left-0 mt-1 z-50 bg-bg-secondary border border-border rounded-lg shadow-xl min-w-[240px] max-h-[320px] overflow-hidden">
+          <VersionHistoryTree
+            versions={versions}
+            currentVersion={currentVersion}
+            pinnedVersion={pinnedVersion}
+            onSelectVersion={(v) => {
+              onSelectVersion(v);
+              setIsOpen(false);
+            }}
+            onPinVersion={onPinVersion}
+            type={type}
+            planVersions={planVersions}
+          />
+        </div>
+      )}
+    </div>
+  );
+}
+
 function resolveCanvasMode(graphViewMode: GraphViewMode): CanvasMode {
   if (graphViewMode === 'plan') return 'plan';
   if (graphViewMode === 'prose') return 'prose';
@@ -128,6 +215,74 @@ export function CanvasTopBar() {
     const entry = resolveEntry(narrative, key);
     return entry && isScene(entry) ? entry : null;
   }, [narrative, state.resolvedEntryKeys, state.currentSceneIndex]);
+
+  // ── Version state ────────────────────────────────────────────────────
+  const branches = narrative?.branches ?? {};
+  const branchId = state.activeBranchId;
+
+  const currentProseVersion = useMemo(() => {
+    if (!currentScene || !branchId) return undefined;
+    return getResolvedProseVersion(currentScene, branchId, branches);
+  }, [currentScene, branchId, branches]);
+
+  const currentPlanVersion = useMemo(() => {
+    if (!currentScene || !branchId) return undefined;
+    return getResolvedPlanVersion(currentScene, branchId, branches);
+  }, [currentScene, branchId, branches]);
+
+  const pinnedProseVersion = useMemo(() => {
+    if (!currentScene || !branchId) return undefined;
+    return branches[branchId]?.versionPointers?.[currentScene.id]?.proseVersion;
+  }, [currentScene, branchId, branches]);
+
+  const pinnedPlanVersion = useMemo(() => {
+    if (!currentScene || !branchId) return undefined;
+    return branches[branchId]?.versionPointers?.[currentScene.id]?.planVersion;
+  }, [currentScene, branchId, branches]);
+
+  const handleSelectProseVersion = useCallback((version: string) => {
+    if (!currentScene || !branchId) return;
+    dispatch({
+      type: 'SET_VERSION_POINTER',
+      branchId,
+      sceneId: currentScene.id,
+      pointerType: 'prose',
+      version,
+    });
+  }, [dispatch, currentScene, branchId]);
+
+  const handlePinProseVersion = useCallback((version: string | undefined) => {
+    if (!currentScene || !branchId) return;
+    dispatch({
+      type: 'SET_VERSION_POINTER',
+      branchId,
+      sceneId: currentScene.id,
+      pointerType: 'prose',
+      version,
+    });
+  }, [dispatch, currentScene, branchId]);
+
+  const handleSelectPlanVersion = useCallback((version: string) => {
+    if (!currentScene || !branchId) return;
+    dispatch({
+      type: 'SET_VERSION_POINTER',
+      branchId,
+      sceneId: currentScene.id,
+      pointerType: 'plan',
+      version,
+    });
+  }, [dispatch, currentScene, branchId]);
+
+  const handlePinPlanVersion = useCallback((version: string | undefined) => {
+    if (!currentScene || !branchId) return;
+    dispatch({
+      type: 'SET_VERSION_POINTER',
+      branchId,
+      sceneId: currentScene.id,
+      pointerType: 'plan',
+      version,
+    });
+  }, [dispatch, currentScene, branchId]);
 
   // ── Mode-specific stats ───────────────────────────────────────────────
   const planStats = useMemo(() => {
@@ -310,6 +465,16 @@ export function CanvasTopBar() {
       {canvasMode === 'plan' && (
         <div className="flex items-center gap-2">
           <span className="text-[10px] text-sky-400/60">Plan</span>
+          {currentScene && (currentScene.planVersions?.length ?? 0) > 0 && (
+            <VersionSelector
+              versions={currentScene.planVersions ?? []}
+              currentVersion={currentPlanVersion}
+              pinnedVersion={pinnedPlanVersion}
+              type="plan"
+              onSelectVersion={handleSelectPlanVersion}
+              onPinVersion={handlePinPlanVersion}
+            />
+          )}
           {planStats && (
             <span className="text-[9px] text-text-dim/50 font-mono tabular-nums">
               {planStats.beats} beats{planStats.propositions > 0 && <> &middot; {planStats.propositions} props</>}
@@ -333,6 +498,17 @@ export function CanvasTopBar() {
       {canvasMode === 'prose' && (
         <div className="flex items-center gap-2">
           <span className="text-[10px] text-emerald-400/60">Prose</span>
+          {currentScene && (currentScene.proseVersions?.length ?? 0) > 0 && (
+            <VersionSelector
+              versions={currentScene.proseVersions ?? []}
+              currentVersion={currentProseVersion}
+              pinnedVersion={pinnedProseVersion}
+              type="prose"
+              onSelectVersion={handleSelectProseVersion}
+              onPinVersion={handlePinProseVersion}
+              planVersions={currentScene.planVersions}
+            />
+          )}
           {proseStats && (
             <span className="text-[9px] text-text-dim/50 font-mono tabular-nums">
               {proseStats.words.toLocaleString()} words &middot; {proseStats.paragraphs} paragraphs

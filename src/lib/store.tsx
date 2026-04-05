@@ -321,12 +321,13 @@ export type Action =
   | { type: 'SET_GRAPH_VIEW_MODE'; mode: GraphViewMode }
   | { type: 'SWITCH_BRANCH'; branchId: string }
   // Scene mutations
-  | { type: 'UPDATE_SCENE'; sceneId: string; updates: Partial<Pick<Scene, 'summary' | 'prose' | 'plan' | 'beatProseMap' | 'events' | 'locationId' | 'participantIds' | 'povId' | 'threadMutations' | 'continuityMutations' | 'relationshipMutations' | 'worldKnowledgeMutations' | 'characterMovements' | 'arcId'>> }
+  | { type: 'UPDATE_SCENE'; sceneId: string; updates: Partial<Pick<Scene, 'summary' | 'prose' | 'plan' | 'beatProseMap' | 'proseScore' | 'events' | 'locationId' | 'participantIds' | 'povId' | 'threadMutations' | 'continuityMutations' | 'relationshipMutations' | 'worldKnowledgeMutations' | 'characterMovements' | 'arcId'>>; versionType?: 'generate' | 'rewrite' | 'edit'; sourcePlanVersion?: string }
   | { type: 'DELETE_SCENE'; sceneId: string; branchId: string }
   // Branch management
   | { type: 'CREATE_BRANCH'; branch: Branch }
   | { type: 'DELETE_BRANCH'; branchId: string }
   | { type: 'RENAME_BRANCH'; branchId: string; name: string }
+  | { type: 'SET_VERSION_POINTER'; branchId: string; sceneId: string; pointerType: 'prose' | 'plan'; version: string | undefined }
   | { type: 'REMOVE_BRANCH_ENTRY'; entryId: string; branchId: string }
   | { type: 'SET_STRUCTURE_REVIEW'; branchId: string; evaluation: StructureReview }
   | { type: 'SET_PROSE_EVALUATION'; branchId: string; evaluation: ProseEvaluation }
@@ -580,7 +581,187 @@ function reducer(state: AppState, action: Action): AppState {
       return updateNarrative(state, (n) => {
         const scene = n.scenes[action.sceneId];
         if (!scene) return n;
-        return { ...n, scenes: { ...n.scenes, [action.sceneId]: { ...scene, ...action.updates } } };
+
+        const updates = { ...action.updates };
+        let updatedScene = { ...scene };
+        const versionType = action.versionType ?? 'generate';
+
+        // Get current resolved version (from pointer or latest for this branch)
+        const branch = state.activeBranchId ? n.branches[state.activeBranchId] : undefined;
+        const currentProsePointer = branch?.versionPointers?.[scene.id]?.proseVersion;
+        const currentPlanPointer = branch?.versionPointers?.[scene.id]?.planVersion;
+
+        // Helper to compute next version number
+        // Version hierarchy: generate (major) → rewrite (minor) → edit (sub-minor)
+        // E.g., 1 → 1.1 → 1.1.1, 1.1.2 → 1.2 → 2 → 2.1 → 2.1.1
+        // IMPORTANT: Version numbers are GLOBALLY unique across all branches.
+        // Even if user is on V1.2 and V1.3 exists elsewhere, new rewrite creates V1.4
+        const computeNextVersion = (
+          allVersions: { version: string; branchId: string; versionType: string }[],
+          _branchId: string,
+          type: 'generate' | 'rewrite' | 'edit',
+          currentVersion?: string, // The version currently being viewed/edited
+        ): { version: string; parentVersion?: string } => {
+          // Sort versions: highest first by major, then minor, then edit
+          const sortVersions = (vList: typeof allVersions) => {
+            return [...vList].sort((a, b) => {
+              const aParts = a.version.split('.').map(Number);
+              const bParts = b.version.split('.').map(Number);
+              for (let i = 0; i < 3; i++) {
+                const av = aParts[i] ?? 0;
+                const bv = bParts[i] ?? 0;
+                if (av !== bv) return bv - av;
+              }
+              return 0;
+            });
+          };
+
+          // Parse version string into parts
+          const parseVersion = (v: string) => {
+            const parts = v.split('.').map(Number);
+            return {
+              major: parts[0] ?? 0,
+              minor: parts[1] ?? 0,
+              edit: parts[2] ?? 0,
+            };
+          };
+
+          // Get the current version's parts (if specified)
+          const current = currentVersion ? parseVersion(currentVersion) : null;
+
+          if (type === 'generate') {
+            // Fresh generation: find highest major version GLOBALLY, increment
+            let maxMajor = 0;
+            for (const v of allVersions) {
+              const major = parseInt(v.version.split('.')[0], 10);
+              if (!isNaN(major) && major > maxMajor) maxMajor = major;
+            }
+            return { version: String(maxMajor + 1), parentVersion: currentVersion };
+          } else if (type === 'rewrite') {
+            // Rewrite: increment minor at the CURRENT major level, but check for existing higher minors
+            if (allVersions.length === 0) {
+              return { version: '1.1', parentVersion: undefined };
+            }
+
+            // Use current version's major, or latest if none specified
+            const sorted = sortVersions(allVersions);
+            const targetMajor = current?.major ?? parseVersion(sorted[0].version).major;
+
+            // Find highest minor at this major level (across all branches)
+            let maxMinor = 0;
+            for (const v of allVersions) {
+              const parts = parseVersion(v.version);
+              if (parts.major === targetMajor && parts.minor > maxMinor) {
+                maxMinor = parts.minor;
+              }
+            }
+
+            return { version: `${targetMajor}.${maxMinor + 1}`, parentVersion: currentVersion };
+          } else {
+            // Edit: increment sub-minor at the CURRENT major.minor level, check for existing higher edits
+            if (allVersions.length === 0) {
+              return { version: '1.0.1', parentVersion: undefined };
+            }
+
+            // Use current version's major.minor, or latest if none specified
+            const sorted = sortVersions(allVersions);
+            const latest = parseVersion(sorted[0].version);
+            const targetMajor = current?.major ?? latest.major;
+            const targetMinor = current?.minor ?? latest.minor;
+
+            // Find highest edit at this major.minor level (across all branches)
+            let maxEdit = 0;
+            for (const v of allVersions) {
+              const parts = parseVersion(v.version);
+              if (parts.major === targetMajor && parts.minor === targetMinor && parts.edit > maxEdit) {
+                maxEdit = parts.edit;
+              }
+            }
+
+            return { version: `${targetMajor}.${targetMinor}.${maxEdit + 1}`, parentVersion: currentVersion };
+          }
+        };
+
+        // Handle prose versioning — append to version array instead of overwriting
+        let newProseVersion: string | undefined;
+        if (updates.prose !== undefined && state.activeBranchId) {
+          const { version, parentVersion } = computeNextVersion(
+            scene.proseVersions ?? [],
+            state.activeBranchId,
+            versionType,
+            currentProsePointer, // Use pointer if user pinned a specific version
+          );
+          const newVersion = {
+            prose: updates.prose,
+            beatProseMap: updates.beatProseMap,
+            proseScore: updates.proseScore,
+            branchId: state.activeBranchId,
+            timestamp: Date.now(),
+            version,
+            versionType,
+            parentVersion,
+            sourcePlanVersion: action.sourcePlanVersion,
+          };
+          updatedScene.proseVersions = [...(scene.proseVersions ?? []), newVersion];
+          // Auto-update version pointer to point to the new version
+          newProseVersion = version;
+          // Remove from direct updates — no longer writing to legacy fields
+          delete updates.prose;
+          delete updates.beatProseMap;
+          delete updates.proseScore;
+        }
+
+        // Handle plan versioning — append to version array instead of overwriting
+        let newPlanVersion: string | undefined;
+        if (updates.plan !== undefined && state.activeBranchId) {
+          const { version, parentVersion } = computeNextVersion(
+            scene.planVersions ?? [],
+            state.activeBranchId,
+            versionType,
+            currentPlanPointer, // Use pointer if user pinned a specific version
+          );
+          const newVersion = {
+            plan: updates.plan,
+            branchId: state.activeBranchId,
+            timestamp: Date.now(),
+            version,
+            versionType,
+            parentVersion,
+          };
+          updatedScene.planVersions = [...(scene.planVersions ?? []), newVersion];
+          // Auto-update version pointer to point to the new version
+          newPlanVersion = version;
+          delete updates.plan;
+        }
+
+        // Apply remaining updates (non-versioned fields like summary, events, mutations, etc.)
+        updatedScene = { ...updatedScene, ...updates };
+
+        // Update version pointers to point to newly created versions
+        let updatedBranches = n.branches;
+        if (state.activeBranchId && (newProseVersion || newPlanVersion)) {
+          const currentBranch = n.branches[state.activeBranchId];
+          if (currentBranch) {
+            const currentPointers = currentBranch.versionPointers?.[action.sceneId] ?? {};
+            const updatedPointers = {
+              ...currentPointers,
+              ...(newProseVersion ? { proseVersion: newProseVersion } : {}),
+              ...(newPlanVersion ? { planVersion: newPlanVersion } : {}),
+            };
+            updatedBranches = {
+              ...n.branches,
+              [state.activeBranchId]: {
+                ...currentBranch,
+                versionPointers: {
+                  ...currentBranch.versionPointers,
+                  [action.sceneId]: updatedPointers,
+                },
+              },
+            };
+          }
+        }
+
+        return { ...n, scenes: { ...n.scenes, [action.sceneId]: updatedScene }, branches: updatedBranches };
       });
 
     case 'DELETE_SCENE': {
@@ -671,6 +852,40 @@ function reducer(state: AppState, action: Action): AppState {
         const branch = n.branches[action.branchId];
         if (!branch) return n;
         return { ...n, branches: { ...n.branches, [action.branchId]: { ...branch, name: action.name } } };
+      });
+
+    case 'SET_VERSION_POINTER':
+      return updateNarrative(state, (n) => {
+        const branch = n.branches[action.branchId];
+        if (!branch) return n;
+
+        const existingPointers = branch.versionPointers ?? {};
+        const scenePointers = existingPointers[action.sceneId] ?? {};
+
+        // Update or clear the pointer
+        const updatedScenePointers = action.pointerType === 'prose'
+          ? { ...scenePointers, proseVersion: action.version }
+          : { ...scenePointers, planVersion: action.version };
+
+        // Clean up undefined values
+        if (updatedScenePointers.proseVersion === undefined) delete updatedScenePointers.proseVersion;
+        if (updatedScenePointers.planVersion === undefined) delete updatedScenePointers.planVersion;
+
+        // Clean up empty scene pointers
+        const updatedPointers = { ...existingPointers };
+        if (Object.keys(updatedScenePointers).length === 0) {
+          delete updatedPointers[action.sceneId];
+        } else {
+          updatedPointers[action.sceneId] = updatedScenePointers;
+        }
+
+        // Clean up empty versionPointers
+        const updatedBranch = {
+          ...branch,
+          versionPointers: Object.keys(updatedPointers).length > 0 ? updatedPointers : undefined,
+        };
+
+        return { ...n, branches: { ...n.branches, [action.branchId]: updatedBranch } };
       });
 
     case 'REMOVE_BRANCH_ENTRY': {

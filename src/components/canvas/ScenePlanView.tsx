@@ -2,6 +2,7 @@
 
 import { IconClose, IconPlus } from "@/components/icons";
 import { generateScenePlan, rewriteScenePlan } from "@/lib/ai";
+import { useResolvedPlan } from "@/hooks/useResolvedScene";
 import { useStore } from "@/lib/store";
 import type {
   Beat,
@@ -48,13 +49,16 @@ export function ScenePlanView({
 }) {
   const { dispatch } = useStore();
 
+  // Resolve plan for current branch
+  const resolvedPlan = useResolvedPlan(scene);
+
   const [planCache, setPlanCache] = useState<{
     plan: BeatPlan | null;
     status: "idle" | "loading" | "ready" | "error";
     error?: string;
   }>(() =>
-    scene.plan
-      ? { plan: scene.plan, status: "ready" }
+    resolvedPlan
+      ? { plan: resolvedPlan, status: "ready" }
       : { plan: null, status: "idle" },
   );
   const [reasoning, setReasoning] = useState("");
@@ -63,16 +67,16 @@ export function ScenePlanView({
     estWords: number;
   } | null>(null);
 
-  // Sync when scene changes
+  // Sync when scene or resolved plan changes
   useEffect(() => {
     setPlanCache(
-      scene.plan
-        ? { plan: scene.plan, status: "ready" }
+      resolvedPlan
+        ? { plan: resolvedPlan, status: "ready" }
         : { plan: null, status: "idle" },
     );
     setReasoning("");
     setMeta(null);
-  }, [scene.id]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [scene.id, resolvedPlan]);
 
   const generatePlan = useCallback(
     async (guidance?: string) => {
@@ -95,6 +99,7 @@ export function ScenePlanView({
           type: "UPDATE_SCENE",
           sceneId: scene.id,
           updates: { plan },
+          versionType: 'generate', // Fresh AI generation creates major version
         });
       } catch (err) {
         const message = err instanceof Error ? err.message : String(err);
@@ -108,7 +113,7 @@ export function ScenePlanView({
 
   const rewritePlan = useCallback(
     async (guidance: string) => {
-      const currentPlan = planCache.plan ?? scene.plan;
+      const currentPlan = planCache.plan ?? resolvedPlan;
       if (!currentPlan) return;
       setPlanCache({ plan: null, status: "loading" });
       setReasoning("");
@@ -125,13 +130,14 @@ export function ScenePlanView({
           type: "UPDATE_SCENE",
           sceneId: scene.id,
           updates: { plan },
+          versionType: 'rewrite', // AI rewrite creates minor version
         });
       } catch (err) {
         const message = err instanceof Error ? err.message : String(err);
         setPlanCache({ plan: currentPlan, status: "error", error: message });
       }
     },
-    [narrative, scene, resolvedKeys, planCache.plan, dispatch],
+    [narrative, scene, resolvedKeys, planCache.plan, dispatch, resolvedPlan],
   );
 
   // Listen for palette events
@@ -179,6 +185,7 @@ export function ScenePlanView({
         type: "UPDATE_SCENE",
         sceneId: scene.id,
         updates: { plan: newPlan },
+        versionType: 'edit', // Manual edit creates sub-minor version
       });
     },
     [activePlan, scene.id, dispatch],
@@ -194,6 +201,7 @@ export function ScenePlanView({
         type: "UPDATE_SCENE",
         sceneId: scene.id,
         updates: { plan: newPlan },
+        versionType: 'edit',
       });
     },
     [activePlan, scene.id, dispatch],
@@ -216,6 +224,7 @@ export function ScenePlanView({
         type: "UPDATE_SCENE",
         sceneId: scene.id,
         updates: { plan: newPlan },
+        versionType: 'edit',
       });
     },
     [activePlan, scene.id, dispatch],
@@ -235,6 +244,7 @@ export function ScenePlanView({
         type: "UPDATE_SCENE",
         sceneId: scene.id,
         updates: { plan: newPlan },
+        versionType: 'edit',
       });
     },
     [activePlan, scene.id, dispatch],
@@ -259,6 +269,7 @@ export function ScenePlanView({
         type: "UPDATE_SCENE",
         sceneId: scene.id,
         updates: { plan: newPlan },
+        versionType: 'edit',
       });
     },
     [activePlan, scene.id, dispatch],
@@ -278,6 +289,7 @@ export function ScenePlanView({
         type: "UPDATE_SCENE",
         sceneId: scene.id,
         updates: { plan: newPlan },
+        versionType: 'edit',
       });
     },
     [activePlan, scene.id, dispatch],
@@ -295,6 +307,7 @@ export function ScenePlanView({
       type: "UPDATE_SCENE",
       sceneId: scene.id,
       updates: { plan: newPlan },
+      versionType: 'edit',
     });
   }, [activePlan, scene.id, dispatch]);
 
@@ -311,6 +324,7 @@ export function ScenePlanView({
         type: "UPDATE_SCENE",
         sceneId: scene.id,
         updates: { plan: newPlan },
+        versionType: 'edit',
       });
     },
     [activePlan, scene.id, dispatch],
@@ -330,6 +344,7 @@ export function ScenePlanView({
         type: "UPDATE_SCENE",
         sceneId: scene.id,
         updates: { plan: newPlan },
+        versionType: 'edit',
       });
     },
     [activePlan, scene.id, dispatch],

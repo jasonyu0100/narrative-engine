@@ -372,6 +372,56 @@ export type CharacterMovement = {
   transition: string;
 };
 
+// ── Prose/Plan Versioning ────────────────────────────────────────────────────
+// Versions enable branch isolation: each branch can have its own prose/plan
+// without affecting other branches. Resolution uses branch lineage + fork time.
+//
+// Version numbering: V{major}.{minor}
+// Version hierarchy:
+// - Generate (fresh generation) → new major version (V1, V2, V3)
+// - Rewrite (AI revision) → minor version (V2.1, V2.2)
+// - Edit (manual edit) → sub-minor version (V2.1.1, V2.1.2)
+// Edits are cleared when rewrite or regeneration occurs (they branch from the new version).
+
+/** Version type: 'generate' = fresh AI generation, 'rewrite' = AI revision, 'edit' = manual edit */
+export type VersionType = 'generate' | 'rewrite' | 'edit';
+
+/** A versioned prose snapshot — tagged with the branch that created it */
+export type ProseVersion = {
+  prose: string;
+  beatProseMap?: BeatProseMap;
+  proseScore?: ProseScore;
+  branchId: string;
+  timestamp: number;
+  /** Version number — major.minor.edit format (e.g., "1", "2.1", "2.1.3") */
+  version: string;
+  /** Whether this is a fresh generation, AI rewrite, or manual edit */
+  versionType: VersionType;
+  /** For rewrites/edits: the version this was derived from */
+  parentVersion?: string;
+  /** For generated prose: the plan version that produced this prose */
+  sourcePlanVersion?: string;
+};
+
+/** A versioned plan snapshot — tagged with the branch that created it */
+export type PlanVersion = {
+  plan: BeatPlan;
+  branchId: string;
+  timestamp: number;
+  /** Version number — major.minor.edit format (e.g., "1", "2.1", "2.1.3") */
+  version: string;
+  /** Whether this is a fresh generation, AI rewrite, or manual edit */
+  versionType: VersionType;
+  /** For rewrites/edits: the version this was derived from */
+  parentVersion?: string;
+};
+
+/** Prose score from evaluation */
+export type ProseScore = {
+  overall: number;
+  details?: Record<string, number>;
+};
+
 export type Scene = {
   kind: 'scene';
   id: string;
@@ -395,6 +445,12 @@ export type Scene = {
   prose?: string;
   /** Beat-to-prose mapping (only present if scene was generated with beat tracking) */
   beatProseMap?: BeatProseMap;
+  /** Prose score from evaluation */
+  proseScore?: ProseScore;
+  /** Version history for prose — enables branch isolation. Resolution uses branch lineage + fork time. */
+  proseVersions?: ProseVersion[];
+  /** Version history for plan — enables branch isolation. Resolution uses branch lineage + fork time. */
+  planVersions?: PlanVersion[];
   summary: string;
   imageUrl?: string;
   audioUrl?: string;
@@ -514,6 +570,15 @@ export type Arc = {
 };
 
 // ── Branch ───────────────────────────────────────────────────────────────────
+
+/** Explicit version pointers for a scene — allows a branch to pin specific versions */
+export type SceneVersionPointers = {
+  /** Pinned prose version for this scene on this branch (undefined = auto-resolve) */
+  proseVersion?: string;
+  /** Pinned plan version for this scene on this branch (undefined = auto-resolve) */
+  planVersion?: string;
+};
+
 export type Branch = {
   id: string;
   name: string;
@@ -524,6 +589,8 @@ export type Branch = {
   entryIds: string[];
   /** Branch-scoped planning queue (optional — absent means no planning layer) */
   planningQueue?: PlanningQueue;
+  /** Explicit version pointers — sceneId → version pointers (optional, absent = auto-resolve) */
+  versionPointers?: Record<string, SceneVersionPointers>;
   createdAt: number;
 };
 
