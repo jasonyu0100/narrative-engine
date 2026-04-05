@@ -1,6 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import type { AnalysisJob, AnalysisChunkResult, AnalysisPhase } from '@/types/narrative';
-import type { Action } from '@/lib/store';
+import type { AnalysisJob, AnalysisChunkResult } from '@/types/narrative';
 
 // Mock dependencies
 vi.mock('@/lib/text-analysis', () => ({
@@ -20,6 +19,13 @@ vi.mock('@/lib/constants', () => ({
   ANALYSIS_MAX_CHUNK_RETRIES: 2,
 }));
 
+vi.mock('@/lib/error-logger', () => ({
+  logError: vi.fn(),
+  logWarning: vi.fn(),
+  setErrorLoggerNarrativeId: vi.fn(),
+  onErrorLog: vi.fn(),
+}));
+
 import { analyzeChunkParallel, reconcileResults, analyzeThreading, assembleNarrative } from '@/lib/text-analysis';
 import { reverseEngineerScenePlan } from '@/lib/ai/scenes';
 import { analysisRunner } from '@/lib/analysis-runner';
@@ -29,13 +35,53 @@ const AnalysisRunner = analysisRunner;
 
 beforeEach(() => {
   vi.clearAllMocks();
+
+  // Set up default mock implementations
+  vi.mocked(analyzeChunkParallel).mockImplementation((_text, chunkIdx) =>
+    Promise.resolve(createMockChunkResult(chunkIdx))
+  );
+  vi.mocked(reconcileResults).mockImplementation(async (results) => results);
+  vi.mocked(analyzeThreading).mockResolvedValue({});
+  vi.mocked(assembleNarrative).mockResolvedValue({
+    id: 'narrative-1',
+    title: 'Test Narrative',
+    description: '',
+    worldSummary: '',
+    characters: {},
+    locations: {},
+    threads: {},
+    arcs: {},
+    scenes: {},
+    branches: {},
+    worldBuilds: {},
+    worldKnowledge: { nodes: {}, edges: [] },
+    relationships: [],
+    artifacts: {},
+    rules: [],
+    createdAt: Date.now(),
+    updatedAt: Date.now(),
+  });
+  vi.mocked(reverseEngineerScenePlan).mockResolvedValue({
+    plan: { beats: [] },
+    beatProseMap: {
+      chunks: [],
+      createdAt: Date.now(),
+    },
+  });
+});
+
+afterEach(async () => {
+  // Wait for any pending operations to complete and prevent state leakage between tests
+  await new Promise(resolve => setTimeout(resolve, 100));
 });
 
 // ── Test Fixtures ────────────────────────────────────────────────────────────
 
+let jobCounter = 0;
+
 function createMockJob(overrides: Partial<AnalysisJob> = {}): AnalysisJob {
   return {
-    id: 'JOB-001',
+    id: `JOB-${++jobCounter}`,
     title: 'Test Analysis',
     sourceText: 'Sample text for analysis',
     chunks: [
@@ -103,7 +149,7 @@ describe('AnalysisRunner Lifecycle', () => {
     const runPromise = AnalysisRunner.start(job);
 
     // Set dispatch after a delay
-    setTimeout(() => AnalysisRunner.setDispatch(dispatchMock), 50);
+    setTimeout(() => AnalysisRunner.setDispatch(dispatchMock as any), 50);
 
     // Should wait for dispatch
     await runPromise;
@@ -112,7 +158,7 @@ describe('AnalysisRunner Lifecycle', () => {
   });
 
   it('emits stream updates to registered listeners', async () => {
-    AnalysisRunner.setDispatch(dispatchMock);
+    AnalysisRunner.setDispatch(dispatchMock as any);
 
     const streamListener = vi.fn();
     const unsubscribe = AnalysisRunner.onStream(streamListener);
@@ -128,7 +174,7 @@ describe('AnalysisRunner Lifecycle', () => {
   });
 
   it('tracks in-flight chunks during Phase 1 extraction', async () => {
-    AnalysisRunner.setDispatch(dispatchMock);
+    AnalysisRunner.setDispatch(dispatchMock as any);
 
     const inFlightListener = vi.fn();
     AnalysisRunner.onInFlightChange(inFlightListener);
@@ -151,7 +197,7 @@ describe('AnalysisRunner Lifecycle', () => {
   });
 
   it('allows cancelling a running job', async () => {
-    AnalysisRunner.setDispatch(dispatchMock);
+    AnalysisRunner.setDispatch(dispatchMock as any);
 
     vi.mocked(analyzeChunkParallel).mockImplementation(
       () => new Promise((resolve) => setTimeout(() => resolve(createMockChunkResult(0)), 200))
@@ -161,7 +207,7 @@ describe('AnalysisRunner Lifecycle', () => {
     const runPromise = AnalysisRunner.start(job);
 
     // Cancel after starting
-    setTimeout(() => AnalysisRunner.cancel(job.id), 50);
+    setTimeout(() => AnalysisRunner.pause(job.id), 50);
 
     await runPromise;
 
@@ -183,7 +229,7 @@ describe('Phase 1: Parallel Extraction', () => {
 
   beforeEach(() => {
     dispatchMock = vi.fn();
-    AnalysisRunner.setDispatch(dispatchMock);
+    AnalysisRunner.setDispatch(dispatchMock as any);
   });
 
   it('processes all chunks in parallel up to MAX_CONCURRENCY', async () => {
@@ -214,7 +260,8 @@ describe('Phase 1: Parallel Extraction', () => {
     vi.mocked(analyzeChunkParallel).mockImplementation(() => {
       callCount++;
       if (callCount < 3) {
-        return Promise.reject(new Error('Extraction failed'));
+        // Use a parse/type error that will trigger auto-retry
+        return Promise.reject(new Error('JSON parse error: unexpected token'));
       }
       return Promise.resolve(createMockChunkResult(0));
     });
@@ -282,7 +329,7 @@ describe('Phase 2: Beat Plan Extraction', () => {
 
   beforeEach(() => {
     dispatchMock = vi.fn();
-    AnalysisRunner.setDispatch(dispatchMock);
+    AnalysisRunner.setDispatch(dispatchMock as any);
   });
 
   it('extracts beat plans from all scenes with prose', async () => {
@@ -360,21 +407,26 @@ describe('Phase 2: Beat Plan Extraction', () => {
     );
 
     expect(updateCall).toBeDefined();
-    expect(updateCall[0].updates.results[0].scenes[0].plan).toEqual(mockPlan);
-    expect(updateCall[0].updates.results[0].scenes[0].beatProseMap).toEqual(mockBeatProseMap);
+    expect(updateCall![0].updates.results[0].scenes[0].plan).toEqual(mockPlan);
+    expect(updateCall![0].updates.results[0].scenes[0].beatProseMap).toEqual(mockBeatProseMap);
   });
 
   it('continues if beat plan extraction fails for a scene (non-fatal)', async () => {
     const chunkResult = createMockChunkResult(0);
 
     vi.mocked(analyzeChunkParallel).mockResolvedValue(chunkResult);
-    vi.mocked(reverseEngineerScenePlan).mockRejectedValue(new Error('Plan extraction failed'));
+
+    // Mock plan extraction to always fail
+    vi.mocked(reverseEngineerScenePlan).mockImplementation(() => {
+      return Promise.reject(new Error('Plan extraction failed'));
+    });
 
     const job = createMockJob({
       chunks: [{ index: 0, text: 'Test', sectionCount: 1 }],
       results: [null],
     });
 
+    // Set longer timeout due to retry delays
     await AnalysisRunner.start(job);
 
     // Job should still complete successfully
@@ -384,25 +436,23 @@ describe('Phase 2: Beat Plan Extraction', () => {
         updates: expect.objectContaining({ status: 'completed' }),
       })
     );
-  });
+  }, 15000);
 
   it('emits plan stream updates during extraction', async () => {
     const chunkResult = createMockChunkResult(0);
 
     vi.mocked(analyzeChunkParallel).mockResolvedValue(chunkResult);
 
-    let onTokenCallback: ((token: string, accumulated: string) => void) | undefined;
-    vi.mocked(reverseEngineerScenePlan).mockImplementation((prose, summary, onToken) => {
-      onTokenCallback = onToken;
-      setTimeout(() => {
-        if (onTokenCallback) {
-          onTokenCallback('beat', 'beat');
-          onTokenCallback(' plan', 'beat plan');
-        }
-      }, 10);
-      return Promise.resolve({
+    vi.mocked(reverseEngineerScenePlan).mockImplementation(async (_prose, _summary, onToken) => {
+      // Call onToken synchronously before resolving
+      if (onToken) {
+        onToken('beat', 'beat');
+        onToken(' plan', 'beat plan');
+      }
+      return {
         plan: { beats: [{ fn: 'breathe', mechanism: 'environment', what: 'Setup', propositions: [] }] },
-      });
+        beatProseMap: { chunks: [], createdAt: Date.now() },
+      };
     });
 
     const planStreamListener = vi.fn();
@@ -426,17 +476,17 @@ describe('Phase 3: Reconciliation', () => {
 
   beforeEach(() => {
     dispatchMock = vi.fn();
-    AnalysisRunner.setDispatch(dispatchMock);
+    AnalysisRunner.setDispatch(dispatchMock as any);
   });
 
   it('calls reconcileResults with all chunk results', async () => {
     const results = [createMockChunkResult(0), createMockChunkResult(1)];
 
-    vi.mocked(analyzeChunkParallel).mockImplementation((text, idx) =>
+    // Explicitly mock to ensure it's working
+    vi.mocked(analyzeChunkParallel).mockImplementation((_text, idx) =>
       Promise.resolve(createMockChunkResult(idx))
     );
-
-    vi.mocked(reconcileResults).mockReturnValue(results);
+    vi.mocked(reconcileResults).mockResolvedValue(results);
 
     const job = createMockJob({
       chunks: [
@@ -448,12 +498,27 @@ describe('Phase 3: Reconciliation', () => {
 
     await AnalysisRunner.start(job);
 
-    expect(reconcileResults).toHaveBeenCalledWith(expect.arrayContaining(results));
+    // Verify reconcileResults was called with array of 2 results
+    // (results may have been augmented by Phase 2 plan extraction)
+    expect(reconcileResults).toHaveBeenCalledTimes(1);
+    const callArgs = vi.mocked(reconcileResults).mock.calls[0];
+    expect(callArgs[0]).toHaveLength(2);
+    expect(callArgs[0][0]).toMatchObject({
+      chapterSummary: 'Chapter 0 summary',
+      characters: expect.any(Array),
+      scenes: expect.any(Array),
+    });
+    expect(callArgs[0][1]).toMatchObject({
+      chapterSummary: 'Chapter 1 summary',
+      characters: expect.any(Array),
+      scenes: expect.any(Array),
+    });
+    expect(callArgs[1]).toEqual(expect.any(Function));
   });
 
   it('updates phase to reconciliation during Phase 3', async () => {
     vi.mocked(analyzeChunkParallel).mockResolvedValue(createMockChunkResult(0));
-    vi.mocked(reconcileResults).mockReturnValue([createMockChunkResult(0)]);
+    vi.mocked(reconcileResults).mockResolvedValue([createMockChunkResult(0)]);
 
     const job = createMockJob({
       chunks: [{ index: 0, text: 'Test', sectionCount: 1 }],
@@ -477,30 +542,40 @@ describe('Phase 4: Finalization', () => {
 
   beforeEach(() => {
     dispatchMock = vi.fn();
-    AnalysisRunner.setDispatch(dispatchMock);
+    AnalysisRunner.setDispatch(dispatchMock as any);
   });
 
-  it('calls analyzeThreading with reconciled results', async () => {
-    const results = [createMockChunkResult(0)];
+  it('calls analyzeThreading with canonical thread descriptions', async () => {
+    // Need at least 2 threads for analyzeThreading to be called
+    const results = [createMockChunkResult(0), createMockChunkResult(1)];
 
-    vi.mocked(analyzeChunkParallel).mockResolvedValue(results[0]);
-    vi.mocked(reconcileResults).mockReturnValue(results);
-    vi.mocked(analyzeThreading).mockReturnValue(results);
+    vi.mocked(analyzeChunkParallel).mockImplementation((_text, idx) =>
+      Promise.resolve(createMockChunkResult(idx))
+    );
+    vi.mocked(reconcileResults).mockResolvedValue(results);
+    vi.mocked(analyzeThreading).mockResolvedValue({});
 
     const job = createMockJob({
-      chunks: [{ index: 0, text: 'Test', sectionCount: 1 }],
-      results: [null],
+      chunks: [
+        { index: 0, text: 'Test 1', sectionCount: 1 },
+        { index: 1, text: 'Test 2', sectionCount: 1 },
+      ],
+      results: [null, null],
     });
 
     await AnalysisRunner.start(job);
 
-    expect(analyzeThreading).toHaveBeenCalledWith(results);
+    // Should be called with array of thread descriptions and callback
+    expect(analyzeThreading).toHaveBeenCalledWith(
+      expect.arrayContaining(['Thread 0', 'Thread 1']),
+      expect.any(Function)
+    );
   });
 
   it('updates phase to finalization during Phase 4', async () => {
     vi.mocked(analyzeChunkParallel).mockResolvedValue(createMockChunkResult(0));
-    vi.mocked(reconcileResults).mockReturnValue([createMockChunkResult(0)]);
-    vi.mocked(analyzeThreading).mockReturnValue([createMockChunkResult(0)]);
+    vi.mocked(reconcileResults).mockResolvedValue([createMockChunkResult(0)]);
+    vi.mocked(analyzeThreading).mockResolvedValue({});
 
     const job = createMockJob({
       chunks: [{ index: 0, text: 'Test', sectionCount: 1 }],
@@ -524,15 +599,15 @@ describe('Phase 5: Assembly', () => {
 
   beforeEach(() => {
     dispatchMock = vi.fn();
-    AnalysisRunner.setDispatch(dispatchMock);
+    AnalysisRunner.setDispatch(dispatchMock as any);
   });
 
   it('calls assembleNarrative with finalized results', async () => {
     const results = [createMockChunkResult(0)];
 
     vi.mocked(analyzeChunkParallel).mockResolvedValue(results[0]);
-    vi.mocked(reconcileResults).mockReturnValue(results);
-    vi.mocked(analyzeThreading).mockReturnValue(results);
+    vi.mocked(reconcileResults).mockResolvedValue(results);
+    vi.mocked(analyzeThreading).mockResolvedValue({});
     vi.mocked(assembleNarrative).mockReturnValue({ id: 'N-001', title: 'Test' } as any);
 
     const job = createMockJob({
@@ -554,9 +629,9 @@ describe('Phase 5: Assembly', () => {
     const mockNarrative = { id: 'N-ASSEMBLED', title: 'Test Narrative' } as any;
 
     vi.mocked(analyzeChunkParallel).mockResolvedValue(createMockChunkResult(0));
-    vi.mocked(reconcileResults).mockReturnValue([createMockChunkResult(0)]);
-    vi.mocked(analyzeThreading).mockReturnValue([createMockChunkResult(0)]);
-    vi.mocked(assembleNarrative).mockReturnValue(mockNarrative);
+    vi.mocked(reconcileResults).mockResolvedValue([createMockChunkResult(0)]);
+    vi.mocked(analyzeThreading).mockResolvedValue({});
+    vi.mocked(assembleNarrative).mockResolvedValue(mockNarrative);
 
     const job = createMockJob({
       chunks: [{ index: 0, text: 'Test', sectionCount: 1 }],
@@ -568,7 +643,7 @@ describe('Phase 5: Assembly', () => {
     // Should create narrative
     expect(dispatchMock).toHaveBeenCalledWith(
       expect.objectContaining({
-        type: 'CREATE_NARRATIVE',
+        type: 'ADD_NARRATIVE',
         narrative: mockNarrative,
       })
     );
@@ -587,9 +662,9 @@ describe('Phase 5: Assembly', () => {
 
   it('updates phase to assembly during Phase 5', async () => {
     vi.mocked(analyzeChunkParallel).mockResolvedValue(createMockChunkResult(0));
-    vi.mocked(reconcileResults).mockReturnValue([createMockChunkResult(0)]);
-    vi.mocked(analyzeThreading).mockReturnValue([createMockChunkResult(0)]);
-    vi.mocked(assembleNarrative).mockReturnValue({ id: 'N-001', title: 'Test' } as any);
+    vi.mocked(reconcileResults).mockResolvedValue([createMockChunkResult(0)]);
+    vi.mocked(analyzeThreading).mockResolvedValue({});
+    vi.mocked(assembleNarrative).mockResolvedValue({ id: 'N-001', title: 'Test' } as any);
 
     const job = createMockJob({
       chunks: [{ index: 0, text: 'Test', sectionCount: 1 }],

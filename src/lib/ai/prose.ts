@@ -1,7 +1,7 @@
 import type { NarrativeState, Scene, ProseFormat } from '@/types/narrative';
 import { REASONING_BUDGETS } from '@/types/narrative';
 import { callGenerate, callGenerateStream } from './api';
-import { WRITING_MODEL, MAX_TOKENS_DEFAULT } from '@/lib/constants';
+import { WRITING_MODEL, ANALYSIS_MODEL, MAX_TOKENS_DEFAULT } from '@/lib/constants';
 import { parseJson } from './json';
 import { sceneContext } from './context';
 import { resolveProfile } from '@/lib/beat-profiles';

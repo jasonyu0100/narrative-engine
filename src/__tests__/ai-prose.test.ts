@@ -15,7 +15,7 @@ vi.mock('@/lib/ai/context', () => ({
 }));
 
 vi.mock('@/lib/ai/json', () => ({
-  parseJson: vi.fn((str: string) => JSON.parse(str)),
+  parseJson: vi.fn(),
 }));
 
 import { callGenerate, callGenerateStream } from '@/lib/ai/api';
@@ -105,12 +105,15 @@ describe('rewriteSceneProse', () => {
 
   it('returns prose from LLM JSON response', async () => {
     const mockProse = 'The rewritten prose with improvements.';
+    const proseResponse = JSON.stringify({ prose: mockProse });
+    const changelogResponse = JSON.stringify({ changelog: '• Fixed pacing\n• Added tension' });
+
     vi.mocked(callGenerate)
-      .mockResolvedValueOnce(JSON.stringify({ prose: mockProse }))
-      .mockResolvedValueOnce(JSON.stringify({ changelog: '• Fixed pacing\n• Added tension' }));
+      .mockResolvedValueOnce(proseResponse)
+      .mockResolvedValueOnce(changelogResponse);
+
     vi.mocked(parseJson)
-      .mockReturnValueOnce({ prose: mockProse })
-      .mockReturnValueOnce({ changelog: '• Fixed pacing\n• Added tension' });
+      .mockImplementation((raw: string, _label?: string) => JSON.parse(raw));
 
     const narrative = createMinimalNarrative();
     const scene = narrative.scenes['S-02']!;
@@ -130,9 +133,11 @@ describe('rewriteSceneProse', () => {
   it('handles streaming mode with onToken callback', async () => {
     const mockProse = 'Streamed prose content.';
     const tokens: string[] = [];
+    const changelogResponse = JSON.stringify({ changelog: '• Streamed changes' });
+
     vi.mocked(callGenerateStream).mockResolvedValue(mockProse);
-    vi.mocked(callGenerate).mockResolvedValue(JSON.stringify({ changelog: '• Streamed changes' }));
-    vi.mocked(parseJson).mockReturnValue({ changelog: '• Streamed changes' });
+    vi.mocked(callGenerate).mockResolvedValue(changelogResponse);
+    vi.mocked(parseJson).mockImplementation((raw: string) => JSON.parse(raw));
 
     const narrative = createMinimalNarrative();
     const scene = narrative.scenes['S-02']!;
@@ -284,12 +289,13 @@ describe('rewriteSceneProse', () => {
 
   it('handles changelog array format', async () => {
     const mockProse = 'Prose.';
+    const proseResponse = JSON.stringify({ prose: mockProse });
+    const changelogResponse = JSON.stringify({ changelog: ['First change', 'Second change'] });
+
     vi.mocked(callGenerate)
-      .mockResolvedValueOnce(JSON.stringify({ prose: mockProse }))
-      .mockResolvedValueOnce(JSON.stringify({ changelog: ['First change', 'Second change'] }));
-    vi.mocked(parseJson)
-      .mockReturnValueOnce({ prose: mockProse })
-      .mockReturnValueOnce({ changelog: ['First change', 'Second change'] });
+      .mockResolvedValueOnce(proseResponse)
+      .mockResolvedValueOnce(changelogResponse);
+    vi.mocked(parseJson).mockImplementation((raw: string) => JSON.parse(raw));
 
     const narrative = createMinimalNarrative();
     const scene = narrative.scenes['S-02']!;
@@ -306,10 +312,12 @@ describe('rewriteSceneProse', () => {
 
   it('continues gracefully when changelog generation fails', async () => {
     const mockProse = 'Good prose.';
+    const proseResponse = JSON.stringify({ prose: mockProse });
+
     vi.mocked(callGenerate)
-      .mockResolvedValueOnce(JSON.stringify({ prose: mockProse }))
+      .mockResolvedValueOnce(proseResponse)
       .mockRejectedValueOnce(new Error('Changelog failed'));
-    vi.mocked(parseJson).mockReturnValueOnce({ prose: mockProse });
+    vi.mocked(parseJson).mockImplementation((raw: string) => JSON.parse(raw));
 
     const narrative = createMinimalNarrative();
     const scene = narrative.scenes['S-02']!;
@@ -354,12 +362,13 @@ describe('rewriteSceneProse', () => {
 
   it('handles scene not in resolvedKeys', async () => {
     const mockProse = 'Prose for orphan scene.';
+    const proseResponse = JSON.stringify({ prose: mockProse });
+    const changelogResponse = JSON.stringify({ changelog: '' });
+
     vi.mocked(callGenerate)
-      .mockResolvedValueOnce(JSON.stringify({ prose: mockProse }))
-      .mockResolvedValueOnce(JSON.stringify({ changelog: '' }));
-    vi.mocked(parseJson)
-      .mockReturnValueOnce({ prose: mockProse })
-      .mockReturnValueOnce({ changelog: '' });
+      .mockResolvedValueOnce(proseResponse)
+      .mockResolvedValueOnce(changelogResponse);
+    vi.mocked(parseJson).mockImplementation((raw: string) => JSON.parse(raw));
 
     const narrative = createMinimalNarrative();
     const orphanScene: Scene = {

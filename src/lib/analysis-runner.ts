@@ -281,7 +281,10 @@ class AnalysisRunner {
       // Seed the pool with initial batch, staggering launches to avoid thundering herd
       const initialBatch = Math.min(MAX_CONCURRENCY, queue.length);
       for (let i = 0; i < initialBatch; i++) {
-        launchChunk(queue.shift()!);
+        const nextChunk = queue.shift();
+        if (nextChunk !== undefined) {
+          launchChunk(nextChunk);
+        }
         if (i < initialBatch - 1 && STAGGER_DELAY_MS > 0) {
           await new Promise((r) => setTimeout(r, STAGGER_DELAY_MS));
         }
@@ -337,7 +340,10 @@ class AnalysisRunner {
 
         const retryBatch = Math.min(MAX_CONCURRENCY, retryQueue.length);
         for (let i = 0; i < retryBatch; i++) {
-          launchRetry(retryQueue.shift()!);
+          const nextChunk = retryQueue.shift();
+          if (nextChunk !== undefined) {
+            launchRetry(nextChunk);
+          }
         }
         await retryDone;
 
@@ -453,7 +459,12 @@ class AnalysisRunner {
       };
 
       const planBatch = Math.min(MAX_CONCURRENCY, planQueue.length);
-      for (let i = 0; i < planBatch; i++) launchPlan(planQueue.shift()!);
+      for (let i = 0; i < planBatch; i++) {
+        const nextPlan = planQueue.shift();
+        if (nextPlan !== undefined) {
+          launchPlan(nextPlan);
+        }
+      }
       await planDone;
 
       if (failedPlans.length > 0) {
