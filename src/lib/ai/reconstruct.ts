@@ -5,7 +5,7 @@ import { callGenerate, SYSTEM_PROMPT } from './api';
 import { parseJson } from './json';
 import { GENERATE_MODEL, PROSE_CONCURRENCY, MAX_TOKENS_SMALL } from '@/lib/constants';
 import { narrativeContext } from './context';
-import { logError, logWarning } from '@/lib/error-logger';
+import { logError, logWarning, logInfo } from '@/lib/error-logger';
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -82,6 +82,17 @@ export async function reconstructBranch(
   callbacks: ReconstructionCallbacks,
   cancelledRef: { current: boolean },
 ): Promise<{ branchId: string; branch: Branch; scenes: Scene[]; arcs: Record<string, Arc> }> {
+  logInfo('Starting branch reconstruction', {
+    source: 'analysis',
+    operation: 'reconstruct-branch',
+    details: {
+      narrativeId: narrative.id,
+      evaluationId: evaluation.id,
+      sourceBranchId: evaluation.branchId,
+      scenesToProcess: evaluation.sceneEvals.length,
+    },
+  });
+
   // Build verdict lookup
   const verdictMap = new Map<string, SceneEval>();
   const insertEvals: SceneEval[] = [];
@@ -507,6 +518,23 @@ export async function reconstructBranch(
 
   progress.phase = 'done';
   callbacks.onProgress({ ...progress, completed });
+
+  logInfo('Completed branch reconstruction', {
+    source: 'analysis',
+    operation: 'reconstruct-branch-complete',
+    details: {
+      narrativeId: narrative.id,
+      evaluationId: evaluation.id,
+      newBranchId,
+      scenesReconstructed: newScenes.length,
+      arcsCreated: Object.keys(newArcs).length,
+      verdictOk: evaluation.sceneEvals.filter(e => e.verdict === 'ok').length,
+      verdictEdit: evaluation.sceneEvals.filter(e => e.verdict === 'edit').length,
+      verdictMerge: evaluation.sceneEvals.filter(e => e.verdict === 'merge').length,
+      verdictCut: evaluation.sceneEvals.filter(e => e.verdict === 'cut').length,
+      verdictInsert: evaluation.sceneEvals.filter(e => e.verdict === 'insert').length,
+    },
+  });
 
   return { branchId: newBranchId, branch: newBranch, scenes: newScenes, arcs: newArcs };
 }

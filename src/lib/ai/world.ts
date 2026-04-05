@@ -7,6 +7,7 @@ import { parseJson } from './json';
 import { branchContext } from './context';
 import { PROMPT_FORCE_STANDARDS, PROMPT_PACING, PROMPT_MUTATIONS, PROMPT_POV, PROMPT_CONTINUITY, PROMPT_SUMMARY_REQUIREMENT } from './prompts';
 import { buildSequencePrompt, buildIntroductionSequence } from '@/lib/pacing-profile';
+import { logInfo } from '@/lib/error-logger';
 
 export type WorldExpansion = {
   characters: Character[];
@@ -346,6 +347,18 @@ export async function expandWorld(
   sourceText?: string,
   onReasoning?: (token: string) => void,
 ): Promise<WorldExpansion> {
+  logInfo('Starting world expansion', {
+    source: 'world-expansion',
+    operation: 'expand-world',
+    details: {
+      narrativeId: narrative.id,
+      size,
+      strategy,
+      hasDirective: !!directive,
+      hasSourceText: !!sourceText,
+    },
+  });
+
   const ctx = branchContext(narrative, resolvedKeys, currentIndex);
 
   // Compute next sequential IDs for the AI to use
@@ -560,7 +573,7 @@ worldKnowledgeMutations define the FOUNDATIONAL abstractions this expansion esta
     worldKnowledgeMutations = { addedNodes, addedEdges };
   }
 
-  return {
+  const result = {
     characters: parsed.characters ?? [],
     locations: parsed.locations ?? [],
     threads,
@@ -568,6 +581,22 @@ worldKnowledgeMutations define the FOUNDATIONAL abstractions this expansion esta
     worldKnowledgeMutations,
     artifacts: parsed.artifacts ?? [],
   };
+
+  logInfo('Completed world expansion', {
+    source: 'world-expansion',
+    operation: 'expand-world-complete',
+    details: {
+      narrativeId: narrative.id,
+      charactersAdded: result.characters.length,
+      locationsAdded: result.locations.length,
+      threadsAdded: result.threads.length,
+      relationshipsAdded: result.relationships.length,
+      artifactsAdded: result.artifacts?.length ?? 0,
+      worldKnowledgeNodes: result.worldKnowledgeMutations?.addedNodes.length ?? 0,
+    },
+  });
+
+  return result;
 }
 
 export async function generateNarrative(
@@ -582,6 +611,17 @@ export async function generateNarrative(
    *  The premise is treated as a full story plan / world bible to seed from. */
   worldOnly = false,
 ): Promise<NarrativeState> {
+  logInfo('Starting narrative generation', {
+    source: 'manual-generation',
+    operation: 'generate-narrative',
+    details: {
+      title,
+      worldOnly,
+      hasRules: rules.length > 0,
+      hasSystemSketches: systemSketches.length > 0,
+    },
+  });
+
   const prompt = `${worldOnly
     ? 'Extract and build a complete narrative world from the following story plan. Do NOT generate scenes or arcs — output world entities only (characters, locations, threads, relationships, artifacts, rules, systems, prose profile).'
     : 'Create a complete narrative world for:'}
@@ -823,6 +863,22 @@ The goal is to make the world feel like a coherent machine where systems interlo
       }
     }
   }
+
+  logInfo('Completed narrative generation', {
+    source: 'manual-generation',
+    operation: 'generate-narrative-complete',
+    details: {
+      narrativeId: id,
+      title,
+      worldOnly,
+      charactersCreated: Object.keys(characters).length,
+      locationsCreated: Object.keys(locations).length,
+      threadsCreated: Object.keys(threads).length,
+      scenesCreated: Object.keys(scenes).length,
+      arcsCreated: Object.keys(arcs).length,
+      worldKnowledgeNodes: Object.keys(worldKnowledgeNodes).length,
+    },
+  });
 
   return {
     id,

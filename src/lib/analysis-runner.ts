@@ -16,7 +16,7 @@ import { reverseEngineerScenePlan } from '@/lib/ai/scenes';
 import type { AnalysisJob, AnalysisChunkResult } from '@/types/narrative';
 import type { Action } from '@/lib/store';
 import { ANALYSIS_CONCURRENCY, ANALYSIS_STAGGER_DELAY_MS, ANALYSIS_MAX_CHUNK_RETRIES, ANALYSIS_PLAN_BACKOFF_ENABLED } from '@/lib/constants';
-import { logError, logWarning, setErrorLoggerAnalysisId } from '@/lib/error-logger';
+import { logError, logWarning, logInfo, setErrorLoggerAnalysisId } from '@/lib/error-logger';
 import { setLoggerAnalysisId } from '@/lib/api-logger';
 
 type Dispatch = (action: Action) => void;
@@ -129,6 +129,17 @@ class AnalysisRunner {
     setLoggerAnalysisId(job.id);
     setErrorLoggerAnalysisId(job.id);
 
+    logInfo('Starting analysis job', {
+      source: 'analysis',
+      operation: 'start-job',
+      details: {
+        jobId: job.id,
+        title: job.title,
+        chunkCount: job.chunks.length,
+        totalChars: job.chunks.reduce((sum, c) => sum + c.text.length, 0),
+      },
+    });
+
     try {
       dispatch({ type: 'UPDATE_ANALYSIS_JOB', id: job.id, updates: { status: 'running', phase: 'extraction' } });
 
@@ -168,6 +179,8 @@ class AnalysisRunner {
     for (let i = 0; i < totalChunks; i++) {
       if (results[i] === null) pendingIndices.push(i);
     }
+
+    let phase1FailedCount = 0;
 
     if (pendingIndices.length > 0) {
       this.emitStream(job.id, `Phase 1: Extracting ${pendingIndices.length} chunks in parallel...`);
@@ -235,6 +248,7 @@ class AnalysisRunner {
             }
           );
           failedChunks.push({ chunkIdx, error });
+          phase1FailedCount++;
         }
 
         this.emitInFlight(job.id, [...entry.inFlightIndices]);
@@ -336,6 +350,17 @@ class AnalysisRunner {
       d({ type: 'UPDATE_ANALYSIS_JOB', id: job.id, updates: { status: 'paused', results: [...results] } });
       return;
     }
+
+    logInfo('Completed Phase 1: Parallel extraction', {
+      source: 'analysis',
+      operation: 'phase-1-complete',
+      details: {
+        jobId: job.id,
+        chunksProcessed: totalChunks,
+        totalChunks,
+        failedChunks: phase1FailedCount,
+      },
+    });
 
     // ── Phase 2: Plan extraction ──────────────────────────────────────────
     // Reverse-engineer beat plans from scene prose in parallel with retry logic
@@ -446,6 +471,17 @@ class AnalysisRunner {
       if (failedPlans.length > 0) {
         console.warn(`[AnalysisRunner] ${failedPlans.length} scenes failed plan extraction after retries`);
       }
+
+      logInfo('Completed Phase 2: Plan extraction', {
+        source: 'analysis',
+        operation: 'phase-2-complete',
+        details: {
+          jobId: job.id,
+          plansExtracted: plansDone,
+          totalPlans: planTasks.length,
+          failedPlans: failedPlans.length,
+        },
+      });
     }
 
     // Phase 3 removed - mapping now done atomically in Phase 2
@@ -478,6 +514,15 @@ class AnalysisRunner {
         }
       }
       d({ type: 'UPDATE_ANALYSIS_JOB', id: job.id, updates: { results: [...results] } });
+
+      logInfo('Completed Phase 3: Reconciliation', {
+        source: 'analysis',
+        operation: 'phase-3-complete',
+        details: {
+          jobId: job.id,
+          reconciledResults: reconciledResults.length,
+        },
+      });
     } catch (err) {
       // Reconciliation failure is non-fatal — continue with unreconciled results
       console.warn('[AnalysisRunner] Reconciliation failed, using raw results:', err);
@@ -515,6 +560,15 @@ class AnalysisRunner {
         d({ type: 'UPDATE_ANALYSIS_JOB', id: job.id, updates: { status: 'paused' } });
         return;
       }
+
+      logInfo('Completed Phase 4: Finalization', {
+        source: 'analysis',
+        operation: 'phase-4-complete',
+        details: {
+          jobId: job.id,
+          threadDependencies: Object.keys(threadDependencies).length,
+        },
+      });
     } catch (err) {
       // Finalization failure is non-fatal — continue without dependencies
       console.warn('[AnalysisRunner] Finalization failed:', err);
@@ -545,6 +599,20 @@ class AnalysisRunner {
 
       d({ type: 'ADD_NARRATIVE', narrative });
       d({ type: 'UPDATE_ANALYSIS_JOB', id: job.id, updates: { status: 'completed', narrativeId: narrative.id } });
+
+      logInfo('Analysis job completed successfully', {
+        source: 'analysis',
+        operation: 'job-complete',
+        details: {
+          jobId: job.id,
+          narrativeId: narrative.id,
+          title: job.title,
+          totalChunks,
+          scenesCreated: Object.keys(narrative.scenes).length,
+          charactersCreated: Object.keys(narrative.characters).length,
+          threadsCreated: Object.keys(narrative.threads).length,
+        },
+      });
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
       logError(

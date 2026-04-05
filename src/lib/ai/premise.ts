@@ -1,6 +1,7 @@
 import { callGenerate, SYSTEM_PROMPT } from './api';
 import { GENERATE_MODEL } from '@/lib/constants';
 import { parseJson } from './json';
+import { logInfo } from '@/lib/error-logger';
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -92,6 +93,12 @@ export async function generatePremiseQuestion(
   discoveryPhase: 'systems' | 'rules' | 'cast' | 'threads' = 'systems',
 ): Promise<PremiseQuestionResult> {
   const round = decisions.length + 1;
+
+  logInfo('Starting premise question generation', {
+    source: 'other',
+    operation: 'premise-question',
+    details: { round, phase: discoveryPhase, entitiesCount: entities.length, systemsCount: systems.length },
+  });
 
   // Build decision history
   const historyBlock = decisions.length > 0
@@ -211,7 +218,7 @@ NAMING (applies to ALL names — entities, choices, systems, threads, title):
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const parsed = parseJson(raw, 'premiseQuestion') as any;
 
-  return {
+  const result = {
     question: parsed.question,
     newEntities: parsed.newEntities ?? [],
     newEdges: parsed.newEdges ?? [],
@@ -227,6 +234,20 @@ NAMING (applies to ALL names — entities, choices, systems, threads, title):
     title: parsed.title ?? currentTitle,
     worldSummary: parsed.worldSummary ?? '',
   };
+
+  logInfo('Completed premise question generation', {
+    source: 'other',
+    operation: 'premise-question',
+    details: {
+      round,
+      phase: discoveryPhase,
+      newEntities: result.newEntities.length,
+      newSystems: result.newSystems.length,
+      title: result.title,
+    },
+  });
+
+  return result;
 }
 
 // ── Suggest a random premise ────────────────────────────────────────────────

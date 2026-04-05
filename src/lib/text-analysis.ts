@@ -14,6 +14,8 @@ import type {
 } from '@/types/narrative';
 import { THREAD_ACTIVE_STATUSES, THREAD_TERMINAL_STATUSES, THREAD_STATUS_LABELS, DEFAULT_STORY_SETTINGS } from '@/types/narrative';
 import { ANALYSIS_TARGET_SECTIONS_PER_CHUNK, ANALYSIS_TARGET_CHUNK_WORDS, ANALYSIS_MODEL, MAX_TOKENS_DEFAULT, ANALYSIS_TEMPERATURE } from '@/lib/constants';
+import { validateExtractionResult, validateWorldKnowledge } from '@/lib/ai/validation';
+import { logWarning, logInfo } from '@/lib/error-logger';
 
 // ── Text Splitting ───────────────────────────────────────────────────────────
 
@@ -476,6 +478,21 @@ CONTINUITY MUTATIONS:
     parsed = JSON.parse(repaired) as AnalysisChunkResult;
   }
 
+  // Validate extraction result
+  const validation = validateExtractionResult(parsed);
+  if (!validation.valid) {
+    logWarning(
+      `Chunk ${chunkIndex + 1} extraction validation failed`,
+      validation.errors.join('; '),
+      {
+        source: 'analysis',
+        operation: 'chunk-extraction',
+        details: { chunkIndex, errorCount: validation.errors.length }
+      }
+    );
+    throw new Error(`Extraction validation failed for chunk ${chunkIndex + 1}:\n${validation.errors.join('\n')}`);
+  }
+
   // Populate prose from section references
   for (const scene of parsed.scenes ?? []) {
     const sectionNums: number[] = scene.sections ?? [];
@@ -652,6 +669,21 @@ CONTINUITY MUTATIONS:
       .replace(/[\u2018\u2019]/g, "'")
       .replace(/[\x00-\x1F\x7F]/g, (ch) => ch === '\n' || ch === '\t' ? ch : '');
     parsed = JSON.parse(repaired) as AnalysisChunkResult;
+  }
+
+  // Validate extraction result
+  const validation = validateExtractionResult(parsed);
+  if (!validation.valid) {
+    logWarning(
+      `Chunk ${chunkIndex + 1} parallel extraction validation failed`,
+      validation.errors.join('; '),
+      {
+        source: 'analysis',
+        operation: 'chunk-extraction-parallel',
+        details: { chunkIndex, totalChunks, errorCount: validation.errors.length }
+      }
+    );
+    throw new Error(`Extraction validation failed for chunk ${chunkIndex + 1}/${totalChunks}:\n${validation.errors.join('\n')}`);
   }
 
   for (const scene of parsed.scenes ?? []) {
@@ -1337,7 +1369,6 @@ export async function assembleNarrative(
         plan: s.plan || undefined,
         beatProseMap: s.beatProseMap || undefined,
         summary: s.summary ?? '',
-        locked: !!s.prose,
       };
 
       scenes[sceneId] = scene;
@@ -1640,7 +1671,15 @@ Return JSON:
       }));
     }
   } catch (err) {
-    console.error('[text-analysis] Rules/systems/style extraction failed:', err);
+    logWarning(
+      'Rules/systems/style extraction failed - using defaults',
+      err instanceof Error ? err : String(err),
+      {
+        source: 'analysis',
+        operation: 'meta-extraction',
+        details: { title, chunkCount: results.length }
+      }
+    );
   }
 
   const narrative: NarrativeState = {

@@ -8,7 +8,7 @@ import { analysisRunner } from '@/lib/analysis-runner';
 import type { AnalysisJob, AnalysisChunkResult } from '@/types/narrative';
 import { BEAT_FN_LIST } from '@/types/narrative';
 import { ANALYSIS_MAX_CORPUS_WORDS, DEFAULT_MODEL } from '@/lib/constants';
-import { IconSpinner, IconChevronLeft } from '@/components/icons';
+import { IconSpinner, IconChevronLeft, IconDollar } from '@/components/icons';
 import { IconCheck } from '@/components/icons/EvalIcons';
 import { calculateTotalCost, calculateApiCost } from '@/lib/api-logger';
 import { Modal, ModalHeader, ModalBody } from '@/components/Modal';
@@ -325,10 +325,17 @@ function JobDetail({ job }: { job: AnalysisJob }) {
           {jobApiLogs.length > 0 && (
             <button
               onClick={() => setShowApiLogs(true)}
-              className="text-[10px] px-3 py-1 rounded bg-white/5 text-white/60 hover:text-white/90 transition flex items-center gap-1.5"
+              className={`px-2.5 py-1 rounded-full transition-colors flex items-center gap-1.5 text-[12px] border ${
+                showApiLogs
+                  ? 'text-text-primary bg-white/10 border-white/15'
+                  : 'text-text-dim hover:text-text-primary hover:bg-white/5 border-white/8'
+              }`}
+              title="API Logs & Usage"
             >
-              <span>API Logs</span>
-              <span className="text-emerald-400">${totalCost.toFixed(4)}</span>
+              <IconDollar size={14} />
+              <span className="font-semibold font-mono text-emerald-400">
+                {totalCost >= 1 ? `$${totalCost.toFixed(2)}` : totalCost >= 0.01 ? `$${totalCost.toFixed(3)}` : `$${totalCost.toFixed(4)}`}
+              </span>
             </button>
           )}
           {isRunning && (

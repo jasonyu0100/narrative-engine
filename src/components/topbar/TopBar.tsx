@@ -847,7 +847,7 @@ export default function TopBar() {
           items={[
             { label: 'LLM Context', onClick: () => setBranchContextOpen(true), disabled: !hasNarrative },
             { label: 'API Logs', onClick: () => setLogsOpen(true) },
-            { label: 'Error Logs', onClick: () => setErrorLogsOpen(true) },
+            { label: 'Logging', onClick: () => setErrorLogsOpen(true) },
             ...(process.env.NEXT_PUBLIC_USER_API_KEYS === 'true'
               ? [{ label: 'API Keys', onClick: () => setApiKeysOpen(true) }]
               : []),

@@ -5,6 +5,7 @@ import { WRITING_MODEL, ANALYSIS_MODEL, MAX_TOKENS_DEFAULT } from '@/lib/constan
 import { parseJson } from './json';
 import { sceneContext } from './context';
 import { resolveProfile } from '@/lib/beat-profiles';
+import { logInfo } from '@/lib/error-logger';
 
 // ── Format-Specific Instructions ─────────────────────────────────────────────
 
@@ -56,6 +57,20 @@ export async function rewriteSceneProse(
   /** Stream prose tokens as they arrive */
   onToken?: (token: string) => void,
 ): Promise<{ prose: string; changelog: string }> {
+  logInfo('Starting prose rewrite', {
+    source: 'prose-generation',
+    operation: 'rewrite-prose',
+    details: {
+      narrativeId: narrative.id,
+      sceneId: scene.id,
+      currentProseLength: currentProse.length,
+      analysisLength: analysis.length,
+      contextPast,
+      contextFuture,
+      hasReferenceScenes: !!referenceSceneIds && referenceSceneIds.length > 0,
+    },
+  });
+
   const sceneIdx = resolvedKeys.indexOf(scene.id);
   const contextIndex = sceneIdx >= 0 ? sceneIdx : resolvedKeys.length - 1;
   const sceneBlock = sceneContext(narrative, scene, resolvedKeys, contextIndex);
@@ -226,6 +241,17 @@ ${onToken ? 'Write the full rewritten prose directly — no JSON, no markdown, n
   } catch {
     // Changelog generation is non-critical — don't fail the rewrite
   }
+
+  logInfo('Completed prose rewrite', {
+    source: 'prose-generation',
+    operation: 'rewrite-prose-complete',
+    details: {
+      narrativeId: narrative.id,
+      sceneId: scene.id,
+      newProseLength: prose.length,
+      hasChangelog: changelog.length > 0,
+    },
+  });
 
   return { prose: prose, changelog };
 }

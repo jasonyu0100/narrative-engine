@@ -9,7 +9,8 @@ import { PROMPT_FORCE_STANDARDS, PROMPT_STRUCTURAL_RULES, PROMPT_MUTATIONS, PROM
 import { samplePacingSequence, buildSequencePrompt, buildSingleStepPrompt, detectCurrentMode, MATRIX_PRESETS, DEFAULT_TRANSITION_MATRIX, type PacingSequence, type ModeStep } from '@/lib/pacing-profile';
 import { resolveProfile, resolveSampler, sampleBeatSequence } from '@/lib/beat-profiles';
 import { FORMAT_INSTRUCTIONS } from './prose';
-import { logWarning, logError } from '@/lib/error-logger';
+import { logWarning, logError, logInfo } from '@/lib/error-logger';
+import { retryWithValidation, validateBeatPlan, validateBeatProseMap } from './validation';
 
 /**
  * Split text into sentences, handling edge cases like abbreviations, decimals, and ellipsis.
@@ -166,6 +167,19 @@ export async function generateScenes(
   const { existingArc, pacingSequence, worldBuildFocus, onToken, onReasoning } = options;
   const ctx = narrativeContext(narrative, resolvedKeys, currentIndex);
   const arcId = existingArc?.id ?? nextId('ARC', Object.keys(narrative.arcs));
+
+  logInfo('Starting scene generation', {
+    source: 'manual-generation',
+    operation: 'generate-scenes',
+    details: {
+      narrativeId: narrative.id,
+      arcId,
+      sceneCount: count,
+      existingArc: !!existingArc,
+      hasPacingSequence: !!pacingSequence,
+      hasWorldBuildFocus: !!worldBuildFocus,
+    },
+  });
   const storySettings: StorySettings = { ...DEFAULT_STORY_SETTINGS, ...narrative.storySettings };
   const targetLen = storySettings.targetArcLength;
   const sceneCountInstruction = count > 0
@@ -380,6 +394,20 @@ ${buildCompletedBeatsPrompt(narrative, resolvedKeys, currentIndex)}`;
     }
   }
 
+  logInfo('Completed scene generation', {
+    source: 'manual-generation',
+    operation: 'generate-scenes-complete',
+    details: {
+      narrativeId: narrative.id,
+      arcId,
+      arcName,
+      scenesGenerated: scenes.length,
+      threadsAdvanced: newDevelops.length,
+      locationsUsed: newLocationIds.length,
+      charactersUsed: newCharacterIds.length,
+    },
+  });
+
   return { scenes, arc };
 }
 
@@ -392,10 +420,20 @@ export async function generateScenePlan(
   /** Per-scene direction that supplements storySettings.planGuidance */
   guidance?: string,
 ): Promise<BeatPlan> {
+  logInfo('Starting beat plan generation', {
+    source: 'plan-generation',
+    operation: 'generate-plan',
+    details: {
+      narrativeId: narrative.id,
+      sceneId: scene.id,
+      sceneSummary: scene.summary.substring(0, 60),
+      hasGuidance: !!guidance,
+    },
+  });
+
   const sceneIdx = resolvedKeys.indexOf(scene.id);
   const contextIndex = sceneIdx >= 0 ? sceneIdx : resolvedKeys.length - 1;
   const fullContext = narrativeContext(narrative, resolvedKeys, contextIndex);
-  const sceneBlock = sceneContext(narrative, scene, resolvedKeys, contextIndex);
   const logicRules = deriveLogicRules(narrative, scene, resolvedKeys, contextIndex);
   const logicBlock = logicRules ? `\n${logicRules}\n` : '';
 
@@ -582,10 +620,17 @@ INVALID: craft goals, pacing instructions, meta-commentary.
     return parts.length > 0 ? `\n\nPLAN GUIDANCE:\n${parts.join('\n')}` : '';
   })();
 
-  const prompt = `${profileBlock}BRANCH CONTEXT:\n${fullContext}
-${adjacentBlock ? `${adjacentBlock}\n\n` : ''}${sceneBlock}
+  const sceneDesc = `SCENE AT BRANCH HEAD:
+Summary: ${scene.summary}
+Location: ${narrative.locations[scene.locationId]?.name ?? scene.locationId}
+POV: ${narrative.characters[scene.povId]?.name ?? scene.povId}
+Participants: ${scene.participantIds.map(id => narrative.characters[id]?.name ?? id).join(', ')}`;
+
+  const prompt = `${profileBlock}NARRATIVE CONTEXT:\n${fullContext}
+${adjacentBlock ? `${adjacentBlock}\n\n` : ''}
+${sceneDesc}
 ${logicBlock}
-Generate a structured beat plan for this scene.
+Generate a structured beat plan for the scene at the branch head.
 
 REMINDER: All propositions (per-beat and scene-level) MUST conform to the PROSE PROFILE above. If the profile forbids figurative language, write plain factual propositions only.`;
 
@@ -609,10 +654,24 @@ REMINDER: All propositions (per-beat and scene-level) MUST conform to the PROSE 
   const rawSceneProps = Array.isArray(parsed.propositions) ? parsed.propositions : [];
   const scenePropositions = parsePropositions(rawSceneProps);
 
-  return {
+  const result = {
     beats,
     propositions: scenePropositions.length > 0 ? scenePropositions : undefined,
   };
+
+  logInfo('Completed beat plan generation', {
+    source: 'plan-generation',
+    operation: 'generate-plan-complete',
+    details: {
+      narrativeId: narrative.id,
+      sceneId: scene.id,
+      beatsGenerated: beats.length,
+      totalPropositions: beats.reduce((sum, b) => sum + b.propositions.length, 0),
+      scenePropositions: scenePropositions.length,
+    },
+  });
+
+  return result;
 }
 
 /**
@@ -628,13 +687,23 @@ export async function editScenePlan(
   resolvedKeys: string[],
   issues: string[],
 ): Promise<BeatPlan> {
+  logInfo('Starting scene plan edit', {
+    source: 'plan-generation',
+    operation: 'edit-plan',
+    details: {
+      narrativeId: narrative.id,
+      sceneId: scene.id,
+      issuesCount: issues.length,
+      currentBeats: scene.plan?.beats.length ?? 0,
+    },
+  });
+
   const plan = scene.plan;
   if (!plan) throw new Error('Scene has no plan to edit');
 
-  // Edit functions are lightweight — scene context only, no logic bias
   const sceneIdx = resolvedKeys.indexOf(scene.id);
   const contextIndex = sceneIdx >= 0 ? sceneIdx : resolvedKeys.length - 1;
-  const sceneBlock = sceneContext(narrative, scene, resolvedKeys, contextIndex);
+  const fullContext = narrativeContext(narrative, resolvedKeys, contextIndex);
 
   const currentPlanJson = JSON.stringify({
     beats: plan.beats.map((b, i) => ({ idx: i + 1, fn: b.fn, mechanism: b.mechanism, what: b.what, propositions: b.propositions })),
@@ -643,7 +712,12 @@ export async function editScenePlan(
 
   const issueBlock = issues.map((iss, i) => `${i + 1}. ${iss}`).join('\n');
 
-  const prompt = `${sceneBlock}
+  const sceneDesc = `Scene: ${scene.summary}`;
+
+  const prompt = `NARRATIVE CONTEXT:\n${fullContext}
+
+SCENE AT BRANCH HEAD:
+${sceneDesc}
 
 CURRENT BEAT PLAN:
 ${currentPlanJson}
@@ -690,6 +764,17 @@ Return the COMPLETE plan (all beats, not just changed ones) as JSON:
 
   const rawSceneProps = Array.isArray(parsed.propositions) ? parsed.propositions : [];
   const scenePropositions = parsePropositions(rawSceneProps);
+
+  logInfo('Completed scene plan edit', {
+    source: 'plan-generation',
+    operation: 'edit-plan-complete',
+    details: {
+      narrativeId: narrative.id,
+      sceneId: scene.id,
+      beatsReturned: beats.length,
+      hasPropositions: scenePropositions.length > 0,
+    },
+  });
 
   return {
     beats,
@@ -758,6 +843,46 @@ function splitProseEvenly(prose: string, targetChunks: number): string[] {
 }
 
 export async function reverseEngineerScenePlan(
+  prose: string,
+  summary: string,
+  onToken?: (token: string, accumulated: string) => void,
+): Promise<{ plan: BeatPlan; beatProseMap: BeatProseMap | null }> {
+  // Wrap with retry logic and validation
+  return retryWithValidation(
+    async () => {
+      const result = await reverseEngineerScenePlanOnce(prose, summary, onToken);
+
+      // Validate beat plan structure
+      const planValidation = validateBeatPlan({ beats: result.plan.beats });
+      if (!planValidation.valid) {
+        throw new Error(`Beat plan validation failed:\n${planValidation.errors.join('\n')}`);
+      }
+
+      // Validate prose map if present
+      if (result.beatProseMap) {
+        const mapValidation = validateBeatProseMap(result.beatProseMap, result.plan, prose);
+        if (!mapValidation.valid) {
+          // Fail on prose map validation to trigger retry - this ensures side-by-side view works
+          throw new Error(`Beat prose map validation failed:\n${mapValidation.errors.join('\n')}`);
+        }
+      } else {
+        // No prose map generated - this is a problem for side-by-side views
+        throw new Error('No beat prose map generated - side-by-side view requires valid mapping');
+      }
+
+      return result;
+    },
+    () => ({ valid: true, errors: [] }), // Validation already done inside
+    'reverseEngineerScenePlan',
+    3,
+    'analysis' // source context for logging
+  );
+}
+
+/**
+ * Single attempt at extracting a beat plan from prose (internal, for retry logic)
+ */
+async function reverseEngineerScenePlanOnce(
   prose: string,
   summary: string,
   onToken?: (token: string, accumulated: string) => void,
@@ -1171,9 +1296,20 @@ export async function rewriteScenePlan(
   currentPlan: BeatPlan,
   analysis: string,
 ): Promise<BeatPlan> {
+  logInfo('Starting scene plan rewrite', {
+    source: 'plan-generation',
+    operation: 'rewrite-plan',
+    details: {
+      narrativeId: narrative.id,
+      sceneId: scene.id,
+      currentBeats: currentPlan.beats.length,
+      analysisLength: analysis.length,
+    },
+  });
+
   const sceneIdx = resolvedKeys.indexOf(scene.id);
   const contextIndex = sceneIdx >= 0 ? sceneIdx : resolvedKeys.length - 1;
-  const sceneBlock = sceneContext(narrative, scene, resolvedKeys, contextIndex);
+  const fullContext = narrativeContext(narrative, resolvedKeys, contextIndex);
 
   const currentPlanText = currentPlan.beats.map((b, i) =>
     `${i + 1}. [${b.fn}:${b.mechanism}] ${b.what}\n   Propositions: ${b.propositions.map(p => `"${p.content}"`).join('; ')}`
@@ -1189,7 +1325,12 @@ Return ONLY valid JSON: { "beats": [{ "fn": "...", "mechanism": "...", "what": "
 Beat functions: ${BEAT_FN_LIST.join(', ')}
 Mechanisms: ${BEAT_MECHANISM_LIST.join(', ')}`;
 
-  const prompt = `${sceneBlock}
+  const sceneDesc = `Scene at branch head: ${scene.summary}`;
+
+  const prompt = `NARRATIVE CONTEXT:\n${fullContext}
+
+SCENE AT BRANCH HEAD:
+${sceneDesc}
 
 CURRENT PLAN:
 ${currentPlanText}${currentProps}
@@ -1223,6 +1364,17 @@ Strip adjectives, adverbs, literary embellishments. State the event, not its tex
 
   const rawSceneProps = Array.isArray(parsed.propositions) ? parsed.propositions : [];
   const scenePropositions = parsePropositions(rawSceneProps);
+
+  logInfo('Completed scene plan rewrite', {
+    source: 'plan-generation',
+    operation: 'rewrite-plan-complete',
+    details: {
+      narrativeId: narrative.id,
+      sceneId: scene.id,
+      beatsReturned: beats.length > 0 ? beats.length : currentPlan.beats.length,
+      usedFallback: beats.length === 0,
+    },
+  });
 
   return {
     beats: beats.length > 0 ? beats : currentPlan.beats,
@@ -1313,6 +1465,18 @@ export async function generateSceneProse(
   /** Per-scene prose direction appended to the system prompt */
   guidance?: string,
 ): Promise<{ prose: string; beatProseMap?: BeatProseMap }> {
+
+  logInfo('Starting prose generation', {
+    source: 'prose-generation',
+    operation: 'generate-prose',
+    details: {
+      narrativeId: narrative.id,
+      sceneId: scene.id,
+      sceneSummary: scene.summary.substring(0, 60),
+      hasPlan: !!scene.plan,
+      hasGuidance: !!guidance,
+    },
+  });
 
   const sceneIdx = resolvedKeys.indexOf(scene.id);
   const contextIndex = sceneIdx >= 0 ? sceneIdx : resolvedKeys.length - 1;
@@ -1528,6 +1692,19 @@ ${instruction}`;
   if (!result) {
     throw new Error('[generateSceneProse] Internal error: no result after generation loop');
   }
+
+  logInfo('Completed prose generation', {
+    source: 'prose-generation',
+    operation: 'generate-prose-complete',
+    details: {
+      narrativeId: narrative.id,
+      sceneId: scene.id,
+      proseLength: result.prose.length,
+      hasBeatMap: !!result.beatProseMap,
+      beatChunks: result.beatProseMap?.chunks.length ?? 0,
+      markersFailed: result.markersFailed ?? false,
+    },
+  });
 
   return result;
 }
@@ -1852,6 +2029,19 @@ export async function generateArcStepwise(
   const targetLen = storySettings.targetArcLength;
   const sceneCount = count > 0 ? Math.max(3, count) : targetLen;
 
+  logInfo('Starting stepwise arc generation', {
+    source: 'manual-generation',
+    operation: 'generate-arc-stepwise',
+    details: {
+      narrativeId: narrative.id,
+      arcId: existingArc?.id ?? 'new',
+      sceneCount,
+      existingArc: !!existingArc,
+      hasPacingSequence: !!pacingSequence,
+      hasWorldBuildFocus: !!worldBuildFocus,
+    },
+  });
+
   // Sample pacing sequence (when enabled)
   let sequence: PacingSequence;
   if (storySettings.usePacingChain === false) {
@@ -2005,6 +2195,20 @@ export async function generateArcStepwise(
       if (firstScene) arc.initialCharacterLocations[cid] = firstScene.locationId;
     }
   }
+
+  logInfo('Completed stepwise arc generation', {
+    source: 'manual-generation',
+    operation: 'generate-arc-stepwise-complete',
+    details: {
+      narrativeId: narrative.id,
+      arcId: arc.id,
+      arcName: arc.name,
+      scenesGenerated: allScenes.length,
+      threadsInvolved: arc.develops.length,
+      locationsUsed: arc.locationIds.length,
+      charactersInvolved: arc.activeCharacterIds.length,
+    },
+  });
 
   return { scenes: allScenes, arc };
 }

@@ -5,6 +5,7 @@ import { branchContext } from './context';
 import { buildThreadHealthPrompt, buildCompletedBeatsPrompt } from './prompts';
 import { parseJson } from './json';
 import { MAX_TOKENS_SMALL, MAX_TOKENS_DEFAULT } from '@/lib/constants';
+import { logInfo } from '@/lib/error-logger';
 
 /**
  * Build a phase progress block that tells the LLM exactly where we are
@@ -76,6 +77,18 @@ export async function refreshDirection(
   currentDirection: string,
   currentConstraints: string,
 ): Promise<{ direction: string; constraints: string; sceneBudget?: Record<string, number> }> {
+  logInfo('Starting direction refresh', {
+    source: 'direction-generation',
+    operation: 'refresh-direction',
+    details: {
+      narrativeId: narrative.id,
+      phaseName: phase.name,
+      scenesCompleted: phase.scenesCompleted,
+      sceneAllocation: phase.sceneAllocation,
+      hasSourceText: !!phase.sourceText,
+    },
+  });
+
   const ctx = branchContext(narrative, resolvedKeys, currentIndex);
 
   const scenesRemaining = phase.sceneAllocation - phase.scenesCompleted;
@@ -251,12 +264,31 @@ Return JSON:
         .join('\n');
       direction += `\n\nSCENE BUDGET (each thread gets this many scenes — no more):\n${budgetLines}`;
     }
+    logInfo('Completed direction refresh', {
+      source: 'direction-generation',
+      operation: 'refresh-direction-complete',
+      details: {
+        narrativeId: narrative.id,
+        phaseName: phase.name,
+        directionLength: direction.length,
+        hasSceneBudget: !!parsed.sceneBudget,
+        threadsInBudget: Object.keys(parsed.sceneBudget || {}).length,
+      },
+    });
     return {
       direction,
       constraints: parsed.constraints ? String(parsed.constraints) : currentConstraints,
       sceneBudget: parsed.sceneBudget,
     };
   } catch {
+    logInfo('Direction refresh failed, using current direction', {
+      source: 'direction-generation',
+      operation: 'refresh-direction-fallback',
+      details: {
+        narrativeId: narrative.id,
+        phaseName: phase.name,
+      },
+    });
     return { direction: currentDirection, constraints: currentConstraints };
   }
 }

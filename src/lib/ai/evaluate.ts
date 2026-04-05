@@ -3,6 +3,7 @@ import { resolveEntry, isScene, REASONING_BUDGETS } from '@/types/narrative';
 import { callGenerate, callGenerateStream, SYSTEM_PROMPT } from './api';
 import { parseJson } from './json';
 import { ANALYSIS_MODEL, MAX_TOKENS_DEFAULT, ANALYSIS_TEMPERATURE } from '@/lib/constants';
+import { logInfo } from '@/lib/error-logger';
 
 /**
  * Evaluate a branch by reading only scene summaries.
@@ -20,6 +21,17 @@ export async function evaluateBranch(
   /** Stream reasoning tokens as the model thinks */
   onReasoning?: (token: string) => void,
 ): Promise<StructureReview> {
+  logInfo('Starting branch evaluation', {
+    source: 'analysis',
+    operation: 'evaluate-branch',
+    details: {
+      narrativeId: narrative.id,
+      branchId,
+      sceneCount: resolvedKeys.filter(k => { const e = resolveEntry(narrative, k); return e && isScene(e); }).length,
+      hasGuidance: !!guidance,
+    },
+  });
+
   // Collect scenes with their arc context
   const sceneSummaries: { idx: number; id: string; arc: string; pov: string; location: string; summary: string }[] = [];
   for (let i = 0; i < resolvedKeys.length; i++) {
@@ -184,7 +196,7 @@ Every scene must appear in sceneEvals. Use the EXACT scene IDs shown above (e.g.
         return eval_;
       });
 
-    return {
+    const result = {
       id: `EVAL-${Date.now().toString(36)}`,
       branchId,
       createdAt: new Date().toISOString(),
@@ -193,7 +205,35 @@ Every scene must appear in sceneEvals. Use the EXACT scene IDs shown above (e.g.
       repetitions: parsed.repetitions ?? [],
       thematicQuestion: parsed.thematicQuestion ?? '',
     };
+
+    logInfo('Completed branch evaluation', {
+      source: 'analysis',
+      operation: 'evaluate-branch-complete',
+      details: {
+        narrativeId: narrative.id,
+        branchId,
+        evaluationId: result.id,
+        scenesEvaluated: sceneEvals.length,
+        verdictOk: sceneEvals.filter(e => e.verdict === 'ok').length,
+        verdictEdit: sceneEvals.filter(e => e.verdict === 'edit').length,
+        verdictMerge: sceneEvals.filter(e => e.verdict === 'merge').length,
+        verdictCut: sceneEvals.filter(e => e.verdict === 'cut').length,
+        verdictInsert: sceneEvals.filter(e => e.verdict === 'insert').length,
+        repetitionsFound: result.repetitions.length,
+      },
+    });
+
+    return result;
   } catch {
+    logInfo('Branch evaluation failed to parse', {
+      source: 'analysis',
+      operation: 'evaluate-branch-parse-error',
+      details: {
+        narrativeId: narrative.id,
+        branchId,
+        scenesDefaulted: sceneSummaries.length,
+      },
+    });
     return {
       id: `EVAL-${Date.now().toString(36)}`,
       branchId,
