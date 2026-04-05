@@ -5,6 +5,7 @@ import { callGenerate, SYSTEM_PROMPT } from './api';
 import { parseJson } from './json';
 import { GENERATE_MODEL, PROSE_CONCURRENCY, MAX_TOKENS_SMALL } from '@/lib/constants';
 import { narrativeContext } from './context';
+import { logError, logWarning } from '@/lib/error-logger';
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -412,6 +413,19 @@ export async function reconstructBranch(
       callbacks.onSceneReady(newScenes[item.index], 'edited');
     } catch (err) {
       console.warn(`[reconstruct] merge failed for ${item.scene.id}:`, err);
+      logWarning(
+        `Scene merge failed during reconstruction`,
+        err,
+        {
+          source: 'manual-generation',
+          operation: 'reconstruct-merge',
+          details: {
+            sceneId: item.scene.id,
+            index: item.index,
+            reason: item.reason?.substring(0, 100),
+          },
+        }
+      );
     }
 
     if (step) step.status = 'done';
@@ -435,6 +449,19 @@ export async function reconstructBranch(
       callbacks.onSceneReady(newScenes[item.index], 'edited');
     } catch (err) {
       console.warn(`[reconstruct] edit failed for ${item.scene.id}:`, err);
+      logError(
+        `Scene edit failed during reconstruction`,
+        err,
+        {
+          source: 'manual-generation',
+          operation: 'reconstruct-edit',
+          details: {
+            sceneId: item.scene.id,
+            index: item.index,
+            reason: item.reason?.substring(0, 100),
+          },
+        }
+      );
     }
 
     if (step) step.status = 'done';
@@ -458,6 +485,19 @@ export async function reconstructBranch(
       callbacks.onSceneReady(newScenes[item.index], 'edited');
     } catch (err) {
       console.warn(`[reconstruct] insert failed for ${item.scene.id}:`, err);
+      logError(
+        `Scene insert failed during reconstruction`,
+        err,
+        {
+          source: 'manual-generation',
+          operation: 'reconstruct-insert',
+          details: {
+            sceneId: item.scene.id,
+            index: item.index,
+            reason: item.reason?.substring(0, 100),
+          },
+        }
+      );
     }
 
     if (step) step.status = 'done';

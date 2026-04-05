@@ -1070,6 +1070,27 @@ function tryBuildFromRanges(
       return null;
     }
 
+    // Validate beat size (warn if outside recommended range, but don't reject)
+    const wordCount = proseChunk.split(/\s+/).length;
+    if (wordCount < WORDS_PER_BEAT_MIN || wordCount > WORDS_PER_BEAT_MAX) {
+      logWarning(
+        `Beat ${i} size outside recommended range`,
+        `Beat has ${wordCount} words (recommended: ${WORDS_PER_BEAT_MIN}-${WORDS_PER_BEAT_MAX})`,
+        {
+          source: 'analysis',
+          operation: 'beat-size-validation',
+          details: {
+            beatIndex: i,
+            wordCount,
+            minWords: WORDS_PER_BEAT_MIN,
+            maxWords: WORDS_PER_BEAT_MAX,
+            startPara,
+            endPara,
+          },
+        }
+      );
+    }
+
     // Store prose directly
     chunks.push({ beatIndex: i, prose: proseChunk });
     lastEndPara = endPara;
