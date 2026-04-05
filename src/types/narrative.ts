@@ -876,8 +876,10 @@ export type ApiLogEntry = {
   model?: string;
   /** Narrative this call belongs to */
   narrativeId?: string;
-  /** Analysis job this call belongs to */
-  analysisJobId?: string;
+  /** Analysis this call belongs to */
+  analysisId?: string;
+  /** Discovery this call belongs to */
+  discoveryId?: string;
   status: 'pending' | 'success' | 'error';
   durationMs: number | null;
   promptTokens: number;
@@ -900,22 +902,26 @@ export type ApiLogEntry = {
 export type ErrorLogEntry = {
   id: string;
   timestamp: number;
-  severity: 'error' | 'warning';
-  category: 'network' | 'timeout' | 'parsing' | 'validation' | 'unknown';
-  /** Human-readable message describing what failed */
+  severity: 'error' | 'warning' | 'info';
+  category: 'network' | 'timeout' | 'parsing' | 'validation' | 'lifecycle' | 'unknown';
+  /** Human-readable message describing what happened */
   message: string;
-  /** Raw error message from the exception */
-  errorMessage: string;
-  /** Stack trace if available */
+  /** Raw error message from the exception (for errors/warnings) */
+  errorMessage?: string;
+  /** Stack trace if available (for errors) */
   errorStack?: string;
-  /** Where the error occurred */
+  /** Where the event occurred */
   source: 'auto-play' | 'mcts' | 'manual-generation' | 'analysis' | 'world-expansion' | 'direction-generation' | 'prose-generation' | 'plan-generation' | 'other';
-  /** Current operation when error occurred */
+  /** Current operation */
   operation?: string;
   /** Additional context */
   details?: Record<string, string | number | boolean | null | undefined>;
-  /** Narrative this error belongs to */
+  /** Narrative this log belongs to */
   narrativeId?: string;
+  /** Analysis this log belongs to */
+  analysisId?: string;
+  /** Discovery this log belongs to */
+  discoveryId?: string;
 };
 
 // ── Text Analysis ────────────────────────────────────────────────────────────

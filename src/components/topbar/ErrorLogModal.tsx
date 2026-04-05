@@ -9,10 +9,11 @@ type Props = {
   onClose: () => void;
 };
 
-function SeverityBadge({ severity }: { severity: 'error' | 'warning' }) {
+function SeverityBadge({ severity }: { severity: 'error' | 'warning' | 'info' }) {
   const styles = {
     error: 'bg-red-400/15 text-red-400',
     warning: 'bg-amber-400/15 text-amber-400',
+    info: 'bg-cyan-400/15 text-cyan-400',
   };
   return (
     <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded ${styles[severity]}`}>
@@ -27,6 +28,7 @@ function CategoryBadge({ category }: { category: ErrorLogEntry['category'] }) {
     timeout: 'bg-orange-400/10 text-orange-400',
     parsing: 'bg-purple-400/10 text-purple-400',
     validation: 'bg-yellow-400/10 text-yellow-400',
+    lifecycle: 'bg-green-400/10 text-green-400',
     unknown: 'bg-gray-400/10 text-gray-400',
   };
   return (
@@ -118,24 +120,42 @@ function LogDetail({ entry, onClose }: { entry: ErrorLogEntry; onClose: () => vo
   );
 }
 
+type ContextFilter = 'all' | 'narrative' | 'analysis' | 'discovery';
+
 export default function ErrorLogModal({ onClose }: Props) {
   const { state, dispatch } = useStore();
   const logs = state.errorLogs;
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [filterSeverity, setFilterSeverity] = useState<'all' | 'error' | 'warning'>('all');
+  const [filterSeverity, setFilterSeverity] = useState<'all' | 'error' | 'warning' | 'info'>('all');
+  const [filterContext, setFilterContext] = useState<ContextFilter>('all');
 
   const selectedEntry = selectedId ? logs.find((l) => l.id === selectedId) : null;
 
   const filteredLogs = useMemo(() => {
     let filtered = [...logs].reverse(); // Most recent first
+
+    // Filter by severity
     if (filterSeverity !== 'all') {
       filtered = filtered.filter(l => l.severity === filterSeverity);
     }
+
+    // Filter by context
+    if (filterContext !== 'all') {
+      if (filterContext === 'narrative') {
+        filtered = filtered.filter(l => l.narrativeId === state.activeNarrativeId);
+      } else if (filterContext === 'analysis') {
+        filtered = filtered.filter(l => l.analysisId != null);
+      } else if (filterContext === 'discovery') {
+        filtered = filtered.filter(l => l.discoveryId != null);
+      }
+    }
+
     return filtered;
-  }, [logs, filterSeverity]);
+  }, [logs, filterSeverity, filterContext, state.activeNarrativeId]);
 
   const errorCount = logs.filter((l) => l.severity === 'error').length;
   const warningCount = logs.filter((l) => l.severity === 'warning').length;
+  const infoCount = logs.filter((l) => l.severity === 'info').length;
 
   function formatTimestamp(ts: number): string {
     const date = new Date(ts);
@@ -159,7 +179,19 @@ export default function ErrorLogModal({ onClose }: Props) {
       ) : (
         <>
           <ModalHeader onClose={onClose}>
-            <h2 className="text-[14px] font-medium text-text-primary">Error & Warning Logs</h2>
+            <div className="flex items-center gap-3">
+              <h2 className="text-[14px] font-medium text-text-primary">Event Logs</h2>
+              <select
+                value={filterContext}
+                onChange={(e) => setFilterContext(e.target.value as ContextFilter)}
+                className="bg-white/5 border border-white/10 text-text-primary text-[11px] px-2 py-1 rounded hover:bg-white/8 transition-colors"
+              >
+                <option value="all">All</option>
+                <option value="narrative">Narrative</option>
+                <option value="analysis">Analysis</option>
+                <option value="discovery">Discovery</option>
+              </select>
+            </div>
             <div className="flex items-center gap-2 text-[10px]">
               {errorCount > 0 && (
                 <span className="text-red-400">{errorCount} errors</span>
@@ -167,7 +199,10 @@ export default function ErrorLogModal({ onClose }: Props) {
               {warningCount > 0 && (
                 <span className="text-amber-400">{warningCount} warnings</span>
               )}
-              <span className="text-text-dim">{logs.length} total</span>
+              {infoCount > 0 && (
+                <span className="text-cyan-400">{infoCount} info</span>
+              )}
+              <span className="text-text-dim">{filteredLogs.length} {filterContext === 'all' ? 'total' : filterContext}</span>
             </div>
             <div className="flex items-center gap-2">
               {/* Quick filter */}
@@ -195,6 +230,14 @@ export default function ErrorLogModal({ onClose }: Props) {
                   }`}
                 >
                   Warnings
+                </button>
+                <button
+                  onClick={() => setFilterSeverity('info')}
+                  className={`px-2 py-1 rounded text-[10px] transition-colors ${
+                    filterSeverity === 'info' ? 'bg-cyan-500/20 text-cyan-400' : 'text-text-dim hover:text-cyan-400'
+                  }`}
+                >
+                  Info
                 </button>
               </div>
               {logs.length > 0 && (

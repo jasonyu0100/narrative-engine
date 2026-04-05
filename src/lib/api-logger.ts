@@ -6,7 +6,8 @@ type UpdateListener = (id: string, updates: Partial<ApiLogEntry>) => void;
 let logListener: LogListener | null = null;
 let updateListener: UpdateListener | null = null;
 let activeNarrativeId: string | null = null;
-let activeAnalysisJobId: string | null = null;
+let activeAnalysisId: string | null = null;
+let activeDiscoveryId: string | null = null;
 
 let counter = 0;
 
@@ -23,9 +24,14 @@ export function setLoggerNarrativeId(id: string | null) {
   activeNarrativeId = id;
 }
 
-/** Called by analysis runner when an analysis job starts/ends */
-export function setLoggerAnalysisJobId(id: string | null) {
-  activeAnalysisJobId = id;
+/** Called by analysis runner when an analysis starts/ends */
+export function setLoggerAnalysisId(id: string | null) {
+  activeAnalysisId = id;
+}
+
+/** Called when a discovery session starts/ends */
+export function setLoggerDiscoveryId(id: string | null) {
+  activeDiscoveryId = id;
 }
 
 /** Estimate token count from character length (~4 chars per token for English) */
@@ -93,7 +99,8 @@ export function logApiCall(caller: string, promptChars: number, promptPreview: s
     caller,
     model,
     narrativeId: activeNarrativeId ?? undefined,
-    analysisJobId: activeAnalysisJobId ?? undefined,
+    analysisId: activeAnalysisId ?? undefined,
+    discoveryId: activeDiscoveryId ?? undefined,
     status: 'pending',
     durationMs: null,
     promptTokens: estimateTokens(promptChars),

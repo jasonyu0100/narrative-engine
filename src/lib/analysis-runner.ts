@@ -16,8 +16,8 @@ import { reverseEngineerScenePlan } from '@/lib/ai/scenes';
 import type { AnalysisJob, AnalysisChunkResult } from '@/types/narrative';
 import type { Action } from '@/lib/store';
 import { ANALYSIS_CONCURRENCY, ANALYSIS_STAGGER_DELAY_MS, ANALYSIS_MAX_CHUNK_RETRIES, ANALYSIS_PLAN_BACKOFF_ENABLED } from '@/lib/constants';
-import { logError, logWarning } from '@/lib/error-logger';
-import { setLoggerAnalysisJobId } from '@/lib/api-logger';
+import { logError, logWarning, setErrorLoggerAnalysisId } from '@/lib/error-logger';
+import { setLoggerAnalysisId } from '@/lib/api-logger';
 
 type Dispatch = (action: Action) => void;
 
@@ -125,8 +125,9 @@ class AnalysisRunner {
     this.running.set(job.id, entry);
     this.streamTexts.set(job.id, '');
 
-    // Set analysis job ID for API logging
-    setLoggerAnalysisJobId(job.id);
+    // Set analysis ID for API and error logging
+    setLoggerAnalysisId(job.id);
+    setErrorLoggerAnalysisId(job.id);
 
     try {
       dispatch({ type: 'UPDATE_ANALYSIS_JOB', id: job.id, updates: { status: 'running', phase: 'extraction' } });
@@ -150,8 +151,9 @@ class AnalysisRunner {
       // Update status to failed
       dispatch({ type: 'UPDATE_ANALYSIS_JOB', id: job.id, updates: { status: 'failed', error: err instanceof Error ? err.message : String(err) } });
     } finally {
-      // Clear analysis job ID from API logger
-      setLoggerAnalysisJobId(null);
+      // Clear analysis ID from API and error loggers
+      setLoggerAnalysisId(null);
+      setErrorLoggerAnalysisId(null);
       this.cleanup(job.id);
     }
   }

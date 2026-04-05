@@ -24,7 +24,14 @@ vi.mock('@/lib/error-logger', () => ({
   logError: vi.fn(),
   logWarning: vi.fn(),
   setErrorLoggerNarrativeId: vi.fn(),
+  setErrorLoggerAnalysisId: vi.fn(),
   onErrorLog: vi.fn(),
+}));
+
+vi.mock('@/lib/api-logger', () => ({
+  setLoggerAnalysisId: vi.fn(),
+  onApiLog: vi.fn(),
+  onApiLogUpdate: vi.fn(),
 }));
 
 import { analyzeChunkParallel, reconcileResults, analyzeThreading, assembleNarrative } from '@/lib/text-analysis';

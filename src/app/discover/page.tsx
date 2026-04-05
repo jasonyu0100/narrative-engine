@@ -16,6 +16,8 @@ import { CreationWizard } from '@/components/wizard/CreationWizard';
 import { IconCheck, IconChevronRight, IconRefresh, IconUndo } from '@/components/icons';
 import { saveDiscoveryInquiry, deleteDiscoveryInquiry, loadDiscoveryInquiries } from '@/lib/persistence';
 import type { DiscoveryInquiry, DiscoveryInquiryState, DiscoveryPhase, DiscoverySnapshot } from '@/types/narrative';
+import { setLoggerDiscoveryId } from '@/lib/api-logger';
+import { setErrorLoggerDiscoveryId } from '@/lib/error-logger';
 import * as d3 from 'd3';
 
 // ── State ────────────────────────────────────────────────────────────────────
@@ -433,7 +435,19 @@ function DiscoverInner({ inquiryId: initialInquiryId }: { inquiryId?: string } =
     });
   }, [initialInquiryId, prefetchOtherPhases]);
 
+  // Clear discovery ID from loggers on unmount
+  useEffect(() => {
+    return () => {
+      setLoggerDiscoveryId(null);
+      setErrorLoggerDiscoveryId(null);
+    };
+  }, []);
+
   const handleBegin = useCallback(async () => {
+    // Set discovery ID for API and error logging
+    setLoggerDiscoveryId(inquiryIdRef.current);
+    setErrorLoggerDiscoveryId(inquiryIdRef.current);
+
     dispatch({ type: 'SET_PHASE', phase: 'systems' });
     dispatch({ type: 'SET_LOADING', loading: true });
     dispatch({ type: 'SET_ERROR', error: null });

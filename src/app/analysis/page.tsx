@@ -37,9 +37,9 @@ function JobDetail({ job }: { job: AnalysisJob }) {
   const liveJob = state.analysisJobs.find((j) => j.id === job.id) ?? job;
   const isRunning = analysisRunner.isRunning(job.id) || liveJob.status === 'running';
 
-  // Filter API logs for this job
+  // Filter API logs for this analysis
   const jobApiLogs = useMemo(
-    () => state.apiLogs.filter((log) => log.analysisJobId === job.id),
+    () => state.apiLogs.filter((log) => log.analysisId === job.id),
     [state.apiLogs, job.id]
   );
   const totalCost = useMemo(() => calculateTotalCost(jobApiLogs), [jobApiLogs]);

@@ -4,6 +4,8 @@ type LogListener = (entry: ErrorLogEntry) => void;
 
 let logListener: LogListener | null = null;
 let activeNarrativeId: string | null = null;
+let activeAnalysisId: string | null = null;
+let activeDiscoveryId: string | null = null;
 
 let counter = 0;
 
@@ -14,6 +16,16 @@ export function onErrorLog(listener: LogListener) {
 /** Called by the store when the active narrative changes */
 export function setErrorLoggerNarrativeId(id: string | null) {
   activeNarrativeId = id;
+}
+
+/** Called by analysis runner when an analysis starts/ends */
+export function setErrorLoggerAnalysisId(id: string | null) {
+  activeAnalysisId = id;
+}
+
+/** Called when a discovery session starts/ends */
+export function setErrorLoggerDiscoveryId(id: string | null) {
+  activeDiscoveryId = id;
 }
 
 export type ErrorContext = {
@@ -61,6 +73,8 @@ export function logError(
     operation: context.operation,
     details: context.details,
     narrativeId: activeNarrativeId ?? undefined,
+    analysisId: activeAnalysisId ?? undefined,
+    discoveryId: activeDiscoveryId ?? undefined,
   };
 
   // Log to console as well as modal
@@ -70,6 +84,39 @@ export function logError(
   } else {
     console.warn(consoleMsg, context.details);
   }
+
+  logListener?.(entry);
+  return id;
+}
+
+/**
+ * Log lifecycle milestones and info events for full transparency.
+ * Use this to track major operations, state transitions, and system events.
+ * Details are logged as JSON for easy copy/paste debugging.
+ */
+export function logInfo(
+  message: string,
+  context: ErrorContext
+): string {
+  const id = `info-${Date.now()}-${counter++}`;
+
+  const entry: ErrorLogEntry = {
+    id,
+    timestamp: Date.now(),
+    severity: 'info',
+    category: 'lifecycle',
+    message,
+    source: context.source,
+    operation: context.operation,
+    details: context.details,
+    narrativeId: activeNarrativeId ?? undefined,
+    analysisId: activeAnalysisId ?? undefined,
+    discoveryId: activeDiscoveryId ?? undefined,
+  };
+
+  // Log to console with JSON format for easy copy/paste
+  const consoleMsg = `[INFO] [${context.source}${context.operation ? `/${context.operation}` : ''}] ${message}`;
+  console.info(consoleMsg, context.details ? JSON.stringify(context.details, null, 2) : '');
 
   logListener?.(entry);
   return id;

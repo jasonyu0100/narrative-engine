@@ -112,15 +112,32 @@ function LogDetail({ entry, onClose }: { entry: ApiLogEntry; onClose: () => void
   );
 }
 
+type LogFilter = 'all' | 'narrative' | 'analysis' | 'discovery';
+
 export function ApiLogsModal({ onClose }: { onClose: () => void }) {
   const { state, dispatch } = useStore();
-  const logs = state.apiLogs;
+  const [filter, setFilter] = useState<LogFilter>('all');
   const [selectedId, setSelectedId] = useState<string | null>(null);
 
-  const selectedEntry = selectedId ? logs.find((l) => l.id === selectedId) : null;
+  // Filter logs based on selected context
+  const filteredLogs = state.apiLogs.filter((log) => {
+    if (filter === 'all') return true;
+    if (filter === 'narrative') return log.narrativeId === state.activeNarrativeId;
+    if (filter === 'analysis') {
+      // Show logs from any analysis job
+      return log.analysisId != null;
+    }
+    if (filter === 'discovery') {
+      // Show logs from any discovery session
+      return log.discoveryId != null;
+    }
+    return true;
+  });
 
-  const pendingCount = logs.filter((l) => l.status === 'pending').length;
-  const errorCount = logs.filter((l) => l.status === 'error').length;
+  const selectedEntry = selectedId ? filteredLogs.find((l) => l.id === selectedId) : null;
+
+  const pendingCount = filteredLogs.filter((l) => l.status === 'pending').length;
+  const errorCount = filteredLogs.filter((l) => l.status === 'error').length;
 
   return (
     <Modal onClose={onClose} size="2xl" maxHeight="80vh">
@@ -129,7 +146,19 @@ export function ApiLogsModal({ onClose }: { onClose: () => void }) {
       ) : (
         <>
           <ModalHeader onClose={onClose}>
-            <h2 className="text-[14px] font-medium text-text-primary">API Logs</h2>
+            <div className="flex items-center gap-3">
+              <h2 className="text-[14px] font-medium text-text-primary">API Logs</h2>
+              <select
+                value={filter}
+                onChange={(e) => setFilter(e.target.value as LogFilter)}
+                className="bg-white/5 border border-white/10 text-text-primary text-[11px] px-2 py-1 rounded hover:bg-white/8 transition-colors"
+              >
+                <option value="all">All</option>
+                <option value="narrative">Narrative</option>
+                <option value="analysis">Analysis</option>
+                <option value="discovery">Discovery</option>
+              </select>
+            </div>
             <div className="flex items-center gap-2 text-[10px]">
               {pendingCount > 0 && (
                 <span className="text-amber-400">{pendingCount} pending</span>
@@ -137,9 +166,9 @@ export function ApiLogsModal({ onClose }: { onClose: () => void }) {
               {errorCount > 0 && (
                 <span className="text-red-400">{errorCount} failed</span>
               )}
-              <span className="text-text-dim">{logs.length} total</span>
+              <span className="text-text-dim">{filteredLogs.length} {filter === 'all' ? 'total' : filter}</span>
             </div>
-            {logs.length > 0 && (
+            {state.apiLogs.length > 0 && (
               <button
                 onClick={() => dispatch({ type: 'CLEAR_API_LOGS' })}
                 className="text-[11px] text-text-dim hover:text-text-secondary transition-colors px-2 py-1 rounded hover:bg-white/5"
@@ -149,13 +178,15 @@ export function ApiLogsModal({ onClose }: { onClose: () => void }) {
             )}
           </ModalHeader>
           <ModalBody className="p-0">
-            {logs.length === 0 ? (
+            {filteredLogs.length === 0 ? (
               <div className="flex items-center justify-center h-full p-8">
-                <p className="text-[12px] text-text-dim">No API calls yet. Generate or expand to see logs.</p>
+                <p className="text-[12px] text-text-dim">
+                  {filter === 'all' ? 'No API calls yet. Generate or expand to see logs.' : `No ${filter} API calls.`}
+                </p>
               </div>
             ) : (
               <div className="py-1">
-                {[...logs].reverse().map((entry) => (
+                {[...filteredLogs].reverse().map((entry) => (
                   <button
                     key={entry.id}
                     onClick={() => setSelectedId(entry.id)}
