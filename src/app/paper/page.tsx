@@ -418,6 +418,7 @@ const NAV = [
   { id: "abstract", label: "Abstract" },
   { id: "problem", label: "The Problem" },
   { id: "approach", label: "Approach" },
+  { id: "hierarchy", label: "Hierarchy" },
   { id: "forces", label: "Forces" },
   { id: "validation", label: "Validation" },
   { id: "grading", label: "Grading" },
@@ -539,58 +540,58 @@ export default function PaperPage() {
           {/* ── Abstract ──────────────────────────────────────────────── */}
           <Section id="abstract" label="Abstract">
             <P>
-              Narrative structure exhibits measurable patterns, yet existing
-              metrics fail to capture the mechanisms that drive reader
-              engagement. This paper introduces a computational framework that
-              renders narrative structure{" "}
-              <B>quantifiable and optimizable</B>. We model narratives as
-              evolving knowledge graphs and derive three fundamental forces
-              (Payoff, Change, Knowledge) through deterministic, z-score
-              normalized formulas operating on structural mutations. Applied to{" "}
-              <em>Harry Potter and the Sorcerer&apos;s Stone</em>, the delivery
-              curve autonomously identifies dramatic peaks at the Sorting Hat,
-              troll confrontation, and Quirrell climax — without human
-              annotation.
+              Narrative structure exhibits measurable regularities, yet existing
+              metrics fail to quantify the mechanisms that drive reader engagement.
+              This paper introduces a computational framework that renders narrative
+              structure <B>quantifiable and optimizable</B>. We model narratives
+              as knowledge graphs mutating across three independent layers: thread
+              lifecycle transitions, character continuity shifts, and world
+              knowledge expansion. Three forces (Payoff, Change, Knowledge) derive
+              from these mutations via deterministic, z-score normalized formulas.
+              Applied to <em>Harry Potter and the Sorcerer&apos;s Stone</em>, the
+              delivery curve autonomously identifies dramatic peaks at chapter
+              boundaries corresponding to the Sorting Hat, troll confrontation,
+              and Quirrell climax — without human annotation.
             </P>
             <P>
-              These metrics enable both measurement and synthesis. We deploy
-              them for <B>generation</B> via Markov-chain pacing, MCTS search,
-              and adaptive planning, then <B>revision</B> through iterative
-              evaluation and reconstruction. Empirical validation shows
-              published works scoring 85–95, while unguided AI output achieves
-              65–78. This quantifiable gap reveals structural deficiencies in
-              generated narratives. The framework provides algorithmic tools to
-              systematically address them. All components are open source and
-              configurable.
+              These metrics enable both <B>measurement</B> and <B>synthesis</B>.
+              For generation, we deploy Markov-chain pacing, MCTS search, and
+              adaptive planning. For revision, iterative evaluation and reconstruction.
+              Empirical validation shows published works scoring 85–95 on a composite
+              delivery metric, while unguided AI narratives score 65–78. This
+              quantifiable gap exposes structural deficiencies: weak thread lifecycle
+              complexity, shallow continuity graphs, sparse world-building connectivity.
+              The framework provides algorithmic tools to systematically address them.
+              All components are open source and configurable.
             </P>
           </Section>
 
           {/* ── The Problem ───────────────────────────────────────────── */}
           <Section id="problem" label="The Problem">
             <P>
-              Computational narrative faces two fundamental challenges:{" "}
-              <B>measurement</B> and <B>structural synthesis</B>. Sentiment
-              analysis captures affective valence; topic models capture lexical
-              distribution. Neither distinguishes progressive escalation from
-              cyclical repetition, character transformation from behavioral
-              stasis, or conceptual deepening from lateral expansion. LLMs
-              generate syntactically fluent prose yet produce structurally
-              shallow narratives — dramatic beats recur without intensification,
-              characters exhibit behavioral consistency without development,
-              world-building expands horizontally without hierarchical depth.
+              Computational narrative generation faces a structural deficiency that
+              existing metrics fail to quantify. Sentiment analysis measures affective
+              valence; topic models measure lexical distribution. Neither distinguishes
+              progressive thread escalation from cyclical repetition, persistent
+              character knowledge accumulation from transient behavioral variation,
+              or hierarchical world-building depth from lateral enumeration. LLMs
+              generate syntactically fluent prose yet produce structurally shallow
+              narratives: dramatic tensions recur without advancing through lifecycle
+              states, characters experience events without accumulating constraining
+              knowledge, world systems expand through listing rather than
+              interconnection.
             </P>
             <P>
-              These deficiencies share a common origin: readers perceive
-              structural patterns, yet no established metric quantifies them.
-              Narrative coherence emerges from systematic mutations in an
-              underlying knowledge graph — thread lifecycle transitions,
-              relationship valence shifts, world knowledge expansion. Applying
-              mutation-derived formulas to published literature versus
-              AI-generated text makes this gap empirically visible. Published
-              works achieve scores of 85–95; unguided AI output scores 65–78.
-              This disparity reflects not surface-level fluency but structural
-              density: thread lifecycle complexity, relationship intensity, and
-              world-knowledge interconnection depth.
+              These deficiencies share a root cause. Readers perceive structural
+              regularities — thread lifecycle progression, continuity graph density,
+              knowledge interconnection — that no established computational framework
+              captures. Narrative coherence emerges from systematic mutations across
+              three independent graph layers. Applying mutation-derived formulas to
+              published works versus AI-generated narratives makes this gap empirically
+              measurable. Published literature scores 85–95 on composite delivery;
+              unguided AI output scores 65–78. This 15–20 point disparity reflects
+              structural density differences: weaker thread lifecycle complexity,
+              shallower continuity graphs, and sparser world-knowledge connectivity.
             </P>
 
             {/* ── Human vs AI gradient bar ──────────────────────────── */}
@@ -754,51 +755,420 @@ export default function PaperPage() {
           {/* ── Approach ──────────────────────────────────────────────── */}
           <Section id="approach" label="Approach">
             <P>
-              A scene functions not as a static text artifact but as a{" "}
-              <em>transformative operation</em> on narrative state. It escalates
-              latent tensions, reveals concealed information, or reconfigures
-              social networks. We model each scene as an operator producing
-              structured mutations across three graph layers:
+              We model narratives as knowledge graphs that undergo systematic
+              mutations scene by scene. Each scene functions as a transformative
+              operation, modifying three independent structural layers. An LLM
+              extracts mutations; deterministic formulas compute forces. This
+              architecture separates <em>comprehension</em> (LLM) from{" "}
+              <em>measurement</em> (formulas), making the entire pipeline
+              auditable and tunable.
+            </P>
+            <P>
+              The three mutation layers are:
             </P>
             <ul className="mt-3 space-y-2 text-[13px] text-white/50 leading-[1.85]">
               <li className="flex gap-2">
                 <span className="text-white/25 shrink-0">1.</span>
                 <span>
-                  <B>Threads</B> — narrative tensions (rivalries, secrets,
-                  quests) that traverse discrete lifecycle states: dormant
-                  &rarr; active &rarr; escalating &rarr; critical &rarr;
-                  resolved/subverted/abandoned. Each thread represents a
-                  quantifiable unit of dramatic obligation.
+                  <B>Thread mutations</B> — lifecycle transitions of narrative
+                  tensions (rivalries, secrets, quests). Each thread advances
+                  through discrete states: dormant &rarr; active &rarr;
+                  escalating &rarr; critical &rarr; resolved/subverted/abandoned.
+                  Transitions are irreversible. A thread escalating from active
+                  to critical represents a quantifiable dramatic commitment.
                 </span>
               </li>
               <li className="flex gap-2">
                 <span className="text-white/25 shrink-0">2.</span>
                 <span>
-                  <B>Characters</B> — continuity mutations (what someone learns,
-                  loses, or becomes) and relationship valence dynamics. The
-                  social network of the narrative, represented as weighted edges
-                  between character nodes.
+                  <B>Continuity mutations</B> — character knowledge transformations
+                  recorded as typed nodes (learns, loses, becomes, realizes). These
+                  accumulate as persistent state attached to characters. Unlike
+                  ephemeral events, continuity mutations represent permanent changes
+                  to what a character knows or is. Relationship mutations
+                  (valence shifts between characters) are tracked separately but
+                  contribute to the same force.
                 </span>
               </li>
               <li className="flex gap-2">
                 <span className="text-white/25 shrink-0">3.</span>
                 <span>
-                  <B>World knowledge</B> — a typed graph encoding the laws,
-                  systems, concepts, and tensions that define the fictional
-                  world. Nodes represent discrete ideas; edges encode
-                  relationships between them. Reader-perceived &ldquo;depth&rdquo;
-                  corresponds to this graph&apos;s connectivity and hierarchical
-                  structure.
+                  <B>Knowledge graph mutations</B> — additions to the world-building
+                  graph, where nodes encode laws, systems, concepts, and tensions,
+                  and typed edges encode relationships. Each new magic rule,
+                  political faction, or philosophical principle adds a node. Each
+                  causal link, hierarchical relation, or thematic connection adds
+                  an edge. Depth emerges from connectivity, not lexical volume.
                 </span>
               </li>
             </ul>
             <P>
-              An LLM reads each scene and records these mutations as structured
-              data. Deterministic formulas then compute forces from the
-              mutations — no LLM in the loop. This separation is deliberate: the
-              model handles comprehension, the math handles measurement. Every
-              formula in this paper is auditable. If you disagree with a weight,
-              change it. The science is in the math, not the model.
+              All three mutation types are recorded per scene as structured
+              data. Formulas derive three forces directly from these mutations:
+              Payoff from thread transitions, Change from continuity and
+              relationship mutations, Knowledge from graph expansion. Forces are
+              z-score normalized across all scenes, making them comparable across
+              works of arbitrary length. Every coefficient is documented. If a
+              weight seems wrong, you can change it. The science is in the
+              math, not the model.
+            </P>
+          </Section>
+
+          {/* ── Computational Hierarchy ───────────────────────────────── */}
+          <Section id="hierarchy" label="Computational Hierarchy">
+            <P>
+              InkTide decomposes narratives into five nested computational
+              layers, each with distinct responsibilities and output formats.
+              This hierarchical structure enables parallel processing, modular
+              prompting, and precise attribution of narrative effects to their
+              generative sources.
+            </P>
+
+            {/* Visual hierarchy diagram - clean and compact */}
+            <div className="my-8 px-4 py-6 rounded-lg bg-white/[0.02] border border-white/6">
+              <svg
+                width="100%"
+                viewBox="0 0 820 420"
+                className="max-w-full mx-auto"
+              >
+                {(() => {
+                  // Clean, balanced tree with better spacing
+                  const narrative = { cx: 425, y: 30 };
+                  const arcs = [
+                    { cx: 220, y: 105 },
+                    { cx: 425, y: 105 },
+                    { cx: 630, y: 105 },
+                  ];
+                  const scenes = [
+                    // From arc 0
+                    { cx: 145, y: 185 },
+                    { cx: 230, y: 185 },
+                    { cx: 315, y: 185 },
+                    // From arc 1
+                    { cx: 425, y: 185 },
+                    { cx: 510, y: 185 },
+                    // From arc 2
+                    { cx: 600, y: 185 },
+                    { cx: 685, y: 185 },
+                  ];
+                  const beats = [
+                    // From scene 0
+                    { cx: 115, y: 275 },
+                    { cx: 175, y: 275 },
+                    // From scene 2
+                    { cx: 285, y: 275 },
+                    { cx: 345, y: 275 },
+                    // From scene 3
+                    { cx: 425, y: 275 },
+                    // From scene 5
+                    { cx: 570, y: 275 },
+                    { cx: 630, y: 275 },
+                    // From scene 6
+                    { cx: 685, y: 275 },
+                  ];
+                  const props = [
+                    // From beat 0
+                    { cx: 95, y: 355 },
+                    { cx: 135, y: 355 },
+                    // From beat 1
+                    { cx: 165, y: 355 },
+                    { cx: 195, y: 355 },
+                    // From beat 2
+                    { cx: 270, y: 355 },
+                    { cx: 310, y: 355 },
+                    // From beat 4
+                    { cx: 405, y: 355 },
+                    { cx: 445, y: 355 },
+                    // From beat 5
+                    { cx: 590, y: 355 },
+                    { cx: 630, y: 355 },
+                    // From beat 7
+                    { cx: 670, y: 355 },
+                    { cx: 710, y: 355 },
+                  ];
+
+                  return (
+                    <g>
+                      {/* Connecting lines - narrative to arcs */}
+                      {arcs.map((arc, i) => (
+                        <line
+                          key={`na-${i}`}
+                          x1={narrative.cx}
+                          y1={narrative.y + 17}
+                          x2={arc.cx}
+                          y2={arc.y - 13}
+                          stroke="#a855f7"
+                          strokeWidth="1.5"
+                          strokeOpacity="0.25"
+                        />
+                      ))}
+
+                      {/* Connecting lines - arcs to scenes */}
+                      {[
+                        [0, 0], [0, 1], [0, 2], // arc 0 → scenes 0,1,2
+                        [1, 3], [1, 4],         // arc 1 → scenes 3,4
+                        [2, 5], [2, 6],         // arc 2 → scenes 5,6
+                      ].map(([arcIdx, sceneIdx], i) => (
+                        <line
+                          key={`as-${i}`}
+                          x1={arcs[arcIdx].cx}
+                          y1={arcs[arcIdx].y + 13}
+                          x2={scenes[sceneIdx].cx}
+                          y2={scenes[sceneIdx].y - 12}
+                          stroke="#3b82f6"
+                          strokeWidth="1.5"
+                          strokeOpacity="0.25"
+                        />
+                      ))}
+
+                      {/* Connecting lines - scenes to beats */}
+                      {[
+                        [0, 0], [0, 1],         // scene 0 → beats 0-1
+                        [2, 2], [2, 3],         // scene 2 → beats 2-3
+                        [3, 4],                 // scene 3 → beat 4
+                        [5, 5], [5, 6],         // scene 5 → beats 5-6
+                        [6, 7],                 // scene 6 → beat 7
+                      ].map(([sceneIdx, beatIdx], i) => (
+                        <line
+                          key={`sb-${i}`}
+                          x1={scenes[sceneIdx].cx}
+                          y1={scenes[sceneIdx].y + 12}
+                          x2={beats[beatIdx].cx}
+                          y2={beats[beatIdx].y - 10}
+                          stroke="#22d3ee"
+                          strokeWidth="1.5"
+                          strokeOpacity="0.25"
+                        />
+                      ))}
+
+                      {/* Connecting lines - beats to propositions */}
+                      {[
+                        [0, 0], [0, 1],         // beat 0 → props 0-1
+                        [1, 2], [1, 3],         // beat 1 → props 2-3
+                        [2, 4], [2, 5],         // beat 2 → props 4-5
+                        [4, 6], [4, 7],         // beat 4 → props 6-7
+                        [5, 8], [5, 9],         // beat 5 → props 8-9
+                        [7, 10], [7, 11],       // beat 7 → props 10-11
+                      ].map(([beatIdx, propIdx], i) => (
+                        <line
+                          key={`bp-${i}`}
+                          x1={beats[beatIdx].cx}
+                          y1={beats[beatIdx].y + 10}
+                          x2={props[propIdx].cx}
+                          y2={props[propIdx].y - 8}
+                          stroke="#22c55e"
+                          strokeWidth="1.5"
+                          strokeOpacity="0.2"
+                        />
+                      ))}
+
+                      {/* NARRATIVE */}
+                      <g>
+                        <rect
+                          x={narrative.cx - 55}
+                          y={narrative.y}
+                          width="110"
+                          height="34"
+                          rx="5"
+                          fill="#a855f7"
+                          fillOpacity="0.2"
+                          stroke="#a855f7"
+                          strokeWidth="2.5"
+                        />
+                        <text
+                          x={narrative.cx}
+                          y={narrative.y + 22}
+                          textAnchor="middle"
+                          fill="white"
+                          fillOpacity="0.95"
+                          fontSize="12"
+                          fontWeight="700"
+                        >
+                          NARRATIVE
+                        </text>
+                      </g>
+
+                      {/* ARCS */}
+                      {arcs.map((arc, i) => (
+                        <g key={`arc-${i}`}>
+                          <rect
+                            x={arc.cx - 40}
+                            y={arc.y}
+                            width="80"
+                            height="26"
+                            rx="4"
+                            fill="#3b82f6"
+                            fillOpacity="0.15"
+                            stroke="#3b82f6"
+                            strokeWidth="2"
+                          />
+                          <text
+                            x={arc.cx}
+                            y={arc.y + 17}
+                            textAnchor="middle"
+                            fill="white"
+                            fillOpacity="0.85"
+                            fontSize="11"
+                            fontWeight="600"
+                          >
+                            Arc {i + 1}
+                          </text>
+                        </g>
+                      ))}
+
+                      {/* SCENES */}
+                      {scenes.map((scene, i) => (
+                        <g key={`scene-${i}`}>
+                          <rect
+                            x={scene.cx - 35}
+                            y={scene.y}
+                            width="70"
+                            height="24"
+                            rx="3"
+                            fill="#22d3ee"
+                            fillOpacity="0.12"
+                            stroke="#22d3ee"
+                            strokeWidth="1.8"
+                          />
+                          <text
+                            x={scene.cx}
+                            y={scene.y + 16}
+                            textAnchor="middle"
+                            fill="white"
+                            fillOpacity="0.75"
+                            fontSize="10"
+                            fontWeight="600"
+                          >
+                            Scene {i + 1}
+                          </text>
+                        </g>
+                      ))}
+
+                      {/* BEATS */}
+                      {beats.map((beat, i) => (
+                        <g key={`beat-${i}`}>
+                          <rect
+                            x={beat.cx - 28}
+                            y={beat.y}
+                            width="56"
+                            height="20"
+                            rx="3"
+                            fill="#22c55e"
+                            fillOpacity="0.1"
+                            stroke="#22c55e"
+                            strokeWidth="1.5"
+                          />
+                          <text
+                            x={beat.cx}
+                            y={beat.y + 13}
+                            textAnchor="middle"
+                            fill="white"
+                            fillOpacity="0.75"
+                            fontSize="9"
+                            fontWeight="600"
+                          >
+                            {["breathe", "inform", "advance", "turn", "reveal", "bond", "shift", "expand"][i]}
+                          </text>
+                        </g>
+                      ))}
+
+                      {/* PROPOSITIONS - simple bars */}
+                      {props.map((prop, i) => (
+                        <g key={`prop-${i}`}>
+                          <rect
+                            x={prop.cx - 16}
+                            y={prop.y}
+                            width="32"
+                            height="16"
+                            rx="2"
+                            fill="#f59e0b"
+                            fillOpacity="0.12"
+                            stroke="#f59e0b"
+                            strokeWidth="1"
+                            strokeOpacity="0.4"
+                          />
+                          <text
+                            x={prop.cx}
+                            y={prop.y + 11}
+                            textAnchor="middle"
+                            fill="white"
+                            fillOpacity="0.6"
+                            fontSize="7"
+                            fontWeight="600"
+                          >
+                            P{i + 1}
+                          </text>
+                        </g>
+                      ))}
+
+                      {/* Row labels (left side) */}
+                      <text
+                        x="20"
+                        y="47"
+                        fill="white"
+                        fillOpacity="0.35"
+                        fontSize="9"
+                        fontWeight="700"
+                        letterSpacing="1.2"
+                      >
+                        NARRATIVE
+                      </text>
+                      <text
+                        x="20"
+                        y="118"
+                        fill="white"
+                        fillOpacity="0.35"
+                        fontSize="9"
+                        fontWeight="700"
+                        letterSpacing="1.2"
+                      >
+                        ARCS
+                      </text>
+                      <text
+                        x="20"
+                        y="198"
+                        fill="white"
+                        fillOpacity="0.35"
+                        fontSize="9"
+                        fontWeight="700"
+                        letterSpacing="1.2"
+                      >
+                        SCENES
+                      </text>
+                      <text
+                        x="20"
+                        y="285"
+                        fill="white"
+                        fillOpacity="0.35"
+                        fontSize="9"
+                        fontWeight="700"
+                        letterSpacing="1.2"
+                      >
+                        BEATS
+                      </text>
+                      <text
+                        x="20"
+                        y="365"
+                        fill="white"
+                        fillOpacity="0.35"
+                        fontSize="9"
+                        fontWeight="700"
+                        letterSpacing="1.2"
+                      >
+                        PROPS
+                      </text>
+                    </g>
+                  );
+                })()}
+              </svg>
+            </div>
+
+            <P>
+              <B>Narrative</B> — Global container for all entities, threads, and world knowledge. Persists across all scenes as a growing knowledge graph. <B>Arcs</B> — Thematic groupings of 5–8 scenes with directional objectives. Direction vectors recompute after each arc based on thread lifecycle tension and narrative momentum. <B>Scenes</B> — Atomic units of structural mutation. Each scene generates thread transitions, continuity mutations, and knowledge graph additions. Forces derive directly from these mutations, not from prose. <B>Beats</B> — Functional prose segments with typed roles (breathe, inform, advance, turn, reveal, etc.) and delivery mechanisms (dialogue, thought, action, etc.). Generated as architectural blueprints before any prose is written. <B>Propositions</B> — Atomic prose units (20–60 words) that execute beat intentions. Ephemeral rendering artifacts with no persistent type structure.
+            </P>
+
+            <P>
+              This hierarchy enforces <B>separation of concerns</B>. Structure generation (scenes with mutations) runs independently of prose generation (beats and propositions). An LLM generates scene structures, then beat plans in parallel, then prose in parallel. Forces are computed from mutation graphs without examining prose. Revision edits beats without modifying scene structure. The architecture maximizes parallelism and makes every layer auditable.
             </P>
           </Section>
 
@@ -809,18 +1179,21 @@ export default function PaperPage() {
                 Payoff
               </h3>
               <P>
-                Payoff quantifies irreversible narrative commitments. It
-                measures thread phase transitions — discrete state changes that
-                establish new narrative invariants.
+                Payoff quantifies irreversible narrative commitments by measuring
+                thread lifecycle transitions. Each thread (a rivalry, secret,
+                quest, or other narrative tension) progresses through discrete
+                states. Transitions forward in the lifecycle represent dramatic
+                escalation or resolution.
               </P>
               <Eq tex="P = \sum_{t} \max\left(0,\ \varphi_{\text{to}} - \varphi_{\text{from}}\right)" />
               <P>
-                Each thread carries a phase index: dormant (0), active (1),
-                escalating (2), critical (3), resolved/subverted/abandoned (4).
-                A thread transitioning from active to critical contributes{" "}
-                <Tex>{"|3 - 1| = 2"}</Tex> to the Payoff sum. Threads mentioned
-                without state transition receive a small pulse of 0.25 —
-                sufficient for visibility without inflating the metric.
+                Thread phases are indexed: dormant (0), active (1), escalating (2),
+                critical (3), resolved/subverted/abandoned (4). A thread jumping
+                from active to critical contributes{" "}
+                <Tex>{"|3 - 1| = 2"}</Tex> to Payoff. Threads mentioned in a scene
+                without changing state receive a pulse of 0.25 to maintain
+                visibility without inflating the metric. The formula aggregates
+                across all thread mutations recorded for the scene.
               </P>
             </div>
 
@@ -829,25 +1202,25 @@ export default function PaperPage() {
                 Change
               </h3>
               <P>
-                Change quantifies character transformation intensity. The
-                formula is cast-size independent — a two-character interaction
-                producing N mutations scores identically to a ten-character
-                ensemble generating the same total.
+                Change measures character transformation. It aggregates continuity
+                mutations (permanent knowledge/identity shifts), events (transient
+                occurrences), and relationship mutations (valence changes). The
+                formula scales sub-linearly to prevent cast size from dominating —
+                a two-character betrayal and a ten-character ensemble producing the
+                same mutation count score identically.
               </P>
               <Eq
                 tex={String.raw`C = \sqrt{\Delta M} \;+\; \sqrt{\Delta E} \;+\; \sqrt{\Delta R}`}
               />
               <P>
-                <Tex>{String.raw`\Delta M`}</Tex> counts continuity mutations (what
-                characters learn, lose, or become), <Tex>{String.raw`\Delta E`}</Tex>{" "}
-                counts events, and <Tex>{String.raw`\Delta R = \sum |\Delta v|`}</Tex>{" "}
-                sums the absolute valence shifts across all relationship
-                mutations. A dramatic betrayal (
-                <Tex>{String.raw`|\Delta v| = 0.5`}</Tex>) weighs more than a
-                polite exchange (<Tex>{String.raw`|\Delta v| = 0.1`}</Tex>).
-                Square roots give diminishing returns on all three terms —
-                preventing any single axis from dominating while preserving
-                meaningful spikes.
+                <Tex>{String.raw`\Delta M`}</Tex> counts continuity mutations
+                (learns, loses, becomes, realizes), <Tex>{String.raw`\Delta E`}</Tex>{" "}
+                counts scene events, and <Tex>{String.raw`\Delta R = \sum |\Delta v|`}</Tex>{" "}
+                sums absolute relationship valence shifts. A betrayal shifting
+                trust by <Tex>{String.raw`|\Delta v| = 0.5`}</Tex> contributes
+                more than casual banter at <Tex>{String.raw`|\Delta v| = 0.1`}</Tex>.
+                Square root scaling prevents any single term from overwhelming the
+                others while preserving sensitivity to dramatic spikes.
               </P>
             </div>
 
@@ -856,21 +1229,21 @@ export default function PaperPage() {
                 Knowledge
               </h3>
               <P>
-                Knowledge measures how the world expands. It tracks
-                world-building graph growth with asymmetric weighting: new
-                concepts (nodes) contribute more than additional connections
-                (edges) between existing elements.
+                Knowledge measures world-building graph expansion. It counts
+                additions to the typed knowledge graph with asymmetric weighting:
+                new concepts (nodes) contribute more than new connections (edges)
+                between existing concepts.
               </P>
               <Eq tex={String.raw`K = \Delta N + \sqrt{\Delta E}`} />
               <P>
-                <Tex>{"\\Delta N"}</Tex> counts new nodes (laws, systems,
-                concepts, tensions) and <Tex>{"\\Delta E"}</Tex> counts new
-                edges. Nodes contribute linearly because each new concept is
-                genuinely new information. Edges use square root scaling because
-                the first few connections between concepts matter more than the
-                tenth — this prevents bulk edge additions from inflating
-                Knowledge. The formula applies equally to fantasy magic systems,
-                literary class structures, and crime world hierarchies.
+                <Tex>{"\\Delta N"}</Tex> counts new nodes added to the graph
+                (laws, systems, concepts, tensions), and <Tex>{"\\Delta E"}</Tex>{" "}
+                counts new typed edges. Nodes scale linearly because each represents
+                genuinely new information. Edges scale sub-linearly (square root)
+                because early connections matter more than later ones — this prevents
+                bulk edge additions from dominating. The formula applies to any
+                world-building context: fantasy magic systems, literary social
+                hierarchies, or science fiction physics.
               </P>
             </div>
 
