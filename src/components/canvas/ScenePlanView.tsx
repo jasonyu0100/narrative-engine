@@ -474,16 +474,16 @@ export function ScenePlanView({
                         {beat.what}
                       </p>
                       {/* Propositions for this beat */}
-                      <div className="mt-1 space-y-1">
+                      <div className="mt-1.5 space-y-1.5">
                         {beat.propositions.map((prop, j) => (
                           <div
                             key={j}
-                            className="group/prop flex items-start gap-1"
+                            className="group/prop flex items-start gap-1.5"
                           >
                             <span
                               contentEditable
                               suppressContentEditableWarning
-                              className="shrink-0 text-[8px] px-1 py-0.5 rounded bg-white/5 text-text-dim/50 font-mono outline-none focus:bg-white/10 min-w-[2ch]"
+                              className="shrink-0 text-[9px] px-1.5 py-0.5 rounded bg-white/10 text-text-secondary/80 font-mono outline-none focus:bg-white/15 min-w-[2ch]"
                               onBlur={(e) => {
                                 const text = e.currentTarget.textContent ?? "";
                                 if (text !== (prop.type ?? ""))
@@ -496,7 +496,7 @@ export function ScenePlanView({
                             <p
                               contentEditable
                               suppressContentEditableWarning
-                              className="flex-1 text-[10px] text-text-dim/60 italic outline-none focus:bg-white/3 rounded px-1 -mx-1"
+                              className="flex-1 text-[11px] text-text-secondary/90 italic outline-none focus:bg-white/3 rounded px-1 -mx-1"
                               onBlur={(e) => {
                                 const text = e.currentTarget.textContent ?? "";
                                 if (text !== prop.content)
@@ -535,19 +535,19 @@ export function ScenePlanView({
 
             {/* Scene-level propositions */}
             <div className="mt-2 pt-3 border-t border-white/5">
-              <h4 className="text-[9px] uppercase tracking-widest text-amber-400/50 mb-2">
+              <h4 className="text-[9px] uppercase tracking-widest text-amber-400/60 mb-2">
                 Scene Propositions
               </h4>
               <div className="space-y-2">
                 {activePlan.propositions?.map((p, i) => (
                   <div
                     key={i}
-                    className="group/sceneprop pl-3 border-l-2 border-amber-400/30 flex items-start gap-1"
+                    className="group/sceneprop pl-3 border-l-2 border-amber-400/40 flex items-start gap-1.5"
                   >
                     <span
                       contentEditable
                       suppressContentEditableWarning
-                      className="shrink-0 text-[8px] px-1 py-0.5 rounded bg-amber-400/10 text-amber-400/60 font-mono outline-none focus:bg-amber-400/20 min-w-[2ch]"
+                      className="shrink-0 text-[9px] px-1.5 py-0.5 rounded bg-amber-400/15 text-amber-300/80 font-mono outline-none focus:bg-amber-400/25 min-w-[2ch]"
                       onBlur={(e) => {
                         const text = e.currentTarget.textContent ?? "";
                         if (text !== (p.type ?? ""))
@@ -560,7 +560,7 @@ export function ScenePlanView({
                     <p
                       contentEditable
                       suppressContentEditableWarning
-                      className="flex-1 text-[11px] text-amber-300/80 leading-relaxed italic outline-none focus:bg-white/3 rounded px-1 -mx-1"
+                      className="flex-1 text-[12px] text-amber-200/90 leading-relaxed italic outline-none focus:bg-white/3 rounded px-1 -mx-1"
                       onBlur={(e) => {
                         const text = e.currentTarget.textContent ?? "";
                         if (text !== p.content) updateSceneProposition(i, { content: text });

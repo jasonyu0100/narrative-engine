@@ -292,7 +292,7 @@ export function SceneProseView({
                   </div>
 
                   {/* Left: Beat plan */}
-                  <div className="flex-1 basis-0 p-3">
+                  <div className="flex-[0.7] basis-0 p-3">
                     <div className="flex items-center gap-2 mb-1.5">
                       <span
                         className="text-[9px] font-semibold uppercase tracking-wider"
@@ -308,13 +308,13 @@ export function SceneProseView({
                       {beat.what}
                     </p>
                     {beat.propositions && beat.propositions.length > 0 && (
-                      <div className="mt-2 space-y-1">
+                      <div className="mt-2 space-y-1.5">
                         {beat.propositions.map((prop, j) => (
                           <div key={j} className="flex items-start gap-1.5">
-                            <span className="shrink-0 text-[8px] px-1 py-0.5 rounded bg-white/5 text-text-dim/50 font-mono min-w-[2ch]">
+                            <span className="shrink-0 text-[9px] px-1.5 py-0.5 rounded bg-white/10 text-text-secondary/80 font-mono min-w-[2ch]">
                               {prop.type || "·"}
                             </span>
-                            <p className="text-[10px] text-text-dim/60 italic leading-relaxed">
+                            <p className="text-[11px] text-text-secondary/90 italic leading-relaxed">
                               {prop.content}
                             </p>
                           </div>
@@ -324,7 +324,7 @@ export function SceneProseView({
                   </div>
 
                   {/* Right: Prose */}
-                  <div className="flex-1 basis-0 p-3">
+                  <div className="flex-[1.3] basis-0 p-3">
                     <div className="prose-content">
                       {chunk.prose.split("\n\n").map((para, paraIdx) => (
                         <p
