@@ -124,8 +124,10 @@ export function ScenePlanView({
           resolvedKeys,
           currentPlan,
           guidance,
+          (token) => setReasoning((prev) => prev + token),
         );
         setPlanCache({ plan, status: "ready" });
+        setReasoning("");
         dispatch({
           type: "UPDATE_SCENE",
           sceneId: scene.id,
@@ -135,6 +137,7 @@ export function ScenePlanView({
       } catch (err) {
         const message = err instanceof Error ? err.message : String(err);
         setPlanCache({ plan: currentPlan, status: "error", error: message });
+        setReasoning("");
       }
     },
     [narrative, scene, resolvedKeys, planCache.plan, dispatch, resolvedPlan],

@@ -1295,6 +1295,7 @@ export async function rewriteScenePlan(
   resolvedKeys: string[],
   currentPlan: BeatPlan,
   analysis: string,
+  onReasoning?: (token: string) => void,
 ): Promise<BeatPlan> {
   logInfo('Starting scene plan rewrite', {
     source: 'plan-generation',
@@ -1369,7 +1370,9 @@ WHEN MODIFYING A BEAT:
 Scene-level "propositions" should capture the overall takeaways from the scene.`;
 
   const reasoningBudget = REASONING_BUDGETS[narrative.storySettings?.reasoningLevel ?? 'low'] || undefined;
-  const raw = await callGenerate(prompt, systemPrompt, MAX_TOKENS_SMALL, 'rewriteScenePlan', GENERATE_MODEL, reasoningBudget);
+  const raw = onReasoning
+    ? await callGenerateStream(prompt, systemPrompt, () => {}, MAX_TOKENS_SMALL, 'rewriteScenePlan', GENERATE_MODEL, reasoningBudget, onReasoning)
+    : await callGenerate(prompt, systemPrompt, MAX_TOKENS_SMALL, 'rewriteScenePlan', GENERATE_MODEL, reasoningBudget);
   const parsed = parseJson(raw, 'rewriteScenePlan') as { beats?: unknown[]; propositions?: unknown[] };
 
   const beats = (parsed.beats ?? []).map((b: unknown) => {

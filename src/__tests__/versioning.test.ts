@@ -600,6 +600,7 @@ describe('Beat Prose Map and Prose Score Resolution', () => {
     const v1 = createProseVersion('1', 'branch-1', 'generate', 1000);
     v1.beatProseMap = {
       chunks: [{ beatIndex: 0, prose: 'First beat' }],
+      createdAt: 1000,
     };
 
     const scene = createScene('scene-1', [v1]);
@@ -625,7 +626,7 @@ describe('Beat Prose Map and Prose Score Resolution', () => {
     const scene = createScene('scene-1');
     // Legacy fields are ignored - no fallback
     scene.prose = 'Legacy prose';
-    scene.beatProseMap = { chunks: [{ beatIndex: 0, prose: 'Legacy beat' }] };
+    scene.beatProseMap = { chunks: [{ beatIndex: 0, prose: 'Legacy beat' }], createdAt: 500 };
 
     const branches = { 'branch-1': createBranch('branch-1') };
 
