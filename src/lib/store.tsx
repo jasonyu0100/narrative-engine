@@ -8,7 +8,6 @@ import { initBeatProfilePresets } from '@/lib/beat-profiles';
 import { initMechanismProfilePresets } from '@/lib/mechanism-profiles';
 import { resolveEntry, isScene } from '@/types/narrative';
 import { loadNarratives, saveNarrative as persistNarrative, deleteNarrative as deletePersisted, loadNarrative, saveActiveNarrativeId, loadActiveNarrativeId, saveActiveBranchId, loadActiveBranchId, migrateFromLocalStorage, loadAnalysisJobs, saveAnalysisJobs, loadApiLogs, saveApiLogs, deleteApiLogs } from '@/lib/persistence';
-import { analysisRunner as analysisRunnerRef } from '@/lib/analysis-runner';
 import { API_LOG_STALE_THRESHOLD_MS } from '@/lib/constants';
 
 // Bundled narratives loaded at runtime from /public manifests
@@ -322,7 +321,7 @@ export type Action =
   | { type: 'SET_GRAPH_VIEW_MODE'; mode: GraphViewMode }
   | { type: 'SWITCH_BRANCH'; branchId: string }
   // Scene mutations
-  | { type: 'UPDATE_SCENE'; sceneId: string; updates: Partial<Pick<Scene, 'summary' | 'prose' | 'plan' | 'beatProseMap' | 'events' | 'locationId' | 'participantIds' | 'povId' | 'threadMutations' | 'continuityMutations' | 'relationshipMutations' | 'worldKnowledgeMutations' | 'characterMovements' | 'arcId' | 'locked'>> }
+  | { type: 'UPDATE_SCENE'; sceneId: string; updates: Partial<Pick<Scene, 'summary' | 'prose' | 'plan' | 'beatProseMap' | 'events' | 'locationId' | 'participantIds' | 'povId' | 'threadMutations' | 'continuityMutations' | 'relationshipMutations' | 'worldKnowledgeMutations' | 'characterMovements' | 'arcId'>> }
   | { type: 'DELETE_SCENE'; sceneId: string; branchId: string }
   // Branch management
   | { type: 'CREATE_BRANCH'; branch: Branch }
@@ -1330,11 +1329,6 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       setErrorLoggerNarrativeId(state.activeNarrativeId);
     });
   }, [state.activeNarrativeId]);
-
-  // Wire analysis runner dispatch
-  useEffect(() => {
-    analysisRunnerRef.setDispatch(dispatch);
-  }, [dispatch]);
 
   // Hydrate persisted narratives from IndexedDB on mount
   useEffect(() => {

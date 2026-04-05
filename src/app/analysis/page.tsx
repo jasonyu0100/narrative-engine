@@ -10,6 +10,8 @@ import { BEAT_FN_LIST } from '@/types/narrative';
 import { ANALYSIS_MAX_CORPUS_WORDS, DEFAULT_MODEL } from '@/lib/constants';
 import { IconSpinner, IconChevronLeft } from '@/components/icons';
 import { IconCheck } from '@/components/icons/EvalIcons';
+import { calculateTotalCost, calculateApiCost } from '@/lib/api-logger';
+import { Modal, ModalHeader, ModalBody } from '@/components/Modal';
 
 /* ── Word Node type ─────────────────────────────────────────────────────── */
 
@@ -30,9 +32,17 @@ function JobDetail({ job }: { job: AnalysisJob }) {
   const [selectedPlanKey, setSelectedPlanKey] = useState<string | null>(null);
   const [planInFlightKeys, setPlanInFlightKeys] = useState<string[]>(() => analysisRunner.getPlanInFlightKeys(job.id));
   const [planStreamTexts, setPlanStreamTexts] = useState<Map<string, string>>(new Map());
+  const [showApiLogs, setShowApiLogs] = useState(false);
 
   const liveJob = state.analysisJobs.find((j) => j.id === job.id) ?? job;
   const isRunning = analysisRunner.isRunning(job.id) || liveJob.status === 'running';
+
+  // Filter API logs for this job
+  const jobApiLogs = useMemo(
+    () => state.apiLogs.filter((log) => log.analysisJobId === job.id),
+    [state.apiLogs, job.id]
+  );
+  const totalCost = useMemo(() => calculateTotalCost(jobApiLogs), [jobApiLogs]);
   const error = liveJob.error ?? '';
 
   // Subscribe to job-level stream text
@@ -311,6 +321,16 @@ function JobDetail({ job }: { job: AnalysisJob }) {
           </div>
         )}
         <div className="flex gap-2 shrink-0">
+          {/* API Logs button */}
+          {jobApiLogs.length > 0 && (
+            <button
+              onClick={() => setShowApiLogs(true)}
+              className="text-[10px] px-3 py-1 rounded bg-white/5 text-white/60 hover:text-white/90 transition flex items-center gap-1.5"
+            >
+              <span>API Logs</span>
+              <span className="text-emerald-400">${totalCost.toFixed(4)}</span>
+            </button>
+          )}
           {isRunning && (
             <button onClick={handlePause} className="text-[10px] px-3 py-1 rounded bg-white/5 text-white/40 hover:text-white/70 transition">
               Pause
@@ -1118,6 +1138,73 @@ function JobDetail({ job }: { job: AnalysisJob }) {
           )}
         </div>
       </div>
+
+      {/* API Logs Modal */}
+      {showApiLogs && (
+        <Modal onClose={() => setShowApiLogs(false)} size="2xl" maxHeight="80vh">
+          <ModalHeader onClose={() => setShowApiLogs(false)}>
+            <h2 className="text-[14px] font-medium text-text-primary">API Logs - {liveJob.title}</h2>
+            <div className="flex items-center gap-3 text-[10px]">
+              <span className="text-text-dim">{jobApiLogs.length} calls</span>
+              <span className="text-emerald-400 font-medium">Total: ${totalCost.toFixed(4)}</span>
+            </div>
+          </ModalHeader>
+          <ModalBody className="p-0">
+            {jobApiLogs.length === 0 ? (
+              <div className="flex items-center justify-center h-full p-8">
+                <p className="text-[12px] text-text-dim">No API calls logged for this analysis job.</p>
+              </div>
+            ) : (
+              <div className="py-1">
+                {[...jobApiLogs].reverse().map((entry) => {
+                  const cost = calculateApiCost(entry);
+                  return (
+                    <div
+                      key={entry.id}
+                      className="w-full flex items-center gap-3 px-4 py-2.5 border-b border-white/5 text-left"
+                    >
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2">
+                          <span className="text-[12px] text-text-primary font-medium">{entry.caller}</span>
+                          {entry.model && (
+                            <span className="text-[9px] font-mono text-text-dim">
+                              {entry.model.split('/').pop()}
+                            </span>
+                          )}
+                          <span className={`text-[10px] font-medium ${
+                            entry.status === 'success' ? 'text-emerald-400' :
+                            entry.status === 'error' ? 'text-red-400' :
+                            'text-amber-400'
+                          }`}>
+                            {entry.status}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-3 mt-0.5 text-[10px] text-text-dim">
+                          <span>~{(entry.promptTokens ?? 0).toLocaleString()} in</span>
+                          {entry.responseTokens != null && (
+                            <span>~{entry.responseTokens.toLocaleString()} out</span>
+                          )}
+                          <span className="text-emerald-400">${cost.toFixed(6)}</span>
+                        </div>
+                      </div>
+                      <div className="text-right shrink-0">
+                        <div className="text-[10px] text-text-dim">
+                          {new Date(entry.timestamp).toLocaleTimeString()}
+                        </div>
+                        {entry.durationMs != null && (
+                          <div className="text-[10px] text-text-dim">
+                            {(entry.durationMs / 1000).toFixed(1)}s
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </ModalBody>
+        </Modal>
+      )}
     </div>
   );
 }

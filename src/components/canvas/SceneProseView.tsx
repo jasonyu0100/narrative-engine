@@ -247,7 +247,13 @@ export function SceneProseView({
   const hasBeatMapping = !!(
     scene.plan &&
     scene.beatProseMap &&
-    scene.beatProseMap.chunks.length === scene.plan.beats.length
+    scene.beatProseMap.chunks.length === scene.plan.beats.length &&
+    // Verify all chunk beatIndex values are valid
+    scene.beatProseMap.chunks.every(chunk =>
+      typeof chunk.beatIndex === 'number' &&
+      chunk.beatIndex >= 0 &&
+      chunk.beatIndex < scene.plan!.beats.length
+    )
   );
 
   return (
@@ -258,6 +264,11 @@ export function SceneProseView({
           <div className="space-y-0">
             {scene.beatProseMap!.chunks.map((chunk, idx) => {
               const beat = scene.plan!.beats[chunk.beatIndex];
+              // Skip if beat doesn't exist (data integrity issue)
+              if (!beat) {
+                console.warn(`[SceneProseView] Beat at index ${chunk.beatIndex} not found in plan.beats`);
+                return null;
+              }
               return (
                 <div
                   key={chunk.beatIndex}

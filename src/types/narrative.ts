@@ -876,6 +876,8 @@ export type ApiLogEntry = {
   model?: string;
   /** Narrative this call belongs to */
   narrativeId?: string;
+  /** Analysis job this call belongs to */
+  analysisJobId?: string;
   status: 'pending' | 'success' | 'error';
   durationMs: number | null;
   promptTokens: number;

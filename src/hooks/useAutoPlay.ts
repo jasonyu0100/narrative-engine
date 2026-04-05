@@ -212,6 +212,7 @@ export function useAutoPlay() {
     let cycleConstraints = '';
     let courseCorrection: { direction: string; constraints: string } | undefined;
     let cycleError = '';
+    let sceneCount = 0;
 
     try {
       // Resolve world focus from story settings
@@ -254,7 +255,7 @@ export function useAutoPlay() {
         directive = buildOutlineDirective(activeNarrative, freshConfig, directiveCtx);
       }
 
-      let sceneCount = pickArcLength(autoConfig, action);
+      sceneCount = pickArcLength(autoConfig, action);
 
       // If a planning queue phase is active, cap to remaining scenes exactly
       const MIN_ARC_SCENES = 3;
