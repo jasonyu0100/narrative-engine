@@ -59,9 +59,9 @@ export function SearchView() {
     if (savedSearch && savedSearch.synthesis) {
       setQuery(savedSearch.query);
 
-      // Guaranteed representation: top 5 from each pool, then sort by similarity
+      // Guaranteed representation: top 5 summaries + top 10 details, then sort by similarity
       const topScenes = savedSearch.sceneResults.slice(0, 5);
-      const topDetails = savedSearch.detailResults.slice(0, 5);
+      const topDetails = savedSearch.detailResults.slice(0, 10);
       const combined = [...topScenes, ...topDetails]
         .sort((a, b) => b.similarity - a.similarity)
         .map((res, idx) => ({
@@ -134,8 +134,11 @@ export function SearchView() {
 
         if (result.results.length > 0) {
           // Stage 2: Found results, generating AI summary
+          const summaryCount = Math.min(5, result.sceneResults.length);
+          const detailCount = Math.min(10, result.detailResults.length);
+          const totalUsed = summaryCount + detailCount;
           setSearchStage(
-            `Found ${result.results.length} results — generating summary`,
+            `Found ${result.results.length} results — synthesizing top ${totalUsed}`,
           );
 
           const synthesis = await synthesizeSearchResults(
@@ -158,9 +161,9 @@ export function SearchView() {
             },
           );
 
-          // Guaranteed representation: top 5 from each pool, then sort by similarity
+          // Guaranteed representation: top 5 summaries + top 10 details, then sort by similarity
           const topScenes = result.sceneResults.slice(0, 5);
-          const topDetails = result.detailResults.slice(0, 5);
+          const topDetails = result.detailResults.slice(0, 10);
           const combined = [...topScenes, ...topDetails]
             .sort((a, b) => b.similarity - a.similarity)
             .map((res, idx) => ({
