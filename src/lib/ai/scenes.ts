@@ -727,10 +727,12 @@ REMINDER: All propositions (per-beat and scene-level) MUST conform to the PROSE 
           beat.propositions[i] = embeddedProps[embeddedIndex++];
         }
 
-        // Compute beat centroid from proposition embeddings
-        const beatEmbeddings = beat.propositions
-          .map(p => p.embedding)
-          .filter((e): e is number[] => Array.isArray(e));
+        // Compute beat centroid from proposition embeddings (resolve references if needed)
+        const { resolveEmbedding } = await import('@/lib/embeddings');
+        const beatEmbeddingPromises = beat.propositions
+          .map(p => resolveEmbedding(p.embedding));
+        const beatEmbeddings = (await Promise.all(beatEmbeddingPromises))
+          .filter((e): e is number[] => e !== null && Array.isArray(e));
         if (beatEmbeddings.length > 0) {
           beat.embeddingCentroid = computeCentroid(beatEmbeddings);
         }

@@ -84,9 +84,9 @@ export function PlanTournamentModal({ narrative, scene, resolvedKeys, onClose, o
         </div>
       </ModalHeader>
 
-      <ModalBody className="space-y-4">
+      <ModalBody className="space-y-6 px-6 py-5">
         {/* Description */}
-        <div className="p-3 bg-blue-500/5 border border-blue-500/20 rounded text-xs text-text-secondary leading-relaxed">
+        <div className="p-4 bg-blue-500/5 border border-blue-500/20 rounded-lg text-xs text-text-secondary leading-relaxed">
           <p>
             Generate {PLAN_TOURNAMENT_CANDIDATES} candidate plans in parallel and rank them by semantic similarity to the scene summary.
             The plan with the highest similarity score wins.
@@ -139,8 +139,8 @@ export function PlanTournamentModal({ narrative, scene, resolvedKeys, onClose, o
 
         {/* Results */}
         {tournament && (
-          <div className="space-y-2">
-            <div className="text-[9px] font-semibold text-text-dim uppercase tracking-widest px-0.5">
+          <div className="space-y-3">
+            <div className="text-[10px] font-semibold text-text-dim uppercase tracking-widest">
               Candidates (ranked by similarity)
             </div>
             {tournament.candidates.map((candidate, index) => {
@@ -149,7 +149,7 @@ export function PlanTournamentModal({ narrative, scene, resolvedKeys, onClose, o
               return (
                 <div
                   key={candidate.id}
-                  className={`p-3 border rounded-lg transition-all ${
+                  className={`p-4 border rounded-lg transition-all ${
                     isWinner
                       ? 'bg-blue-500/5 border-blue-500/30'
                       : 'bg-white/[0.02] border-white/5 hover:border-white/10'
