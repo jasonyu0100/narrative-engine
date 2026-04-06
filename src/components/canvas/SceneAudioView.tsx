@@ -1,9 +1,10 @@
 'use client';
 
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useMemo } from 'react';
 import type { NarrativeState, Scene } from '@/types/narrative';
 import { useStore } from '@/lib/store';
 import { useAudioPlayer } from '@/hooks/useAudioPlayer';
+import { resolveProseForBranch } from '@/lib/narrative-utils';
 
 export function SceneAudioView({
   narrative,
@@ -12,15 +13,23 @@ export function SceneAudioView({
   narrative: NarrativeState;
   scene: Scene;
 }) {
-  const { dispatch } = useStore();
+  const { state, dispatch } = useStore();
   const player = useAudioPlayer();
   const { state: ps } = player;
 
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
+  const branchId = state.activeBranchId;
+  const branches = narrative.branches;
+
+  const resolvedProse = useMemo(() => {
+    if (!branchId) return undefined;
+    return resolveProseForBranch(scene, branchId, branches).prose;
+  }, [scene, branchId, branches]);
+
   const hasAudio = !!scene.audioUrl;
-  const hasProse = !!scene.prose;
+  const hasProse = !!resolvedProse;
   const hasVoice = !!narrative.storySettings?.audioVoice;
   const isThisScene = ps.sceneId === scene.id;
   const isPlaying = isThisScene && ps.playing;
@@ -29,7 +38,7 @@ export function SceneAudioView({
 
   // Listen for palette events
   useEffect(() => {
-    const onGenerate = () => { if (scene.prose) player.generate(scene.id, scene.prose); };
+    const onGenerate = () => { if (resolvedProse) player.generate(scene.id, resolvedProse); };
     const onClear = () => { player.clear(scene.id); };
     window.addEventListener('canvas:generate-audio', onGenerate);
     window.addEventListener('canvas:clear-audio', onClear);
@@ -37,7 +46,7 @@ export function SceneAudioView({
       window.removeEventListener('canvas:generate-audio', onGenerate);
       window.removeEventListener('canvas:clear-audio', onClear);
     };
-  }, [player, scene.id, scene.prose]);
+  }, [player, scene.id, resolvedProse]);
 
   // Draw waveform
   useEffect(() => {

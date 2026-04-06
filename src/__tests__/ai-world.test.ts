@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import type { NarrativeState, Scene, Character, Location, Thread, RelationshipEdge } from '@/types/narrative';
+import type { NarrativeState, Scene, Character, Location } from '@/types/narrative';
 import { computeWorldMetrics } from '@/lib/ai/world';
 
 // ── Test Fixtures ────────────────────────────────────────────────────────────
@@ -40,18 +40,6 @@ function createLocation(id: string, overrides: Partial<Location> = {}): Location
     parentId: null,
     threadIds: [],
     continuity: { nodes: [] },
-    ...overrides,
-  };
-}
-
-function createThread(id: string, overrides: Partial<Thread> = {}): Thread {
-  return {
-    id,
-    description: `Thread ${id} description`,
-    status: 'active',
-    participants: [],
-    dependents: [],
-    openedAt: 's1',
     ...overrides,
   };
 }

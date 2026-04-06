@@ -2,7 +2,7 @@
 
 import { useState, useCallback, useRef, useMemo } from 'react';
 import { useStore } from '@/lib/store';
-import { evaluateBranch } from '@/lib/ai/evaluate';
+import { reviewBranch } from '@/lib/ai/review';
 import { reconstructBranch, type ReconstructionProgress } from '@/lib/ai/reconstruct';
 import { resolveEntry, isScene } from '@/types/narrative';
 import type { StructureReview, SceneEval, SceneVerdict, Scene, Arc } from '@/types/narrative';
@@ -319,7 +319,7 @@ export default function BranchEval({ sceneRange, onRangeChange }: { sceneRange?:
 
     try {
       setReasoning('');
-      const result = await evaluateBranch(narrative, filteredKeys, branchId, guidance || undefined, (token) => {
+      const result = await reviewBranch(narrative, filteredKeys, branchId, guidance || undefined, (token) => {
         setReasoning((prev) => prev + token);
       });
       if (!cancelledRef.current) {

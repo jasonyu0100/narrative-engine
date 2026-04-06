@@ -5,6 +5,7 @@ import { createPortal } from 'react-dom';
 import { useStore } from '@/lib/store';
 import { resolveEntry, isScene } from '@/types/narrative';
 import type { Scene } from '@/types/narrative';
+import { resolvePlanForBranch, resolveProseForBranch } from '@/lib/narrative-utils';
 
 export type SceneRange = { start: number; end: number } | null;
 
@@ -40,6 +41,8 @@ export default function SceneRangeSelector({
   const { state } = useStore();
   const narrative = state.activeNarrative;
   const resolvedKeys = state.resolvedEntryKeys;
+  const branchId = state.activeBranchId;
+  const branches = narrative?.branches ?? {};
 
   const [open, setOpen] = useState(false);
   const popoutRef = useRef<HTMLDivElement>(null);
@@ -61,16 +64,23 @@ export default function SceneRangeSelector({
 
   const totalScenes = sceneEntries.length;
 
-  // Per-stream availability
+  // Per-stream availability (using resolved versions for current branch)
   const streamAvail = useMemo(() => {
     const hasPlan: boolean[] = [];
     const hasProse: boolean[] = [];
     for (const { scene } of sceneEntries) {
-      hasPlan.push(!!(scene.plan?.beats?.length));
-      hasProse.push(!!scene.prose);
+      if (branchId) {
+        const plan = resolvePlanForBranch(scene, branchId, branches);
+        const { prose } = resolveProseForBranch(scene, branchId, branches);
+        hasPlan.push(!!(plan?.beats?.length));
+        hasProse.push(!!prose);
+      } else {
+        hasPlan.push(false);
+        hasProse.push(false);
+      }
     }
     return { hasPlan, hasProse };
-  }, [sceneEntries]);
+  }, [sceneEntries, branchId, branches]);
 
   const effectiveStart = range?.start ?? 0;
   const effectiveEnd = range?.end ?? Math.max(0, totalScenes - 1);

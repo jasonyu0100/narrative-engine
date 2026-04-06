@@ -5,7 +5,7 @@ import { WRITING_MODEL, ANALYSIS_MODEL, MAX_TOKENS_DEFAULT } from '@/lib/constan
 import { parseJson } from './json';
 import { sceneContext } from './context';
 import { resolveProfile } from '@/lib/beat-profiles';
-import { logInfo } from '@/lib/error-logger';
+import { logInfo } from '@/lib/system-logger';
 
 // ── Format-Specific Instructions ─────────────────────────────────────────────
 

@@ -9,7 +9,7 @@ import { PROMPT_FORCE_STANDARDS, PROMPT_STRUCTURAL_RULES, PROMPT_MUTATIONS, PROM
 import { samplePacingSequence, buildSequencePrompt, buildSingleStepPrompt, detectCurrentMode, MATRIX_PRESETS, DEFAULT_TRANSITION_MATRIX, type PacingSequence, type ModeStep } from '@/lib/pacing-profile';
 import { resolveProfile, resolveSampler, sampleBeatSequence } from '@/lib/beat-profiles';
 import { FORMAT_INSTRUCTIONS } from './prose';
-import { logWarning, logError, logInfo } from '@/lib/error-logger';
+import { logWarning, logError, logInfo } from '@/lib/system-logger';
 import { retryWithValidation, validateBeatPlan, validateBeatProseMap } from './validation';
 
 /**
@@ -299,7 +299,11 @@ ${buildCompletedBeatsPrompt(narrative, resolvedKeys, currentIndex)}`;
     } catch (err) {
       lastErr = err;
       if (attempt < MAX_RETRIES) {
-        console.warn(`[generateScenes] Attempt ${attempt + 1} failed, retrying...`, err instanceof Error ? err.message : err);
+        logWarning(`Scene generation attempt ${attempt + 1} failed, retrying`, err, {
+          source: 'manual-generation',
+          operation: 'generate-scenes',
+          details: { attempt: attempt + 1, maxRetries: MAX_RETRIES }
+        });
       }
     }
   }
@@ -686,7 +690,12 @@ export async function editScenePlan(
   scene: Scene,
   resolvedKeys: string[],
   issues: string[],
+  /** Resolved plan for versioned scenes (required - pass from resolvePlanForBranch) */
+  currentPlan?: BeatPlan,
 ): Promise<BeatPlan> {
+  const plan = currentPlan;
+  if (!plan) throw new Error('Scene has no plan to edit - pass resolved plan from resolvePlanForBranch');
+
   logInfo('Starting scene plan edit', {
     source: 'plan-generation',
     operation: 'edit-plan',
@@ -694,12 +703,9 @@ export async function editScenePlan(
       narrativeId: narrative.id,
       sceneId: scene.id,
       issuesCount: issues.length,
-      currentBeats: scene.plan?.beats.length ?? 0,
+      currentBeats: plan.beats.length,
     },
   });
-
-  const plan = scene.plan;
-  if (!plan) throw new Error('Scene has no plan to edit');
 
   const sceneIdx = resolvedKeys.indexOf(scene.id);
   const contextIndex = sceneIdx >= 0 ? sceneIdx : resolvedKeys.length - 1;
@@ -1134,7 +1140,10 @@ function buildBeatProseMap(
   }
 
   // Invalid ranges - return null so caller can retry
-  console.warn('[buildBeatProseMap] LLM provided invalid ranges, cannot create beat-prose map');
+  logWarning('Beat-prose mapping failed: invalid ranges', 'LLM provided invalid paragraph ranges', {
+    source: 'prose-generation',
+    operation: 'beat-prose-mapping'
+  });
   return null;
 }
 
@@ -1155,7 +1164,6 @@ function tryBuildFromRanges(
 
     // Check if ranges exist
     if (typeof startPara !== 'number' || typeof endPara !== 'number') {
-      console.warn(`[tryBuildFromRanges] Beat ${i} missing paragraph range`);
       logWarning(
         'Beat extraction validation failed: missing paragraph range',
         `Beat ${i} has undefined startPara or endPara`,
@@ -1170,7 +1178,6 @@ function tryBuildFromRanges(
 
     // Validate sequential (no gaps or overlaps)
     if (startPara !== lastEndPara + 1) {
-      console.warn(`[tryBuildFromRanges] Beat ${i} range [${startPara}, ${endPara}] not sequential (last ended at ${lastEndPara})`);
       logWarning(
         'Beat extraction validation failed: non-sequential ranges',
         `Beat ${i} range [${startPara}, ${endPara}] not sequential (last ended at ${lastEndPara})`,
@@ -1185,7 +1192,6 @@ function tryBuildFromRanges(
 
     // Validate bounds
     if (startPara < 0 || endPara >= paragraphs.length || startPara > endPara) {
-      console.warn(`[tryBuildFromRanges] Beat ${i} has invalid range [${startPara}, ${endPara}]`);
       logWarning(
         'Beat extraction validation failed: out of bounds range',
         `Beat ${i} has invalid range [${startPara}, ${endPara}] (paragraphs: ${paragraphs.length})`,
@@ -1201,7 +1207,6 @@ function tryBuildFromRanges(
     // Validate non-empty content
     const proseChunk = paragraphs.slice(startPara, endPara + 1).join('\n\n').trim();
     if (!proseChunk) {
-      console.warn(`[tryBuildFromRanges] Beat ${i} has empty prose chunk`);
       logWarning(
         'Beat extraction validation failed: empty prose chunk',
         `Beat ${i} has no content after joining paragraphs [${startPara}, ${endPara}]`,
@@ -1242,7 +1247,6 @@ function tryBuildFromRanges(
 
   // Verify full coverage (all paragraphs assigned)
   if (lastEndPara !== paragraphs.length - 1) {
-    console.warn(`[tryBuildFromRanges] Incomplete coverage: ends at para ${lastEndPara}, prose has ${paragraphs.length} paras`);
     logWarning(
       'Beat extraction validation failed: incomplete coverage',
       `Beats only cover paragraphs 0-${lastEndPara}, but prose has ${paragraphs.length} paragraphs`,
@@ -1259,7 +1263,6 @@ function tryBuildFromRanges(
   const proseSet = new Set<string>();
   for (let i = 0; i < chunks.length; i++) {
     if (proseSet.has(chunks[i].prose)) {
-      console.warn(`[tryBuildFromRanges] Duplicate prose detected at beat ${i}, rejecting mapping`);
       logWarning(
         'Beat extraction validation failed: duplicate prose detected',
         `Beat ${i} has identical prose to a previous beat`,
@@ -1418,7 +1421,10 @@ function parseBeatProseMap(
 ): { prose: string; beatProseMap?: BeatProseMap; markersFailed?: boolean } {
   // If no markers, return prose as-is with failure flag
   if (!rawProse.includes('[BEAT_END:')) {
-    console.warn('[parseBeatProseMap] No BEAT_END markers found in generated prose');
+    logWarning('Beat markers not found in generated prose', 'LLM did not include BEAT_END markers', {
+      source: 'prose-generation',
+      operation: 'parse-beat-markers'
+    });
     return { prose: rawProse, markersFailed: true };
   }
 
@@ -1439,7 +1445,11 @@ function parseBeatProseMap(
         currentProse = [];
         currentBeatIndex++;
       } else {
-        console.warn(`[parseBeatProseMap] Out-of-order marker: expected beat ${currentBeatIndex}, got ${beatIndex}`);
+        logWarning('Beat markers out of order', `Expected beat ${currentBeatIndex}, got ${beatIndex}`, {
+          source: 'prose-generation',
+          operation: 'parse-beat-markers',
+          details: { expected: currentBeatIndex, got: beatIndex }
+        });
         return { prose: rawProse.replace(/\[BEAT_END:\d+\]\n?/g, '').trim(), markersFailed: true };
       }
     } else {
@@ -1457,9 +1467,11 @@ function parseBeatProseMap(
 
   // Validate we got expected number of beats with sequential indices
   if (beatTexts.length !== beatCount || !beatTexts.every((b, i) => b.beatIndex === i)) {
-    console.warn(
-      `[parseBeatProseMap] Beat count mismatch: expected ${beatCount} beats, got ${beatTexts.length} chunks. Markers were present but invalid.`
-    );
+    logWarning('Beat count mismatch in generated prose', `Expected ${beatCount} beats, got ${beatTexts.length}`, {
+      source: 'prose-generation',
+      operation: 'parse-beat-markers',
+      details: { expected: beatCount, actual: beatTexts.length }
+    });
     return { prose: rawProse.replace(/\[BEAT_END:\d+\]\n?/g, '').trim(), markersFailed: true };
   }
 
@@ -1469,7 +1481,11 @@ function parseBeatProseMap(
     prose: bt.text,
   }));
 
-  console.log(`[parseBeatProseMap] Successfully parsed ${chunks.length} beat chunks`);
+  logInfo(`Successfully parsed ${chunks.length} beat chunks from prose`, {
+    source: 'prose-generation',
+    operation: 'parse-beat-markers',
+    details: { beatCount: chunks.length }
+  });
 
   return {
     prose,
@@ -1710,9 +1726,17 @@ ${instruction}`;
 
     // Failure: markers invalid
     if (attempt < MAX_ATTEMPTS) {
-      console.warn(`[generateSceneProse] Beat markers failed on attempt ${attempt}/${MAX_ATTEMPTS}, retrying...`);
+      logWarning(`Beat markers failed on attempt ${attempt}/${MAX_ATTEMPTS}, retrying`, 'Prose generation returned invalid beat markers', {
+        source: 'prose-generation',
+        operation: 'generate-prose-with-beats',
+        details: { attempt, maxAttempts: MAX_ATTEMPTS }
+      });
     } else {
-      console.error(`[generateSceneProse] Beat markers failed after ${MAX_ATTEMPTS} attempts. Returning prose without beat mapping.`);
+      logError(`Beat markers failed after ${MAX_ATTEMPTS} attempts`, 'Returning prose without beat mapping', {
+        source: 'prose-generation',
+        operation: 'generate-prose-with-beats',
+        details: { maxAttempts: MAX_ATTEMPTS }
+      });
     }
   }
 
@@ -1825,7 +1849,11 @@ function sanitizeScenes(scenes: Scene[], narrative: NarrativeState, label: strin
     });
   }
   if (stripped.length > 0) {
-    console.warn(`[${label}] Stripped ${stripped.length} hallucinated ID(s):\n` + stripped.map((h) => `  - ${h}`).join('\n'));
+    logWarning(`Stripped ${stripped.length} hallucinated ID(s) from ${label}`, stripped.join(', '), {
+      source: 'manual-generation',
+      operation: 'clean-scene-data',
+      details: { count: stripped.length, type: label }
+    });
   }
 }
 

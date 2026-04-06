@@ -3,6 +3,7 @@ import { NARRATIVE_CUBE } from '@/types/narrative';
 import type { MCTSNode, MCTSNodeId, MCTSTree, MCTSConfig, PathStrategy, MoveType } from '@/types/mcts';
 import { SEARCH_MODE_C, DELIVERY_DIRECTIONS } from '@/types/mcts';
 import type { SearchMode, DeliveryDirection, DirectionMode } from '@/types/mcts';
+import { logInfo } from '@/lib/system-logger';
 
 // ── Constants ────────────────────────────────────────────────────────────────
 
@@ -302,6 +303,21 @@ export function addChildNode(
 
   const nodes = { ...tree.nodes, [id]: node };
 
+  logInfo(`MCTS node created: ${id}`, {
+    source: 'mcts',
+    operation: 'add-child-node',
+    details: {
+      nodeId: id,
+      parentId: parentId === 'root' ? 'root' : parentId,
+      depth,
+      cubeGoal: cubeGoal || 'none',
+      deliveryGoal: deliveryGoal || 'none',
+      sceneCount: scenes.length,
+      immediateScore: Math.round(immediateScore * 100) / 100,
+      treeSize: Object.keys(nodes).length,
+    }
+  });
+
   // Update parent's childIds
   if (parentId === 'root') {
     return { ...tree, nodes, rootChildIds: [...tree.rootChildIds, id] };
@@ -385,6 +401,18 @@ export function bestPath(tree: MCTSTree, strategy: PathStrategy = 'best_score'):
       path.push(bestId);
       childIds = tree.nodes[bestId]?.childIds ?? [];
     }
+
+    logInfo(`MCTS best path selected (most_explored strategy)`, {
+      source: 'mcts',
+      operation: 'best-path',
+      details: {
+        strategy: 'most_explored',
+        pathLength: path.length,
+        path: path.join(' → '),
+        totalScenes: path.reduce((sum, id) => sum + (tree.nodes[id]?.scenes.length ?? 0), 0),
+      }
+    });
+
     return path;
   }
 
@@ -410,6 +438,19 @@ export function bestPath(tree: MCTSTree, strategy: PathStrategy = 'best_score'):
   }
 
   dfs(tree.rootChildIds, [], 0);
+
+  logInfo(`MCTS best path selected (best_score strategy)`, {
+    source: 'mcts',
+    operation: 'best-path',
+    details: {
+      strategy: 'best_score',
+      pathLength: best.length,
+      path: best.join(' → '),
+      averageScore: Math.round(bestAvg * 100) / 100,
+      totalScenes: best.reduce((sum, id) => sum + (tree.nodes[id]?.scenes.length ?? 0), 0),
+    }
+  });
+
   return best;
 }
 

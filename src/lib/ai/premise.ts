@@ -1,7 +1,7 @@
 import { callGenerate, SYSTEM_PROMPT } from './api';
 import { GENERATE_MODEL } from '@/lib/constants';
 import { parseJson } from './json';
-import { logInfo } from '@/lib/error-logger';
+import { logInfo } from '@/lib/system-logger';
 
 // ── Types ────────────────────────────────────────────────────────────────────
 

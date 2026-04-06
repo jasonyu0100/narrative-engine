@@ -1,5 +1,5 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import type { NarrativeState, Scene, Thread, Character, Location, AutoConfig, AutoEndCondition, ForceSnapshot } from '@/types/narrative';
+import { describe, it, expect } from 'vitest';
+import type { NarrativeState, Scene, Thread, Character, Location, AutoConfig } from '@/types/narrative';
 import {
   computeStoryProgress,
   getStoryPhase,

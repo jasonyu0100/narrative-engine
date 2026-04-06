@@ -4,7 +4,7 @@
  */
 
 import type { BeatPlan, BeatProseMap, Beat } from '@/types/narrative';
-import { logWarning, logError, logInfo, type ErrorContext } from '@/lib/error-logger';
+import { logWarning, logError, logInfo, type LogContext } from '@/lib/system-logger';
 
 export interface ValidationResult {
   valid: boolean;
@@ -321,7 +321,7 @@ export async function retryWithValidation<T>(
   validator: (data: T) => ValidationResult,
   operationName: string,
   maxRetries: number = 3,
-  source: ErrorContext['source'] = 'analysis'
+  source: LogContext['source'] = 'analysis'
 ): Promise<T> {
   let lastError: Error | null = null;
   let lastValidationErrors: string[] = [];

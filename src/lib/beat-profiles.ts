@@ -10,8 +10,9 @@
  * BeatSampler carries derived beat statistics (markov, mechanisms, density).
  */
 
-import type { BeatFn, BeatMechanism, BeatTransitionMatrix, ProseProfile, BeatSampler, NarrativeState, Scene, BeatProfilePreset, FnMechanismDistribution } from '@/types/narrative';
+import type { BeatFn, BeatMechanism, BeatTransitionMatrix, ProseProfile, BeatSampler, NarrativeState, Scene, BeatProfilePreset, FnMechanismDistribution, Branch } from '@/types/narrative';
 import { BEAT_DENSITY_MIN, BEAT_DENSITY_MAX, BEAT_DENSITY_DEFAULT } from '@/lib/constants';
+import { resolvePlanForBranch, resolveProseForBranch } from '@/lib/narrative-utils';
 export type { BeatProfilePreset };
 
 // ── Default Sampler ─────────────────────────────────────────────────────────
@@ -79,7 +80,9 @@ export function computeSamplerFromPlans(scenes: Scene[]): BeatSampler | null {
   let totalBeats = 0;
 
   for (const scene of scenes) {
-    const beats = scene.plan?.beats;
+    // Get plan from either versioned format (first version) or legacy field
+    const plan = scene.planVersions?.[0]?.plan ?? scene.plan;
+    const beats = plan?.beats;
     if (!beats || beats.length === 0) continue;
     for (let i = 0; i < beats.length; i++) {
       const beat = beats[i];
@@ -120,11 +123,20 @@ export function computeSamplerFromPlans(scenes: Scene[]): BeatSampler | null {
   }
 
   // Density: beats per 1k words — computed from scenes that have plans
-  const scenesWithPlans = scenes.filter((s) => s.plan?.beats?.length);
+  const scenesWithPlans = scenes.filter((s) => {
+    const plan = s.planVersions?.[0]?.plan ?? s.plan;
+    return plan?.beats?.length;
+  });
   let avgWordsPerScene = 800;
-  const withProse = scenesWithPlans.filter((s) => s.prose);
+  const withProse = scenesWithPlans.filter((s) => {
+    const prose = s.proseVersions?.[0]?.prose ?? s.prose;
+    return !!prose;
+  });
   if (withProse.length > 0) {
-    avgWordsPerScene = Math.round(withProse.reduce((sum, s) => sum + s.prose!.split(/\s+/).length, 0) / withProse.length);
+    avgWordsPerScene = Math.round(withProse.reduce((sum, s) => {
+      const prose = s.proseVersions?.[0]?.prose ?? s.prose;
+      return sum + (prose?.split(/\s+/).length ?? 0);
+    }, 0) / withProse.length);
   }
   const rawBpkw = Math.round((totalBeats / scenesWithPlans.length) / Math.max(avgWordsPerScene, 400) * 1000);
   const beatsPerKWord = Math.min(BEAT_DENSITY_MAX, Math.max(BEAT_DENSITY_MIN, rawBpkw)) || BEAT_DENSITY_DEFAULT;
@@ -134,6 +146,81 @@ export function computeSamplerFromPlans(scenes: Scene[]): BeatSampler | null {
 
 /** @deprecated Use computeSamplerFromPlans */
 export const computeProfileFromPlans = computeSamplerFromPlans;
+
+/**
+ * Compute sampler from scenes using resolved plans (version-aware).
+ * Use this for user narratives with versioned prose/plan.
+ */
+export function computeSamplerFromResolvedScenes(
+  scenes: Scene[],
+  branchId: string,
+  branches: Record<string, Branch>,
+): BeatSampler | null {
+  const transitionCounts: Record<string, Record<string, number>> = {};
+  const mechCounts: Record<string, number> = {};
+  const fnMechCounts: Record<string, Record<string, number>> = {};
+  const fnTotalCounts: Record<string, number> = {};
+  let totalBeats = 0;
+  let totalWords = 0;
+  let scenesWithPlans = 0;
+
+  for (const scene of scenes) {
+    const plan = resolvePlanForBranch(scene, branchId, branches);
+    const beats = plan?.beats;
+    if (!beats || beats.length === 0) continue;
+
+    scenesWithPlans++;
+
+    // Get resolved prose for word count
+    const { prose } = resolveProseForBranch(scene, branchId, branches);
+    if (prose) {
+      totalWords += prose.split(/\s+/).length;
+    }
+
+    for (let i = 0; i < beats.length; i++) {
+      const beat = beats[i];
+      totalBeats++;
+      mechCounts[beat.mechanism] = (mechCounts[beat.mechanism] ?? 0) + 1;
+
+      if (!fnMechCounts[beat.fn]) fnMechCounts[beat.fn] = {};
+      fnMechCounts[beat.fn][beat.mechanism] = (fnMechCounts[beat.fn][beat.mechanism] ?? 0) + 1;
+      fnTotalCounts[beat.fn] = (fnTotalCounts[beat.fn] ?? 0) + 1;
+
+      if (i < beats.length - 1) {
+        const from = beat.fn;
+        const to = beats[i + 1].fn;
+        if (!transitionCounts[from]) transitionCounts[from] = {};
+        transitionCounts[from][to] = (transitionCounts[from][to] ?? 0) + 1;
+      }
+    }
+  }
+
+  if (totalBeats === 0) return null;
+
+  const markov: BeatTransitionMatrix = {};
+  for (const [from, tos] of Object.entries(transitionCounts)) {
+    const total = Object.values(tos).reduce((s, n) => s + n, 0);
+    markov[from as BeatFn] = Object.fromEntries(
+      Object.entries(tos).map(([to, n]) => [to, n / total])
+    ) as Partial<Record<BeatFn, number>>;
+  }
+
+  const fnMechanismDistribution: FnMechanismDistribution = {};
+  for (const [fn, mechMap] of Object.entries(fnMechCounts)) {
+    const fnTotal = fnTotalCounts[fn] ?? 1;
+    fnMechanismDistribution[fn as BeatFn] = Object.fromEntries(
+      Object.entries(mechMap).map(([mech, count]) => [mech, count / fnTotal])
+    ) as Partial<Record<BeatMechanism, number>>;
+  }
+
+  const avgWordsPerScene = scenesWithPlans > 0 && totalWords > 0
+    ? Math.round(totalWords / scenesWithPlans)
+    : 800;
+  const rawBpkw = Math.round((totalBeats / scenesWithPlans) / Math.max(avgWordsPerScene, 400) * 1000);
+  const beatsPerKWord = Math.min(BEAT_DENSITY_MAX, Math.max(BEAT_DENSITY_MIN, rawBpkw)) || BEAT_DENSITY_DEFAULT;
+
+  return { markov, fnMechanismDistribution, beatsPerKWord };
+}
 
 // ── Preset Management ───────────────────────────────────────────────────────
 
@@ -249,7 +336,7 @@ export function resolveProfile(narrative: NarrativeState): ProseProfile {
   return DEFAULT_PROSE_PROFILE;
 }
 
-export function resolveSampler(narrative: NarrativeState): BeatSampler {
+export function resolveSampler(narrative: NarrativeState, branchId?: string): BeatSampler {
   const preset = narrative.storySettings?.beatProfilePreset;
 
   // Try to get from preset first
@@ -260,10 +347,16 @@ export function resolveSampler(narrative: NarrativeState): BeatSampler {
     }
   }
 
-  // Compute live from scene plans if available
-  const fromPlans = computeSamplerFromPlans(Object.values(narrative.scenes ?? {}));
-  if (fromPlans) {
-    return fromPlans;
+  // Compute live from scene plans if available (using resolved versions)
+  if (branchId && narrative.branches) {
+    const fromPlans = computeSamplerFromResolvedScenes(
+      Object.values(narrative.scenes ?? {}),
+      branchId,
+      narrative.branches,
+    );
+    if (fromPlans) {
+      return fromPlans;
+    }
   }
 
   // Fall back to defaults

@@ -106,7 +106,7 @@ describe("AI Model Constants", () => {
 
 describe("AI Pricing Constants", () => {
   it("MODEL_PRICING has input and output prices", () => {
-    for (const [model, pricing] of Object.entries(MODEL_PRICING)) {
+    for (const pricing of Object.values(MODEL_PRICING)) {
       expect(pricing).toHaveProperty("input");
       expect(pricing).toHaveProperty("output");
       expect(typeof pricing.input).toBe("number");

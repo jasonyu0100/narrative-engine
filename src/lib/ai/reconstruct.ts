@@ -5,7 +5,7 @@ import { callGenerate, SYSTEM_PROMPT } from './api';
 import { parseJson } from './json';
 import { GENERATE_MODEL, PROSE_CONCURRENCY, MAX_TOKENS_SMALL } from '@/lib/constants';
 import { narrativeContext } from './context';
-import { logError, logWarning, logInfo } from '@/lib/error-logger';
+import { logError, logWarning, logInfo } from '@/lib/system-logger';
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -423,7 +423,6 @@ export async function reconstructBranch(
       newScenes[item.index] = { ...merged, id: item.newId, arcId: newScenes[item.index].arcId };
       callbacks.onSceneReady(newScenes[item.index], 'edited');
     } catch (err) {
-      console.warn(`[reconstruct] merge failed for ${item.scene.id}:`, err);
       logWarning(
         `Scene merge failed during reconstruction`,
         err,
@@ -459,7 +458,6 @@ export async function reconstructBranch(
       newScenes[item.index] = { ...edited, id: item.newId, arcId: newScenes[item.index].arcId };
       callbacks.onSceneReady(newScenes[item.index], 'edited');
     } catch (err) {
-      console.warn(`[reconstruct] edit failed for ${item.scene.id}:`, err);
       logError(
         `Scene edit failed during reconstruction`,
         err,
@@ -495,7 +493,6 @@ export async function reconstructBranch(
       newScenes[item.index] = { ...inserted, id: item.newId, arcId: newScenes[item.index].arcId };
       callbacks.onSceneReady(newScenes[item.index], 'edited');
     } catch (err) {
-      console.warn(`[reconstruct] insert failed for ${item.scene.id}:`, err);
       logError(
         `Scene insert failed during reconstruction`,
         err,

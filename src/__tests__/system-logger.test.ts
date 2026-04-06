@@ -1,25 +1,25 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { logError, logWarning, onErrorLog, setErrorLoggerNarrativeId, type ErrorContext } from '@/lib/error-logger';
+import { logError, logWarning, onSystemLog, setSystemLoggerNarrativeId, type LogContext } from '@/lib/system-logger';
 
-describe('error-logger', () => {
+describe('system-logger', () => {
   let consoleErrorSpy: ReturnType<typeof vi.spyOn>;
   let consoleWarnSpy: ReturnType<typeof vi.spyOn>;
 
   beforeEach(() => {
     vi.clearAllMocks();
     // Reset module state
-    onErrorLog(() => {});
-    setErrorLoggerNarrativeId(null);
+    onSystemLog(() => {});
+    setSystemLoggerNarrativeId(null);
     consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
     consoleWarnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
   });
 
   describe('logError', () => {
-    it('creates error log entry with correct structure', () => {
+    it('creates system log entry with correct structure', () => {
       const listener = vi.fn();
-      onErrorLog(listener);
+      onSystemLog(listener);
 
-      const context: ErrorContext = {
+      const context: LogContext = {
         source: 'auto-play',
         operation: 'generate-scene',
         details: { sceneId: 'S-001', attempt: 1 },
@@ -43,7 +43,7 @@ describe('error-logger', () => {
 
     it('categorizes network errors correctly', () => {
       const listener = vi.fn();
-      onErrorLog(listener);
+      onSystemLog(listener);
 
       logError('Test', new Error('fetch failed'), { source: 'other' });
       expect(listener).toHaveBeenCalledWith(expect.objectContaining({ category: 'network' }));
@@ -55,7 +55,7 @@ describe('error-logger', () => {
 
     it('categorizes timeout errors correctly', () => {
       const listener = vi.fn();
-      onErrorLog(listener);
+      onSystemLog(listener);
 
       logError('Test', new Error('Request timed out'), { source: 'other' });
       expect(listener).toHaveBeenCalledWith(expect.objectContaining({ category: 'timeout' }));
@@ -63,7 +63,7 @@ describe('error-logger', () => {
 
     it('categorizes parsing errors correctly', () => {
       const listener = vi.fn();
-      onErrorLog(listener);
+      onSystemLog(listener);
 
       logError('Test', new Error('Invalid JSON'), { source: 'other' });
       expect(listener).toHaveBeenCalledWith(expect.objectContaining({ category: 'parsing' }));
@@ -71,7 +71,7 @@ describe('error-logger', () => {
 
     it('categorizes validation errors correctly', () => {
       const listener = vi.fn();
-      onErrorLog(listener);
+      onSystemLog(listener);
 
       logError('Test', new Error('validation failed'), { source: 'other' });
       expect(listener).toHaveBeenCalledWith(expect.objectContaining({ category: 'validation' }));
@@ -79,8 +79,8 @@ describe('error-logger', () => {
 
     it('includes narrative ID when set', () => {
       const listener = vi.fn();
-      onErrorLog(listener);
-      setErrorLoggerNarrativeId('N-001');
+      onSystemLog(listener);
+      setSystemLoggerNarrativeId('N-001');
 
       logError('Test', new Error('Test error'), { source: 'other' });
 
@@ -89,8 +89,8 @@ describe('error-logger', () => {
 
     it('excludes narrative ID when not set', () => {
       const listener = vi.fn();
-      onErrorLog(listener);
-      setErrorLoggerNarrativeId(null);
+      onSystemLog(listener);
+      setSystemLoggerNarrativeId(null);
 
       logError('Test', new Error('Test error'), { source: 'other' });
 
@@ -99,7 +99,7 @@ describe('error-logger', () => {
 
     it('handles non-Error error values', () => {
       const listener = vi.fn();
-      onErrorLog(listener);
+      onSystemLog(listener);
 
       logError('Test', 'String error', { source: 'other' });
 
@@ -113,7 +113,7 @@ describe('error-logger', () => {
 
     it('includes error stack when Error object provided', () => {
       const listener = vi.fn();
-      onErrorLog(listener);
+      onSystemLog(listener);
 
       const error = new Error('Test error');
       logError('Test', error, { source: 'other' });
@@ -126,7 +126,7 @@ describe('error-logger', () => {
     });
 
     it('logs to console.error for error severity', () => {
-      onErrorLog(() => {});
+      onSystemLog(() => {});
 
       logError('Test message', new Error('Test error'), { source: 'auto-play', operation: 'test', details: { foo: 'bar' } });
 
@@ -138,7 +138,7 @@ describe('error-logger', () => {
 
     it('returns unique IDs for sequential calls', () => {
       const listener = vi.fn();
-      onErrorLog(listener);
+      onSystemLog(listener);
 
       const id1 = logError('First', new Error('E1'), { source: 'other' });
       const id2 = logError('Second', new Error('E2'), { source: 'other' });
@@ -150,9 +150,9 @@ describe('error-logger', () => {
   describe('logWarning', () => {
     it('creates warning log entry with warning severity', () => {
       const listener = vi.fn();
-      onErrorLog(listener);
+      onSystemLog(listener);
 
-      const context: ErrorContext = {
+      const context: LogContext = {
         source: 'mcts',
         operation: 'expand-node',
       };
@@ -170,7 +170,7 @@ describe('error-logger', () => {
     });
 
     it('logs to console.warn for warning severity', () => {
-      onErrorLog(() => {});
+      onSystemLog(() => {});
 
       logWarning('Test warning', 'Warning details', { source: 'other', details: { test: true } });
 
@@ -181,15 +181,15 @@ describe('error-logger', () => {
     });
   });
 
-  describe('setErrorLoggerNarrativeId', () => {
+  describe('setSystemLoggerNarrativeId', () => {
     it('updates narrative ID for subsequent logs', () => {
       const listener = vi.fn();
-      onErrorLog(listener);
+      onSystemLog(listener);
 
-      setErrorLoggerNarrativeId('N-001');
+      setSystemLoggerNarrativeId('N-001');
       logError('Error 1', new Error('Test'), { source: 'other' });
 
-      setErrorLoggerNarrativeId('N-002');
+      setSystemLoggerNarrativeId('N-002');
       logError('Error 2', new Error('Test'), { source: 'other' });
 
       expect(listener).toHaveBeenNthCalledWith(1, expect.objectContaining({ narrativeId: 'N-001' }));
@@ -197,13 +197,13 @@ describe('error-logger', () => {
     });
   });
 
-  describe('onErrorLog', () => {
+  describe('onSystemLog', () => {
     it('replaces previous listener', () => {
       const listener1 = vi.fn();
       const listener2 = vi.fn();
 
-      onErrorLog(listener1);
-      onErrorLog(listener2);
+      onSystemLog(listener1);
+      onSystemLog(listener2);
 
       logError('Test', new Error('Test'), { source: 'other' });
 

@@ -2,10 +2,11 @@
 
 import { useState, useCallback, useRef, useMemo } from 'react';
 import { useStore } from '@/lib/store';
-import { evaluateProseQuality } from '@/lib/ai/evaluate';
+import { reviewProseQuality } from '@/lib/ai/review';
 import { rewriteSceneProse } from '@/lib/ai';
 import { resolveEntry, isScene } from '@/types/narrative';
 import type { ProseEvaluation, ProseSceneEval, ProseVerdict, Scene, Arc } from '@/types/narrative';
+import { resolveProseForBranch } from '@/lib/narrative-utils';
 import { PROSE_CONCURRENCY } from '@/lib/constants';
 import { IconCheck, IconPencil, IconRunning, IconCross, IconDot, IconReset, IconSparkle, IconPlus } from '@/components/icons/EvalIcons';
 import SceneRangeSelector, { filterKeysBySceneRange, type SceneRange } from './SceneRangeSelector';
@@ -218,7 +219,7 @@ export default function ProseEval({ sceneRange, onRangeChange }: { sceneRange?: 
 
     try {
       setReasoning('');
-      const result = await evaluateProseQuality(narrative, filteredKeys, branchId, guidance || undefined, (token) => {
+      const result = await reviewProseQuality(narrative, filteredKeys, branchId, guidance || undefined, (token) => {
         setReasoning((prev) => prev + token);
       });
       if (!cancelledRef.current) {
@@ -236,7 +237,7 @@ export default function ProseEval({ sceneRange, onRangeChange }: { sceneRange?: 
   }, [narrative, filteredKeys, branchId, guidance, dispatch]);
 
   const runRewrites = useCallback(async () => {
-    if (!narrative || !evaluation) return;
+    if (!narrative || !evaluation || !branchId) return;
     const edits = evaluation.sceneEvals.filter((e) => e.verdict === 'edit' && e.issues.length > 0);
     if (edits.length === 0) return;
 
@@ -249,6 +250,7 @@ export default function ProseEval({ sceneRange, onRangeChange }: { sceneRange?: 
     setRewriteStatuses({ ...statuses });
     setRewriteProgress({ completed: 0, total: edits.length });
 
+    const branches = narrative.branches;
     let completed = 0;
     let nextIdx = 0;
 
@@ -258,7 +260,8 @@ export default function ProseEval({ sceneRange, onRangeChange }: { sceneRange?: 
         if (idx >= edits.length) break;
         const ev = edits[idx];
         const scene = narrative.scenes[ev.sceneId];
-        if (!scene?.prose) {
+        const { prose: resolvedProse } = scene ? resolveProseForBranch(scene, branchId, branches) : { prose: undefined };
+        if (!scene || !resolvedProse) {
           completed++;
           setRewriteStatuses((prev) => ({ ...prev, [ev.sceneId]: 'done' }));
           setRewriteProgress({ completed, total: edits.length });
@@ -269,7 +272,7 @@ export default function ProseEval({ sceneRange, onRangeChange }: { sceneRange?: 
 
         try {
           const analysis = `PROSE EVALUATION ISSUES — fix all of these:\n${ev.issues.map((i) => `- ${i}`).join('\n')}`;
-          const { prose } = await rewriteSceneProse(narrative, scene, filteredKeys, scene.prose, analysis);
+          const { prose } = await rewriteSceneProse(narrative, scene, filteredKeys, resolvedProse, analysis);
           if (!cancelledRef.current) {
             dispatch({ type: 'UPDATE_SCENE', sceneId: ev.sceneId, updates: { prose } });
           }
@@ -284,7 +287,7 @@ export default function ProseEval({ sceneRange, onRangeChange }: { sceneRange?: 
 
     await Promise.all(Array.from({ length: Math.min(PROSE_CONCURRENCY, edits.length) }, () => runWorker()));
     setRewriting(false);
-  }, [narrative, filteredKeys, evaluation, dispatch]);
+  }, [narrative, filteredKeys, evaluation, branchId, dispatch]);
 
   const cancel = useCallback(() => {
     cancelledRef.current = true;
@@ -302,14 +305,19 @@ export default function ProseEval({ sceneRange, onRangeChange }: { sceneRange?: 
 
   // Resolve scenes
   const scenes: { scene: Scene; arc?: Arc }[] = [];
-  if (narrative) {
+  if (narrative && branchId) {
+    const branches = narrative.branches;
     for (const key of filteredKeys) {
       const entry = resolveEntry(narrative, key);
-      if (entry && isScene(entry) && (entry as Scene).prose) {
-        scenes.push({
-          scene: entry as Scene,
-          arc: narrative.arcs[(entry as Scene).arcId],
-        });
+      if (entry && isScene(entry)) {
+        const scene = entry as Scene;
+        const { prose } = resolveProseForBranch(scene, branchId, branches);
+        if (prose) {
+          scenes.push({
+            scene,
+            arc: narrative.arcs[scene.arcId],
+          });
+        }
       }
     }
   }

@@ -17,7 +17,7 @@ import { IconCheck, IconChevronRight, IconRefresh, IconUndo } from '@/components
 import { saveDiscoveryInquiry, deleteDiscoveryInquiry, loadDiscoveryInquiries } from '@/lib/persistence';
 import type { DiscoveryInquiry, DiscoveryInquiryState, DiscoveryPhase, DiscoverySnapshot } from '@/types/narrative';
 import { setLoggerDiscoveryId } from '@/lib/api-logger';
-import { setErrorLoggerDiscoveryId } from '@/lib/error-logger';
+import { setSystemLoggerDiscoveryId } from '@/lib/system-logger';
 import * as d3 from 'd3';
 
 // ── State ────────────────────────────────────────────────────────────────────
@@ -439,14 +439,14 @@ function DiscoverInner({ inquiryId: initialInquiryId }: { inquiryId?: string } =
   useEffect(() => {
     return () => {
       setLoggerDiscoveryId(null);
-      setErrorLoggerDiscoveryId(null);
+      setSystemLoggerDiscoveryId(null);
     };
   }, []);
 
   const handleBegin = useCallback(async () => {
-    // Set discovery ID for API and error logging
+    // Set discovery ID for API and system logging
     setLoggerDiscoveryId(inquiryIdRef.current);
-    setErrorLoggerDiscoveryId(inquiryIdRef.current);
+    setSystemLoggerDiscoveryId(inquiryIdRef.current);
 
     dispatch({ type: 'SET_PHASE', phase: 'systems' });
     dispatch({ type: 'SET_LOADING', loading: true });

@@ -7,7 +7,7 @@ import { parseJson } from './json';
 import { branchContext } from './context';
 import { PROMPT_FORCE_STANDARDS, PROMPT_PACING, PROMPT_MUTATIONS, PROMPT_POV, PROMPT_CONTINUITY, PROMPT_SUMMARY_REQUIREMENT } from './prompts';
 import { buildSequencePrompt, buildIntroductionSequence } from '@/lib/pacing-profile';
-import { logInfo } from '@/lib/error-logger';
+import { logInfo } from '@/lib/system-logger';
 
 export type WorldExpansion = {
   characters: Character[];

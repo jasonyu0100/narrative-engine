@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { reconstructBranch, type ReconstructionProgress, type ReconstructionCallbacks } from '@/lib/ai/reconstruct';
-import type { NarrativeState, Scene, Branch, Arc, StructureReview, SceneEval, WorldBuild } from '@/types/narrative';
+import type { NarrativeState, Scene, Branch, StructureReview, WorldBuild } from '@/types/narrative';
 
 // Mock all AI dependencies
 vi.mock('@/lib/ai/api', () => ({
@@ -547,7 +547,6 @@ describe('reconstructBranch', () => {
 
   it('handles edit failures gracefully', async () => {
     vi.mocked(callGenerate).mockRejectedValue(new Error('LLM failed'));
-    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
 
     const narrative = createMinimalNarrative();
     const evaluation: StructureReview = {
@@ -574,10 +573,8 @@ describe('reconstructBranch', () => {
       cancelledRef,
     );
 
-    // Should complete without throwing
+    // Should complete without throwing even when LLM operations fail
     expect(result.scenes).toHaveLength(3);
-    expect(warnSpy).toHaveBeenCalled();
-    warnSpy.mockRestore();
   });
 
   it('updates arc sceneIds after reconstruction', async () => {

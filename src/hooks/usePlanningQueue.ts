@@ -7,6 +7,7 @@ import { expandWorld } from '@/lib/ai';
 import { nextId } from '@/lib/narrative-utils';
 import { DEFAULT_STORY_SETTINGS } from '@/types/narrative';
 import type { PlanningQueue } from '@/types/narrative';
+import { logError } from '@/lib/system-logger';
 
 /**
  * Reactive hook that watches the planning queue and triggers phase transitions
@@ -160,7 +161,17 @@ export function usePlanningQueue() {
         });
       }
     } catch (err) {
-      console.error('[planning-queue] transition failed:', err);
+      const phaseIdx = q.activePhaseIndex;
+      const nextPhaseIdx = phaseIdx + 1;
+      logError('Planning queue phase transition failed', err, {
+        source: 'other',
+        operation: 'planning-queue-transition',
+        details: {
+          fromPhase: phaseIdx,
+          toPhase: nextPhaseIdx,
+          phaseName: q.phases[nextPhaseIdx]?.name,
+        }
+      });
     } finally {
       transitioningRef.current = false;
       setTransitioning(false);

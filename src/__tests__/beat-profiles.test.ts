@@ -55,7 +55,22 @@ function createSceneWithPlan(
   beats: Array<{ fn: BeatFn; mechanism: BeatMechanism }>,
   prose?: string
 ): Scene {
-  return {
+  const plan = {
+    beats: beats.map((b, i) => ({
+      index: i,
+      fn: b.fn,
+      mechanism: b.mechanism,
+      summary: `Beat ${i}`,
+      characterId: 'char-1',
+      characterName: 'Test Character',
+      locationShift: null,
+      what: `Beat ${i} action`,
+      propositions: [{ content: '' }],
+    })),
+    propositions: [],
+  };
+
+  const scene: Scene = {
     kind: 'scene',
     id,
     arcId: 'arc-1',
@@ -68,22 +83,26 @@ function createSceneWithPlan(
     continuityMutations: [],
     relationshipMutations: [],
     characterMovements: {},
-    plan: {
-      beats: beats.map((b, i) => ({
-        index: i,
-        fn: b.fn,
-        mechanism: b.mechanism,
-        summary: `Beat ${i}`,
-        characterId: 'char-1',
-        characterName: 'Test Character',
-        locationShift: null,
-        what: `Beat ${i} action`,
-        propositions: [{ content: '' }],
-      })),
-      propositions: [],
-    },
-    prose,
+    planVersions: [{
+      version: '1.0.0',
+      branchId: 'main',
+      plan,
+      timestamp: Date.now(),
+      versionType: 'generate',
+    }],
   };
+
+  if (prose) {
+    scene.proseVersions = [{
+      version: '1.0.0',
+      branchId: 'main',
+      prose,
+      timestamp: Date.now(),
+      versionType: 'generate',
+    }];
+  }
+
+  return scene;
 }
 
 // ── DEFAULT exports ──────────────────────────────────────────────────────────
@@ -97,7 +116,7 @@ describe('DEFAULT exports', () => {
   });
 
   it('DEFAULT_BEAT_MATRIX rows sum to approximately 1', () => {
-    for (const [fn, row] of Object.entries(DEFAULT_BEAT_MATRIX)) {
+    for (const row of Object.values(DEFAULT_BEAT_MATRIX)) {
       const sum = Object.values(row).reduce((s, p) => s + (p ?? 0), 0);
       expect(sum).toBeCloseTo(1, 1);
     }
@@ -547,7 +566,7 @@ describe('resolveSampler', () => {
         ]),
       },
     });
-    const sampler = resolveSampler(narrative);
+    const sampler = resolveSampler(narrative, 'main');
     expect(sampler.fnMechanismDistribution.breathe?.thought).toBe(1);
     expect(sampler.fnMechanismDistribution.inform?.thought).toBe(1);
     expect(sampler.markov.breathe?.inform).toBe(1);

@@ -10,7 +10,7 @@ import { DEFAULT_STORY_SETTINGS, BRANCH_TIME_HORIZON_OPTIONS, REASONING_BUDGETS 
 import { NARRATIVE_CUBE } from '@/types/narrative';
 import type { CubeCornerKey } from '@/types/narrative';
 import { MATRIX_PRESETS, computeMatrixFromNarrative, type TransitionMatrix } from '@/lib/pacing-profile';
-import { DEFAULT_BEAT_SAMPLER, BEAT_PROFILE_PRESETS, computeSamplerFromPlans } from '@/lib/beat-profiles';
+import { DEFAULT_BEAT_SAMPLER, BEAT_PROFILE_PRESETS, computeSamplerFromResolvedScenes } from '@/lib/beat-profiles';
 import { MECHANISM_PROFILE_PRESETS, computeMechanismDist, DEFAULT_MECHANISM_DIST } from '@/lib/mechanism-profiles';
 import { IconChevronDown } from '@/components/icons';
 
@@ -514,9 +514,13 @@ export function StorySettingsModal({ onClose }: { onClose: () => void }) {
                         // Resolve sampler generically from BEAT_PROFILE_PRESETS (no hardcoded preset keys)
                         const presetKey = settings.beatProfilePreset || 'storyteller';
                         const activeSampler = presetKey === 'self'
-                          ? (computeSamplerFromPlans(
-                              Object.values(narrative?.scenes ?? {}).filter((s) => state.resolvedEntryKeys.includes(s.id))
-                            ) ?? DEFAULT_BEAT_SAMPLER)
+                          ? (state.activeBranchId && narrative
+                              ? (computeSamplerFromResolvedScenes(
+                                  Object.values(narrative.scenes ?? {}).filter((s) => state.resolvedEntryKeys.includes(s.id)),
+                                  state.activeBranchId,
+                                  narrative.branches
+                                ) ?? DEFAULT_BEAT_SAMPLER)
+                              : DEFAULT_BEAT_SAMPLER)
                           : (BEAT_PROFILE_PRESETS.find((p) => p.key === presetKey)?.sampler ?? DEFAULT_BEAT_SAMPLER);
 
                         const markov = activeSampler.markov as Record<string, Record<string, number>>;

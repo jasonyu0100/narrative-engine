@@ -81,7 +81,7 @@ After every arc, a **course correction** pass analyses the story through five le
 
 ### 5. Iterative Revision
 
-Generation produces a first draft. The revision pipeline improves it without starting over, using git-like versioned branches:
+Generation produces a first draft. The revision pipeline improves it without starting over, using versioned branches:
 
 ```
 evaluate(branch)  → per-scene verdicts: ok | edit | rewrite | cut
@@ -93,7 +93,22 @@ reconstruct(eval) → new branch (v2, v3, v4...) with changes applied
 - **rewrite** — scene should exist but structure is wrong. Everything rebuilt from scratch.
 - **cut** — redundant or near-duplicate. Removed entirely.
 
-Edits and rewrites run in parallel (`PROSE_CONCURRENCY = 10`). World commits pass through at their original timeline positions. The original branch is never modified. Evaluations can be **guided** — paste external feedback from another AI or human editor, and the system incorporates it alongside its own structural analysis. The loop converges in 2–3 passes. `src/lib/ai/evaluate.ts` `src/lib/ai/reconstruct.ts`
+Edits and rewrites run in parallel (`PROSE_CONCURRENCY = 10`). World commits pass through at their original timeline positions. The original branch is never modified. Evaluations can be **guided** — paste external feedback from another AI or human editor, and the system incorporates it alongside its own structural analysis. The loop converges in 2–3 passes. `src/lib/ai/review.ts` `src/lib/ai/reconstruct.ts`
+
+### 6. Version Control
+
+InkTide implements two distinct versioning systems that serve different purposes:
+
+**Branch Reconstruction Versioning** — The revision pipeline creates new branch versions (main-v2, main-v3, main-v4) through the review → reconstruct cycle. Each reconstruction pass evaluates the entire branch, applies structural edits across multiple scenes, and produces a new versioned branch. These branch versions represent complete narrative revisions where the system has reevaluated story structure, pacing, and continuity across the full timeline. Reconstruction is destructive iteration — you get a new branch with changes applied, not a document you can incrementally edit.
+
+**Prose & Plan Content Versioning** — Separate from branch reconstruction, individual scenes track prose and plan versions with semantic numbering `v1.2.3`:
+- **Generate** (major): `1`, `2`, `3` — fresh generation from plan or scratch
+- **Rewrite** (minor): `1.1`, `1.2`, `2.1` — LLM-guided revision with critique
+- **Edit** (patch): `1.1.1`, `1.1.2` — manual or incremental tweaks
+
+This is document-style version history. You can edit the original text while keeping all previous versions safe. Resolution functions (`resolveProseForBranch`, `resolvePlanForBranch`) determine which version each branch sees based on lineage, fork timestamps, and optional branch-specific pointers.
+
+**Structural Branching** — Beneath both versioning systems, scenes themselves are structurally immutable (POV, location, participants, mutations fixed). Branches reference shared scenes — only structurally different scenes create new objects. Descendants dynamically resolve their view through parent lineage, enabling git-like cloning with minimal storage. `src/lib/narrative-utils.ts` `src/lib/store.tsx`
 
 ## Tech
 

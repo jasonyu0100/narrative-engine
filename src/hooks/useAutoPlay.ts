@@ -9,7 +9,7 @@ import { generatePhaseDirection } from '@/lib/planning-engine';
 import { DEFAULT_STORY_SETTINGS } from '@/types/narrative';
 import type { AutoRunLog } from '@/types/narrative';
 import { nextId } from '@/lib/narrative-utils';
-import { logError } from '@/lib/error-logger';
+import { logError } from '@/lib/system-logger';
 
 export function useAutoPlay() {
   const { state, dispatch } = useStore();
@@ -131,8 +131,6 @@ export function useAutoPlay() {
             detailedMsg += ' - Request timed out (LLM took too long)';
           }
           detailedMsg += `\nError: ${errorMsg}`;
-
-          console.error(detailedMsg);
 
           // Log error with structured context
           logError(
@@ -363,8 +361,6 @@ export function useAutoPlay() {
             detailedMsg += `\nPhase progress: ${knownCompleted}/${freshPhase?.sceneAllocation ?? 0} scenes`;
             detailedMsg += `\nError: ${errorMsg}`;
 
-            console.error(detailedMsg);
-
             // Log error with structured context
             logError(
               `Course correction failed for phase "${freshPhase?.name}"`,
@@ -410,7 +406,6 @@ export function useAutoPlay() {
       }
 
       detailedMsg += `\nError: ${errorMsg}`;
-      console.error(detailedMsg);
 
       // Log error with structured context
       logError(
@@ -477,10 +472,24 @@ export function useAutoPlay() {
       await runCycle();
       consecutiveTickErrors.current = 0;
     } catch (err) {
-      console.error('[auto-play] Unhandled error in runCycle:', err);
+      logError('Unhandled error in auto-play runCycle', err, {
+        source: 'auto-play',
+        operation: 'run-cycle',
+        details: {
+          consecutiveErrors: consecutiveTickErrors.current + 1,
+          cycle: (stateRef.current.autoRunState?.currentCycle ?? 0) + 1,
+        },
+      });
       consecutiveTickErrors.current += 1;
       if (consecutiveTickErrors.current >= 3) {
-        console.error('[auto-play] 3 consecutive unhandled errors — stopping auto mode');
+        logError('Auto mode stopped after 3 consecutive unhandled errors', 'Error limit reached', {
+          source: 'auto-play',
+          operation: 'auto-stop',
+          details: {
+            consecutiveErrors: consecutiveTickErrors.current,
+            cycle: (stateRef.current.autoRunState?.currentCycle ?? 0) + 1,
+          },
+        });
         dispatch({ type: 'LOG_AUTO_CYCLE', entry: {
           cycle: (stateRef.current.autoRunState?.currentCycle ?? 0) + 1,
           timestamp: Date.now(),

@@ -1,5 +1,6 @@
 import type { NarrativeState, Scene } from '@/types/narrative';
 import { resolveEntry, isScene } from '@/types/narrative';
+import { resolveProseForBranch } from '@/lib/narrative-utils';
 
 // ── CRC-32 ────────────────────────────────────────────────────────────────────
 
@@ -176,20 +177,24 @@ p.scene-meta {
 export function exportEpub(
   narrative: NarrativeState,
   resolvedKeys: string[],
+  branchId: string,
   proseCache: Record<string, { text: string; status: string }>,
 ): void {
   const allScenes = resolvedKeys
     .map((k) => resolveEntry(narrative, k))
     .filter((e): e is Scene => !!e && isScene(e));
 
+  const branches = narrative.branches;
+
   // Group scenes by arc in order of first appearance
   const arcOrder: string[] = [];
   const arcSceneMap: Record<string, { scene: Scene; prose: string; narrative: NarrativeState }[]> = {};
 
   for (const scene of allScenes) {
+    const { prose: resolvedProse } = resolveProseForBranch(scene, branchId, branches);
     const prose = proseCache[scene.id]?.status === 'ready'
       ? proseCache[scene.id].text
-      : scene.prose ?? '';
+      : resolvedProse ?? '';
     if (!prose) continue;
 
     const arc = Object.values(narrative.arcs).find((a) => a.sceneIds.includes(scene.id));

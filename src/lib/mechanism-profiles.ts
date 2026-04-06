@@ -6,8 +6,9 @@
  * from the fn-conditioned data for visualization, but sampling uses fn-conditioned.
  */
 
-import type { BeatFn, BeatMechanism, NarrativeState, Scene, MechanismProfilePreset, FnMechanismDistribution } from '@/types/narrative';
+import type { BeatFn, BeatMechanism, NarrativeState, Scene, MechanismProfilePreset, FnMechanismDistribution, Branch } from '@/types/narrative';
 import { DEFAULT_FN_MECHANISM_DIST } from '@/lib/beat-profiles';
+import { resolvePlanForBranch } from '@/lib/narrative-utils';
 
 export type { MechanismProfilePreset };
 
@@ -75,6 +76,44 @@ export function computeMechanismDist(scenes: Scene[]): Partial<Record<BeatMechan
   const fnMechDist = computeFnMechanismDist(scenes);
   if (!fnMechDist) return null;
   return flattenFnMechDist(fnMechDist);
+}
+
+/**
+ * Compute fn-conditioned mechanism distribution using resolved plans (version-aware).
+ * Use this for user narratives with versioned plans.
+ */
+export function computeFnMechanismDistResolved(
+  scenes: Scene[],
+  branchId: string,
+  branches: Record<string, Branch>,
+): FnMechanismDistribution | null {
+  const fnMechCounts: Record<string, Record<string, number>> = {};
+  const fnTotalCounts: Record<string, number> = {};
+  let totalBeats = 0;
+
+  for (const scene of scenes) {
+    const plan = resolvePlanForBranch(scene, branchId, branches);
+    const beats = plan?.beats;
+    if (!beats || beats.length === 0) continue;
+    for (const beat of beats) {
+      totalBeats++;
+      if (!fnMechCounts[beat.fn]) fnMechCounts[beat.fn] = {};
+      fnMechCounts[beat.fn][beat.mechanism] = (fnMechCounts[beat.fn][beat.mechanism] ?? 0) + 1;
+      fnTotalCounts[beat.fn] = (fnTotalCounts[beat.fn] ?? 0) + 1;
+    }
+  }
+
+  if (totalBeats === 0) return null;
+
+  const fnMechanismDistribution: FnMechanismDistribution = {};
+  for (const [fn, mechMap] of Object.entries(fnMechCounts)) {
+    const fnTotal = fnTotalCounts[fn] ?? 1;
+    fnMechanismDistribution[fn as BeatFn] = Object.fromEntries(
+      Object.entries(mechMap).map(([mech, count]) => [mech, count / fnTotal])
+    ) as Partial<Record<BeatMechanism, number>>;
+  }
+
+  return fnMechanismDistribution;
 }
 
 // ── Preset Management ───────────────────────────────────────────────────────

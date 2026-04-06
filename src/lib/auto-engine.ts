@@ -13,6 +13,7 @@ import type {
 import { isScene, NARRATIVE_CUBE, THREAD_ACTIVE_STATUSES, THREAD_TERMINAL_STATUSES, THREAD_PRIMED_STATUSES } from '@/types/narrative';
 import { detectCubeCorner, computeWindowedForces, averageSwing, FORCE_WINDOW_SIZE, forceDistance } from '@/lib/narrative-utils';
 import { AUTO_STOP_CYCLE_LENGTH } from '@/lib/constants';
+import { logInfo } from '@/lib/system-logger';
 
 // ── Thread status helpers (derived from canonical lists in narrative.ts) ─────
 const TERMINAL_SET = new Set<string>(THREAD_TERMINAL_STATUSES);
@@ -341,12 +342,26 @@ export function checkEndConditions(
     switch (cond.type) {
       case 'scene_count': {
         const scenesThisRun = resolvedKeys.length - startingSceneCount;
-        if (scenesThisRun >= cond.target) return cond;
+        if (scenesThisRun >= cond.target) {
+          logInfo(`Auto-play end condition met: scene_count`, {
+            source: 'auto-play',
+            operation: 'check-end-conditions',
+            details: { type: 'scene_count', target: cond.target, scenesGenerated: scenesThisRun }
+          });
+          return cond;
+        }
         break;
       }
       case 'all_threads_resolved': {
         const threads = Object.values(narrative.threads);
-        if (threads.length > 0 && threads.every((t) => isTerminal(t.status))) return cond;
+        if (threads.length > 0 && threads.every((t) => isTerminal(t.status))) {
+          logInfo(`Auto-play end condition met: all_threads_resolved`, {
+            source: 'auto-play',
+            operation: 'check-end-conditions',
+            details: { type: 'all_threads_resolved', threadCount: threads.length }
+          });
+          return cond;
+        }
         break;
       }
       case 'arc_count': {
@@ -360,7 +375,14 @@ export function checkEndConditions(
         const pq = activeBranch?.planningQueue;
         if (pq) {
           const allDone = pq.phases.every((p) => p.status === 'completed');
-          if (allDone) return cond;
+          if (allDone) {
+            logInfo(`Auto-play end condition met: planning_complete`, {
+              source: 'auto-play',
+              operation: 'check-end-conditions',
+              details: { type: 'planning_complete', phaseCount: pq.phases.length }
+            });
+            return cond;
+          }
         }
         break;
       }
@@ -703,8 +725,25 @@ export function evaluateNarrativeState(
     });
   }
 
+  const sortedScores = scores.sort((a, b) => b.score - a.score);
+  const topAction = sortedScores[0];
+
+  logInfo(`Auto-play action selected: ${topAction.action}`, {
+    source: 'auto-play',
+    operation: 'evaluate-narrative-state',
+    details: {
+      selectedAction: topAction.action,
+      score: Math.round(topAction.score * 100) / 100,
+      reason: topAction.reason,
+      storyPhase: storyPhase.name,
+      progress: Math.round(storyProgress * 100),
+      saturatedForces: saturatedForces.join(',') || 'none',
+      recentSwing: Math.round(recentSwing * 100) / 100,
+    }
+  });
+
   return {
-    weights: scores.sort((a, b) => b.score - a.score),
+    weights: sortedScores,
     directiveCtx: {
       scenes,
       stagnantThreads,

@@ -16,7 +16,7 @@ import { reverseEngineerScenePlan } from '@/lib/ai/scenes';
 import type { AnalysisJob, AnalysisChunkResult } from '@/types/narrative';
 import type { Action } from '@/lib/store';
 import { ANALYSIS_CONCURRENCY, ANALYSIS_STAGGER_DELAY_MS, ANALYSIS_MAX_CHUNK_RETRIES, ANALYSIS_PLAN_BACKOFF_ENABLED } from '@/lib/constants';
-import { logError, logWarning, logInfo, setErrorLoggerAnalysisId } from '@/lib/error-logger';
+import { logError, logWarning, logInfo, setSystemLoggerAnalysisId } from '@/lib/system-logger';
 import { setLoggerAnalysisId } from '@/lib/api-logger';
 
 type Dispatch = (action: Action) => void;
@@ -116,7 +116,11 @@ class AnalysisRunner {
   /** Start or resume analysis for a job — uses parallel pipeline */
   async start(job: AnalysisJob, dispatch: Dispatch) {
     if (this.running.has(job.id)) {
-      console.warn('[AnalysisRunner] Job already running:', job.id);
+      logWarning('Analysis job already running', `Job ID: ${job.id}`, {
+        source: 'analysis',
+        operation: 'start-job',
+        details: { jobId: job.id }
+      });
       return;
     }
 
@@ -125,9 +129,9 @@ class AnalysisRunner {
     this.running.set(job.id, entry);
     this.streamTexts.set(job.id, '');
 
-    // Set analysis ID for API and error logging
+    // Set analysis ID for API and system logging
     setLoggerAnalysisId(job.id);
-    setErrorLoggerAnalysisId(job.id);
+    setSystemLoggerAnalysisId(job.id);
 
     logInfo('Starting analysis job', {
       source: 'analysis',
@@ -145,7 +149,6 @@ class AnalysisRunner {
 
       await this.runPipeline(job, entry, dispatch);
     } catch (err) {
-      console.error('[AnalysisRunner] Unexpected error:', err);
       logError(
         'Analysis job failed with unexpected error',
         err,
@@ -162,9 +165,9 @@ class AnalysisRunner {
       // Update status to failed
       dispatch({ type: 'UPDATE_ANALYSIS_JOB', id: job.id, updates: { status: 'failed', error: err instanceof Error ? err.message : String(err) } });
     } finally {
-      // Clear analysis ID from API and error loggers
+      // Clear analysis ID from API and system loggers
       setLoggerAnalysisId(null);
-      setErrorLoggerAnalysisId(null);
+      setSystemLoggerAnalysisId(null);
       this.cleanup(job.id);
     }
   }
@@ -227,7 +230,19 @@ class AnalysisRunner {
           const attempt = chunkAttempts.get(chunkIdx) ?? 1;
           if (isParseOrTypeError(error) && attempt < MAX_CHUNK_RETRIES && !entry.cancelled) {
             // Auto-retry parse/type errors inline
-            console.warn(`[AnalysisRunner] Chunk ${chunkIdx + 1} attempt ${attempt}/${MAX_CHUNK_RETRIES} failed:`, error);
+            logWarning(
+              `Chunk ${chunkIdx + 1} extraction attempt ${attempt} failed, retrying`,
+              error,
+              {
+                source: 'analysis',
+                operation: 'chunk-extraction-retry',
+                details: {
+                  chunkIdx,
+                  attempt,
+                  maxRetries: MAX_CHUNK_RETRIES,
+                },
+              }
+            );
             this.emitStream(job.id, `Phase 1: Chunk ${chunkIdx + 1} parse error, retrying (${attempt}/${MAX_CHUNK_RETRIES})...`);
             launchChunk(chunkIdx);
             return; // don't launch from queue or check pool — we re-incremented activeCount
@@ -424,7 +439,6 @@ class AnalysisRunner {
           .catch((err) => {
             const errorMsg = err instanceof Error ? err.message : String(err);
             const wordCount = task.prose.split(/\s+/).length;
-            console.warn(`[AnalysisRunner] Plan extraction failed for scene ${task.chunkIdx}-${task.sceneIdx} (${wordCount} words): ${errorMsg}`);
 
             if (task.attempts! < MAX_PLAN_RETRIES) {
               // Re-queue for retry
@@ -469,7 +483,19 @@ class AnalysisRunner {
       await planDone;
 
       if (failedPlans.length > 0) {
-        console.warn(`[AnalysisRunner] ${failedPlans.length} scenes failed plan extraction after retries`);
+        logWarning(
+          `${failedPlans.length} scenes failed plan extraction after all retries`,
+          `Failed scenes: ${failedPlans.map(t => `${t.chunkIdx}-${t.sceneIdx}`).join(', ')}`,
+          {
+            source: 'analysis',
+            operation: 'plan-extraction-summary',
+            details: {
+              jobId: job.id,
+              failedCount: failedPlans.length,
+              totalPlans: planTasks.length,
+            },
+          }
+        );
       }
 
       logInfo('Completed Phase 2: Plan extraction', {
@@ -525,7 +551,6 @@ class AnalysisRunner {
       });
     } catch (err) {
       // Reconciliation failure is non-fatal — continue with unreconciled results
-      console.warn('[AnalysisRunner] Reconciliation failed, using raw results:', err);
       logWarning(
         'Analysis reconciliation failed (non-fatal)',
         err,
@@ -571,7 +596,6 @@ class AnalysisRunner {
       });
     } catch (err) {
       // Finalization failure is non-fatal — continue without dependencies
-      console.warn('[AnalysisRunner] Finalization failed:', err);
       logWarning(
         'Analysis finalization failed (non-fatal)',
         err,

@@ -964,9 +964,9 @@ export type ApiLogEntry = {
   reasoningContent?: string | null;
 };
 
-// ── Error Logs ───────────────────────────────────────────────────────────────
+// ── System Logs ──────────────────────────────────────────────────────────────
 
-export type ErrorLogEntry = {
+export type SystemLogEntry = {
   id: string;
   timestamp: number;
   severity: 'error' | 'warning' | 'info';
@@ -1170,7 +1170,7 @@ export type AppState = {
   autoConfig: AutoConfig;
   autoRunState: AutoRunState | null;
   apiLogs: ApiLogEntry[];
-  errorLogs: ErrorLogEntry[];
+  systemLogs: SystemLogEntry[];
   analysisJobs: AnalysisJob[];
   activeChatThreadId: string | null;
   activeNoteId: string | null;

@@ -1,31 +1,24 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import type { NarrativeState, Scene, PlanningPhase, Thread, Character, Location } from '@/types/narrative';
-import { DEFAULT_STORY_SETTINGS } from '@/types/narrative';
+import type { NarrativeState, Scene, Arc, Thread, Character, Location } from '@/types/narrative';
 
 // Mock the AI module
 vi.mock('@/lib/ai/api', () => ({
   callGenerate: vi.fn(),
+  callGenerateStream: vi.fn(),
   SYSTEM_PROMPT: 'Test system prompt',
 }));
 
-// Mock context building
-vi.mock('@/lib/ai/context', () => ({
-  branchContext: vi.fn().mockReturnValue('Mock branch context'),
-}));
-
-// Mock prompts
-vi.mock('@/lib/ai/prompts', () => ({
-  buildThreadHealthPrompt: vi.fn().mockReturnValue('Mock thread health prompt'),
-  buildCompletedBeatsPrompt: vi.fn().mockReturnValue('Mock completed beats prompt'),
-}));
-
-import { refreshDirection } from '@/lib/ai/review';
-import { callGenerate } from '@/lib/ai/api';
+import {
+  reviewBranch,
+  reviewProseQuality,
+  reviewPlanQuality,
+} from '@/lib/ai/review';
+import { callGenerate, callGenerateStream } from '@/lib/ai/api';
 
 // ── Test Fixtures ────────────────────────────────────────────────────────────
 
 function createScene(id: string, overrides: Partial<Scene> = {}): Scene {
-  return {
+  const scene: Scene = {
     kind: 'scene',
     id,
     arcId: 'arc-1',
@@ -33,11 +26,50 @@ function createScene(id: string, overrides: Partial<Scene> = {}): Scene {
     locationId: 'loc-1',
     participantIds: ['char-1'],
     summary: `Scene ${id} summary`,
-    events: ['Event 1', 'Event 2'],
+    events: [],
     threadMutations: [],
     continuityMutations: [],
     relationshipMutations: [],
     characterMovements: {},
+    ...overrides,
+  };
+
+  // Convert legacy prose to versioned format
+  if ('prose' in overrides && overrides.prose !== undefined) {
+    scene.proseVersions = [{
+      version: '1.0.0',
+      branchId: 'main',
+      prose: overrides.prose as string,
+      timestamp: Date.now(),
+      versionType: 'generate',
+    }];
+    delete (scene as any).prose;
+  }
+
+  // Convert legacy plan to versioned format
+  if ('plan' in overrides && overrides.plan !== undefined) {
+    scene.planVersions = [{
+      version: '1.0.0',
+      branchId: 'main',
+      plan: overrides.plan,
+      timestamp: Date.now(),
+      versionType: 'generate',
+    }];
+    delete (scene as any).plan;
+  }
+
+  return scene;
+}
+
+function createArc(id: string, overrides: Partial<Arc> = {}): Arc {
+  return {
+    id,
+    name: `Arc ${id}`,
+    sceneIds: [],
+    develops: [],
+    locationIds: [],
+    activeCharacterIds: [],
+    initialCharacterLocations: {},
     ...overrides,
   };
 }
@@ -83,6 +115,7 @@ function createMinimalNarrative(): NarrativeState {
     description: 'A test story',
     characters: {
       'char-1': createCharacter('char-1', { name: 'Alice' }),
+      'char-2': createCharacter('char-2', { name: 'Bob' }),
     },
     locations: {
       'loc-1': createLocation('loc-1', { name: 'Castle' }),
@@ -92,7 +125,9 @@ function createMinimalNarrative(): NarrativeState {
     },
     artifacts: {},
     scenes: {},
-    arcs: {},
+    arcs: {
+      'arc-1': createArc('arc-1', { name: 'First Arc' }),
+    },
     worldBuilds: {},
     branches: {
       main: {
@@ -113,442 +148,550 @@ function createMinimalNarrative(): NarrativeState {
   };
 }
 
-function createPlanningPhase(overrides: Partial<PlanningPhase> = {}): PlanningPhase {
-  return {
-    id: 'phase-1',
-    name: 'Test Phase',
-    objective: 'Test objective',
-    status: 'active',
-    sceneAllocation: 10,
-    scenesCompleted: 4,
-    constraints: 'No deaths',
-    worldExpansionHints: '',
-    direction: '',
-    ...overrides,
-  };
-}
-
 // ── Setup ────────────────────────────────────────────────────────────────────
 
 beforeEach(() => {
   vi.clearAllMocks();
 });
 
-// ── refreshDirection Tests ───────────────────────────────────────────────────
+// ── evaluateBranch Tests ─────────────────────────────────────────────────────
 
-describe('refreshDirection', () => {
-  it('returns parsed direction and constraints from LLM response', async () => {
-    const mockResponse = JSON.stringify({
-      direction: 'New direction for the next arc',
-      constraints: 'Do not kill the protagonist',
-      sceneBudget: { 'T-001': 2, 'T-002': 1 },
-    });
-    vi.mocked(callGenerate).mockResolvedValue(mockResponse);
-
+describe('evaluateBranch', () => {
+  it('returns empty result when no scenes', async () => {
     const narrative = createMinimalNarrative();
-    const phase = createPlanningPhase();
+    const result = await reviewBranch(narrative, [], 'main');
 
-    const result = await refreshDirection(
-      narrative, [], 0, phase,
-      'Old direction', 'Old constraints',
-    );
-
-    expect(result.direction).toContain('New direction for the next arc');
-    expect(result.constraints).toBe('Do not kill the protagonist');
-    expect(result.sceneBudget).toEqual({ 'T-001': 2, 'T-002': 1 });
+    expect(result.overall).toBe('No scenes to evaluate.');
+    expect(result.sceneEvals).toEqual([]);
+    expect(result.branchId).toBe('main');
+    expect(callGenerate).not.toHaveBeenCalled();
   });
 
-  it('appends scene budget to direction', async () => {
+  it('parses valid evaluation response', async () => {
     const mockResponse = JSON.stringify({
-      direction: 'Push the story forward',
-      constraints: 'Constraints here',
-      sceneBudget: { 'T-001': 3, 'T-002+T-003': 2 },
-    });
-    vi.mocked(callGenerate).mockResolvedValue(mockResponse);
-
-    const narrative = createMinimalNarrative();
-    const phase = createPlanningPhase();
-
-    const result = await refreshDirection(
-      narrative, [], 0, phase,
-      'Old direction', 'Old constraints',
-    );
-
-    expect(result.direction).toContain('SCENE BUDGET');
-    expect(result.direction).toContain('T-001: 3 scenes');
-    expect(result.direction).toContain('T-002+T-003: 2 scenes');
-  });
-
-  it('handles singular scene in budget', async () => {
-    const mockResponse = JSON.stringify({
-      direction: 'Direction',
-      constraints: 'Constraints',
-      sceneBudget: { 'T-001': 1 },
-    });
-    vi.mocked(callGenerate).mockResolvedValue(mockResponse);
-
-    const narrative = createMinimalNarrative();
-    const phase = createPlanningPhase();
-
-    const result = await refreshDirection(
-      narrative, [], 0, phase,
-      'Old direction', 'Old constraints',
-    );
-
-    expect(result.direction).toContain('T-001: 1 scene');
-    expect(result.direction).not.toContain('1 scenes');
-  });
-
-  it('falls back to current direction/constraints on parse failure', async () => {
-    vi.mocked(callGenerate).mockResolvedValue('Invalid JSON response');
-
-    const narrative = createMinimalNarrative();
-    const phase = createPlanningPhase();
-
-    const result = await refreshDirection(
-      narrative, [], 0, phase,
-      'Fallback direction', 'Fallback constraints',
-    );
-
-    expect(result.direction).toBe('Fallback direction');
-    expect(result.constraints).toBe('Fallback constraints');
-    expect(result.sceneBudget).toBeUndefined();
-  });
-
-  it('uses source text mode when phase has sourceText', async () => {
-    const mockResponse = JSON.stringify({
-      direction: 'Source-based direction',
-      constraints: 'Source constraints',
-    });
-    vi.mocked(callGenerate).mockResolvedValue(mockResponse);
-
-    const narrative = createMinimalNarrative();
-    const phase = createPlanningPhase({
-      sourceText: 'Chapter 1: The hero begins their journey...',
-    });
-
-    await refreshDirection(
-      narrative, [], 0, phase,
-      'Old direction', 'Old constraints',
-    );
-
-    const promptArg = vi.mocked(callGenerate).mock.calls[0][0];
-    expect(promptArg).toContain('SOURCE MATERIAL');
-    expect(promptArg).toContain('Chapter 1: The hero begins their journey');
-  });
-
-  it('uses analytical mode when phase has no sourceText', async () => {
-    const mockResponse = JSON.stringify({
-      direction: 'Analytical direction',
-      constraints: 'Analytical constraints',
-    });
-    vi.mocked(callGenerate).mockResolvedValue(mockResponse);
-
-    const narrative = createMinimalNarrative();
-    const phase = createPlanningPhase({ sourceText: undefined });
-
-    await refreshDirection(
-      narrative, [], 0, phase,
-      'Old direction', 'Old constraints',
-    );
-
-    const promptArg = vi.mocked(callGenerate).mock.calls[0][0];
-    expect(promptArg).toContain('THREAD COMPRESSION AUDIT');
-    expect(promptArg).toContain('showrunner');
-  });
-
-  it('includes thread resolution speed in prompt', async () => {
-    const mockResponse = JSON.stringify({
-      direction: 'Direction',
-      constraints: 'Constraints',
-    });
-    vi.mocked(callGenerate).mockResolvedValue(mockResponse);
-
-    const narrative = createMinimalNarrative();
-    narrative.storySettings = { ...DEFAULT_STORY_SETTINGS, threadResolutionSpeed: 'fast' };
-    const phase = createPlanningPhase();
-
-    await refreshDirection(
-      narrative, [], 0, phase,
-      'Old direction', 'Old constraints',
-    );
-
-    const promptArg = vi.mocked(callGenerate).mock.calls[0][0];
-    expect(promptArg).toContain('PACING MODE: FAST');
-    expect(promptArg).toContain('thriller');
-  });
-
-  it('includes moderate pacing by default', async () => {
-    const mockResponse = JSON.stringify({
-      direction: 'Direction',
-      constraints: 'Constraints',
-    });
-    vi.mocked(callGenerate).mockResolvedValue(mockResponse);
-
-    const narrative = createMinimalNarrative();
-    const phase = createPlanningPhase();
-
-    await refreshDirection(
-      narrative, [], 0, phase,
-      'Old direction', 'Old constraints',
-    );
-
-    const promptArg = vi.mocked(callGenerate).mock.calls[0][0];
-    expect(promptArg).toContain('PACING MODE: BALANCED');
-  });
-
-  it('includes slow pacing mode', async () => {
-    const mockResponse = JSON.stringify({
-      direction: 'Direction',
-      constraints: 'Constraints',
-    });
-    vi.mocked(callGenerate).mockResolvedValue(mockResponse);
-
-    const narrative = createMinimalNarrative();
-    narrative.storySettings = { ...DEFAULT_STORY_SETTINGS, threadResolutionSpeed: 'slow' };
-    const phase = createPlanningPhase();
-
-    await refreshDirection(
-      narrative, [], 0, phase,
-      'Old direction', 'Old constraints',
-    );
-
-    const promptArg = vi.mocked(callGenerate).mock.calls[0][0];
-    expect(promptArg).toContain('PACING MODE: SLOW BURN');
-  });
-
-  it('includes phase constraints in prompt', async () => {
-    const mockResponse = JSON.stringify({
-      direction: 'Direction',
-      constraints: 'Constraints',
-    });
-    vi.mocked(callGenerate).mockResolvedValue(mockResponse);
-
-    const narrative = createMinimalNarrative();
-    const phase = createPlanningPhase({
-      constraints: 'No character deaths before the climax',
-    });
-
-    await refreshDirection(
-      narrative, [], 0, phase,
-      'Old direction', 'Old constraints',
-    );
-
-    const promptArg = vi.mocked(callGenerate).mock.calls[0][0];
-    expect(promptArg).toContain('No character deaths before the climax');
-  });
-
-  it('includes structural rules in prompt', async () => {
-    const mockResponse = JSON.stringify({
-      direction: 'Direction',
-      constraints: 'Constraints',
-    });
-    vi.mocked(callGenerate).mockResolvedValue(mockResponse);
-
-    const narrative = createMinimalNarrative();
-    const phase = createPlanningPhase({
-      structuralRules: 'Maintain protagonist gravity above 60%',
-    });
-
-    await refreshDirection(
-      narrative, [], 0, phase,
-      'Old direction', 'Old constraints',
-    );
-
-    const promptArg = vi.mocked(callGenerate).mock.calls[0][0];
-    expect(promptArg).toContain('STRUCTURAL RULES');
-    expect(promptArg).toContain('protagonist gravity above 60%');
-  });
-
-  it('calculates scenes remaining correctly', async () => {
-    const mockResponse = JSON.stringify({
-      direction: 'Direction',
-      constraints: 'Constraints',
-    });
-    vi.mocked(callGenerate).mockResolvedValue(mockResponse);
-
-    const narrative = createMinimalNarrative();
-    const phase = createPlanningPhase({
-      sceneAllocation: 20,
-      scenesCompleted: 8,
-    });
-
-    await refreshDirection(
-      narrative, [], 0, phase,
-      'Old direction', 'Old constraints',
-    );
-
-    const promptArg = vi.mocked(callGenerate).mock.calls[0][0];
-    expect(promptArg).toContain('12 scenes left'); // 20 - 8
-  });
-
-  it('includes phase progress block when source text and scenes exist', async () => {
-    const mockResponse = JSON.stringify({
-      direction: 'Direction',
-      constraints: 'Constraints',
+      overall: 'Good structure overall with some pacing issues.',
+      sceneEvals: [
+        { sceneId: 'S-001', verdict: 'ok', reason: 'Strong opening' },
+        { sceneId: 'S-002', verdict: 'edit', reason: 'Needs more tension' },
+      ],
+      repetitions: ['Location reuse', 'Similar dialogue'],
+      thematicQuestion: 'What is the cost of power?',
     });
     vi.mocked(callGenerate).mockResolvedValue(mockResponse);
 
     const narrative = createMinimalNarrative();
     narrative.scenes = {
-      'S-001': createScene('S-001', { summary: 'Hero arrives at castle' }),
-      'S-002': createScene('S-002', {
-        summary: 'First encounter',
-        threadMutations: [{ threadId: 'T-001', from: 'dormant', to: 'active' }],
-      }),
+      'S-001': createScene('S-001', { summary: 'Hero arrives' }),
+      'S-002': createScene('S-002', { summary: 'First challenge' }),
     };
-    const phase = createPlanningPhase({
-      sourceText: 'Source material here',
-      scenesCompleted: 2,
-    });
 
-    await refreshDirection(
-      narrative, ['S-001', 'S-002'], 1, phase,
-      'Old direction', 'Old constraints',
-    );
+    const result = await reviewBranch(narrative, ['S-001', 'S-002'], 'main');
+
+    expect(result.overall).toBe('Good structure overall with some pacing issues.');
+    expect(result.sceneEvals.length).toBe(2);
+    expect(result.sceneEvals[0].verdict).toBe('ok');
+    expect(result.sceneEvals[1].verdict).toBe('edit');
+    expect(result.repetitions).toContain('Location reuse');
+    expect(result.thematicQuestion).toBe('What is the cost of power?');
+  });
+
+  it('handles all verdict types', async () => {
+    const mockResponse = JSON.stringify({
+      overall: 'Mixed results',
+      sceneEvals: [
+        { sceneId: 'S-001', verdict: 'ok', reason: 'Works' },
+        { sceneId: 'S-002', verdict: 'edit', reason: 'Needs work' },
+        { sceneId: 'S-003', verdict: 'merge', reason: 'Combine', mergeInto: 'S-002' },
+        { sceneId: 'S-004', verdict: 'cut', reason: 'Remove' },
+        { sceneId: 'S-005', verdict: 'move', reason: 'Reposition', moveAfter: 'S-001' },
+        { sceneId: 'INSERT-1', verdict: 'insert', reason: 'Add scene', insertAfter: 'S-001' },
+      ],
+      repetitions: [],
+      thematicQuestion: '',
+    });
+    vi.mocked(callGenerate).mockResolvedValue(mockResponse);
+
+    const narrative = createMinimalNarrative();
+    narrative.scenes = {
+      'S-001': createScene('S-001'),
+      'S-002': createScene('S-002'),
+      'S-003': createScene('S-003'),
+      'S-004': createScene('S-004'),
+      'S-005': createScene('S-005'),
+    };
+
+    const result = await reviewBranch(narrative, ['S-001', 'S-002', 'S-003', 'S-004', 'S-005'], 'main');
+
+    expect(result.sceneEvals.find((e) => e.sceneId === 'S-001')?.verdict).toBe('ok');
+    expect(result.sceneEvals.find((e) => e.sceneId === 'S-002')?.verdict).toBe('edit');
+    expect(result.sceneEvals.find((e) => e.sceneId === 'S-003')?.verdict).toBe('merge');
+    expect(result.sceneEvals.find((e) => e.sceneId === 'S-003')?.mergeInto).toBe('S-002');
+    expect(result.sceneEvals.find((e) => e.sceneId === 'S-004')?.verdict).toBe('cut');
+    expect(result.sceneEvals.find((e) => e.sceneId === 'S-005')?.verdict).toBe('move');
+    expect(result.sceneEvals.find((e) => e.sceneId === 'S-005')?.moveAfter).toBe('S-001');
+    expect(result.sceneEvals.find((e) => e.sceneId === 'INSERT-1')?.verdict).toBe('insert');
+  });
+
+  it('converts merge to cut when target is invalid', async () => {
+    const mockResponse = JSON.stringify({
+      overall: 'Analysis',
+      sceneEvals: [
+        { sceneId: 'S-001', verdict: 'merge', reason: 'Merge', mergeInto: 'NONEXISTENT' },
+      ],
+      repetitions: [],
+      thematicQuestion: '',
+    });
+    vi.mocked(callGenerate).mockResolvedValue(mockResponse);
+
+    const narrative = createMinimalNarrative();
+    narrative.scenes = { 'S-001': createScene('S-001') };
+
+    const result = await reviewBranch(narrative, ['S-001'], 'main');
+
+    // Should convert to cut because target doesn't exist
+    expect(result.sceneEvals[0].verdict).toBe('cut');
+    expect(result.sceneEvals[0].reason).toContain('merge target invalid');
+  });
+
+  it('converts invalid verdict to ok', async () => {
+    const mockResponse = JSON.stringify({
+      overall: 'Analysis',
+      sceneEvals: [
+        { sceneId: 'S-001', verdict: 'invalid_verdict', reason: 'Test' },
+      ],
+      repetitions: [],
+      thematicQuestion: '',
+    });
+    vi.mocked(callGenerate).mockResolvedValue(mockResponse);
+
+    const narrative = createMinimalNarrative();
+    narrative.scenes = { 'S-001': createScene('S-001') };
+
+    const result = await reviewBranch(narrative, ['S-001'], 'main');
+
+    expect(result.sceneEvals[0].verdict).toBe('ok');
+  });
+
+  it('handles parse failure gracefully', async () => {
+    vi.mocked(callGenerate).mockResolvedValue('Not valid JSON at all');
+
+    const narrative = createMinimalNarrative();
+    narrative.scenes = {
+      'S-001': createScene('S-001'),
+      'S-002': createScene('S-002'),
+    };
+
+    const result = await reviewBranch(narrative, ['S-001', 'S-002'], 'main');
+
+    expect(result.overall).toContain('parse failed');
+    expect(result.sceneEvals.length).toBe(2);
+    expect(result.sceneEvals.every((e) => e.verdict === 'ok')).toBe(true);
+  });
+
+  it('uses streaming when onReasoning callback provided', async () => {
+    const mockResponse = JSON.stringify({
+      overall: 'Streamed analysis',
+      sceneEvals: [{ sceneId: 'S-001', verdict: 'ok', reason: 'Good' }],
+      repetitions: [],
+      thematicQuestion: 'Theme?',
+    });
+    vi.mocked(callGenerateStream).mockResolvedValue(mockResponse);
+
+    const narrative = createMinimalNarrative();
+    narrative.scenes = { 'S-001': createScene('S-001') };
+    const onReasoning = vi.fn();
+
+    const result = await reviewBranch(narrative, ['S-001'], 'main', undefined, onReasoning);
+
+    expect(callGenerateStream).toHaveBeenCalled();
+    expect(callGenerate).not.toHaveBeenCalled();
+    expect(result.overall).toBe('Streamed analysis');
+  });
+
+  it('includes guidance in prompt when provided', async () => {
+    const mockResponse = JSON.stringify({
+      overall: 'Guided analysis',
+      sceneEvals: [],
+      repetitions: [],
+      thematicQuestion: '',
+    });
+    vi.mocked(callGenerate).mockResolvedValue(mockResponse);
+
+    const narrative = createMinimalNarrative();
+    narrative.scenes = { 'S-001': createScene('S-001') };
+
+    await reviewBranch(narrative, ['S-001'], 'main', 'Focus on pacing issues');
 
     const promptArg = vi.mocked(callGenerate).mock.calls[0][0];
-    expect(promptArg).toContain('PHASE PROGRESS');
-    expect(promptArg).toContain('Hero arrives at castle');
-    expect(promptArg).toContain('CURRENT POSITION');
+    expect(promptArg).toContain('Focus on pacing issues');
+    expect(promptArg).toContain('PRIORITY GUIDANCE');
   });
 
-  it('skips phase progress block when no scenes completed', async () => {
+  it('filters out evals for non-existent scenes', async () => {
     const mockResponse = JSON.stringify({
-      direction: 'Direction',
-      constraints: 'Constraints',
+      overall: 'Analysis',
+      sceneEvals: [
+        { sceneId: 'S-001', verdict: 'ok', reason: 'Good' },
+        { sceneId: 'S-NONEXISTENT', verdict: 'ok', reason: 'Bad' },
+      ],
+      repetitions: [],
+      thematicQuestion: '',
     });
     vi.mocked(callGenerate).mockResolvedValue(mockResponse);
 
     const narrative = createMinimalNarrative();
-    const phase = createPlanningPhase({
-      sourceText: 'Source material here',
-      scenesCompleted: 0,
-    });
+    narrative.scenes = { 'S-001': createScene('S-001') };
 
-    await refreshDirection(
-      narrative, [], 0, phase,
-      'Old direction', 'Old constraints',
-    );
+    const result = await reviewBranch(narrative, ['S-001'], 'main');
 
-    const promptArg = vi.mocked(callGenerate).mock.calls[0][0];
-    // Should not have the actual phase progress block (which starts with "PHASE PROGRESS — N of M scenes")
-    expect(promptArg).not.toContain('PHASE PROGRESS — 0 of');
-    expect(promptArg).not.toContain('ALREADY BEEN WRITTEN');
+    expect(result.sceneEvals.length).toBe(1);
+    expect(result.sceneEvals[0].sceneId).toBe('S-001');
   });
 
-  it('handles empty scene budget', async () => {
-    const mockResponse = JSON.stringify({
-      direction: 'Direction without budget',
-      constraints: 'Constraints',
-      sceneBudget: {},
-    });
-    vi.mocked(callGenerate).mockResolvedValue(mockResponse);
-
-    const narrative = createMinimalNarrative();
-    const phase = createPlanningPhase();
-
-    const result = await refreshDirection(
-      narrative, [], 0, phase,
-      'Old direction', 'Old constraints',
-    );
-
-    expect(result.direction).toBe('Direction without budget');
-    expect(result.direction).not.toContain('SCENE BUDGET');
-  });
-
-  it('handles missing scene budget', async () => {
-    const mockResponse = JSON.stringify({
-      direction: 'Direction',
-      constraints: 'Constraints',
-    });
-    vi.mocked(callGenerate).mockResolvedValue(mockResponse);
-
-    const narrative = createMinimalNarrative();
-    const phase = createPlanningPhase();
-
-    const result = await refreshDirection(
-      narrative, [], 0, phase,
-      'Old direction', 'Old constraints',
-    );
-
-    expect(result.direction).toBe('Direction');
-    expect(result.sceneBudget).toBeUndefined();
-  });
-
-  it('coerces direction to string', async () => {
-    const mockResponse = JSON.stringify({
-      direction: ['Array', 'of', 'strings'],
-      constraints: 'Constraints',
-    });
-    vi.mocked(callGenerate).mockResolvedValue(mockResponse);
-
-    const narrative = createMinimalNarrative();
-    const phase = createPlanningPhase();
-
-    const result = await refreshDirection(
-      narrative, [], 0, phase,
-      'Old direction', 'Old constraints',
-    );
-
-    // String() on an array gives comma-separated values
-    expect(typeof result.direction).toBe('string');
-  });
-
-  it('preserves current direction when parsed direction is falsy', async () => {
-    const mockResponse = JSON.stringify({
-      direction: '',
-      constraints: 'New constraints',
-    });
-    vi.mocked(callGenerate).mockResolvedValue(mockResponse);
-
-    const narrative = createMinimalNarrative();
-    const phase = createPlanningPhase();
-
-    const result = await refreshDirection(
-      narrative, [], 0, phase,
-      'Keep this direction', 'Old constraints',
-    );
-
-    expect(result.direction).toBe('Keep this direction');
-    expect(result.constraints).toBe('New constraints');
-  });
-
-  it('preserves current constraints when parsed constraints is falsy', async () => {
-    const mockResponse = JSON.stringify({
-      direction: 'New direction',
-      constraints: '',
-    });
-    vi.mocked(callGenerate).mockResolvedValue(mockResponse);
-
-    const narrative = createMinimalNarrative();
-    const phase = createPlanningPhase();
-
-    const result = await refreshDirection(
-      narrative, [], 0, phase,
-      'Old direction', 'Keep these constraints',
-    );
-
-    expect(result.direction).toContain('New direction');
-    expect(result.constraints).toBe('Keep these constraints');
-  });
-
-  it('calls callGenerate with correct caller tag', async () => {
+  it('generates unique evaluation ID', async () => {
     vi.mocked(callGenerate).mockResolvedValue(JSON.stringify({
-      direction: 'Dir',
-      constraints: 'Con',
+      overall: 'Test',
+      sceneEvals: [],
+      repetitions: [],
+      thematicQuestion: '',
     }));
 
     const narrative = createMinimalNarrative();
-    const phase = createPlanningPhase();
+    narrative.scenes = { 'S-001': createScene('S-001') };
 
-    await refreshDirection(
-      narrative, [], 0, phase,
-      'Old direction', 'Old constraints',
-    );
+    const result1 = await reviewBranch(narrative, ['S-001'], 'main');
+    const result2 = await reviewBranch(narrative, ['S-001'], 'main');
 
-    // Check the 4th argument (index 3) which is the caller tag
-    // callGenerate(prompt, SYSTEM_PROMPT, maxTokens, 'refreshDirection', model, reasoningBudget)
-    expect(vi.mocked(callGenerate).mock.calls[0][3]).toBe('refreshDirection');
+    expect(result1.id).toMatch(/^EVAL-/);
+    expect(result2.id).toMatch(/^EVAL-/);
+  });
+});
+
+// ── evaluateProseQuality Tests ───────────────────────────────────────────────
+
+describe('evaluateProseQuality', () => {
+  it('returns empty result when no scenes have prose', async () => {
+    const narrative = createMinimalNarrative();
+    narrative.scenes = { 'S-001': createScene('S-001', { prose: undefined }) };
+
+    const result = await reviewProseQuality(narrative, ['S-001'], 'main');
+
+    expect(result.overall).toBe('No scenes with prose to evaluate.');
+    expect(result.sceneEvals).toEqual([]);
+    expect(callGenerate).not.toHaveBeenCalled();
+  });
+
+  it('parses valid prose evaluation response', async () => {
+    const mockResponse = JSON.stringify({
+      overall: 'Strong prose with some repetition.',
+      sceneEvals: [
+        { sceneId: 'S-001', verdict: 'ok', issues: [] },
+        { sceneId: 'S-002', verdict: 'edit', issues: ['Dialogue too formal', 'Missing sensory detail'] },
+      ],
+      patterns: ['Overuse of adverbs'],
+    });
+    vi.mocked(callGenerate).mockResolvedValue(mockResponse);
+
+    const narrative = createMinimalNarrative();
+    narrative.scenes = {
+      'S-001': createScene('S-001', { prose: 'The hero walked into the room.' }),
+      'S-002': createScene('S-002', { prose: 'She said formally, "Good day."' }),
+    };
+
+    const result = await reviewProseQuality(narrative, ['S-001', 'S-002'], 'main');
+
+    expect(result.overall).toBe('Strong prose with some repetition.');
+    expect(result.sceneEvals.length).toBe(2);
+    expect(result.sceneEvals[0].verdict).toBe('ok');
+    expect(result.sceneEvals[1].verdict).toBe('edit');
+    expect(result.sceneEvals[1].issues).toContain('Dialogue too formal');
+    expect(result.patterns).toContain('Overuse of adverbs');
+  });
+
+  it('handles parse failure gracefully', async () => {
+    vi.mocked(callGenerate).mockResolvedValue('Invalid JSON');
+
+    const narrative = createMinimalNarrative();
+    narrative.scenes = {
+      'S-001': createScene('S-001', { prose: 'Some prose text.' }),
+    };
+
+    const result = await reviewProseQuality(narrative, ['S-001'], 'main');
+
+    expect(result.overall).toContain('parse failed');
+    expect(result.sceneEvals.length).toBe(1);
+    expect(result.sceneEvals[0].verdict).toBe('ok');
+    expect(result.sceneEvals[0].issues).toContain('Parse failed — defaulted');
+  });
+
+  it('includes prose profile in prompt when available', async () => {
+    vi.mocked(callGenerate).mockResolvedValue(JSON.stringify({
+      overall: 'Analysis',
+      sceneEvals: [],
+      patterns: [],
+    }));
+
+    const narrative = createMinimalNarrative();
+    narrative.scenes = {
+      'S-001': createScene('S-001', { prose: 'Text' }),
+    };
+    narrative.proseProfile = {
+      register: 'literary',
+      stance: 'close third',
+      tense: 'past',
+      sentenceRhythm: 'varied',
+      interiority: 'deep',
+      dialogueWeight: 'moderate',
+      devices: ['metaphor', 'symbolism'],
+      rules: ['Show, don\'t tell'],
+      antiPatterns: ['No adverbs in dialogue tags'],
+    };
+
+    await reviewProseQuality(narrative, ['S-001'], 'main');
+
+    const promptArg = vi.mocked(callGenerate).mock.calls[0][0];
+    expect(promptArg).toContain('PROSE PROFILE');
+    expect(promptArg).toContain('literary');
+    expect(promptArg).toContain('close third');
+    expect(promptArg).toContain('metaphor');
+    expect(promptArg).toContain('No adverbs in dialogue tags');
+  });
+
+  it('uses streaming when onReasoning provided', async () => {
+    vi.mocked(callGenerateStream).mockResolvedValue(JSON.stringify({
+      overall: 'Streamed',
+      sceneEvals: [],
+      patterns: [],
+    }));
+
+    const narrative = createMinimalNarrative();
+    narrative.scenes = {
+      'S-001': createScene('S-001', { prose: 'Text' }),
+    };
+    const onReasoning = vi.fn();
+
+    await reviewProseQuality(narrative, ['S-001'], 'main', undefined, onReasoning);
+
+    expect(callGenerateStream).toHaveBeenCalled();
+  });
+
+  it('filters issues to strings only', async () => {
+    const mockResponse = JSON.stringify({
+      overall: 'Analysis',
+      sceneEvals: [
+        { sceneId: 'S-001', verdict: 'edit', issues: ['Valid issue', 123, null, { obj: true }] },
+      ],
+      patterns: [],
+    });
+    vi.mocked(callGenerate).mockResolvedValue(mockResponse);
+
+    const narrative = createMinimalNarrative();
+    narrative.scenes = {
+      'S-001': createScene('S-001', { prose: 'Text' }),
+    };
+
+    const result = await reviewProseQuality(narrative, ['S-001'], 'main');
+
+    expect(result.sceneEvals[0].issues).toEqual(['Valid issue']);
+  });
+
+  it('generates unique prose evaluation ID', async () => {
+    vi.mocked(callGenerate).mockResolvedValue(JSON.stringify({
+      overall: 'Test',
+      sceneEvals: [],
+      patterns: [],
+    }));
+
+    const narrative = createMinimalNarrative();
+    narrative.scenes = { 'S-001': createScene('S-001', { prose: 'Text' }) };
+
+    const result = await reviewProseQuality(narrative, ['S-001'], 'main');
+
+    expect(result.id).toMatch(/^PEVAL-/);
+  });
+});
+
+// ── evaluatePlanQuality Tests ────────────────────────────────────────────────
+
+describe('evaluatePlanQuality', () => {
+  it('returns empty result when no scenes have plans', async () => {
+    const narrative = createMinimalNarrative();
+    narrative.scenes = { 'S-001': createScene('S-001', { plan: undefined }) };
+
+    const result = await reviewPlanQuality(narrative, ['S-001'], 'main');
+
+    expect(result.overall).toBe('No scenes with beat plans to evaluate.');
+    expect(result.sceneEvals).toEqual([]);
+    expect(callGenerate).not.toHaveBeenCalled();
+  });
+
+  it('parses valid plan evaluation response', async () => {
+    const mockResponse = JSON.stringify({
+      overall: 'Plans are well-structured with some continuity issues.',
+      sceneEvals: [
+        { sceneId: 'S-001', verdict: 'ok', issues: [] },
+        { sceneId: 'S-002', verdict: 'edit', issues: ['Beat 3: Character knowledge leak'] },
+      ],
+      patterns: ['Rushed transitions between beats'],
+    });
+    vi.mocked(callGenerate).mockResolvedValue(mockResponse);
+
+    const narrative = createMinimalNarrative();
+    narrative.scenes = {
+      'S-001': createScene('S-001', {
+        plan: {
+          propositions: [],
+          beats: [
+            { fn: 'breathe', mechanism: 'environment', what: 'Intro scene', propositions: [{ content: 'The door opens' }] },
+          ],
+        },
+      }),
+      'S-002': createScene('S-002', {
+        plan: {
+          propositions: [],
+          beats: [
+            { fn: 'advance', mechanism: 'action', what: 'Discovery', propositions: [{ content: 'She finds the letter' }] },
+          ],
+        },
+      }),
+    };
+
+    const result = await reviewPlanQuality(narrative, ['S-001', 'S-002'], 'main');
+
+    expect(result.overall).toBe('Plans are well-structured with some continuity issues.');
+    expect(result.sceneEvals.length).toBe(2);
+    expect(result.sceneEvals[0].verdict).toBe('ok');
+    expect(result.sceneEvals[1].verdict).toBe('edit');
+    expect(result.sceneEvals[1].issues).toContain('Beat 3: Character knowledge leak');
+    expect(result.patterns).toContain('Rushed transitions between beats');
+  });
+
+  it('handles parse failure gracefully', async () => {
+    vi.mocked(callGenerate).mockResolvedValue('Not JSON');
+
+    const narrative = createMinimalNarrative();
+    narrative.scenes = {
+      'S-001': createScene('S-001', {
+        plan: { propositions: [], beats: [{ fn: 'breathe', mechanism: 'environment', what: 'Test', propositions: [{ content: 'Anchor' }] }] },
+      }),
+    };
+
+    const result = await reviewPlanQuality(narrative, ['S-001'], 'main');
+
+    expect(result.overall).toContain('parse failed');
+    expect(result.sceneEvals.length).toBe(1);
+    expect(result.sceneEvals[0].verdict).toBe('ok');
+  });
+
+  it('includes character knowledge in prompt', async () => {
+    vi.mocked(callGenerate).mockResolvedValue(JSON.stringify({
+      overall: 'Analysis',
+      sceneEvals: [],
+      patterns: [],
+    }));
+
+    const narrative = createMinimalNarrative();
+    narrative.characters['char-1'] = createCharacter('char-1', {
+      name: 'Alice',
+      continuity: {
+        nodes: [
+          { id: 'node-1', content: 'Knows the secret', type: 'knows' },
+          { id: 'node-2', content: 'Has the key', type: 'has' },
+        ],
+      },
+    });
+    narrative.scenes = {
+      'S-001': createScene('S-001', {
+        plan: { propositions: [], beats: [{ fn: 'breathe', mechanism: 'environment', what: 'Test', propositions: [{ content: 'A' }] }] },
+      }),
+    };
+
+    await reviewPlanQuality(narrative, ['S-001'], 'main');
+
+    const promptArg = vi.mocked(callGenerate).mock.calls[0][0];
+    expect(promptArg).toContain('CHARACTER KNOWLEDGE');
+    expect(promptArg).toContain('Alice');
+    expect(promptArg).toContain('Knows the secret');
+  });
+
+  it('uses streaming when onReasoning provided', async () => {
+    vi.mocked(callGenerateStream).mockResolvedValue(JSON.stringify({
+      overall: 'Streamed',
+      sceneEvals: [],
+      patterns: [],
+    }));
+
+    const narrative = createMinimalNarrative();
+    narrative.scenes = {
+      'S-001': createScene('S-001', {
+        plan: { propositions: [], beats: [{ fn: 'breathe', mechanism: 'environment', what: 'Test', propositions: [{ content: 'A' }] }] },
+      }),
+    };
+    const onReasoning = vi.fn();
+
+    await reviewPlanQuality(narrative, ['S-001'], 'main', undefined, onReasoning);
+
+    expect(callGenerateStream).toHaveBeenCalled();
+  });
+
+  it('generates unique plan evaluation ID', async () => {
+    vi.mocked(callGenerate).mockResolvedValue(JSON.stringify({
+      overall: 'Test',
+      sceneEvals: [],
+      patterns: [],
+    }));
+
+    const narrative = createMinimalNarrative();
+    narrative.scenes = {
+      'S-001': createScene('S-001', {
+        plan: { propositions: [], beats: [{ fn: 'breathe', mechanism: 'environment', what: 'Test', propositions: [{ content: 'A' }] }] },
+      }),
+    };
+
+    const result = await reviewPlanQuality(narrative, ['S-001'], 'main');
+
+    expect(result.id).toMatch(/^PLEVAL-/);
+  });
+
+  it('skips scenes without beats', async () => {
+    vi.mocked(callGenerate).mockResolvedValue(JSON.stringify({
+      overall: 'Analysis',
+      sceneEvals: [{ sceneId: 'S-002', verdict: 'ok', issues: [] }],
+      patterns: [],
+    }));
+
+    const narrative = createMinimalNarrative();
+    narrative.scenes = {
+      'S-001': createScene('S-001', { plan: { propositions: [], beats: [] } }), // Empty beats
+      'S-002': createScene('S-002', {
+        plan: { propositions: [], beats: [{ fn: 'breathe', mechanism: 'environment', what: 'Test', propositions: [{ content: 'A' }] }] },
+      }),
+    };
+
+    const result = await reviewPlanQuality(narrative, ['S-001', 'S-002'], 'main');
+
+    expect(result.sceneEvals.length).toBe(1);
+    expect(result.sceneEvals[0].sceneId).toBe('S-002');
+  });
+
+  it('includes guidance in prompt when provided', async () => {
+    vi.mocked(callGenerate).mockResolvedValue(JSON.stringify({
+      overall: 'Guided analysis',
+      sceneEvals: [],
+      patterns: [],
+    }));
+
+    const narrative = createMinimalNarrative();
+    narrative.scenes = {
+      'S-001': createScene('S-001', {
+        plan: { propositions: [], beats: [{ fn: 'breathe', mechanism: 'environment', what: 'Test', propositions: [{ content: 'A' }] }] },
+      }),
+    };
+
+    await reviewPlanQuality(narrative, ['S-001'], 'main', 'Check beat consistency');
+
+    const promptArg = vi.mocked(callGenerate).mock.calls[0][0];
+    expect(promptArg).toContain('Check beat consistency');
+    expect(promptArg).toContain('PRIORITY GUIDANCE');
   });
 });

@@ -4,6 +4,8 @@
  * Used by persistence.ts for all app storage.
  */
 
+import { logError } from '@/lib/system-logger';
+
 const DB_NAME = 'narrative-engine';
 const DB_VERSION = 4;
 const NARRATIVES_STORE = 'narratives';
@@ -37,7 +39,11 @@ export function openDB(): Promise<IDBDatabase> {
     };
     req.onsuccess = () => resolve(req.result);
     req.onerror = () => {
-      console.error('[idb] Failed to open IndexedDB:', req.error);
+      logError('Failed to open IndexedDB', req.error, {
+        source: 'other',
+        operation: 'open-indexeddb',
+        details: { dbName: DB_NAME, dbVersion: DB_VERSION }
+      });
       dbPromise = null;
       reject(req.error);
     };

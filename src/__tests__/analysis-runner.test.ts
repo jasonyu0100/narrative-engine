@@ -20,12 +20,13 @@ vi.mock('@/lib/constants', () => ({
   ANALYSIS_PLAN_BACKOFF_ENABLED: false, // Disable backoff in tests for speed
 }));
 
-vi.mock('@/lib/error-logger', () => ({
+vi.mock('@/lib/system-logger', () => ({
   logError: vi.fn(),
   logWarning: vi.fn(),
-  setErrorLoggerNarrativeId: vi.fn(),
-  setErrorLoggerAnalysisId: vi.fn(),
-  onErrorLog: vi.fn(),
+  logInfo: vi.fn(),
+  setSystemLoggerNarrativeId: vi.fn(),
+  setSystemLoggerAnalysisId: vi.fn(),
+  onSystemLog: vi.fn(),
 }));
 
 vi.mock('@/lib/api-logger', () => ({

@@ -427,6 +427,7 @@ const NAV = [
   { id: "mcts", label: "MCTS" },
   { id: "planning", label: "Planning" },
   { id: "revision", label: "Revision" },
+  { id: "version-control", label: "Version Control" },
   { id: "classification", label: "Classification" },
   { id: "economics", label: "Economics" },
   { id: "open-source", label: "Open Source" },
@@ -897,9 +898,9 @@ export default function PaperPage() {
                         <line
                           key={`na-${i}`}
                           x1={narrative.cx}
-                          y1={narrative.y + 17}
+                          y1={narrative.y + 34}
                           x2={arc.cx}
-                          y2={arc.y - 13}
+                          y2={arc.y}
                           stroke="#a855f7"
                           strokeWidth="1.5"
                           strokeOpacity="0.25"
@@ -915,9 +916,9 @@ export default function PaperPage() {
                         <line
                           key={`as-${i}`}
                           x1={arcs[arcIdx].cx}
-                          y1={arcs[arcIdx].y + 13}
+                          y1={arcs[arcIdx].y + 26}
                           x2={scenes[sceneIdx].cx}
-                          y2={scenes[sceneIdx].y - 12}
+                          y2={scenes[sceneIdx].y}
                           stroke="#3b82f6"
                           strokeWidth="1.5"
                           strokeOpacity="0.25"
@@ -935,9 +936,9 @@ export default function PaperPage() {
                         <line
                           key={`sb-${i}`}
                           x1={scenes[sceneIdx].cx}
-                          y1={scenes[sceneIdx].y + 12}
+                          y1={scenes[sceneIdx].y + 24}
                           x2={beats[beatIdx].cx}
-                          y2={beats[beatIdx].y - 10}
+                          y2={beats[beatIdx].y}
                           stroke="#22d3ee"
                           strokeWidth="1.5"
                           strokeOpacity="0.25"
@@ -956,9 +957,9 @@ export default function PaperPage() {
                         <line
                           key={`bp-${i}`}
                           x1={beats[beatIdx].cx}
-                          y1={beats[beatIdx].y + 10}
+                          y1={beats[beatIdx].y + 20}
                           x2={props[propIdx].cx}
-                          y2={props[propIdx].y - 8}
+                          y2={props[propIdx].y}
                           stroke="#22c55e"
                           strokeWidth="1.5"
                           strokeOpacity="0.2"
@@ -2544,6 +2545,25 @@ export default function PaperPage() {
               rollback. The loop converges: each pass reduces non-ok scenes
               until the evaluator returns all-ok. A 50-scene branch typically
               stabilises in 2&ndash;3 passes.
+            </P>
+          </Section>
+
+          {/* ── Version Control ──────────────────────────────────────── */}
+          <Section id="version-control" label="Version Control">
+            <P>
+              InkTide implements two distinct versioning systems that serve different purposes.
+            </P>
+            <P>
+              <B>Branch reconstruction versioning</B> — The revision pipeline creates new branch versions (main-v2, main-v3, main-v4) through the review → reconstruct cycle. Each reconstruction pass evaluates the entire branch, applies structural edits across multiple scenes, and produces a new versioned branch. These branch versions represent complete narrative revisions where the system has reevaluated story structure, pacing, and continuity across the full timeline. Reconstruction is destructive iteration — you get a new branch with changes applied, not a document you can incrementally edit.
+            </P>
+            <P>
+              <B>Prose & plan content versioning</B> — Separate from branch reconstruction, individual scenes track prose and plan versions with semantic numbering v1.2.3. Generate (major: 1, 2, 3) represents fresh generation from plan or scratch. Rewrite (minor: 1.1, 1.2, 2.1) captures LLM-guided revision with critique. Edit (patch: 1.1.1, 1.1.2) tracks manual or incremental tweaks. This is document-style version history. You can edit the original text while keeping all previous versions safe. Resolution functions (resolveProseForBranch, resolvePlanForBranch) determine which version each branch sees based on lineage, fork timestamps, and optional branch-specific version pointers.
+            </P>
+            <P>
+              <B>Structural branching</B> — Beneath both versioning systems, scenes themselves are structurally immutable (POV, location, participants, mutations fixed). Branches fork from parent branches and inherit their timeline via entryIds arrays. Shared scenes are referenced, not copied. Only structurally different scenes (new generations, structural edits) create new scene objects. Descendants dynamically resolve their view through parent lineage at read time, enabling git-like cloning with minimal storage overhead.
+            </P>
+            <P>
+              The three-layer design creates distinct separation: branch reconstruction produces new structural revisions through multi-scene evaluation, prose/plan versioning enables incremental refinement with full history, and structural branching provides efficient storage through scene references. A narrative with 200 scenes and 10 branches stores far fewer than 2000 scene objects — most scenes are structurally shared, with only prose/plan differences tracked via versions.
             </P>
           </Section>
 

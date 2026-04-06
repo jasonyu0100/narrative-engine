@@ -6,6 +6,8 @@ import { resolveEntry, isScene, type Scene } from '@/types/narrative';
 import { saveAudioBlob } from '@/lib/audio-store';
 import { apiHeaders } from '@/lib/api-headers';
 import { AUDIO_CONCURRENCY } from '@/lib/constants';
+import { resolveProseForBranch } from '@/lib/narrative-utils';
+import { logError } from '@/lib/system-logger';
 
 type AudioProgress = {
   completed: number;
@@ -42,11 +44,12 @@ export function useBulkAudioGenerate() {
 
   // Run bulk audio generation with sliding window concurrency
   const runBulk = useCallback(async (sceneIds: string[]) => {
-    const { activeNarrative } = stateRef.current;
-    if (!activeNarrative || sceneIds.length === 0) return;
+    const { activeNarrative, activeBranchId } = stateRef.current;
+    if (!activeNarrative || !activeBranchId || sceneIds.length === 0) return;
 
     const voice = activeNarrative.storySettings?.audioVoice || 'onyx';
     const model = activeNarrative.storySettings?.audioModel || 'tts-1';
+    const branches = activeNarrative.branches;
 
     const total = sceneIds.length;
     let completed = 0;
@@ -62,8 +65,11 @@ export function useBulkAudioGenerate() {
       const scene = activeNarrative.scenes[sceneId];
       if (!scene) return;
 
+      // Resolve prose for current branch
+      const { prose } = resolveProseForBranch(scene, activeBranchId, branches);
+
       // Skip if no prose or already has audio
-      if (!scene.prose) return;
+      if (!prose) return;
       if (scene.audioUrl) return;
 
       updateRunState({
@@ -75,7 +81,7 @@ export function useBulkAudioGenerate() {
         const res = await fetch('/api/generate-audio', {
           method: 'POST',
           headers: apiHeaders(),
-          body: JSON.stringify({ voice, model, text: scene.prose }),
+          body: JSON.stringify({ voice, model, text: prose }),
         });
 
         if (!res.ok) {
@@ -87,7 +93,11 @@ export function useBulkAudioGenerate() {
         const marker = await saveAudioBlob(sceneId, blob);
         dispatch({ type: 'SET_SCENE_AUDIO', sceneId, audioUrl: marker });
       } catch (err) {
-        console.error(`[bulk-audio] Failed to generate audio for scene ${sceneId}:`, err);
+        logError('Failed to generate audio for scene', err, {
+          source: 'other',
+          operation: 'bulk-audio-generate',
+          details: { sceneId, sceneNumber: completed + 1, totalScenes: total }
+        });
       }
 
       // Update progress after each scene completes
@@ -126,8 +136,10 @@ export function useBulkAudioGenerate() {
   }, [dispatch, updateRunState]);
 
   const start = useCallback(() => {
-    const { activeNarrative, resolvedEntryKeys } = stateRef.current;
-    if (!activeNarrative) return;
+    const { activeNarrative, resolvedEntryKeys, activeBranchId } = stateRef.current;
+    if (!activeNarrative || !activeBranchId) return;
+
+    const branches = activeNarrative.branches;
 
     // Find all scenes that need audio generation
     const scenesToProcess: string[] = [];
@@ -136,8 +148,9 @@ export function useBulkAudioGenerate() {
       if (!entry || !isScene(entry)) continue;
       const scene = entry as Scene;
 
-      // Has prose but no audio
-      if (scene.prose && !scene.audioUrl) {
+      // Has resolved prose but no audio
+      const { prose } = resolveProseForBranch(scene, activeBranchId, branches);
+      if (prose && !scene.audioUrl) {
         scenesToProcess.push(scene.id);
       }
     }
@@ -181,9 +194,10 @@ export function useBulkAudioGenerate() {
 
   // Count how many scenes need audio
   const count = useCallback(() => {
-    const { activeNarrative, resolvedEntryKeys } = stateRef.current;
-    if (!activeNarrative) return 0;
+    const { activeNarrative, resolvedEntryKeys, activeBranchId } = stateRef.current;
+    if (!activeNarrative || !activeBranchId) return 0;
 
+    const branches = activeNarrative.branches;
     let needsAudio = 0;
 
     for (const key of resolvedEntryKeys) {
@@ -191,7 +205,8 @@ export function useBulkAudioGenerate() {
       if (!entry || !isScene(entry)) continue;
       const scene = entry as Scene;
 
-      if (scene.prose && !scene.audioUrl) needsAudio++;
+      const { prose } = resolveProseForBranch(scene, activeBranchId, branches);
+      if (prose && !scene.audioUrl) needsAudio++;
     }
 
     return needsAudio;

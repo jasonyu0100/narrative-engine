@@ -1,9 +1,8 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { exportEpub } from '@/lib/epub-export';
-import type { NarrativeState, Scene, Arc } from '@/types/narrative';
+import type { NarrativeState, Arc } from '@/types/narrative';
 
-// Capture the ZIP blob when exportEpub is called
-let capturedBlob: Blob | null = null;
+// Capture the filename when exportEpub is called
 let capturedFilename: string | null = null;
 
 // Mock browser APIs
@@ -14,15 +13,11 @@ const mockRemoveChild = vi.fn();
 const mockClick = vi.fn();
 
 beforeEach(() => {
-  capturedBlob = null;
   capturedFilename = null;
 
   // Mock URL
   vi.stubGlobal('URL', {
-    createObjectURL: (blob: Blob) => {
-      capturedBlob = blob;
-      return mockCreateObjectURL(blob);
-    },
+    createObjectURL: mockCreateObjectURL,
     revokeObjectURL: mockRevokeObjectURL,
   });
 
@@ -115,7 +110,13 @@ function createMinimalNarrative(): NarrativeState {
         continuityMutations: [],
         relationshipMutations: [],
         summary: 'First scene',
-        prose: 'The sun rose over the village. Hero stepped outside.',
+        proseVersions: [{
+          version: '1.0.0',
+          branchId: 'BR-01',
+          prose: 'The sun rose over the village. Hero stepped outside.',
+          timestamp: Date.now(),
+          versionType: 'generate',
+        }],
       },
       'S-02': {
         kind: 'scene',
@@ -129,7 +130,13 @@ function createMinimalNarrative(): NarrativeState {
         continuityMutations: [],
         relationshipMutations: [],
         summary: 'Second scene',
-        prose: 'The adventure begins. Hero walked into the forest.',
+        proseVersions: [{
+          version: '1.0.0',
+          branchId: 'BR-01',
+          prose: 'The adventure begins. Hero walked into the forest.',
+          timestamp: Date.now(),
+          versionType: 'generate',
+        }],
       },
     },
     branches: {
@@ -158,7 +165,7 @@ describe('exportEpub', () => {
     const narrative = createMinimalNarrative();
     const proseCache: Record<string, { text: string; status: string }> = {};
 
-    exportEpub(narrative, ['S-01', 'S-02'], proseCache);
+    exportEpub(narrative, ['S-01', 'S-02'], 'BR-01', proseCache);
 
     expect(mockAppendChild).toHaveBeenCalled();
     expect(mockClick).toHaveBeenCalled();
@@ -174,18 +181,18 @@ describe('exportEpub', () => {
       'S-02': { text: 'Cached prose for scene two.', status: 'ready' },
     };
 
-    exportEpub(narrative, ['S-01', 'S-02'], proseCache);
+    exportEpub(narrative, ['S-01', 'S-02'], 'BR-01', proseCache);
 
     expect(mockClick).toHaveBeenCalled();
   });
 
   it('skips scenes without prose', () => {
     const narrative = createMinimalNarrative();
-    narrative.scenes['S-01'].prose = undefined;
-    narrative.scenes['S-02'].prose = undefined;
+    narrative.scenes['S-01'].proseVersions = [];
+    narrative.scenes['S-02'].proseVersions = [];
     const proseCache: Record<string, { text: string; status: string }> = {};
 
-    exportEpub(narrative, ['S-01', 'S-02'], proseCache);
+    exportEpub(narrative, ['S-01', 'S-02'], 'BR-01', proseCache);
 
     // Should not create download since no prose
     expect(mockClick).not.toHaveBeenCalled();
@@ -196,7 +203,7 @@ describe('exportEpub', () => {
     narrative.title = 'My Story: A Tale of <Adventure> & "Danger"';
     const proseCache: Record<string, { text: string; status: string }> = {};
 
-    exportEpub(narrative, ['S-01', 'S-02'], proseCache);
+    exportEpub(narrative, ['S-01', 'S-02'], 'BR-01', proseCache);
 
     // Non-alphanumeric chars become underscores, consecutive underscores collapsed, leading/trailing trimmed
     expect(capturedFilename).toBe('my_story_a_tale_of_adventure_danger.epub');
@@ -225,11 +232,17 @@ describe('exportEpub', () => {
       continuityMutations: [],
       relationshipMutations: [],
       summary: 'Third scene',
-      prose: 'Chapter two begins.',
+      proseVersions: [{
+        version: '1.0.0',
+        branchId: 'BR-01',
+        prose: 'Chapter two begins.',
+        timestamp: Date.now(),
+        type: 'generate',
+      }],
     };
     const proseCache: Record<string, { text: string; status: string }> = {};
 
-    exportEpub(narrative, ['S-01', 'S-02', 'S-03'], proseCache);
+    exportEpub(narrative, ['S-01', 'S-02', 'S-03'], 'BR-01', proseCache);
 
     expect(mockClick).toHaveBeenCalled();
   });
@@ -237,25 +250,39 @@ describe('exportEpub', () => {
   it('escapes special XML characters in content', () => {
     const narrative = createMinimalNarrative();
     narrative.title = 'Test & Story';
-    narrative.scenes['S-01'].prose = 'He said "Hello" & waved. The <tag> was visible.';
+    narrative.scenes['S-01'].proseVersions = [{
+      version: '1.0.0',
+      branchId: 'BR-01',
+      prose: 'He said "Hello" & waved. The <tag> was visible.',
+      timestamp: Date.now(),
+      type: 'generate',
+    }];
     const proseCache: Record<string, { text: string; status: string }> = {};
 
-    exportEpub(narrative, ['S-01', 'S-02'], proseCache);
+    exportEpub(narrative, ['S-01', 'S-02'], 'BR-01', proseCache);
 
     expect(mockClick).toHaveBeenCalled();
   });
 
   it('handles scenes from prose cache with pending status', () => {
     const narrative = createMinimalNarrative();
-    narrative.scenes['S-01'].prose = undefined;
-    narrative.scenes['S-02'].prose = 'Fallback prose.';
+    // S-01 has no versioned prose
+    narrative.scenes['S-01'].proseVersions = [];
+    // S-02 has fallback prose
+    narrative.scenes['S-02'].proseVersions = [{
+      version: '1.0.0',
+      branchId: 'BR-01',
+      prose: 'Fallback prose.',
+      timestamp: Date.now(),
+      type: 'generate',
+    }];
     const proseCache: Record<string, { text: string; status: string }> = {
       'S-01': { text: 'This should not be used', status: 'pending' },
     };
 
-    exportEpub(narrative, ['S-01', 'S-02'], proseCache);
+    exportEpub(narrative, ['S-01', 'S-02'], 'BR-01', proseCache);
 
-    // S-01 has pending status, so it uses scene.prose (undefined) and is skipped
+    // S-01 has pending status, so it uses versioned prose (none) and is skipped
     // S-02 has fallback prose and should work
     expect(mockClick).toHaveBeenCalled();
   });
@@ -264,7 +291,7 @@ describe('exportEpub', () => {
     const narrative = createMinimalNarrative();
     const proseCache: Record<string, { text: string; status: string }> = {};
 
-    exportEpub(narrative, ['S-01', 'S-02'], proseCache);
+    exportEpub(narrative, ['S-01', 'S-02'], 'BR-01', proseCache);
 
     // The export should complete without errors
     expect(mockClick).toHaveBeenCalled();

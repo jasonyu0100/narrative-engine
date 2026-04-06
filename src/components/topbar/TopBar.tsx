@@ -6,10 +6,10 @@ import { useStore, ANALYSIS_NARRATIVE_IDS, PLAYGROUND_NARRATIVE_IDS } from '@/li
 import { ArchetypeIcon } from '@/components/ArchetypeIcon';
 import type { NarrativeState, Branch } from '@/types/narrative';
 import { resolveEntry, isScene, type Scene } from '@/types/narrative';
-import { computeRawForceTotals, computeSwingMagnitudes, computeForceSnapshots, computeDeliveryCurve, classifyNarrativeShape, classifyArchetype, classifyScale, classifyWorldDensity, gradeForces, FORCE_REFERENCE_MEANS, resolveEntrySequence } from '@/lib/narrative-utils';
+import { computeRawForceTotals, computeSwingMagnitudes, computeForceSnapshots, computeDeliveryCurve, classifyNarrativeShape, classifyArchetype, classifyScale, classifyWorldDensity, gradeForces, FORCE_REFERENCE_MEANS, resolveEntrySequence, resolvePlanForBranch, resolveProseForBranch } from '@/lib/narrative-utils';
 import { ApiLogsModal } from '@/components/topbar/ApiLogsModal';
 import ApiKeyModal from '@/components/topbar/ApiKeyModal';
-import ErrorLogModal from '@/components/topbar/ErrorLogModal';
+import SystemLogModal from '@/components/topbar/SystemLogModal';
 import { useFeatureAccess } from '@/hooks/useFeatureAccess';
 import { CubeExplorer } from '@/components/topbar/CubeExplorer';
 import { BranchContextModal } from '@/components/topbar/BranchContextModal';
@@ -282,7 +282,7 @@ export default function TopBar() {
   // Modal states
   const [logsOpen, setLogsOpen] = useState(false);
   const [apiKeysOpen, setApiKeysOpen] = useState(false);
-  const [errorLogsOpen, setErrorLogsOpen] = useState(false);
+  const [systemLogsOpen, setSystemLogsOpen] = useState(false);
 
   const [cubeExplorerOpen, setCubeExplorerOpen] = useState(false);
   const [branchContextOpen, setBranchContextOpen] = useState(false);
@@ -365,19 +365,23 @@ export default function TopBar() {
 
   // Copy/export helpers
   const copyAllText = useCallback((mode: 'prose' | 'plan' | 'summary') => {
-    if (!narrative) return;
+    if (!narrative || !state.activeBranchId) return;
     const scenes = state.resolvedEntryKeys
       .map((k) => resolveEntry(narrative, k))
       .filter((e): e is Scene => !!e && isScene(e));
 
+    const branches = narrative.branches;
+    const branchId = state.activeBranchId;
+
     const parts: string[] = [];
     for (const scene of scenes) {
       if (mode === 'prose') {
-        const text = scene.prose;
-        if (text) parts.push(text);
+        const { prose } = resolveProseForBranch(scene, branchId, branches);
+        if (prose) parts.push(prose);
       } else if (mode === 'plan') {
-        if (scene.plan) {
-          const beats = scene.plan.beats.map((b) => {
+        const plan = resolvePlanForBranch(scene, branchId, branches);
+        if (plan) {
+          const beats = plan.beats.map((b) => {
             const props = b.propositions.map(p => p.content).join('; ');
             return `[${b.fn}/${b.mechanism}] ${b.what}${props ? ` — ${props}` : ''}`;
           }).join('\n');
@@ -393,13 +397,13 @@ export default function TopBar() {
       setCopyToast(`Copied ${parts.length} ${mode === 'prose' ? 'scenes' : mode === 'plan' ? 'plans' : 'summaries'}`);
     });
     setExportOpen(false);
-  }, [narrative, state.resolvedEntryKeys]);
+  }, [narrative, state.resolvedEntryKeys, state.activeBranchId]);
 
   const handleExportEpub = useCallback(() => {
-    if (!narrative) return;
-    exportEpub(narrative, state.resolvedEntryKeys, {});
+    if (!narrative || !state.activeBranchId) return;
+    exportEpub(narrative, state.resolvedEntryKeys, state.activeBranchId, {});
     setExportOpen(false);
-  }, [narrative, state.resolvedEntryKeys]);
+  }, [narrative, state.resolvedEntryKeys, state.activeBranchId]);
 
   const handleExportAudio = useCallback(async () => {
     if (!narrative) return;
@@ -521,12 +525,19 @@ export default function TopBar() {
   }, [narrative, state.resolvedEntryKeys]);
 
   // Export availability flags
-  const exportAvailability = useMemo(() => ({
-    hasProse: allScenes.some((s) => s.prose),
-    hasPlans: allScenes.some((s) => s.plan),
-    hasSummaries: allScenes.some((s) => s.summary),
-    hasAudio: allScenes.some((s) => s.audioUrl),
-  }), [allScenes]);
+  const exportAvailability = useMemo(() => {
+    if (!narrative || !state.activeBranchId) {
+      return { hasProse: false, hasPlans: false, hasSummaries: false, hasAudio: false };
+    }
+    const branches = narrative.branches;
+    const branchId = state.activeBranchId;
+    return {
+      hasProse: allScenes.some((s) => !!resolveProseForBranch(s, branchId, branches).prose),
+      hasPlans: allScenes.some((s) => !!resolvePlanForBranch(s, branchId, branches)),
+      hasSummaries: allScenes.some((s) => s.summary),
+      hasAudio: allScenes.some((s) => s.audioUrl),
+    };
+  }, [allScenes, narrative, state.activeBranchId]);
 
   const scorecard = useMemo(() => {
     if (allScenes.length === 0 || !narrative) return null;
@@ -894,7 +905,7 @@ export default function TopBar() {
           items={[
             { label: 'LLM Context', onClick: () => setBranchContextOpen(true), disabled: !hasNarrative },
             { label: 'API Logs', onClick: () => setLogsOpen(true) },
-            { label: 'Logging', onClick: () => setErrorLogsOpen(true) },
+            { label: 'Logging', onClick: () => setSystemLogsOpen(true) },
             ...(process.env.NEXT_PUBLIC_USER_API_KEYS === 'true'
               ? [{ label: 'API Keys', onClick: () => setApiKeysOpen(true) }]
               : []),
@@ -1308,7 +1319,7 @@ export default function TopBar() {
       {/* Modals */}
       {apiKeysOpen && <ApiKeyModal access={access} onClose={() => setApiKeysOpen(false)} />}
       {logsOpen && <ApiLogsModal onClose={() => setLogsOpen(false)} />}
-      {errorLogsOpen && <ErrorLogModal onClose={() => setErrorLogsOpen(false)} />}
+      {systemLogsOpen && <SystemLogModal onClose={() => setSystemLogsOpen(false)} />}
 
       {cubeExplorerOpen && narrative && (
         <CubeExplorer

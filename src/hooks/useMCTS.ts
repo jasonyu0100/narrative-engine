@@ -7,7 +7,7 @@ import type { NarrativeState, Scene, CubeCornerKey, WorldBuild } from '@/types/n
 import type { MCTSConfig, MCTSTree, MCTSRunState, MCTSNodeId, MCTSStatus, MCTSPhase, MCTSNode, DeliveryDirection, PendingExpansion } from '@/types/mcts';
 import { DEFAULT_MCTS_CONFIG } from '@/types/mcts';
 import type { Arc } from '@/types/narrative';
-import { logError } from '@/lib/error-logger';
+import { logError } from '@/lib/system-logger';
 import {
   createTree,
   selectNode,
@@ -176,7 +176,6 @@ export function useMCTS() {
         onToken,
       },
     ).catch((err) => {
-      console.error('[mcts] generation error:', err);
       logError(
         'MCTS node expansion failed',
         err,

@@ -5,6 +5,8 @@ import { useStore } from '@/lib/store';
 import { generateScenePlan, generateSceneProse } from '@/lib/ai/scenes';
 import { resolveEntry, isScene, type Scene } from '@/types/narrative';
 import { PLAN_CONCURRENCY, PROSE_CONCURRENCY } from '@/lib/constants';
+import { resolveProseForBranch, resolvePlanForBranch } from '@/lib/narrative-utils';
+import { logError } from '@/lib/system-logger';
 
 type BulkMode = 'plan' | 'prose';
 
@@ -62,10 +64,14 @@ export function useBulkGenerate() {
       const scene = activeNarrative.scenes[sceneId];
       if (!scene) return;
 
-      // Skip if already has content
-      if (mode === 'plan' && scene.plan) return;
-      if (mode === 'prose' && scene.prose) return;
-      if (mode === 'prose' && !scene.plan) return;
+      // Skip if already has content (using resolved versions)
+      const branches = activeNarrative.branches;
+      const activeBranchId = stateRef.current.activeBranchId!;
+      const resolvedPlan = resolvePlanForBranch(scene, activeBranchId, branches);
+      const { prose: resolvedProse } = resolveProseForBranch(scene, activeBranchId, branches);
+      if (mode === 'plan' && resolvedPlan) return;
+      if (mode === 'prose' && resolvedProse) return;
+      if (mode === 'prose' && !resolvedPlan) return;
 
       updateRunState({
         statusMessage: `${mode === 'plan' ? 'Planning' : 'Writing'} "${scene.summary.slice(0, 40)}..."`,
@@ -75,13 +81,17 @@ export function useBulkGenerate() {
       try {
         if (mode === 'plan') {
           const plan = await generateScenePlan(activeNarrative, scene, resolvedEntryKeys);
-          dispatch({ type: 'UPDATE_SCENE', sceneId, updates: { plan } });
+          dispatch({ type: 'UPDATE_SCENE', sceneId, updates: { plan }, versionType: 'generate' });
         } else {
-          const { prose, beatProseMap } = await generateSceneProse(activeNarrative, scene, resolvedEntryKeys);
-          dispatch({ type: 'UPDATE_SCENE', sceneId, updates: { prose, beatProseMap } });
+          const { prose, beatProseMap } = await generateSceneProse(activeNarrative, scene, resolvedEntryKeys, undefined, undefined, resolvedPlan);
+          dispatch({ type: 'UPDATE_SCENE', sceneId, updates: { prose, beatProseMap }, versionType: 'generate' });
         }
       } catch (err) {
-        console.error(`[bulk-generate] Failed to generate ${mode} for scene ${sceneId}:`, err);
+        logError(`Failed to generate ${mode} for scene`, err, {
+          source: mode === 'plan' ? 'plan-generation' : 'prose-generation',
+          operation: 'bulk-generate',
+          details: { sceneId, mode, sceneNumber: completed + 1, totalScenes: total }
+        });
       }
 
       // Update progress after each scene completes
@@ -130,9 +140,15 @@ export function useBulkGenerate() {
       if (!entry || !isScene(entry)) continue;
       const scene = entry as Scene;
 
-      if (mode === 'plan' && !scene.plan) {
+      // Use resolved versions to check what needs generation
+      const branches = activeNarrative.branches;
+      const activeBranchId = stateRef.current.activeBranchId!;
+      const resolvedPlan = resolvePlanForBranch(scene, activeBranchId, branches);
+      const { prose: resolvedProse } = resolveProseForBranch(scene, activeBranchId, branches);
+
+      if (mode === 'plan' && !resolvedPlan) {
         scenesToProcess.push(scene.id);
-      } else if (mode === 'prose' && scene.plan && !scene.prose) {
+      } else if (mode === 'prose' && resolvedPlan && !resolvedProse) {
         scenesToProcess.push(scene.id);
       }
     }
@@ -175,11 +191,12 @@ export function useBulkGenerate() {
     runStateRef.current = null;
   }, []);
 
-  // Count how many scenes need plan/prose
+  // Count how many scenes need plan/prose (using resolved versions)
   const counts = useCallback(() => {
-    const { activeNarrative, resolvedEntryKeys } = stateRef.current;
-    if (!activeNarrative) return { needsPlan: 0, needsProse: 0 };
+    const { activeNarrative, resolvedEntryKeys, activeBranchId } = stateRef.current;
+    if (!activeNarrative || !activeBranchId) return { needsPlan: 0, needsProse: 0 };
 
+    const branches = activeNarrative.branches;
     let needsPlan = 0;
     let needsProse = 0;
 
@@ -188,8 +205,11 @@ export function useBulkGenerate() {
       if (!entry || !isScene(entry)) continue;
       const scene = entry as Scene;
 
-      if (!scene.plan) needsPlan++;
-      if (scene.plan && !scene.prose) needsProse++;
+      const resolvedPlan = resolvePlanForBranch(scene, activeBranchId, branches);
+      const { prose: resolvedProse } = resolveProseForBranch(scene, activeBranchId, branches);
+
+      if (!resolvedPlan) needsPlan++;
+      if (resolvedPlan && !resolvedProse) needsProse++;
     }
 
     return { needsPlan, needsProse };

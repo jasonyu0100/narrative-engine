@@ -3,7 +3,7 @@
 import { useState, useMemo } from 'react';
 import { Modal, ModalHeader, ModalBody } from '@/components/Modal';
 import { useStore } from '@/lib/store';
-import type { ErrorLogEntry } from '@/types/narrative';
+import type { SystemLogEntry } from '@/types/narrative';
 
 type Props = {
   onClose: () => void;
@@ -22,7 +22,7 @@ function SeverityBadge({ severity }: { severity: 'error' | 'warning' | 'info' })
   );
 }
 
-function CategoryBadge({ category }: { category: ErrorLogEntry['category'] }) {
+function CategoryBadge({ category }: { category: SystemLogEntry['category'] }) {
   const styles = {
     network: 'bg-blue-400/10 text-blue-400',
     timeout: 'bg-orange-400/10 text-orange-400',
@@ -38,7 +38,7 @@ function CategoryBadge({ category }: { category: ErrorLogEntry['category'] }) {
   );
 }
 
-function LogDetail({ entry, onClose }: { entry: ErrorLogEntry; onClose: () => void }) {
+function LogDetail({ entry, onClose }: { entry: SystemLogEntry; onClose: () => void }) {
   const [tab, setTab] = useState<'message' | 'stack' | 'details'>('message');
 
   return (
@@ -122,9 +122,9 @@ function LogDetail({ entry, onClose }: { entry: ErrorLogEntry; onClose: () => vo
 
 type ContextFilter = 'all' | 'narrative' | 'analysis' | 'discovery';
 
-export default function ErrorLogModal({ onClose }: Props) {
+export default function SystemLogModal({ onClose }: Props) {
   const { state, dispatch } = useStore();
-  const logs = state.errorLogs;
+  const logs = state.systemLogs;
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [filterSeverity, setFilterSeverity] = useState<'all' | 'error' | 'warning' | 'info'>('all');
   const [filterContext, setFilterContext] = useState<ContextFilter>('all');
@@ -180,7 +180,7 @@ export default function ErrorLogModal({ onClose }: Props) {
         <>
           <ModalHeader onClose={onClose}>
             <div className="flex items-center gap-3">
-              <h2 className="text-[14px] font-medium text-text-primary">Event Logs</h2>
+              <h2 className="text-[14px] font-medium text-text-primary">System Logs</h2>
               <select
                 value={filterContext}
                 onChange={(e) => setFilterContext(e.target.value as ContextFilter)}
@@ -242,7 +242,7 @@ export default function ErrorLogModal({ onClose }: Props) {
               </div>
               {logs.length > 0 && (
                 <button
-                  onClick={() => dispatch({ type: 'CLEAR_ERROR_LOGS' })}
+                  onClick={() => dispatch({ type: 'CLEAR_SYSTEM_LOGS' })}
                   className="text-[11px] text-text-dim hover:text-text-secondary transition-colors px-2 py-1 rounded hover:bg-white/5"
                 >
                   Clear

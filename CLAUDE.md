@@ -62,8 +62,7 @@ src/
 │   │   ├── scenes.ts       # generateScenes, generateScenePlan
 │   │   ├── prose.ts        # rewriteSceneProse
 │   │   ├── world.ts        # expandWorld, suggestDirection, generateNarrative
-│   │   ├── review.ts       # refreshDirection — course correction after each arc
-│   │   ├── evaluate.ts     # evaluateBranch — summary-based branch evaluation with guided feedback
+│   │   ├── review.ts       # reviewBranch, reviewProseQuality, reviewPlanQuality — branch evaluation with guided feedback
 │   │   ├── reconstruct.ts  # reconstructBranch — versioned branch reconstruction from verdicts
 │   │   ├── prompts.ts      # Modular prompt sections (force standards, pacing, mutations, POV, continuity)
 │   │   └── json.ts         # JSON parsing utilities
@@ -195,6 +194,21 @@ Stories are divided into **phases** with objectives and scene allocations. When 
 
 **Reconstruction** creates a new versioned branch (v2, v3, v4...), applying verdicts in parallel. World commits pass through at original positions. Supports external guidance (paste feedback from another AI or human editor). Converges in 2–3 passes.
 
+## Version Control
+
+InkTide implements two distinct versioning systems:
+
+**Branch Reconstruction Versioning**: The revision pipeline creates new branch versions (main-v2, main-v3, main-v4) through the review → reconstruct cycle. Each reconstruction pass evaluates the entire branch, applies structural edits across multiple scenes, and produces a new versioned branch. These branch versions represent complete narrative revisions where the system has reevaluated story structure, pacing, and continuity across the full timeline. Reconstruction is destructive iteration — you get a new branch with changes applied, not a document you can incrementally edit.
+
+**Prose & Plan Content Versioning**: Separate from branch reconstruction, individual scenes track prose and plan versions with semantic numbering `v1.2.3`:
+- **Generate** (major): `1`, `2`, `3` — fresh generation from plan/scratch
+- **Rewrite** (minor): `1.1`, `1.2`, `2.1` — LLM-guided revision with critique
+- **Edit** (patch): `1.1.1`, `1.1.2` — manual or minor tweaks
+
+This is document-style version history. You can edit the original text while keeping all previous versions safe. Resolution functions (`resolveProseForBranch`, `resolvePlanForBranch`) determine which version each branch sees based on lineage, fork timestamps, and optional branch-specific version pointers.
+
+**Structural Branching**: Beneath both versioning systems, scenes themselves are structurally immutable (POV, location, participants, mutations fixed). Branches fork from parents and inherit their timeline via `entryIds` arrays. Storage is efficient — shared scenes are referenced, not copied. Only structurally different scenes (new generations, structural edits) create new scene objects. Descendants dynamically resolve their view through parent lineage at read time, enabling git-like cloning with minimal storage overhead.
+
 ## AI Pipeline (src/lib/ai/)
 
 All LLM calls go through `callGenerate` (non-streaming) or `callGenerateStream` (streaming) in `api.ts`, which hit `/api/generate`.
@@ -207,7 +221,7 @@ Key functions:
 - `rewriteSceneProse()` — rewrite guided by critique or custom analysis
 - `expandWorld()` — add characters, locations, threads
 - `refreshDirection()` — course correction after each arc
-- `evaluateBranch()` — summary-based branch evaluation with optional guidance
+- `reviewBranch()` — summary-based branch evaluation with optional guidance
 - `reconstructBranch()` — versioned branch reconstruction from verdicts
 
 ## Environment Variables

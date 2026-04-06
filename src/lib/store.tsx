@@ -1,7 +1,7 @@
 'use client';
 
 import React, { createContext, useContext, useReducer, useEffect, useRef, useMemo, type ReactNode } from 'react';
-import type { AppState, InspectorContext, NarrativeState, NarrativeEntry, WizardStep, WizardData, Scene, Arc, Branch, Character, Location, Thread, RelationshipEdge, GraphViewMode, AutoConfig, AutoRunLog, WorldBuild, WorldKnowledgeGraph, WorldKnowledgeNode, WorldKnowledgeEdge, WorldKnowledgeMutation, ApiLogEntry, ErrorLogEntry, StorySettings, AnalysisJob, ChatThread, ChatMessage, Note, PlanningQueue, PlanningPhase, Artifact, StructureReview, ProseEvaluation, PlanEvaluation, WorldSystem, ProseProfile, BeatProfilePreset, MechanismProfilePreset } from '@/types/narrative';
+import type { AppState, InspectorContext, NarrativeState, NarrativeEntry, WizardStep, WizardData, Scene, Arc, Branch, Character, Location, Thread, RelationshipEdge, GraphViewMode, AutoConfig, AutoRunLog, WorldBuild, WorldKnowledgeGraph, WorldKnowledgeNode, WorldKnowledgeEdge, WorldKnowledgeMutation, ApiLogEntry, SystemLogEntry, StorySettings, AnalysisJob, ChatThread, ChatMessage, Note, PlanningQueue, PlanningPhase, Artifact, StructureReview, ProseEvaluation, PlanEvaluation, WorldSystem, ProseProfile, BeatProfilePreset, MechanismProfilePreset, ProseVersion, PlanVersion } from '@/types/narrative';
 import { resolveEntrySequence, nextId, computeForceSnapshots, computeSwingMagnitudes, computeDeliveryCurve, classifyNarrativeShape, classifyArchetype, classifyScale, classifyWorldDensity, gradeForces, computeRawForceTotals, FORCE_REFERENCE_MEANS } from '@/lib/narrative-utils';
 import { initMatrixPresets } from '@/lib/pacing-profile';
 import { initBeatProfilePresets } from '@/lib/beat-profiles';
@@ -9,6 +9,7 @@ import { initMechanismProfilePresets } from '@/lib/mechanism-profiles';
 import { resolveEntry, isScene } from '@/types/narrative';
 import { loadNarratives, saveNarrative as persistNarrative, deleteNarrative as deletePersisted, loadNarrative, saveActiveNarrativeId, loadActiveNarrativeId, saveActiveBranchId, loadActiveBranchId, migrateFromLocalStorage, loadAnalysisJobs, saveAnalysisJobs, loadApiLogs, saveApiLogs, deleteApiLogs } from '@/lib/persistence';
 import { API_LOG_STALE_THRESHOLD_MS } from '@/lib/constants';
+import { logError, logWarning } from '@/lib/system-logger';
 
 // Bundled narratives loaded at runtime from /public manifests
 const bundledNarratives = new Map<string, NarrativeState>();
@@ -293,7 +294,7 @@ const initialState: AppState = {
   },
   autoRunState: null,
   apiLogs: [],
-  errorLogs: [],
+  systemLogs: [],
   analysisJobs: [],
   activeChatThreadId: null,
   activeNoteId: null,
@@ -349,9 +350,9 @@ export type Action =
   | { type: 'UPDATE_API_LOG'; id: string; updates: Partial<ApiLogEntry> }
   | { type: 'CLEAR_API_LOGS' }
   | { type: 'HYDRATE_API_LOGS'; logs: ApiLogEntry[] }
-  // Error Logs
-  | { type: 'LOG_ERROR'; entry: ErrorLogEntry }
-  | { type: 'CLEAR_ERROR_LOGS' }
+  // System Logs
+  | { type: 'LOG_SYSTEM'; entry: SystemLogEntry }
+  | { type: 'CLEAR_SYSTEM_LOGS' }
   | { type: 'SET_COVER_IMAGE'; narrativeId: string; imageUrl: string }
   | { type: 'UPDATE_NARRATIVE_META'; narrativeId: string; title?: string; description?: string }
   | { type: 'SET_SCENE_IMAGE'; sceneId: string; imageUrl: string }
@@ -529,10 +530,18 @@ function reducer(state: AppState, action: Action): AppState {
 
       // Fire-and-forget async delete
       deletePersisted(action.id).catch((err) => {
-        console.error('[store] Failed to delete narrative:', err);
+        logError('Failed to delete narrative from storage', err, {
+          source: 'other',
+          operation: 'delete-narrative',
+          details: { narrativeId: action.id }
+        });
       });
       deleteApiLogs(action.id).catch((err) => {
-        console.error('[store] Failed to delete API logs:', err);
+        logError('Failed to delete API logs from storage', err, {
+          source: 'other',
+          operation: 'delete-api-logs',
+          details: { narrativeId: action.id }
+        });
       });
 
       if (isSeed) {
@@ -953,8 +962,44 @@ function reducer(state: AppState, action: Action): AppState {
     case 'BULK_ADD_SCENES': {
       const newState = updateNarrative(state, (n) => {
         const newScenes = { ...n.scenes };
+        const timestamp = Date.now();
         for (const scene of action.scenes) {
-          newScenes[scene.id] = scene;
+          // Convert legacy prose/plan to versions
+          const updatedScene = { ...scene };
+
+          // If scene has prose, convert to V1 ProseVersion
+          if (scene.prose) {
+            const proseVersion: ProseVersion = {
+              prose: scene.prose,
+              beatProseMap: scene.beatProseMap,
+              proseScore: scene.proseScore,
+              branchId: action.branchId,
+              timestamp,
+              version: '1',
+              versionType: 'generate',
+            };
+            updatedScene.proseVersions = [proseVersion];
+            // Clear legacy fields
+            delete updatedScene.prose;
+            delete updatedScene.beatProseMap;
+            delete updatedScene.proseScore;
+          }
+
+          // If scene has plan, convert to V1 PlanVersion
+          if (scene.plan) {
+            const planVersion: PlanVersion = {
+              plan: scene.plan,
+              branchId: action.branchId,
+              timestamp,
+              version: '1',
+              versionType: 'generate',
+            };
+            updatedScene.planVersions = [planVersion];
+            // Clear legacy field
+            delete updatedScene.plan;
+          }
+
+          newScenes[scene.id] = updatedScene;
         }
 
         const newSceneIds = action.scenes.map((s) => s.id);
@@ -1149,11 +1194,11 @@ function reducer(state: AppState, action: Action): AppState {
     case 'HYDRATE_API_LOGS':
       return { ...state, apiLogs: action.logs };
 
-    case 'LOG_ERROR':
-      return { ...state, errorLogs: [...state.errorLogs, action.entry] };
+    case 'LOG_SYSTEM':
+      return { ...state, systemLogs: [...state.systemLogs, action.entry] };
 
-    case 'CLEAR_ERROR_LOGS':
-      return { ...state, errorLogs: [] };
+    case 'CLEAR_SYSTEM_LOGS':
+      return { ...state, systemLogs: [] };
 
     case 'SET_COVER_IMAGE': {
       // Update the narrative entry in the list
@@ -1168,7 +1213,13 @@ function reducer(state: AppState, action: Action): AppState {
       // For non-active narratives, persist directly
       loadNarrative(action.narrativeId).then((stored) => {
         if (stored) persistNarrative({ ...stored, coverImageUrl: action.imageUrl });
-      }).catch((err) => console.error('[store] Failed to update cover image:', err));
+      }).catch((err) => {
+        logError('Failed to update cover image in storage', err, {
+          source: 'other',
+          operation: 'update-cover-image',
+          details: { narrativeId: action.narrativeId }
+        });
+      });
       return { ...state, narratives: updatedNarratives };
     }
 
@@ -1185,7 +1236,13 @@ function reducer(state: AppState, action: Action): AppState {
       }
       loadNarrative(action.narrativeId).then((stored) => {
         if (stored) persistNarrative({ ...stored, ...metaUpdates });
-      }).catch((err) => console.error('[store] Failed to update narrative meta:', err));
+      }).catch((err) => {
+        logError('Failed to update narrative metadata in storage', err, {
+          source: 'other',
+          operation: 'update-narrative-meta',
+          details: { narrativeId: action.narrativeId }
+        });
+      });
       return { ...state, narratives: updatedNarratives };
     }
 
@@ -1531,17 +1588,17 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     });
   }, [state.activeNarrativeId]);
 
-  // Wire error logger to store
+  // Wire system logger to store
   useEffect(() => {
-    import('@/lib/error-logger').then(({ onErrorLog }) => {
-      onErrorLog((entry) => dispatch({ type: 'LOG_ERROR', entry }));
+    import('@/lib/system-logger').then(({ onSystemLog }) => {
+      onSystemLog((entry) => dispatch({ type: 'LOG_SYSTEM', entry }));
     });
   }, []);
 
-  // Keep error logger aware of which narrative is active
+  // Keep system logger aware of which narrative is active
   useEffect(() => {
-    import('@/lib/error-logger').then(({ setErrorLoggerNarrativeId }) => {
-      setErrorLoggerNarrativeId(state.activeNarrativeId);
+    import('@/lib/system-logger').then(({ setSystemLoggerNarrativeId }) => {
+      setSystemLoggerNarrativeId(state.activeNarrativeId);
     });
   }, [state.activeNarrativeId]);
 
@@ -1555,7 +1612,10 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       try {
         persisted = await loadNarratives();
       } catch (err) {
-        console.error('[store] Hydration failed:', err);
+        logError('Failed to load narratives during hydration', err, {
+          source: 'other',
+          operation: 'hydrate-narratives'
+        });
       }
       const persistedById = new Map(persisted.map((n) => [n.id, n]));
 
@@ -1563,7 +1623,14 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       async function loadManifest(dir: string, idSet: Set<string>) {
         try {
           const res = await fetch(`/${dir}/manifest.json`);
-          if (!res.ok) { console.warn(`[store] manifest ${dir} returned ${res.status}`); return []; }
+          if (!res.ok) {
+            logWarning(`Failed to fetch manifest for ${dir}`, `HTTP ${res.status}`, {
+              source: 'other',
+              operation: 'load-manifest',
+              details: { directory: dir, status: res.status }
+            });
+            return [];
+          }
           const files: string[] = await res.json();
           const results = await Promise.allSettled(
             files.map(async (file) => {
@@ -1583,7 +1650,14 @@ export function StoreProvider({ children }: { children: ReactNode }) {
             entries.push(narrativeToEntry(saved ?? narrative));
           }
           return entries;
-        } catch (err) { console.warn(`[store] loadManifest ${dir} failed:`, err); return []; }
+        } catch (err) {
+          logWarning(`Failed to load manifest for ${dir}`, err, {
+            source: 'other',
+            operation: 'load-manifest',
+            details: { directory: dir }
+          });
+          return [];
+        }
       }
 
       const [playgroundEntries, analysisEntries] = await Promise.all([
@@ -1645,7 +1719,13 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         dispatch({ type: 'LOADED_NARRATIVE', narrative, savedBranchId });
       }
     }
-    load().catch((err) => console.error('[store] Failed to load narrative:', err));
+    load().catch((err) => {
+      logError('Failed to load narrative from storage', err, {
+        source: 'other',
+        operation: 'load-narrative',
+        details: { narrativeId: id }
+      });
+    });
     return () => { cancelled = true; };
   }, [state.activeNarrativeId]);
 
@@ -1658,14 +1738,22 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     prevNarrativeRef.current = narrative;
 
     persistNarrative(narrative).catch((err) => {
-      console.error('[store] Failed to persist narrative:', err);
+      logError('Failed to persist narrative to storage', err, {
+        source: 'other',
+        operation: 'persist-narrative',
+        details: { narrativeId: narrative.id }
+      });
     });
   }, [state.activeNarrative]);
 
   // Persist active narrative ID whenever it changes
   useEffect(() => {
     saveActiveNarrativeId(state.activeNarrativeId).catch((err) => {
-      console.error('[store] Failed to persist active narrative ID:', err);
+      logError('Failed to persist active narrative ID to storage', err, {
+        source: 'other',
+        operation: 'persist-active-narrative-id',
+        details: { narrativeId: state.activeNarrativeId }
+      });
     });
   }, [state.activeNarrativeId]);
 
@@ -1673,7 +1761,11 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (state.activeBranchId === null) return;
     saveActiveBranchId(state.activeBranchId).catch((err) => {
-      console.error('[store] Failed to persist active branch ID:', err);
+      logError('Failed to persist active branch ID to storage', err, {
+        source: 'other',
+        operation: 'persist-active-branch-id',
+        details: { branchId: state.activeBranchId }
+      });
     });
   }, [state.activeBranchId]);
 
@@ -1696,7 +1788,11 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     if (state.analysisJobs === prevAnalysisJobsRef.current) return;
     prevAnalysisJobsRef.current = state.analysisJobs;
     saveAnalysisJobs(state.analysisJobs).catch((err) => {
-      console.error('[store] Failed to persist analysis jobs:', err);
+      logError('Failed to persist analysis jobs to storage', err, {
+        source: 'analysis',
+        operation: 'persist-analysis-jobs',
+        details: { jobCount: state.analysisJobs.length }
+      });
     });
   }, [state.analysisJobs]);
 
@@ -1706,7 +1802,13 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     if (!id) return;
     loadApiLogs(id).then((logs) => {
       if (logs.length > 0) dispatch({ type: 'HYDRATE_API_LOGS', logs });
-    }).catch((err) => console.error('[store] Failed to load API logs:', err));
+    }).catch((err) => {
+      logError('Failed to load API logs from storage', err, {
+        source: 'other',
+        operation: 'load-api-logs',
+        details: { narrativeId: id }
+      });
+    });
   }, [state.activeNarrativeId]);
 
   // Persist API logs to IndexedDB whenever they change (debounced)
@@ -1721,7 +1823,11 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     if (apiLogTimerRef.current) clearTimeout(apiLogTimerRef.current);
     apiLogTimerRef.current = setTimeout(() => {
       saveApiLogs(id, state.apiLogs).catch((err) => {
-        console.error('[store] Failed to persist API logs:', err);
+        logError('Failed to persist API logs to storage', err, {
+          source: 'other',
+          operation: 'persist-api-logs',
+          details: { narrativeId: id, logCount: state.apiLogs.length }
+        });
       });
     }, 2000);
   }, [state.apiLogs, state.activeNarrativeId]);

@@ -16,6 +16,7 @@ import {
 import { useFeatureAccess } from "@/hooks/useFeatureAccess";
 import { useStore } from "@/lib/store";
 import { isScene, resolveEntry, type Scene } from "@/types/narrative";
+import { resolvePlanForBranch, resolveProseForBranch } from "@/lib/narrative-utils";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 /** Highlight all occurrences of `query` within `text` */
@@ -86,9 +87,12 @@ export default function FloatingPalette({
   const isAnyModeActive =
     isAutoActive || isBulkActive || isBulkAudioActive || isMctsActive;
 
+  const branchId = state.activeBranchId;
+  const branches = useMemo(() => narrative?.branches ?? {}, [narrative?.branches]);
+
   // Scene search results
   const searchResults = useMemo(() => {
-    if (!searchOpen || !searchQuery.trim() || !narrative) return [];
+    if (!searchOpen || !searchQuery.trim() || !narrative || !branchId) return [];
     const normalize = (s: string) =>
       s
         .normalize("NFD")
@@ -120,8 +124,9 @@ export default function FloatingPalette({
         .map((pid) => narrative.characters[pid]?.name ?? "")
         .join(" ");
       const events = scene.events.join(" ");
+      const { prose: resolvedProse } = resolveProseForBranch(scene, branchId, branches);
       const haystack = normalize(
-        `${scene.summary} ${arc?.name ?? ""} ${location?.name ?? ""} ${participants} ${events} ${scene.prose ?? ""}`,
+        `${scene.summary} ${arc?.name ?? ""} ${location?.name ?? ""} ${participants} ${events} ${resolvedProse ?? ""}`,
       );
       if (haystack.includes(q)) {
         // Find a snippet around the match — prefer non-summary sources so the user sees *why* it matched
@@ -131,7 +136,7 @@ export default function FloatingPalette({
           participants,
           arc?.name ?? "",
           location?.name ?? "",
-          scene.prose ?? "",
+          resolvedProse ?? "",
         ];
         for (const rawSrc of sources) {
           const src = rawSrc.replace(/\s+/g, " ");
@@ -159,7 +164,7 @@ export default function FloatingPalette({
       if (results.length >= 50) break;
     }
     return results;
-  }, [searchOpen, searchQuery, narrative, state.resolvedEntryKeys]);
+  }, [searchOpen, searchQuery, narrative, state.resolvedEntryKeys, branchId, branches]);
 
   // Focus search input when opened
   useEffect(() => {
@@ -214,8 +219,17 @@ export default function FloatingPalette({
     const key = state.resolvedEntryKeys[state.currentSceneIndex];
     return key ? (narrative.scenes[key] ?? null) : null;
   }, [narrative, state.resolvedEntryKeys, state.currentSceneIndex]);
-  const hasPlan = !!currentScene?.plan;
-  const hasProse = !!currentScene?.prose;
+
+  const hasPlan = useMemo(() => {
+    if (!currentScene || !branchId) return false;
+    return !!resolvePlanForBranch(currentScene, branchId, branches);
+  }, [currentScene, branchId, branches]);
+
+  const hasProse = useMemo(() => {
+    if (!currentScene || !branchId) return false;
+    return !!resolveProseForBranch(currentScene, branchId, branches).prose;
+  }, [currentScene, branchId, branches]);
+
   const hasAudio = !!currentScene?.audioUrl;
   const wrapperClasses = isActive ? "" : "opacity-30 pointer-events-none";
   const [generateOpen, setGenerateOpen] = useState(false);

@@ -1,6 +1,6 @@
-import type { ErrorLogEntry } from '@/types/narrative';
+import type { SystemLogEntry } from '@/types/narrative';
 
-type LogListener = (entry: ErrorLogEntry) => void;
+type LogListener = (entry: SystemLogEntry) => void;
 
 let logListener: LogListener | null = null;
 let activeNarrativeId: string | null = null;
@@ -9,26 +9,26 @@ let activeDiscoveryId: string | null = null;
 
 let counter = 0;
 
-export function onErrorLog(listener: LogListener) {
+export function onSystemLog(listener: LogListener) {
   logListener = listener;
 }
 
 /** Called by the store when the active narrative changes */
-export function setErrorLoggerNarrativeId(id: string | null) {
+export function setSystemLoggerNarrativeId(id: string | null) {
   activeNarrativeId = id;
 }
 
 /** Called by analysis runner when an analysis starts/ends */
-export function setErrorLoggerAnalysisId(id: string | null) {
+export function setSystemLoggerAnalysisId(id: string | null) {
   activeAnalysisId = id;
 }
 
 /** Called when a discovery session starts/ends */
-export function setErrorLoggerDiscoveryId(id: string | null) {
+export function setSystemLoggerDiscoveryId(id: string | null) {
   activeDiscoveryId = id;
 }
 
-export type ErrorContext = {
+export type LogContext = {
   /** Where the error occurred (e.g., 'auto-play', 'mcts', 'manual-generation', 'analysis') */
   source: 'auto-play' | 'mcts' | 'manual-generation' | 'analysis' | 'world-expansion' | 'direction-generation' | 'prose-generation' | 'plan-generation' | 'other';
   /** Current operation when error occurred */
@@ -40,7 +40,7 @@ export type ErrorContext = {
 export function logError(
   message: string,
   error: Error | string | unknown,
-  context: ErrorContext,
+  context: LogContext,
   severity: 'error' | 'warning' = 'error'
 ): string {
   const id = `err-${Date.now()}-${counter++}`;
@@ -55,13 +55,13 @@ export function logError(
   const isValidation = errorMsg.includes('invalid') || errorMsg.includes('validation');
   const isNetwork = isFetchError || errorMsg.includes('network') || errorMsg.includes('ECONNREFUSED');
 
-  let category: ErrorLogEntry['category'] = 'unknown';
+  let category: SystemLogEntry['category'] = 'unknown';
   if (isNetwork) category = 'network';
   else if (isTimeout) category = 'timeout';
   else if (isJSON) category = 'parsing';
   else if (isValidation) category = 'validation';
 
-  const entry: ErrorLogEntry = {
+  const entry: SystemLogEntry = {
     id,
     timestamp: Date.now(),
     severity,
@@ -96,11 +96,11 @@ export function logError(
  */
 export function logInfo(
   message: string,
-  context: ErrorContext
+  context: LogContext
 ): string {
   const id = `info-${Date.now()}-${counter++}`;
 
-  const entry: ErrorLogEntry = {
+  const entry: SystemLogEntry = {
     id,
     timestamp: Date.now(),
     severity: 'info',
@@ -125,7 +125,7 @@ export function logInfo(
 export function logWarning(
   message: string,
   error: Error | string | unknown,
-  context: ErrorContext
+  context: LogContext
 ): string {
   return logError(message, error, context, 'warning');
 }

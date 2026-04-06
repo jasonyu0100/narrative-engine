@@ -3,6 +3,7 @@ import { REASONING_BUDGETS } from '@/types/narrative';
 import { callGenerate, callGenerateStream, SYSTEM_PROMPT } from './ai/api';
 import { branchContext } from './ai/context';
 import { MAX_TOKENS_SMALL, MAX_TOKENS_DEFAULT, MAX_TOKENS_LARGE } from '@/lib/constants';
+import { logError } from '@/lib/system-logger';
 
 /** Coerce a value to string — stringify objects/arrays instead of returning "[object Object]" */
 function asString(v: unknown, fallback = ''): string {
@@ -214,7 +215,10 @@ Return JSON:
       };
     }
   } catch (err) {
-    console.error('[generateCustomPlan] JSON parse failed:', err);
+    logError('Failed to parse custom plan JSON from LLM response', err, {
+      source: 'other',
+      operation: 'generate-custom-plan',
+    });
   }
 
   throw new Error('Failed to generate custom plan from document');
@@ -340,7 +344,10 @@ Return JSON:
       };
     }
   } catch (err) {
-    console.error('[generateOutline] JSON parse failed:', err);
+    logError('Failed to parse outline JSON from LLM response', err, {
+      source: 'other',
+      operation: 'generate-outline',
+    });
   }
 
   throw new Error('Failed to generate outline');

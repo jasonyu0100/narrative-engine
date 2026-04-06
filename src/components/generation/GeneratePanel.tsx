@@ -13,7 +13,7 @@ import { MarkovGraph } from './MarkovGraph';
 import { GuidanceFields } from './GuidanceFields';
 import { Modal, ModalHeader, ModalBody } from '@/components/Modal';
 import { IconDice, IconChevronRight } from '@/components/icons';
-import { logError } from '@/lib/error-logger';
+import { logError } from '@/lib/system-logger';
 
 type Mode = 'continuation' | 'world';
 

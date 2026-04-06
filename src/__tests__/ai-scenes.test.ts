@@ -508,18 +508,19 @@ describe('editScenePlan', () => {
       },
     });
 
-    const result = await editScenePlan(narrative, scene, [], ['Opening is too slow', 'Missing character reveal']);
+    const currentPlan = scene.plan!;
+    const result = await editScenePlan(narrative, scene, [], ['Opening is too slow', 'Missing character reveal'], currentPlan);
 
     expect(result.beats).toHaveLength(2);
     expect(result.beats[0].what).toBe('Revised opening');
     expect(result.beats[1].fn).toBe('reveal');
   });
 
-  it('throws if scene has no plan', async () => {
+  it('throws if no plan is passed', async () => {
     const narrative = createMinimalNarrative();
     const scene = createScene('S-001'); // No plan
 
-    await expect(editScenePlan(narrative, scene, [], ['Issue'])).rejects.toThrow('Scene has no plan');
+    await expect(editScenePlan(narrative, scene, [], ['Issue'], undefined)).rejects.toThrow('Scene has no plan');
   });
 });
 
@@ -529,13 +530,13 @@ describe('reverseEngineerScenePlan', () => {
   it('extracts beat structure from prose and returns plan', async () => {
     const mockResponse = JSON.stringify({
       beats: [
-        { fn: 'breathe', mechanism: 'environment', what: 'Morning light', propositions: [{ content: 'golden rays' }] },
-        { fn: 'bond', mechanism: 'dialogue', what: 'Characters reconnect', propositions: [{ content: 'warm smile' }] },
+        { fn: 'breathe', mechanism: 'environment', what: 'Morning light filters through', propositions: [{ content: 'golden rays' }], startPara: 0, endPara: 2 },
+        { fn: 'bond', mechanism: 'dialogue', what: 'Characters reconnect emotionally', propositions: [{ content: 'warm smile' }], startPara: 3, endPara: 5 },
       ],
     });
     vi.mocked(callGenerate).mockResolvedValue(mockResponse);
 
-    const prose = 'The morning light fell like honey across the chamber.\n\n"I missed you," she said with a warm smile.';
+    const prose = 'The morning light fell like honey across the chamber, casting long shadows that danced upon the ancient stone walls. Dust motes swirled in the golden beams, caught in their eternal waltz through the still air. The room held its breath, waiting for something, though what exactly remained unclear to those who stood within its bounds. Every surface gleamed with the soft warmth of dawn breaking over distant mountains. The air itself seemed to shimmer with possibility, thick with the promise of a new beginning after so many dark days. Outside the window, birds began their morning song, their voices rising in a chorus that echoed through the valley below.\n\n"I missed you," she said with a warm smile that crinkled the corners of her eyes. Her voice carried the weight of countless days spent apart, each one a small eternity of longing and hope. He reached out to take her hand, feeling the familiar warmth of her touch, and knew in that moment that everything they had endured had been worth it. The distance melted away like morning frost under the sun. They stood there together, neither speaking, both understanding that words were unnecessary now. The silence between them was comfortable, filled with all the things they had wanted to say during their time apart.';
     const summary = 'Characters reunite at dawn';
 
     const result = await reverseEngineerScenePlan(prose, summary);
@@ -550,13 +551,13 @@ describe('reverseEngineerScenePlan', () => {
   it('validates beat functions and mechanisms to prevent invalid values', async () => {
     const mockResponse = JSON.stringify({
       beats: [
-        { fn: 'INVALID_FN', mechanism: 'INVALID_MECH', what: 'Test', propositions: [{ content: 'fact' }], startPara: 0, endPara: 0 },
+        { fn: 'INVALID_FN', mechanism: 'INVALID_MECH', what: 'Something happens here in the scene', propositions: [{ content: 'descriptive fact' }], startPara: 0, endPara: 5 },
       ],
       propositions: [],
     });
     vi.mocked(callGenerate).mockResolvedValue(mockResponse);
 
-    const prose = 'Single paragraph.';
+    const prose = 'The room was quiet except for the steady drip of water from a crack in the ceiling. Each drop fell in perfect rhythm, marking time like a metronome in the otherwise silent chamber. Alice stood by the window, watching the street below with careful attention, her hand resting on the cold glass as she tried to make sense of everything that had happened. The events of the past few days swirled through her mind like leaves caught in a whirlwind, each memory sharp and painful. She had replayed every conversation, every decision, trying to find the moment where things had gone wrong.\n\nFootsteps echoed in the hallway outside, growing louder with each passing second. She tensed, her breath catching in her throat as the door handle began to turn. This was the moment she had been waiting for, the confrontation she had been dreading, and now there was no escape. Her fingers curled into fists at her sides as the door swung open. The figure in the doorway was backlit by the hallway light, casting a long shadow across the floor. She knew who it was before they spoke, had known this moment was coming for days now.';
     const result = await reverseEngineerScenePlan(prose, 'Test');
 
     // Should default invalid values
@@ -570,19 +571,21 @@ describe('reverseEngineerScenePlan', () => {
         {
           fn: 'breathe',
           mechanism: 'environment',
-          what: 'Setup',
+          what: 'Setting up the atmospheric scene',
           propositions: [
             { content: 'Valid proposition' },
             { content: '' }, // Empty
             { notContent: 'wrong key' }, // Wrong structure
             { content: 'Another valid one' },
           ],
+          startPara: 0,
+          endPara: 5,
         },
       ],
     });
     vi.mocked(callGenerate).mockResolvedValue(mockResponse);
 
-    const prose = 'Test prose.';
+    const prose = 'The old manor stood silhouetted against the darkening sky, its windows like empty eye sockets staring down at the overgrown garden below. Ivy had claimed the walls long ago, wrapping around the crumbling stonework in a suffocating embrace. The air smelled of decay and forgotten things, heavy with the weight of years abandoned. No one had lived here for decades, yet tonight the house seemed to be waiting for something. The wind howled through the broken shutters, creating an eerie symphony that echoed across the empty rooms. Every board creaked, every shadow moved, and the very foundation of the building seemed to groan under the burden of time. The moon emerged from behind the clouds, casting silver light across the desolate scene.';
     const result = await reverseEngineerScenePlan(prose, 'Test');
 
     expect(result.plan.beats[0].propositions).toHaveLength(2);
@@ -592,13 +595,13 @@ describe('reverseEngineerScenePlan', () => {
 
   it('handles streaming with onToken callback', async () => {
     const mockResponse = JSON.stringify({
-      beats: [{ fn: 'advance', mechanism: 'action', what: 'Action beat', propositions: [{ content: 'detail' }] }],
+      beats: [{ fn: 'advance', mechanism: 'action', what: 'Action beat moves the plot forward', propositions: [{ content: 'descriptive detail' }], startPara: 0, endPara: 5 }],
     });
     vi.mocked(callGenerateStream).mockResolvedValue(mockResponse);
 
     const tokens: string[] = [];
     const result = await reverseEngineerScenePlan(
-      'Test prose',
+      'The detective moved quickly down the narrow alley, his coat whipping behind him in the cold wind. His hand rested on the grip of his pistol, ready for whatever might emerge from the shadows ahead. Each step brought him closer to the truth he had been chasing for months, and closer to the danger that came with it. The sound of footsteps behind him confirmed his suspicions, and he knew there was no turning back now. The alley twisted and turned, leading him deeper into the maze of the city old quarter. Overhead, laundry lines stretched between buildings, their forgotten contents flapping in the breeze like ghosts of lives long past.',
       'Test summary',
       (token) => tokens.push(token),
     );

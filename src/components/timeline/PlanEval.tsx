@@ -2,10 +2,11 @@
 
 import { useState, useCallback, useRef, useMemo } from 'react';
 import { useStore } from '@/lib/store';
-import { evaluatePlanQuality } from '@/lib/ai/evaluate';
+import { reviewPlanQuality } from '@/lib/ai/review';
 import { editScenePlan } from '@/lib/ai/scenes';
 import { resolveEntry, isScene } from '@/types/narrative';
 import type { PlanEvaluation, PlanSceneEval, PlanVerdict, Scene, Arc } from '@/types/narrative';
+import { resolvePlanForBranch } from '@/lib/narrative-utils';
 import { PLAN_CONCURRENCY } from '@/lib/constants';
 import { IconCheck, IconTilde, IconRunning, IconCross, IconDot, IconReset, IconSparkle, IconPlus } from '@/components/icons/EvalIcons';
 import SceneRangeSelector, { filterKeysBySceneRange, type SceneRange } from './SceneRangeSelector';
@@ -196,7 +197,7 @@ export default function PlanEval({ sceneRange, onRangeChange }: { sceneRange?: S
 
     try {
       setReasoning('');
-      const result = await evaluatePlanQuality(narrative, filteredKeys, branchId, guidance || undefined, (token) => {
+      const result = await reviewPlanQuality(narrative, filteredKeys, branchId, guidance || undefined, (token) => {
         setReasoning((prev) => prev + token);
       });
       if (!cancelledRef.current) {
@@ -214,7 +215,7 @@ export default function PlanEval({ sceneRange, onRangeChange }: { sceneRange?: S
   }, [narrative, filteredKeys, branchId, guidance, dispatch]);
 
   const runReplans = useCallback(async () => {
-    if (!narrative || !evaluation) return;
+    if (!narrative || !evaluation || !branchId) return;
     const edits = evaluation.sceneEvals.filter((e) => e.verdict === 'edit' && e.issues.length > 0);
     if (edits.length === 0) return;
 
@@ -236,7 +237,16 @@ export default function PlanEval({ sceneRange, onRangeChange }: { sceneRange?: S
         if (idx >= edits.length) break;
         const ev = edits[idx];
         const scene = narrative.scenes[ev.sceneId];
-        if (!scene || !scene.plan) {
+        if (!scene) {
+          completed++;
+          setReplanStatuses((prev) => ({ ...prev, [ev.sceneId]: 'done' }));
+          setReplanProgress({ completed, total: edits.length });
+          continue;
+        }
+
+        // Resolve plan for current branch
+        const resolvedPlan = resolvePlanForBranch(scene, branchId, narrative.branches);
+        if (!resolvedPlan) {
           completed++;
           setReplanStatuses((prev) => ({ ...prev, [ev.sceneId]: 'done' }));
           setReplanProgress({ completed, total: edits.length });
@@ -246,7 +256,7 @@ export default function PlanEval({ sceneRange, onRangeChange }: { sceneRange?: S
         setReplanStatuses((prev) => ({ ...prev, [ev.sceneId]: 'running' }));
 
         try {
-          const newPlan = await editScenePlan(narrative, scene, filteredKeys, ev.issues);
+          const newPlan = await editScenePlan(narrative, scene, filteredKeys, ev.issues, resolvedPlan);
           if (!cancelledRef.current) {
             dispatch({ type: 'UPDATE_SCENE', sceneId: ev.sceneId, updates: { plan: newPlan } });
           }
@@ -261,7 +271,7 @@ export default function PlanEval({ sceneRange, onRangeChange }: { sceneRange?: S
 
     await Promise.all(Array.from({ length: Math.min(PLAN_CONCURRENCY, edits.length) }, () => runWorker()));
     setReplanning(false);
-  }, [narrative, filteredKeys, evaluation, dispatch]);
+  }, [narrative, filteredKeys, evaluation, dispatch, branchId]);
 
   const cancel = useCallback(() => {
     cancelledRef.current = true;

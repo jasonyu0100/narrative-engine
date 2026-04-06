@@ -15,7 +15,7 @@ import type {
 import { THREAD_ACTIVE_STATUSES, THREAD_TERMINAL_STATUSES, THREAD_STATUS_LABELS, DEFAULT_STORY_SETTINGS } from '@/types/narrative';
 import { ANALYSIS_TARGET_SECTIONS_PER_CHUNK, ANALYSIS_TARGET_CHUNK_WORDS, ANALYSIS_MODEL, MAX_TOKENS_DEFAULT, ANALYSIS_TEMPERATURE } from '@/lib/constants';
 import { validateExtractionResult, validateWorldKnowledge } from '@/lib/ai/validation';
-import { logWarning, logInfo } from '@/lib/error-logger';
+import { logWarning, logInfo } from '@/lib/system-logger';
 
 // ── Text Splitting ───────────────────────────────────────────────────────────
 
