@@ -1,9 +1,10 @@
 'use client';
 
 import { useStore } from '@/lib/store';
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { searchNarrative } from '@/lib/search';
 import { synthesizeSearchResults } from '@/lib/ai/search-synthesis';
+import { loadSearchState, saveSearchState } from '@/lib/persistence';
 import Image from 'next/image';
 import { resolveProseForBranch, resolvePlanForBranch } from '@/lib/narrative-utils';
 
@@ -37,6 +38,36 @@ export function SearchView() {
   const [response, setResponse] = useState<QueryResponse | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [streamingAnswer, setStreamingAnswer] = useState('');
+  const [isLoaded, setIsLoaded] = useState(false);
+
+  // Load persisted search state on mount
+  useEffect(() => {
+    const loadPersistedSearch = async () => {
+      const savedSearch = await loadSearchState();
+      if (savedSearch && savedSearch.synthesis) {
+        setQuery(savedSearch.query);
+
+        // Map saved results to QueryResponse format
+        const allResults = savedSearch.results.slice(0, 10).map((res, idx) => ({
+          id: idx + 1,
+          sceneId: res.sceneId,
+          beatIndex: res.beatIndex,
+          propIndex: res.propIndex,
+          content: res.content.length > 200 ? res.content.substring(0, 197) + '...' : res.content,
+          similarity: res.similarity,
+        }));
+
+        setResponse({
+          question: savedSearch.query,
+          answer: savedSearch.synthesis.overview,
+          citations: allResults,
+        });
+      }
+      setIsLoaded(true);
+    };
+
+    loadPersistedSearch();
+  }, []);
 
   const handleQuery = useCallback(async (question: string) => {
     const narrative = state.activeNarrative;
@@ -45,19 +76,21 @@ export function SearchView() {
     if (!narrative || !resolvedKeys || question.trim().length === 0) return;
 
     setIsSearching(true);
-    setSearchStage('Searching...');
+    setSearchStage('Embedding query');
     setErrorMessage(null);
     setResponse(null);
     setStreamingAnswer('');
 
     try {
       const sceneCount = resolvedKeys.length;
-      setSearchStage(`Searching ${sceneCount} scene${sceneCount !== 1 ? 's' : ''}...`);
 
+      // Stage 1: Searching
+      setSearchStage(`Searching ${sceneCount} scene${sceneCount !== 1 ? 's' : ''}`);
       const result = await searchNarrative(narrative, resolvedKeys, question.trim());
 
       if (result.results.length > 0) {
-        setSearchStage('');
+        // Stage 2: Found results, generating AI summary
+        setSearchStage(`Found ${result.results.length} results — generating summary`);
 
         const synthesis = await synthesizeSearchResults(
           narrative,
@@ -67,24 +100,43 @@ export function SearchView() {
           result.topScene,
           result.timeline,
           (token) => {
-            setStreamingAnswer(prev => prev + token);
-            setSearchStage('');
+            setStreamingAnswer(prev => {
+              if (prev.length === 0) {
+                // First token received, we're streaming now
+                setSearchStage('');
+              }
+              return prev + token;
+            });
           }
         );
 
-        const citations = synthesis.citations.map((cit, idx) => ({
+        // Map all search results (top 10) for display, not just cited ones
+        const allResults = result.results.slice(0, 10).map((res, idx) => ({
           id: idx + 1,
-          sceneId: cit.sceneId,
-          beatIndex: result.results[idx]?.beatIndex,
-          propIndex: result.results[idx]?.propIndex,
-          content: cit.title,
-          similarity: cit.similarity,
+          sceneId: res.sceneId,
+          beatIndex: res.beatIndex,
+          propIndex: res.propIndex,
+          content: res.content.length > 200 ? res.content.substring(0, 197) + '...' : res.content,
+          similarity: res.similarity,
         }));
 
-        setResponse({
+        const responseData = {
           question: question.trim(),
           answer: synthesis.overview,
-          citations,
+          citations: allResults,
+        };
+        setResponse(responseData);
+
+        // Persist search state
+        await saveSearchState({
+          query: question.trim(),
+          embedding: result.embedding,
+          synthesis,
+          results: result.results,
+          timeline: result.timeline,
+          topArc: result.topArc,
+          topScene: result.topScene,
+          topBeat: result.topBeat,
         });
       } else {
         setErrorMessage('No relevant content found. Try a different question or generate embeddings.');
@@ -96,26 +148,6 @@ export function SearchView() {
       setSearchStage('');
     }
   }, [state.activeNarrative, state.resolvedEntryKeys]);
-
-  const navigateToCitation = useCallback((citation: QueryResponse['citations'][0]) => {
-    const sceneIndex = state.resolvedEntryKeys.indexOf(citation.sceneId);
-    if (sceneIndex < 0) return;
-
-    dispatch({ type: 'SET_SCENE_INDEX', index: sceneIndex });
-
-    if (citation.beatIndex !== undefined) {
-      window.dispatchEvent(new CustomEvent('canvas:toggle-beat-plan', { detail: { enabled: true } }));
-      dispatch({ type: 'SET_GRAPH_VIEW_MODE', mode: 'prose' });
-
-      setTimeout(() => {
-        window.dispatchEvent(new CustomEvent('prose:scroll-to-beat', {
-          detail: { beatIndex: citation.beatIndex, propIndex: citation.propIndex },
-        }));
-      }, 150);
-    } else {
-      dispatch({ type: 'SET_GRAPH_VIEW_MODE', mode: 'prose' });
-    }
-  }, [state.resolvedEntryKeys, dispatch]);
 
   const getSceneInfo = useCallback((sceneId: string, beatIndex?: number) => {
     const narrative = state.activeNarrative;
@@ -142,17 +174,52 @@ export function SearchView() {
     };
   }, [state.activeNarrative, state.activeBranchId]);
 
+  const navigateToCitation = useCallback((citation: QueryResponse['citations'][0]) => {
+    const sceneIndex = state.resolvedEntryKeys.indexOf(citation.sceneId);
+    if (sceneIndex < 0) return;
+
+    const sceneInfo = getSceneInfo(citation.sceneId, citation.beatIndex);
+    const hasProse = sceneInfo?.prose || sceneInfo?.beatProse;
+
+    dispatch({ type: 'SET_SCENE_INDEX', index: sceneIndex });
+
+    if (hasProse) {
+      // Navigate to prose view with side-by-side beat plan
+      window.dispatchEvent(new CustomEvent('canvas:toggle-beat-plan', { detail: { enabled: true } }));
+      dispatch({ type: 'SET_GRAPH_VIEW_MODE', mode: 'prose' });
+
+      if (citation.beatIndex !== undefined) {
+        setTimeout(() => {
+          window.dispatchEvent(new CustomEvent('prose:scroll-to-beat', {
+            detail: { beatIndex: citation.beatIndex, propIndex: citation.propIndex },
+          }));
+        }, 150);
+      }
+    } else {
+      // Fallback to plan view if no prose available
+      dispatch({ type: 'SET_GRAPH_VIEW_MODE', mode: 'plan' });
+
+      if (citation.beatIndex !== undefined) {
+        setTimeout(() => {
+          window.dispatchEvent(new CustomEvent('plan:scroll-to-beat', {
+            detail: { beatIndex: citation.beatIndex },
+          }));
+        }, 150);
+      }
+    }
+  }, [state.resolvedEntryKeys, dispatch, getSceneInfo]);
+
   const handleSuggestedQuery = useCallback((suggestedQuery: string) => {
     setQuery(suggestedQuery);
     handleQuery(suggestedQuery);
   }, [handleQuery]);
 
   return (
-    <div className="flex flex-col items-center h-full overflow-y-auto bg-bg-base">
+    <div className="flex flex-col items-center h-full overflow-y-auto">
       {/* Hero Section */}
       <div className={`w-full flex flex-col items-center transition-all duration-500 ${response || isSearching ? 'pt-8 pb-6' : 'pt-32'}`}>
         {/* Logo - Only show when no results */}
-        {!response && !isSearching && (
+        {!response && !isSearching && isLoaded && (
           <div className="w-full flex justify-center mb-16">
             <div className="flex items-center gap-4">
               <Image
@@ -208,7 +275,7 @@ export function SearchView() {
         </div>
 
         {/* Suggested Queries - Only show when no results */}
-        {!response && !isSearching && !errorMessage && (
+        {!response && !isSearching && !errorMessage && isLoaded && (
           <div className="w-full max-w-2xl px-8 mt-8">
             <div className="text-xs text-text-dim mb-3">Try searching for:</div>
             <div className="flex flex-wrap gap-2">
@@ -265,6 +332,12 @@ export function SearchView() {
                             {sceneInfo?.arc && (
                               <>
                                 <span>{sceneInfo.arc.name}</span>
+                                <span>›</span>
+                              </>
+                            )}
+                            {sceneInfo?.scene && (
+                              <>
+                                <span>{sceneInfo.scene.summary || 'Untitled Scene'}</span>
                                 <span>›</span>
                               </>
                             )}

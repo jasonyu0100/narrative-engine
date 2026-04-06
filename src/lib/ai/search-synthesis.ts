@@ -4,8 +4,7 @@
  */
 
 import { callGenerateStream } from './api';
-import { parseJson } from './json';
-import { ANALYSIS_MODEL, ANALYSIS_TEMPERATURE } from '../constants';
+import { ANALYSIS_MODEL } from '../constants';
 import { logInfo, logError } from '../system-logger';
 import type { NarrativeState, SearchResult, SearchSynthesis } from '@/types/narrative';
 
@@ -97,45 +96,37 @@ export async function synthesizeSearchResults(
   // Build context from search results
   const context = buildSearchContext(query, results, topArc, timeline, narrative);
 
-  // Create synthesis prompt
+  // Create synthesis prompt - plain text with inline citations
   const prompt = `${context}
 
 You are a narrative analysis assistant. The user has searched for: "${query}"
 
-Based on the search results above, provide a concise 2-3 paragraph synthesis that:
+Based on the search results above, provide a concise 2-3 paragraph synthesis that directly answers the user's search query.
 
-1. **Directly answers** what the user is searching for based on the results
-2. **Identifies which arcs and scenes** are most relevant, and explains why they match
-3. **Notes timeline patterns** - when this theme/concept appears, any concentrations or gaps
-
-**Important formatting rules:**
+**Guidelines:**
 - Use inline citations like [1], [2], [3] when referencing specific results
-- Cite the most relevant results (you don't have to cite all of them)
 - Write in a clear, informative style (similar to a Google AI Overview)
-- Focus on narrative patterns, not just listing matches
+- Focus on narrative patterns and connections, not just listing matches
+- Identify which arcs and scenes are most relevant
+- Note timeline patterns if applicable
 
-Return your response as valid JSON:
-{
-  "overview": "Your 2-3 paragraph synthesis with inline citations [1] and [2]...",
-  "citationIds": [1, 2, 3]
-}`;
+Write your response as plain text with inline citations.`;
 
-  // Stream the synthesis
+  // Stream the synthesis as plain text
   let accumulatedText = '';
 
   try {
     await callGenerateStream(
       prompt,
-      'You are a narrative analysis assistant. Provide concise, accurate synthesis of search results in valid JSON format.',
+      'You are a narrative analysis assistant. Provide concise, accurate synthesis of search results with inline citations.',
       (token) => {
         accumulatedText += token;
-        // For streaming display, we can't show partial JSON, so we'll just accumulate
-        // The component will need to handle this differently if real-time streaming is needed
+        // Stream clean text to the UI
         if (onToken) {
           onToken(token);
         }
       },
-      2048, // maxTokens - increased to prevent truncation
+      2048, // maxTokens
       'synthesizeSearchResults', // caller
       ANALYSIS_MODEL, // model
       undefined, // reasoningBudget
@@ -143,18 +134,14 @@ Return your response as valid JSON:
       0.3, // temperature
     );
 
-    // Parse the final JSON response
-    const parsed = parseJson<{ overview: string; citationIds: number[] }>(
-      accumulatedText,
-      'Search synthesis response'
-    );
-
-    if (!parsed.overview || !Array.isArray(parsed.citationIds)) {
-      throw new Error('Invalid synthesis response structure');
-    }
+    // Extract citation numbers from the text using regex
+    const citationMatches = accumulatedText.match(/\[(\d+)\]/g) || [];
+    const citationIds = Array.from(new Set(
+      citationMatches.map(match => parseInt(match.replace(/\[|\]/g, ''), 10))
+    )).sort((a, b) => a - b);
 
     // Map citation IDs to result metadata
-    const citations = parsed.citationIds
+    const citations = citationIds
       .filter(id => id >= 1 && id <= results.length)
       .map(id => {
         const result = results[id - 1]; // Convert 1-indexed to 0-indexed
@@ -172,18 +159,20 @@ Return your response as valid JSON:
         };
       });
 
+    const overview = accumulatedText.trim();
+
     logInfo('Search synthesis completed', {
       source: 'other',
       operation: 'synthesize-search-complete',
       details: {
         query: query.substring(0, 100),
-        overviewLength: parsed.overview.length,
+        overviewLength: overview.length,
         citationCount: citations.length,
       },
     });
 
     return {
-      overview: parsed.overview,
+      overview,
       citations,
     };
 
