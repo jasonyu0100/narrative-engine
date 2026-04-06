@@ -1637,8 +1637,10 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       // Load bundled narratives from /public manifests (parallel fetches)
       async function loadManifest(dir: string, idSet: Set<string>) {
         try {
+          console.log(`[loadManifest] Fetching manifest from /${dir}/manifest.json`);
           const res = await fetch(`/${dir}/manifest.json`);
           if (!res.ok) {
+            console.error(`[loadManifest] Failed to fetch manifest for ${dir}:`, res.status);
             logWarning(`Failed to fetch manifest for ${dir}`, `HTTP ${res.status}`, {
               source: 'other',
               operation: 'load-manifest',
@@ -1647,22 +1649,128 @@ export function StoreProvider({ children }: { children: ReactNode }) {
             return [];
           }
           const files: string[] = await res.json();
+          console.log(`[loadManifest] Found ${files.length} files in ${dir}:`, files);
           const results = await Promise.allSettled(
             files.map(async (file) => {
+              console.log(`[loadManifest] Loading ${dir}/${file}`);
               const r = await fetch(`/${dir}/${file}`);
-              if (!r.ok) return null;
-              return (await r.json()) as NarrativeState;
+              if (!r.ok) {
+                console.error(`[loadManifest] Failed to fetch ${dir}/${file}:`, r.status);
+                return null;
+              }
+
+              // Detect format - check if it's a ZIP file
+              const arrayBuffer = await r.arrayBuffer();
+              const bytes = new Uint8Array(arrayBuffer);
+              const isZip = bytes.length >= 2 && bytes[0] === 0x50 && bytes[1] === 0x4B;
+              console.log(`[loadManifest] ${file} is ${isZip ? 'ZIP' : 'JSON'} format (size: ${bytes.length} bytes)`);
+
+              if (isZip) {
+                // ZIP package - extract narrative.json and import assets
+                console.log(`[loadManifest] Extracting ZIP package: ${file}`);
+                const JSZip = (await import('jszip')).default;
+                const zip = await JSZip.loadAsync(arrayBuffer);
+
+                const narrativeFile = zip.file('narrative.json');
+                if (!narrativeFile) {
+                  console.error(`[loadManifest] Invalid .inktide ZIP in ${dir}/${file}: missing narrative.json`);
+                  logWarning(`Invalid .inktide ZIP in ${dir}/${file}`, 'missing narrative.json', {
+                    source: 'other',
+                    operation: 'load-manifest'
+                  });
+                  return null;
+                }
+
+                const narrativeText = await narrativeFile.async('text');
+                const narrative = JSON.parse(narrativeText) as NarrativeState;
+
+                // Check if this narrative already exists in IndexedDB BEFORE extracting assets
+                const saved = persistedById.get(narrative.id);
+                if (saved) {
+                  console.log(`[loadManifest] Narrative ${narrative.title} already exists in IndexedDB, skipping asset extraction`);
+                  return narrative;
+                }
+
+                // Only import assets if narrative doesn't exist in IndexedDB
+                console.log(`[loadManifest] New narrative detected: ${narrative.title}, importing assets...`);
+
+                // Import embeddings from ZIP (if present)
+                const embeddingsFolder = zip.folder('embeddings');
+                if (embeddingsFolder) {
+                  const embFiles = Object.values(embeddingsFolder.files).filter(f => !f.dir && f.name.endsWith('.bin'));
+                  console.log(`[loadManifest] Found ${embFiles.length} embeddings in ${file}`);
+                  for (const embFile of embFiles) {
+                    const fileName = embFile.name.split('/').pop()!;
+                    const embId = fileName.replace('.bin', '');
+                    try {
+                      const buffer = await embFile.async('arraybuffer');
+                      const float32Array = new Float32Array(buffer);
+                      const vector = Array.from(float32Array);
+                      await assetManager.storeEmbedding(vector, 'text-embedding-3-small', embId);
+                    } catch (err) {
+                      console.warn(`Failed to import embedding ${embId}:`, err);
+                    }
+                  }
+                }
+
+                // Import audio from ZIP (if present)
+                const audioFolder = zip.folder('audio');
+                if (audioFolder) {
+                  const audioFiles = Object.values(audioFolder.files).filter(f => !f.dir);
+                  console.log(`[loadManifest] Found ${audioFiles.length} audio files in ${file}`);
+                  for (const audioFile of audioFiles) {
+                    const fileName = audioFile.name.split('/').pop()!;
+                    const [audioId] = fileName.split('.');
+                    try {
+                      const blob = await audioFile.async('blob');
+                      await assetManager.storeAudio(blob, blob.type, audioId);
+                    } catch (err) {
+                      console.warn(`Failed to import audio ${audioId}:`, err);
+                    }
+                  }
+                }
+
+                // Import images from ZIP (if present)
+                const imagesFolder = zip.folder('images');
+                if (imagesFolder) {
+                  const imageFiles = Object.values(imagesFolder.files).filter(f => !f.dir);
+                  console.log(`[loadManifest] Found ${imageFiles.length} images in ${file}`);
+                  for (const imageFile of imageFiles) {
+                    const fileName = imageFile.name.split('/').pop()!;
+                    const [imgId] = fileName.split('.');
+                    try {
+                      const blob = await imageFile.async('blob');
+                      await assetManager.storeImage(blob, blob.type, imgId);
+                    } catch (err) {
+                      console.warn(`Failed to import image ${imgId}:`, err);
+                    }
+                  }
+                }
+
+                console.log(`[loadManifest] Successfully loaded narrative from ZIP: ${narrative.title} (${narrative.id})`);
+                return narrative;
+              } else {
+                // Plain JSON format (backwards compatibility)
+                const text = new TextDecoder().decode(arrayBuffer);
+                const narrative = JSON.parse(text) as NarrativeState;
+                console.log(`[loadManifest] Successfully loaded narrative from JSON: ${narrative.title} (${narrative.id})`);
+                return narrative;
+              }
             })
           );
           const entries: NarrativeEntry[] = [];
           for (const result of results) {
-            if (result.status !== 'fulfilled' || !result.value) continue;
+            if (result.status !== 'fulfilled' || !result.value) {
+              console.log('[loadManifest] Result failed or null:', result);
+              continue;
+            }
             const narrative = result.value;
             const saved = persistedById.get(narrative.id);
 
             // If this narrative already exists in IndexedDB, skip loading the bundled version
             // to avoid overwriting user modifications
             if (saved) {
+              console.log(`[loadManifest] Using saved version of ${narrative.title} from IndexedDB`);
               entries.push(narrativeToEntry(saved));
               SEED_IDS.add(narrative.id);
               idSet.add(narrative.id);
@@ -1670,11 +1778,13 @@ export function StoreProvider({ children }: { children: ReactNode }) {
             }
 
             // Only load bundled narrative if it doesn't exist in IndexedDB
+            console.log(`[loadManifest] Adding bundled narrative: ${narrative.title}`);
             bundledNarratives.set(narrative.id, narrative);
             SEED_IDS.add(narrative.id);
             idSet.add(narrative.id);
             entries.push(narrativeToEntry(narrative));
           }
+          console.log(`[loadManifest] Loaded ${entries.length} narratives from ${dir}`);
           return entries;
         } catch (err) {
           logWarning(`Failed to load manifest for ${dir}`, err, {
