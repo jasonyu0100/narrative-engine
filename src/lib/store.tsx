@@ -309,6 +309,7 @@ const initialState: AppState = {
 // ── Actions ──────────────────────────────────────────────────────────────────
 export type Action =
   | { type: 'HYDRATE_NARRATIVES'; entries: NarrativeEntry[] }
+  | { type: 'ADD_NARRATIVE_ENTRY'; entry: NarrativeEntry }
   | { type: 'SET_ACTIVE_NARRATIVE'; id: string }
   | { type: 'LOADED_NARRATIVE'; narrative: NarrativeState; savedBranchId?: string | null }
   | { type: 'TOGGLE_PLAY' }
@@ -402,6 +403,13 @@ function reducer(state: AppState, action: Action): AppState {
   switch (action.type) {
     case 'HYDRATE_NARRATIVES': {
       return { ...state, narratives: action.entries };
+    }
+    case 'ADD_NARRATIVE_ENTRY': {
+      // Add entry if not already present (by ID)
+      if (state.narratives.some(n => n.id === action.entry.id)) {
+        return state;
+      }
+      return { ...state, narratives: [...state.narratives, action.entry] };
     }
     case 'SET_ACTIVE_NARRATIVE': {
       // Just set the ID — the async loading effect will populate the narrative
@@ -1634,8 +1642,173 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       }
       const persistedById = new Map(persisted.map((n) => [n.id, n]));
 
-      // Load bundled narratives from /public manifests (parallel fetches)
-      async function loadManifest(dir: string, idSet: Set<string>) {
+      // User entries (from IndexedDB) load immediately
+      const userEntries = persisted
+        .filter((n) => !SEED_IDS.has(n.id) && !PLAYGROUND_IDS.has(n.id) && !ANALYSIS_IDS.has(n.id))
+        .map(narrativeToEntry);
+
+      // Initialize with user entries immediately so UI is responsive
+      dispatch({ type: 'HYDRATE_NARRATIVES', entries: userEntries });
+
+      // Helper to import assets from a ZIP in the background (non-blocking, parallel)
+      async function importAssetsInBackground(zip: import('jszip'), file: string) {
+        const tasks: Promise<void>[] = [];
+
+        // Import embeddings (in parallel)
+        const embeddingsFolder = zip.folder('embeddings');
+        if (embeddingsFolder) {
+          const embFiles = Object.values(embeddingsFolder.files).filter(f => !f.dir && f.name.endsWith('.bin'));
+          console.log(`[loadManifest] Importing ${embFiles.length} embeddings from ${file} in background`);
+          tasks.push(
+            Promise.all(embFiles.map(async (embFile) => {
+              const fileName = embFile.name.split('/').pop()!;
+              const embId = fileName.replace('.bin', '');
+              try {
+                const buffer = await embFile.async('arraybuffer');
+                const float32Array = new Float32Array(buffer);
+                const vector = Array.from(float32Array);
+                await assetManager.storeEmbedding(vector, 'text-embedding-3-small', embId);
+              } catch (err) {
+                console.warn(`Failed to import embedding ${embId}:`, err);
+              }
+            })).then(() => { console.log(`[loadManifest] Embeddings imported from ${file}`); })
+          );
+        }
+
+        // Import audio (in parallel)
+        const audioFolder = zip.folder('audio');
+        if (audioFolder) {
+          const audioFiles = Object.values(audioFolder.files).filter(f => !f.dir && f.name.startsWith('audio/'));
+          console.log(`[loadManifest] Importing ${audioFiles.length} audio files from ${file} in background`);
+          tasks.push(
+            Promise.all(audioFiles.map(async (audioFile) => {
+              const fileName = audioFile.name.split('/').pop()!;
+              const [audioId] = fileName.split('.');
+              try {
+                const blob = await audioFile.async('blob');
+                await assetManager.storeAudio(blob, blob.type, audioId);
+              } catch (err) {
+                console.warn(`Failed to import audio ${audioId}:`, err);
+              }
+            })).then(() => { console.log(`[loadManifest] Audio imported from ${file}`); })
+          );
+        }
+
+        // Import images (in parallel)
+        const imagesFolder = zip.folder('images');
+        if (imagesFolder) {
+          const imageFiles = Object.values(imagesFolder.files).filter(f => !f.dir && f.name.startsWith('images/'));
+          console.log(`[loadManifest] Importing ${imageFiles.length} images from ${file} in background`);
+          tasks.push(
+            Promise.all(imageFiles.map(async (imageFile) => {
+              const fileName = imageFile.name.split('/').pop()!;
+              const [imgId] = fileName.split('.');
+              try {
+                const blob = await imageFile.async('blob');
+                await assetManager.storeImage(blob, blob.type, imgId);
+              } catch (err) {
+                console.warn(`Failed to import image ${imgId}:`, err);
+              }
+            })).then(() => { console.log(`[loadManifest] Images imported from ${file}`); })
+          );
+        }
+
+        // Run all asset types in parallel
+        await Promise.all(tasks);
+        console.log(`[loadManifest] Finished importing all assets from ${file}`);
+      }
+
+      // Load a single bundled file and dispatch entry immediately when ready
+      // Returns the narrative for preset initialization, asset import runs in background
+      async function loadBundledFile(
+        dir: string,
+        file: string,
+        idSet: Set<string>
+      ): Promise<NarrativeState | null> {
+        try {
+          console.log(`[loadManifest] Loading ${dir}/${file}`);
+          const r = await fetch(`/${dir}/${file}`);
+          if (!r.ok) {
+            console.error(`[loadManifest] Failed to fetch ${dir}/${file}:`, r.status);
+            return null;
+          }
+
+          const arrayBuffer = await r.arrayBuffer();
+          const bytes = new Uint8Array(arrayBuffer);
+          const isZip = bytes.length >= 2 && bytes[0] === 0x50 && bytes[1] === 0x4B;
+          console.log(`[loadManifest] ${file} is ${isZip ? 'ZIP' : 'JSON'} format (size: ${bytes.length} bytes)`);
+
+          let narrative: NarrativeState;
+
+          if (isZip) {
+            const JSZip = (await import('jszip')).default;
+            const zip = await JSZip.loadAsync(arrayBuffer);
+
+            const narrativeFile = zip.file('narrative.json');
+            if (!narrativeFile) {
+              console.error(`[loadManifest] Invalid .inktide ZIP in ${dir}/${file}: missing narrative.json`);
+              logWarning(`Invalid .inktide ZIP in ${dir}/${file}`, 'missing narrative.json', {
+                source: 'other',
+                operation: 'load-manifest'
+              });
+              return null;
+            }
+
+            const narrativeText = await narrativeFile.async('text');
+            narrative = JSON.parse(narrativeText) as NarrativeState;
+
+            // Check if already in IndexedDB
+            const saved = persistedById.get(narrative.id);
+            if (saved) {
+              console.log(`[loadManifest] Using saved version of ${narrative.title} from IndexedDB`);
+              SEED_IDS.add(narrative.id);
+              idSet.add(narrative.id);
+              dispatch({ type: 'ADD_NARRATIVE_ENTRY', entry: narrativeToEntry(saved) });
+              return narrative;
+            }
+
+            // Dispatch entry immediately (before asset import)
+            console.log(`[loadManifest] Adding bundled narrative: ${narrative.title}`);
+            bundledNarratives.set(narrative.id, narrative);
+            SEED_IDS.add(narrative.id);
+            idSet.add(narrative.id);
+            dispatch({ type: 'ADD_NARRATIVE_ENTRY', entry: narrativeToEntry(narrative) });
+
+            // Import assets in background (non-blocking)
+            importAssetsInBackground(zip, file).catch(err => {
+              console.warn(`[loadManifest] Background asset import failed for ${file}:`, err);
+            });
+          } else {
+            // Plain JSON format
+            const text = new TextDecoder().decode(arrayBuffer);
+            narrative = JSON.parse(text) as NarrativeState;
+
+            const saved = persistedById.get(narrative.id);
+            if (saved) {
+              console.log(`[loadManifest] Using saved version of ${narrative.title} from IndexedDB`);
+              SEED_IDS.add(narrative.id);
+              idSet.add(narrative.id);
+              dispatch({ type: 'ADD_NARRATIVE_ENTRY', entry: narrativeToEntry(saved) });
+              return narrative;
+            }
+
+            console.log(`[loadManifest] Adding bundled narrative: ${narrative.title}`);
+            bundledNarratives.set(narrative.id, narrative);
+            SEED_IDS.add(narrative.id);
+            idSet.add(narrative.id);
+            dispatch({ type: 'ADD_NARRATIVE_ENTRY', entry: narrativeToEntry(narrative) });
+          }
+
+          console.log(`[loadManifest] Successfully loaded narrative: ${narrative.title} (${narrative.id})`);
+          return narrative;
+        } catch (err) {
+          console.error(`[loadManifest] Error loading ${dir}/${file}:`, err);
+          return null;
+        }
+      }
+
+      // Load manifest and process files progressively
+      async function loadManifestProgressive(dir: string, idSet: Set<string>): Promise<NarrativeState[]> {
         try {
           console.log(`[loadManifest] Fetching manifest from /${dir}/manifest.json`);
           const res = await fetch(`/${dir}/manifest.json`);
@@ -1650,142 +1823,14 @@ export function StoreProvider({ children }: { children: ReactNode }) {
           }
           const files: string[] = await res.json();
           console.log(`[loadManifest] Found ${files.length} files in ${dir}:`, files);
-          const results = await Promise.allSettled(
-            files.map(async (file) => {
-              console.log(`[loadManifest] Loading ${dir}/${file}`);
-              const r = await fetch(`/${dir}/${file}`);
-              if (!r.ok) {
-                console.error(`[loadManifest] Failed to fetch ${dir}/${file}:`, r.status);
-                return null;
-              }
 
-              // Detect format - check if it's a ZIP file
-              const arrayBuffer = await r.arrayBuffer();
-              const bytes = new Uint8Array(arrayBuffer);
-              const isZip = bytes.length >= 2 && bytes[0] === 0x50 && bytes[1] === 0x4B;
-              console.log(`[loadManifest] ${file} is ${isZip ? 'ZIP' : 'JSON'} format (size: ${bytes.length} bytes)`);
-
-              if (isZip) {
-                // ZIP package - extract narrative.json and import assets
-                console.log(`[loadManifest] Extracting ZIP package: ${file}`);
-                const JSZip = (await import('jszip')).default;
-                const zip = await JSZip.loadAsync(arrayBuffer);
-
-                const narrativeFile = zip.file('narrative.json');
-                if (!narrativeFile) {
-                  console.error(`[loadManifest] Invalid .inktide ZIP in ${dir}/${file}: missing narrative.json`);
-                  logWarning(`Invalid .inktide ZIP in ${dir}/${file}`, 'missing narrative.json', {
-                    source: 'other',
-                    operation: 'load-manifest'
-                  });
-                  return null;
-                }
-
-                const narrativeText = await narrativeFile.async('text');
-                const narrative = JSON.parse(narrativeText) as NarrativeState;
-
-                // Check if this narrative already exists in IndexedDB BEFORE extracting assets
-                const saved = persistedById.get(narrative.id);
-                if (saved) {
-                  console.log(`[loadManifest] Narrative ${narrative.title} already exists in IndexedDB, skipping asset extraction`);
-                  return narrative;
-                }
-
-                // Only import assets if narrative doesn't exist in IndexedDB
-                console.log(`[loadManifest] New narrative detected: ${narrative.title}, importing assets...`);
-
-                // Import embeddings from ZIP (if present)
-                const embeddingsFolder = zip.folder('embeddings');
-                if (embeddingsFolder) {
-                  const embFiles = Object.values(embeddingsFolder.files).filter(f => !f.dir && f.name.endsWith('.bin'));
-                  console.log(`[loadManifest] Found ${embFiles.length} embeddings in ${file}`);
-                  for (const embFile of embFiles) {
-                    const fileName = embFile.name.split('/').pop()!;
-                    const embId = fileName.replace('.bin', '');
-                    try {
-                      const buffer = await embFile.async('arraybuffer');
-                      const float32Array = new Float32Array(buffer);
-                      const vector = Array.from(float32Array);
-                      await assetManager.storeEmbedding(vector, 'text-embedding-3-small', embId);
-                    } catch (err) {
-                      console.warn(`Failed to import embedding ${embId}:`, err);
-                    }
-                  }
-                }
-
-                // Import audio from ZIP (if present)
-                const audioFolder = zip.folder('audio');
-                if (audioFolder) {
-                  const audioFiles = Object.values(audioFolder.files).filter(f => !f.dir);
-                  console.log(`[loadManifest] Found ${audioFiles.length} audio files in ${file}`);
-                  for (const audioFile of audioFiles) {
-                    const fileName = audioFile.name.split('/').pop()!;
-                    const [audioId] = fileName.split('.');
-                    try {
-                      const blob = await audioFile.async('blob');
-                      await assetManager.storeAudio(blob, blob.type, audioId);
-                    } catch (err) {
-                      console.warn(`Failed to import audio ${audioId}:`, err);
-                    }
-                  }
-                }
-
-                // Import images from ZIP (if present)
-                const imagesFolder = zip.folder('images');
-                if (imagesFolder) {
-                  const imageFiles = Object.values(imagesFolder.files).filter(f => !f.dir);
-                  console.log(`[loadManifest] Found ${imageFiles.length} images in ${file}`);
-                  for (const imageFile of imageFiles) {
-                    const fileName = imageFile.name.split('/').pop()!;
-                    const [imgId] = fileName.split('.');
-                    try {
-                      const blob = await imageFile.async('blob');
-                      await assetManager.storeImage(blob, blob.type, imgId);
-                    } catch (err) {
-                      console.warn(`Failed to import image ${imgId}:`, err);
-                    }
-                  }
-                }
-
-                console.log(`[loadManifest] Successfully loaded narrative from ZIP: ${narrative.title} (${narrative.id})`);
-                return narrative;
-              } else {
-                // Plain JSON format (backwards compatibility)
-                const text = new TextDecoder().decode(arrayBuffer);
-                const narrative = JSON.parse(text) as NarrativeState;
-                console.log(`[loadManifest] Successfully loaded narrative from JSON: ${narrative.title} (${narrative.id})`);
-                return narrative;
-              }
-            })
+          // Load all files in parallel, each dispatches its entry as soon as ready
+          const results = await Promise.all(
+            files.map(file => loadBundledFile(dir, file, idSet))
           );
-          const entries: NarrativeEntry[] = [];
-          for (const result of results) {
-            if (result.status !== 'fulfilled' || !result.value) {
-              console.log('[loadManifest] Result failed or null:', result);
-              continue;
-            }
-            const narrative = result.value;
-            const saved = persistedById.get(narrative.id);
 
-            // If this narrative already exists in IndexedDB, skip loading the bundled version
-            // to avoid overwriting user modifications
-            if (saved) {
-              console.log(`[loadManifest] Using saved version of ${narrative.title} from IndexedDB`);
-              entries.push(narrativeToEntry(saved));
-              SEED_IDS.add(narrative.id);
-              idSet.add(narrative.id);
-              continue;
-            }
-
-            // Only load bundled narrative if it doesn't exist in IndexedDB
-            console.log(`[loadManifest] Adding bundled narrative: ${narrative.title}`);
-            bundledNarratives.set(narrative.id, narrative);
-            SEED_IDS.add(narrative.id);
-            idSet.add(narrative.id);
-            entries.push(narrativeToEntry(narrative));
-          }
-          console.log(`[loadManifest] Loaded ${entries.length} narratives from ${dir}`);
-          return entries;
+          console.log(`[loadManifest] Loaded ${results.filter(Boolean).length} narratives from ${dir}`);
+          return results.filter((n): n is NarrativeState => n !== null);
         } catch (err) {
           logWarning(`Failed to load manifest for ${dir}`, err, {
             source: 'other',
@@ -1796,19 +1841,16 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         }
       }
 
-      const [playgroundEntries, analysisEntries] = await Promise.all([
-        loadManifest('playgrounds', PLAYGROUND_IDS),
-        loadManifest('works', ANALYSIS_IDS),
-      ]);
+      // Load playgrounds first (complete before works)
+      await loadManifestProgressive('playgrounds', PLAYGROUND_IDS);
 
-      const userEntries = persisted
-        .filter((n) => !SEED_IDS.has(n.id) && !PLAYGROUND_IDS.has(n.id) && !ANALYSIS_IDS.has(n.id))
-        .map(narrativeToEntry);
+      // Then load works progressively
+      const worksNarratives = await loadManifestProgressive('works', ANALYSIS_IDS);
 
       // Initialize Markov chain presets from analysed works
       const worksForPresets: { key: string; name: string; narrative: NarrativeState }[] = [];
-      for (const [id, narrative] of bundledNarratives) {
-        if (ANALYSIS_IDS.has(id)) {
+      for (const narrative of worksNarratives) {
+        if (ANALYSIS_IDS.has(narrative.id)) {
           const key = narrative.title.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/(^_|_$)/g, '');
           worksForPresets.push({ key, name: narrative.title, narrative });
         }
@@ -1820,8 +1862,6 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         const mechanismPresets = initMechanismProfilePresets(worksForPresets);
         dispatch({ type: 'SET_MECHANISM_PROFILE_PRESETS', presets: mechanismPresets });
       }
-
-      dispatch({ type: 'HYDRATE_NARRATIVES', entries: [...playgroundEntries, ...analysisEntries, ...userEntries] });
 
       // Restore last active narrative
       const savedActiveId = await loadActiveNarrativeId();
