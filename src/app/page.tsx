@@ -331,9 +331,9 @@ export default function HomePage() {
           </p>
 
           <h1 className="animate-fade-up-delay-1 text-5xl sm:text-7xl font-bold tracking-[-0.03em] text-center leading-[1.05] max-w-160 sm:whitespace-nowrap">
-            <span className="text-white">Stories that </span>
-            <span className="glitch-wrapper text-white italic" data-text="breathe...">
-              <MorphText text="breathe" />
+            <span className="text-white">Text that </span>
+            <span className="glitch-wrapper text-white italic" data-text="breathes...">
+              <MorphText text="breathes" />
               ...
             </span>
           </h1>
@@ -341,7 +341,7 @@ export default function HomePage() {
           <p className="animate-fade-up-delay-2 text-[15px] text-white/40 mt-6 max-w-lg text-center leading-relaxed">
             An open source engine built on knowledge graphs.
             <br />
-            Story intelligence for the AI age.
+            Narrative intelligence for the AI age.
           </p>
 
           {/* ── Analyze Corpus ─────────────────────────────────────────── */}

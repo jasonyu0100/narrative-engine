@@ -2,13 +2,13 @@
 
 # InkTide
 
-> Like a chess engine for stories.
+> Like a chess engine for text.
 
-Stories have structure that readers feel but metrics miss. A reveal reframes everything before it. Threads tighten across chapters. A quiet scene holds more weight than the battle it follows. Tension rises and falls like tides—peaks you remember, valleys that make the peaks matter.
+Structured writing has shape that readers feel but metrics miss. A reveal reframes everything before it. Threads tighten across chapters. A quiet scene holds more weight than the battle it follows. Arguments build through evidence the way narratives build through tension — peaks you remember, valleys that make the peaks matter.
 
-InkTide makes those tides computable. It models narratives as a **knowledge graph that mutates scene by scene** — tracking how threads escalate, characters transform, relationships shift, and worlds deepen. From those mutations, deterministic formulas derive three forces (**Payoff**, **Change**, **Knowledge**) that trace the shape of a story through time. Applied to Harry Potter, the delivery curve peaks at the Sorting Hat, the troll fight, and the Quirrell confrontation — without any human labeling.
+InkTide makes that shape computable. It models text as a **knowledge graph that mutates section by section** — tracking how threads escalate, ideas transform, relationships shift, and worlds deepen. From those mutations, deterministic formulas derive three forces (**Payoff**, **Change**, **Knowledge**) that trace the structure of any long-form text through time. Applied to Harry Potter, the delivery curve peaks at the Sorting Hat, the troll fight, and the Quirrell confrontation — without any human labeling. The same framework applies to academic writing, non-fiction, and any text where structure matters.
 
-Then it uses those forces to **generate** (Markov pacing + prose profiles + MCTS search + planning with course correction) and **revise** (evaluate → reconstruct → converge) until AI-generated narratives score in the high 80s against a benchmark where published literature lands 85–95. Prose itself is shaped by **beat plans** — reverse-engineered from published works into 10 types of prose sections and 8 delivery mechanisms, with per-author Markov chains that capture how one beat type follows another.
+Then it uses those forces to **generate** (Markov pacing + prose profiles + MCTS search + planning with course correction) and **revise** (evaluate → reconstruct → converge) until AI-generated text scores in the high 80s against a benchmark where published literature lands 85–95. Prose itself is shaped by **beat plans** — reverse-engineered from published works into 10 types of prose sections and 8 delivery mechanisms, with per-author Markov chains that capture how one beat type follows another.
 
 **[Read the paper →](https://inktide-sourcenovel.vercel.app/paper)** · **[Case analysis →](https://inktide-sourcenovel.vercel.app/case-analysis)** · **[Try it →](https://inktide-sourcenovel.vercel.app/)**
 

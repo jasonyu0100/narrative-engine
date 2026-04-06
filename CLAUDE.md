@@ -1,10 +1,10 @@
 # InkTide
 
-Knowledge-graph-based narrative analysis, generation, and revision platform. Derives **payoff**, **change**, and **knowledge** forces from scene-level mutations. Next.js 16 + React 19 + TypeScript.
+Knowledge-graph-based text analysis, generation, and revision platform. Primarily built for fiction, but the structural framework applies to any long-form writing — academic papers, non-fiction, technical documents. Derives **payoff**, **change**, and **knowledge** forces from scene-level mutations. Next.js 16 + React 19 + TypeScript.
 
 ## Core Concept
 
-Narratives are modelled as a **knowledge graph** that mutates scene by scene. An LLM records structural mutations (threads, knowledge, relationships) at each scene, and static analysis formulas compute **narrative forces** from those mutations. This enables:
+Text is modelled as a **knowledge graph** that mutates section by section. An LLM records structural mutations (threads, knowledge, relationships) at each section, and static analysis formulas compute **narrative forces** from those mutations. Fiction remains the primary use case, but the same force model captures structural quality in any text where threads develop, knowledge builds, and ideas transform. This enables:
 
 - **Markov chain pacing** — transition matrices derived from published works shape scene-by-scene rhythm
 - **MCTS search** — explores branching narrative paths, each expansion guided by a fresh Markov pacing sequence

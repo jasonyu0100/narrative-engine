@@ -530,8 +530,8 @@ export default function PaperPage() {
             Quantifying Narrative Force
           </h1>
           <p className="text-[15px] text-white/40 leading-relaxed max-w-xl">
-            A computational framework for measuring narrative impact through
-            structural graph mutations.
+            A computational framework for measuring structural impact in
+            long-form text through knowledge graph mutations.
           </p>
           <div className="mt-3">
             <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-mono bg-white/5 border border-white/10 text-white/40">
@@ -544,25 +544,28 @@ export default function PaperPage() {
           {/* ── Abstract ──────────────────────────────────────────────── */}
           <Section id="abstract" label="Abstract">
             <P>
-              Narrative structure exhibits measurable regularities, yet existing
+              Structured text exhibits measurable regularities, yet existing
               metrics fail to quantify the mechanisms that drive reader engagement.
-              This paper introduces a computational framework that renders narrative
-              structure <B>quantifiable and optimizable</B>. We model narratives
+              This paper introduces a computational framework that renders textual
+              structure <B>quantifiable and optimizable</B>. We model long-form text
               as knowledge graphs mutating across three independent layers: thread
-              lifecycle transitions, character continuity shifts, and world
+              lifecycle transitions, continuity shifts, and world
               knowledge expansion. Three forces (Payoff, Change, Knowledge) derive
               from these mutations via deterministic, z-score normalized formulas.
               Applied to <em>Harry Potter and the Sorcerer&apos;s Stone</em>, the
               delivery curve autonomously identifies dramatic peaks at chapter
               boundaries corresponding to the Sorting Hat, troll confrontation,
-              and Quirrell climax — without human annotation.
+              and Quirrell climax — without human annotation. While fiction is our
+              primary domain, the same structural model applies wherever threads
+              develop, knowledge builds, and arguments transform — from academic
+              papers to long-form non-fiction.
             </P>
             <P>
               These metrics enable both <B>measurement</B> and <B>synthesis</B>.
               For generation, we deploy Markov-chain pacing, MCTS search, and
               adaptive planning. For revision, iterative evaluation and reconstruction.
-              Empirical validation shows published works scoring 85–95 on a composite
-              delivery metric, while unguided AI narratives score 65–78. This
+              Empirical validation shows published fiction scoring 85–95 on a composite
+              delivery metric, while unguided AI output scores 65–78. This
               quantifiable gap exposes structural deficiencies: weak thread lifecycle
               complexity, shallow continuity graphs, sparse world-building connectivity.
               The framework provides algorithmic tools to systematically address them.
@@ -573,25 +576,25 @@ export default function PaperPage() {
           {/* ── The Problem ───────────────────────────────────────────── */}
           <Section id="problem" label="The Problem">
             <P>
-              Computational narrative generation faces a structural deficiency that
+              Computational text generation faces a structural deficiency that
               existing metrics fail to quantify. Sentiment analysis measures affective
               valence; topic models measure lexical distribution. Neither distinguishes
               progressive thread escalation from cyclical repetition, persistent
-              character knowledge accumulation from transient behavioral variation,
-              or hierarchical world-building depth from lateral enumeration. LLMs
+              knowledge accumulation from transient variation,
+              or hierarchical depth from lateral enumeration. LLMs
               generate syntactically fluent prose yet produce structurally shallow
-              narratives: dramatic tensions recur without advancing through lifecycle
-              states, characters experience events without accumulating constraining
-              knowledge, world systems expand through listing rather than
+              output: dramatic tensions recur without advancing through lifecycle
+              states, subjects experience development without accumulating constraining
+              knowledge, systems expand through listing rather than
               interconnection.
             </P>
             <P>
               These deficiencies share a root cause. Readers perceive structural
               regularities — thread lifecycle progression, continuity graph density,
               knowledge interconnection — that no established computational framework
-              captures. Narrative coherence emerges from systematic mutations across
+              captures. Textual coherence emerges from systematic mutations across
               three independent graph layers. Applying mutation-derived formulas to
-              published works versus AI-generated narratives makes this gap empirically
+              published works versus AI-generated text makes this gap empirically
               measurable. Published literature scores 85–95 on composite delivery;
               unguided AI output scores 65–78. This 15–20 point disparity reflects
               structural density differences: weaker thread lifecycle complexity,
