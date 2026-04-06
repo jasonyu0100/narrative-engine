@@ -336,6 +336,11 @@ export function SearchView() {
                       onClick={() => navigateToCitation(cit)}
                     >
                       <div className="flex items-start gap-4 py-3 px-1 hover:bg-bg-elevated/30 rounded-lg transition-colors">
+                        {/* Result number */}
+                        <div className="shrink-0 w-6 h-6 flex items-center justify-center rounded-full bg-bg-elevated border border-border text-xs text-text-dim font-medium mt-0.5">
+                          {cit.id}
+                        </div>
+
                         <div className="flex-1 min-w-0">
                           {/* Context breadcrumb */}
                           <div className="flex items-center gap-2 text-xs mb-2 text-text-dim">
