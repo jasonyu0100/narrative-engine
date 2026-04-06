@@ -191,20 +191,26 @@ export function SearchView() {
     const sceneInfo = getSceneInfo(citation.sceneId, citation.beatIndex);
     const hasProse = sceneInfo?.prose || sceneInfo?.beatProse;
 
+    // Step 1: Set scene index
     dispatch({ type: 'SET_SCENE_INDEX', index: sceneIndex });
 
     if (hasProse) {
-      // Navigate to prose view with side-by-side beat plan
-      window.dispatchEvent(new CustomEvent('canvas:toggle-beat-plan', { detail: { enabled: true } }));
+      // Step 2: Switch to prose view
       dispatch({ type: 'SET_GRAPH_VIEW_MODE', mode: 'prose' });
 
-      if (citation.beatIndex !== undefined) {
-        setTimeout(() => {
-          window.dispatchEvent(new CustomEvent('prose:scroll-to-beat', {
-            detail: { beatIndex: citation.beatIndex, propIndex: citation.propIndex },
-          }));
-        }, 150);
-      }
+      // Step 3: Toggle beat plan side-by-side after view mode changes
+      setTimeout(() => {
+        window.dispatchEvent(new CustomEvent('canvas:toggle-beat-plan', { detail: { enabled: true } }));
+
+        // Step 4: Scroll to beat after side-by-side view is enabled
+        if (citation.beatIndex !== undefined) {
+          setTimeout(() => {
+            window.dispatchEvent(new CustomEvent('prose:scroll-to-beat', {
+              detail: { beatIndex: citation.beatIndex, propIndex: citation.propIndex },
+            }));
+          }, 200);
+        }
+      }, 100);
     } else {
       // Fallback to plan view if no prose available
       dispatch({ type: 'SET_GRAPH_VIEW_MODE', mode: 'plan' });
@@ -214,7 +220,7 @@ export function SearchView() {
           window.dispatchEvent(new CustomEvent('plan:scroll-to-beat', {
             detail: { beatIndex: citation.beatIndex },
           }));
-        }, 150);
+        }, 200);
       }
     }
   }, [state.resolvedEntryKeys, dispatch, getSceneInfo]);
