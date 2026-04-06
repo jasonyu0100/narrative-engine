@@ -248,8 +248,13 @@ export function SearchView() {
         ? Object.keys(narrative.arcs).indexOf(scene.arcId!) + 1
         : null;
 
-      // Get scene index (1-based) from resolved keys
-      const sceneIndex = state.resolvedEntryKeys.indexOf(sceneId) + 1;
+      // Get scene index (1-based) - count only scenes, not world commits
+      const entryPosition = state.resolvedEntryKeys.indexOf(sceneId);
+      const sceneIndex = entryPosition >= 0
+        ? state.resolvedEntryKeys
+            .slice(0, entryPosition + 1)
+            .filter((id) => narrative.scenes[id]).length
+        : null;
 
       return {
         scene,
@@ -258,7 +263,7 @@ export function SearchView() {
         plan: planData?.beats || null,
         arc,
         arcIndex,
-        sceneIndex: sceneIndex > 0 ? sceneIndex : null,
+        sceneIndex,
       };
     },
     [state.activeNarrative, state.activeBranchId, state.resolvedEntryKeys],
