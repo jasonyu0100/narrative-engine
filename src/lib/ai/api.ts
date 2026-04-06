@@ -42,6 +42,7 @@ export async function callGenerateStream(
     let buffer = '';
     let full = '';
     let reasoningFull = '';
+    let usage: { promptTokens?: number; completionTokens?: number } | null = null;
 
     while (true) {
       const { done, value } = await reader.read();
@@ -67,6 +68,10 @@ export async function callGenerateStream(
               reasoningFull += reasoning;
               onReasoning?.(reasoning);
             }
+            // Capture usage data from final chunk
+            if (chunk.usage) {
+              usage = chunk.usage;
+            }
           } catch {
             // skip malformed chunks
           }
@@ -81,6 +86,9 @@ export async function callGenerateStream(
       responseLength: full.length,
       responsePreview: full,
       ...(reasoningFull ? { reasoningContent: reasoningFull, reasoningTokens: Math.ceil(reasoningFull.length / 4) } : {}),
+      // Use actual token counts from API when available
+      ...(usage?.promptTokens != null ? { actualPromptTokens: usage.promptTokens } : {}),
+      ...(usage?.completionTokens != null ? { actualCompletionTokens: usage.completionTokens } : {}),
     });
     return full;
   } catch (err) {
@@ -135,6 +143,9 @@ export async function callGenerate(prompt: string, systemPrompt: string, maxToke
       responsePreview: content,
       ...(data.reasoning ? { reasoningContent: data.reasoning } : {}),
       ...(data.reasoningTokens != null ? { reasoningTokens: data.reasoningTokens } : {}),
+      // Use actual token counts from API when available
+      ...(data.usage?.promptTokens != null ? { actualPromptTokens: data.usage.promptTokens } : {}),
+      ...(data.usage?.completionTokens != null ? { actualCompletionTokens: data.usage.completionTokens } : {}),
     });
     return content;
   } catch (err) {

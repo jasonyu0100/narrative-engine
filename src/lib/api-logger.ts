@@ -114,13 +114,25 @@ export function logApiCall(caller: string, promptChars: number, promptPreview: s
   return id;
 }
 
-/** Callers pass responseLength in chars — converted to tokens here */
-type ApiLogUpdate = Omit<Partial<ApiLogEntry>, 'responseTokens'> & { responseLength?: number; reasoningContent?: string; reasoningTokens?: number };
+/** Callers pass responseLength in chars — converted to tokens here, or actual token counts when available */
+type ApiLogUpdate = Omit<Partial<ApiLogEntry>, 'responseTokens' | 'promptTokens'> & {
+  responseLength?: number;
+  reasoningContent?: string;
+  reasoningTokens?: number;
+  actualPromptTokens?: number;
+  actualCompletionTokens?: number;
+};
 
 export function updateApiLog(id: string, updates: ApiLogUpdate) {
-  const { responseLength, reasoningContent, reasoningTokens, ...rest } = updates;
+  const { responseLength, reasoningContent, reasoningTokens, actualPromptTokens, actualCompletionTokens, ...rest } = updates;
   const mapped: Partial<ApiLogEntry> = { ...rest };
-  if (responseLength != null) mapped.responseTokens = estimateTokens(responseLength);
+  // Use actual token counts from API when available, fall back to estimates
+  if (actualPromptTokens != null) mapped.promptTokens = actualPromptTokens;
+  if (actualCompletionTokens != null) {
+    mapped.responseTokens = actualCompletionTokens;
+  } else if (responseLength != null) {
+    mapped.responseTokens = estimateTokens(responseLength);
+  }
   if (reasoningContent != null) mapped.reasoningContent = reasoningContent;
   if (reasoningTokens != null) mapped.reasoningTokens = reasoningTokens;
   updateListener?.(id, mapped);

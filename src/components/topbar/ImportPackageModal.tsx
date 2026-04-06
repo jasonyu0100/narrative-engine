@@ -21,6 +21,7 @@ type PreviewState = {
     images: number;
     total: number;
   };
+  format: 'zip' | 'json';
 };
 
 export function ImportPackageModal({ onClose }: Props) {
@@ -59,6 +60,7 @@ export function ImportPackageModal({ onClose }: Props) {
         file,
         manifest: info.manifest,
         sizes: info.sizes,
+        format: info.format,
       });
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to read package');
@@ -134,7 +136,12 @@ export function ImportPackageModal({ onClose }: Props) {
           <>
             {/* Story info */}
             <div className="p-3 bg-white/3 rounded-lg border border-white/8">
-              <h3 className="text-[12px] font-semibold text-text-primary mb-1">{preview.manifest.narrative.title}</h3>
+              <div className="flex items-start justify-between gap-2 mb-1">
+                <h3 className="text-[12px] font-semibold text-text-primary">{preview.manifest.narrative.title}</h3>
+                <span className="text-[9px] px-1.5 py-0.5 rounded bg-white/5 text-text-dim uppercase tracking-wider shrink-0">
+                  {preview.format === 'zip' ? 'ZIP Package' : 'JSON'}
+                </span>
+              </div>
               <p className="text-[10px] text-text-dim">
                 {preview.manifest.narrative.sceneCount} scenes · {preview.manifest.narrative.wordCount.toLocaleString()} words
               </p>
@@ -143,9 +150,10 @@ export function ImportPackageModal({ onClose }: Props) {
               </p>
             </div>
 
-            {/* Asset selection */}
-            <div className="space-y-2">
-              <label className="text-[10px] text-text-dim uppercase tracking-wider block mb-2">Import Assets</label>
+            {/* Asset selection - only for ZIP packages */}
+            {preview.format === 'zip' && (preview.manifest.assets.embeddings > 0 || preview.manifest.assets.audio > 0 || preview.manifest.assets.images > 0) && (
+              <div className="space-y-2">
+                <label className="text-[10px] text-text-dim uppercase tracking-wider block mb-2">Import Assets</label>
 
               {preview.manifest.assets.embeddings > 0 && (
                 <label className="flex items-center gap-2 cursor-pointer group">
@@ -188,7 +196,8 @@ export function ImportPackageModal({ onClose }: Props) {
                   </span>
                 </label>
               )}
-            </div>
+              </div>
+            )}
 
             {/* Size info */}
             <div className="p-3 bg-white/3 rounded-lg border border-white/8 space-y-1.5">

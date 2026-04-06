@@ -245,10 +245,18 @@ describe('synthesizeSearchResults', () => {
   });
 
   it('should filter invalid citation IDs', async () => {
-    vi.mocked(jsonModule.parseJson).mockReturnValue({
-      overview: 'Test overview',
-      citationIds: [1, 2, 100, -1], // 100 and -1 are invalid
-    });
+    // Mock response with invalid citation IDs (100 and -1 exceed results length or are negative)
+    vi.mocked(apiModule.callGenerateStream).mockImplementation(
+      async (_prompt: string, _system: string, onToken: (token: string) => void): Promise<string> => {
+        const response = 'Test overview with citations [1], [2], [100], and [-1].';
+        if (onToken) {
+          for (const char of response) {
+            onToken(char);
+          }
+        }
+        return response;
+      }
+    );
 
     const result = await synthesizeSearchResults(
       mockNarrative,
@@ -259,7 +267,7 @@ describe('synthesizeSearchResults', () => {
       mockTimeline
     );
 
-    // Should only include valid citations (1, 2)
+    // Should only include valid citations (1, 2) - 100 exceeds results.length, -1 is invalid
     expect(result.citations.length).toBe(2);
     expect(result.citations[0].id).toBe(1);
     expect(result.citations[1].id).toBe(2);

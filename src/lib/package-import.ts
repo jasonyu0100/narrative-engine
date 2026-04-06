@@ -1,7 +1,9 @@
 /**
- * Package Import - Import .inktide ZIP packages
+ * Package Import - Import .inktide packages
  *
- * Unpacks ZIP archives and restores narrative + assets to IndexedDB
+ * Supports two formats:
+ * 1. ZIP packages - exported via ExportPackageModal (includes assets)
+ * 2. Plain JSON - bundled works format (NarrativeState only)
  */
 
 import JSZip from 'jszip';
@@ -23,20 +25,42 @@ export const DEFAULT_IMPORT_OPTIONS: ImportOptions = {
   importImages: true,
 };
 
+// ── Format Detection ──────────────────────────────────────────────────────────
+
+/**
+ * Detect if file is ZIP or plain JSON
+ */
+async function detectFormat(file: File): Promise<'zip' | 'json'> {
+  const arrayBuffer = await file.arrayBuffer();
+  const bytes = new Uint8Array(arrayBuffer);
+
+  // ZIP files start with PK (0x504B)
+  if (bytes.length >= 2 && bytes[0] === 0x50 && bytes[1] === 0x4B) {
+    return 'zip';
+  }
+
+  // Try to parse as JSON
+  try {
+    const text = new TextDecoder().decode(arrayBuffer);
+    JSON.parse(text);
+    return 'json';
+  } catch {
+    throw new Error('File is neither a valid ZIP nor JSON format');
+  }
+}
+
 // ── Helper Functions ──────────────────────────────────────────────────────────
 
 /**
- * Read and parse the package manifest
- * Used to show preview before import
+ * Read and parse the package manifest (ZIP format only)
  */
 export async function readPackageManifest(file: File): Promise<PackageManifest> {
-  // Convert File to ArrayBuffer for better Node.js compatibility
   const arrayBuffer = await file.arrayBuffer();
   const zip = await JSZip.loadAsync(arrayBuffer);
 
   const manifestFile = zip.file('manifest.json');
   if (!manifestFile) {
-    throw new Error('Invalid .inktide file: missing manifest.json');
+    throw new Error('Invalid .inktide ZIP: missing manifest.json');
   }
 
   const manifestText = await manifestFile.async('text');
@@ -44,35 +68,48 @@ export async function readPackageManifest(file: File): Promise<PackageManifest> 
 }
 
 /**
- * Check if a file is a valid .inktide package
+ * Check if a file is a valid .inktide package (supports both formats)
  */
-export async function validatePackage(file: File): Promise<{ valid: boolean; error?: string }> {
+export async function validatePackage(file: File): Promise<{ valid: boolean; error?: string; format?: 'zip' | 'json' }> {
   try {
-    // Convert to ArrayBuffer for Node.js compatibility
-    const arrayBuffer = await file.arrayBuffer();
-    const zip = await JSZip.loadAsync(arrayBuffer);
+    const format = await detectFormat(file);
 
-    // Check for required files
-    if (!zip.file('manifest.json')) {
-      return { valid: false, error: 'Missing manifest.json' };
-    }
+    if (format === 'json') {
+      // Plain JSON format - validate NarrativeState structure
+      const text = await file.text();
+      const narrative = JSON.parse(text) as NarrativeState;
 
-    if (!zip.file('narrative.json')) {
-      return { valid: false, error: 'Missing narrative.json' };
-    }
-
-    // Try to parse manifest
-    const manifestFile = zip.file('manifest.json');
-    if (manifestFile) {
-      const manifestText = await manifestFile.async('text');
-      const manifest = JSON.parse(manifestText);
-
-      if (!manifest.version || !manifest.narrative) {
-        return { valid: false, error: 'Invalid manifest structure' };
+      if (!narrative.id || !narrative.title || !narrative.scenes) {
+        return { valid: false, error: 'Invalid NarrativeState structure' };
       }
-    }
 
-    return { valid: true };
+      return { valid: true, format: 'json' };
+    } else {
+      // ZIP format - validate package structure
+      const arrayBuffer = await file.arrayBuffer();
+      const zip = await JSZip.loadAsync(arrayBuffer);
+
+      if (!zip.file('manifest.json')) {
+        return { valid: false, error: 'Missing manifest.json' };
+      }
+
+      if (!zip.file('narrative.json')) {
+        return { valid: false, error: 'Missing narrative.json' };
+      }
+
+      // Try to parse manifest
+      const manifestFile = zip.file('manifest.json');
+      if (manifestFile) {
+        const manifestText = await manifestFile.async('text');
+        const manifest = JSON.parse(manifestText);
+
+        if (!manifest.version || !manifest.narrative) {
+          return { valid: false, error: 'Invalid manifest structure' };
+        }
+      }
+
+      return { valid: true, format: 'zip' };
+    }
   } catch (error) {
     return { valid: false, error: error instanceof Error ? error.message : 'Unknown error' };
   }
@@ -83,14 +120,12 @@ export async function validatePackage(file: File): Promise<{ valid: boolean; err
 /**
  * Import narrative from .inktide package
  *
- * Process:
- * 1. Unzip archive
- * 2. Read narrative.json
- * 3. Import selected assets to IndexedDB
- * 4. Return narrative (with asset references intact)
+ * Supports two formats:
+ * - ZIP: Full package with embeddings, audio, images
+ * - JSON: Plain NarrativeState (bundled works format)
  *
- * @param file .inktide ZIP file
- * @param options Import options (what to include)
+ * @param file .inktide file (ZIP or JSON)
+ * @param options Import options (only applies to ZIP format)
  * @param onProgress Optional progress callback
  * @returns Restored narrative state
  */
@@ -101,16 +136,28 @@ export async function importFromPackage(
 ): Promise<NarrativeState> {
   onProgress?.('Loading package...', 0);
 
-  // 1. Load ZIP (convert to ArrayBuffer for Node.js compatibility)
+  // Detect format
+  const format = await detectFormat(file);
+
+  if (format === 'json') {
+    // Plain JSON format - just parse and return
+    onProgress?.('Reading narrative...', 50);
+    const text = await file.text();
+    const narrative = JSON.parse(text) as NarrativeState;
+    onProgress?.('Complete!', 100);
+    return narrative;
+  }
+
+  // ZIP format - full import with assets
   const arrayBuffer = await file.arrayBuffer();
   const zip = await JSZip.loadAsync(arrayBuffer);
 
   onProgress?.('Reading narrative...', 5);
 
-  // 2. Read narrative.json
+  // Read narrative.json
   const narrativeFile = zip.file('narrative.json');
   if (!narrativeFile) {
-    throw new Error('Invalid .inktide file: missing narrative.json');
+    throw new Error('Invalid .inktide ZIP: missing narrative.json');
   }
 
   const narrativeText = await narrativeFile.async('text');
@@ -226,6 +273,7 @@ export async function importFromPackage(
 /**
  * Get package info without importing
  * Useful for showing preview/confirmation dialog
+ * Supports both ZIP and JSON formats
  */
 export async function getPackageInfo(file: File): Promise<{
   manifest: PackageManifest;
@@ -236,8 +284,56 @@ export async function getPackageInfo(file: File): Promise<{
     images: number;
     total: number;
   };
+  format: 'zip' | 'json';
 }> {
-  // Convert to ArrayBuffer for Node.js compatibility
+  const format = await detectFormat(file);
+
+  if (format === 'json') {
+    // Plain JSON format - build manifest from narrative
+    const text = await file.text();
+    const narrative = JSON.parse(text) as NarrativeState;
+
+    const sceneCount = Object.keys(narrative.scenes).length;
+
+    // Calculate word count from prose versions
+    let wordCount = 0;
+    for (const scene of Object.values(narrative.scenes)) {
+      const latestProse = scene.proseVersions?.[scene.proseVersions.length - 1]?.prose;
+      if (latestProse) {
+        wordCount += latestProse.split(/\s+/).length;
+      }
+    }
+
+    const manifest: PackageManifest = {
+      version: 1,
+      exported: new Date().toISOString(),
+      narrative: {
+        id: narrative.id,
+        title: narrative.title,
+        sceneCount,
+        wordCount,
+      },
+      assets: {
+        embeddings: 0,
+        audio: 0,
+        images: 0,
+      },
+    };
+
+    return {
+      manifest,
+      sizes: {
+        narrative: file.size,
+        embeddings: 0,
+        audio: 0,
+        images: 0,
+        total: file.size,
+      },
+      format: 'json',
+    };
+  }
+
+  // ZIP format - full analysis
   const arrayBuffer = await file.arrayBuffer();
   const zip = await JSZip.loadAsync(arrayBuffer);
   const manifest = await readPackageManifest(file);
@@ -293,6 +389,7 @@ export async function getPackageInfo(file: File): Promise<{
       images: imagesSize,
       total: narrativeSize + embeddingsSize + audioSize + imagesSize,
     },
+    format: 'zip',
   };
 }
 

@@ -95,6 +95,15 @@ export async function POST(req: NextRequest) {
                     if (reasoning) {
                       controller.enqueue(encoder.encode(`data: ${JSON.stringify({ reasoning })}\n\n`));
                     }
+                    // Forward usage data from final chunk (OpenRouter includes it in the last message)
+                    if (chunk.usage) {
+                      controller.enqueue(encoder.encode(`data: ${JSON.stringify({
+                        usage: {
+                          promptTokens: chunk.usage.prompt_tokens ?? null,
+                          completionTokens: chunk.usage.completion_tokens ?? null,
+                        }
+                      })}\n\n`));
+                    }
                   } catch {
                     // skip malformed chunks
                   }
@@ -125,7 +134,12 @@ export async function POST(req: NextRequest) {
       ?? message?.reasoning_content
       ?? (Array.isArray(message?.reasoning_details) ? message.reasoning_details.map((d: { content?: string }) => d.content ?? '').join('') : null);
     const reasoningTokens = data.usage?.completion_tokens_details?.reasoning_tokens ?? null;
-    return NextResponse.json({ content, ...(reasoning ? { reasoning } : {}), ...(reasoningTokens != null ? { reasoningTokens } : {}) });
+    // Return actual token usage from OpenRouter
+    const usage = data.usage ? {
+      promptTokens: data.usage.prompt_tokens ?? null,
+      completionTokens: data.usage.completion_tokens ?? null,
+    } : null;
+    return NextResponse.json({ content, ...(reasoning ? { reasoning } : {}), ...(reasoningTokens != null ? { reasoningTokens } : {}), ...(usage ? { usage } : {}) });
   } catch (err) {
     return NextResponse.json({ error: String(err) }, { status: 500 });
   }

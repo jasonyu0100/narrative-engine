@@ -335,7 +335,7 @@ describe('buildThreadHealthPrompt', () => {
     });
     const result = buildThreadHealthPrompt(n, ['s1', 's2', 's3', 's4', 's5', 's6', 's7'], 6, 'fast');
     // Fast = 4 scenes/transition, we're at 7 since transition
-    expect(result).toContain('⚠');
+    expect(result).toContain('[!]');
     expect(result).toContain('>4');
   });
 });
