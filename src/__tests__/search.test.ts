@@ -13,7 +13,7 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { searchNarrative } from '@/lib/search';
 import type { NarrativeState, Scene, BeatPlan } from '@/types/narrative';
 import * as embeddingsModule from '@/lib/embeddings';
-import { SEARCH_TOP_K } from '@/lib/constants';
+import { SEARCH_TOP_K_SCENES, SEARCH_TOP_K_BEATS, SEARCH_TOP_K_PROPOSITIONS } from '@/lib/constants';
 
 // Mock embeddings module
 vi.mock('@/lib/embeddings');
@@ -253,7 +253,7 @@ describe('searchNarrative', () => {
 
     const result = await searchNarrative(mockNarrative, mockResolvedKeys, query);
 
-    expect(result.results.length).toBeLessThanOrEqual(SEARCH_TOP_K);
+    expect(result.results.length).toBeLessThanOrEqual(SEARCH_TOP_K_SCENES + SEARCH_TOP_K_BEATS + SEARCH_TOP_K_PROPOSITIONS);
   });
 
   it('should sort results by similarity descending', async () => {
