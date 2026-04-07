@@ -117,11 +117,15 @@ export function ImportPackageModal({ onClose }: Props) {
         throw new Error('No file or directory selected');
       }
 
+      // Generate a new unique ID so reimporting the same export doesn't collide
+      const newId = `N-IMP-${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
+      narrative.id = newId;
+
       // Add to store
       dispatch({ type: 'LOADED_NARRATIVE', narrative });
 
       // Navigate to story
-      router.push(`/series/${narrative.id}`);
+      router.push(`/series/${newId}`);
 
       onClose();
     } catch (err) {
