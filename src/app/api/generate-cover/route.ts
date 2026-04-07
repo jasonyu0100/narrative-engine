@@ -16,15 +16,21 @@ export async function POST(req: NextRequest) {
       coverPrompt?: string;
     };
 
-    // Use custom prompt if provided, otherwise build from narrative context
-    let imagePrompt: string;
+    // Build prompt: style leads → subject → context → safety
+    const styleDirective = imageStyle || 'Cinematic wide-angle digital painting, book cover art style';
+    const parts: string[] = [styleDirective];
+
     if (coverPrompt?.trim()) {
-      imagePrompt = `${coverPrompt.trim()}. No text, no letters, no words, no watermarks.`;
+      parts.push(coverPrompt.trim());
     } else {
-      const context = [description, rules?.length ? `World rules: ${rules.join('. ')}` : ''].filter(Boolean).join('. ');
-      const styleDirective = imageStyle || 'Cinematic wide-angle digital painting, book cover art style';
-      imagePrompt = `${styleDirective}. ${title}. ${context}. Dramatic lighting, rich atmosphere, high detail, no text, no letters, no words, no watermarks.`;
+      parts.push(title);
+      if (description) parts.push(description);
+      if (rules?.length) parts.push(`World rules: ${rules.join('. ')}`);
+      parts.push('Dramatic lighting, rich atmosphere, high detail');
     }
+
+    parts.push('No text, no letters, no words, no watermarks');
+    const imagePrompt = parts.join('. ');
 
     // Call Replicate Seedream 4.5 (create prediction)
     const response = await fetch('https://api.replicate.com/v1/models/bytedance/seedream-4.5/predictions', {
