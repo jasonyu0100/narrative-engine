@@ -186,6 +186,36 @@ export type ImageRef = string | undefined;
  */
 export type AudioRef = string | undefined;
 
+// ── Proposition Classification ───────────────────────────────────────────────
+
+/**
+ * Structural category from backward/forward activation strength.
+ *   Anchor:   HI backward, HI forward  — load-bearing both directions
+ *   Seed:     LO backward, HI forward  — plants forward, harvested later
+ *   Close:    HI backward, LO forward  — resolves prior chains, terminal
+ *   Texture:  LO backward, LO forward  — atmosphere, world-color
+ */
+export type PropositionBaseCategory = 'Anchor' | 'Seed' | 'Close' | 'Texture';
+
+/**
+ * Temporal reach — whether strongest connections are local (within-arc) or global (cross-arc).
+ */
+export type PropositionReach = 'Local' | 'Global';
+
+/** Classification scores for a single proposition */
+export type PropositionClassification = {
+  base: PropositionBaseCategory;
+  reach: PropositionReach;
+  /** Activation strength: 0.5 * max + 0.5 * mean_topk backward similarity */
+  backward: number;
+  /** Activation strength: 0.5 * max + 0.5 * mean_topk forward similarity */
+  forward: number;
+  /** Median scene distance of top-k backward connections */
+  backReach: number;
+  /** Median scene distance of top-k forward connections */
+  fwdReach: number;
+};
+
 /**
  * A proposition — an atomic claim the reader must come to believe is true.
  * Works for both fiction (story world facts) and non-fiction (domain facts).

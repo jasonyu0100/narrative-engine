@@ -7,6 +7,8 @@ import { getResolvedPlanVersion } from "@/lib/narrative-utils";
 import { useStore } from "@/lib/store";
 import type { NarrativeState, Scene } from "@/types/narrative";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { usePropositionClassification } from "@/hooks/usePropositionClassification";
+import { classificationColor, classificationLabel } from "@/lib/proposition-classify";
 
 // Persistent state that survives component unmounts (scene navigation, world commits)
 let beatPlanLinkedModePersisted = false;
@@ -60,6 +62,7 @@ export function SceneProseView({
   resolvedKeys: string[];
 }) {
   const { state, dispatch } = useStore();
+  const { getClassification } = usePropositionClassification();
 
   // Resolve prose and plan for current branch
   const { prose: resolvedProse, beatProseMap: resolvedBeatProseMap } = useResolvedProse(scene);
@@ -360,16 +363,34 @@ export function SceneProseView({
                     </p>
                     {beat.propositions && beat.propositions.length > 0 && (
                       <div className="mt-2 space-y-1.5">
-                        {beat.propositions.map((prop, j) => (
-                          <div key={j} className="flex items-start gap-1.5 transition-colors" data-prop-index={j}>
-                            <span className="shrink-0 text-[9px] px-1.5 py-0.5 rounded bg-white/10 text-text-secondary/80 font-mono min-w-[2ch]">
-                              {prop.type || "·"}
-                            </span>
+                        {beat.propositions.map((prop, j) => {
+                          const cls = getClassification(scene.id, chunk.beatIndex, j);
+                          const profileColor = cls ? classificationColor(cls.base, cls.reach) : undefined;
+                          return (
+                          <div
+                            key={j}
+                            className="flex items-start gap-1.5 transition-colors rounded-sm pl-1.5"
+                            style={profileColor ? {
+                              borderLeft: `2px solid ${profileColor}`,
+                              backgroundColor: profileColor + '08',
+                            } : undefined}
+                            data-prop-index={j}
+                            title={cls ? `${cls.reach} ${cls.base}` : undefined}
+                          >
+                            {cls && (
+                              <span
+                                className="shrink-0 text-[8px] leading-none font-medium lowercase mt-0.5"
+                                style={{ color: profileColor }}
+                              >
+                                {classificationLabel(cls.base, cls.reach)}
+                              </span>
+                            )}
                             <p className="text-[11px] text-text-secondary/90 italic leading-relaxed">
                               {prop.content}
                             </p>
                           </div>
-                        ))}
+                          );
+                        })}
                       </div>
                     )}
                   </div>

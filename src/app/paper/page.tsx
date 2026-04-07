@@ -419,6 +419,7 @@ const NAV = [
   { id: "problem", label: "The Problem" },
   { id: "approach", label: "Approach" },
   { id: "hierarchy", label: "Hierarchy" },
+  { id: "embeddings", label: "Embeddings" },
   { id: "forces", label: "Forces" },
   { id: "validation", label: "Validation" },
   { id: "grading", label: "Grading" },
@@ -1201,6 +1202,92 @@ export default function PaperPage() {
 
             <P>
               This hierarchy enforces <B>separation of concerns</B>. Structure generation (scenes with mutations) runs independently of prose generation (beats and propositions). An LLM generates scene structures, then beat plans in parallel, then prose in parallel. Forces are computed from mutation graphs without examining prose. Revision edits beats without modifying scene structure. The architecture maximizes parallelism and makes every layer auditable.
+            </P>
+          </Section>
+
+          {/* ── Embeddings & Proposition Classification ─────────────────── */}
+          <Section id="embeddings" label="Embeddings">
+            <P>
+              The three forces operate at the scene level — thread mutations, continuity mutations, and world graph expansion produce Payoff, Change, and Knowledge. But the reader doesn&apos;t experience mutations. The reader experiences <B>prose</B>, and prose is composed of <B>propositions</B> — atomic claims that must be accepted as true within the narrative world. &ldquo;Harry has a lightning-bolt scar.&rdquo; &ldquo;The wand chooses the wizard.&rdquo; &ldquo;Gryffindor wins the House Cup.&rdquo; Each is a temporally bounded statement whose structural significance is determined by its relationships to every other proposition — past and future.
+            </P>
+            <P>
+              Propositions are the complementary system to the three forces. Forces measure <B>what changes</B> in the knowledge graph. Propositions measure <B>what is stated</B> in the prose — the logical units the reader actually processes. Every proposition is embedded as a 1536-dimensional vector (OpenAI text-embedding-3-small), transforming prose into a geometric space where meaning is position, similarity is distance, and structural relationships become computable.
+            </P>
+            <P>
+              The central insight: coherent writing is a <B>proof graph</B>. Each proposition either introduces new information, derives from prior content while adding something new, or is inferable from context. A plot hole is a broken inference chain. A satisfying payoff is a deep proof tree resolving. Narrative quality is not merely aesthetic — it is a structural property of how propositions relate across time.
+            </P>
+
+            <h3 className="text-[15px] font-semibold text-white/80 mt-10 mb-3">
+              Classification
+            </h3>
+            <P>
+              The full pairwise similarity structure is computed via matrix multiplication — <Tex>{'\\mathbf{S} = \\hat{E} \\hat{E}^\\top'}</Tex> where <Tex>{'\\hat{E}'}</Tex> is the L2-normalized embedding matrix — accelerated by TensorFlow.js. From this matrix, each proposition receives two scores: <B>backward activation</B> (how strongly it connects to prior content) and <B>forward activation</B> (how strongly future content builds upon it).
+            </P>
+            <Eq
+              label="Hybrid activation score"
+              tex="A(p_i, D) = 0.5 \cdot \max_{j \in D} S_{ij} + 0.5 \cdot \frac{1}{k} \sum_{j \in \text{top}_k(D)} S_{ij}"
+            />
+            <P>
+              The hybrid of maximum (depth — strongest single dependency) and mean-top-<Tex>{'k'}</Tex> (breadth — cluster of strong connections) with <Tex>{'k=5'}</Tex> produces a robust activation score. A proposition is <B>HI</B> if its score exceeds the 60th percentile. The backward/forward binary produces four structural categories:
+            </P>
+            <div className="mt-4 grid grid-cols-2 gap-3">
+              {[
+                { name: 'Anchor', color: '#6366f1', back: 'HI', fwd: 'HI', desc: 'Load-bearing both directions. The structural spine — removing it collapses what comes before and after.' },
+                { name: 'Seed', color: '#10b981', back: 'LO', fwd: 'HI', desc: 'Plants forward. Weakly grounded when introduced but proves foundational later. Foreshadowing, Chekhov\'s gun.' },
+                { name: 'Close', color: '#f59e0b', back: 'HI', fwd: 'LO', desc: 'Resolves prior chains. Deeply earned but terminal — satisfying payoff that doesn\'t seed further.' },
+                { name: 'Texture', color: '#6b7280', back: 'LO', fwd: 'LO', desc: 'Atmosphere, world-color, sensory grounding. Structurally inert but narratively essential.' },
+              ].map(({ name, color, back, fwd, desc }) => (
+                <div key={name} className="px-3 py-3 rounded-lg border border-white/6 bg-white/2">
+                  <div className="flex items-baseline gap-2 mb-1">
+                    <span className="text-[12px] font-semibold" style={{ color }}>{name}</span>
+                    <span className="text-[9px] font-mono text-white/25">{back} back / {fwd} fwd</span>
+                  </div>
+                  <p className="text-[11px] text-white/40 leading-relaxed">{desc}</p>
+                </div>
+              ))}
+            </div>
+
+            <h3 className="text-[15px] font-semibold text-white/80 mt-10 mb-3">
+              Temporal Reach
+            </h3>
+            <P>
+              Categories tell you <B>what</B> a proposition does. Temporal reach tells you <B>how far</B> its connections span. The median scene distance of a proposition&apos;s top-k connections determines whether it operates <B>locally</B> (within-arc) or <B>globally</B> (cross-arc). The threshold scales with narrative length — 15% of total scenes, minimum 3 — so &ldquo;global&rdquo; means the same thing structurally whether the narrative has 20 scenes or 200. A 24-scene story needs connections spanning 4+ scenes to qualify as global; a 91-scene novel needs 14+.
+            </P>
+            <P>
+              Each category has a local and global variant, each with its own name. A <B>seed</B> is short-range foreshadowing — the Remembrall leading to Harry becoming Seeker one scene later. A <B>foreshadow</B> is Chekhov&apos;s gun — Harry&apos;s scar mentioned in chapter one, structurally active in the climax. A <B>close</B> resolves an immediate setup. An <B>ending</B> resolves something planted dozens of scenes ago — &ldquo;Snape hated Harry&apos;s father&rdquo; closing a thread from 46 scenes back.
+            </P>
+            <div className="mt-4 grid grid-cols-2 gap-2 text-[11px]">
+              {[
+                { label: 'anchor', color: '#6366f1', desc: 'Load-bearing within an arc. Immediate structural tension.' },
+                { label: 'foundation', color: '#4338ca', desc: 'Thematic spine. Connections span the full narrative.' },
+                { label: 'seed', color: '#10b981', desc: 'Pays off within an arc. Short-range foreshadowing.' },
+                { label: 'foreshadow', color: '#047857', desc: 'Pays off much later. Cross-arc Chekhov\'s gun.' },
+                { label: 'close', color: '#f59e0b', desc: 'Resolves recent setups. Terminal within the arc.' },
+                { label: 'ending', color: '#b45309', desc: 'Resolves distant seeds. Everything comes together.' },
+                { label: 'texture', color: '#6b7280', desc: 'Scene-level atmosphere and sensory grounding.' },
+                { label: 'atmosphere', color: '#4b5563', desc: 'Ambient world-color across time.' },
+              ].map(({ label, color, desc }) => (
+                <div key={label} className="flex items-start gap-2">
+                  <div className="w-0.5 min-h-6 rounded-full shrink-0 mt-0.5" style={{ backgroundColor: color }} />
+                  <div>
+                    <span className="font-medium" style={{ color }}>{label}</span>
+                    <span className="text-white/25 ml-1.5">— {desc}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <h3 className="text-[15px] font-semibold text-white/80 mt-10 mb-3">
+              Causal Continuity
+            </h3>
+            <P>
+              Classification transforms generation from prose production into <B>causal continuity management</B>. At generation time, the system identifies which prior propositions are foundations and foreshadows — the load-bearing content that new prose must not contradict. An LLM generating scene 45 receives not just recent context but the specific propositions from scene 3 that embedding similarity identifies as structurally connected. This is writing as a <B>logical system of temporally bounded statements that matter together</B>.
+            </P>
+            <P>
+              A foreshadow in chapter one constrains what can be validly stated in chapter twenty. A foundation cannot be contradicted without rupturing every proposition that derives from it. The classification makes these constraints explicit and computable — narrative coherence becomes a measurable structural property.
+            </P>
+            <P>
+              Empirical validation from Harry Potter: endings climb from 2% of close-type propositions in early arcs to 58% in the climax — more than half of all payoffs in the final act resolve seeds planted 30+ scenes earlier. Seeds vanish to 0% in the climax because there is no future left to plant into. These are measurable structural signatures of narrative craft, computed from embeddings alone.
             </P>
           </Section>
 
@@ -2607,24 +2694,6 @@ export default function PaperPage() {
             </P>
           </Section>
 
-          {/* ── Semantic Search & Embeddings ──────────────────────────────── */}
-          <Section id="semantic-search" label="Semantic Search & Embeddings">
-            <P>
-              Every scene, beat, and proposition is embedded as a 1536-dimensional vector (OpenAI text-embedding-3-small). Embeddings capture <B>meaning, not keywords</B> — searching &quot;betrayal&quot; surfaces scenes of broken trust even when that word never appears. Each embedding carries context: arc name, scene summary, beat function, surrounding prose.
-            </P>
-            <P>
-              <B>Semantic search</B> ranks content by cosine similarity to the query vector, then synthesizes a Google-style AI overview with inline citations. Results persist across navigation. Embeddings are cached in IndexedDB and regenerated only when narrative content changes.
-            </P>
-            <P>
-              <B>Continuity validation</B> becomes tractable. When a scene references &quot;the promise made at the river&quot;, the system retrieves all prior content semantically close to that concept and verifies it exists. Knowledge asymmetries are trackable: if Character A acts on information they shouldn&apos;t have, semantic search surfaces when that information was revealed and who was present.
-            </P>
-            <P>
-              <B>Intelligent RAG</B> grounds generation in actual narrative state. The system retrieves semantically relevant prior content — not just recent scenes, but thematically connected moments from anywhere in the timeline. This enables callbacks, foreshadowing validation, and thematic coherence without keyword matching.
-            </P>
-            <P>
-              The embedding layer transforms the knowledge graph into a semantic space where narrative distance is measurable. Thread convergence, character parallels, thematic echoes — all queryable through cosine similarity. Future capabilities: plot hole detection (missing causal links), tone drift analysis (semantic clustering), automated continuity checks.
-            </P>
-          </Section>
 
           {/* ── Classification ──────────────────────────────────────── */}
           <Section id="classification" label="Classification">

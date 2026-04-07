@@ -11,7 +11,7 @@ import { SHAPES as NARRATIVE_SHAPES } from '@/lib/narrative-utils';
 
 type Props = { onClose: () => void };
 
-const tabs = ['Cube', 'Beats', 'Archetypes', 'Shapes', 'Scales'] as const;
+const tabs = ['Cube', 'Beats', 'Propositions', 'Archetypes', 'Shapes', 'Scales'] as const;
 type Tab = typeof tabs[number];
 
 const CUBE_CORNERS: CubeCornerKey[] = ['HHH', 'HHL', 'HLH', 'HLL', 'LHH', 'LHL', 'LLH', 'LLL'];
@@ -141,6 +141,83 @@ function BeatsTab() {
 
       <div className="text-[9px] text-text-dim italic pt-2 border-t border-border/20">
         Each scene contains a sequence of beats. Beat profiles define authorial voice and pacing style.
+      </div>
+    </div>
+  );
+}
+
+// ── Propositions Tab ────────────────────────────────────────────────────────
+
+const PROPOSITION_BASES = [
+  { name: 'Anchor', color: '#6366f1', desc: 'High backward + high forward — load-bearing in both directions. Removing it collapses the narrative above and below.' },
+  { name: 'Seed', color: '#10b981', desc: 'Low backward + high forward — introduced without strong grounding, proves foundational later. Foreshadowing, Chekhov\'s gun.' },
+  { name: 'Close', color: '#f59e0b', desc: 'High backward + low forward — end of a chain. Deeply earned but doesn\'t seed further. Resolution beats live here.' },
+  { name: 'Texture', color: '#6b7280', desc: 'Low backward + low forward — floats free of the proof graph. Atmosphere, world-color. Not a failure — intentional structural choice.' },
+];
+
+const PROPOSITION_REACH_VARIANTS = [
+  { label: 'anchor', base: 'Anchor', reach: 'Local', color: '#6366f1', desc: 'Load-bearing within a local arc. Immediate tension that resolves nearby.' },
+  { label: 'foundation', base: 'Anchor', reach: 'Global', color: '#4338ca', desc: 'Connects across arcs — the thematic spine. References span dozens of scenes.' },
+  { label: 'seed', base: 'Seed', reach: 'Local', color: '#10b981', desc: 'Pays off soon, within-arc foreshadowing. The Remembrall \u2192 Seeker next scene.' },
+  { label: 'foreshadow', base: 'Seed', reach: 'Global', color: '#047857', desc: 'Pays off much later — cross-arc Chekhov\'s gun. Harry\'s scar \u2192 climax.' },
+  { label: 'close', base: 'Close', reach: 'Local', color: '#f59e0b', desc: 'Resolves recent setups. Closes the immediate question within a few scenes.' },
+  { label: 'ending', base: 'Close', reach: 'Global', color: '#b45309', desc: 'Resolves something planted long ago. "Snape hated Harry\'s father" — 46 scenes back.' },
+  { label: 'texture', base: 'Texture', reach: 'Local', color: '#6b7280', desc: 'Scene-level atmosphere. Grounds the reader in sensory detail.' },
+  { label: 'atmosphere', base: 'Texture', reach: 'Global', color: '#4b5563', desc: 'Ambient world-color across time without structural function.' },
+];
+
+function PropositionsTab() {
+  return (
+    <div className="space-y-5">
+      <div className="text-[10px] text-text-dim leading-relaxed">
+        Propositions are atomic narrative claims — facts the reader must accept. Each is classified by <strong>structural role</strong> (how it connects to prior and future content) and <strong>temporal reach</strong> (local arc vs cross-arc connections). Classification uses cosine similarity over embeddings.
+      </div>
+
+      <div>
+        <h3 className="text-[10px] font-semibold text-text-primary uppercase tracking-widest mb-3 pb-1 border-b border-border/30">
+          Base Categories <span className="text-text-dim font-normal">(backward × forward activation)</span>
+        </h3>
+        <div className="grid grid-cols-2 gap-3">
+          {PROPOSITION_BASES.map((base) => (
+            <div key={base.name} className="bg-bg-elevated/50 rounded-lg p-3 border border-border/20">
+              <div className="flex items-center gap-2 mb-1.5">
+                <div
+                  className="w-2.5 h-2.5 rounded-sm shrink-0"
+                  style={{ backgroundColor: base.color }}
+                />
+                <span className="text-[11px] font-semibold" style={{ color: base.color }}>{base.name}</span>
+              </div>
+              <p className="text-[9px] text-text-dim leading-snug">{base.desc}</p>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div>
+        <h3 className="text-[10px] font-semibold text-text-primary uppercase tracking-widest mb-3 pb-1 border-b border-border/30">
+          Local / Global Reach <span className="text-text-dim font-normal">(base × temporal reach)</span>
+        </h3>
+        <div className="grid grid-cols-2 gap-2">
+          {PROPOSITION_REACH_VARIANTS.map((p) => (
+            <div key={`${p.base}-${p.reach}`} className="flex items-start gap-2 text-[10px]">
+              <div
+                className="w-0.5 h-full min-h-7 rounded-full shrink-0"
+                style={{ backgroundColor: p.color }}
+              />
+              <div className="min-w-0">
+                <div className="flex items-baseline gap-1.5">
+                  <span className="font-medium text-[10px]" style={{ color: p.color }}>{p.label}</span>
+                  <span className="text-[8px] font-mono text-text-dim">{p.base} × {p.reach}</span>
+                </div>
+                <div className="text-[9px] text-text-dim leading-snug">{p.desc}</div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div className="text-[9px] text-text-dim italic pt-2 border-t border-border/20">
+        Classification computed via TensorFlow.js matrix multiplication on proposition embeddings. Strength: P60 hybrid activation (0.5 × max + 0.5 × mean top-5). Reach: 15% of total scenes (scales with narrative length).
       </div>
     </div>
   );
@@ -383,6 +460,7 @@ export function DefinitionsModal({ onClose }: Props) {
       <ModalBody className="px-5 py-4 max-h-[70vh] overflow-y-auto">
         {tab === 'Cube' && <CubeTab />}
         {tab === 'Beats' && <BeatsTab />}
+        {tab === 'Propositions' && <PropositionsTab />}
         {tab === 'Archetypes' && <ArchetypesTab />}
         {tab === 'Shapes' && <ShapesTab />}
         {tab === 'Scales' && <ScalesTab />}

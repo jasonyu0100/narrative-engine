@@ -2,6 +2,7 @@ import type {
   NarrativeState, Scene, ForceSnapshot, CubeCornerKey,
   Character, Location, Thread,
   BeatSampler,
+  PropositionBaseCategory,
 } from '@/types/narrative';
 import { NARRATIVE_CUBE, isScene, resolveEntry } from '@/types/narrative';
 import { computeSamplerFromPlans } from '@/lib/beat-profiles';
@@ -130,6 +131,14 @@ export type SlidesData = {
   beatSampler: BeatSampler | null;
   /** Ordered sequence of beat functions from all scene plans */
   beatSequence: string[];
+
+  /** Proposition classification data */
+  propositionTotals: Record<PropositionBaseCategory, number>;
+  propositionCount: number;
+  /** Per-arc proposition distribution (arc name → base category counts) */
+  propositionByArc: { arcName: string; totals: Record<PropositionBaseCategory, number>; total: number }[];
+  /** Per-scene base category counts for timeline visualization */
+  propositionTimeline: { sceneIdx: number; totals: Record<PropositionBaseCategory, number>; total: number }[];
 
   /** ID → name lookup maps for resolving scene references */
   characterNames: Record<string, string>;
@@ -327,6 +336,32 @@ export function computeSlidesData(
     }
   }
 
+  // Proposition classification data — lightweight counts from plans (no embeddings needed)
+  // The actual classification with embeddings happens in proposition-classify.ts
+  // Here we just count propositions per scene/arc for the slides
+  const propositionTotals: Record<PropositionBaseCategory, number> = { Anchor: 0, Seed: 0, Close: 0, Texture: 0 };
+  let propositionCount = 0;
+  const propositionTimeline: SlidesData['propositionTimeline'] = [];
+  const arcPropMap = new Map<string, { arcName: string; totals: Record<PropositionBaseCategory, number>; total: number }>();
+
+  // These are populated later by the classification hook if available
+  // For now, count raw propositions per scene for the timeline shape
+  for (let si = 0; si < scenes.length; si++) {
+    const s = scenes[si];
+    const plan = s.planVersions?.[s.planVersions.length - 1]?.plan;
+    if (!plan?.beats) {
+      propositionTimeline.push({ sceneIdx: si, totals: { Anchor: 0, Seed: 0, Close: 0, Texture: 0 }, total: 0 });
+      continue;
+    }
+    let sceneTotal = 0;
+    for (const b of plan.beats) {
+      sceneTotal += b.propositions?.length ?? 0;
+    }
+    propositionCount += sceneTotal;
+    // Default: all uncategorized until classification runs
+    propositionTimeline.push({ sceneIdx: si, totals: { Anchor: 0, Seed: 0, Close: 0, Texture: 0 }, total: sceneTotal });
+  }
+
   return {
     title: narrative.title,
     description: narrative.description,
@@ -364,6 +399,10 @@ export function computeSlidesData(
     arcGrades,
     beatSampler,
     beatSequence,
+    propositionTotals,
+    propositionCount,
+    propositionByArc: Array.from(arcPropMap.values()),
+    propositionTimeline,
     characterNames: Object.fromEntries(Object.entries(narrative.characters).map(([id, c]) => [id, c.name])),
     locationNames: Object.fromEntries(Object.entries(narrative.locations).map(([id, l]) => [id, l.name])),
     threadDescriptions: Object.fromEntries(Object.entries(narrative.threads).map(([id, t]) => [id, t.description])),

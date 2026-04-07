@@ -16,6 +16,8 @@ import type {
 import { BEAT_FN_LIST, BEAT_MECHANISM_LIST } from "@/types/narrative";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { PlanTournamentModal } from "./PlanTournamentModal";
+import { usePropositionClassification } from "@/hooks/usePropositionClassification";
+import { classificationColor, classificationLabel } from "@/lib/proposition-classify";
 
 const FN_COLORS: Record<string, string> = {
   breathe: "#6b7280",
@@ -50,6 +52,7 @@ export function ScenePlanView({
   resolvedKeys: string[];
 }) {
   const { dispatch } = useStore();
+  const { getClassification } = usePropositionClassification();
 
   // Resolve plan for current branch
   const resolvedPlan = useResolvedPlan(scene);
@@ -543,24 +546,27 @@ export function ScenePlanView({
                       </p>
                       {/* Propositions for this beat */}
                       <div className="mt-1.5 space-y-1.5">
-                        {beat.propositions.map((prop, j) => (
+                        {beat.propositions.map((prop, j) => {
+                          const cls = getClassification(scene.id, i, j);
+                          const profileColor = cls ? classificationColor(cls.base, cls.reach) : undefined;
+                          return (
                           <div
                             key={j}
-                            className="group/prop flex items-start gap-1.5"
+                            className="group/prop flex items-start gap-1.5 rounded-sm pl-1.5"
+                            style={profileColor ? {
+                              borderLeft: `2px solid ${profileColor}`,
+                              backgroundColor: profileColor + '08',
+                            } : undefined}
+                            title={cls ? `${cls.reach} ${cls.base}\nBackward: ${cls.backward.toFixed(3)}  Forward: ${cls.forward.toFixed(3)}\nReach: ←${cls.backReach.toFixed(0)} →${cls.fwdReach.toFixed(0)} scenes` : undefined}
                           >
-                            <span
-                              contentEditable
-                              suppressContentEditableWarning
-                              className="shrink-0 text-[9px] px-1.5 py-0.5 rounded bg-white/10 text-text-secondary/80 font-mono outline-none focus:bg-white/15 min-w-[2ch]"
-                              onBlur={(e) => {
-                                const text = e.currentTarget.textContent ?? "";
-                                if (text !== (prop.type ?? ""))
-                                  updateBeatProposition(i, j, { type: text });
-                              }}
-                              title="Proposition type (e.g., state, claim, rule)"
-                            >
-                              {prop.type || ""}
-                            </span>
+                            {cls && (
+                              <span
+                                className="shrink-0 text-[8px] leading-none font-medium lowercase mt-0.5"
+                                style={{ color: profileColor }}
+                              >
+                                {classificationLabel(cls.base, cls.reach)}
+                              </span>
+                            )}
                             <p
                               contentEditable
                               suppressContentEditableWarning
@@ -573,6 +579,19 @@ export function ScenePlanView({
                             >
                               {prop.content}
                             </p>
+                            <span
+                              contentEditable
+                              suppressContentEditableWarning
+                              className="shrink-0 text-[8px] px-1 py-0.5 rounded bg-white/5 text-text-dim/40 font-mono outline-none focus:bg-white/10 focus:text-text-secondary/80 opacity-0 group-hover/prop:opacity-100 transition-opacity min-w-[2ch] mt-0.5"
+                              onBlur={(e) => {
+                                const text = e.currentTarget.textContent ?? "";
+                                if (text !== (prop.type ?? ""))
+                                  updateBeatProposition(i, j, { type: text });
+                              }}
+                              title="Proposition type"
+                            >
+                              {prop.type || ""}
+                            </span>
                             <button
                               onClick={() => deleteBeatProposition(i, j)}
                               className="text-[9px] text-text-dim/20 hover:text-red-400 opacity-0 group-hover/prop:opacity-100 transition-all shrink-0 mt-0.5"
@@ -580,7 +599,8 @@ export function ScenePlanView({
                               ✕
                             </button>
                           </div>
-                        ))}
+                          );
+                        })}
                         <button
                           onClick={() => addBeatProposition(i)}
                           className="text-[9px] text-text-dim/30 hover:text-emerald-400/50 transition-colors"

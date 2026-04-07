@@ -9,6 +9,8 @@ import { searchNarrative } from "@/lib/search";
 import { useStore } from "@/lib/store";
 import Image from "next/image";
 import { useCallback, useEffect, useState } from "react";
+import { usePropositionClassification } from "@/hooks/usePropositionClassification";
+import { classificationColor, classificationLabel } from "@/lib/proposition-classify";
 
 type QueryResponse = {
   question: string;
@@ -35,6 +37,7 @@ const SUGGESTED_QUERIES = [
 
 export function SearchView() {
   const { state, dispatch } = useStore();
+  const { getClassification } = usePropositionClassification();
   const [query, setQuery] = useState("");
   const [isSearching, setIsSearching] = useState(false);
   const [searchStage, setSearchStage] = useState<string>("");
@@ -596,10 +599,26 @@ export function SearchView() {
                 </div>
               </div>
 
-              <div className="space-y-4">
+              <div className="space-y-3">
                 {response.citations.map((cit) => {
                   const sceneInfo = getSceneInfo(cit.sceneId, cit.beatIndex);
                   const beatPlan = sceneInfo?.plan?.[cit.beatIndex ?? 0];
+                  const cls = (cit.type === "proposition" && cit.propIndex != null && cit.beatIndex != null)
+                    ? getClassification(cit.sceneId, cit.beatIndex, cit.propIndex)
+                    : null;
+                  const profileColor = cls ? classificationColor(cls.base, cls.reach) : undefined;
+
+                  // Source type label
+                  const sourceType = cit.type === 'proposition' ? 'proposition'
+                    : cit.type === 'beat' ? 'beat'
+                    : 'scene';
+
+                  // Build structured source path
+                  const pathParts: string[] = [];
+                  if (sceneInfo?.arcIndex) pathParts.push(`Arc ${sceneInfo.arcIndex}`);
+                  if (sceneInfo?.sceneIndex) pathParts.push(`Scene ${sceneInfo.sceneIndex}`);
+                  if (cit.type !== 'scene' && cit.beatIndex != null) pathParts.push(`Beat ${cit.beatIndex + 1}`);
+                  if (cit.type === 'proposition' && cit.propIndex != null) pathParts.push(`Prop ${cit.propIndex + 1}`);
 
                   return (
                     <div
@@ -607,69 +626,70 @@ export function SearchView() {
                       className="group cursor-pointer"
                       onClick={() => navigateToCitation(cit)}
                     >
-                      <div className="flex items-start gap-4 py-3 px-1 hover:bg-bg-elevated/30 rounded-lg transition-colors">
-                        {/* Result number */}
-                        <div className="shrink-0 w-6 h-6 flex items-center justify-center rounded-full bg-bg-elevated border border-border text-xs text-text-dim font-medium mt-0.5">
-                          {cit.id}
+                      <div className="flex gap-4 py-4 px-1 hover:bg-white/3 rounded-lg transition-colors">
+                        {/* Number column */}
+                        <div className="shrink-0 w-8 pt-0.5">
+                          <div className="text-[11px] font-mono text-text-dim/40 text-right">
+                            {cit.id}
+                          </div>
                         </div>
 
+                        {/* Content column */}
                         <div className="flex-1 min-w-0">
-                          {/* Result content */}
-                          <div className="text-sm text-text-primary leading-relaxed group-hover:text-sky-300 transition-colors mb-2">
+                          {/* Content */}
+                          <div
+                            className="text-[13px] text-text-primary leading-relaxed group-hover:text-sky-300 transition-colors"
+                            style={profileColor ? { borderLeft: `2px solid ${profileColor}`, paddingLeft: '10px' } : undefined}
+                          >
                             {cit.content}
                           </div>
 
-                          {/* Context breadcrumb */}
-                          <div className="flex items-center gap-2 text-[10px] text-text-dim/70">
-                            {sceneInfo?.arcIndex && (
-                              <>
-                                <span>Arc {sceneInfo.arcIndex}</span>
-                                <span className="opacity-40">›</span>
-                              </>
-                            )}
-                            {sceneInfo?.sceneIndex && (
-                              <>
-                                <span>Scene {sceneInfo.sceneIndex}</span>
-                                {cit.type !== "scene" && (
-                                  <span className="opacity-40">›</span>
-                                )}
-                              </>
-                            )}
-                            {cit.type !== "scene" && beatPlan && (
-                              <>
-                                <span>Beat {(cit.beatIndex ?? 0) + 1}</span>
-                                <span className="opacity-40">·</span>
-                                <span className="opacity-70">
-                                  {beatPlan.fn}
-                                </span>
-                              </>
-                            )}
-                            <span className="opacity-40">·</span>
-                            <span className="text-sky-500/80">
-                              {(cit.similarity * 100).toFixed(0)}%
-                            </span>
-                          </div>
-
-                          {/* Beat prose if available */}
+                          {/* Prose excerpt */}
                           {sceneInfo?.beatProse && (
-                            <div className="mt-2 text-xs text-text-secondary/60 leading-relaxed line-clamp-2">
+                            <div
+                              className="mt-1.5 text-[11px] text-text-secondary/30 leading-relaxed line-clamp-2 italic"
+                              style={profileColor ? { paddingLeft: '12px' } : undefined}
+                            >
                               {sceneInfo.beatProse}
                             </div>
                           )}
-                        </div>
 
-                        {/* Navigate icon */}
-                        <div className="shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
-                          <svg
-                            className="w-4 h-4 text-sky-400"
-                            viewBox="0 0 24 24"
-                            fill="none"
-                            stroke="currentColor"
-                            strokeWidth="2"
-                            strokeLinecap="round"
-                          >
-                            <path d="M5 12h14m-7-7l7 7-7 7" />
-                          </svg>
+                          {/* Bottom metadata row */}
+                          <div className="flex items-center gap-3 mt-2.5 text-[9px]">
+                            {/* Source type badge */}
+                            <span className={`px-1.5 py-0.5 rounded font-mono uppercase tracking-wider ${
+                              sourceType === 'proposition' ? 'bg-white/8 text-text-dim/70' :
+                              sourceType === 'beat' ? 'bg-white/5 text-text-dim/50' :
+                              'bg-white/4 text-text-dim/40'
+                            }`}>
+                              {sourceType}
+                            </span>
+
+                            {/* Classification label */}
+                            {cls && (
+                              <span className="font-medium" style={{ color: profileColor }}>
+                                {classificationLabel(cls.base, cls.reach)}
+                              </span>
+                            )}
+
+                            {/* Beat function */}
+                            {beatPlan && (
+                              <span className="text-text-dim/40">{beatPlan.fn}</span>
+                            )}
+
+                            {/* Similarity */}
+                            <span className="font-mono text-sky-500/60">
+                              {(cit.similarity * 100).toFixed(0)}%
+                            </span>
+
+                            {/* Spacer */}
+                            <span className="flex-1" />
+
+                            {/* Source path */}
+                            <span className="text-text-dim/30 font-mono">
+                              {pathParts.join(' › ')}
+                            </span>
+                          </div>
                         </div>
                       </div>
                     </div>

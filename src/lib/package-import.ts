@@ -393,6 +393,263 @@ export async function getPackageInfo(file: File): Promise<{
   };
 }
 
+// ── Directory Import ─────────────────────────────────────────────────────────
+
+/**
+ * Validate a directory FileList as an InkTide package
+ * Expects narrative.json at minimum, optionally manifest.json and embeddings/*.bin
+ */
+export async function validateDirectory(files: FileList): Promise<{ valid: boolean; error?: string }> {
+  const fileMap = new Map<string, File>();
+  for (const file of Array.from(files)) {
+    // webkitRelativePath is "dirName/narrative.json" — strip the leading directory
+    const relPath = file.webkitRelativePath.split('/').slice(1).join('/');
+    fileMap.set(relPath, file);
+  }
+
+  const narrativeFile = fileMap.get('narrative.json');
+  if (!narrativeFile) {
+    return { valid: false, error: 'Missing narrative.json in directory' };
+  }
+
+  try {
+    const text = await narrativeFile.text();
+    const narrative = JSON.parse(text) as NarrativeState;
+    if (!narrative.id || !narrative.title || !narrative.scenes) {
+      return { valid: false, error: 'Invalid NarrativeState structure in narrative.json' };
+    }
+    return { valid: true };
+  } catch {
+    return { valid: false, error: 'Failed to parse narrative.json' };
+  }
+}
+
+/**
+ * Get package info from a directory FileList
+ */
+export async function getDirectoryInfo(files: FileList): Promise<{
+  manifest: PackageManifest;
+  sizes: {
+    narrative: number;
+    embeddings: number;
+    audio: number;
+    images: number;
+    total: number;
+  };
+  format: 'directory';
+}> {
+  const fileMap = new Map<string, File>();
+  for (const file of Array.from(files)) {
+    const relPath = file.webkitRelativePath.split('/').slice(1).join('/');
+    fileMap.set(relPath, file);
+  }
+
+  const narrativeFile = fileMap.get('narrative.json')!;
+  const text = await narrativeFile.text();
+  const narrative = JSON.parse(text) as NarrativeState;
+
+  // Check for package manifest
+  const manifestFile = fileMap.get('manifest.json');
+  let embeddingCount = 0;
+  let audioCount = 0;
+  let imageCount = 0;
+
+  // Count assets by prefix
+  let embeddingsSize = 0;
+  let audioSize = 0;
+  let imagesSize = 0;
+
+  for (const [relPath, file] of fileMap) {
+    if (relPath.startsWith('embeddings/') && relPath.endsWith('.bin')) {
+      embeddingCount++;
+      embeddingsSize += file.size;
+    } else if (relPath.startsWith('audio/')) {
+      audioCount++;
+      audioSize += file.size;
+    } else if (relPath.startsWith('images/')) {
+      imageCount++;
+      imagesSize += file.size;
+    }
+  }
+
+  const sceneCount = Object.keys(narrative.scenes).length;
+  let wordCount = 0;
+  for (const scene of Object.values(narrative.scenes)) {
+    const latestProse = scene.proseVersions?.[scene.proseVersions.length - 1]?.prose;
+    if (latestProse) {
+      wordCount += latestProse.split(/\s+/).length;
+    }
+  }
+
+  // Use package manifest if present, otherwise build from narrative
+  let exported = new Date().toISOString();
+  if (manifestFile) {
+    try {
+      const mText = await manifestFile.text();
+      const m = JSON.parse(mText);
+      if (m.exported) exported = m.exported;
+    } catch { /* ignore */ }
+  }
+
+  const manifest: PackageManifest = {
+    version: 1,
+    exported,
+    narrative: {
+      id: narrative.id,
+      title: narrative.title,
+      sceneCount,
+      wordCount,
+    },
+    assets: {
+      embeddings: embeddingCount,
+      audio: audioCount,
+      images: imageCount,
+    },
+  };
+
+  return {
+    manifest,
+    sizes: {
+      narrative: narrativeFile.size,
+      embeddings: embeddingsSize,
+      audio: audioSize,
+      images: imagesSize,
+      total: narrativeFile.size + embeddingsSize + audioSize + imagesSize,
+    },
+    format: 'directory',
+  };
+}
+
+/**
+ * Import narrative from a directory FileList
+ *
+ * @param files FileList from a directory input (webkitdirectory)
+ * @param options Import options
+ * @param onProgress Optional progress callback
+ * @returns Restored narrative state
+ */
+export async function importFromDirectory(
+  files: FileList,
+  options: ImportOptions = DEFAULT_IMPORT_OPTIONS,
+  onProgress?: (status: string, percent: number) => void,
+): Promise<NarrativeState> {
+  onProgress?.('Loading directory...', 0);
+
+  const fileMap = new Map<string, File>();
+  for (const file of Array.from(files)) {
+    const relPath = file.webkitRelativePath.split('/').slice(1).join('/');
+    fileMap.set(relPath, file);
+  }
+
+  // Read narrative
+  const narrativeFile = fileMap.get('narrative.json');
+  if (!narrativeFile) {
+    throw new Error('Missing narrative.json in directory');
+  }
+
+  onProgress?.('Reading narrative...', 5);
+  const text = await narrativeFile.text();
+  const narrative = JSON.parse(text) as NarrativeState;
+
+  // Import embeddings
+  if (options.importEmbeddings) {
+    const embFiles = Array.from(fileMap.entries()).filter(
+      ([relPath]) => relPath.startsWith('embeddings/') && relPath.endsWith('.bin')
+    );
+
+    if (embFiles.length > 0) {
+      onProgress?.('Importing embeddings...', 10);
+
+      for (let i = 0; i < embFiles.length; i++) {
+        const [relPath, file] = embFiles[i];
+        const fileName = relPath.split('/').pop()!;
+        const embId = fileName.replace('.bin', '');
+
+        try {
+          const buffer = await file.arrayBuffer();
+          const float32Array = new Float32Array(buffer);
+          const vector = Array.from(float32Array);
+          await assetManager.storeEmbedding(vector, 'text-embedding-3-small', embId);
+        } catch (error) {
+          console.warn(`Failed to import embedding ${embId}:`, error);
+        }
+
+        if (i % 100 === 0) {
+          const percent = 10 + (i / embFiles.length) * 60;
+          onProgress?.(`Importing embeddings: ${i}/${embFiles.length}`, percent);
+        }
+      }
+
+      onProgress?.(`Imported ${embFiles.length} embeddings`, 70);
+    }
+  }
+
+  // Import audio
+  if (options.importAudio) {
+    const audioFiles = Array.from(fileMap.entries()).filter(
+      ([relPath]) => relPath.startsWith('audio/')
+    );
+
+    if (audioFiles.length > 0) {
+      onProgress?.('Importing audio...', 70);
+
+      for (let i = 0; i < audioFiles.length; i++) {
+        const [, file] = audioFiles[i];
+        const fileName = file.name;
+        const [audioId] = fileName.split('.');
+
+        try {
+          const blob = new Blob([await file.arrayBuffer()], { type: file.type });
+          await assetManager.storeAudio(blob, blob.type, audioId);
+        } catch (error) {
+          console.warn(`Failed to import audio ${audioId}:`, error);
+        }
+
+        if (i % 10 === 0) {
+          const percent = 70 + (i / audioFiles.length) * 15;
+          onProgress?.(`Importing audio: ${i}/${audioFiles.length}`, percent);
+        }
+      }
+
+      onProgress?.(`Imported ${audioFiles.length} audio clips`, 85);
+    }
+  }
+
+  // Import images
+  if (options.importImages) {
+    const imageFiles = Array.from(fileMap.entries()).filter(
+      ([relPath]) => relPath.startsWith('images/')
+    );
+
+    if (imageFiles.length > 0) {
+      onProgress?.('Importing images...', 85);
+
+      for (let i = 0; i < imageFiles.length; i++) {
+        const [, file] = imageFiles[i];
+        const fileName = file.name;
+        const [imgId] = fileName.split('.');
+
+        try {
+          const blob = new Blob([await file.arrayBuffer()], { type: file.type });
+          await assetManager.storeImage(blob, blob.type, imgId);
+        } catch (error) {
+          console.warn(`Failed to import image ${imgId}:`, error);
+        }
+
+        if (i % 10 === 0) {
+          const percent = 85 + (i / imageFiles.length) * 15;
+          onProgress?.(`Importing images: ${i}/${imageFiles.length}`, percent);
+        }
+      }
+
+      onProgress?.(`Imported ${imageFiles.length} images`, 100);
+    }
+  }
+
+  onProgress?.('Complete!', 100);
+  return narrative;
+}
+
 /**
  * Format bytes to human-readable size
  */

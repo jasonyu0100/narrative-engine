@@ -96,9 +96,9 @@ export async function synthesizeSearchResults(
   timeline: Array<{ sceneIndex: number; maxSimilarity: number }>,
   onToken?: (token: string) => void,
 ): Promise<SearchSynthesis> {
-  // Guaranteed representation: take top 5 summaries + top 10 details, then sort by similarity
-  const topScenes = (sceneResults ?? []).slice(0, 5);
-  const topDetails = (detailResults ?? []).slice(0, 10);
+  // 2 scenes + up to 13 details (10 propositions + 3 beats)
+  const topScenes = (sceneResults ?? []).slice(0, 2);
+  const topDetails = (detailResults ?? []).slice(0, 13);
 
   // Combine and sort by similarity for final ordering
   const topResults = [...topScenes, ...topDetails].sort((a, b) => b.similarity - a.similarity);

@@ -171,14 +171,14 @@ export const EMBEDDING_BATCH_SIZE = 50;
 /** Concurrent embedding generation batches */
 export const EMBEDDING_CONCURRENCY = 10;
 
-/** Number of top results to return in search (total, legacy) */
-export const SEARCH_TOP_K = 20;
+/** Scene-level results (broad thematic context — guaranteed slots) */
+export const SEARCH_TOP_K_SCENES = 2;
 
-/** Number of top scene-level results (thematic, high-level context) to retrieve before combining */
-export const SEARCH_TOP_K_SCENES = 5;
+/** Beat-level results (intermediate summaries) */
+export const SEARCH_TOP_K_BEATS = 3;
 
-/** Number of top detail-level results (propositions and beats, specific facts) to retrieve before combining */
-export const SEARCH_TOP_K_DETAILS = 10;
+/** Proposition-level results (most specific — atomic facts with classifications) */
+export const SEARCH_TOP_K_PROPOSITIONS = 10;
 
 /** Minimum cosine similarity threshold for search results (0-1) */
 export const SEARCH_SIMILARITY_THRESHOLD = 0.3;

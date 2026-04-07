@@ -33,13 +33,15 @@ export type ReportAnalysis = {
   modes: string;
   /** 1-2 short paragraphs. How quality evolves across arcs. */
   arcs: string;
+  /** 1-2 short paragraphs. Proposition classification — structural roles and what the distribution reveals about narrative craft. */
+  propositions: string;
   /** 2-3 sentences. What this story does best and the single most impactful improvement. */
   closing: string;
 };
 
 const REPORT_SECTIONS: (keyof ReportAnalysis)[] = [
   'story_intro', 'verdict', 'delivery', 'forces', 'forces_over_time', 'swing',
-  'segments', 'cast', 'locations', 'threads', 'modes', 'arcs', 'closing',
+  'segments', 'cast', 'locations', 'threads', 'modes', 'arcs', 'propositions', 'closing',
 ];
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
@@ -217,6 +219,15 @@ Distribution: ${cubeBlock}
 Self-loop rate: ${((selfLoops / Math.max(sequence.length - 1, 1)) * 100).toFixed(0)}%
 Top transitions: ${transBlock}
 
+═══ PROPOSITIONS ═══
+Total: ${data.propositionCount} propositions across ${n} scenes
+Base categories: Anchor ${data.propositionTotals.Anchor} (${data.propositionCount > 0 ? ((data.propositionTotals.Anchor / data.propositionCount) * 100).toFixed(0) : 0}%), Seed ${data.propositionTotals.Seed} (${data.propositionCount > 0 ? ((data.propositionTotals.Seed / data.propositionCount) * 100).toFixed(0) : 0}%), Close ${data.propositionTotals.Close} (${data.propositionCount > 0 ? ((data.propositionTotals.Close / data.propositionCount) * 100).toFixed(0) : 0}%), Texture ${data.propositionTotals.Texture} (${data.propositionCount > 0 ? ((data.propositionTotals.Texture / data.propositionCount) * 100).toFixed(0) : 0}%)
+Anchor ratio: ${data.propositionCount > 0 ? ((data.propositionTotals.Anchor / data.propositionCount) * 100).toFixed(1) : 0}% (20-30% = strong structure)
+Anchor = load-bearing both directions. Seed = foreshadowing. Close = payoff/resolution. Texture = atmosphere.
+Each category has local and global variants with distinct names:
+  Local: anchor, seed, close, texture (within-arc connections)
+  Global: foundation, foreshadow, ending, atmosphere (cross-arc connections)
+
 ═══ SCENE-BY-SCENE NARRATIVE ═══
 ${sceneBlock}`;
 }
@@ -262,6 +273,7 @@ Return a JSON object with these keys. Follow the length guidance exactly — the
   "threads": "1-2 short paragraphs. What are the backbone threads of this story, and how well are they serviced? Are any threads neglected or unresolved? Name specific threads and their current status.",
   "modes": "3-5 sentences. What does the mode distribution tell us about variety? If certain modes dominate, what does that mean in story terms — e.g. lots of 'Growth' means the story prioritises character development over revelation.",
   "arcs": "1-2 short paragraphs. How does quality evolve across arcs? Name specific arcs and what makes them strong or weak. Does the story improve, plateau, or decline?",
+  "propositions": "1-2 short paragraphs. What does the proposition classification reveal about structural craft? Comment on anchor ratio (20-30% = strong), whether seeds convert to closes, and how the local/global balance shifts across arcs. A high foundation count means the thematic spine is strong. High ending count in later arcs means distant setups are paying off. Use the named labels (anchor/foundation, seed/foreshadow, close/ending, texture/atmosphere). Name specific structural patterns.",
   "closing": "2-3 sentences. What does this story do best, and what's the single most impactful change that would improve it? End on a forward-looking note."
 }`;
 

@@ -5,7 +5,7 @@
 
 import { generateEmbeddings, cosineSimilarity, resolveEmbedding } from './embeddings';
 import type { NarrativeState, SearchQuery, SearchResult, EmbeddingRef } from '@/types/narrative';
-import { SEARCH_TOP_K, SEARCH_TOP_K_SCENES, SEARCH_TOP_K_DETAILS } from './constants';
+import { SEARCH_TOP_K_SCENES, SEARCH_TOP_K_BEATS, SEARCH_TOP_K_PROPOSITIONS } from './constants';
 import { resolveEntry, isScene } from '@/types/narrative';
 import { logInfo, logError } from './system-logger';
 
@@ -140,53 +140,39 @@ export async function searchNarrative(
     similarity: cosineSimilarity(queryEmbedding, item.embedding),
   }));
 
-  // Split results into scene-level and detail-level pools
+  // Split into three pools — proportional to granularity
   const scoredScenes = scored.filter(item => item.type === 'scene');
-  const scoredDetails = scored.filter(item => item.type === 'proposition' || item.type === 'beat');
+  const scoredBeats = scored.filter(item => item.type === 'beat');
+  const scoredPropositions = scored.filter(item => item.type === 'proposition');
 
-  // Get top K for each pool
+  const toResult = ({ type, sceneId, beatIndex, propIndex, content, similarity, context }: typeof scored[0]): SearchResult => ({
+    type, id: `${sceneId}-${beatIndex ?? 'scene'}-${propIndex ?? ''}`,
+    sceneId, beatIndex, propIndex, content, similarity, context,
+  });
+
+  // Top K per pool — propositions get the most slots, scenes the fewest
   const sceneResults: SearchResult[] = scoredScenes
     .sort((a, b) => b.similarity - a.similarity)
     .slice(0, SEARCH_TOP_K_SCENES)
-    .map(({ type, sceneId, beatIndex, propIndex, content, similarity, context }) => ({
-      type,
-      id: `${sceneId}-${beatIndex ?? 'scene'}-${propIndex ?? ''}`,
-      sceneId,
-      beatIndex,
-      propIndex,
-      content,
-      similarity,
-      context,
-    }));
+    .map(toResult);
 
-  const detailResults: SearchResult[] = scoredDetails
+  const beatResults = scoredBeats
     .sort((a, b) => b.similarity - a.similarity)
-    .slice(0, SEARCH_TOP_K_DETAILS)
-    .map(({ type, sceneId, beatIndex, propIndex, content, similarity, context }) => ({
-      type,
-      id: `${sceneId}-${beatIndex ?? 'scene'}-${propIndex ?? ''}`,
-      sceneId,
-      beatIndex,
-      propIndex,
-      content,
-      similarity,
-      context,
-    }));
+    .slice(0, SEARCH_TOP_K_BEATS)
+    .map(toResult);
 
-  // Combined results for backwards compatibility (legacy)
-  const results: SearchResult[] = scored
+  const propositionResults = scoredPropositions
     .sort((a, b) => b.similarity - a.similarity)
-    .slice(0, SEARCH_TOP_K)
-    .map(({ type, sceneId, beatIndex, propIndex, content, similarity, context }) => ({
-      type,
-      id: `${sceneId}-${beatIndex ?? 'scene'}-${propIndex ?? ''}`,
-      sceneId,
-      beatIndex,
-      propIndex,
-      content,
-      similarity,
-      context,
-    }));
+    .slice(0, SEARCH_TOP_K_PROPOSITIONS)
+    .map(toResult);
+
+  // Detail results = propositions first, then beats (propositions dominate)
+  const detailResults: SearchResult[] = [...propositionResults, ...beatResults]
+    .sort((a, b) => b.similarity - a.similarity);
+
+  // Combined results = all three pools merged
+  const results: SearchResult[] = [...sceneResults, ...detailResults]
+    .sort((a, b) => b.similarity - a.similarity);
 
   // Build scene summary timeline (direct similarity values from scene embeddings)
   // Include ALL entries (scenes and world commits) to preserve timeline structure
@@ -204,7 +190,7 @@ export async function searchNarrative(
   // Build detail timeline (max similarity from beats/propositions per scene)
   // Include ALL entries to preserve timeline structure
   const detailMaxSimilarity = new Map<number, number>();
-  for (const item of scoredDetails) {
+  for (const item of [...scoredBeats, ...scoredPropositions]) {
     const current = detailMaxSimilarity.get(item.sceneIndex) ?? 0;
     if (item.similarity > current) {
       detailMaxSimilarity.set(item.sceneIndex, item.similarity);

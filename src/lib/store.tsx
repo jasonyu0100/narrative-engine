@@ -1718,6 +1718,38 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         console.log(`[loadManifest] Finished importing all assets from ${file}`);
       }
 
+      // Import assets from an extracted directory in the background
+      async function importDirAssetsInBackground(basePath: string, entry: string) {
+        // Load embeddings manifest
+        try {
+          const embManifestRes = await fetch(`/${basePath}/${entry}embeddings/manifest.json`);
+          if (embManifestRes.ok) {
+            const embFiles: string[] = await embManifestRes.json();
+            console.log(`[loadManifest] Importing ${embFiles.length} embeddings from ${entry} in background`);
+            // Import in batches of 50 to avoid flooding the network
+            for (let i = 0; i < embFiles.length; i += 50) {
+              const batch = embFiles.slice(i, i + 50);
+              await Promise.all(batch.map(async (fileName) => {
+                const embId = fileName.replace('.bin', '');
+                try {
+                  const res = await fetch(`/${basePath}/${entry}embeddings/${fileName}`);
+                  if (!res.ok) return;
+                  const buffer = await res.arrayBuffer();
+                  const float32Array = new Float32Array(buffer);
+                  const vector = Array.from(float32Array);
+                  await assetManager.storeEmbedding(vector, 'text-embedding-3-small', embId);
+                } catch (err) {
+                  console.warn(`Failed to import embedding ${embId}:`, err);
+                }
+              }));
+            }
+            console.log(`[loadManifest] Embeddings imported from ${entry}`);
+          }
+        } catch (err) {
+          console.warn(`[loadManifest] Failed to import dir embeddings for ${entry}:`, err);
+        }
+      }
+
       // Load a single bundled file and dispatch entry immediately when ready
       // Returns the narrative for preset initialization, asset import runs in background
       async function loadBundledFile(
@@ -1726,17 +1758,22 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         idSet: Set<string>
       ): Promise<NarrativeState | null> {
         try {
-          console.log(`[loadManifest] Loading ${dir}/${file}`);
-          const r = await fetch(`/${dir}/${file}`);
+          // Directory entry — trailing slash means fetch narrative.json from within
+          const isDir = file.endsWith('/');
+
+          console.log(`[loadManifest] Loading ${dir}/${file} (${isDir ? 'directory' : 'file'})`);
+
+          const fetchUrl = isDir ? `/${dir}/${file}narrative.json` : `/${dir}/${file}`;
+          const r = await fetch(fetchUrl);
           if (!r.ok) {
-            console.error(`[loadManifest] Failed to fetch ${dir}/${file}:`, r.status);
+            console.error(`[loadManifest] Failed to fetch ${fetchUrl}:`, r.status);
             return null;
           }
 
           const arrayBuffer = await r.arrayBuffer();
           const bytes = new Uint8Array(arrayBuffer);
-          const isZip = bytes.length >= 2 && bytes[0] === 0x50 && bytes[1] === 0x4B;
-          console.log(`[loadManifest] ${file} is ${isZip ? 'ZIP' : 'JSON'} format (size: ${bytes.length} bytes)`);
+          const isZip = !isDir && bytes.length >= 2 && bytes[0] === 0x50 && bytes[1] === 0x4B;
+          console.log(`[loadManifest] ${file} is ${isDir ? 'DIR' : isZip ? 'ZIP' : 'JSON'} format (size: ${bytes.length} bytes)`);
 
           let narrative: NarrativeState;
 
@@ -1779,7 +1816,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
               console.warn(`[loadManifest] Background asset import failed for ${file}:`, err);
             });
           } else {
-            // Plain JSON format
+            // Plain JSON format (both file and directory entries reach here)
             const text = new TextDecoder().decode(arrayBuffer);
             narrative = JSON.parse(text) as NarrativeState;
 
@@ -1797,6 +1834,13 @@ export function StoreProvider({ children }: { children: ReactNode }) {
             SEED_IDS.add(narrative.id);
             idSet.add(narrative.id);
             dispatch({ type: 'ADD_NARRATIVE_ENTRY', entry: narrativeToEntry(narrative) });
+
+            // Import directory assets in background
+            if (isDir) {
+              importDirAssetsInBackground(dir, file).catch(err => {
+                console.warn(`[loadManifest] Background dir asset import failed for ${file}:`, err);
+              });
+            }
           }
 
           console.log(`[loadManifest] Successfully loaded narrative: ${narrative.title} (${narrative.id})`);

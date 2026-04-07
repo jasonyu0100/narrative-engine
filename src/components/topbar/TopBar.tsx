@@ -15,6 +15,7 @@ import { CubeExplorer } from '@/components/topbar/CubeExplorer';
 import { BranchContextModal } from '@/components/topbar/BranchContextModal';
 import { FormulaModal } from '@/components/topbar/FormulaModal';
 import { DefinitionsModal } from '@/components/topbar/DefinitionsModal';
+import { PropositionAnalysisModal } from '@/components/topbar/PropositionAnalysisModal';
 import { SlidesPlayer } from '@/components/slides/SlidesPlayer';
 import { NarrativeReport } from '@/components/report/NarrativeReport';
 import { MarkovChainModal } from '@/components/topbar/MarkovChainModal';
@@ -295,6 +296,7 @@ export default function TopBar() {
   const [reportOpen, setReportOpen] = useState(false);
   const [markovOpen, setMarkovOpen] = useState(false);
   const [beatProfileOpen, setBeatProfileOpen] = useState(false);
+  const [propositionAnalysisOpen, setPropositionAnalysisOpen] = useState(false);
   const [threadGraphOpen, setThreadGraphOpen] = useState(false);
   const [scorecardOpen, setScorecardOpen] = useState(false);
   const [usageOpen, setUsageOpen] = useState(false);
@@ -1018,6 +1020,7 @@ export default function TopBar() {
             { label: 'Cube Explorer', onClick: () => setCubeExplorerOpen(true), disabled: !hasNarrative },
             { label: 'Pacing Profile', onClick: () => setMarkovOpen(true), disabled: !hasNarrative },
             { label: 'Beat Profile', onClick: () => setBeatProfileOpen(true), disabled: !hasNarrative },
+            { label: 'Propositions', onClick: () => setPropositionAnalysisOpen(true), disabled: !hasNarrative },
             { label: 'Formulas', onClick: () => setFormulaOpen(true) },
             { label: 'Definitions', onClick: () => setDefinitionsOpen(true) },
           ]}
@@ -1483,6 +1486,13 @@ export default function TopBar() {
       )}
       {formulaOpen && <FormulaModal onClose={() => setFormulaOpen(false)} />}
       {definitionsOpen && <DefinitionsModal onClose={() => setDefinitionsOpen(false)} />}
+      {propositionAnalysisOpen && narrative && (
+        <PropositionAnalysisModal
+          narrative={narrative}
+          resolvedKeys={state.resolvedEntryKeys}
+          onClose={() => setPropositionAnalysisOpen(false)}
+        />
+      )}
       {threadGraphOpen && narrative && (
         <ThreadGraphModal
           narrative={narrative}

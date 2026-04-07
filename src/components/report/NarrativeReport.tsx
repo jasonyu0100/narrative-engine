@@ -942,6 +942,27 @@ export function NarrativeReport({
           )}
 
 
+          {/* ── Propositions ── */}
+          {data.propositionCount > 0 && (
+            <Section title="Proposition Structure" number={++sec}>
+              <div className="grid grid-cols-4 gap-3 mb-6">
+                {(['Anchor', 'Seed', 'Close', 'Texture'] as const).map(base => {
+                  const count = data.propositionTotals[base];
+                  const pct = data.propositionCount > 0 ? (count / data.propositionCount) * 100 : 0;
+                  const colors: Record<string, string> = { Anchor: '#6366f1', Seed: '#10b981', Close: '#f59e0b', Texture: '#6b7280' };
+                  return (
+                    <div key={base} className="text-center py-3 rounded-lg border border-white/[0.06] bg-white/[0.02]">
+                      <div className="text-[18px] font-bold font-mono" style={{ color: colors[base] }}>{pct.toFixed(0)}%</div>
+                      <div className="text-[9px] font-medium mt-0.5" style={{ color: colors[base] }}>{base}</div>
+                      <div className="text-[8px] text-white/20 mt-0.5">{count} props</div>
+                    </div>
+                  );
+                })}
+              </div>
+              {prose('propositions')}
+            </Section>
+          )}
+
           {/* ── Conclusion ── */}
           <Section title="Conclusion & Recommendations" number={++sec}>
             {prose('closing')}

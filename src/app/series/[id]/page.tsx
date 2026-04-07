@@ -13,6 +13,7 @@ import { CanvasTopBar } from '@/components/canvas/CanvasTopBar';
 import { AudioPlayerProvider } from '@/hooks/useAudioPlayer';
 import TimelineStrip from '@/components/timeline/TimelineStrip';
 import ForceCharts from '@/components/timeline/ForceCharts';
+import { PropositionClassificationProvider } from '@/hooks/usePropositionClassification';
 import NarrativePanel from '@/components/narrative/NarrativePanel';
 import { CreationWizard } from '@/components/wizard/CreationWizard';
 import { GeneratePanel } from '@/components/generation/GeneratePanel';
@@ -158,6 +159,7 @@ export default function SeriesPage() {
   const showBulkAudioBar = bulkAudio.runState !== null;
 
   return (
+    <PropositionClassificationProvider narrative={state.activeNarrative} resolvedKeys={state.resolvedEntryKeys}>
     <AudioPlayerProvider>
     <>
       <AppShell
@@ -349,5 +351,6 @@ export default function SeriesPage() {
       )}
     </>
     </AudioPlayerProvider>
+    </PropositionClassificationProvider>
   );
 }

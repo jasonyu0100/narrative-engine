@@ -14,18 +14,24 @@ export default function ExamplePage() {
   const [error, setError] = useState(false);
 
   useEffect(() => {
-    fetch('/works/harry_potter_and_the_sorcerer_s_stone.json')
-      .then((r) => {
+    (async () => {
+      try {
+        const r = await fetch('/works/Harry%20Potter%20and%20the%20Sorcerer%27s%20Stone.inktide');
         if (!r.ok) throw new Error('Failed to load');
-        return r.json();
-      })
-      .then((data: NarrativeState) => {
-        // Derive characters/locations/threads from scenes if the top-level dicts are empty
+        const arrayBuffer = await r.arrayBuffer();
+        const JSZip = (await import('jszip')).default;
+        const zip = await JSZip.loadAsync(arrayBuffer);
+        const narrativeFile = zip.file('narrative.json');
+        if (!narrativeFile) throw new Error('Missing narrative.json in package');
+        const text = await narrativeFile.async('text');
+        const data = JSON.parse(text) as NarrativeState;
         const rootBranch = Object.values(data.branches).find(b => b.parentBranchId === null);
         const keys = rootBranch ? resolveEntrySequence(data.branches, rootBranch.id) : Object.keys(data.scenes);
         setNarrative(withDerivedEntities(data, keys));
-      })
-      .catch(() => setError(true));
+      } catch {
+        setError(true);
+      }
+    })();
   }, []);
 
   if (error) {
