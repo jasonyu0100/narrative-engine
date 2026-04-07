@@ -12,7 +12,7 @@
  *
  * When updating: check src/lib/narrative-utils.ts FORCE_REFERENCE_MEANS
  * to keep prompt numbers in sync with grading formulas.
- * Current: { payoff: 1.3, change: 4, knowledge: 3.5 }
+ * Current: { payoff: 1.3, change: 3.5, knowledge: 3.5 }
  */
 
 import { THREAD_TERMINAL_STATUSES } from '@/types/narrative';
@@ -21,15 +21,15 @@ import { THREAD_LIFECYCLE_DOC } from './context';
 
 // ── Force Standards ──────────────────────────────────────────────────────────
 // Numbers here MUST match FORCE_REFERENCE_MEANS in narrative-utils.ts:
-//   { payoff: 1.3, change: 4, knowledge: 3.5 }
+//   { payoff: 1.3, change: 3.5, knowledge: 3.5 }
 // These are the values where the exponential grading curve scores ~86% (22/25).
 
 export const PROMPT_FORCE_STANDARDS = `
-FORCE SCORING — exponential grading. Reference means (~86%): P ~1.3 | C ~4 | K ~3.5 per scene.
+FORCE SCORING — exponential grading. Reference means (~86%): P ~1.3 | C ~3.5 | K ~3.5 per scene.
 
 In practice:
 - PAYOFF ~1.3: 1-2 thread transitions averaging ~1 phase jump, OR several pulses.
-- CHANGE ~4: ~3-4 continuity mutations + ~2-3 events + relationship shifts (valenceDelta ±0.2+).
+- CHANGE ~3.5: ~3-4 continuity mutations + ~2-3 events + relationship shifts (valenceDelta ±0.2+, L2 aggregated).
 - KNOWLEDGE ~3.5: ~2-3 new world knowledge nodes + connecting edges.
 
 Thin mutations = low scores. REUSE existing world knowledge node IDs when reinforcing established concepts.
@@ -83,7 +83,7 @@ continuityMutations — what characters learn. Feeds Change directly.
 - nodeType specific: "tactical_insight", "betrayal_discovered", "forbidden_technique".
 
 relationshipMutations — valenceDelta: ±0.1 (subtle), ±0.2-0.3 (meaningful), ±0.4-0.5 (dramatic).
-- Include whenever characters interact meaningfully. Feeds Change via √Σ|valenceDelta|.
+- Include whenever characters interact meaningfully. Feeds Change via √Σ|valenceDelta|² (L2).
 
 worldKnowledgeMutations — types: "law", "system", "concept", "tension". REUSE existing IDs.
 - Lore/revelation: 3-5+ nodes. Character scenes: 0-1 nodes.

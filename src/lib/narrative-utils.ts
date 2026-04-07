@@ -540,12 +540,12 @@ function computeRawPayoff(scene: Scene): number {
 
 /** Raw change: total mutation intensity with sqrt scaling.
  *  C = √M + √E + √R
- *  M = continuity mutations, E = events, R = relationship valence intensity.
+ *  M = continuity mutations, E = events, R = Σ|Δv|² (L2 relationship valence).
  *  Ownership mutations are structural bookkeeping (like character movements) —
  *  their narrative impact is captured by the thread/continuity/relationship
  *  mutations that accompany them. */
 function rawChange(scene: Scene): number {
-  const relIntensity = scene.relationshipMutations.reduce((sum, rm) => sum + Math.abs(rm.valenceDelta), 0);
+  const relIntensity = scene.relationshipMutations.reduce((sum, rm) => sum + rm.valenceDelta ** 2, 0);
   return Math.sqrt(scene.continuityMutations.length)
     + Math.sqrt(scene.events.length)
     + Math.sqrt(relIntensity);
@@ -1089,7 +1089,7 @@ const ARCHETYPES = {
   chronicle:   { key: 'chronicle',   name: 'Chronicle',   description: 'Resolutions deepen the world — each payoff reveals how things work', dominant: ['payoff', 'knowledge'] as const },
   mosaic:      { key: 'mosaic',      name: 'Mosaic',      description: 'Many lives composing a larger picture — characters transform within a deepening world', dominant: ['change', 'knowledge'] as const },
   classic:     { key: 'classic',     name: 'Classic',     description: 'Driven by resolution — threads pay off and relationships shift decisively', dominant: ['payoff'] as const },
-  saga:        { key: 'saga',        name: 'Saga',        description: 'People-driven — characters transform and their journeys are the heart of the story', dominant: ['change'] as const },
+  show:        { key: 'show',        name: 'Show',        description: 'People-driven — characters transform and their journeys are the heart of the story', dominant: ['change'] as const },
   paper:       { key: 'paper',       name: 'Paper',       description: 'Dense with ideas and systems — the depth of the world itself is the draw', dominant: ['knowledge'] as const },
   emerging:    { key: 'emerging',    name: 'Emerging',    description: 'No single force has reached its potential yet — the story is still finding its voice', dominant: [] as const },
 } satisfies Record<string, NarrativeArchetype>;
@@ -1121,7 +1121,7 @@ export function classifyArchetype(grades: ForceGrades): NarrativeArchetype {
   if (pDom && kDom)         return ARCHETYPES.chronicle;
   if (cDom && kDom)         return ARCHETYPES.mosaic;
   if (pDom)                 return ARCHETYPES.classic;
-  if (cDom)                 return ARCHETYPES.saga;
+  if (cDom)                 return ARCHETYPES.show;
   if (kDom)                 return ARCHETYPES.paper;
   return ARCHETYPES.emerging;
 }
@@ -1303,8 +1303,10 @@ const avg = (arr: number[]) => arr.length > 0 ? arr.reduce((s, v) => s + v, 0) /
 /** Reference means per force — the expected mean for a well-structured narrative.
  *  Raw force values are divided by these to produce a unit-free normalized value
  *  (x̃ = x̄ / μ_ref). At x̃ = 1 the grade reaches ~18/25 (73%).
- *  Calibrated from literary works (HP, Gatsby, Crime & Punishment, Coiling Dragon). */
-export const FORCE_REFERENCE_MEANS = { payoff: 1.3, change: 4, knowledge: 3.5 } as const;
+ *  Originally calibrated from literary works (HP, Gatsby, Crime & Punishment, Coiling Dragon).
+ *  Change reference adjusted from 4→3.5 after L2 valenceDelta aggregation (∑|Δv|²).
+ *  The L2 change deflates the R term by ~40% for typical δ≈0.3; if R≈⅓ of C, total deflation ~15%. */
+export const FORCE_REFERENCE_MEANS = { payoff: 1.3, change: 3.5, knowledge: 3.5 } as const;
 
 /** Grade a mean-normalized force value 0→25: g(x̃) = 25(1 - e^{-2x̃}).
  *  x̃ = x̄ / μ_ref. At x̃ = 1 (matching reference), grade ≈ 22/25 (86%). */

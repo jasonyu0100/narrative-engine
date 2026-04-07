@@ -231,7 +231,7 @@ const ARCHETYPES = [
   { name: 'Chronicle', key: 'chronicle' as ArchetypeKey, forces: 'P + K', desc: 'Resolutions deepen the world — each payoff reveals how things work' },
   { name: 'Mosaic', key: 'mosaic' as ArchetypeKey, forces: 'C + K', desc: 'Many lives composing a larger picture — characters transform within a deepening world' },
   { name: 'Classic', key: 'classic' as ArchetypeKey, forces: 'P', desc: 'Driven by resolution — threads pay off and relationships shift decisively' },
-  { name: 'Saga', key: 'saga' as ArchetypeKey, forces: 'C', desc: 'People-driven — characters transform and their journeys are the heart of the story' },
+  { name: 'Show', key: 'show' as ArchetypeKey, forces: 'C', desc: 'People-driven — characters transform and their journeys are the heart of the story' },
   { name: 'Paper', key: 'paper' as ArchetypeKey, forces: 'K', desc: 'Dense with ideas and systems — the depth of the world itself is the draw' },
   { name: 'Emerging', key: 'emerging' as ArchetypeKey, forces: '—', desc: 'No single force has reached its potential yet — the story is still finding its voice' },
 ];

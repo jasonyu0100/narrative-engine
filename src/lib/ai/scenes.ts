@@ -1140,7 +1140,7 @@ NON-FICTION (exhaustive example from a technical paper):
 • {"content": "C = √ΔM + √ΔE + √ΔR", "type": "formula"}
 • {"content": "ΔM counts continuity mutations", "type": "definition"}
 • {"content": "ΔE counts events", "type": "definition"}
-• {"content": "ΔR = Σ|Δv| sums absolute valence shifts", "type": "formula"}
+• {"content": "ΔR = Σ|Δv|² sums squared valence shifts (L2)", "type": "formula"}
 • {"content": "Square roots give diminishing returns", "type": "mechanism"}
 • {"content": "Diminishing returns prevent any single axis from dominating", "type": "claim"}
 

@@ -54,7 +54,7 @@ function ForcesTab() {
       <S title="Change" analogy="How intensely did this scene transform? A tight confrontation scores the same as an ensemble with equal total mutations.">
         <Block tex={String.raw`C = \sqrt{\Delta M} \;+\; \sqrt{\Delta E} \;+\; \sqrt{\Delta R}`} />
         <p className="text-[10px] text-text-dim">
-          <Tex>{String.raw`\Delta M`}</Tex> = continuity mutations, <Tex>{String.raw`\Delta E`}</Tex> = events, <Tex>{String.raw`\Delta R = \sum |\Delta v|`}</Tex> = relationship valence intensity. A betrayal (<Tex>{String.raw`|\Delta v|{=}0.5`}</Tex>) weighs more than a polite exchange (<Tex>{String.raw`|\Delta v|{=}0.1`}</Tex>). Cast-blind.
+          <Tex>{String.raw`\Delta M`}</Tex> = continuity mutations, <Tex>{String.raw`\Delta E`}</Tex> = events, <Tex>{String.raw`\Delta R = \sum |\Delta v|^2`}</Tex> = relationship valence intensity (L2). A betrayal (<Tex>{String.raw`|\Delta v|{=}0.5`}</Tex>) contributes 25× more than a polite exchange (<Tex>{String.raw`|\Delta v|{=}0.1`}</Tex>). Cast-blind.
         </p>
       </S>
 
@@ -123,8 +123,8 @@ function ScoringTab() {
         </p>
         <div className="mt-2 flex gap-2 text-[10px]">
           {[
-            { label: 'Payoff', value: '1.5', color: '#EF4444' },
-            { label: 'Change', value: '4.0', color: '#22C55E' },
+            { label: 'Payoff', value: '1.3', color: '#EF4444' },
+            { label: 'Change', value: '3.5', color: '#22C55E' },
             { label: 'Knowledge', value: '3.5', color: '#3B82F6' },
           ].map(({ label, value, color }) => (
             <div key={label} className="flex items-center gap-1.5 px-2 py-1 rounded bg-white/5 border border-white/8">

@@ -190,21 +190,21 @@ export function initMatrixPresets(works: { key: string; name: string; narrative:
  */
 const FORCE_TARGETS: Record<CubeCornerKey, { payoff: [number, number]; change: [number, number]; knowledge: [number, number] }> = {
   // Epoch: everything high
-  'HHH': { payoff: [2, 6], change: [4, 8], knowledge: [3, 7] },
+  'HHH': { payoff: [2, 6], change: [3.5, 7], knowledge: [3, 7] },
   // Climax: high payoff + change, low knowledge
-  'HHL': { payoff: [2, 6], change: [4, 8], knowledge: [0, 1.5] },
+  'HHL': { payoff: [2, 6], change: [3.5, 7], knowledge: [0, 1.5] },
   // Revelation: high payoff + knowledge, low change
-  'HLH': { payoff: [2, 5], change: [0, 2], knowledge: [3, 7] },
+  'HLH': { payoff: [2, 5], change: [0, 1.5], knowledge: [3, 7] },
   // Closure: high payoff, low change + knowledge
-  'HLL': { payoff: [2, 5], change: [0, 2], knowledge: [0, 1.5] },
+  'HLL': { payoff: [2, 5], change: [0, 1.5], knowledge: [0, 1.5] },
   // Discovery: high change + knowledge, low payoff
-  'LHH': { payoff: [0, 1], change: [3, 7], knowledge: [3, 6] },
+  'LHH': { payoff: [0, 1], change: [2.5, 6], knowledge: [3, 6] },
   // Growth: high change, low payoff + knowledge
-  'LHL': { payoff: [0, 1], change: [3, 7], knowledge: [0, 1.5] },
+  'LHL': { payoff: [0, 1], change: [2.5, 6], knowledge: [0, 1.5] },
   // Lore: high knowledge, low payoff + change
-  'LLH': { payoff: [0, 1], change: [0, 2], knowledge: [3, 7] },
+  'LLH': { payoff: [0, 1], change: [0, 1.5], knowledge: [3, 7] },
   // Rest: everything low
-  'LLL': { payoff: [0, 1], change: [0, 2], knowledge: [0, 1.5] },
+  'LLL': { payoff: [0, 1], change: [0, 1.5], knowledge: [0, 1.5] },
 };
 
 // ── Pacing Presets ───────────────────────────────────────────────────────────
@@ -429,7 +429,7 @@ export function buildSequencePrompt(sequence: PacingSequence): string {
   lines.push(`PACING SEQUENCE (${sequence.pacingDescription})`);
   lines.push('');
   lines.push('Mode determines mutation profile. Formulas compute forces FROM mutations:');
-  lines.push('  P = Σ thread transitions (pulse=0.25) | C = √continuity + √events + √Σ|valence| | K = nodes + √edges');
+  lines.push('  P = Σ thread transitions (pulse=0.25) | C = √continuity + √events + √Σ|valence|² | K = nodes + √edges');
   lines.push('');
 
   // Build compact scene assignments
