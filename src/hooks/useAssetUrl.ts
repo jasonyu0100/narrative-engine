@@ -39,12 +39,11 @@ export function useImageUrl(imageRef: ImageRef): string | null {
     }
 
     // Asset reference - resolve to blob URL
+    // Note: blob URLs are cached and owned by assetManager — do NOT revoke here
     let cancelled = false;
-    let blobUrl: string | null = null;
 
     assetManager.getImageUrl(imageRef).then((resolvedUrl) => {
       if (!cancelled) {
-        blobUrl = resolvedUrl;
         setUrl(resolvedUrl);
       }
     }).catch((err) => {
@@ -52,12 +51,8 @@ export function useImageUrl(imageRef: ImageRef): string | null {
       if (!cancelled) setUrl(null);
     });
 
-    // Cleanup: revoke blob URL when component unmounts or ref changes
     return () => {
       cancelled = true;
-      if (blobUrl) {
-        URL.revokeObjectURL(blobUrl);
-      }
     };
   }, [imageRef]);
 
@@ -85,12 +80,11 @@ export function useAudioUrl(audioRef: AudioRef): string | null {
     }
 
     // Asset reference - resolve to blob URL
+    // Note: blob URLs are cached and owned by assetManager — do NOT revoke here
     let cancelled = false;
-    let blobUrl: string | null = null;
 
     assetManager.getAudioUrl(audioRef).then((resolvedUrl) => {
       if (!cancelled) {
-        blobUrl = resolvedUrl;
         setUrl(resolvedUrl);
       }
     }).catch((err) => {
@@ -98,12 +92,8 @@ export function useAudioUrl(audioRef: AudioRef): string | null {
       if (!cancelled) setUrl(null);
     });
 
-    // Cleanup: revoke blob URL when component unmounts or ref changes
     return () => {
       cancelled = true;
-      if (blobUrl) {
-        URL.revokeObjectURL(blobUrl);
-      }
     };
   }, [audioRef]);
 

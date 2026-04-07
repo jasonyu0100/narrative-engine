@@ -36,10 +36,7 @@ export async function POST(req: NextRequest) {
       body: JSON.stringify({
         input: {
           prompt: imagePrompt,
-          num_outputs: 1,
           aspect_ratio: '3:4',
-          output_format: 'webp',
-          output_quality: 80,
         },
       }),
     });
