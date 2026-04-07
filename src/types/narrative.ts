@@ -255,8 +255,6 @@ export type Beat = {
 /** Structured scene plan — JSON replacement for the plain-text plan */
 export type BeatPlan = {
   beats: Beat[];
-  /** Scene-level propositions that span the whole scene (not tied to a single beat) */
-  propositions?: Proposition[];
 };
 
 /** Beat-aligned prose chunk — links prose to its generating beat */

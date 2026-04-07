@@ -104,8 +104,20 @@ type PropEntry = {
   propIndex: number;
 };
 
+/** A connection from one proposition to another */
+export type PropConnection = {
+  key: string;           // propKey of the connected proposition
+  sceneId: string;
+  beatIndex: number;
+  propIndex: number;
+  similarity: number;    // raw cosine similarity
+  sceneDist: number;     // scene distance (positive = forward, negative = backward)
+};
+
 export type NarrativeClassification = {
   classifications: Map<string, PropositionClassification>;
+  /** Top-k backward + forward connections per proposition, sorted by recency (closest first) */
+  connections: Map<string, { backward: PropConnection[]; forward: PropConnection[] }>;
   sceneProfiles: Map<string, Record<PropositionBaseCategory, number>>;
   thresholds: { backward: number; forward: number; reachScenes: number };
   computedAt: number;
@@ -152,6 +164,7 @@ export async function classifyPropositions(
   if (n === 0) {
     return {
       classifications: new Map(),
+      connections: new Map(),
       sceneProfiles: new Map(),
       thresholds: { backward: 0, forward: 0, reachScenes: reachThreshold },
       computedAt: Date.now(),
@@ -215,6 +228,10 @@ export async function classifyPropositions(
   const topkSims = new Float64Array(TOP_K);
   const topkIdxs = new Int32Array(TOP_K);
 
+  // Store raw top-k connections per proposition per direction
+  const backConns: PropConnection[][] = new Array(n);
+  const fwdConns: PropConnection[][] = new Array(n);
+
   for (let i = 0; i < n; i++) {
     if (!hasEmbedding[i]) continue;
     const rowOffset = i * n;
@@ -273,8 +290,25 @@ export async function classifyPropositions(
         ? dists[Math.floor(dists.length / 2)]
         : (dists[dists.length / 2 - 1] + dists[dists.length / 2]) / 2;
 
-      if (dir === 0) { backward[i] = strength; backReach[i] = reach; }
-      else { forward[i] = strength; fwdReach[i] = reach; }
+      // Build connection list sorted by recency (closest scene first)
+      const conns: PropConnection[] = [];
+      for (let m = 0; m < filled; m++) {
+        const j = topkIdxs[m];
+        const e = entries[j];
+        conns.push({
+          key: propKey(e.sceneId, e.beatIndex, e.propIndex),
+          sceneId: e.sceneId,
+          beatIndex: e.beatIndex,
+          propIndex: e.propIndex,
+          similarity: topkSims[m],
+          sceneDist: sceneOrders[j] - sceneI,
+        });
+      }
+      // Sort by recency: smallest absolute scene distance first
+      conns.sort((a, b) => Math.abs(a.sceneDist) - Math.abs(b.sceneDist));
+
+      if (dir === 0) { backward[i] = strength; backReach[i] = reach; backConns[i] = conns; }
+      else { forward[i] = strength; fwdReach[i] = reach; fwdConns[i] = conns; }
     }
   }
 
@@ -285,8 +319,9 @@ export async function classifyPropositions(
   const thB = STRENGTH_THRESHOLD;
   const thF = STRENGTH_THRESHOLD;
 
-  // 6. Classify
+  // 6. Classify + build connections map
   const classifications = new Map<string, PropositionClassification>();
+  const connections = new Map<string, { backward: PropConnection[]; forward: PropConnection[] }>();
   const sceneProfiles = new Map<string, Record<PropositionBaseCategory, number>>();
 
   for (let i = 0; i < n; i++) {
@@ -310,10 +345,16 @@ export async function classifyPropositions(
 
     const reachLabel: PropositionReach = reach >= reachThreshold ? 'Global' : 'Local';
 
-    classifications.set(propKey(entry.sceneId, entry.beatIndex, entry.propIndex), {
+    const key = propKey(entry.sceneId, entry.beatIndex, entry.propIndex);
+    classifications.set(key, {
       base, reach: reachLabel,
       backward: b, forward: f,
       backReach: backReach[i], fwdReach: fwdReach[i],
+    });
+
+    connections.set(key, {
+      backward: backConns[i] ?? [],
+      forward: fwdConns[i] ?? [],
     });
 
     if (!sceneProfiles.has(entry.sceneId)) {
@@ -327,6 +368,7 @@ export async function classifyPropositions(
 
   return {
     classifications,
+    connections,
     sceneProfiles,
     thresholds: { backward: thB, forward: thF, reachScenes: reachThreshold },
     computedAt: Date.now(),

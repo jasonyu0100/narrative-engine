@@ -8,7 +8,7 @@
  */
 
 import { createContext, useContext, useState, useEffect, useRef, useMemo, useCallback, type ReactNode } from 'react';
-import { propKey, type NarrativeClassification } from '@/lib/proposition-classify';
+import { propKey, type NarrativeClassification, type PropConnection } from '@/lib/proposition-classify';
 import type { NarrativeState, PropositionClassification } from '@/types/narrative';
 import { resolveEntry, isScene } from '@/types/narrative';
 
@@ -16,11 +16,13 @@ import { resolveEntry, isScene } from '@/types/narrative';
 
 type ClassificationContextValue = {
   getClassification: (sceneId: string, beatIndex: number, propIndex: number) => PropositionClassification | null;
+  getConnections: (sceneId: string, beatIndex: number, propIndex: number) => { backward: PropConnection[]; forward: PropConnection[] } | null;
   sceneProfiles: NarrativeClassification['sceneProfiles'] | null;
 };
 
 const ClassificationContext = createContext<ClassificationContextValue>({
   getClassification: () => null,
+  getConnections: () => null,
   sceneProfiles: null,
 });
 
@@ -90,6 +92,9 @@ export function PropositionClassificationProvider({
   const value = useMemo<ClassificationContextValue>(() => ({
     getClassification: (sceneId: string, beatIndex: number, propIndex: number) => {
       return result?.classifications.get(propKey(sceneId, beatIndex, propIndex)) ?? null;
+    },
+    getConnections: (sceneId: string, beatIndex: number, propIndex: number) => {
+      return result?.connections.get(propKey(sceneId, beatIndex, propIndex)) ?? null;
     },
     sceneProfiles: result?.sceneProfiles ?? null,
   }), [result]);

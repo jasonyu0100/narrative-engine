@@ -8,7 +8,7 @@ import { useStore } from "@/lib/store";
 import type { NarrativeState, Scene } from "@/types/narrative";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { usePropositionClassification } from "@/hooks/usePropositionClassification";
-import { classificationColor, classificationLabel } from "@/lib/proposition-classify";
+import { classificationColor, classificationLabel, propKey, BASE_COLORS } from "@/lib/proposition-classify";
 
 // Persistent state that survives component unmounts (scene navigation, world commits)
 let beatPlanLinkedModePersisted = false;
@@ -62,7 +62,8 @@ export function SceneProseView({
   resolvedKeys: string[];
 }) {
   const { state, dispatch } = useStore();
-  const { getClassification } = usePropositionClassification();
+  const { getClassification, getConnections } = usePropositionClassification();
+  const [expandedProp, setExpandedProp] = useState<string | null>(null);
 
   // Resolve prose and plan for current branch
   const { prose: resolvedProse, beatProseMap: resolvedBeatProseMap } = useResolvedProse(scene);
@@ -397,9 +398,12 @@ export function SceneProseView({
                         {beat.propositions.map((prop, j) => {
                           const cls = getClassification(scene.id, chunk.beatIndex, j);
                           const profileColor = cls ? classificationColor(cls.base, cls.reach) : undefined;
+                          const pk = propKey(scene.id, chunk.beatIndex, j);
+                          const isExpanded = expandedProp === pk;
+                          const conns = isExpanded ? getConnections(scene.id, chunk.beatIndex, j) : null;
                           return (
+                          <div key={j}>
                           <div
-                            key={j}
                             className="flex items-start gap-1.5 transition-colors rounded-sm pl-1.5"
                             style={profileColor ? {
                               borderLeft: `2px solid ${profileColor}`,
@@ -409,16 +413,66 @@ export function SceneProseView({
                             title={cls ? `${cls.reach} ${cls.base}` : undefined}
                           >
                             {cls && (
-                              <span
-                                className="shrink-0 text-[8px] leading-none font-medium lowercase mt-0.5"
+                              <button
+                                className="shrink-0 text-[8px] leading-none font-medium lowercase mt-0.5 hover:underline cursor-pointer"
                                 style={{ color: profileColor }}
+                                onClick={() => setExpandedProp(isExpanded ? null : pk)}
                               >
                                 {classificationLabel(cls.base, cls.reach)}
-                              </span>
+                              </button>
                             )}
-                            <p className="text-[11px] text-text-secondary/90 italic leading-relaxed">
+                            <p className="text-[11px] text-text-secondary leading-relaxed italic">
                               {prop.content}
                             </p>
+                          </div>
+                          {isExpanded && conns && (
+                            <div className="ml-3 mt-1 mb-2 pl-2 border-l border-white/5 space-y-2">
+                              {[
+                                { label: '← past', items: conns.backward },
+                                { label: '→ future', items: conns.forward },
+                              ].map(({ label, items }) => items.length > 0 && (
+                                <div key={label}>
+                                  <span className="text-[8px] uppercase tracking-wider text-text-dim">{label}</span>
+                                  <div className="mt-0.5 space-y-0.5">
+                                    {items.map((conn, ci) => {
+                                      const connCls = getClassification(conn.sceneId, conn.beatIndex, conn.propIndex);
+                                      const connColor = connCls ? classificationColor(connCls.base, connCls.reach) : undefined;
+                                      const connScene = narrative.scenes[conn.sceneId];
+                                      const connPlan = connScene?.planVersions?.[connScene.planVersions!.length - 1]?.plan;
+                                      const connContent = connPlan?.beats?.[conn.beatIndex]?.propositions?.[conn.propIndex]?.content;
+                                      if (!connContent) return null;
+                                      const sceneIdx = state.resolvedEntryKeys.indexOf(conn.sceneId);
+                                      return (
+                                        <button
+                                          key={ci}
+                                          className="flex items-start gap-1.5 w-full text-left rounded px-1 py-0.5 hover:bg-white/5 transition-colors"
+                                          onClick={() => {
+                                            if (sceneIdx >= 0) {
+                                              dispatch({ type: 'SET_SCENE_INDEX', index: sceneIdx });
+                                              setTimeout(() => {
+                                                window.dispatchEvent(new CustomEvent('prose:scroll-to-beat', {
+                                                  detail: { beatIndex: conn.beatIndex, propIndex: conn.propIndex },
+                                                }));
+                                              }, 200);
+                                            }
+                                          }}
+                                          style={connColor ? { borderLeft: `2px solid ${connColor}` } : undefined}
+                                        >
+                                          <span className="shrink-0 text-[8px] font-mono text-text-dim mt-0.5">
+                                            {conn.sceneDist < 0 ? conn.sceneDist : `+${conn.sceneDist}`}
+                                          </span>
+                                          <span className="shrink-0 text-[8px] font-mono text-text-dim mt-0.5">
+                                            {(conn.similarity * 100).toFixed(0)}%
+                                          </span>
+                                          <span className="text-[10px] text-text-secondary line-clamp-2">{connContent}</span>
+                                        </button>
+                                      );
+                                    })}
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          )}
                           </div>
                           );
                         })}

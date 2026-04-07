@@ -17,7 +17,7 @@ import { BEAT_FN_LIST, BEAT_MECHANISM_LIST } from "@/types/narrative";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { PlanCandidatesModal } from "./PlanCandidatesModal";
 import { usePropositionClassification } from "@/hooks/usePropositionClassification";
-import { classificationColor, classificationLabel } from "@/lib/proposition-classify";
+import { classificationColor, classificationLabel, propKey, BASE_COLORS } from "@/lib/proposition-classify";
 import type { ContinuityViolation } from "@/types/narrative";
 import { ContinuityCheckModal } from "./ContinuityCheckModal";
 
@@ -53,8 +53,9 @@ export function ScenePlanView({
   scene: Scene;
   resolvedKeys: string[];
 }) {
-  const { dispatch } = useStore();
-  const { getClassification } = usePropositionClassification();
+  const { state, dispatch } = useStore();
+  const { getClassification, getConnections } = usePropositionClassification();
+  const [expandedProp, setExpandedProp] = useState<string | null>(null);
 
   // Resolve plan for current branch
   const resolvedPlan = useResolvedPlan(scene);
@@ -137,10 +138,10 @@ export function ScenePlanView({
     return () => window.removeEventListener("canvas:check-continuity", handleCheckContinuity);
   }, [planCache.plan]);
 
-  // Listen for scroll-to-beat event from search
+  // Listen for scroll-to-beat event from search and proposition connections
   useEffect(() => {
     const handleScrollToBeat = (e: Event) => {
-      const { beatIndex } = (e as CustomEvent).detail;
+      const { beatIndex, propIndex } = (e as CustomEvent).detail;
       const element = beatRefs.current.get(beatIndex);
 
       if (element) {
@@ -149,6 +150,14 @@ export function ScenePlanView({
         setTimeout(() => {
           element.classList.remove('ring-2', 'ring-amber-400/50');
         }, 1500);
+
+        if (propIndex !== undefined) {
+          const propElement = element.querySelector(`[data-prop-index="${propIndex}"]`);
+          if (propElement) {
+            (propElement as HTMLElement).classList.add('bg-amber-500/20');
+            setTimeout(() => (propElement as HTMLElement).classList.remove('bg-amber-500/20'), 2000);
+          }
+        }
       }
     };
 
@@ -376,60 +385,6 @@ export function ScenePlanView({
     [activePlan, scene.id, dispatch],
   );
 
-  const addSceneProposition = useCallback(() => {
-    if (!activePlan) return;
-    const currentProps = activePlan.propositions ?? [];
-    const newPlan: BeatPlan = {
-      ...activePlan,
-      propositions: [...currentProps, { content: "" }],
-    };
-    setPlanCache({ plan: newPlan, status: "ready" });
-    dispatch({
-      type: "UPDATE_SCENE",
-      sceneId: scene.id,
-      updates: { plan: newPlan },
-      versionType: 'edit',
-    });
-  }, [activePlan, scene.id, dispatch]);
-
-  const updateSceneProposition = useCallback(
-    (propIdx: number, updates: { content?: string; type?: string }) => {
-      if (!activePlan) return;
-      const currentProps = activePlan.propositions ?? [];
-      const newProps = currentProps.map((p, i) =>
-        i === propIdx ? { ...p, ...updates, type: updates.type?.trim() || undefined } : p,
-      );
-      const newPlan: BeatPlan = { ...activePlan, propositions: newProps };
-      setPlanCache({ plan: newPlan, status: "ready" });
-      dispatch({
-        type: "UPDATE_SCENE",
-        sceneId: scene.id,
-        updates: { plan: newPlan },
-        versionType: 'edit',
-      });
-    },
-    [activePlan, scene.id, dispatch],
-  );
-
-  const deleteSceneProposition = useCallback(
-    (propIdx: number) => {
-      if (!activePlan) return;
-      const currentProps = activePlan.propositions ?? [];
-      const newProps = currentProps.filter((_, i) => i !== propIdx);
-      const newPlan: BeatPlan = {
-        ...activePlan,
-        propositions: newProps.length > 0 ? newProps : undefined,
-      };
-      setPlanCache({ plan: newPlan, status: "ready" });
-      dispatch({
-        type: "UPDATE_SCENE",
-        sceneId: scene.id,
-        updates: { plan: newPlan },
-        versionType: 'edit',
-      });
-    },
-    [activePlan, scene.id, dispatch],
-  );
 
   const handleSelectPlan = useCallback(
     (result: PlanCandidates, candidateId: string) => {
@@ -594,9 +549,12 @@ export function ScenePlanView({
                         {beat.propositions.map((prop, j) => {
                           const cls = getClassification(scene.id, i, j);
                           const profileColor = cls ? classificationColor(cls.base, cls.reach) : undefined;
+                          const pk = propKey(scene.id, i, j);
+                          const isExpanded = expandedProp === pk;
+                          const conns = isExpanded ? getConnections(scene.id, i, j) : null;
                           return (
+                          <div key={j} data-prop-index={j}>
                           <div
-                            key={j}
                             className="group/prop flex items-start gap-1.5 rounded-sm pl-1.5"
                             style={profileColor ? {
                               borderLeft: `2px solid ${profileColor}`,
@@ -605,12 +563,13 @@ export function ScenePlanView({
                             title={cls ? `${cls.reach} ${cls.base}\nBackward: ${cls.backward.toFixed(3)}  Forward: ${cls.forward.toFixed(3)}\nReach: ←${cls.backReach.toFixed(0)} →${cls.fwdReach.toFixed(0)} scenes` : undefined}
                           >
                             {cls && (
-                              <span
-                                className="shrink-0 text-[8px] leading-none font-medium lowercase mt-0.5"
+                              <button
+                                className="shrink-0 text-[8px] leading-none font-medium lowercase mt-0.5 hover:underline cursor-pointer"
                                 style={{ color: profileColor }}
+                                onClick={() => setExpandedProp(isExpanded ? null : pk)}
                               >
                                 {classificationLabel(cls.base, cls.reach)}
-                              </span>
+                              </button>
                             )}
                             {violations.some(v => v.beatIndex === i && v.propIndex === j) && (
                               <span
@@ -652,6 +611,56 @@ export function ScenePlanView({
                               ✕
                             </button>
                           </div>
+                          {/* Connection explorer panel */}
+                          {isExpanded && conns && (
+                            <div className="ml-3 mt-1 mb-2 pl-2 border-l border-white/5 space-y-2">
+                              {[
+                                { label: '← past', items: conns.backward },
+                                { label: '→ future', items: conns.forward },
+                              ].map(({ label, items }) => items.length > 0 && (
+                                <div key={label}>
+                                  <span className="text-[8px] uppercase tracking-wider text-text-dim/50">{label}</span>
+                                  <div className="mt-0.5 space-y-0.5">
+                                    {items.map((conn, ci) => {
+                                      const connCls = getClassification(conn.sceneId, conn.beatIndex, conn.propIndex);
+                                      const connColor = connCls ? classificationColor(connCls.base, connCls.reach) : undefined;
+                                      const connScene = narrative.scenes[conn.sceneId];
+                                      const connPlan = connScene?.planVersions?.[connScene.planVersions!.length - 1]?.plan;
+                                      const connContent = connPlan?.beats?.[conn.beatIndex]?.propositions?.[conn.propIndex]?.content;
+                                      if (!connContent) return null;
+                                      const sceneIdx = state.resolvedEntryKeys.indexOf(conn.sceneId);
+                                      return (
+                                        <button
+                                          key={ci}
+                                          className="flex items-start gap-1.5 w-full text-left rounded px-1 py-0.5 hover:bg-white/5 transition-colors"
+                                          onClick={() => {
+                                            if (sceneIdx >= 0) {
+                                              dispatch({ type: 'SET_SCENE_INDEX', index: sceneIdx });
+                                              setTimeout(() => {
+                                                window.dispatchEvent(new CustomEvent('prose:scroll-to-beat', {
+                                                  detail: { beatIndex: conn.beatIndex, propIndex: conn.propIndex },
+                                                }));
+                                              }, 200);
+                                            }
+                                          }}
+                                          style={connColor ? { borderLeft: `2px solid ${connColor}` } : undefined}
+                                        >
+                                          <span className="shrink-0 text-[8px] font-mono text-text-dim mt-0.5">
+                                            {conn.sceneDist < 0 ? conn.sceneDist : `+${conn.sceneDist}`}
+                                          </span>
+                                          <span className="shrink-0 text-[8px] font-mono text-text-dim mt-0.5">
+                                            {(conn.similarity * 100).toFixed(0)}%
+                                          </span>
+                                          <span className="text-[10px] text-text-secondary line-clamp-2">{connContent}</span>
+                                        </button>
+                                      );
+                                    })}
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                          </div>
                           );
                         })}
                         <button
@@ -674,60 +683,7 @@ export function ScenePlanView({
               + Add beat
             </button>
 
-            {/* Scene-level propositions */}
-            <div className="mt-2 pt-3 border-t border-white/5">
-              <h4 className="text-[9px] uppercase tracking-widest text-amber-400/60 mb-2">
-                Scene Propositions
-              </h4>
-              <div className="space-y-2">
-                {activePlan.propositions?.map((p, i) => (
-                  <div
-                    key={i}
-                    className="group/sceneprop pl-3 border-l-2 border-amber-400/40 flex items-start gap-1.5"
-                  >
-                    <span
-                      contentEditable
-                      suppressContentEditableWarning
-                      className="shrink-0 text-[9px] px-1.5 py-0.5 rounded bg-amber-400/15 text-amber-300/80 font-mono outline-none focus:bg-amber-400/25 min-w-[2ch]"
-                      onBlur={(e) => {
-                        const text = e.currentTarget.textContent ?? "";
-                        if (text !== (p.type ?? ""))
-                          updateSceneProposition(i, { type: text });
-                      }}
-                      title="Proposition type"
-                    >
-                      {p.type || ""}
-                    </span>
-                    <p
-                      contentEditable
-                      suppressContentEditableWarning
-                      className="flex-1 text-[12px] text-amber-200/90 leading-relaxed italic outline-none focus:bg-white/3 rounded px-1 -mx-1"
-                      onBlur={(e) => {
-                        const text = e.currentTarget.textContent ?? "";
-                        if (text !== p.content) updateSceneProposition(i, { content: text });
-                      }}
-                    >
-                      {p.content}
-                    </p>
-                    <button
-                      onClick={() => deleteSceneProposition(i)}
-                      className="text-[9px] text-text-dim/20 hover:text-red-400 opacity-0 group-hover/sceneprop:opacity-100 transition-all shrink-0 mt-0.5"
-                    >
-                      ✕
-                    </button>
-                  </div>
-                ))}
-                <button
-                  onClick={addSceneProposition}
-                  className="text-[9px] text-amber-400/30 hover:text-amber-400/60 transition-colors"
-                >
-                  + Add scene proposition
-                </button>
-              </div>
-            </div>
-
-            {activePlan.beats.length === 0 &&
-              (!activePlan.propositions || activePlan.propositions.length === 0) && (
+            {activePlan.beats.length === 0 && (
                 <p className="text-[11px] text-text-dim py-8 text-center">
                   Plan is empty.
                 </p>
