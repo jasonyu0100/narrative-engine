@@ -227,7 +227,7 @@ export async function validateAssets(narrative: NarrativeState): Promise<AssetVa
     result.warnings.push(
       `${result.stats.missingEmbeddings} of ${result.stats.totalEmbeddings} embeddings are missing from IndexedDB. ` +
       `These references exist in the narrative but the data cannot be found. ` +
-      `Export will succeed but semantic search and plan tournaments may not work for affected scenes.`
+      `Export will succeed but semantic search and plan candidates may not work for affected scenes.`
     );
   }
 

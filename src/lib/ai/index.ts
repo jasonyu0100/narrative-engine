@@ -5,8 +5,8 @@ export { narrativeContext, narrativeContext as branchContext, sceneContext, outl
 export { generateScenes, generateArcStepwise, generateScenePlan, rewriteScenePlan, generateSceneProse } from './scenes';
 export type { ArcPlan, GenerateStepwiseOptions } from './scenes';
 
-// Plan tournament
-export { runPlanTournament } from './tournament';
+// Plan candidates
+export { runPlanCandidates } from './candidates';
 
 // World building & direction
 export { suggestArcDirection, suggestAutoDirection, suggestWorldExpansion, expandWorld, generateNarrative, computeWorldMetrics } from './world';

@@ -1,34 +1,35 @@
 /**
- * Plan Tournament - Generate multiple candidate plans and rank by semantic similarity
+ * Plan Candidates - Generate multiple candidate plans and rank by semantic similarity
  * Supports both inline and decoupled (reference-based) embeddings
  */
 
 import { generateScenePlan } from './scenes';
 import { cosineSimilarity, computeCentroid, generateEmbeddings, resolveEmbedding } from '@/lib/embeddings';
-import type { NarrativeState, Scene, PlanTournament, PlanCandidate } from '@/types/narrative';
-import { PLAN_TOURNAMENT_CANDIDATES } from '@/lib/constants';
+import type { NarrativeState, Scene, PlanCandidates, PlanCandidate } from '@/types/narrative';
+import { PLAN_CANDIDATES_COUNT } from '@/lib/constants';
 import { logInfo, logError } from '@/lib/system-logger';
+import { classifyCandidatePlan, checkContinuityViolations } from '@/lib/continuity-check';
 
 /**
- * Run a plan tournament: generate k candidate plans and rank by similarity to scene summary
+ * Run plan candidates: generate k candidate plans and rank by similarity to scene summary
  *
  * @param narrative - Current narrative state
  * @param scene - Scene to generate plans for
  * @param resolvedKeys - Resolved entry keys for context
  * @param candidateCount - Number of candidate plans to generate (default 5)
  * @param onProgress - Optional progress callback (completed, total)
- * @returns PlanTournament with ranked candidates
+ * @returns PlanCandidates with ranked candidates
  */
-export async function runPlanTournament(
+export async function runPlanCandidates(
   narrative: NarrativeState,
   scene: Scene,
   resolvedKeys: string[],
-  candidateCount = PLAN_TOURNAMENT_CANDIDATES,
+  candidateCount = PLAN_CANDIDATES_COUNT,
   onProgress?: (completed: number, total: number) => void,
-): Promise<PlanTournament> {
-  logInfo('Starting plan tournament', {
+): Promise<PlanCandidates> {
+  logInfo('Starting plan candidates', {
     source: 'plan-generation',
-    operation: 'tournament',
+    operation: 'candidates',
     details: { sceneId: scene.id, candidateCount },
   });
 
@@ -105,19 +106,51 @@ export async function runPlanTournament(
     };
   }));
 
-  // Sort by similarity score descending (highest first)
-  candidates.sort((a, b) => b.similarityScore - a.similarityScore);
+  // Classify and check continuity for each candidate
+  await Promise.all(candidates.map(async (candidate) => {
+    try {
+      const { classifications, labels } = await classifyCandidatePlan(narrative, resolvedKeys, candidate.plan);
+      candidate.propositionLabels = labels;
+
+      // Run continuity violation check on high-backward propositions
+      const violations = await checkContinuityViolations(classifications);
+      if (violations.length > 0) {
+        // Fill in candidate content from the plan
+        for (const v of violations) {
+          const beat = candidate.plan.beats[v.beatIndex];
+          const prop = beat?.propositions?.[v.propIndex];
+          if (prop) v.candidateContent = prop.content;
+        }
+        candidate.continuityViolations = violations;
+      }
+    } catch (err) {
+      logError('Continuity check failed for candidate', err, {
+        source: 'plan-generation',
+        operation: 'continuity-check',
+        details: { candidateId: candidate.id },
+      });
+    }
+  }));
+
+  // Sort by similarity score descending, penalize violations
+  candidates.sort((a, b) => {
+    const aViolations = a.continuityViolations?.length ?? 0;
+    const bViolations = b.continuityViolations?.length ?? 0;
+    // Primary: fewer violations. Secondary: higher similarity.
+    if (aViolations !== bViolations) return aViolations - bViolations;
+    return b.similarityScore - a.similarityScore;
+  });
 
   const winner = candidates[0]?.id ?? '';
 
-  logInfo('Completed plan tournament', {
+  logInfo('Completed plan candidates', {
     source: 'plan-generation',
-    operation: 'tournament-complete',
+    operation: 'candidates-complete',
     details: {
       sceneId: scene.id,
       candidateCount: candidates.length,
       winnerScore: candidates[0]?.similarityScore ?? 0,
-      averageScore: candidates.reduce((sum, c) => sum + c.similarityScore, 0) / candidates.length,
+      totalViolations: candidates.reduce((sum, c) => sum + (c.continuityViolations?.length ?? 0), 0),
     },
   });
 

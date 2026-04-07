@@ -2,24 +2,24 @@
 
 import { useState } from 'react';
 import { Modal, ModalHeader, ModalBody, ModalFooter } from '@/components/Modal';
-import { PlanTournamentView } from './PlanTournamentView';
-import type { NarrativeState, Scene, PlanTournament } from '@/types/narrative';
+import { PlanCandidatesView } from './PlanCandidatesView';
+import type { NarrativeState, Scene, PlanCandidates } from '@/types/narrative';
 
 type Props = {
   narrative: NarrativeState;
   scene: Scene;
   resolvedKeys: string[];
   onClose: () => void;
-  onSelectPlan: (tournament: PlanTournament, candidateId: string) => void;
+  onSelectPlan: (candidates: PlanCandidates, candidateId: string) => void;
 };
 
-export function PlanTournamentModal({ narrative, scene, resolvedKeys, onClose, onSelectPlan }: Props) {
+export function PlanCandidatesModal({ narrative, scene, resolvedKeys, onClose, onSelectPlan }: Props) {
   const [candidateCount, setCandidateCount] = useState(5);
-  const [showTournament, setShowTournament] = useState(false);
+  const [showCandidates, setShowCandidates] = useState(false);
 
-  if (showTournament) {
+  if (showCandidates) {
     return (
-      <PlanTournamentView
+      <PlanCandidatesView
         narrative={narrative}
         scene={scene}
         resolvedKeys={resolvedKeys}
@@ -39,7 +39,7 @@ export function PlanTournamentModal({ narrative, scene, resolvedKeys, onClose, o
             <polyline points="3.27 6.96 12 12.01 20.73 6.96" />
             <line x1="12" y1="22.08" x2="12" y2="12" />
           </svg>
-          <span className="font-semibold text-sm text-text-primary">Plan Tournament Setup</span>
+          <span className="font-semibold text-sm text-text-primary">Plan Candidates Setup</span>
         </div>
       </ModalHeader>
 
@@ -90,10 +90,10 @@ export function PlanTournamentModal({ narrative, scene, resolvedKeys, onClose, o
           Cancel
         </button>
         <button
-          onClick={() => setShowTournament(true)}
+          onClick={() => setShowCandidates(true)}
           className="px-6 py-2 bg-blue-500/20 text-blue-300 hover:bg-blue-500/30 rounded text-sm font-medium transition-colors"
         >
-          Start Tournament
+          Start Candidates
         </button>
       </ModalFooter>
     </Modal>

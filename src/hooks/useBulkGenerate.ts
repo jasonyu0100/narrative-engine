@@ -80,10 +80,21 @@ export function useBulkGenerate() {
 
       try {
         if (mode === 'plan') {
-          const plan = await generateScenePlan(activeNarrative, scene, resolvedEntryKeys);
+          window.dispatchEvent(new CustomEvent('bulk:plan-start', { detail: { sceneId } }));
+          const plan = await generateScenePlan(
+            activeNarrative, scene, resolvedEntryKeys,
+            (token) => window.dispatchEvent(new CustomEvent('bulk:plan-reasoning', { detail: { sceneId, token } })),
+          );
+          window.dispatchEvent(new CustomEvent('bulk:plan-complete', { detail: { sceneId } }));
           dispatch({ type: 'UPDATE_SCENE', sceneId, updates: { plan }, versionType: 'generate' });
         } else {
-          const { prose, beatProseMap } = await generateSceneProse(activeNarrative, scene, resolvedEntryKeys, undefined, undefined, resolvedPlan);
+          window.dispatchEvent(new CustomEvent('bulk:prose-start', { detail: { sceneId } }));
+          const { prose, beatProseMap } = await generateSceneProse(
+            activeNarrative, scene, resolvedEntryKeys,
+            (token) => window.dispatchEvent(new CustomEvent('bulk:prose-token', { detail: { sceneId, token } })),
+            undefined, resolvedPlan,
+          );
+          window.dispatchEvent(new CustomEvent('bulk:prose-complete', { detail: { sceneId } }));
           dispatch({ type: 'UPDATE_SCENE', sceneId, updates: { prose, beatProseMap }, versionType: 'generate' });
         }
       } catch (err) {

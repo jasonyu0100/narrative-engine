@@ -361,7 +361,7 @@ export default function FloatingPalette({
                       className="w-7 h-7 flex items-center justify-center rounded-md transition-colors text-blue-400 bg-blue-500/10 hover:bg-blue-500/20"
                       onClick={() =>
                         window.dispatchEvent(
-                          new CustomEvent("canvas:open-tournament"),
+                          new CustomEvent("canvas:open-candidates"),
                         )
                       }
                       title="Generate multiple candidate plans and rank by semantic similarity"
@@ -370,6 +370,21 @@ export default function FloatingPalette({
                         <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" />
                         <polyline points="3.27 6.96 12 12.01 20.73 6.96" />
                         <line x1="12" y1="22.08" x2="12" y2="12" />
+                      </svg>
+                    </button>
+                    <button
+                      type="button"
+                      className="w-7 h-7 flex items-center justify-center rounded-md transition-colors text-orange-400 bg-orange-500/10 hover:bg-orange-500/20"
+                      onClick={() =>
+                        window.dispatchEvent(
+                          new CustomEvent("canvas:check-continuity"),
+                        )
+                      }
+                      title="Check propositions for continuity violations"
+                    >
+                      <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                        <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+                        <path d="M9 12l2 2 4-4" />
                       </svg>
                     </button>
                     <button

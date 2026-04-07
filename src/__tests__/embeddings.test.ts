@@ -4,7 +4,7 @@
  * Tests cover:
  * 1. Embedding generation in generation pipeline (scenes.ts)
  * 2. Embedding generation in analysis pipeline (analysis-runner.ts)
- * 3. Plan tournament functionality
+ * 3. Plan candidates functionality
  * 4. Semantic search
  * 5. Manual embedding regeneration
  * 6. Export/import with embeddings
@@ -13,7 +13,7 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { generateScenePlan, generateScenes, generateSceneProse } from '@/lib/ai/scenes';
 import { rewriteSceneProse } from '@/lib/ai/prose';
-import { runPlanTournament } from '@/lib/ai/tournament';
+import { runPlanCandidates } from '@/lib/ai/candidates';
 import { searchNarrative } from '@/lib/search';
 import { generateEmbeddings, cosineSimilarity, computeCentroid, embedPropositions } from '@/lib/embeddings';
 import type { NarrativeState, Scene, BeatPlan } from '@/types/narrative';
@@ -314,7 +314,7 @@ describe('Embedding Generation Pipeline', () => {
   });
 });
 
-describe('Plan Tournament', () => {
+describe('Plan Candidates', () => {
   beforeEach(() => {
     (global.fetch as any).mockImplementation((url: string, options: any) => {
       if (url.includes('/api/embeddings')) {
@@ -347,7 +347,7 @@ describe('Plan Tournament', () => {
   });
 
   it('should generate multiple candidate plans', async () => {
-    // This would test the full tournament flow
+    // This would test the full candidates flow
     // For now, we test the similarity scoring logic
     const sceneSummaryEmbedding = Array.from({ length: EMBEDDING_DIMENSIONS }, () => Math.random());
 

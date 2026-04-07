@@ -2,9 +2,10 @@
 
 import { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import type { NarrativeState, Scene, PlanTournament } from '@/types/narrative';
-import { runPlanTournament } from '@/lib/ai/tournament';
+import type { NarrativeState, Scene, PlanCandidates } from '@/types/narrative';
+import { runPlanCandidates } from '@/lib/ai/candidates';
 import { assetManager } from '@/lib/asset-manager';
+import { classificationColor } from '@/lib/proposition-classify';
 
 type Props = {
   narrative: NarrativeState;
@@ -12,7 +13,7 @@ type Props = {
   resolvedKeys: string[];
   candidateCount: number;
   onClose: () => void;
-  onSelectPlan: (tournament: PlanTournament, candidateId: string) => void;
+  onSelectPlan: (candidates: PlanCandidates, candidateId: string) => void;
 };
 
 function scoreColorClass(v: number): string {
@@ -23,14 +24,14 @@ function scoreColorClass(v: number): string {
   return 'text-red-400 bg-red-500/10';
 }
 
-export function PlanTournamentView({ narrative, scene, resolvedKeys, candidateCount, onClose, onSelectPlan }: Props) {
-  const [tournament, setTournament] = useState<PlanTournament | null>(null);
+export function PlanCandidatesView({ narrative, scene, resolvedKeys, candidateCount, onClose, onSelectPlan }: Props) {
+  const [candidates, setCandidates] = useState<PlanCandidates | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
   const [progress, setProgress] = useState({ completed: 0, total: candidateCount });
   const [error, setError] = useState<string | null>(null);
   const [committedCandidate, setCommittedCandidate] = useState<string | null>(null);
 
-  const handleRunTournament = async () => {
+  const handleRunCandidates = async () => {
     setIsGenerating(true);
     setError(null);
     setProgress({ completed: 0, total: candidateCount });
@@ -39,7 +40,7 @@ export function PlanTournamentView({ narrative, scene, resolvedKeys, candidateCo
       // Ensure AssetManager is initialized for embedding resolution
       await assetManager.init();
 
-      const result = await runPlanTournament(
+      const result = await runPlanCandidates(
         narrative,
         scene,
         resolvedKeys,
@@ -48,9 +49,9 @@ export function PlanTournamentView({ narrative, scene, resolvedKeys, candidateCo
           setProgress({ completed, total });
         }
       );
-      setTournament(result);
+      setCandidates(result);
     } catch (err) {
-      const errorMsg = err instanceof Error ? err.message : 'Tournament failed';
+      const errorMsg = err instanceof Error ? err.message : 'Candidates failed';
       setError(errorMsg);
     } finally {
       setIsGenerating(false);
@@ -58,15 +59,15 @@ export function PlanTournamentView({ narrative, scene, resolvedKeys, candidateCo
   };
 
 
-  // Auto-start tournament when component mounts (like MCTS does)
+  // Auto-start candidates when component mounts (like MCTS does)
   useEffect(() => {
-    handleRunTournament();
+    handleRunCandidates();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const handleCommit = () => {
-    if (!tournament || !committedCandidate) return;
-    onSelectPlan(tournament, committedCandidate);
+    if (!candidates || !committedCandidate) return;
+    onSelectPlan(candidates, committedCandidate);
     onClose();
   };
 
@@ -76,12 +77,12 @@ export function PlanTournamentView({ narrative, scene, resolvedKeys, candidateCo
         <button onClick={onClose} className="absolute top-4 right-4 text-text-dim hover:text-text-primary text-lg leading-none z-10">&times;</button>
 
         {/* Header */}
-        <h2 className="text-sm font-semibold text-text-primary mb-1">Plan Tournament</h2>
+        <h2 className="text-sm font-semibold text-text-primary mb-1">Plan Candidates</h2>
         <p className="text-[10px] text-text-dim uppercase tracking-wider mb-3">
           {isGenerating
             ? `Generating candidates… ${progress.completed} / ${progress.total}`
-            : tournament
-              ? `${tournament.candidates.length} candidates generated`
+            : candidates
+              ? `${candidates.candidates.length} candidates generated`
               : `${candidateCount} candidates`}
         </p>
 
@@ -116,7 +117,7 @@ export function PlanTournamentView({ narrative, scene, resolvedKeys, candidateCo
         )}
 
         {/* Skeleton Loading */}
-        {isGenerating && !tournament && !error && (
+        {isGenerating && !candidates && !error && (
           <div className="h-full flex gap-0 p-6">
             {Array.from({ length: candidateCount }).map((_, i) => (
               <div key={i} className="flex-1 border-r border-white/5 last:border-r-0 min-w-0 px-4 animate-pulse">
@@ -133,10 +134,10 @@ export function PlanTournamentView({ narrative, scene, resolvedKeys, candidateCo
           </div>
         )}
 
-        {tournament && (
+        {candidates && (
           <div className="h-full flex gap-0">
-            {tournament.candidates.map((candidate, index) => {
-              const isWinner = candidate.id === tournament.winner;
+            {candidates.candidates.map((candidate, index) => {
+              const isWinner = candidate.id === candidates.winner;
               const score = candidate.similarityScore;
 
               return (
@@ -153,8 +154,15 @@ export function PlanTournamentView({ narrative, scene, resolvedKeys, candidateCo
                         Candidate #{index + 1}
                       </div>
                     </div>
-                    <div className={`text-xl font-bold font-mono tabular-nums ${scoreColorClass(score)} mb-3`}>
-                      {(score * 100).toFixed(1)}%
+                    <div className="flex items-baseline gap-2 mb-3">
+                      <div className={`text-xl font-bold font-mono tabular-nums ${scoreColorClass(score)}`}>
+                        {(score * 100).toFixed(1)}%
+                      </div>
+                      {(candidate.continuityViolations?.length ?? 0) > 0 && (
+                        <span className="text-[9px] px-1.5 py-0.5 rounded bg-red-500/15 text-red-400 font-medium">
+                          {candidate.continuityViolations!.length} violation{candidate.continuityViolations!.length !== 1 ? 's' : ''}
+                        </span>
+                      )}
                     </div>
                     <button
                       onClick={() => setCommittedCandidate(candidate.id)}
@@ -195,6 +203,35 @@ export function PlanTournamentView({ narrative, scene, resolvedKeys, candidateCo
                               </>
                             )}
                           </div>
+                          {/* Proposition labels + violations */}
+                          {beat.propositions && beat.propositions.length > 0 && (
+                            <div className="ml-5 mt-1 space-y-0.5">
+                              {beat.propositions.map((prop, pi) => {
+                                const key = `${beatIndex}:${pi}`;
+                                const label = candidate.propositionLabels?.[key];
+                                const violation = candidate.continuityViolations?.find(v => v.beatIndex === beatIndex && v.propIndex === pi);
+                                return (
+                                  <div
+                                    key={pi}
+                                    className="flex items-start gap-1.5 text-[9px] text-text-dim/50 rounded-sm pl-1"
+                                    style={label ? { borderLeft: `2px solid ${classificationColor(violation ? 'Close' : 'Texture', 'Local')}` } : undefined}
+                                  >
+                                    {label && (
+                                      <span className="shrink-0 text-[7px] font-medium lowercase mt-px" style={{ color: classificationColor('Texture', 'Local') }}>
+                                        {label}
+                                      </span>
+                                    )}
+                                    {violation && (
+                                      <span className="shrink-0 text-[7px] font-medium text-red-400 mt-px" title={violation.explanation}>
+                                        ⚠
+                                      </span>
+                                    )}
+                                    <span className="italic truncate">{prop.content}</span>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          )}
                         </div>
                       );
                     })}
@@ -207,7 +244,7 @@ export function PlanTournamentView({ narrative, scene, resolvedKeys, candidateCo
         </div>
 
         {/* Commit Button - bottom right, similar to MCTS */}
-        {!isGenerating && tournament && committedCandidate && (
+        {!isGenerating && candidates && committedCandidate && (
           <div className="absolute bottom-6 right-6 z-20">
             <button
               onClick={handleCommit}

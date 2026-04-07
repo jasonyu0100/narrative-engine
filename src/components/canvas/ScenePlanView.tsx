@@ -11,13 +11,15 @@ import type {
   BeatPlan,
   NarrativeState,
   Scene,
-  PlanTournament,
+  PlanCandidates,
 } from "@/types/narrative";
 import { BEAT_FN_LIST, BEAT_MECHANISM_LIST } from "@/types/narrative";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { PlanTournamentModal } from "./PlanTournamentModal";
+import { PlanCandidatesModal } from "./PlanCandidatesModal";
 import { usePropositionClassification } from "@/hooks/usePropositionClassification";
 import { classificationColor, classificationLabel } from "@/lib/proposition-classify";
+import type { ContinuityViolation } from "@/types/narrative";
+import { ContinuityCheckModal } from "./ContinuityCheckModal";
 
 const FN_COLORS: Record<string, string> = {
   breathe: "#6b7280",
@@ -71,7 +73,9 @@ export function ScenePlanView({
     targetBeats: number;
     estWords: number;
   } | null>(null);
-  const [showTournament, setShowTournament] = useState(false);
+  const [showCandidates, setShowCandidates] = useState(false);
+  const [violations, setViolations] = useState<ContinuityViolation[]>([]);
+  const [checkingContinuity, setCheckingContinuity] = useState(false);
   const beatRefs = useRef<Map<number, HTMLDivElement>>(new Map());
 
   // Sync when scene or resolved plan changes
@@ -83,14 +87,55 @@ export function ScenePlanView({
     );
     setReasoning("");
     setMeta(null);
+    setViolations([]);
   }, [scene.id, resolvedPlan]);
 
-  // Listen for tournament open event from FloatingPalette
+  // Listen for candidates open event from FloatingPalette
   useEffect(() => {
-    const handleOpenTournament = () => setShowTournament(true);
-    window.addEventListener("canvas:open-tournament", handleOpenTournament);
-    return () => window.removeEventListener("canvas:open-tournament", handleOpenTournament);
+    const handleOpenCandidates = () => setShowCandidates(true);
+    window.addEventListener("canvas:open-candidates", handleOpenCandidates);
+    return () => window.removeEventListener("canvas:open-candidates", handleOpenCandidates);
   }, []);
+
+  const [showContinuityModal, setShowContinuityModal] = useState(false);
+
+  // Listen for bulk plan streaming events (from useBulkGenerate)
+  useEffect(() => {
+    const onStart = (e: Event) => {
+      const { sceneId } = (e as CustomEvent).detail;
+      if (sceneId !== scene.id) return;
+      setPlanCache({ plan: null, status: "loading" });
+      setReasoning("");
+      setMeta(null);
+    };
+    const onReasoning = (e: Event) => {
+      const { sceneId, token } = (e as CustomEvent).detail;
+      if (sceneId !== scene.id) return;
+      setReasoning((prev) => prev + token);
+    };
+    const onComplete = (e: Event) => {
+      const { sceneId } = (e as CustomEvent).detail;
+      if (sceneId !== scene.id) return;
+      setReasoning("");
+    };
+    window.addEventListener("bulk:plan-start", onStart);
+    window.addEventListener("bulk:plan-reasoning", onReasoning);
+    window.addEventListener("bulk:plan-complete", onComplete);
+    return () => {
+      window.removeEventListener("bulk:plan-start", onStart);
+      window.removeEventListener("bulk:plan-reasoning", onReasoning);
+      window.removeEventListener("bulk:plan-complete", onComplete);
+    };
+  }, [scene.id]);
+
+  // Listen for continuity check event from FloatingPalette
+  useEffect(() => {
+    const handleCheckContinuity = () => {
+      if (planCache.plan) setShowContinuityModal(true);
+    };
+    window.addEventListener("canvas:check-continuity", handleCheckContinuity);
+    return () => window.removeEventListener("canvas:check-continuity", handleCheckContinuity);
+  }, [planCache.plan]);
 
   // Listen for scroll-to-beat event from search
   useEffect(() => {
@@ -387,8 +432,8 @@ export function ScenePlanView({
   );
 
   const handleSelectPlan = useCallback(
-    (tournament: PlanTournament, candidateId: string) => {
-      const candidate = tournament.candidates.find(c => c.id === candidateId);
+    (result: PlanCandidates, candidateId: string) => {
+      const candidate = result.candidates.find(c => c.id === candidateId);
       if (!candidate) return;
 
       const selectedPlan = candidate.plan;
@@ -397,7 +442,7 @@ export function ScenePlanView({
         type: "UPDATE_SCENE",
         sceneId: scene.id,
         updates: { plan: selectedPlan },
-        versionType: 'generate', // Tournament selection is like generation
+        versionType: 'generate', // Candidates selection is like generation
       });
     },
     [scene.id, dispatch],
@@ -567,6 +612,14 @@ export function ScenePlanView({
                                 {classificationLabel(cls.base, cls.reach)}
                               </span>
                             )}
+                            {violations.some(v => v.beatIndex === i && v.propIndex === j) && (
+                              <span
+                                className="shrink-0 text-[8px] leading-none font-medium text-red-400 mt-0.5"
+                                title={violations.find(v => v.beatIndex === i && v.propIndex === j)?.explanation}
+                              >
+                                ⚠ violation
+                              </span>
+                            )}
                             <p
                               contentEditable
                               suppressContentEditableWarning
@@ -695,14 +748,25 @@ export function ScenePlanView({
         )}
       </div>
 
-      {/* Plan Tournament Modal */}
-      {showTournament && (
-        <PlanTournamentModal
+      {/* Plan Candidates Modal */}
+      {showCandidates && (
+        <PlanCandidatesModal
           narrative={narrative}
           scene={scene}
           resolvedKeys={resolvedKeys}
-          onClose={() => setShowTournament(false)}
+          onClose={() => setShowCandidates(false)}
           onSelectPlan={handleSelectPlan}
+        />
+      )}
+
+      {/* Continuity Check Modal */}
+      {showContinuityModal && planCache.plan && (
+        <ContinuityCheckModal
+          narrative={narrative}
+          resolvedKeys={resolvedKeys}
+          plan={planCache.plan}
+          onClose={() => setShowContinuityModal(false)}
+          onViolationsFound={(v) => setViolations(v)}
         />
       )}
     </div>

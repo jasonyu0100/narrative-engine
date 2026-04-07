@@ -1267,7 +1267,29 @@ export type MechanismProfilePreset = {
   distribution: Partial<Record<BeatMechanism, number>>;
 };
 
-// ─── Plan Tournament Types ──────────────────────────────────────────
+// ─── Plan Candidates Types ──────────────────────────────────────────
+
+/** A continuity violation — a proposition that contradicts prior established content */
+export type ContinuityViolation = {
+  /** Beat index of the violating proposition */
+  beatIndex: number;
+  /** Proposition index within the beat */
+  propIndex: number;
+  /** The candidate proposition content */
+  candidateContent: string;
+  /** The prior proposition(s) it contradicts */
+  priorContent: string[];
+  /** Scene IDs of the prior propositions */
+  priorSceneIds: string[];
+  /** LLM verdict: true = violation confirmed */
+  isViolation: boolean;
+  /** Brief explanation from the LLM */
+  explanation: string;
+  /** Backward activation score that triggered the check */
+  activationScore: number;
+  /** Classification label of the candidate proposition */
+  label: string;
+};
 
 export type PlanCandidate = {
   id: string;
@@ -1276,9 +1298,13 @@ export type PlanCandidate = {
   similarityScore: number;
   beatScores: { beatIndex: number; score: number }[];
   timestamp: number;
+  /** Proposition classifications for this candidate (computed against existing narrative) */
+  propositionLabels?: Record<string, string>;
+  /** Continuity violations detected in this candidate */
+  continuityViolations?: ContinuityViolation[];
 };
 
-export type PlanTournament = {
+export type PlanCandidates = {
   sceneId: string;
   candidates: PlanCandidate[];
   winner: string;
