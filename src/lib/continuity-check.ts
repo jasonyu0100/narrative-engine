@@ -11,7 +11,7 @@
  *      propositions for contradictions with their strongest activations
  */
 
-import { resolveEmbeddingsBatch, cosineSimilarity } from './embeddings';
+import { resolveEmbeddingsBatch } from './embeddings';
 import { classificationLabel, classificationColor, BASE_COLORS } from './proposition-classify';
 import { resolveEntry, isScene } from '@/types/narrative';
 import { callGenerate } from './ai/api';
@@ -151,31 +151,66 @@ export async function classifyCandidatePlan(
     return { classifications: [], labels: {} };
   }
 
-  // 3. Compute backward activation for each candidate against all priors
+  // 3. Compute backward activation via TF.js matMul
   const totalScenes = new Set(resolvedKeys.map(k => {
     const e = resolveEntry(narrative, k);
     return e && isScene(e) ? e.id : null;
   }).filter(Boolean)).size;
   const reachThreshold = Math.max(REACH_MIN, Math.round(totalScenes * REACH_RATIO));
 
-  // Get scene order for reach computation
   const sceneOrderMap = new Map<string, number>();
   let sceneIdx = 0;
   for (const key of resolvedKeys) {
     const entry = resolveEntry(narrative, key);
     if (entry && isScene(entry)) { sceneOrderMap.set(entry.id, sceneIdx); sceneIdx++; }
   }
-  const candidateSceneOrder = sceneIdx; // candidate is at the next position
+  const candidateSceneOrder = sceneIdx;
 
+  const DIMS = 1536;
+  const priorCount = priors.length;
+  const candCount = validCandidates.length;
+
+  // Build normalized matrices
+  const priorFlat = new Float32Array(priorCount * DIMS);
+  const candFlat = new Float32Array(candCount * DIMS);
+
+  for (let i = 0; i < priorCount; i++) {
+    const vec = priors[i].embedding;
+    const off = i * DIMS;
+    let norm = 0;
+    for (let d = 0; d < DIMS; d++) { priorFlat[off + d] = vec[d]; norm += vec[d] * vec[d]; }
+    norm = Math.sqrt(norm);
+    if (norm > 0) for (let d = 0; d < DIMS; d++) priorFlat[off + d] /= norm;
+  }
+
+  for (let i = 0; i < candCount; i++) {
+    const vec = validCandidates[i].embedding;
+    const off = i * DIMS;
+    let norm = 0;
+    for (let d = 0; d < DIMS; d++) { candFlat[off + d] = vec[d]; norm += vec[d] * vec[d]; }
+    norm = Math.sqrt(norm);
+    if (norm > 0) for (let d = 0; d < DIMS; d++) candFlat[off + d] /= norm;
+  }
+
+  // matMul: [candCount × DIMS] × [DIMS × priorCount] = [candCount × priorCount]
+  const tf = await import('@tensorflow/tfjs');
+  const candMat = tf.tensor2d(candFlat, [candCount, DIMS]);
+  const priorMat = tf.tensor2d(priorFlat, [priorCount, DIMS]);
+  const simMat = tf.matMul(candMat, priorMat, false, true);
+  const simData = new Float32Array(await simMat.data());
+  simMat.dispose(); candMat.dispose(); priorMat.dispose();
+
+  // Extract top-k per candidate
   const backwardScores: number[] = [];
   const classifications: CandidateClassification[] = [];
 
-  for (const cand of validCandidates) {
-    // Compute cosine similarity against all priors
+  for (let ci = 0; ci < candCount; ci++) {
+    const cand = validCandidates[ci];
+    const rowOffset = ci * priorCount;
+
+    // Find top-k
     const sims: { sim: number; idx: number }[] = [];
-    for (let j = 0; j < priors.length; j++) {
-      sims.push({ sim: cosineSimilarity(cand.embedding, priors[j].embedding), idx: j });
-    }
+    for (let j = 0; j < priorCount; j++) sims.push({ sim: simData[rowOffset + j], idx: j });
     sims.sort((a, b) => b.sim - a.sim);
 
     const topk = sims.slice(0, TOP_K);
@@ -186,8 +221,7 @@ export async function classifyCandidatePlan(
 
     // Temporal reach
     const distances = topk.map(x => {
-      const priorSceneId = priors[x.idx].sceneId;
-      const priorOrder = sceneOrderMap.get(priorSceneId) ?? 0;
+      const priorOrder = sceneOrderMap.get(priors[x.idx].sceneId) ?? 0;
       return Math.abs(candidateSceneOrder - priorOrder);
     });
     const sortedDists = [...distances].sort((a, b) => a - b);
@@ -195,22 +229,19 @@ export async function classifyCandidatePlan(
       ? sortedDists[Math.floor(sortedDists.length / 2)]
       : (sortedDists[sortedDists.length / 2 - 1] + sortedDists[sortedDists.length / 2]) / 2;
 
-    // Store top priors for violation check
-    const topPriors = topk.map(x => ({
-      sceneId: priors[x.idx].sceneId,
-      content: priors[x.idx].content,
-      similarity: x.sim,
-    }));
-
     classifications.push({
       beatIndex: cand.beatIndex,
       propIndex: cand.propIndex,
-      label: '', // filled after threshold
+      label: '',
       color: '',
-      base: 'Texture', // default
+      base: 'Texture',
       reach: medianReach >= reachThreshold ? 'Global' : 'Local',
       backwardScore,
-      topPriors,
+      topPriors: topk.map(x => ({
+        sceneId: priors[x.idx].sceneId,
+        content: priors[x.idx].content,
+        similarity: x.sim,
+      })),
     });
   }
 
@@ -253,10 +284,31 @@ export async function classifyCandidatePlan(
  * Only checks types that reference prior content: anchor, foundation, close, ending.
  * Uses LLM binary contradiction check.
  */
+/**
+ * Check high-backward propositions for continuity violations.
+ *
+ * @param classifications - classified propositions (with topPriors populated)
+ * @param candidateContents - map of "beatIdx:propIdx" → candidate proposition content
+ */
+/** Concurrency for parallel per-scene LLM calls */
+const CONCURRENCY = 10;
+
+/** Group classifications by scene, then check each scene as one LLM call */
+export type SceneCheckInput = {
+  sceneId: string;
+  sceneSummary: string;
+  classifications: CandidateClassification[];
+  candidateContents: Record<string, string>;
+};
+
+/**
+ * Check continuity per scene — one LLM call per scene, 10 concurrent.
+ * Each call receives all high-value propositions in that scene + their activated priors.
+ */
 export async function checkContinuityViolations(
   classifications: CandidateClassification[],
+  candidateContents?: Record<string, string>,
 ): Promise<ContinuityViolation[]> {
-  // Filter to high-backward propositions with check-worthy labels
   const toCheck = classifications.filter(c =>
     CHECK_LABELS.has(c.label) && c.topPriors.length > 0
   );
@@ -264,73 +316,89 @@ export async function checkContinuityViolations(
   if (toCheck.length === 0) return [];
 
   const t0 = performance.now();
-  const violations: ContinuityViolation[] = [];
 
-  // Batch: check multiple propositions in one LLM call
-  const batchSize = 5;
-  for (let i = 0; i < toCheck.length; i += batchSize) {
-    const batch = toCheck.slice(i, i + batchSize);
+  // Group by scene (using sceneId if available on the classification, otherwise treat as one scene)
+  const sceneGroups = new Map<string, CandidateClassification[]>();
+  for (const c of toCheck) {
+    const sid = (c as CandidateClassification & { sceneId?: string }).sceneId ?? 'single';
+    if (!sceneGroups.has(sid)) sceneGroups.set(sid, []);
+    sceneGroups.get(sid)!.push(c);
+  }
 
-    const checks = batch.map((c, idx) => {
-      const priorsText = c.topPriors.slice(0, 3).map((p, j) => `  Prior ${j + 1}: "${p.content}"`).join('\n');
-      return `Check ${idx + 1}:\nNew proposition: "${c.beatIndex}:${c.propIndex}: ${c.topPriors[0]?.content ? '' : ''}${classifications.find(x => x.beatIndex === c.beatIndex && x.propIndex === c.propIndex)?.label ?? ''}"\nNew: "${batch[idx].topPriors.length > 0 ? '' : '(no priors)'}"\n---\nNew proposition: "${c.label}" — "${c.topPriors[0] ? '' : ''}"\n`;
-    });
+  const scenes = Array.from(sceneGroups.entries());
 
-    // Build a cleaner prompt
-    const promptParts = batch.map((c, idx) => {
-      const topPrior = c.topPriors[0];
-      return `Check ${idx + 1}:
-Prior: "${topPrior.content}"
-New: "${classifications.find(x => x.beatIndex === c.beatIndex && x.propIndex === c.propIndex) ? '' : ''}${c.topPriors[0]?.content ?? ''}"`;
-    });
+  async function checkScene(sceneId: string, props: CandidateClassification[]): Promise<ContinuityViolation[]> {
+    // Build prompt: scene's new propositions vs their activated priors
+    const propositionBlock = props.map((c, idx) => {
+      const content = candidateContents?.[`${c.beatIndex}:${c.propIndex}`] ?? `[${c.label}]`;
+      const priors = c.topPriors.slice(0, 3).map((p, j) => `    Prior ${j + 1}: "${p.content}"`).join('\n');
+      return `[${idx + 1}] (${c.label}) "${content}"\n  Activated priors:\n${priors}`;
+    }).join('\n\n');
 
-    // Simpler: one check per proposition against its strongest prior
-    for (const c of batch) {
-      const topPrior = c.topPriors[0];
-      if (!topPrior) continue;
+    const prompt = `You are checking narrative continuity for a scene. Below are high-value propositions from this scene, each with the prior established facts they most strongly activate.
 
-      const prompt = `You are checking narrative continuity. Does the new proposition contradict or violate the established prior?
+For each proposition, determine if it contradicts or conflicts with its activated priors.
 
-Prior (established): "${topPrior.content}"
-New (candidate): "${classifications.find(x => x.beatIndex === c.beatIndex && x.propIndex === c.propIndex)?.topPriors[0]?.content ?? ''}"
+${propositionBlock}
 
-Respond with JSON: {"contradiction": true/false, "explanation": "one sentence"}`;
+Respond with a JSON array. For each proposition that HAS a continuity issue, include:
+{"idx": <number>, "issue": true, "explanation": "<one sentence describing the contradiction>", "suggestion": "<one sentence fix>"}
+If all propositions are consistent, return [].`;
 
-      try {
-        const result = await callGenerate(
-          `Prior: "${topPrior.content}"\nNew: "${c.topPriors[0]?.content ?? ''}"\n\nDoes the new proposition contradict the prior? Respond JSON: {"contradiction": boolean, "explanation": "brief"}`,
-          'Check narrative continuity between two propositions. Respond only with JSON.',
-          200,
-          'continuity-check',
-          ANALYSIS_MODEL,
-          undefined,
-          true,
-          ANALYSIS_TEMPERATURE,
-        );
+    try {
+      const result = await callGenerate(
+        prompt,
+        'Check narrative continuity for a scene. Respond only with a JSON array. Include suggestion for fixes.',
+        800,
+        'continuity-check-scene',
+        ANALYSIS_MODEL,
+        undefined,
+        true,
+        ANALYSIS_TEMPERATURE,
+      );
 
-        const parsed = parseJson(result, 'continuity-check') as { contradiction?: boolean; explanation?: string };
+      const parsed = parseJson(result, 'continuity-check-scene') as Array<{ idx?: number; issue?: boolean; explanation?: string; suggestion?: string }>;
+      const violations: ContinuityViolation[] = [];
 
-        if (parsed?.contradiction) {
+      if (Array.isArray(parsed)) {
+        for (const entry of parsed) {
+          if (!entry.issue || entry.idx == null) continue;
+          const idx = entry.idx - 1;
+          if (idx < 0 || idx >= props.length) continue;
+          const c = props[idx];
           violations.push({
             beatIndex: c.beatIndex,
             propIndex: c.propIndex,
-            candidateContent: '', // Will be filled by caller
+            candidateContent: candidateContents?.[`${c.beatIndex}:${c.propIndex}`] ?? '',
             priorContent: c.topPriors.slice(0, 3).map(p => p.content),
             priorSceneIds: c.topPriors.slice(0, 3).map(p => p.sceneId),
             isViolation: true,
-            explanation: parsed.explanation ?? 'Contradiction detected',
+            explanation: (entry.explanation ?? 'Continuity issue') + (entry.suggestion ? ` → ${entry.suggestion}` : ''),
             activationScore: c.backwardScore,
             label: c.label,
           });
         }
-      } catch (err) {
-        console.warn(`[ContinuityCheck] LLM check failed for ${c.beatIndex}:${c.propIndex}:`, err);
       }
+      return violations;
+    } catch (err) {
+      console.warn(`[ContinuityCheck] Scene ${sceneId} check failed:`, err);
+      return [];
     }
   }
 
-  const t1 = performance.now();
-  console.log(`[ContinuityCheck] Checked ${toCheck.length} propositions, found ${violations.length} violations in ${(t1 - t0).toFixed(0)}ms`);
+  // Sliding window: 10 scenes in parallel
+  const allViolations: ContinuityViolation[] = [];
 
-  return violations;
+  for (let i = 0; i < scenes.length; i += CONCURRENCY) {
+    const window = scenes.slice(i, i + CONCURRENCY);
+    const results = await Promise.all(
+      window.map(([sid, props]) => checkScene(sid, props))
+    );
+    for (const r of results) allViolations.push(...r);
+  }
+
+  const t1 = performance.now();
+  console.log(`[ContinuityCheck] Checked ${scenes.length} scenes (${toCheck.length} propositions), concurrency ${CONCURRENCY}, in ${(t1 - t0).toFixed(0)}ms, found ${allViolations.length} violations`);
+
+  return allViolations;
 }

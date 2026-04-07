@@ -7,8 +7,7 @@ import { generateScenePlan } from './scenes';
 import { cosineSimilarity, computeCentroid, generateEmbeddings, resolveEmbedding } from '@/lib/embeddings';
 import type { NarrativeState, Scene, PlanCandidates, PlanCandidate } from '@/types/narrative';
 import { PLAN_CANDIDATES_COUNT } from '@/lib/constants';
-import { logInfo, logError } from '@/lib/system-logger';
-import { classifyCandidatePlan, checkContinuityViolations } from '@/lib/continuity-check';
+import { logInfo } from '@/lib/system-logger';
 
 /**
  * Run plan candidates: generate k candidate plans and rank by similarity to scene summary
@@ -106,40 +105,8 @@ export async function runPlanCandidates(
     };
   }));
 
-  // Classify and check continuity for each candidate
-  await Promise.all(candidates.map(async (candidate) => {
-    try {
-      const { classifications, labels } = await classifyCandidatePlan(narrative, resolvedKeys, candidate.plan);
-      candidate.propositionLabels = labels;
-
-      // Run continuity violation check on high-backward propositions
-      const violations = await checkContinuityViolations(classifications);
-      if (violations.length > 0) {
-        // Fill in candidate content from the plan
-        for (const v of violations) {
-          const beat = candidate.plan.beats[v.beatIndex];
-          const prop = beat?.propositions?.[v.propIndex];
-          if (prop) v.candidateContent = prop.content;
-        }
-        candidate.continuityViolations = violations;
-      }
-    } catch (err) {
-      logError('Continuity check failed for candidate', err, {
-        source: 'plan-generation',
-        operation: 'continuity-check',
-        details: { candidateId: candidate.id },
-      });
-    }
-  }));
-
-  // Sort by similarity score descending, penalize violations
-  candidates.sort((a, b) => {
-    const aViolations = a.continuityViolations?.length ?? 0;
-    const bViolations = b.continuityViolations?.length ?? 0;
-    // Primary: fewer violations. Secondary: higher similarity.
-    if (aViolations !== bViolations) return aViolations - bViolations;
-    return b.similarityScore - a.similarityScore;
-  });
+  // Sort by similarity score descending (highest first)
+  candidates.sort((a, b) => b.similarityScore - a.similarityScore);
 
   const winner = candidates[0]?.id ?? '';
 
