@@ -117,7 +117,7 @@ export async function runPlanCandidates(
       sceneId: scene.id,
       candidateCount: candidates.length,
       winnerScore: candidates[0]?.similarityScore ?? 0,
-      totalViolations: candidates.reduce((sum, c) => sum + (c.continuityViolations?.length ?? 0), 0),
+      averageScore: candidates.reduce((sum, c) => sum + c.similarityScore, 0) / candidates.length,
     },
   });
 
