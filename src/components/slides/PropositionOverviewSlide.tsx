@@ -91,88 +91,108 @@ export function PropositionOverviewSlide({ data }: { data: SlidesData }) {
     );
   }
 
-  return (
-    <div className="h-full flex flex-col items-center justify-center gap-6 px-16">
-      <div className="flex items-center gap-3">
-        <h2 className="text-[10px] uppercase tracking-[0.25em] text-white/25 font-mono">
-          Propositions
-        </h2>
-        <span className="text-[12px] font-mono text-white/40">{total.toLocaleString()}</span>
-      </div>
+  const maxLabel = hasClassified ? Math.max(...Object.values(labelCounts), 1) : 1;
 
+  return (
+    <div className="h-full flex items-stretch px-14 py-12">
       {hasClassified ? (
         <>
-        <div className="grid grid-cols-2 gap-5 w-full max-w-[720px]">
-          {BASE_ORDER.map((base) => {
-            const count = totals[base];
-            const pct = total > 0 ? (count / total) * 100 : 0;
-            const values = arcTrajectory?.[base];
-            const maxVal = values ? Math.max(...values, 1) : 1;
-            const trend = values ? values[values.length - 1] - values[0] : 0;
+          {/* ── Left: Distribution ── */}
+          <div className="flex-1 flex flex-col justify-center">
+            <h2 className="text-[11px] uppercase tracking-[0.2em] text-white/20 font-mono mb-2">
+              Propositions <span className="text-white/35 ml-2">{total.toLocaleString()}</span>
+            </h2>
 
-            return (
-              <div key={base} className="rounded-xl p-5 border border-white/5 bg-white/2">
-                {/* Header: name + percentage + count */}
-                <div className="flex items-baseline justify-between mb-3">
-                  <div className="flex items-baseline gap-3">
-                    <span className="text-[28px] font-bold font-mono" style={{ color: BASE_COLORS[base] }}>
+            {/* 4 base percentages */}
+            <div className="flex items-end gap-7 mb-8">
+              {BASE_ORDER.map(base => {
+                const pct = total > 0 ? (totals[base] / total) * 100 : 0;
+                return (
+                  <div key={base}>
+                    <div className="text-[32px] font-bold font-mono leading-none" style={{ color: BASE_COLORS[base] }}>
                       {pct.toFixed(0)}%
-                    </span>
-                    <span className="text-[13px] font-medium lowercase" style={{ color: BASE_COLORS[base] }}>{base}</span>
-                  </div>
-                  <span className="text-[11px] font-mono text-white/20">{count}</span>
-                </div>
-
-                {/* Arc trajectory bars */}
-                {values && values.length >= 2 && (
-                  <>
-                    <div className="flex items-end gap-1 h-20">
-                      {values.map((v, i) => (
-                        <div
-                          key={i}
-                          className="flex-1 rounded-t"
-                          style={{
-                            height: `${Math.max(6, (v / maxVal) * 100)}%`,
-                            backgroundColor: BASE_COLORS[base],
-                            opacity: 0.35 + (i / values.length) * 0.65,
-                          }}
-                        />
-                      ))}
                     </div>
-                    <div className="text-[9px] font-mono text-white/25 mt-2">
-                      {trend >= 0 ? '\u2191' : '\u2193'} {Math.abs(trend).toFixed(1)}% across arcs
-                    </div>
-                  </>
-                )}
-              </div>
-            );
-          })}
-        </div>
-
-        {/* 8-label distribution — horizontal bars */}
-        {Object.values(labelCounts).some(v => v > 0) && (
-          <div className="w-full max-w-[720px] grid grid-cols-2 gap-x-6 gap-y-1">
-            {ALL_PROFILE_LABELS.map(({ label, color }) => {
-              const count = labelCounts[label] ?? 0;
-              const maxLabel = Math.max(...Object.values(labelCounts), 1);
-              const barPct = (count / maxLabel) * 100;
-              return (
-                <div key={label} className="flex items-center gap-2">
-                  <span className="text-[9px] w-20 text-right font-medium" style={{ color }}>{label}</span>
-                  <div className="flex-1 h-3 bg-white/3 rounded-sm overflow-hidden">
-                    <div className="h-full rounded-sm" style={{ width: `${barPct}%`, backgroundColor: color, opacity: 0.7 }} />
+                    <div className="text-[10px] font-medium lowercase mt-1 opacity-70" style={{ color: BASE_COLORS[base] }}>{base}</div>
                   </div>
-                  <span className="text-[8px] font-mono text-white/20 w-8">{count}</span>
-                </div>
-              );
-            })}
+                );
+              })}
+            </div>
+
+            {/* 8-label bars */}
+            <div className="space-y-2">
+              {ALL_PROFILE_LABELS.map(({ label, color }) => {
+                const count = labelCounts[label] ?? 0;
+                const barPct = (count / maxLabel) * 100;
+                return (
+                  <div key={label} className="flex items-center gap-3">
+                    <span className="text-[10px] w-24 text-right font-medium" style={{ color }}>{label}</span>
+                    <div className="flex-1 h-4 bg-white/4 rounded-sm overflow-hidden">
+                      <div className="h-full rounded-sm" style={{ width: `${barPct}%`, backgroundColor: color, opacity: 0.7 }} />
+                    </div>
+                    <span className="text-[9px] font-mono text-white/25 w-10 text-right">{count}</span>
+                  </div>
+                );
+              })}
+            </div>
           </div>
-        )}
+
+          {/* ── Divider ── */}
+          <div className="w-px bg-white/8 mx-8 self-stretch" />
+
+          {/* ── Right: Arc Trajectory ── */}
+          <div className="flex-1 flex flex-col justify-center">
+            <h2 className="text-[11px] uppercase tracking-[0.2em] text-white/20 font-mono mb-6">
+              Arc Trajectory
+            </h2>
+
+            <div className="grid grid-cols-2 gap-5">
+              {BASE_ORDER.map((base) => {
+                const count = totals[base];
+                const values = arcTrajectory?.[base];
+                const maxVal = values ? Math.max(...values, 1) : 1;
+                const trend = values ? values[values.length - 1] - values[0] : 0;
+
+                return (
+                  <div key={base} className="rounded-xl p-4 border border-white/6 bg-white/2">
+                    <div className="flex items-baseline justify-between mb-3">
+                      <span className="text-[14px] font-semibold lowercase" style={{ color: BASE_COLORS[base] }}>{base}</span>
+                      <span className="text-[10px] font-mono text-white/20">{count}</span>
+                    </div>
+
+                    {values && values.length >= 2 ? (
+                      <>
+                        <div className="flex items-end gap-1.5 h-24">
+                          {values.map((v, i) => (
+                            <div
+                              key={i}
+                              className="flex-1 rounded-t"
+                              style={{
+                                height: `${Math.max(6, (v / maxVal) * 100)}%`,
+                                backgroundColor: BASE_COLORS[base],
+                                opacity: 0.3 + (i / values.length) * 0.7,
+                              }}
+                            />
+                          ))}
+                        </div>
+                        <div className="text-[9px] font-mono text-white/20 mt-2">
+                          {trend >= 0 ? '\u2191' : '\u2193'} {Math.abs(trend).toFixed(1)}% across arcs
+                        </div>
+                      </>
+                    ) : (
+                      <div className="h-24 flex items-center justify-center text-[10px] text-white/15">single arc</div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
         </>
       ) : (
-        <div className="text-center">
-          <div className="text-[28px] font-bold font-mono text-white/50">{total.toLocaleString()}</div>
-          <div className="text-[9px] text-white/25 mt-1">propositions (classification pending)</div>
+        <div className="flex-1 flex items-center justify-center">
+          <div className="text-center">
+            <div className="text-[36px] font-bold font-mono text-white/50">{total.toLocaleString()}</div>
+            <div className="text-[10px] text-white/25 mt-2 uppercase tracking-widest">propositions</div>
+          </div>
         </div>
       )}
     </div>
