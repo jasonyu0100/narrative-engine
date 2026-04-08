@@ -124,7 +124,7 @@ export default function CharacterDetail({ characterId }: Props) {
   const hasRecentActivity = recentContinuityMuts.length > 0 || recentRelationshipMuts.length > 0 ||
     recentThreadMuts.length > 0 || recentMovement !== null || recentEvents.length > 0;
 
-  // Lifecycle: only scenes up to current scene index
+  // Scenes: all scenes up to current scene index where this character participates
   const lifecycle = sceneKeysUpToCurrent
     .map((k) => narrative.scenes[k])
     .filter((s) => s && s.participantIds.includes(characterId))
@@ -134,12 +134,9 @@ export default function CharacterDetail({ characterId }: Props) {
       relationshipMuts: s.relationshipMutations.filter(
         (rm) => rm.from === characterId || rm.to === characterId,
       ),
+      threadMuts: s.threadMutations.filter((tm) => narrative.threads[tm.threadId]?.participants?.some((a) => a.id === characterId)),
       movement: s.characterMovements?.[characterId] ?? null,
-    }))
-    .filter(
-      ({ continuityMuts, relationshipMuts, movement }) =>
-        continuityMuts.length > 0 || relationshipMuts.length > 0 || movement !== null,
-    );
+    }));
 
   return (
     <div className="flex flex-col gap-4">
@@ -392,13 +389,13 @@ export default function CharacterDetail({ characterId }: Props) {
         );
       })()}
 
-      {/* Lifecycle — paginated, most recent first */}
+      {/* Scenes — paginated, most recent first */}
       {lifecycle.length > 0 && (() => {
         const { pageItems, totalPages, safePage } = paginateRecent(lifecycle, lifecyclePage);
         return (
-          <CollapsibleSection title="Lifecycle" count={lifecycle.length}>
+          <CollapsibleSection title="Scenes" count={lifecycle.length} defaultOpen>
             <ul className="flex flex-col gap-2">
-              {pageItems.map(({ sceneId, continuityMuts, relationshipMuts, movement }) => (
+              {pageItems.map(({ sceneId, continuityMuts, relationshipMuts, threadMuts, movement }) => (
                 <li key={sceneId} className="flex flex-col gap-0.5">
                   <button
                     type="button"
@@ -407,6 +404,11 @@ export default function CharacterDetail({ characterId }: Props) {
                   >
                     {sceneId}
                   </button>
+                  {threadMuts.map((tm, tmIdx) => (
+                    <span key={`${tm.threadId}-${tmIdx}`} className="text-xs text-text-secondary">
+                      {tm.threadId}: {tm.from} &rarr; {tm.to}
+                    </span>
+                  ))}
                   {continuityMuts.flatMap((km, kmIdx) =>
                     (km.addedNodes ?? []).map((node, nIdx) => (
                       <span key={`${node.id}-${kmIdx}-${nIdx}`} className="text-xs text-text-secondary">

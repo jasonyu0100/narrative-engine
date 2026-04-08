@@ -1,9 +1,41 @@
 'use client';
 
-import { useMemo } from 'react';
+import { useState, useMemo } from 'react';
 import { useStore } from '@/lib/store';
 import { computeThreadStatuses } from '@/lib/narrative-utils';
 import type { Thread, NarrativeState } from '@/types/narrative';
+import { CollapsibleSection } from './CollapsibleSection';
+import { INSPECTOR_PAGE_SIZE } from '@/lib/constants';
+
+const PAGE_SIZE = INSPECTOR_PAGE_SIZE;
+
+function paginateRecent<T>(items: T[], page: number): { pageItems: T[]; totalPages: number; safePage: number } {
+  const totalPages = Math.max(1, Math.ceil(items.length / PAGE_SIZE));
+  const safePage = Math.min(page, totalPages - 1);
+  const startFromEnd = safePage * PAGE_SIZE;
+  const pageItems = items.slice(
+    Math.max(0, items.length - startFromEnd - PAGE_SIZE),
+    items.length - startFromEnd,
+  ).reverse();
+  return { pageItems, totalPages, safePage };
+}
+
+function Paginator({ page, totalPages, onPage }: { page: number; totalPages: number; onPage: (p: number) => void }) {
+  if (totalPages <= 1) return null;
+  return (
+    <div className="flex items-center justify-between mt-2">
+      <button type="button" disabled={page >= totalPages - 1} onClick={() => onPage(page + 1)}
+        className="text-[9px] text-text-dim hover:text-text-secondary disabled:opacity-20 transition-colors">
+        &lsaquo; Older
+      </button>
+      <span className="text-[9px] text-text-dim font-mono">{page + 1} / {totalPages}</span>
+      <button type="button" disabled={page <= 0} onClick={() => onPage(page - 1)}
+        className="text-[9px] text-text-dim hover:text-text-secondary disabled:opacity-20 transition-colors">
+        Newer &rsaquo;
+      </button>
+    </div>
+  );
+}
 
 type Props = {
   threadId: string;
@@ -187,6 +219,7 @@ function ThreadConvergenceGraph({
 export default function ThreadDetail({ threadId }: Props) {
   const { state, dispatch } = useStore();
   const narrative = state.activeNarrative;
+  const [lifecyclePage, setLifecyclePage] = useState(0);
   if (!narrative) return null;
 
   const thread = narrative.threads[threadId];
@@ -207,8 +240,9 @@ export default function ThreadDetail({ threadId }: Props) {
         : narrative.locations[a.id]?.name ?? a.id,
   }));
 
-  // Find scenes on the current branch where this thread was mutated
-  const lifecycle = state.resolvedEntryKeys
+  // Find scenes up to current index where this thread was mutated
+  const sceneKeysUpToCurrent = state.resolvedEntryKeys.slice(0, state.currentSceneIndex + 1);
+  const lifecycle = sceneKeysUpToCurrent
     .map((k) => narrative.scenes[k])
     .filter((s) => s && s.threadMutations.some((tm) => tm.threadId === threadId))
     .map((s) => ({
@@ -332,40 +366,41 @@ export default function ThreadDetail({ threadId }: Props) {
         onSelectThread={(id) => dispatch({ type: 'SET_INSPECTOR', context: { type: 'thread', threadId: id } })}
       />
 
-      {/* Lifecycle */}
-      {lifecycle.length > 0 && (
-        <div className="flex flex-col gap-1.5">
-          <h3 className="text-[10px] uppercase tracking-widest text-text-dim">
-            Lifecycle
-          </h3>
-          <ul className="flex flex-col gap-1.5">
-            {lifecycle.map(({ sceneId, mutations }) => (
-              <li key={sceneId} className="flex flex-col gap-0.5">
-                <button
-                  type="button"
-                  onClick={() =>
-                    dispatch({
-                      type: 'SET_INSPECTOR',
-                      context: { type: 'scene', sceneId },
-                    })
-                  }
-                  className="font-mono text-[10px] text-text-dim transition-colors hover:text-text-secondary"
-                >
-                  {sceneId}
-                </button>
-                {mutations.map((tm, tmIdx) => (
-                  <span
-                    key={`${tm.from}-${tm.to}-${tmIdx}`}
-                    className="text-xs text-text-secondary"
+      {/* Lifecycle — paginated, most recent first */}
+      {lifecycle.length > 0 && (() => {
+        const { pageItems, totalPages, safePage } = paginateRecent(lifecycle, lifecyclePage);
+        return (
+          <CollapsibleSection title="Lifecycle" count={lifecycle.length} defaultOpen>
+            <ul className="flex flex-col gap-1.5">
+              {pageItems.map(({ sceneId, mutations }) => (
+                <li key={sceneId} className="flex flex-col gap-0.5">
+                  <button
+                    type="button"
+                    onClick={() =>
+                      dispatch({
+                        type: 'SET_INSPECTOR',
+                        context: { type: 'scene', sceneId },
+                      })
+                    }
+                    className="font-mono text-[10px] text-text-dim transition-colors hover:text-text-secondary"
                   >
-                    {tm.from} &rarr; {tm.to}
-                  </span>
-                ))}
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
+                    {sceneId}
+                  </button>
+                  {mutations.map((tm, tmIdx) => (
+                    <span
+                      key={`${tm.from}-${tm.to}-${tmIdx}`}
+                      className="text-xs text-text-secondary"
+                    >
+                      {tm.from} &rarr; {tm.to}
+                    </span>
+                  ))}
+                </li>
+              ))}
+            </ul>
+            <Paginator page={safePage} totalPages={totalPages} onPage={setLifecyclePage} />
+          </CollapsibleSection>
+        );
+      })()}
     </div>
   );
 }

@@ -291,11 +291,6 @@ export default function SceneDetail({ sceneId }: Props) {
           </svg>
           <span className="text-[11px] text-text-secondary">{cubeCorner.name}</span>
         </div>
-        <div className="flex gap-3">
-          <ForceBar label="Payoff" value={payoff} color="#EF4444" />
-          <ForceBar label="Change" value={change} color="#22C55E" />
-          <ForceBar label="Knowledge" value={knowledge} color="#3B82F6" />
-        </div>
       </div>
 
       {/* Character Movements */}
