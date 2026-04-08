@@ -256,8 +256,10 @@ describe('buildVirtualState', () => {
     const char = result.narrative.characters['C-01'];
     expect(char.continuity.nodes['K-01']).toBeDefined();
     expect(char.continuity.nodes['K-02']).toBeDefined();
-    expect(char.continuity.edges).toHaveLength(1);
-    expect(char.continuity.edges[0].relation).toBe('caused_by');
+    // 2 nodes → 1 co_occurs chain edge + 1 explicit caused_by edge
+    expect(char.continuity.edges).toHaveLength(2);
+    expect(char.continuity.edges.some(e => e.relation === 'caused_by')).toBe(true);
+    expect(char.continuity.edges.some(e => e.relation === 'co_occurs')).toBe(true);
   });
 
   it('applies relationship mutations (new relationship)', () => {

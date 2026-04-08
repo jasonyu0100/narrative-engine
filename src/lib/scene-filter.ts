@@ -46,14 +46,16 @@ export function getContinuityNodesAtScene(
   resolvedEntryKeys: string[],
   currentSceneIndex: number,
 ): ContinuityNode[] {
-  // Collect node IDs that were added by scene mutations up to currentSceneIndex
-  const addedByMutations = new Set<string>();
+  // Collect nodes added by scene mutations up to currentSceneIndex
+  const addedByMutations = new Map<string, ContinuityNode>();
   for (let i = 0; i <= currentSceneIndex && i < resolvedEntryKeys.length; i++) {
     const scene = scenes[resolvedEntryKeys[i]];
     if (!scene) continue;
     for (const km of scene.continuityMutations) {
       if (km.entityId !== entityId) continue;
-      for (const node of km.addedNodes ?? []) addedByMutations.add(node.id);
+      for (const node of km.addedNodes ?? []) {
+        addedByMutations.set(node.id, { id: node.id, type: (node.type || 'trait') as ContinuityNode['type'], content: node.content });
+      }
     }
   }
 
@@ -70,11 +72,17 @@ export function getContinuityNodesAtScene(
 
   // Initial nodes = those in allNodes but never referenced by any mutation (seeded on world build)
   // These are visible from the start (they existed before any scene)
-  // Scene-added nodes = only visible once the mutation that added them has been reached
-  return Object.values(allNodes).filter((node) => {
+  const result: ContinuityNode[] = Object.values(allNodes).filter((node) => {
     if (!allMutatedNodeIds.has(node.id)) return true; // initial node — always visible
     return addedByMutations.has(node.id); // scene-added — only if mutation reached
   });
+
+  // Include mutation-added nodes that aren't in allNodes yet (not yet applied to entity graph)
+  for (const [id, node] of addedByMutations) {
+    if (!allNodes[id]) result.push(node);
+  }
+
+  return result;
 }
 
 /**

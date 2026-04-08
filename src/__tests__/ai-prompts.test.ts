@@ -128,7 +128,7 @@ describe('Static Prompt Constants', () => {
 
     it('describes continuityMutations', () => {
       expect(PROMPT_MUTATIONS).toContain('continuityMutations');
-      expect(PROMPT_MUTATIONS).toContain('inner world changes');
+      expect(PROMPT_MUTATIONS).toContain('first-person experiential changes');
     });
 
     it('describes relationshipMutations', () => {

@@ -22,6 +22,7 @@ vi.mock('@/lib/ai/prompts', () => ({
   PROMPT_STRUCTURAL_RULES: 'Mock structural rules',
   PROMPT_MUTATIONS: 'Mock mutations',
   PROMPT_ARTIFACTS: 'Mock artifacts',
+  PROMPT_LOCATIONS: 'Mock locations',
   PROMPT_POV: 'Mock POV',
   PROMPT_CONTINUITY: 'Mock continuity',
   PROMPT_SUMMARY_REQUIREMENT: 'Mock summary requirement',
