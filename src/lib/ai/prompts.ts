@@ -79,13 +79,13 @@ threadMutations — lifecycle: dormant→active→escalating→critical→termin
 - CONVERGENCE CASCADE: advancing a convergent thread should pressure linked threads (minimum pulse).
 
 continuityMutations — first-person experiential changes for ANY entity (character, location, artifact). NOT omniscient narration — what the entity itself experienced, perceived, or became. Feeds Change via √(ΔN + √ΔE).
-- entityId can be a character, location, or artifact ID. Locations are kingdoms, organizations, factions. Artifacts are tools, AI, enchanted objects.
+- entityId can be a character, location, or artifact ID.
 - addedNodes: what the entity experienced from its own perspective. Types: "trait", "state", "history", "capability", "belief", "relation", "secret", "goal", "weakness".
-- Write from the entity's perspective: "Learned the king is a fraud" not "The king was revealed as a fraud". "Felt the ground crack beneath the battle" not "A battle damaged the courtyard".
+- Write from the entity's perspective: "Learned the king is a fraud" not "The king was revealed as a fraud".
 - Dense scenes: 2-3 nodes per entity. Normal: 0-1. Quiet: 0. Locations and artifacts accumulate as richly as characters.
-- Characters: what they perceived, felt, decided, discovered, or became in this scene.
-- Locations: what happened to/within the place from its perspective — a throne room experiences an oath sworn, a battlefield absorbs the dead.
-- Artifacts: what the object underwent — was wielded, was broken, was discovered, changed hands, revealed a new property.
+- Characters: what they perceived, felt, decided, discovered, or became. Artifacts they possess extend their capabilities — a character with a magical weapon gains "capability" nodes, a character with AI access gains knowledge and power through their tools.
+- Locations: a place AND its people. The Shire is both rolling hills and hobbits. Sydney is both a harbour and a culture. A location experiences events collectively — a city mourns its dead, a kingdom feels a power shift, a village celebrates a harvest. Major events reshape a location's identity, goals, and beliefs.
+- Artifacts: tools that extend what's possible. An AI system grants its wielder analytical power. A cursed sword imposes its will. An enchanted map reveals hidden paths. Track what the artifact underwent AND how it modified the capabilities of whoever holds it.
 
 relationshipMutations — valenceDelta: ±0.1 (subtle), ±0.2-0.3 (meaningful), ±0.4-0.5 (dramatic).
 - Include whenever characters interact meaningfully. Feeds Change via √Σ|valenceDelta|² (L2).

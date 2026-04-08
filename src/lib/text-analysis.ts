@@ -437,13 +437,13 @@ RULES:
   * A quiet scene with no world context → none.
   * Let the prose guide you — extract what's there, don't invent what isn't.
 
-CONTINUITY MUTATIONS — first-person experiential changes, NOT omniscient narration. What the entity itself experienced, perceived, or became.
+CONTINUITY MUTATIONS — first-person experiential changes, NOT omniscient narration.
 - "entityName" is any character, location, or artifact name. All entities have inner worlds.
 - Nine types — use EXACTLY one of: "trait", "state", "history", "capability", "belief", "relation", "secret", "goal", "weakness".
 - Write from the entity's perspective:
-  * Characters: what they perceived, felt, decided, discovered — "Learned the king is a fraud" not "The king was revealed".
-  * Locations: what happened to/within the place — "Witnessed an oath sworn in its halls" not "An oath was sworn". "Absorbed the blood of the fallen" not "A battle occurred".
-  * Artifacts: what the object underwent — "Was wielded against its creator" not "Someone used the sword". "Revealed a hidden inscription when heated" not "The inscription was found".
+  * Characters: what they perceived, felt, decided, discovered. Artifacts they possess extend their capabilities — note when a tool changes what a character can do.
+  * Locations: a place AND its people collectively. The Shire is both hills and hobbits. A city mourns, celebrates, shifts in power. Track collective experiences, not just physical events.
+  * Artifacts: tools that extend possibility. Track what the artifact underwent AND how it modified its wielder's capabilities.
 - Dense scenes: 2-3 per entity. Normal: 0-1 total. Quiet: 0.
 
 FORCE SCORING — extract ONLY what the prose actually supports. Do NOT inflate:
@@ -655,13 +655,13 @@ RULES:
 - REUSE existing node IDs when a scene reinforces or tests an already-established concept — don't create duplicates. Only create new IDs for genuinely new concepts. Re-adding existing edges reinforces those connections.
 - How much depends on the prose: scenes establishing social rules, institutional dynamics, cultural expectations → several nodes. Scenes reinforcing existing concepts → reuse existing IDs. Quiet scenes with no world context → none. Let the prose guide you.
 
-CONTINUITY MUTATIONS — first-person experiential changes, NOT omniscient narration. What the entity itself experienced, perceived, or became.
+CONTINUITY MUTATIONS — first-person experiential changes, NOT omniscient narration.
 - "entityName" is any character, location, or artifact name. All entities have inner worlds.
 - Nine types — use EXACTLY one of: "trait", "state", "history", "capability", "belief", "relation", "secret", "goal", "weakness".
 - Write from the entity's perspective:
-  * Characters: what they perceived, felt, decided, discovered — "Learned the king is a fraud" not "The king was revealed".
-  * Locations: what happened to/within the place — "Witnessed an oath sworn in its halls" not "An oath was sworn". "Absorbed the blood of the fallen" not "A battle occurred".
-  * Artifacts: what the object underwent — "Was wielded against its creator" not "Someone used the sword". "Revealed a hidden inscription when heated" not "The inscription was found".
+  * Characters: what they perceived, felt, decided, discovered. Artifacts they possess extend their capabilities — note when a tool changes what a character can do.
+  * Locations: a place AND its people collectively. The Shire is both hills and hobbits. A city mourns, celebrates, shifts in power. Track collective experiences, not just physical events.
+  * Artifacts: tools that extend possibility. Track what the artifact underwent AND how it modified its wielder's capabilities.
 - Dense scenes: 2-3 per entity. Normal: 0-1 total. Quiet: 0.
 
 FORCE SCORING — extract ONLY what the prose actually supports. Do NOT inflate:

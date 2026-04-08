@@ -721,9 +721,9 @@ LOCATION HIERARCHY & AGENCY:
 - Build spatial nesting: Region → Settlement → District → Specific Place
 - A city with 5 sub-locations feels more real than 5 unconnected cities
 - Include contrasting environments: if the story starts safe, the world needs a dangerous frontier
-- Locations are living entities with their own continuity graphs. A kingdom has goals, beliefs, history, and weaknesses just like a character.
-- Prominence: "domain" locations are centers of power (a kingdom, a headquarters, a sacred temple), "place" locations are recurring settings, "margin" locations are transitional.
-- Domain locations: 4-6 continuity nodes (history, traits, capabilities, weaknesses, goals). They impose rules on characters — a sacred grove forbids violence, a kingdom demands fealty.
+- A location is BOTH a place AND its people. The Shire is rolling hills AND hobbits. A city is infrastructure AND culture AND collective will. A kingdom is territory AND governance AND identity. Locations think, feel, and act through their inhabitants.
+- Prominence: "domain" locations are centers of power with deep inner worlds, "place" locations are recurring settings, "margin" locations are transitional.
+- Domain locations: 4-6 continuity nodes (history, traits, capabilities, weaknesses, goals, beliefs). They impose rules on characters and have collective agency — a kingdom demands fealty, a city mourns its dead, an organization pursues its agenda.
 - Place locations: 2-3 continuity nodes (history, state, trait).
 - Margin locations: 1 continuity node (trait or state).
 
@@ -733,9 +733,9 @@ RELATIONSHIPS:
 - At least 2 hidden relationships (known to reader, not to characters)
 
 ARTIFACTS & TOOLS:
-- Artifacts are entities with agency — enchanted tools, AI systems, cursed weapons, living books. They can force events and bind characters.
-- Key artifact (1): a plot-altering entity. 5-7 continuity nodes (traits, capabilities, history, weaknesses, secrets, goals). Must connect to at least 2 threads. Its inner world should rival a recurring character's.
-- Notable artifact (1): a tool that grants a specific capability. 3-4 continuity nodes (capability, history, relation, weakness). Owned by a character who uses it.
+- Artifacts extend what's possible. A character with a magical weapon fights differently. A character with AI technology thinks at a different scale. A character with a cursed ring is slowly consumed. Artifacts don't just exist — they modify their wielder's capabilities and constrain their choices.
+- Key artifact (1): a capability-altering entity. 5-7 continuity nodes (traits, capabilities, history, weaknesses, secrets, goals). Must connect to at least 2 threads. Its inner world should rival a recurring character's. Define HOW it changes what its wielder can do.
+- Notable artifact (1): a tool that grants a specific capability. 3-4 continuity nodes (capability, history, relation, weakness). Owned by a character who uses it — the character's capabilities should reflect the tool.
 - Minor artifact (1): a small object with narrative potential. 1-2 continuity nodes. Can be at a location.
 - Artifacts must feel integral to the world. Key artifacts should have continuity edges (capability motivated_by history, weakness caused_by trait).
 
