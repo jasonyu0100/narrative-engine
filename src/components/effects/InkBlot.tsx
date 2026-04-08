@@ -251,8 +251,15 @@ export function InkBlot() {
         time * 0.0002,
         0.6 // subtle warp
       );
-      // Gentle variation for softer organic look
-      const radius = blob.currentRadius * (0.75 + noiseVal * 0.3);
+      // Base radius with organic variation
+      let radius = blob.currentRadius * (0.75 + noiseVal * 0.3);
+      // Gravity drip: stretch downward (positive y = bottom half of blob)
+      const sinAngle = Math.sin(angle);
+      if (sinAngle > 0) {
+        // Bottom half — stretch proportional to how far down + blob age
+        const dripStrength = sinAngle * sinAngle * (0.3 + blob.expandProgress * 0.5);
+        radius *= (1 + dripStrength);
+      }
       points.push([
         Math.cos(angle) * radius,
         Math.sin(angle) * radius,
@@ -289,14 +296,14 @@ export function InkBlot() {
       alpha = maxAlpha * (1 - blob.fadeProgress);
     }
 
-    // Radial gradient with extended soft falloff for dreamy edges
+    // Radial gradient with extended soft falloff — darker, more ink-like
     const gradient = ctx.createRadialGradient(0, 0, 0, 0, 0, blob.currentRadius * 1.3);
-    gradient.addColorStop(0, `hsla(${blob.hue}, ${blob.saturation}%, 4%, ${alpha * 0.8})`);
-    gradient.addColorStop(0.15, `hsla(${blob.hue}, ${blob.saturation}%, 3.5%, ${alpha * 0.7})`);
-    gradient.addColorStop(0.3, `hsla(${blob.hue}, ${blob.saturation}%, 3%, ${alpha * 0.55})`);
-    gradient.addColorStop(0.5, `hsla(${blob.hue}, ${blob.saturation - 3}%, 2.5%, ${alpha * 0.35})`);
-    gradient.addColorStop(0.7, `hsla(${blob.hue}, ${blob.saturation - 6}%, 2%, ${alpha * 0.15})`);
-    gradient.addColorStop(0.85, `hsla(${blob.hue}, ${blob.saturation - 8}%, 1.5%, ${alpha * 0.05})`);
+    gradient.addColorStop(0, `hsla(${blob.hue}, ${blob.saturation}%, 2%, ${alpha * 0.95})`);
+    gradient.addColorStop(0.15, `hsla(${blob.hue}, ${blob.saturation}%, 2%, ${alpha * 0.85})`);
+    gradient.addColorStop(0.3, `hsla(${blob.hue}, ${blob.saturation}%, 2%, ${alpha * 0.7})`);
+    gradient.addColorStop(0.5, `hsla(${blob.hue}, ${blob.saturation - 3}%, 1.5%, ${alpha * 0.5})`);
+    gradient.addColorStop(0.7, `hsla(${blob.hue}, ${blob.saturation - 6}%, 1%, ${alpha * 0.25})`);
+    gradient.addColorStop(0.85, `hsla(${blob.hue}, ${blob.saturation - 8}%, 1%, ${alpha * 0.1})`);
     gradient.addColorStop(1, `hsla(${blob.hue}, ${blob.saturation - 10}%, 1%, 0)`);
 
     ctx.fillStyle = gradient;
@@ -353,8 +360,8 @@ export function InkBlot() {
 
         const detailGrad = ctx.createRadialGradient(0, 0, 0, 0, 0, detailRadius);
         const detailAlpha = alpha * 0.5;
-        detailGrad.addColorStop(0, `hsla(${blob.hue + 10}, ${blob.saturation + 5}%, 6%, ${detailAlpha})`);
-        detailGrad.addColorStop(1, `hsla(${blob.hue}, ${blob.saturation}%, 3%, 0)`);
+        detailGrad.addColorStop(0, `hsla(${blob.hue + 10}, ${blob.saturation + 5}%, 2%, ${detailAlpha * 1.5})`);
+        detailGrad.addColorStop(1, `hsla(${blob.hue}, ${blob.saturation}%, 1%, 0)`);
         ctx.fillStyle = detailGrad;
         ctx.fill();
 
@@ -376,7 +383,7 @@ export function InkBlot() {
 
     ctx.beginPath();
     ctx.arc(particle.x, particle.y, particle.size, 0, Math.PI * 2);
-    ctx.fillStyle = `hsla(${particle.hue}, 20%, 5%, ${alpha})`;
+    ctx.fillStyle = `hsla(${particle.hue}, 20%, 2%, ${alpha * 1.3})`;
     ctx.fill();
   }, []);
 
@@ -419,9 +426,9 @@ export function InkBlot() {
         for (let y = 0; y < noiseCanvas.height; y++) {
           // Use domain warping for fluid base texture
           const n = noise.warp(x * noiseScale, y * noiseScale, 0.6, 2);
-          const alpha = Math.max(0, (n + 0.4) * 0.15);
+          const alpha = Math.max(0, (n + 0.4) * 0.25);
           if (alpha > 0.01) {
-            noiseCtx.fillStyle = `hsla(190, 25%, 4%, ${alpha})`;
+            noiseCtx.fillStyle = `hsla(190, 25%, 2%, ${alpha})`;
             noiseCtx.fillRect(x, y, 1, 1);
           }
         }
@@ -503,6 +510,9 @@ export function InkBlot() {
             return false;
           }
         }
+
+        // Gravity: slow downward drift
+        blob.y += delta * 0.003;
 
         // Draw the blob
         drawBlob(ctx, blob, noise, timeRef.current);
