@@ -870,6 +870,22 @@ The goal is to make the world feel like a coherent machine where systems interlo
     }
   }
 
+  // Generate embeddings for scene summaries
+  if (sceneList.length > 0) {
+    try {
+      const { generateEmbeddingsBatch } = await import('@/lib/embeddings');
+      const { assetManager } = await import('@/lib/asset-manager');
+      const summaries = sceneList.map(s => s.summary);
+      const embeddings = await generateEmbeddingsBatch(summaries, id);
+      for (let i = 0; i < sceneList.length; i++) {
+        const embeddingId = await assetManager.storeEmbedding(embeddings[i], 'text-embedding-3-small');
+        sceneList[i].summaryEmbedding = embeddingId;
+      }
+    } catch {
+      // Don't fail world generation if embedding fails
+    }
+  }
+
   logInfo('Completed narrative generation', {
     source: 'manual-generation',
     operation: 'generate-narrative-complete',
