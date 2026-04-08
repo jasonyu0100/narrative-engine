@@ -258,7 +258,7 @@ Return JSON with this exact structure. IMPORTANT: Fill out "arcOutline" FIRST â€
       "characterMovements": {"C-XX": {"locationId": "L-YY", "transition": "Descriptive transition: 'Rode horseback through the night', 'Slipped through the back gate at dawn'"}},
       "events": ["event_tag_1", "event_tag_2"],
       "threadMutations": [{"threadId": "T-XX", "from": "current_status", "to": "new_status"}],
-      "continuityMutations": [{"entityId": "C-XX", "addedNodes": [{"id": "K-GEN-001", "content": "what they learned or became", "type": "trait|state|history|capability|belief|relation|secret|goal|weakness"}], "addedEdges": [{"from": "K-existing", "to": "K-GEN-001", "relation": "caused_by"}]}],
+      "continuityMutations": [{"entityId": "C-XX", "addedNodes": [{"id": "K-GEN-001", "content": "what they learned or became", "type": "trait|state|history|capability|belief|relation|secret|goal|weakness"}], "addedEdges": []}],
       "relationshipMutations": [{"from": "C-XX", "to": "C-YY", "type": "description", "valenceDelta": 0.1}],
       "worldKnowledgeMutations": {"addedNodes": [{"id": "WK-GEN-001", "concept": "world concept name", "type": "principle|system|concept|tension|event|structure|environment|convention|constraint"}], "addedEdges": [{"from": "WK-GEN-001", "to": "WK-XX", "relation": "enables|requires|governs|opposes|extends|etc."}]},
       "ownershipMutations": [{"artifactId": "A-XX", "fromId": "C-XX or L-XX", "toId": "C-YY or L-YY"}],

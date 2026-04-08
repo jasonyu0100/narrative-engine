@@ -865,6 +865,7 @@ export default function WorldGraph() {
       narrative.scenes,
       resolvedEntryKeys,
       state.currentSceneIndex,
+      entity.continuity.nodes,
     );
     const edgeLinks: (GraphLink & { edgeRelation?: string })[] = [];
     for (const edge of continuityEdges) {

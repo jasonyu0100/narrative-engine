@@ -29,7 +29,7 @@ export default function ContinuityNodeDetail({ entityId, nodeId }: Props) {
   );
 
   const edges = useMemo(() =>
-    getContinuityEdgesAtScene(entity.continuity.edges, entityId, narrative.scenes, state.resolvedEntryKeys, state.currentSceneIndex),
+    getContinuityEdgesAtScene(entity.continuity.edges, entityId, narrative.scenes, state.resolvedEntryKeys, state.currentSceneIndex, entity.continuity.nodes),
     [entity, entityId, narrative, state.resolvedEntryKeys, state.currentSceneIndex],
   );
 

@@ -657,7 +657,7 @@ Return JSON with this exact structure:
       "participantIds": ["C-01"],
       "events": ["event_tag"],
       "threadMutations": [{"threadId": "T-01", "from": "dormant", "to": "active"}],
-      "continuityMutations": [{"entityId": "C-XX", "addedNodes": [{"id": "K-GEN-001", "content": "what they learned or became", "type": "trait|state|history|capability|belief|relation|secret|goal|weakness"}], "addedEdges": [{"from": "K-existing", "to": "K-GEN-001", "relation": "caused_by|motivated_by|contradicts|reinforces"}]}],
+      "continuityMutations": [{"entityId": "C-XX", "addedNodes": [{"id": "K-GEN-001", "content": "what they learned or became", "type": "trait|state|history|capability|belief|relation|secret|goal|weakness"}], "addedEdges": []}],
       "relationshipMutations": [],
       "worldKnowledgeMutations": {"addedNodes": [{"id": "WK-GEN-001", "concept": "name of a world concept, rule, system, or structure", "type": "principle|system|concept|tension|event|structure|environment|convention|constraint"}], "addedEdges": [{"from": "WK-GEN-001", "to": "WK-GEN-002", "relation": "typed relationship: enables, requires, governs, opposes, created_by, extends, etc."}]},
       "summary": "REQUIRED: Rich prose sentences using character NAMES and location NAMES (never raw IDs). Include specifics: actions, consequences, dialogue snippets. Include any context that shapes how the scene is written (time span, technique, tone). No sentences ending in emotions or realizations."

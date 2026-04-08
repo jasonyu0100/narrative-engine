@@ -392,8 +392,7 @@ Return a single JSON object with this exact structure:
       "continuityMutations": [
         {
           "entityName": "Character, Location, or Artifact name",
-          "addedNodes": [{"content": "what they learned, became, or experienced", "type": "trait|state|history|capability|belief|relation|secret|goal|weakness"}],
-          "addedEdges": [{"fromContent": "content of source node", "toContent": "content of target node", "relation": "relationship type"}]
+          "addedNodes": [{"content": "what they learned, became, or experienced", "type": "trait|state|history|capability|belief|relation|secret|goal|weakness"}]
         }
       ],
       "relationshipMutations": [
@@ -619,8 +618,7 @@ Return a single JSON object with this exact structure:
       "continuityMutations": [
         {
           "entityName": "Character, Location, or Artifact name",
-          "addedNodes": [{"content": "what they learned, became, or experienced", "type": "trait|state|history|capability|belief|relation|secret|goal|weakness"}],
-          "addedEdges": [{"fromContent": "content of source node", "toContent": "content of target node", "relation": "relationship type"}]
+          "addedNodes": [{"content": "what they learned, became, or experienced", "type": "trait|state|history|capability|belief|relation|secret|goal|weakness"}]
         }
       ],
       "relationshipMutations": [
@@ -1340,14 +1338,8 @@ export async function assembleNarrative(
           const nodes = (km.addedNodes ?? []).map((n) => ({
             id: nextKId(), content: n.content, type: (n.type || 'trait') as ContinuityNodeType,
           }));
-          // Resolve content-based edge references to node IDs (LLM-generated edges only)
-          const edges: { from: string; to: string; relation: string }[] = [];
-          for (const e of km.addedEdges ?? []) {
-            const from = nodes.find(n => n.content === e.fromContent);
-            const to = nodes.find(n => n.content === e.toContent);
-            if (from && to) edges.push({ from: from.id, to: to.id, relation: e.relation });
-          }
-          return { entityId, addedNodes: nodes, addedEdges: edges };
+          // Edges are created deterministically by applyContinuityMutation during store replay
+          return { entityId, addedNodes: nodes, addedEdges: [] };
         }),
         relationshipMutations: (s.relationshipMutations ?? []).map((rm) => ({
           from: getCharId(rm.from),

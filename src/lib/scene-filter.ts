@@ -78,8 +78,9 @@ export function getContinuityNodesAtScene(
 }
 
 /**
- * Compute which continuity edges exist at a given scene index by replaying
- * additive mutations forward.
+ * Compute which continuity edges exist at a given scene index.
+ * Filters the entity's accumulated edges to only those where both
+ * endpoints are visible at the current scene index.
  */
 export function getContinuityEdgesAtScene(
   allEdges: ContinuityEdge[],
@@ -87,25 +88,13 @@ export function getContinuityEdgesAtScene(
   scenes: Record<string, Scene>,
   resolvedEntryKeys: string[],
   currentSceneIndex: number,
+  allNodes: Record<string, ContinuityNode>,
 ): ContinuityEdge[] {
-  // Start with initial edges from the entity
-  const edges = [...allEdges];
-
-  // Add edges from mutations up to currentSceneIndex
-  for (let i = 0; i <= currentSceneIndex && i < resolvedEntryKeys.length; i++) {
-    const scene = scenes[resolvedEntryKeys[i]];
-    if (!scene) continue;
-    for (const km of scene.continuityMutations) {
-      if (km.entityId !== entityId) continue;
-      for (const edge of km.addedEdges ?? []) {
-        if (!edges.some(e => e.from === edge.from && e.to === edge.to && e.relation === edge.relation)) {
-          edges.push(edge);
-        }
-      }
-    }
-  }
-
-  return edges;
+  // Get the set of visible node IDs at this point in the timeline
+  const visibleNodes = getContinuityNodesAtScene(allNodes, entityId, scenes, resolvedEntryKeys, currentSceneIndex);
+  const visibleIds = new Set(visibleNodes.map(n => n.id));
+  // Only include edges where both endpoints are visible
+  return allEdges.filter(e => visibleIds.has(e.from) && visibleIds.has(e.to));
 }
 
 // ── Relationship filtering ──────────────────────────────────────────────────

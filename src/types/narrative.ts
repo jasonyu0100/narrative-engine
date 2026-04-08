@@ -1105,7 +1105,6 @@ export type AnalysisChunkResult = {
     continuityMutations: {
       entityName: string;
       addedNodes: { content: string; type: string }[];
-      addedEdges?: { fromContent: string; toContent: string; relation: string }[];
     }[];
     relationshipMutations: { from: string; to: string; type: string; valenceDelta: number }[];
     ownershipMutations?: { artifactName: string; fromName: string; toName: string }[];

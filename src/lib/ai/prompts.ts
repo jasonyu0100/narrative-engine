@@ -81,7 +81,7 @@ threadMutations — lifecycle: dormant→active→escalating→critical→termin
 continuityMutations — inner world changes for ANY entity (character, location, artifact). Feeds Change via √(ΔN + √ΔE).
 - entityId can be a character, location, or artifact ID. Locations are kingdoms, organizations, factions. Artifacts are tools, AI, enchanted objects.
 - addedNodes: what the entity learned, became, or accumulated. Types: "trait", "state", "history", "capability", "belief", "relation", "secret", "goal", "weakness".
-- addedEdges: how new knowledge connects to existing nodes (caused_by, motivated_by, contradicts, reinforces, reveals).
+- addedEdges: leave empty []. Edges are created automatically — nodes from the same scene are connected.
 - Dense scenes: 2-3 nodes per entity. Normal: 0-1. Quiet: 0. Locations and artifacts accumulate as richly as characters.
 - Characters: beliefs shift, goals form, secrets are learned, weaknesses are exposed.
 - Locations: history accumulates (battles, rituals, transformations), states change, capabilities emerge, rules are imposed on characters.

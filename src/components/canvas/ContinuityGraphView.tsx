@@ -32,7 +32,7 @@ export default function ContinuityGraphView({ entityId, entityName, continuity, 
 
   const graphData = useMemo(() => {
     const nodes = getContinuityNodesAtScene(continuity.nodes, entityId, scenes, resolvedKeys, currentIndex);
-    const edges = getContinuityEdgesAtScene(continuity.edges, entityId, scenes, resolvedKeys, currentIndex);
+    const edges = getContinuityEdgesAtScene(continuity.edges, entityId, scenes, resolvedKeys, currentIndex, continuity.nodes);
     return { nodes, edges };
   }, [continuity, entityId, scenes, resolvedKeys, currentIndex]);
 
