@@ -223,7 +223,7 @@ export function GeneratePanel({ onClose }: { onClose: () => void }) {
     setLoading(true);
     setError('');
     try {
-      const expansion = await expandWorld(narrative, state.resolvedEntryKeys, headIndex, worldDirective, worldSize, worldStrategy);
+      const expansion = await expandWorld(narrative, state.resolvedEntryKeys, headIndex, worldDirective, worldSize, worldStrategy, undefined, (token) => setStreamText((prev) => prev + token));
       dispatch({
         type: 'EXPAND_WORLD', worldBuildId: nextId('WB', Object.keys(narrative.worldBuilds), 3),
         characters: expansion.characters, locations: expansion.locations, threads: expansion.threads,
