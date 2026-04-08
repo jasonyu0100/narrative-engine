@@ -3,7 +3,6 @@
 import { useRef, useEffect, useCallback, useMemo, useState } from 'react';
 import * as d3 from 'd3';
 import { useStore } from '@/lib/store';
-import { GRAPH_CONTINUITY_LIMIT } from '@/lib/constants';
 import { getContinuityNodesAtScene, getContinuityEdgesAtScene, getRelationshipsAtScene, getIntroducedIds } from '@/lib/scene-filter';
 import type {
   Character,
@@ -774,6 +773,8 @@ export default function WorldGraph() {
   }, [showEdgeLabels]);
 
   // ── Lightweight: toggle knowledge subgraph without full rebuild ──
+  // Entity continuity graphs are now rendered by ContinuityGraphView (separate component).
+  // This effect just cleans up any stale inline knowledge nodes from the world D3 simulation.
   useEffect(() => {
     const g = gRef.current;
     const simulation = simulationRef.current;
@@ -795,11 +796,6 @@ export default function WorldGraph() {
     const baseNodes = nodesRef.current.filter((n) => n.kind !== 'knowledge');
     const currentLinks = (simulation.force('link') as d3.ForceLink<GraphNode, GraphLink>).links();
     const baseLinks = currentLinks.filter((l) => (l as GraphLink).linkKind !== 'knowledge');
-
-    // Show/hide base world elements based on entity focus
-    g.selectAll('g.graph-node:not(.knowledge-node)').attr('visibility', selectedKnowledgeEntity ? 'hidden' : 'visible');
-    g.selectAll('line.graph-edge:not(.knowledge):not(.continuity-edge)').attr('visibility', selectedKnowledgeEntity ? 'hidden' : 'visible');
-    g.selectAll('text.edge-label').attr('visibility', selectedKnowledgeEntity ? 'hidden' : 'visible');
 
     if (!selectedKnowledgeEntity) {
       nodesRef.current = baseNodes;
@@ -825,7 +821,7 @@ export default function WorldGraph() {
       resolvedEntryKeys,
       state.currentSceneIndex,
     );
-    const visibleContinuityNodes = filteredKgNodes.slice(-GRAPH_CONTINUITY_LIMIT);
+    const visibleContinuityNodes = filteredKgNodes;
 
     // Create knowledge nodes
     const continuityNodes: GraphNode[] = visibleContinuityNodes.map((kn) => ({
