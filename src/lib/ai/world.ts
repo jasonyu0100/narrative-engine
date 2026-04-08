@@ -253,13 +253,14 @@ export function computeWorldMetrics(
   };
 }
 
-export type WorldExpansionSize = 'small' | 'medium' | 'large';
+export type WorldExpansionSize = 'small' | 'medium' | 'large' | 'exact';
 export type WorldExpansionStrategy = 'breadth' | 'depth' | 'dynamic';
 
 const EXPANSION_SIZE_CONFIG: Record<WorldExpansionSize, { total: string; characters: string; locations: string; threads: string; label: string }> = {
   small:  { total: '3-6',   characters: '1-2',   locations: '1-2',   threads: '1-2',   label: 'a focused expansion (~5 total entities)' },
   medium: { total: '10-15', characters: '3-5',   locations: '3-4',   threads: '3-5',   label: 'a moderate expansion (~12 total entities)' },
   large:  { total: '20-35', characters: '8-15',  locations: '6-10',  threads: '8-12',  label: 'a large-scale expansion (~30 total entities)' },
+  exact:  { total: 'as specified', characters: 'as specified', locations: 'as specified', threads: 'as specified', label: 'exactly what is described in the directive — nothing more, nothing less' },
 };
 
 const EXPANSION_STRATEGY_PROMPTS: Record<WorldExpansionStrategy, string> = {
@@ -407,10 +408,10 @@ ${sourceText ? `\nSOURCE MATERIAL (verbatim from plan document — use this as t
 
 ${strategyBlock}
 
-This is ${EXPANSION_SIZE_CONFIG[size].label} (${EXPANSION_SIZE_CONFIG[size].total} total new entities). Generate:
+${size === 'exact' ? `This is an EXACT expansion — create ONLY what the directive explicitly describes. Do not add extra characters, locations, threads, or artifacts beyond what is specified. No embellishments, no "while we're at it" additions. If the directive says "add a blacksmith named Torin", create exactly that character and nothing else. Every entity in your response must trace directly to something stated in the directive.` : `This is ${EXPANSION_SIZE_CONFIG[size].label} (${EXPANSION_SIZE_CONFIG[size].total} total new entities). Generate:
 - ${EXPANSION_SIZE_CONFIG[size].characters} new characters
 - ${EXPANSION_SIZE_CONFIG[size].locations} new locations
-- ${EXPANSION_SIZE_CONFIG[size].threads} new threads
+- ${EXPANSION_SIZE_CONFIG[size].threads} new threads`}
 - Relationships connecting new characters to EXISTING characters (this is critical)
 - Artifacts if the directive or narrative calls for them — objects that grant characters capabilities and drive acquisition, conflict, or discovery. Not every expansion needs artifacts, but consider whether the new world elements would benefit from tangible tools, relics, or items that characters can use and fight over.
 

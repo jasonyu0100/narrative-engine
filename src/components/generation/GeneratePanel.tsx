@@ -73,7 +73,7 @@ export function GeneratePanel({ onClose }: { onClose: () => void }) {
 
   // World state
   const [worldDirective, setWorldDirective] = useState('');
-  const [worldSize, setWorldSize] = useState<WorldExpansionSize>('medium');
+  const [worldSize, setWorldSize] = useState<WorldExpansionSize>('exact');
   const [worldStrategy, setWorldStrategy] = useState<WorldExpansionStrategy>(
     state.activeNarrative?.storySettings?.expansionStrategy ?? 'dynamic'
   );
@@ -555,26 +555,31 @@ export function GeneratePanel({ onClose }: { onClose: () => void }) {
                     placeholder="Describe what to add to the world..."
                     className="bg-bg-elevated border border-border rounded-lg px-3 py-2 text-sm text-text-primary w-full h-28 resize-none outline-none placeholder:text-text-dim" />
                 </div>
-                <div className="flex gap-4">
-                  <div className="flex-1">
-                    <label className="text-[10px] uppercase tracking-widest text-text-dim block mb-2">Size</label>
-                    <div className="flex gap-1.5">
-                      {([
-                        { value: 'small' as WorldExpansionSize, label: 'Small', desc: '~5' },
-                        { value: 'medium' as WorldExpansionSize, label: 'Medium', desc: '~12' },
-                        { value: 'large' as WorldExpansionSize, label: 'Large', desc: '~30' },
-                      ]).map((opt) => (
-                        <button key={opt.value} type="button" onClick={() => setWorldSize(opt.value)}
-                          className={`flex-1 px-2 py-2 rounded-lg text-left transition-colors ${
-                            worldSize === opt.value ? 'bg-white/10 ring-1 ring-white/20' : 'bg-white/3 hover:bg-white/6'
-                          }`}>
-                          <div className="text-xs text-text-primary font-medium">{opt.label}</div>
-                          <div className="text-[9px] text-text-dim">{opt.desc} entities</div>
-                        </button>
-                      ))}
-                    </div>
+                <div>
+                  <label className="text-[10px] uppercase tracking-widest text-text-dim block mb-2">Size</label>
+                  <div className="flex gap-1.5">
+                    {([
+                      { value: 'exact' as WorldExpansionSize, label: 'Exact', desc: 'As described' },
+                      { value: 'small' as WorldExpansionSize, label: 'Small', desc: '~5 entities' },
+                      { value: 'medium' as WorldExpansionSize, label: 'Medium', desc: '~12 entities' },
+                      { value: 'large' as WorldExpansionSize, label: 'Large', desc: '~30 entities' },
+                    ]).map((opt) => (
+                      <button key={opt.value} type="button" onClick={() => setWorldSize(opt.value)}
+                        className={`flex-1 px-2 py-2 rounded-lg text-left transition-colors ${
+                          worldSize === opt.value ? 'bg-white/10 ring-1 ring-white/20' : 'bg-white/3 hover:bg-white/6'
+                        }`}>
+                        <div className="text-xs text-text-primary font-medium">{opt.label}</div>
+                        <div className="text-[9px] text-text-dim">{opt.desc}</div>
+                      </button>
+                    ))}
                   </div>
-                  <div className="flex-1">
+                </div>
+                <details className="group">
+                  <summary className="text-[10px] uppercase tracking-widest text-text-dim cursor-pointer select-none flex items-center gap-1 hover:text-text-secondary transition-colors">
+                    <svg className="w-3 h-3 transition-transform group-open:rotate-90" viewBox="0 0 16 16" fill="currentColor"><path d="M6 4l4 4-4 4" /></svg>
+                    Advanced
+                  </summary>
+                  <div className="mt-2">
                     <label className="text-[10px] uppercase tracking-widest text-text-dim block mb-2">Strategy</label>
                     <div className="flex gap-1.5">
                       {([
@@ -592,7 +597,7 @@ export function GeneratePanel({ onClose }: { onClose: () => void }) {
                       ))}
                     </div>
                   </div>
-                </div>
+                </details>
                 <button onClick={handleExpandWorld} disabled={loading}
                   className="bg-white/10 hover:bg-white/16 text-text-primary font-semibold px-4 py-2.5 rounded-lg transition disabled:opacity-30">
                   {loading ? 'Expanding...' : 'Expand World'}
