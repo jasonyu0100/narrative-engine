@@ -533,7 +533,11 @@ export default function WorldGraph() {
         _event.stopPropagation();
         if (d.kind === 'character') handleCharacterClickRef.current(d.id);
         if (d.kind === 'location') handleLocationClickRef.current(d.id);
-        if (d.kind === 'artifact') dispatch({ type: 'SET_INSPECTOR', context: { type: 'artifact', artifactId: d.id } });
+        if (d.kind === 'artifact') {
+          setNodeTooltip(null);
+          dispatch({ type: 'SELECT_KNOWLEDGE_ENTITY', entityId: selectedKnowledgeEntity === d.id ? null : d.id });
+          dispatch({ type: 'SET_INSPECTOR', context: { type: 'artifact', artifactId: d.id } });
+        }
       })
       .on('mouseenter', (event, d) => {
         if ((d.kind === 'character' || d.kind === 'location' || d.kind === 'artifact') && d.imagePrompt) {
