@@ -1,4 +1,5 @@
 import type { ApiLogEntry } from '@/types/narrative';
+import { MODEL_PRICING, DEFAULT_PRICING } from '@/lib/constants';
 
 type LogListener = (entry: ApiLogEntry) => void;
 type UpdateListener = (id: string, updates: Partial<ApiLogEntry>) => void;
@@ -52,36 +53,9 @@ export function calculateApiCost(entry: ApiLogEntry): number {
   const inputTokens = entry.promptTokens ?? 0;
   const outputTokens = (entry.responseTokens ?? 0) + (entry.reasoningTokens ?? 0);
 
-  // Gemini pricing (per million tokens)
-  if (entry.model.includes('gemini-2.5-flash')) {
-    // Gemini 2.5 Flash: $0.10/M input, $0.40/M output
-    return (inputTokens * 0.10 + outputTokens * 0.40) / 1_000_000;
-  }
-  if (entry.model.includes('gemini-3-flash')) {
-    // Gemini 3 Flash Preview: $0.15/M input, $0.60/M output (estimated)
-    return (inputTokens * 0.15 + outputTokens * 0.60) / 1_000_000;
-  }
-  if (entry.model.includes('gemini-2.0-flash-thinking')) {
-    // Gemini 2.0 Flash Thinking: $0.10/M input, $0.40/M output, $0.40/M reasoning
-    return (inputTokens * 0.10 + outputTokens * 0.40) / 1_000_000;
-  }
-
-  // Claude pricing
-  if (entry.model.includes('claude-3-5-sonnet') || entry.model.includes('claude-sonnet-4')) {
-    // Claude Sonnet: $3/M input, $15/M output
-    return (inputTokens * 3 + outputTokens * 15) / 1_000_000;
-  }
-  if (entry.model.includes('claude-3-5-haiku')) {
-    // Claude Haiku: $0.80/M input, $4/M output
-    return (inputTokens * 0.80 + outputTokens * 4) / 1_000_000;
-  }
-  if (entry.model.includes('claude-opus-4')) {
-    // Claude Opus 4: $15/M input, $75/M output
-    return (inputTokens * 15 + outputTokens * 75) / 1_000_000;
-  }
-
-  // Default fallback (assume similar to Gemini Flash)
-  return (inputTokens * 0.10 + outputTokens * 0.40) / 1_000_000;
+  // Look up pricing from constants, fall back to default
+  const pricing = MODEL_PRICING[entry.model] ?? DEFAULT_PRICING;
+  return (inputTokens * pricing.input + outputTokens * pricing.output) / 1_000_000;
 }
 
 /**
