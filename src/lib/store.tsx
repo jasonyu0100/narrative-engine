@@ -8,7 +8,7 @@ import { initMatrixPresets } from '@/lib/pacing-profile';
 import { initBeatProfilePresets } from '@/lib/beat-profiles';
 import { initMechanismProfilePresets } from '@/lib/mechanism-profiles';
 import { resolveEntry, isScene } from '@/types/narrative';
-import { loadNarratives, saveNarrative as persistNarrative, deleteNarrative as deletePersisted, loadNarrative, saveActiveNarrativeId, loadActiveNarrativeId, saveActiveBranchId, loadActiveBranchId, migrateFromLocalStorage, loadAnalysisJobs, saveAnalysisJobs, loadApiLogs, saveApiLogs, deleteApiLogs, saveAnalysisApiLogs, deleteAnalysisApiLogs, saveSearchState, loadSearchState } from '@/lib/persistence';
+import { loadNarratives, saveNarrative as persistNarrative, deleteNarrative as deletePersisted, loadNarrative, saveActiveNarrativeId, loadActiveNarrativeId, saveActiveBranchId, loadActiveBranchId, migrateFromLocalStorage, loadAnalysisJobs, saveAnalysisJobs, deleteApiLogs, deleteAnalysisApiLogs, saveSearchState, loadSearchState } from '@/lib/persistence';
 import { API_LOG_STALE_THRESHOLD_MS } from '@/lib/constants';
 import { logError, logWarning } from '@/lib/system-logger';
 import { assetManager } from '@/lib/asset-manager';
@@ -367,7 +367,6 @@ export type Action =
   | { type: 'LOG_API_CALL'; entry: ApiLogEntry }
   | { type: 'UPDATE_API_LOG'; id: string; updates: Partial<ApiLogEntry> }
   | { type: 'CLEAR_API_LOGS' }
-  | { type: 'HYDRATE_API_LOGS'; logs: ApiLogEntry[] }
   // System Logs
   | { type: 'LOG_SYSTEM'; entry: SystemLogEntry }
   | { type: 'CLEAR_SYSTEM_LOGS' }
@@ -1231,9 +1230,6 @@ function reducer(state: AppState, action: Action): AppState {
     case 'CLEAR_API_LOGS':
       return { ...state, apiLogs: [] };
 
-    case 'HYDRATE_API_LOGS':
-      return { ...state, apiLogs: action.logs };
-
     case 'LOG_SYSTEM':
       return { ...state, systemLogs: [...state.systemLogs, action.entry] };
 
@@ -2074,65 +2070,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     });
   }, [state.currentSearchQuery, state.activeNarrativeId]);
 
-  // Load API logs from IndexedDB when the active narrative changes
-  useEffect(() => {
-    const id = state.activeNarrativeId;
-    if (!id) return;
-    loadApiLogs(id).then((logs) => {
-      if (logs.length > 0) dispatch({ type: 'HYDRATE_API_LOGS', logs });
-    }).catch((err) => {
-      logError('Failed to load API logs from storage', err, {
-        source: 'other',
-        operation: 'load-api-logs',
-        details: { narrativeId: id }
-      });
-    });
-  }, [state.activeNarrativeId]);
-
-  // Persist API logs to IndexedDB whenever they change (debounced)
-  // Handles both narrative-specific logs and analysis-specific logs
-  const prevApiLogsRef = useRef(state.apiLogs);
-  const apiLogTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  useEffect(() => {
-    if (state.apiLogs === prevApiLogsRef.current) return;
-    prevApiLogsRef.current = state.apiLogs;
-
-    // Debounce writes — API logs can update rapidly during generation
-    if (apiLogTimerRef.current) clearTimeout(apiLogTimerRef.current);
-    apiLogTimerRef.current = setTimeout(() => {
-      // Save narrative-specific logs
-      const narrativeId = state.activeNarrativeId;
-      if (narrativeId) {
-        const narrativeLogs = state.apiLogs.filter((l) => l.narrativeId === narrativeId || (!l.analysisId && !l.discoveryId));
-        saveApiLogs(narrativeId, narrativeLogs).catch((err) => {
-          logError('Failed to persist API logs to storage', err, {
-            source: 'other',
-            operation: 'persist-api-logs',
-            details: { narrativeId, logCount: narrativeLogs.length }
-          });
-        });
-      }
-
-      // Save analysis-specific logs (grouped by analysisId)
-      const analysisLogsByJob = new Map<string, ApiLogEntry[]>();
-      for (const log of state.apiLogs) {
-        if (log.analysisId) {
-          const existing = analysisLogsByJob.get(log.analysisId) ?? [];
-          existing.push(log);
-          analysisLogsByJob.set(log.analysisId, existing);
-        }
-      }
-      for (const [analysisId, logs] of analysisLogsByJob) {
-        saveAnalysisApiLogs(analysisId, logs).catch((err) => {
-          logError('Failed to persist analysis API logs to storage', err, {
-            source: 'other',
-            operation: 'persist-analysis-api-logs',
-            details: { analysisId, logCount: logs.length }
-          });
-        });
-      }
-    }, 2000);
-  }, [state.apiLogs, state.activeNarrativeId]);
+  // API logs are in-memory only for generation/series.
+  // Analysis logs are persisted separately by the analysis runner on completion.
 
   // Cleanup stale pending API logs — mark as timed out after threshold
   useEffect(() => {

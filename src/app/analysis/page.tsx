@@ -11,7 +11,7 @@ import { ANALYSIS_MAX_CORPUS_WORDS, DEFAULT_MODEL } from '@/lib/constants';
 import { IconSpinner, IconChevronLeft, IconDollar } from '@/components/icons';
 import { IconCheck } from '@/components/icons/EvalIcons';
 import { calculateTotalCost, calculateApiCost } from '@/lib/api-logger';
-import { loadAnalysisApiLogs } from '@/lib/persistence';
+import { loadAnalysisApiLogs, saveAnalysisApiLogs } from '@/lib/persistence';
 import { Modal, ModalHeader, ModalBody } from '@/components/Modal';
 
 /* ── Word Node type ─────────────────────────────────────────────────────── */
@@ -45,6 +45,19 @@ function JobDetail({ job }: { job: AnalysisJob }) {
       if (logs.length > 0) setPersistedLogs(logs);
     });
   }, [job.id]);
+
+  // Persist analysis logs when job finishes (completed or failed)
+  const prevStatusRef = useRef(liveJob.status);
+  useEffect(() => {
+    const wasRunning = prevStatusRef.current === 'running';
+    prevStatusRef.current = liveJob.status;
+    if (wasRunning && (liveJob.status === 'completed' || liveJob.status === 'failed')) {
+      const logs = state.apiLogs.filter((l) => l.analysisId === job.id);
+      if (logs.length > 0) {
+        saveAnalysisApiLogs(job.id, logs).catch(() => {});
+      }
+    }
+  }, [liveJob.status, state.apiLogs, job.id]);
 
   // Combine live logs with persisted logs, deduped by id
   const jobApiLogs = useMemo(() => {
