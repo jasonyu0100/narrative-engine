@@ -338,7 +338,7 @@ Categories:
 Do NOT extract: world-building facts, character traits, setting details, or observations that create no narrative tension.
 Fewer, sharper threads are better than many overlapping ones. Thread activity is dynamic — some chunks may advance many threads at once, others only a few. Only include a thread if its status actually changes in this chunk or if it's being actively developed. For continuing threads, REUSE the EXACT description string from prior chunks.
 
-Continuity types must be SPECIFIC and CONTEXTUAL — not generic labels like "knows" or "secret". Use types that describe exactly what kind of continuity: "social_observation", "class_awareness", "romantic_longing", "moral_judgment", "hidden_wealth_source", "past_betrayal", "forbidden_desire", "strategic_deception", etc.
+Continuity types must be one of the 9 typed values: "trait", "state", "history", "capability", "belief", "relation", "secret", "goal", "weakness". Choose the type that best fits the content.
 
 Be thorough with narrative developments, but selective with characters — quality over quantity.`;
 
@@ -358,7 +358,7 @@ Return a single JSON object with this exact structure:
       "firstAppearance": true/false,
       "imagePrompt": "1-2 sentence LITERAL physical description for portrait generation. Describe concrete physical traits (hair colour, build, clothing style) — never use figurative language, metaphors, or similes (e.g. say 'bright green eyes' not 'emerald eyes like twin moons'). Image generators interpret descriptions literally.",
       "continuity": [
-        { "type": "specific_contextual_type", "content": "What they learn, reveal, or demonstrate in THIS chunk" }
+        { "type": "trait|state|history|capability|belief|relation|secret|goal|weakness", "content": "What they learn, reveal, or demonstrate in THIS chunk" }
       ]
     }
   ],
@@ -366,7 +366,7 @@ Return a single JSON object with this exact structure:
     { "name": "Location Name", "parentName": "Parent Location or null", "description": "Brief atmospheric description", "imagePrompt": "1-2 sentence LITERAL visual description of architecture, landscape, lighting, weather for establishing shot generation. Use concrete physical details only — no metaphors, similes, or figurative language. Image generators interpret descriptions literally.", "lore": ["Notable detail or significance"] }
   ],
   "artifacts": [
-    { "name": "Artifact Name", "significance": "key|notable|minor", "continuity": [{"type": "specific_type", "content": "What it is, what it does, its properties, history, limitations"}], "ownerName": "Character or Location name that holds it" }
+    { "name": "Artifact Name", "significance": "key|notable|minor", "continuity": [{"type": "trait|state|history|capability|belief|relation|secret|goal|weakness", "content": "What it is, what it does, its properties, history, limitations"}], "ownerName": "Character or Location name that holds it" }
   ],
   "threads": [
     {
@@ -565,7 +565,7 @@ For thread statuses, use your best judgment based on what you see in THIS chunk 
 Threads can regress (e.g. "escalating" → "active" when tension eases). statusAtStart and statusAtEnd can be the same if the thread is engaged but doesn't shift phase — this is a valid "pulse" that shows the thread is alive.
 Be aggressive about detecting phase transitions — if a chapter opens with simmering tension and ends with a confrontation, that's at least one status jump. Look for turning points, revelations, and emotional shifts as transition triggers.
 
-Continuity types must be SPECIFIC and CONTEXTUAL — not generic labels like "knows" or "secret". Use types that describe exactly what kind of continuity: "social_observation", "class_awareness", "romantic_longing", "moral_judgment", "hidden_wealth_source", "past_betrayal", "forbidden_desire", "strategic_deception", etc.
+Continuity types must be one of the 9 typed values: "trait", "state", "history", "capability", "belief", "relation", "secret", "goal", "weakness". Choose the type that best fits the content.
 
 Be thorough with narrative developments, but selective with characters — quality over quantity.`;
 
@@ -584,7 +584,7 @@ Return a single JSON object with this exact structure:
       "firstAppearance": true/false,
       "imagePrompt": "1-2 sentence LITERAL physical description for portrait generation. Describe concrete physical traits (hair colour, build, clothing style) — never use figurative language, metaphors, or similes (e.g. say 'bright green eyes' not 'emerald eyes like twin moons'). Image generators interpret descriptions literally.",
       "continuity": [
-        { "type": "specific_contextual_type", "content": "What they learn, reveal, or demonstrate in THIS chunk" }
+        { "type": "trait|state|history|capability|belief|relation|secret|goal|weakness", "content": "What they learn, reveal, or demonstrate in THIS chunk" }
       ]
     }
   ],
@@ -592,7 +592,7 @@ Return a single JSON object with this exact structure:
     { "name": "Location Name", "parentName": "Parent Location or null", "description": "Brief atmospheric description", "imagePrompt": "1-2 sentence LITERAL visual description of architecture, landscape, lighting, weather for establishing shot generation. Use concrete physical details only — no metaphors, similes, or figurative language. Image generators interpret descriptions literally.", "lore": ["Notable detail or significance"] }
   ],
   "artifacts": [
-    { "name": "Artifact Name", "significance": "key|notable|minor", "continuity": [{"type": "specific_type", "content": "What it is, what it does, its properties, history, limitations"}], "ownerName": "Character or Location name that holds it" }
+    { "name": "Artifact Name", "significance": "key|notable|minor", "continuity": [{"type": "trait|state|history|capability|belief|relation|secret|goal|weakness", "content": "What it is, what it does, its properties, history, limitations"}], "ownerName": "Character or Location name that holds it" }
   ],
   "threads": [
     {
