@@ -1088,7 +1088,8 @@ export function useMCTS() {
     const { activeBranchId } = state;
     if (!activeBranchId) return;
 
-    // Apply each arc to the real store in order
+    // Apply each arc to the real store in order, then embed
+    const allCommittedScenes: typeof runState.tree.nodes[string]['scenes'] = [];
     for (const nodeId of path) {
       const node = runState.tree.nodes[nodeId];
       if (!node) continue;
@@ -1098,6 +1099,23 @@ export function useMCTS() {
         arc: node.arc,
         branchId: activeBranchId,
       });
+      allCommittedScenes.push(...node.scenes);
+    }
+
+    // Generate embeddings for committed scenes (async, non-blocking)
+    if (allCommittedScenes.length > 0 && state.activeNarrative) {
+      (async () => {
+        try {
+          const { generateEmbeddingsBatch } = await import('@/lib/embeddings');
+          const { assetManager } = await import('@/lib/asset-manager');
+          const summaries = allCommittedScenes.map(s => s.summary);
+          const embeddings = await generateEmbeddingsBatch(summaries, state.activeNarrative!.id);
+          for (let i = 0; i < allCommittedScenes.length; i++) {
+            const embeddingId = await assetManager.storeEmbedding(embeddings[i], 'text-embedding-3-small');
+            dispatch({ type: 'UPDATE_SCENE', sceneId: allCommittedScenes[i].id, updates: { summaryEmbedding: embeddingId } });
+          }
+        } catch { /* Don't fail commit if embedding fails */ }
+      })();
     }
 
     // Prune tree for reuse — retain subtree below committed leaf
