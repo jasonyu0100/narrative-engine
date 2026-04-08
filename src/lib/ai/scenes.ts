@@ -5,7 +5,7 @@ import { callGenerate, callGenerateStream, SYSTEM_PROMPT } from './api';
 import { WRITING_MODEL, ANALYSIS_MODEL, GENERATE_MODEL, MAX_TOKENS_LARGE, MAX_TOKENS_DEFAULT, MAX_TOKENS_SMALL, BEAT_DENSITY_MIN, BEAT_DENSITY_MAX, BEAT_DENSITY_DEFAULT, WORDS_PER_BEAT_MIN, WORDS_PER_BEAT_MAX, WORDS_PER_BEAT_DEFAULT, ANALYSIS_TEMPERATURE } from '@/lib/constants';
 import { parseJson } from './json';
 import { narrativeContext, sceneContext, deriveLogicRules, sceneScale } from './context';
-import { PROMPT_FORCE_STANDARDS, PROMPT_STRUCTURAL_RULES, PROMPT_MUTATIONS, PROMPT_ARTIFACTS, PROMPT_POV, PROMPT_CONTINUITY, PROMPT_SUMMARY_REQUIREMENT, promptThreadLifecycle, buildThreadHealthPrompt, buildCompletedBeatsPrompt } from './prompts';
+import { PROMPT_FORCE_STANDARDS, PROMPT_STRUCTURAL_RULES, PROMPT_MUTATIONS, PROMPT_ARTIFACTS, PROMPT_LOCATIONS, PROMPT_POV, PROMPT_CONTINUITY, PROMPT_SUMMARY_REQUIREMENT, promptThreadLifecycle, buildThreadHealthPrompt, buildCompletedBeatsPrompt } from './prompts';
 import { samplePacingSequence, buildSequencePrompt, buildSingleStepPrompt, detectCurrentMode, MATRIX_PRESETS, DEFAULT_TRANSITION_MATRIX, type PacingSequence, type ModeStep } from '@/lib/pacing-profile';
 import { resolveProfile, resolveSampler, sampleBeatSequence } from '@/lib/beat-profiles';
 import { FORMAT_INSTRUCTIONS } from './prose';
@@ -276,6 +276,7 @@ ${PROMPT_STRUCTURAL_RULES}
 ${PROMPT_SUMMARY_REQUIREMENT}
 ${PROMPT_FORCE_STANDARDS}
 ${PROMPT_MUTATIONS}
+${PROMPT_LOCATIONS}
 ${Object.keys(narrative.artifacts ?? {}).length > 0 ? PROMPT_ARTIFACTS : ''}
 ${PROMPT_POV}
 ${PROMPT_CONTINUITY}
@@ -2137,6 +2138,7 @@ Return JSON:
 
 ${PROMPT_SUMMARY_REQUIREMENT}
 ${PROMPT_MUTATIONS}
+${PROMPT_LOCATIONS}
 ${Object.keys(narrative.artifacts ?? {}).length > 0 ? PROMPT_ARTIFACTS : ''}
 ${PROMPT_CONTINUITY}
 ${buildThreadHealthPrompt(narrative, resolvedKeys, currentIndex, speed)}

@@ -97,6 +97,11 @@ worldKnowledgeMutations — types: "principle", "system", "concept", "tension", 
 
 ownershipMutations — artifacts changing hands. Only when narratively meaningful.
 
+SCENE INTELLIGENCE — locations and artifacts are active scene participants:
+- LOCATION EFFECTS: The scene's location shapes what can happen. A sacred grove forbids violence. A lawless frontier permits anything. A city under siege constrains movement. Generate continuityMutations for the location when major events reshape it.
+- TOOL USAGE: When characters use artifacts, it changes the scene. A character with a sword fights. A character with AI analyses. A character with a map navigates. Generate continuityMutations for BOTH the artifact (what it underwent) AND the wielder (capability gained/lost). Reference tool usage in events and summary.
+- ENVIRONMENTAL EFFECTS: The location's state affects characters within it. A burning building forces evacuation. A cursed land drains strength. A thriving market enables trade. Locations impose constraints and grant opportunities.
+
 events — specific tags ("ambush_at_dawn", "secret_pact_formed"). Conversation=1, battle=4-5.
 
 characterMovements — only characters whose location CHANGES. Transition should be vivid.
@@ -105,12 +110,21 @@ characterMovements — only characters whose location CHANGES. Transition should
 // ── Artifact Usage ──────────────────────────────────────────────────────────
 
 export const PROMPT_ARTIFACTS = `
-ARTIFACTS — objects that grant capabilities.
-- Changes what a character can DO (key opens door, sword wins fight, letter proves innocence).
+ARTIFACTS — tools that extend what's possible.
+- An artifact MODIFIES its wielder's capabilities. A character with a magical weapon fights differently. A character with AI access thinks at a different scale. A character with a map sees paths others can't.
+- When an artifact is used, generate continuityMutations for BOTH the artifact (what it underwent) AND the wielder (what new capability they gained or lost).
 - Has VALUE that characters recognise — people scheme to acquire/protect/destroy.
-- Accumulates HISTORY through continuity (forged, broken, cursed, purified).
-- When used, reference in summary and events. Creates consequences (attention, depletion, dependency).
+- Creates DEPENDENCY and COST — power comes with consequences (attention, depletion, corruption, obligation).
 - Artifacts at locations are discoverable. Unused artifacts are wasted narrative elements.
+`;
+
+export const PROMPT_LOCATIONS = `
+LOCATIONS — places AND their people.
+- A location is not passive scenery. It is a collective entity with its own continuity — history, beliefs, goals, and weaknesses.
+- When a major event happens AT a location, generate continuityMutations for the location itself. A city that witnesses a massacre gains "history" and "state" nodes. A kingdom that loses a war gains "weakness" and shifts "belief".
+- Location rules constrain characters: a sacred grove forbids violence, a kingdom demands fealty, a lawless frontier permits anything.
+- Revisit locations — a place that appeared in act 1 and returns in act 3 with accumulated history feels lived-in.
+- Generate location continuity whenever the scene's events meaningfully impact the place or its people.
 `;
 
 // ── POV Discipline ───────────────────────────────────────────────────────────
