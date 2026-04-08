@@ -32,7 +32,7 @@ describe('AssetManager', () => {
       expect(embId.length).toBe(10);
 
       const retrieved = await assetManager.getEmbedding(embId);
-      expect(retrieved).toEqual(vector);
+      expectVectorsClose(retrieved, vector);
     });
 
     it('should support custom embedding IDs', async () => {
@@ -43,7 +43,7 @@ describe('AssetManager', () => {
       expect(embId).toBe(customId);
 
       const retrieved = await assetManager.getEmbedding(customId);
-      expect(retrieved).toEqual(vector);
+      expectVectorsClose(retrieved, vector);
     });
 
     it('should batch retrieve embeddings', async () => {
@@ -61,7 +61,7 @@ describe('AssetManager', () => {
 
       expect(results.size).toBe(3);
       ids.forEach((id, i) => {
-        expect(results.get(id)).toEqual(vectors[i]);
+        expectVectorsClose(results.get(id)!, vectors[i]);
       });
     });
 
@@ -75,7 +75,7 @@ describe('AssetManager', () => {
       const embId = await assetManager.storeEmbedding(vector, 'text-embedding-3-small');
 
       const retrieved1 = await assetManager.getEmbedding(embId);
-      expect(retrieved1).toEqual(vector);
+      expectVectorsClose(retrieved1, vector);
 
       await assetManager.deleteEmbedding(embId);
 
@@ -94,7 +94,7 @@ describe('AssetManager', () => {
       ]);
 
       expect(results.size).toBe(1);
-      expect(results.get(embId)).toEqual(vector);
+      expectVectorsClose(results.get(embId)!, vector);
       expect(results.get('emb_missing1')).toBeUndefined();
     });
   });

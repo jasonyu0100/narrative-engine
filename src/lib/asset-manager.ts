@@ -20,7 +20,7 @@ import { nanoid } from 'nanoid';
 interface AssetDB extends DBSchema {
   /**
    * Embeddings Store
-   * - 1536-dim vectors stored as Float64Array (12KB each, full precision)
+   * - 1536-dim vectors stored as Float32Array (6KB each)
    * - ID format: "emb_abc123" (10 chars)
    * - Indexed by narrativeId for efficient per-narrative queries
    */
@@ -28,7 +28,7 @@ interface AssetDB extends DBSchema {
     key: string;
     value: {
       id: string;
-      vector: Float64Array;  // Binary storage (not JSON array), full 64-bit precision
+      vector: Float32Array;  // Binary storage — Float32 is sufficient for embedding similarity
       model: string;         // "text-embedding-3-small"
       narrativeId: string;   // Which narrative owns this asset
       createdAt: number;
@@ -137,7 +137,7 @@ class AssetManager {
     const embeddingId = id || this.generateId('emb');
     const entry = {
       id: embeddingId,
-      vector: new Float64Array(vector),  // Full precision to match OpenAI API
+      vector: new Float32Array(vector),
       model,
       narrativeId,
       createdAt: Date.now(),
@@ -158,7 +158,7 @@ class AssetManager {
 
     if (!entry) return null;
 
-    // Convert Float64Array back to regular array
+    // Convert Float32Array back to regular array
     return Array.from(entry.vector);
   }
 
