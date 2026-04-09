@@ -442,6 +442,11 @@ export function CastAnalytics({ onClose }: Props) {
           {view === 'locations' && sortedLocs.map((loc) => {
             const pct = totalScenes > 0 ? (loc.sceneCount / totalScenes) * 100 : 0;
             const staleWarn = loc.staleness > Math.max(5, totalScenes * 0.3);
+            const tiedNames = narrative
+              ? (narrative.locations[loc.id]?.tiedCharacterIds ?? [])
+                  .map((id) => narrative.characters[id]?.name)
+                  .filter(Boolean)
+              : [];
             return (
               <div key={loc.id} className="rounded-lg border border-white/6 p-2.5 space-y-1.5">
                 <div className="flex items-center gap-2">
@@ -458,6 +463,13 @@ export function CastAnalytics({ onClose }: Props) {
                   <span>Last: scene {loc.lastIndex + 1}</span>
                   {loc.staleness > 0 && <span className={staleWarn ? 'text-amber-400/70' : ''}>{loc.staleness} ago</span>}
                 </div>
+                {tiedNames.length > 0 && (
+                  <div className="flex flex-wrap gap-1.5 mt-0.5">
+                    {tiedNames.map((name) => (
+                      <span key={name} className="text-[9px] text-text-dim bg-white/5 rounded px-1.5 py-0.5">{name}</span>
+                    ))}
+                  </div>
+                )}
               </div>
             );
           })}
@@ -480,7 +492,7 @@ export function CastAnalytics({ onClose }: Props) {
                 <div className="flex gap-3 text-[10px] text-text-dim">
                   <span>{art.usageCount} usage{art.usageCount !== 1 ? 's' : ''} ({pct.toFixed(0)}%)</span>
                   {art.uniqueUsers > 0 && <span>{art.uniqueUsers} user{art.uniqueUsers !== 1 ? 's' : ''}</span>}
-                  <span className="text-text-dim/50">{ownerLabel}</span>
+                  <span className="text-text-dim/50">{art.ownerType === 'world' ? 'world' : art.ownerType === 'location' ? `at ${ownerLabel}` : ownerLabel}</span>
                   {art.lastIndex >= 0 && <span>Last: scene {art.lastIndex + 1}</span>}
                 </div>
                 {art.userBreakdown.length > 0 && (

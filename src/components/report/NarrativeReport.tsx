@@ -967,7 +967,11 @@ export function NarrativeReport({
                             <div className="h-full rounded-full bg-emerald-500" style={{ width: `${(l.sceneCount / (data.topLocations[0]?.sceneCount ?? 1)) * 100}%`, opacity: 0.3 }} />
                           </div>
                           {tiedNames.length > 0 && (
-                            <div className="text-[9px] text-white/20 mt-0.5 truncate">{tiedNames.join(', ')}</div>
+                            <div className="flex flex-wrap gap-1 mt-0.5">
+                              {tiedNames.map((name) => (
+                                <span key={name} className="text-[8px] text-white/25 bg-white/3 rounded px-1 py-px">{name}</span>
+                              ))}
+                            </div>
                           )}
                         </div>
                       </div>

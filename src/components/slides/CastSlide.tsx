@@ -69,7 +69,11 @@ export function CastSlide({ data }: { data: SlidesData }) {
                       />
                     </div>
                     {tiedNames.length > 0 && (
-                      <div className="text-[10px] text-text-dim/50 mt-0.5 truncate">{tiedNames.join(', ')}</div>
+                      <div className="flex flex-wrap gap-1 mt-0.5">
+                        {tiedNames.map((name) => (
+                          <span key={name} className="text-[9px] text-text-dim bg-white/5 rounded px-1.5 py-0.5">{name}</span>
+                        ))}
+                      </div>
                     )}
                   </div>
                 </div>

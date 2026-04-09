@@ -171,7 +171,20 @@ function buildStoryContext(narrative: NarrativeState, data: SlidesData, resolved
   const locBlock = data.topLocations.slice(0, 6).map((l) => {
     const loc = l.location;
     const knowledge = Object.values(loc.continuity?.nodes ?? {}).slice(0, 3).map((n) => n.content.slice(0, 40)).join('; ');
-    return `${loc.name} (${l.sceneCount} scenes)${knowledge ? ` — ${knowledge}` : ''}`;
+    const tiedNames = loc.tiedCharacterIds
+      .map((id) => narrative.characters[id]?.name)
+      .filter(Boolean);
+    const tiedStr = tiedNames.length > 0 ? ` [ties: ${tiedNames.join(', ')}]` : '';
+    return `${loc.name} (${l.sceneCount} scenes)${tiedStr}${knowledge ? ` — ${knowledge}` : ''}`;
+  }).join('\n  ');
+
+  // ── Artifact context ──
+  const artBlock = data.topArtifacts.slice(0, 6).map((a) => {
+    const art = a.artifact;
+    const owner = art.parentId
+      ? (narrative.characters[art.parentId]?.name ?? narrative.locations[art.parentId]?.name ?? 'unknown')
+      : 'world';
+    return `${art.name} (${a.usageCount} usages, ${art.significance}, owner: ${owner})`;
   }).join('\n  ');
 
   return `═══ NARRATIVE: "${data.title}" ═══
@@ -190,6 +203,9 @@ Peaks: ${data.peaks.length} | Valleys: ${data.troughs.length}
 
 ═══ LOCATIONS ═══
   ${locBlock}
+
+═══ ARTIFACTS ═══
+  ${artBlock || 'None'}
 
 ═══ RELATIONSHIPS ═══
   ${uniqueRels.join('\n  ') || 'None tracked'}
