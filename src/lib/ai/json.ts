@@ -47,6 +47,10 @@ export function cleanJson(raw: string): string {
 
   // Remove trailing commas before } or ]
   s = s.replace(/,\s*([}\]])/g, '$1');
+  // Insert missing commas between adjacent elements (common LLM failure in large JSON)
+  // } { → }, {  and  ] [ → ], [
+  s = s.replace(/\}(\s*)\{/g, '},$1{');
+  s = s.replace(/\](\s*)\[/g, '],$1[');
   // Fix unescaped control characters inside JSON string values.
   // Walk character-by-character: when inside a quoted string, escape raw
   // newlines/tabs/backspaces that the LLM forgot to escape.
