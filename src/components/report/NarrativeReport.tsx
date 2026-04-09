@@ -980,32 +980,41 @@ export function NarrativeReport({
                 </div>
               </div>
             </div>
-            {data.topArtifacts.length > 0 && (
-              <div className="mt-6">
-                <h3 className="text-[9px] uppercase tracking-[0.15em] text-white/20 mb-3">Artefacts</h3>
-                <div className="grid grid-cols-2 gap-x-8 gap-y-2">
-                  {data.topArtifacts.slice(0, 8).map((a, i) => {
-                    const owner = a.artifact.parentId
-                      ? (narrative.characters[a.artifact.parentId]?.name ?? narrative.locations[a.artifact.parentId]?.name ?? null)
-                      : null;
-                    return (
-                      <div key={a.artifact.id} className="flex items-center gap-2">
-                        <span className="text-[10px] text-white/15 font-mono w-4 text-right">{i + 1}</span>
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center justify-between mb-0.5">
-                            <span className="text-[11px] text-white/55">{a.artifact.name}</span>
-                            <span className="text-[9px] text-white/20 font-mono">{a.usageCount}</span>
-                          </div>
-                          <div className="text-[9px] text-white/20 truncate">
-                            {owner ?? 'world'}{a.artifact.significance !== 'minor' ? ` \u00b7 ${a.artifact.significance}` : ''}
+            {data.topArtifacts.length > 0 && (() => {
+              const maxUsage = data.topArtifacts[0]?.usageCount ?? 1;
+              return (
+                <div className="mt-6">
+                  <h3 className="text-[9px] uppercase tracking-[0.15em] text-white/20 mb-3">Artefacts</h3>
+                  <div className="grid grid-cols-2 gap-x-8 gap-y-2.5">
+                    {data.topArtifacts.slice(0, 8).map((a, i) => {
+                      const owner = a.artifact.parentId
+                        ? (narrative.characters[a.artifact.parentId]?.name ?? narrative.locations[a.artifact.parentId]?.name ?? null)
+                        : null;
+                      return (
+                        <div key={a.artifact.id} className="flex items-center gap-2">
+                          <span className="text-[10px] text-white/15 font-mono w-4 text-right">{i + 1}</span>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center justify-between mb-0.5">
+                              <span className="text-[11px] text-white/55">{a.artifact.name}</span>
+                              <span className="text-[9px] text-white/20 font-mono">{a.usageCount}</span>
+                            </div>
+                            <div className="h-[3px] rounded-full bg-white/[0.03] overflow-hidden">
+                              <div className="h-full rounded-full bg-violet-500" style={{ width: `${maxUsage > 0 ? (a.usageCount / maxUsage) * 100 : 0}%`, opacity: 0.35 }} />
+                            </div>
+                            <div className="flex flex-wrap gap-1 mt-0.5">
+                              <span className="text-[8px] text-white/25 bg-white/3 rounded px-1 py-px">{owner ?? 'world'}</span>
+                              {a.artifact.significance !== 'minor' && (
+                                <span className="text-[8px] text-white/25 bg-white/3 rounded px-1 py-px">{a.artifact.significance}</span>
+                              )}
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    );
-                  })}
+                      );
+                    })}
+                  </div>
                 </div>
-              </div>
-            )}
+              );
+            })()}
             {prose('cast')}
             {prose('locations')}
           </Section>
