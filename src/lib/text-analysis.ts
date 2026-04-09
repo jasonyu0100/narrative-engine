@@ -415,75 +415,69 @@ export async function reconcileResults(
   }
 
   // Ask LLM to identify duplicates and merge them
-  const reconciliationPrompt = `You are reconciling narrative data extracted independently from ${results.length} chunks of the same story.
-Different chunks may refer to the same character, thread, or location using different names or descriptions.
+  const reconciliationPrompt = `Reconcile narrative data extracted independently from ${results.length} scenes of the same story. Each scene was analyzed in isolation — the same entity often appears under different names or descriptions. Your job: find EVERY overlap and merge aggressively.
 
-CHARACTERS found across all chunks:
+CHARACTERS (${allCharNames.size}):
 ${[...allCharNames].map((n, i) => `${i + 1}. "${n}"`).join('\n')}
 
-THREADS found across all chunks:
+THREADS (${allThreadDescs.size}):
 ${[...allThreadDescs].map((d, i) => `${i + 1}. "${d}"`).join('\n')}
 
-LOCATIONS found across all chunks:
+LOCATIONS (${allLocNames.size}):
 ${[...allLocNames].map((n, i) => `${i + 1}. "${n}"`).join('\n')}
 
-ARTIFACTS found across all chunks:
+ARTIFACTS (${allArtifactNames.size}):
 ${[...allArtifactNames].map((n, i) => `${i + 1}. "${n}"`).join('\n')}
 
-WORLD KNOWLEDGE CONCEPTS found across all chunks:
+WORLD KNOWLEDGE (${allWKConcepts.size}):
 ${[...allWKConcepts].map((c, i) => `${i + 1}. "${c}"`).join('\n')}
 
-Identify duplicates and SIMILAR entries, then produce merge maps. For each group, pick the BEST canonical name/description.
+For each category, map every variant to its canonical form. Only include entries where variant ≠ canonical.
 
 Return JSON:
 {
-  "characterMerges": {
-    "variant name": "canonical name"
-  },
-  "threadMerges": {
-    "variant thread description": "canonical thread description"
-  },
-  "locationMerges": {
-    "variant location name": "canonical location name"
-  },
-  "artifactMerges": {
-    "variant artifact name": "canonical artifact name"
-  },
-  "worldKnowledgeMerges": {
-    "variant concept": "canonical concept"
-  }
+  "characterMerges": { "variant": "canonical" },
+  "threadMerges": { "variant": "canonical" },
+  "locationMerges": { "variant": "canonical" },
+  "artifactMerges": { "variant": "canonical" },
+  "worldKnowledgeMerges": { "variant": "canonical" }
 }
 
-RULES:
-- Only include entries where the variant differs from the canonical
-- If a name appears identically across chunks, do NOT include it
+═══ CHARACTER MERGING ═══
+- Same person, different name forms: "Professor McGonagall" / "Minerva McGonagall" / "McGonagall" → pick fullest name
+- Titles vs bare names: "Mr. Dursley" / "Vernon Dursley" / "Uncle Vernon" → pick the most identifiable
+- Nicknames: "Hagrid" / "Rubeus Hagrid" → pick full name
+- Pronouns or descriptions that became names: "The boy" / "Harry" → merge if clearly the same person
 
-CHARACTER MERGING:
-- Merge name variants like "Professor McGonagall" / "Minerva McGonagall" / "McGonagall"
+═══ THREAD MERGING — MOST CRITICAL ═══
+Each scene extracts threads independently, so the SAME narrative tension gets described many different ways. You MUST collapse these aggressively.
 
-LOCATION MERGING:
-- Merge different names for the same place
+MERGE when:
+- Same tension, different wording: "Harry's conflict with Snape" + "Snape's antagonism toward Harry" → one thread
+- Specific instance of a broader thread: "The Dursleys prevent Harry from receiving letters" + "The Dursleys suppress Harry's connection to the wizarding world" → merge to the broader one
+- Same relationship from different perspectives: "Ron's jealousy of Harry" + "Harry and Ron's friendship strain" → one thread
+- Same question tracked across scenes: "Who is trying to steal the Stone?" + "The mystery of who wants the Sorcerer's Stone" → one thread
+- Overlapping scope: if thread A is entirely contained within thread B's scope, merge A → B
+- Same conflict at different stages: "Harry discovers the trapdoor" + "Harry investigates what Fluffy guards" → one thread
 
-THREAD MERGING — BE AGGRESSIVE:
-- Merge threads describing the SAME narrative tension, even if worded differently
-- Merge facets of the same conflict (e.g. "Harry's distrust of Snape" + "Snape's suspicious behavior" → single thread)
-- Merge threads where one is a subset of another
-- Merge threads about the same relationship dynamic
-- Goal: 8-15 major threads, not 30+ overlapping ones. When in doubt, merge.
-- Pick the most encompassing description as canonical
+═══ LOCATION MERGING ═══
+- Same place, different names: "The Great Hall" / "Great Hall" / "Hogwarts Great Hall"
+- Hierarchical duplicates: if "Platform Nine and Three-Quarters" and "Platform 9¾" both appear → merge
+- Don't merge distinct locations that happen to be nearby
 
-ARTIFACT MERGING:
-- Merge name variants for the same tool ("the Elder Wand" / "Elder Wand" / "Dumbledore's wand")
-- Merge when the same tool is described at different abstraction levels ("Google" / "Google Search" → keep the more specific)
-- Do NOT merge distinct tools that happen to be related (a sword and a shield are separate)
+═══ ARTIFACT MERGING ═══
+- Same object, different names: "the Elder Wand" / "Elder Wand" / "Dumbledore's wand"
+- Different abstraction levels: "Google" / "Google Search" → keep the more specific
+- Don't merge distinct objects that are merely related
 
-WORLD KNOWLEDGE MERGING:
-- Only merge concepts that are clearly the same idea in different words
-- Related but distinct concepts should remain separate
+═══ WORLD KNOWLEDGE MERGING ═══
+- Same concept, different phrasing: "Magic requires wands" / "Wands are required for spellcasting" → merge
+- Same system described at different granularity: "The house point system" / "Houses earn and lose points for behavior" → merge to the more descriptive
+- Don't merge concepts that are related but genuinely distinct
 
-If no duplicates for a category, return empty object {}`;
+Empty object {} if no merges needed for a category.`;
 
-  const reconciliationSystem = `You are a data reconciliation engine. Identify and merge duplicate entities from independently-extracted narrative data. Return only valid JSON.`;
+  const reconciliationSystem = `You deduplicate entities extracted independently from different scenes of the same story. Scenes were analyzed in isolation, so the same character, thread, location, or concept often appears under different names or phrasings. Detect these intelligently and merge them. Return only valid JSON.`;
 
   const raw = await callAnalysis(reconciliationPrompt, reconciliationSystem, onToken);
   const json = extractJSON(raw);
@@ -602,6 +596,16 @@ If no duplicates for a category, return empty object {}`;
         artifactName: resolveArt(om.artifactName),
         fromName: resolveChar(om.fromName) !== om.fromName ? resolveChar(om.fromName) : resolveLoc(om.fromName),
         toName: resolveChar(om.toName) !== om.toName ? resolveChar(om.toName) : resolveLoc(om.toName),
+      })),
+      tieMutations: (s.tieMutations ?? []).map((tm) => ({
+        ...tm,
+        locationName: resolveLoc(tm.locationName),
+        characterName: resolveChar(tm.characterName),
+      })),
+      characterMovements: (s.characterMovements ?? []).map((cm) => ({
+        ...cm,
+        characterName: resolveChar(cm.characterName),
+        locationName: resolveLoc(cm.locationName),
       })),
       worldKnowledgeMutations: s.worldKnowledgeMutations ? {
         addedNodes: (s.worldKnowledgeMutations.addedNodes ?? []).map((n) => ({
