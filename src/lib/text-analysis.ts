@@ -196,7 +196,7 @@ ENTITY EXTRACTION:
 - threads: narrative tensions. development: what specifically happened.
 
 events — 2-4 word tags. 2-4 per scene. Each names a discrete beat.
-artifactUsages — when a tool is actively USED, not merely present.
+artifactUsages — when an artifact delivers utility. Fiction: wielding, consulting, activating. Academic: applying a technique, leveraging a system, training with an algorithm. Every artifact referenced for its PURPOSE is a usage, not just by name. characterName null for unattributed.
 ownershipMutations — only when artifacts change hands.
 tieMutations — significant bond changes. NOT temporary visits.
 characterMovements — only physical relocation. Vivid transitions.

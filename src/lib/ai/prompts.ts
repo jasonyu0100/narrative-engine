@@ -109,7 +109,7 @@ worldKnowledgeMutations — REVEALED world rules, not character observations.
 - Edges: enables, governs, opposes, extends, created_by, constrains, exist_within.
 
 events — short descriptive tags (2-4 words). 2-4 per scene. Each tag names a discrete narrative beat.
-artifactUsages — when a tool is actively used, not merely present. characterId null for unattributed.
+artifactUsages — when a tool delivers utility. In fiction: wielding a sword, consulting a map, using a device. In academic/non-fiction: applying a technique, leveraging a system, measuring with an instrument, training with an algorithm. Every artifact referenced for its PURPOSE (not just mentioned by name) is a usage. characterId null for unattributed (common in papers where "gradient descent is applied" has no named user).
 ownershipMutations — artifacts changing hands. Only when narratively meaningful.
 tieMutations — significant bond changes. NOT temporary visits.
 characterMovements — only characters whose location CHANGES. Vivid transitions.
@@ -130,8 +130,11 @@ ARTIFACTS — the tools that make societies flourish.
   • Location-owned: communal tools bound to a place. A gas station (fuel up), a grocery store (buy food), a library (access knowledge). Available to anyone at that location.
   • World-owned (parentId: null): universally accessible. The internet, a search engine, a stock exchange, a legal system. Available to any character anywhere.
 - Artifacts span every genre: a Bloomberg terminal (finance), Google Search (tech), a magic wand (fantasy), a courtroom (legal), a forge (craft), a social media platform (modern), a printing press (historical).
-- When an artifact is used, generate artifactUsages AND continuityMutations for BOTH the artifact (what it underwent) AND the user (what new capability they gained, what they accomplished).
-- Artifact usage drives plot: an investor uses a trading platform to short a stock. A detective uses a forensic lab to analyze evidence. A wizard uses a staff to channel power. A startup founder uses cloud infrastructure to scale.
+- When an artifact delivers utility, generate an artifactUsage entry. Every time an artifact is referenced for what it DOES (not just mentioned by name), that's a usage.
+  Fiction: wielding a sword, consulting a map, casting with a wand, driving a vehicle.
+  Academic: applying gradient descent, training with a transformer, measuring with an instrument, leveraging a framework.
+  The artifact doesn't need to be physically held — a paper "using" reinforcement learning is an artifact usage.
+- Generate continuityMutations for BOTH the artifact (what it underwent) AND the user (what capability they gained).
 - Has VALUE that characters recognise — people scheme to acquire, protect, control, or destroy.
 - Creates DEPENDENCY and COST — power comes with consequences (subscription fees, depletion, corruption, obligation, lock-in).
 - Unused artifacts are wasted narrative elements. A vibrant tool ecosystem makes stories richer.

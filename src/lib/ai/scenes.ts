@@ -1169,10 +1169,10 @@ CRITICAL CONSTRAINTS - BEAT SIZE:
 CRITICAL CONSTRAINTS - INDEXING:
 - Valid paragraph indices: 0 to ${lastIndex} (inclusive)
 - Beat ranges must be sequential with NO GAPS and NO OVERLAPS
-- Rule: if beat N has endPara: X, then beat N+1 MUST have startPara: X+1 (exactly)
+- Rule: if beat N has endPara: X, then beat N+1 MUST have startPara: X+1 (exactly X+1, never X)
 - First beat MUST have startPara: 0
 - Final beat MUST have endPara: ${lastIndex}
-- Each chunk index appears in EXACTLY ONE beat — no chunk is skipped or counted twice
+- Each chunk belongs to EXACTLY ONE beat — if a chunk straddles two narrative moments, assign it to one beat only
 - DO NOT use paragraph indices >= ${paragraphs.length} (out of bounds)
 - If a chunk contains content from two topics, assign it to whichever beat fits better — do NOT split it across two beats
 - Use ONLY the 10 beat functions listed above (breathe, inform, advance, bond, turn, reveal, shift, expand, foreshadow, resolve)`;
