@@ -86,7 +86,7 @@ threadMutations — lifecycle: dormant→active→escalating→critical→resolv
 - Only record a transition when the prose shows a clear, irreversible shift in tension level.
 - A scene touching 2-3 threads (mostly pulses) with one transition is a strong scene. More than that is overcounting.
 
-continuityMutations — the entity's inner world CHANGED. Not observations, not descriptions — CHANGES.
+continuityMutations — the entity's inner world CHANGED. Not observations, not descriptions — CHANGES. Entities are characters (conscious beings with agency), locations (spatial areas), and artifacts (things that provide utility).
 - QUALITY BAR: each node must describe something the entity didn't know/feel/have before this scene.
   BAD: "Alice is curious" (observation, not change). BAD: "The White Rabbit has pink eyes" (description, not mutation).
   GOOD: "Alice abandons caution entirely, chasing the Rabbit without considering how to return" (new behaviour pattern).
@@ -109,7 +109,7 @@ worldKnowledgeMutations — REVEALED world rules, not character observations.
 - Edges: enables, governs, opposes, extends, created_by, constrains, exist_within.
 
 events — short descriptive tags (2-4 words). 2-4 per scene. Each tag names a discrete narrative beat.
-artifactUsages — when a tool delivers utility. In fiction: wielding a sword, consulting a map, using a device. In academic/non-fiction: applying a technique, leveraging a system, measuring with an instrument, training with an algorithm. Every artifact referenced for its PURPOSE (not just mentioned by name) is a usage. characterId null for unattributed (common in papers where "gradient descent is applied" has no named user).
+artifactUsages — when an artifact delivers its utility. Every artifact referenced for its PURPOSE (not just mentioned by name) is a usage. characterId null for unattributed.
 ownershipMutations — artifacts changing hands. Only when narratively meaningful.
 tieMutations — significant bond changes. NOT temporary visits.
 characterMovements — only characters whose location CHANGES. Vivid transitions.
@@ -277,10 +277,10 @@ MECHANISM EDGE CASES:
 
 export const PROMPT_ENTITY_INTEGRATION = `
 INTEGRATION RULES:
-- Every new character MUST have at least 1 relationship to an existing character. Orphaned characters are useless.
-- Every new location SHOULD nest under an existing location via parentId (except top-level regions).
+- Characters are conscious beings with agency. Non-sentient AI is an artifact. Every new character MUST have at least 1 relationship to an existing character.
+- Locations are spatial areas. Every new location SHOULD nest under an existing location via parentId (except top-level regions).
+- Artifacts are things that by themselves provide utility. Concepts belong in world knowledge. Artifacts MUST have parentId referencing a character, location, or null for world-owned.
 - Thread participants MUST include at least one existing character or location.
-- Artifacts MUST have parentId referencing a character, location, or null for world-owned.
 - Names must match the cultural palette already established in the world.
 `;
 

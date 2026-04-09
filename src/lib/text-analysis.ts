@@ -190,22 +190,22 @@ worldKnowledgeMutations — REVEALED world rules, not character observations.
 - Edges: enables, governs, opposes, extends, created_by, constrains, exist_within.
 
 ENTITY EXTRACTION — every entity gets at least 1 continuity node. Detail scales with importance:
-- characters: named characters present. Role: anchor/recurring/transient.
+- characters: conscious beings with agency — people, named animals, sentient AI (AGI). Non-sentient AI is an artifact. Role: anchor/recurring/transient.
   anchor: 3-5 continuity nodes on first appearance (traits, goals, beliefs, capabilities, weaknesses). 2-3 per subsequent scene.
   recurring: 2-4 continuity nodes on first appearance. 1-2 per subsequent scene.
   transient: 1-2 continuity nodes on first appearance (defining trait, role in the scene). Only update if they do something structurally meaningful.
-- locations: strictly SPATIAL places. Nest via parentName. If the text has no spatial places, extract ZERO. Companies and institutions are artifacts, not locations. tiedCharacterNames: characters who BELONG (residents, faction members).
-  domain: a major region, institution, or world that CONTAINS other places (Hogwarts, Middle-earth, the Capitol). 3-5 lore entries on first appearance. 2-3 per subsequent scene.
-  place: a specific named location where scenes happen (the Great Hall, Bag End, the arena). 2-4 lore entries on first appearance. 1-2 per subsequent scene.
-  margin: a fleeting or peripheral spot mentioned in passing (a corridor, a roadside inn). 1-2 lore entries on first appearance. Only update if something notable happens here.
-- artifacts: something that by itself can provide utility. Concepts and definitions belong in world knowledge. ownerName: character/location/null. significance: key/notable/minor.
+- locations: spatial areas or regions — physical places you can be IN. Nest via parentName. If the text has no spatial places, extract ZERO. Companies and institutions are artifacts, not locations. tiedCharacterNames: characters who BELONG (residents, faction members).
+  domain: a region or world that contains other places. 3-5 lore entries on first appearance. 2-3 per subsequent scene.
+  place: a specific named setting where scenes happen. 2-4 lore entries on first appearance. 1-2 per subsequent scene.
+  margin: a fleeting or peripheral spot mentioned in passing. 1-2 lore entries on first appearance. Only update if something notable happens here.
+- artifacts: something that by itself can provide utility — it does something, not just describes something. Concepts and definitions belong in world knowledge. ownerName: character/location/null. significance: key/notable/minor.
   key: 2-4 continuity nodes (lore, history, properties, limitations, state). Update per scene if used.
   notable: 1-3 continuity nodes. Update only on significant use.
   minor: 1 continuity node on first appearance (what it is, what it does). Only update if its role changes.
 - threads: narrative tensions. development: what specifically happened.
 
 events — 2-4 word tags. 2-4 per scene. Each names a discrete beat.
-artifactUsages — when an artifact delivers utility. Fiction: wielding, consulting, activating. Academic: applying a technique, leveraging a system, training with an algorithm. Every artifact referenced for its PURPOSE is a usage, not just by name. characterName null for unattributed.
+artifactUsages — when an artifact delivers its utility. Every artifact referenced for its PURPOSE (not just by name) is a usage. characterName null for unattributed.
 ownershipMutations — only when artifacts change hands.
 tieMutations — significant bond changes. NOT temporary visits.
 characterMovements — only physical relocation. Vivid transitions.
@@ -901,6 +901,17 @@ function buildMetaContext(
   return lines.join('\n');
 }
 
+/** Auto-chain continuity nodes sequentially with "follows" edges */
+function chainContinuityEdges(continuity: { nodes: Record<string, { id: string }>; edges: { from: string; to: string; relation: string }[] }) {
+  const ids = Object.keys(continuity.nodes);
+  for (let i = 1; i < ids.length; i++) {
+    const edge = { from: ids[i - 1], to: ids[i], relation: 'follows' };
+    if (!continuity.edges.some(e => e.from === edge.from && e.to === edge.to)) {
+      continuity.edges.push(edge);
+    }
+  }
+}
+
 // ── Assemble Narrative ───────────────────────────────────────────────────────
 
 export async function assembleNarrative(
@@ -990,6 +1001,7 @@ export async function assembleNarrative(
         characters[id].continuity.nodes[nid] = { id: nid, type: (k.type || 'trait') as ContinuityNodeType, content: k.content };
         charExisting.add(norm);
       }
+      chainContinuityEdges(characters[id].continuity);
     }
 
     // Locations — create entities but defer lore to scene mutations
@@ -1029,6 +1041,7 @@ export async function assembleNarrative(
         locations[id].continuity.nodes[nid] = { id: nid, type: 'history', content: lore };
         locExisting.add(norm);
       }
+      chainContinuityEdges(locations[id].continuity);
     }
 
     // Artifacts
@@ -1063,6 +1076,7 @@ export async function assembleNarrative(
         }
         if (parentId) artifactEntities[id].parentId = parentId;
       }
+      chainContinuityEdges(artifactEntities[id].continuity);
     }
 
     // (continuity built directly on entities above — no deferred flush needed)

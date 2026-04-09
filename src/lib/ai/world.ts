@@ -737,6 +737,12 @@ PILOT EPISODE — establish a tight, focused world. These are minimums; exceed w
 - AT LEAST 5 world knowledge nodes with 3 edges — the systems and rules the world runs on${worldOnly ? '' : `
 - AT LEAST 8 scenes in 1 arc`}
 
+ENTITY DEFINITIONS:
+- Characters are conscious beings with agency — people, named animals, sentient AI (AGI). Non-sentient AI systems are artifacts.
+- Locations are spatial areas or regions — physical places you can be IN.
+- Artifacts are things that by themselves can provide utility — they do something. Concepts and abstract ideas belong in world knowledge.
+- Threads are narrative tensions that drive action.
+
 CHARACTER DEPTH BY ROLE — minimums; go deeper for complex characters:
 - Anchors: 4-5 continuity nodes each — a defining trait, a goal, a belief, a weakness or secret, and a capability. Connect with edges.
 - Recurring: 2-3 continuity nodes each — their role, relationship to an anchor, one hidden dimension.
@@ -777,7 +783,7 @@ RELATIONSHIPS:
 - At least 2 hidden relationships (known to reader, not to characters)
 
 ARTIFACTS & TOOLS:
-- Artifacts extend what's possible. A character with a magical weapon fights differently. A character with AI technology thinks at a different scale. A character with a cursed ring is slowly consumed. Artifacts don't just exist — they modify their wielder's capabilities and constrain their choices.
+- Artifacts are things that by themselves can provide utility. They extend what's possible — a magical weapon changes how someone fights, AI technology changes the scale of thought, a cursed ring slowly consumes its bearer. Artifacts modify their wielder's capabilities and constrain their choices.
 - Key artifact (1): a capability-altering entity. 5-7 continuity nodes (traits, capabilities, history, weaknesses, secrets, goals). Must connect to at least 2 threads. Its inner world should rival a recurring character's. Define HOW it changes what its wielder can do.
 - Notable artifact (1): a tool that grants a specific capability. 3-4 continuity nodes (capability, history, relation, weakness). Owned by a character who uses it — the character's capabilities should reflect the tool.
 - Minor artifact (1): a small object with narrative potential. 1-2 continuity nodes. Can be at a location.
