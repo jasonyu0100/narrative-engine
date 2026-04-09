@@ -1,9 +1,10 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import type { AnalysisJob, AnalysisChunkResult } from '@/types/narrative';
+import type { AnalysisJob, AnalysisChunkResult, NarrativeState } from '@/types/narrative';
 
-// Mock dependencies
+// Mock dependencies — new scene-first pipeline
 vi.mock('@/lib/text-analysis', () => ({
-  analyzeChunkParallel: vi.fn(),
+  extractSceneStructure: vi.fn(),
+  groupScenesIntoArcs: vi.fn(),
   reconcileResults: vi.fn(),
   analyzeThreading: vi.fn(),
   assembleNarrative: vi.fn(),
@@ -16,8 +17,6 @@ vi.mock('@/lib/ai/scenes', () => ({
 vi.mock('@/lib/constants', () => ({
   ANALYSIS_CONCURRENCY: 3,
   ANALYSIS_STAGGER_DELAY_MS: 10,
-  ANALYSIS_MAX_CHUNK_RETRIES: 2,
-  ANALYSIS_PLAN_BACKOFF_ENABLED: false, // Disable backoff in tests for speed
 }));
 
 vi.mock('@/lib/system-logger', () => ({
@@ -35,56 +34,72 @@ vi.mock('@/lib/api-logger', () => ({
   onApiLogUpdate: vi.fn(),
 }));
 
-import { analyzeChunkParallel, reconcileResults, analyzeThreading, assembleNarrative } from '@/lib/text-analysis';
+import { extractSceneStructure, groupScenesIntoArcs, reconcileResults, analyzeThreading, assembleNarrative } from '@/lib/text-analysis';
 import { reverseEngineerScenePlan } from '@/lib/ai/scenes';
 import { analysisRunner } from '@/lib/analysis-runner';
 
-// Use the singleton instance for testing
-const AnalysisRunner = analysisRunner;
+const mockNarrative: NarrativeState = {
+  id: 'narrative-1',
+  title: 'Test Narrative',
+  description: '',
+  worldSummary: '',
+  characters: {},
+  locations: {},
+  threads: {},
+  arcs: {},
+  scenes: {},
+  branches: {},
+  worldBuilds: {},
+  worldKnowledge: { nodes: {}, edges: [] },
+  relationships: [],
+  artifacts: {},
+  rules: [],
+  createdAt: Date.now(),
+  updatedAt: Date.now(),
+};
 
 beforeEach(() => {
   vi.clearAllMocks();
 
-  // Set up default mock implementations
-  vi.mocked(analyzeChunkParallel).mockImplementation((_text, chunkIdx) =>
-    Promise.resolve(createMockChunkResult(chunkIdx))
-  );
+  vi.mocked(reverseEngineerScenePlan).mockResolvedValue({
+    plan: { beats: [{ fn: 'advance', mechanism: 'action', what: 'Test beat', propositions: [] }] },
+    beatProseMap: { chunks: [], createdAt: Date.now() },
+  });
+
+  vi.mocked(extractSceneStructure).mockResolvedValue({
+    povName: 'Alice',
+    locationName: 'Castle',
+    participantNames: ['Alice'],
+    events: ['event_1'],
+    summary: 'Alice explores the castle.',
+    characters: [{ name: 'Alice', role: 'anchor', firstAppearance: true, continuity: [] }],
+    locations: [{ name: 'Castle', parentName: null, description: 'A grand castle', lore: [] }],
+    artifacts: [],
+    threads: [{ description: 'Exploration', participantNames: ['Alice'], statusAtStart: 'dormant', statusAtEnd: 'active', development: 'Started' }],
+    relationships: [],
+    threadMutations: [{ threadDescription: 'Exploration', from: 'dormant', to: 'active' }],
+    continuityMutations: [],
+    relationshipMutations: [],
+    artifactUsages: [],
+    ownershipMutations: [],
+    tieMutations: [],
+    characterMovements: [],
+  });
+
+  vi.mocked(groupScenesIntoArcs).mockResolvedValue([
+    { name: 'The Beginning', sceneIndices: [0, 1] },
+  ]);
+
   vi.mocked(reconcileResults).mockImplementation(async (results) => results);
   vi.mocked(analyzeThreading).mockResolvedValue({});
-  vi.mocked(assembleNarrative).mockResolvedValue({
-    id: 'narrative-1',
-    title: 'Test Narrative',
-    description: '',
-    worldSummary: '',
-    characters: {},
-    locations: {},
-    threads: {},
-    arcs: {},
-    scenes: {},
-    branches: {},
-    worldBuilds: {},
-    worldKnowledge: { nodes: {}, edges: [] },
-    relationships: [],
-    artifacts: {},
-    rules: [],
-    createdAt: Date.now(),
-    updatedAt: Date.now(),
-  });
-  vi.mocked(reverseEngineerScenePlan).mockResolvedValue({
-    plan: { beats: [] },
-    beatProseMap: {
-      chunks: [],
-      createdAt: Date.now(),
-    },
-  });
+  vi.mocked(assembleNarrative).mockResolvedValue(mockNarrative);
 });
 
 afterEach(async () => {
-  // Wait for any pending operations to complete and prevent state leakage between tests
   await new Promise(resolve => setTimeout(resolve, 10));
 });
 
-// ── Test Fixtures ────────────────────────────────────────────────────────────
+// ── Fixtures ────────────────────────────────────────────────────────────────
 
 let jobCounter = 0;
 
@@ -94,8 +109,8 @@ function createMockJob(overrides: Partial<AnalysisJob> = {}): AnalysisJob {
     title: 'Test Analysis',
     sourceText: 'Sample text for analysis',
     chunks: [
-      { index: 0, text: 'Chunk 1 text', sectionCount: 10 },
-      { index: 1, text: 'Chunk 2 text', sectionCount: 10 },
+      { index: 0, text: 'Scene 1 prose text here with enough words.', sectionCount: 12 },
+      { index: 1, text: 'Scene 2 prose text here with enough words.', sectionCount: 12 },
     ],
     results: [null, null],
     status: 'pending',
@@ -106,591 +121,135 @@ function createMockJob(overrides: Partial<AnalysisJob> = {}): AnalysisJob {
   };
 }
 
-function createMockChunkResult(index: number): AnalysisChunkResult {
-  return {
-    chapterSummary: `Chapter ${index} summary`,
-    characters: [
-      { name: `Character ${index}`, role: 'main', firstAppearance: true, continuity: [] },
-    ],
-    locations: [
-      { name: `Location ${index}`, parentName: null, description: 'A place', lore: [] },
-    ],
-    threads: [
-      {
-        description: `Thread ${index}`,
-        participantNames: [`Character ${index}`],
-        statusAtStart: 'dormant',
-        statusAtEnd: 'active',
-        development: 'Started',
-      },
-    ],
-    scenes: [
-      {
-        locationName: `Location ${index}`,
-        povName: `Character ${index}`,
-        participantNames: [`Character ${index}`],
-        events: ['event'],
-        summary: 'Scene summary',
-        sections: [0],
-        prose: 'Scene prose paragraph 1.\n\nScene prose paragraph 2.',
-        threadMutations: [],
-        continuityMutations: [],
-        relationshipMutations: [],
-      },
-    ],
-    relationships: [],
-  };
-}
+// ── Tests ────────────────────────────────────────────────────────────────────
 
-// ── Lifecycle Tests ──────────────────────────────────────────────────────────
-
-describe('AnalysisRunner Lifecycle', () => {
-  let dispatchMock: ReturnType<typeof vi.fn>;
-
-  beforeEach(() => {
-    dispatchMock = vi.fn();
-  });
-
-  it('emits stream updates to registered listeners', async () => {
-
-    const streamListener = vi.fn();
-    const unsubscribe = AnalysisRunner.onStream(streamListener);
-
-    vi.mocked(analyzeChunkParallel).mockResolvedValue(createMockChunkResult(0));
-
-    const job = createMockJob({ chunks: [{ index: 0, text: 'Test', sectionCount: 1 }], results: [null] });
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    await AnalysisRunner.start(job, dispatchMock as any);
-
-    expect(streamListener).toHaveBeenCalled();
-
-    unsubscribe();
-  });
-
-  it('tracks in-flight chunks during Phase 1 extraction', async () => {
-    vi.useFakeTimers();
-
-    const inFlightListener = vi.fn();
-    AnalysisRunner.onInFlightChange(inFlightListener);
-
-    // Delay chunk processing to observe in-flight state
-    vi.mocked(analyzeChunkParallel).mockImplementation(
-      () => new Promise((resolve) => setTimeout(() => resolve(createMockChunkResult(0)), 100))
-    );
-
+describe('AnalysisRunner — Scene-first Pipeline', () => {
+  it('completes the full pipeline: plans → structure → arcs → reconcile → finalize → assemble', async () => {
     const job = createMockJob();
-    const runPromise = AnalysisRunner.start(job, dispatchMock as any);
+    const dispatched: any[] = [];
+    const dispatch = (action: any) => dispatched.push(action);
 
-    // Wait a bit for chunks to be in flight
-    await vi.advanceTimersByTimeAsync(20);
+    await analysisRunner.start(job, dispatch);
 
-    const inFlight = AnalysisRunner.getInFlightIndices(job.id);
-    expect(inFlight.length).toBeGreaterThan(0);
+    // Phase 1: Plans — reverseEngineerScenePlan called per scene
+    expect(reverseEngineerScenePlan).toHaveBeenCalledTimes(2);
 
-    // Complete the test
-    await vi.advanceTimersByTimeAsync(100);
-    await runPromise;
+    // Phase 2: Structure — extractSceneStructure called per scene
+    expect(extractSceneStructure).toHaveBeenCalledTimes(2);
 
-    vi.useRealTimers();
-  });
+    // Phase 3: Arcs
+    expect(groupScenesIntoArcs).toHaveBeenCalledTimes(1);
 
-  it('allows cancelling a running job', async () => {
-    vi.useFakeTimers();
-
-    vi.mocked(analyzeChunkParallel).mockImplementation(
-      () => new Promise((resolve) => setTimeout(() => resolve(createMockChunkResult(0)), 200))
-    );
-
-    const job = createMockJob();
-    const runPromise = AnalysisRunner.start(job, dispatchMock as any);
-
-    // Cancel after starting (advance 50ms then pause)
-    await vi.advanceTimersByTimeAsync(50);
-    AnalysisRunner.pause(job.id);
-
-    // Advance remaining time to complete
-    await vi.advanceTimersByTimeAsync(200);
-
-    await runPromise;
-
-    vi.useRealTimers();
-
-    // Should have dispatched pause status
-    expect(dispatchMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        type: 'UPDATE_ANALYSIS_JOB',
-        id: job.id,
-        updates: expect.objectContaining({ status: 'paused' }),
-      })
-    );
-  });
-});
-
-// ── Phase 1: Extraction Tests ────────────────────────────────────────────────
-
-describe('Phase 1: Parallel Extraction', () => {
-  let dispatchMock: ReturnType<typeof vi.fn>;
-
-  beforeEach(() => {
-    dispatchMock = vi.fn();
-  });
-
-  it('processes all chunks in parallel up to MAX_CONCURRENCY', async () => {
-    const job = createMockJob({
-      chunks: [
-        { index: 0, text: 'C0', sectionCount: 1 },
-        { index: 1, text: 'C1', sectionCount: 1 },
-        { index: 2, text: 'C2', sectionCount: 1 },
-        { index: 3, text: 'C3', sectionCount: 1 },
-      ],
-      results: [null, null, null, null],
-    });
-
-    vi.mocked(analyzeChunkParallel).mockResolvedValue(createMockChunkResult(0));
-
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    await AnalysisRunner.start(job, dispatchMock as any);
-
-    expect(analyzeChunkParallel).toHaveBeenCalledTimes(4);
-  });
-
-  it('retries failed chunks up to MAX_RETRIES', async () => {
-    const job = createMockJob({
-      chunks: [{ index: 0, text: 'Chunk', sectionCount: 1 }],
-      results: [null],
-    });
-
-    let callCount = 0;
-    vi.mocked(analyzeChunkParallel).mockImplementation(() => {
-      callCount++;
-      if (callCount < 3) {
-        // Use a parse/type error that will trigger auto-retry
-        return Promise.reject(new Error('JSON parse error: unexpected token'));
-      }
-      return Promise.resolve(createMockChunkResult(0));
-    });
-
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    await AnalysisRunner.start(job, dispatchMock as any);
-
-    // Should have been called 3 times (initial + 2 retries)
-    expect(analyzeChunkParallel).toHaveBeenCalledTimes(3);
-
-    // Job should complete successfully after retries
-    expect(dispatchMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        type: 'UPDATE_ANALYSIS_JOB',
-        updates: expect.objectContaining({ status: 'completed' }),
-      })
-    );
-  });
-
-  it('fails job if chunk fails after all retries', async () => {
-    const job = createMockJob({
-      chunks: [{ index: 0, text: 'Chunk', sectionCount: 1 }],
-      results: [null],
-    });
-
-    vi.mocked(analyzeChunkParallel).mockRejectedValue(new Error('Persistent failure'));
-
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    await AnalysisRunner.start(job, dispatchMock as any);
-
-    expect(dispatchMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        type: 'UPDATE_ANALYSIS_JOB',
-        updates: expect.objectContaining({
-          status: 'failed',
-          error: expect.stringContaining('Extraction failed after retry'),
-        }),
-      })
-    );
-  });
-
-  it('updates currentChunkIndex as chunks complete', async () => {
-    const job = createMockJob({
-      chunks: [
-        { index: 0, text: 'C0', sectionCount: 1 },
-        { index: 1, text: 'C1', sectionCount: 1 },
-      ],
-      results: [null, null],
-    });
-
-    vi.mocked(analyzeChunkParallel).mockResolvedValue(createMockChunkResult(0));
-
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    await AnalysisRunner.start(job, dispatchMock as any);
-
-    const updateCalls = dispatchMock.mock.calls.filter(
-      (call: any[]) => call[0].type === 'UPDATE_ANALYSIS_JOB' && call[0].updates.currentChunkIndex !== undefined
-    );
-
-    expect(updateCalls.length).toBeGreaterThan(0);
-  });
-});
-
-// ── Phase 2: Plan Extraction Tests ──────────────────────────────────────────
-
-describe('Phase 2: Beat Plan Extraction', () => {
-  let dispatchMock: ReturnType<typeof vi.fn>;
-
-  beforeEach(() => {
-    dispatchMock = vi.fn();
-  });
-
-  it('extracts beat plans from all scenes with prose', async () => {
-    const chunkResult = createMockChunkResult(0);
-    // Add a second scene without prose
-    chunkResult.scenes.push({
-      locationName: 'Loc2',
-      povName: 'Char2',
-      participantNames: ['Char2'],
-      events: [],
-      summary: 'Summary without prose',
-      sections: [1],
-      threadMutations: [],
-      continuityMutations: [],
-      relationshipMutations: [],
-    });
-
-    vi.mocked(analyzeChunkParallel).mockResolvedValue(chunkResult);
-    vi.mocked(reverseEngineerScenePlan).mockResolvedValue({
-      plan: {
-        beats: [{ fn: 'breathe', mechanism: 'environment', what: 'Setup', propositions: [] }],
-      },
-      beatProseMap: {
-        chunks: [{ beatIndex: 0, prose: 'Para 1' }],
-        createdAt: Date.now(),
-      },
-    });
-
-    const job = createMockJob({
-      chunks: [{ index: 0, text: 'Test', sectionCount: 1 }],
-      results: [null],
-    });
-
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    await AnalysisRunner.start(job, dispatchMock as any);
-
-    // Should only extract plan for scene with prose
-    expect(reverseEngineerScenePlan).toHaveBeenCalledTimes(1);
-    expect(reverseEngineerScenePlan).toHaveBeenCalledWith(
-      chunkResult.scenes[0].prose,
-      chunkResult.scenes[0].summary,
-      expect.any(Function)
-    );
-  });
-
-  it('stores both plan and beatProseMap in scene', async () => {
-    const chunkResult = createMockChunkResult(0);
-
-    vi.mocked(analyzeChunkParallel).mockResolvedValue(chunkResult);
-
-    const mockPlan = {
-      beats: [{ fn: 'advance' as const, mechanism: 'action' as const, what: 'Action', propositions: [] }],
-    };
-    const mockBeatProseMap = {
-      chunks: [{ beatIndex: 0, prose: 'Action prose' }],
-      createdAt: Date.now(),
-    };
-
-    vi.mocked(reverseEngineerScenePlan).mockResolvedValue({
-      plan: mockPlan,
-      beatProseMap: mockBeatProseMap,
-    });
-
-    const job = createMockJob({
-      chunks: [{ index: 0, text: 'Test', sectionCount: 1 }],
-      results: [null],
-    });
-
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    await AnalysisRunner.start(job, dispatchMock as any);
-
-    // Check that results were updated with both plan and beatProseMap
-    const updateCall = dispatchMock.mock.calls.find(
-      (call: any[]) =>
-        call[0].type === 'UPDATE_ANALYSIS_JOB' &&
-        call[0].updates.results?.[0]?.scenes?.[0]?.plan
-    );
-
-    expect(updateCall).toBeDefined();
-    expect(updateCall![0].updates.results[0].scenes[0].plan).toEqual(mockPlan);
-    expect(updateCall![0].updates.results[0].scenes[0].beatProseMap).toEqual(mockBeatProseMap);
-  });
-
-  it('continues if beat plan extraction fails for a scene (non-fatal)', async () => {
-    const chunkResult = createMockChunkResult(0);
-
-    vi.mocked(analyzeChunkParallel).mockResolvedValue(chunkResult);
-
-    // Mock plan extraction to always fail
-    vi.mocked(reverseEngineerScenePlan).mockImplementation(() => {
-      return Promise.reject(new Error('Plan extraction failed'));
-    });
-
-    const job = createMockJob({
-      chunks: [{ index: 0, text: 'Test', sectionCount: 1 }],
-      results: [null],
-    });
-
-    // Set longer timeout due to retry delays
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    await AnalysisRunner.start(job, dispatchMock as any);
-
-    // Job should still complete successfully
-    expect(dispatchMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        type: 'UPDATE_ANALYSIS_JOB',
-        updates: expect.objectContaining({ status: 'completed' }),
-      })
-    );
-  }, 15000);
-
-  it('emits plan stream updates during extraction', async () => {
-    const chunkResult = createMockChunkResult(0);
-
-    vi.mocked(analyzeChunkParallel).mockResolvedValue(chunkResult);
-
-    vi.mocked(reverseEngineerScenePlan).mockImplementation(async (_prose, _summary, onToken) => {
-      // Call onToken synchronously before resolving
-      if (onToken) {
-        onToken('beat', 'beat');
-        onToken(' plan', 'beat plan');
-      }
-      return {
-        plan: { beats: [{ fn: 'breathe', mechanism: 'environment', what: 'Setup', propositions: [] }] },
-        beatProseMap: { chunks: [], createdAt: Date.now() },
-      };
-    });
-
-    const planStreamListener = vi.fn();
-    AnalysisRunner.onPlanStream(planStreamListener);
-
-    const job = createMockJob({
-      chunks: [{ index: 0, text: 'Test', sectionCount: 1 }],
-      results: [null],
-    });
-
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    await AnalysisRunner.start(job, dispatchMock as any);
-
-    expect(planStreamListener).toHaveBeenCalled();
-  });
-});
-
-// ── Phase 3: Reconciliation Tests ───────────────────────────────────────────
-
-describe('Phase 3: Reconciliation', () => {
-  let dispatchMock: ReturnType<typeof vi.fn>;
-
-  beforeEach(() => {
-    dispatchMock = vi.fn();
-  });
-
-  it('calls reconcileResults with all chunk results', async () => {
-    const results = [createMockChunkResult(0), createMockChunkResult(1)];
-
-    // Explicitly mock to ensure it's working
-    vi.mocked(analyzeChunkParallel).mockImplementation((_text, idx) =>
-      Promise.resolve(createMockChunkResult(idx))
-    );
-    vi.mocked(reconcileResults).mockResolvedValue(results);
-
-    const job = createMockJob({
-      chunks: [
-        { index: 0, text: 'C0', sectionCount: 1 },
-        { index: 1, text: 'C1', sectionCount: 1 },
-      ],
-      results: [null, null],
-    });
-
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    await AnalysisRunner.start(job, dispatchMock as any);
-
-    // Verify reconcileResults was called with array of 2 results
-    // (results may have been augmented by Phase 2 plan extraction)
+    // Phase 4: Reconciliation
     expect(reconcileResults).toHaveBeenCalledTimes(1);
-    const callArgs = vi.mocked(reconcileResults).mock.calls[0];
-    expect(callArgs[0]).toHaveLength(2);
-    expect(callArgs[0][0]).toMatchObject({
-      chapterSummary: 'Chapter 0 summary',
-      characters: expect.any(Array),
-      scenes: expect.any(Array),
-    });
-    expect(callArgs[0][1]).toMatchObject({
-      chapterSummary: 'Chapter 1 summary',
-      characters: expect.any(Array),
-      scenes: expect.any(Array),
-    });
-    expect(callArgs[1]).toEqual(expect.any(Function));
+
+    // Phase 5: Finalization (skipped if < 2 threads, but still reaches assembly)
+
+    // Phase 6: Assembly
+    expect(assembleNarrative).toHaveBeenCalledTimes(1);
+
+    // Final status
+    const statusUpdates = dispatched.filter(a => a.type === 'UPDATE_ANALYSIS_JOB').map(a => a.updates);
+    expect(statusUpdates.some(u => u.phase === 'plans')).toBe(true);
+    expect(statusUpdates.some(u => u.phase === 'structure')).toBe(true);
+    expect(statusUpdates.some(u => u.phase === 'arcs')).toBe(true);
+    expect(statusUpdates.some(u => u.phase === 'reconciliation')).toBe(true);
+    expect(statusUpdates.some(u => u.phase === 'assembly')).toBe(true);
+    expect(statusUpdates.some(u => u.status === 'completed')).toBe(true);
   });
 
-  it('updates phase to reconciliation during Phase 3', async () => {
-    vi.mocked(analyzeChunkParallel).mockResolvedValue(createMockChunkResult(0));
-    vi.mocked(reconcileResults).mockResolvedValue([createMockChunkResult(0)]);
+  it('dispatches ADD_NARRATIVE on successful completion', async () => {
+    const job = createMockJob();
+    const dispatched: any[] = [];
+    await analysisRunner.start(job, (action) => dispatched.push(action));
 
+    const addNarrative = dispatched.find(a => a.type === 'ADD_NARRATIVE');
+    expect(addNarrative).toBeDefined();
+    expect(addNarrative.narrative.id).toBe('narrative-1');
+  });
+
+  it('skips scenes that already have plans', async () => {
     const job = createMockJob({
-      chunks: [{ index: 0, text: 'Test', sectionCount: 1 }],
-      results: [null],
-    });
-
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    await AnalysisRunner.start(job, dispatchMock as any);
-
-    const phaseUpdate = dispatchMock.mock.calls.find(
-      (call: any[]) => call[0].updates?.phase === 'reconciliation'
-    );
-
-    expect(phaseUpdate).toBeDefined();
-  });
-});
-
-// ── Phase 4: Finalization Tests ──────────────────────────────────────────────
-
-describe('Phase 4: Finalization', () => {
-  let dispatchMock: ReturnType<typeof vi.fn>;
-
-  beforeEach(() => {
-    dispatchMock = vi.fn();
-  });
-
-  it('calls analyzeThreading with canonical thread descriptions', async () => {
-    // Need at least 2 threads for analyzeThreading to be called
-    const results = [createMockChunkResult(0), createMockChunkResult(1)];
-
-    vi.mocked(analyzeChunkParallel).mockImplementation((_text, idx) =>
-      Promise.resolve(createMockChunkResult(idx))
-    );
-    vi.mocked(reconcileResults).mockResolvedValue(results);
-    vi.mocked(analyzeThreading).mockResolvedValue({});
-
-    const job = createMockJob({
-      chunks: [
-        { index: 0, text: 'Test 1', sectionCount: 1 },
-        { index: 1, text: 'Test 2', sectionCount: 1 },
+      results: [
+        {
+          chapterSummary: 'Already done',
+          characters: [],
+          locations: [],
+          threads: [],
+          scenes: [{
+            locationName: 'Castle',
+            povName: 'Alice',
+            participantNames: ['Alice'],
+            events: ['event'],
+            summary: 'Existing summary',
+            sections: [],
+            prose: 'Existing prose',
+            plan: { beats: [{ fn: 'advance', mechanism: 'action', what: 'existing', propositions: [] }] },
+            threadMutations: [],
+            continuityMutations: [],
+            relationshipMutations: [],
+          }],
+          relationships: [],
+        },
+        null,
       ],
-      results: [null, null],
     });
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    await AnalysisRunner.start(job, dispatchMock as any);
+    await analysisRunner.start(job, () => {});
 
-    // Should be called with array of thread descriptions and callback
-    expect(analyzeThreading).toHaveBeenCalledWith(
-      expect.arrayContaining(['Thread 0', 'Thread 1']),
-      expect.any(Function)
-    );
+    // Only scene 2 needs plan extraction
+    expect(reverseEngineerScenePlan).toHaveBeenCalledTimes(1);
   });
 
-  it('updates phase to finalization during Phase 4', async () => {
-    vi.mocked(analyzeChunkParallel).mockResolvedValue(createMockChunkResult(0));
-    vi.mocked(reconcileResults).mockResolvedValue([createMockChunkResult(0)]);
-    vi.mocked(analyzeThreading).mockResolvedValue({});
+  it('handles plan extraction failure gracefully', async () => {
+    vi.mocked(reverseEngineerScenePlan).mockRejectedValue(new Error('LLM failed'));
 
-    const job = createMockJob({
-      chunks: [{ index: 0, text: 'Test', sectionCount: 1 }],
-      results: [null],
-    });
+    const job = createMockJob();
+    const dispatched: any[] = [];
+    await analysisRunner.start(job, (action) => dispatched.push(action));
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    await AnalysisRunner.start(job, dispatchMock as any);
-
-    const phaseUpdate = dispatchMock.mock.calls.find(
-      (call: any[]) => call[0].updates?.phase === 'finalization'
-    );
-
-    expect(phaseUpdate).toBeDefined();
-  });
-});
-
-// ── Phase 5: Assembly Tests ──────────────────────────────────────────────────
-
-describe('Phase 5: Assembly', () => {
-  let dispatchMock: ReturnType<typeof vi.fn>;
-
-  beforeEach(() => {
-    dispatchMock = vi.fn();
+    // Pipeline continues despite plan failures — structure phase runs with whatever succeeded
+    expect(assembleNarrative).toHaveBeenCalledTimes(1);
   });
 
-  it('calls assembleNarrative with finalized results', async () => {
-    const results = [createMockChunkResult(0)];
+  it('handles structure extraction failure gracefully', async () => {
+    vi.mocked(extractSceneStructure).mockRejectedValue(new Error('LLM failed'));
 
-    vi.mocked(analyzeChunkParallel).mockResolvedValue(results[0]);
-    vi.mocked(reconcileResults).mockResolvedValue(results);
-    vi.mocked(analyzeThreading).mockResolvedValue({});
-    vi.mocked(assembleNarrative).mockReturnValue({ id: 'N-001', title: 'Test' } as any);
+    const job = createMockJob();
+    await analysisRunner.start(job, () => {});
 
-    const job = createMockJob({
-      chunks: [{ index: 0, text: 'Test', sectionCount: 1 }],
-      results: [null],
-    });
-
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    await AnalysisRunner.start(job, dispatchMock as any);
-
-    expect(assembleNarrative).toHaveBeenCalledWith(
-      job.title,
-      results,
-      expect.any(Object),  // threadDependencies
-      expect.any(Function) // onToken callback
-    );
+    // Pipeline continues — assembly still runs
+    expect(assembleNarrative).toHaveBeenCalledTimes(1);
   });
 
-  it('creates narrative in store and updates job with narrativeId', async () => {
-    const mockNarrative = { id: 'N-ASSEMBLED', title: 'Test Narrative' } as any;
+  it('passes structure results to reconciliation', async () => {
+    const job = createMockJob();
+    await analysisRunner.start(job, () => {});
 
-    vi.mocked(analyzeChunkParallel).mockResolvedValue(createMockChunkResult(0));
-    vi.mocked(reconcileResults).mockResolvedValue([createMockChunkResult(0)]);
-    vi.mocked(analyzeThreading).mockResolvedValue({});
-    vi.mocked(assembleNarrative).mockResolvedValue(mockNarrative);
-
-    const job = createMockJob({
-      chunks: [{ index: 0, text: 'Test', sectionCount: 1 }],
-      results: [null],
-    });
-
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    await AnalysisRunner.start(job, dispatchMock as any);
-
-    // Should create narrative
-    expect(dispatchMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        type: 'ADD_NARRATIVE',
-        narrative: mockNarrative,
-      })
-    );
-
-    // Should update job with narrativeId
-    expect(dispatchMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        type: 'UPDATE_ANALYSIS_JOB',
-        updates: expect.objectContaining({
-          narrativeId: mockNarrative.id,
-          status: 'completed',
-        }),
-      })
-    );
+    const reconciledInput = vi.mocked(reconcileResults).mock.calls[0][0];
+    expect(reconciledInput.length).toBe(2);
+    // Structure phase populates chapterSummary
+    expect(reconciledInput[0].chapterSummary).toBe('Alice explores the castle.');
   });
 
-  it('updates phase to assembly during Phase 5', async () => {
-    vi.mocked(analyzeChunkParallel).mockResolvedValue(createMockChunkResult(0));
-    vi.mocked(reconcileResults).mockResolvedValue([createMockChunkResult(0)]);
-    vi.mocked(analyzeThreading).mockResolvedValue({});
-    vi.mocked(assembleNarrative).mockResolvedValue({ id: 'N-001', title: 'Test' } as any);
-
-    const job = createMockJob({
-      chunks: [{ index: 0, text: 'Test', sectionCount: 1 }],
-      results: [null],
-    });
-
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    await AnalysisRunner.start(job, dispatchMock as any);
-
-    const phaseUpdate = dispatchMock.mock.calls.find(
-      (call: any[]) => call[0].updates?.phase === 'assembly'
+  it('cancellation pauses the job', async () => {
+    // Make plan extraction slow
+    vi.mocked(reverseEngineerScenePlan).mockImplementation(
+      () => new Promise(resolve => setTimeout(resolve, 100))
     );
 
-    expect(phaseUpdate).toBeDefined();
+    const job = createMockJob({ chunks: Array.from({ length: 10 }, (_, i) => ({ index: i, text: `Scene ${i}`, sectionCount: 12 })), results: Array(10).fill(null) });
+    const dispatched: any[] = [];
+
+    const promise = analysisRunner.start(job, (action) => dispatched.push(action));
+
+    // Cancel after a short delay
+    await new Promise(resolve => setTimeout(resolve, 20));
+    analysisRunner.pause(job.id);
+
+    await promise;
+
+    const statusUpdates = dispatched.filter(a => a.type === 'UPDATE_ANALYSIS_JOB').map(a => a.updates);
+    expect(statusUpdates.some(u => u.status === 'paused')).toBe(true);
   });
 });

@@ -3,7 +3,7 @@
 import { Suspense, useState, useRef, useCallback, useEffect, useMemo } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useStore } from '@/lib/store';
-import { splitCorpusIntoChunks } from '@/lib/text-analysis';
+import { splitCorpusIntoScenes } from '@/lib/text-analysis';
 import { analysisRunner } from '@/lib/analysis-runner';
 import type { AnalysisJob, AnalysisChunkResult } from '@/types/narrative';
 import { BEAT_FN_LIST } from '@/types/narrative';
@@ -1290,7 +1290,8 @@ function NewJobSetup({ sourceText, onCreated }: { sourceText: string; onCreated:
   const [starting, setStarting] = useState(false);
   const [startError, setStartError] = useState<string | null>(null);
 
-  const chunks = splitCorpusIntoChunks(sourceText);
+  const scenes = splitCorpusIntoScenes(sourceText);
+  const chunks = scenes.map(s => ({ index: s.index, text: s.prose, sectionCount: Math.ceil(s.wordCount / 100) }));
 
   // Auto-detect title via LLM using first chunk
   useEffect(() => {
