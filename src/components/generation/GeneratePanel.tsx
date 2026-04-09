@@ -2,7 +2,7 @@
 
 import { useState, useMemo, useCallback } from 'react';
 import { useStore } from '@/lib/store';
-import { generateScenes, generateArcStepwise, expandWorld, suggestWorldExpansion, type WorldExpansionSize, type WorldExpansionStrategy } from '@/lib/ai';
+import { generateScenes, generateArcStepwise, expandWorld, suggestWorldExpansion, type WorldExpansionSize, type WorldExpansionStrategy, type ExpansionEntityFilter, DEFAULT_EXPANSION_FILTER } from '@/lib/ai';
 import { resolveEntry, NARRATIVE_CUBE } from '@/types/narrative';
 import type { CubeCornerKey } from '@/types/narrative';
 import { nextId } from '@/lib/narrative-utils';
@@ -77,6 +77,7 @@ export function GeneratePanel({ onClose }: { onClose: () => void }) {
   const [worldStrategy, setWorldStrategy] = useState<WorldExpansionStrategy>(
     state.activeNarrative?.storySettings?.expansionStrategy ?? 'dynamic'
   );
+  const [entityFilter, setEntityFilter] = useState<ExpansionEntityFilter>({ ...DEFAULT_EXPANSION_FILTER });
 
   // Shared
   const [loading, setLoading] = useState(false);
@@ -223,12 +224,14 @@ export function GeneratePanel({ onClose }: { onClose: () => void }) {
     setLoading(true);
     setError('');
     try {
-      const expansion = await expandWorld(narrative, state.resolvedEntryKeys, headIndex, worldDirective, worldSize, worldStrategy, undefined, (token) => setStreamText((prev) => prev + token));
+      const expansion = await expandWorld(narrative, state.resolvedEntryKeys, headIndex, worldDirective, worldSize, worldStrategy, undefined, (token) => setStreamText((prev) => prev + token), entityFilter);
       dispatch({
         type: 'EXPAND_WORLD', worldBuildId: nextId('WB', Object.keys(narrative.worldBuilds), 3),
         characters: expansion.characters, locations: expansion.locations, threads: expansion.threads,
         relationships: expansion.relationships, worldKnowledgeMutations: expansion.worldKnowledgeMutations,
         artifacts: expansion.artifacts, branchId: state.activeBranchId!,
+        ownershipMutations: expansion.ownershipMutations, tieMutations: expansion.tieMutations,
+        continuityMutations: expansion.continuityMutations, relationshipMutations: expansion.relationshipMutations,
       });
       onClose();
     } catch (err) {
@@ -579,22 +582,49 @@ export function GeneratePanel({ onClose }: { onClose: () => void }) {
                     <svg className="w-3 h-3 transition-transform group-open:rotate-90" viewBox="0 0 16 16" fill="currentColor"><path d="M6 4l4 4-4 4" /></svg>
                     Advanced
                   </summary>
-                  <div className="mt-2">
-                    <label className="text-[10px] uppercase tracking-widest text-text-dim block mb-2">Strategy</label>
-                    <div className="flex gap-1.5">
-                      {([
-                        { value: 'depth' as WorldExpansionStrategy, label: 'Depth', desc: 'Deepen' },
-                        { value: 'breadth' as WorldExpansionStrategy, label: 'Breadth', desc: 'Widen' },
-                        { value: 'dynamic' as WorldExpansionStrategy, label: 'Dynamic', desc: 'Auto' },
-                      ]).map((opt) => (
-                        <button key={opt.value} type="button" onClick={() => setWorldStrategy(opt.value)}
-                          className={`flex-1 px-2 py-2 rounded-lg text-left transition-colors ${
-                            worldStrategy === opt.value ? 'bg-white/10 ring-1 ring-white/20' : 'bg-white/3 hover:bg-white/6'
-                          }`}>
-                          <div className="text-xs text-text-primary font-medium">{opt.label}</div>
-                          <div className="text-[9px] text-text-dim">{opt.desc}</div>
-                        </button>
-                      ))}
+                  <div className="mt-2 space-y-3">
+                    <div>
+                      <label className="text-[10px] uppercase tracking-widest text-text-dim block mb-2">Strategy</label>
+                      <div className="flex gap-1.5">
+                        {([
+                          { value: 'depth' as WorldExpansionStrategy, label: 'Depth', desc: 'Deepen' },
+                          { value: 'breadth' as WorldExpansionStrategy, label: 'Breadth', desc: 'Widen' },
+                          { value: 'dynamic' as WorldExpansionStrategy, label: 'Dynamic', desc: 'Auto' },
+                        ]).map((opt) => (
+                          <button key={opt.value} type="button" onClick={() => setWorldStrategy(opt.value)}
+                            className={`flex-1 px-2 py-2 rounded-lg text-left transition-colors ${
+                              worldStrategy === opt.value ? 'bg-white/10 ring-1 ring-white/20' : 'bg-white/3 hover:bg-white/6'
+                            }`}>
+                            <div className="text-xs text-text-primary font-medium">{opt.label}</div>
+                            <div className="text-[9px] text-text-dim">{opt.desc}</div>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                    <div>
+                      <label className="text-[10px] uppercase tracking-widest text-text-dim block mb-2">Entity Types</label>
+                      <div className="flex flex-wrap gap-1.5">
+                        {([
+                          { key: 'characters' as const, label: 'Characters' },
+                          { key: 'locations' as const, label: 'Locations' },
+                          { key: 'threads' as const, label: 'Threads' },
+                          { key: 'artifacts' as const, label: 'Artifacts' },
+                          { key: 'relationships' as const, label: 'Relationships' },
+                          { key: 'worldKnowledge' as const, label: 'World Knowledge' },
+                          { key: 'ownershipMutations' as const, label: 'Ownership' },
+                          { key: 'tieMutations' as const, label: 'Ties' },
+                          { key: 'continuityMutations' as const, label: 'Continuity' },
+                          { key: 'relationshipMutations' as const, label: 'Rel. Shifts' },
+                        ]).map((opt) => (
+                          <button key={opt.key} type="button"
+                            onClick={() => setEntityFilter(prev => ({ ...prev, [opt.key]: !prev[opt.key] }))}
+                            className={`px-2.5 py-1.5 rounded-lg text-[10px] transition-colors ${
+                              entityFilter[opt.key] ? 'bg-white/10 text-text-primary ring-1 ring-white/20' : 'bg-white/3 text-text-dim/50 line-through'
+                            }`}>
+                            {opt.label}
+                          </button>
+                        ))}
+                      </div>
                     </div>
                   </div>
                 </details>

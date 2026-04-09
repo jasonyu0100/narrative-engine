@@ -475,6 +475,11 @@ export type ExpansionManifest = {
   relationships: RelationshipEdge[];
   worldKnowledge: WorldKnowledgeMutation;
   artifacts?: Artifact[];
+  /** Mutations on existing entities — same as scene-level mutations but applied at world-build time */
+  ownershipMutations?: OwnershipMutation[];
+  tieMutations?: TieMutation[];
+  continuityMutations?: ContinuityMutation[];
+  relationshipMutations?: RelationshipMutation[];
 };
 
 

@@ -9,8 +9,8 @@ export type { ArcPlan, GenerateStepwiseOptions } from './scenes';
 export { runPlanCandidates } from './candidates';
 
 // World building & direction
-export { suggestArcDirection, suggestAutoDirection, suggestWorldExpansion, expandWorld, generateNarrative, computeWorldMetrics } from './world';
-export type { WorldExpansion, WorldExpansionSize, WorldExpansionStrategy, WorldMetrics, DirectionSuggestion } from './world';
+export { suggestArcDirection, suggestAutoDirection, suggestWorldExpansion, expandWorld, generateNarrative, computeWorldMetrics, DEFAULT_EXPANSION_FILTER } from './world';
+export type { WorldExpansion, WorldExpansionSize, WorldExpansionStrategy, WorldMetrics, DirectionSuggestion, ExpansionEntityFilter } from './world';
 
 // Prose rewriting
 export { rewriteSceneProse } from './prose';

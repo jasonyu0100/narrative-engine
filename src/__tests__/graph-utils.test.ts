@@ -453,14 +453,16 @@ describe('buildGraphData', () => {
     expect(ownerLink?.target).toBe('char-1');
   });
 
-  it('excludes artifacts with no visible owner', () => {
+  it('renders artifacts passed by caller even without owner in graph', () => {
     const characters: Record<string, Character> = {};
     const artifacts: Record<string, Artifact> = {
       'art-1': createArtifact('art-1', 'char-missing'),
     };
-    const { nodes } = buildGraphData(characters, {}, [], {}, artifacts);
+    const { nodes, links } = buildGraphData(characters, {}, [], {}, artifacts);
 
-    expect(nodes.find((n) => n.id === 'art-1')).toBeUndefined();
+    // Artifact appears (pre-filtered by caller) but no ownership edge since owner not in graph
+    expect(nodes.find((n) => n.id === 'art-1')).toBeDefined();
+    expect(links.find((l) => l.id.includes('art-1'))).toBeUndefined();
   });
 
   it('includes image metadata on nodes', () => {
@@ -650,7 +652,7 @@ describe('buildOverviewGraphData', () => {
     expect(nodes.find((n) => n.id === 'art-1')).toBeDefined();
   });
 
-  it('excludes artifacts for inactive owners', () => {
+  it('renders artifacts passed by caller but skips ownership edge for inactive owners', () => {
     const characters: Record<string, Character> = {
       'char-1': createCharacter('char-1'),
       'char-2': createCharacter('char-2'),
@@ -661,10 +663,12 @@ describe('buildOverviewGraphData', () => {
     const scenes: Record<string, Scene> = {
       'scene-1': createScene('scene-1', { participantIds: ['char-1'] }),
     };
-    const { nodes } = buildOverviewGraphData(
+    const { nodes, links } = buildOverviewGraphData(
       characters, {}, [], scenes, {}, ['scene-1'], 0, artifacts,
     );
 
-    expect(nodes.find((n) => n.id === 'art-1')).toBeUndefined();
+    // Artifact appears (pre-filtered by caller) but no ownership edge since char-2 not active
+    expect(nodes.find((n) => n.id === 'art-1')).toBeDefined();
+    expect(links.find((l) => l.id.includes('art-1'))).toBeUndefined();
   });
 });

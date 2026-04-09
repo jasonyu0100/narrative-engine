@@ -1,4 +1,4 @@
-import type { NarrativeState, Scene, Character, Location, Thread, RelationshipEdge, WorldKnowledgeNode, WorldKnowledgeEdge, WorldKnowledgeMutation, WorldKnowledgeNodeType, Artifact, ReasoningLevel } from '@/types/narrative';
+import type { NarrativeState, Scene, Character, Location, Thread, RelationshipEdge, WorldKnowledgeNode, WorldKnowledgeEdge, WorldKnowledgeMutation, WorldKnowledgeNodeType, Artifact, ReasoningLevel, OwnershipMutation, TieMutation, ContinuityMutation, RelationshipMutation } from '@/types/narrative';
 import { THREAD_ACTIVE_STATUSES, resolveEntry, isScene, REASONING_BUDGETS, DEFAULT_STORY_SETTINGS } from '@/types/narrative';
 import { nextId, nextIds } from '@/lib/narrative-utils';
 import { callGenerate, callGenerateStream, SYSTEM_PROMPT } from './api';
@@ -9,6 +9,26 @@ import { PROMPT_FORCE_STANDARDS, PROMPT_STRUCTURAL_RULES, PROMPT_MUTATIONS, PROM
 import { buildSequencePrompt, buildIntroductionSequence } from '@/lib/pacing-profile';
 import { logInfo } from '@/lib/system-logger';
 
+export type ExpansionEntityFilter = {
+  characters: boolean;
+  locations: boolean;
+  threads: boolean;
+  artifacts: boolean;
+  relationships: boolean;
+  worldKnowledge: boolean;
+  ownershipMutations: boolean;
+  tieMutations: boolean;
+  continuityMutations: boolean;
+  relationshipMutations: boolean;
+};
+
+export const DEFAULT_EXPANSION_FILTER: ExpansionEntityFilter = {
+  characters: true, locations: true, threads: true,
+  artifacts: true, relationships: true, worldKnowledge: true,
+  ownershipMutations: true, tieMutations: true,
+  continuityMutations: true, relationshipMutations: true,
+};
+
 export type WorldExpansion = {
   characters: Character[];
   locations: Location[];
@@ -16,6 +36,10 @@ export type WorldExpansion = {
   relationships: RelationshipEdge[];
   worldKnowledgeMutations?: WorldKnowledgeMutation;
   artifacts?: Artifact[];
+  ownershipMutations?: OwnershipMutation[];
+  tieMutations?: TieMutation[];
+  continuityMutations?: ContinuityMutation[];
+  relationshipMutations?: RelationshipMutation[];
 };
 
 export type DirectionSuggestion = {
@@ -347,6 +371,8 @@ export async function expandWorld(
   /** Verbatim plan document section — guides entity creation with specific character/location/system details */
   sourceText?: string,
   onReasoning?: (token: string) => void,
+  /** Filter which entity types to create — disabled types are excluded from prompt and stripped from output */
+  entityFilter?: ExpansionEntityFilter,
 ): Promise<WorldExpansion> {
   logInfo('Starting world expansion', {
     source: 'world-expansion',
@@ -408,6 +434,13 @@ ${sourceText ? `\nSOURCE MATERIAL (verbatim from plan document — use this as t
 
 ${strategyBlock}
 
+${(() => {
+  const f = entityFilter ?? DEFAULT_EXPANSION_FILTER;
+  const disabled = Object.entries(f).filter(([, v]) => !v).map(([k]) => k);
+  if (disabled.length === 0) return '';
+  const labels: Record<string, string> = { characters: 'characters', locations: 'locations', threads: 'threads', artifacts: 'artifacts', relationships: 'relationships', worldKnowledge: 'world knowledge mutations', ownershipMutations: 'ownership mutations (artifact transfers)', tieMutations: 'tie mutations (character-location bonds)', continuityMutations: 'continuity mutations (changes to existing entities)', relationshipMutations: 'relationship mutations (valence shifts on existing relationships)' };
+  return `ENTITY FILTER — DO NOT create the following types (return empty arrays for them):\n${disabled.map(k => `- NO ${labels[k]}`).join('\n')}\n`;
+})()}
 ${size === 'exact' ? `This is an EXACT expansion — create ONLY what the directive explicitly describes. Do not add extra characters, locations, threads, or artifacts beyond what is specified. No embellishments, no "while we're at it" additions. If the directive says "add a blacksmith named Torin", create exactly that character and nothing else. Every entity in your response must trace directly to something stated in the directive.` : `This is ${EXPANSION_SIZE_CONFIG[size].label} (${EXPANSION_SIZE_CONFIG[size].total} total new entities). Generate:
 - ${EXPANSION_SIZE_CONFIG[size].characters} new characters
 - ${EXPANSION_SIZE_CONFIG[size].locations} new locations
@@ -477,7 +510,11 @@ Return JSON with this exact structure:
   "worldKnowledgeMutations": {
     "addedNodes": [{"id": "WK-GEN-001", "concept": "foundational world concept", "type": "principle|system|concept|tension|event|structure|environment|convention|constraint"}],
     "addedEdges": [{"from": "WK-GEN-001", "to": "existing-WK-ID", "relation": "relationship"}]
-  }
+  },
+  "ownershipMutations": [{"artifactId": "A-XX", "fromId": "C-XX or L-XX", "toId": "C-YY or L-YY"}],
+  "tieMutations": [{"locationId": "L-XX", "characterId": "C-XX", "action": "add|remove"}],
+  "continuityMutations": [{"entityId": "existing C-XX, L-XX, or A-XX", "addedNodes": [{"id": "K-next", "content": "what changed", "type": "trait|state|history|capability|belief|relation|secret|goal|weakness"}], "addedEdges": []}],
+  "relationshipMutations": [{"from": "C-XX", "to": "C-YY", "type": "description", "valenceDelta": 0.1}]
 }
 
 ID RULES:
@@ -575,13 +612,19 @@ worldKnowledgeMutations define the FOUNDATIONAL abstractions this expansion esta
     worldKnowledgeMutations = { addedNodes, addedEdges };
   }
 
+  // Apply entity filter — strip types the user disabled
+  const f = entityFilter ?? DEFAULT_EXPANSION_FILTER;
   const result = {
-    characters: parsed.characters ?? [],
-    locations: parsed.locations ?? [],
-    threads,
-    relationships: parsed.relationships ?? [],
-    worldKnowledgeMutations,
-    artifacts: parsed.artifacts ?? [],
+    characters: f.characters ? (parsed.characters ?? []) : [],
+    locations: f.locations ? (parsed.locations ?? []) : [],
+    threads: f.threads ? threads : [],
+    relationships: f.relationships ? (parsed.relationships ?? []) : [],
+    worldKnowledgeMutations: f.worldKnowledge ? worldKnowledgeMutations : undefined,
+    artifacts: f.artifacts ? (parsed.artifacts ?? []) : [],
+    ownershipMutations: f.ownershipMutations ? (parsed.ownershipMutations ?? []) : [],
+    tieMutations: f.tieMutations ? (parsed.tieMutations ?? []) : [],
+    continuityMutations: f.continuityMutations ? (parsed.continuityMutations ?? []) : [],
+    relationshipMutations: f.relationshipMutations ? (parsed.relationshipMutations ?? []) : [],
   };
 
   logInfo('Completed world expansion', {

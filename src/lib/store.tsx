@@ -1,7 +1,7 @@
 'use client';
 
 import React, { createContext, useContext, useReducer, useEffect, useRef, useMemo, type ReactNode } from 'react';
-import type { AppState, InspectorContext, NarrativeState, NarrativeEntry, WizardStep, WizardData, Scene, Arc, Branch, Character, Location, Thread, RelationshipEdge, GraphViewMode, AutoConfig, AutoRunLog, WorldBuild, WorldKnowledgeGraph, WorldKnowledgeNode, WorldKnowledgeEdge, WorldKnowledgeMutation, ApiLogEntry, SystemLogEntry, StorySettings, AnalysisJob, ChatThread, ChatMessage, Note, PlanningQueue, PlanningPhase, Artifact, StructureReview, ProseEvaluation, PlanEvaluation, WorldSystem, ProseProfile, BeatProfilePreset, MechanismProfilePreset, BeatPlan, BeatProseMap, ProseScore, SearchQuery } from '@/types/narrative';
+import type { AppState, InspectorContext, NarrativeState, NarrativeEntry, WizardStep, WizardData, Scene, Arc, Branch, Character, Location, Thread, RelationshipEdge, GraphViewMode, AutoConfig, AutoRunLog, WorldBuild, WorldKnowledgeGraph, WorldKnowledgeNode, WorldKnowledgeEdge, WorldKnowledgeMutation, ApiLogEntry, SystemLogEntry, StorySettings, AnalysisJob, ChatThread, ChatMessage, Note, PlanningQueue, PlanningPhase, Artifact, StructureReview, ProseEvaluation, PlanEvaluation, WorldSystem, ProseProfile, BeatProfilePreset, MechanismProfilePreset, BeatPlan, BeatProseMap, ProseScore, SearchQuery, OwnershipMutation, TieMutation, ContinuityMutation, RelationshipMutation } from '@/types/narrative';
 import { EMPTY_CONTINUITY, applyContinuityMutation } from '@/lib/continuity-graph';
 import { resolveEntrySequence, nextId, computeForceSnapshots, computeSwingMagnitudes, computeDeliveryCurve, classifyNarrativeShape, classifyArchetype, classifyScale, classifyWorldDensity, gradeForces, computeRawForceTotals, FORCE_REFERENCE_MEANS } from '@/lib/narrative-utils';
 import { initMatrixPresets } from '@/lib/pacing-profile';
@@ -76,6 +76,38 @@ function computeDerivedEntities(
       }
       // Collect world knowledge
       applyWkMutation(wb.expansionManifest.worldKnowledge ?? { addedNodes: [], addedEdges: [] });
+      // Apply expansion mutations on existing entities
+      for (const km of wb.expansionManifest.continuityMutations ?? []) {
+        const char = characters[km.entityId];
+        const loc = locations[km.entityId];
+        const art = artifacts[km.entityId];
+        if (char) characters[km.entityId] = { ...char, continuity: applyContinuityMutation(char.continuity, km) };
+        else if (loc) locations[km.entityId] = { ...loc, continuity: applyContinuityMutation(loc.continuity, km) };
+        else if (art) artifacts[km.entityId] = { ...art, continuity: applyContinuityMutation(art.continuity, km) };
+      }
+      for (const rm of wb.expansionManifest.relationshipMutations ?? []) {
+        const idx = relationships.findIndex((r) => r.from === rm.from && r.to === rm.to);
+        if (idx >= 0) {
+          const existing = relationships[idx];
+          relationships = [...relationships.slice(0, idx), { ...existing, type: rm.type, valence: Math.max(-1, Math.min(1, existing.valence + rm.valenceDelta)) }, ...relationships.slice(idx + 1)];
+        } else {
+          relationships.push({ from: rm.from, to: rm.to, type: rm.type, valence: Math.max(-1, Math.min(1, rm.valenceDelta)) });
+        }
+      }
+      for (const om of wb.expansionManifest.ownershipMutations ?? []) {
+        const art = artifacts[om.artifactId];
+        if (art) artifacts[om.artifactId] = { ...art, parentId: om.toId };
+      }
+      for (const mm of wb.expansionManifest.tieMutations ?? []) {
+        const loc = locations[mm.locationId];
+        if (loc) {
+          if (mm.action === 'add' && !loc.tiedCharacterIds.includes(mm.characterId)) {
+            locations[mm.locationId] = { ...loc, tiedCharacterIds: [...loc.tiedCharacterIds, mm.characterId] };
+          } else if (mm.action === 'remove') {
+            locations[mm.locationId] = { ...loc, tiedCharacterIds: loc.tiedCharacterIds.filter(id => id !== mm.characterId) };
+          }
+        }
+      }
     } else {
       const scene = scenes[key];
       if (!scene) continue;
@@ -363,7 +395,7 @@ export type Action =
   // Bulk AI-generated content
   | { type: 'BULK_ADD_SCENES'; scenes: Scene[]; arc: Arc; branchId: string }
   | { type: 'RECONSTRUCT_BRANCH'; branchId: string; scenes: Scene[]; arcs: Record<string, Arc> }
-  | { type: 'EXPAND_WORLD'; worldBuildId: string; characters: Character[]; locations: Location[]; threads: Thread[]; relationships: RelationshipEdge[]; branchId: string; worldKnowledgeMutations?: WorldKnowledgeMutation; artifacts?: Artifact[] }
+  | { type: 'EXPAND_WORLD'; worldBuildId: string; characters: Character[]; locations: Location[]; threads: Thread[]; relationships: RelationshipEdge[]; branchId: string; worldKnowledgeMutations?: WorldKnowledgeMutation; artifacts?: Artifact[]; ownershipMutations?: OwnershipMutation[]; tieMutations?: TieMutation[]; continuityMutations?: ContinuityMutation[]; relationshipMutations?: RelationshipMutation[] }
   // Auto mode
   | { type: 'SET_AUTO_CONFIG'; config: AutoConfig }
   | { type: 'START_AUTO_RUN' }
@@ -1142,6 +1174,10 @@ function reducer(state: AppState, action: Action): AppState {
           relationships: action.relationships,
           worldKnowledge: manifestWK,
           artifacts: action.artifacts ?? [],
+          ownershipMutations: action.ownershipMutations,
+          tieMutations: action.tieMutations,
+          continuityMutations: action.continuityMutations,
+          relationshipMutations: action.relationshipMutations,
         },
       };
 

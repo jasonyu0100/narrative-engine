@@ -84,7 +84,7 @@ describe('Static Prompt Constants', () => {
     });
 
     it('contains change reference mean', () => {
-      expect(PROMPT_FORCE_STANDARDS).toContain('C ~3.5');
+      expect(PROMPT_FORCE_STANDARDS).toContain('C ~4');
     });
 
     it('contains knowledge reference mean', () => {
