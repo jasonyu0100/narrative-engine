@@ -126,7 +126,8 @@ export type OwnershipMutation = {
 
 export type ArtifactUsage = {
   artifactId: string;
-  characterId: string;
+  /** Character who used the artifact, or null for unattributed usage (e.g. a tool described in a paper) */
+  characterId: string | null;
 };
 
 export type TieMutation = {
@@ -1112,7 +1113,7 @@ export type AnalysisChunkResult = {
   chapterSummary: string;
   characters: { name: string; role: string; firstAppearance: boolean; imagePrompt?: string; continuity: { type: string; content: string }[] }[];
   locations: { name: string; parentName: string | null; description: string; imagePrompt?: string; lore: string[]; tiedCharacterNames?: string[] }[];
-  artifacts?: { name: string; significance: string; continuity: { type: string; content: string }[]; ownerName: string }[];
+  artifacts?: { name: string; significance: string; continuity: { type: string; content: string }[]; ownerName: string | null }[];
   threads: { description: string; participantNames: string[]; statusAtStart: string; statusAtEnd: string; development: string; relatedThreadDescriptions?: string[] }[];
   scenes: {
     locationName: string; povName: string; participantNames: string[]; events: string[];
@@ -1123,7 +1124,7 @@ export type AnalysisChunkResult = {
       addedNodes: { content: string; type: string }[];
     }[];
     relationshipMutations: { from: string; to: string; type: string; valenceDelta: number }[];
-    artifactUsages?: { artifactName: string; characterName: string }[];
+    artifactUsages?: { artifactName: string; characterName: string | null }[];
     ownershipMutations?: { artifactName: string; fromName: string; toName: string }[];
     tieMutations?: { locationName: string; characterName: string; action: 'add' | 'remove' }[];
     characterMovements?: { characterName: string; locationName: string; transition: string }[];

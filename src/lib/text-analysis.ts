@@ -366,7 +366,7 @@ Return a single JSON object with this exact structure:
     { "name": "Location Name", "parentName": "Parent Location or null", "description": "Brief atmospheric description", "imagePrompt": "1-2 sentence LITERAL visual description of architecture, landscape, lighting, weather for establishing shot generation. Use concrete physical details only — no metaphors, similes, or figurative language. Image generators interpret descriptions literally.", "lore": ["Notable detail or significance"], "tiedCharacterNames": ["Character names with a significant tie to this location — residents, employees, faction members, students. Not casual visitors"] }
   ],
   "artifacts": [
-    { "name": "Artifact Name", "significance": "key|notable|minor", "continuity": [{"type": "trait|state|history|capability|belief|relation|secret|goal|weakness", "content": "What it is, what it does, its properties, history, limitations"}], "ownerName": "Character or Location name that holds it" }
+    { "name": "Artifact Name", "significance": "key|notable|minor", "continuity": [{"type": "trait|state|history|capability|belief|relation|secret|goal|weakness", "content": "What it is, what it does, its properties, history, limitations"}], "ownerName": "Character or Location name, or null for world-owned (universally accessible tools, systems, technologies)" }
   ],
   "threads": [
     {
@@ -399,7 +399,7 @@ Return a single JSON object with this exact structure:
         { "from": "Name", "to": "Name", "type": "Description of relationship shift", "valenceDelta": -0.3 }
       ],
       "artifactUsages": [
-        { "artifactName": "Artifact Name", "characterName": "Who uses it" }
+        { "artifactName": "Artifact Name", "characterName": "Who uses it, or null if unattributed (e.g. a tool described without a specific user)" }
       ],
       "ownershipMutations": [
         { "artifactName": "Artifact Name", "fromName": "Previous owner name", "toName": "New owner name" }
@@ -426,7 +426,13 @@ RULES:
 - Every scene MUST have a non-empty "summary", at least one event tag, and a "povName"
 - "sections" is an array of section numbers (1-indexed) that this scene covers. Together, all scenes should cover all ${sections.length} sections.
 - characterMovements: only include characters who physically RELOCATE to a different location during the scene. The destination must differ from the scene's locationName. Omit characters who stay put.
-- artifacts: objects with narrative significance — weapons, relics, keys, letters, documents, tools. Only extract items that alter what characters can do or drive plot. A named sword that wins battles is an artifact; a generic chair is not. Track who owns each artifact. If ownership changes in a scene, record it as an ownershipMutation.
+- artifacts: TOOLS that extend what characters can do. Extract broadly across all genres:
+  * Physical objects: weapons, keys, vehicles, devices, instruments, documents
+  * Technologies: software platforms, APIs, databases, AI systems, networks, data centers
+  * Systems & methods: magic systems, research methodologies, algorithms, protocols, frameworks
+  * Services & institutions: companies (Google, Atlassian), exchanges, courts, laboratories
+  * Techniques: spells, martial arts styles, surgical procedures, investment strategies
+  An artifact is anything a character USES to accomplish something they couldn't do alone. A Bloomberg terminal is an artifact. Google Search is an artifact. A magic wand is an artifact. A gas station is an artifact. Even for sparse texts like academic papers, extract the techniques, tools, and systems described — these ARE the artifacts. ownerName is null for world-owned tools (the internet, a programming language, a legal system), a location name for place-bound tools (a library, a forge), or a character name for personal tools.
 - ownershipMutations: only when an artifact physically changes hands in a scene. fromName = previous owner (character or location name), toName = new owner.
 - worldKnowledgeMutations track the world's abstract structure — the rules, systems, ideas, and tensions that define the world the characters inhabit. NOT character knowledge (that's continuityMutations). World knowledge exists in EVERY genre, not just fantasy:
   * Fantasy/sci-fi: magic systems, alien species, supernatural laws, technological rules
@@ -452,11 +458,37 @@ CONTINUITY MUTATIONS — first-person experiential changes, NOT omniscient narra
   * Artifacts: tools that extend possibility. Track what the artifact underwent AND how it modified its wielder's capabilities.
 - Dense scenes: 2-3 per entity. Normal: 0-1 total. Quiet: 0.
 
-FORCE SCORING — extract ONLY what the prose actually supports. Do NOT inflate:
-- PAYOFF: Only record thread transitions when the text clearly shows a shift in tension level. A scene where a thread is merely present is a pulse (same status), NOT a transition. Do not manufacture transitions.
-- CHANGE: Only include characters who meaningfully act, react, learn, or are changed in the scene. Background characters who are merely present get no mutations. A quiet scene with one character reflecting alone should have few mutations.
-- KNOWLEDGE: Only add world-building nodes when the prose explicitly reveals, establishes, or names a concept. A scene that takes place in an already-established setting with no new world information gets ZERO knowledge nodes. Do not invent concepts the text doesn't surface.
-- Scenes vary dramatically in intensity. A transitional scene may have near-zero mutations across all forces. A climactic scene may have many. Extract what's actually there — never pad sparse scenes to hit a target.
+FORCE FORMULAS — your extractions are the direct inputs to these formulas. Extract accurately.
+
+PAYOFF = Σ max(0, φ_to - φ_from) + 0.25 per pulse
+  Phase index: dormant=0, active=1, escalating=2, critical=3, resolved/subverted/abandoned=4
+  Each thread transition contributes the distance between phases. Same-status mentions ("pulses") add 0.25.
+  Reference mean: ~1.3/scene (1-2 transitions averaging ~1 phase jump, or several pulses).
+  → A text with constant tension shifts (adventure, thriller) should have HIGH payoff across scenes.
+  → A text with stable threads (slice-of-life, exposition) should have LOW payoff — extract pulses only.
+  → ONLY record transitions the text actually shows. A thread merely present is a pulse, not a transition.
+
+CHANGE = √(continuity_nodes + √continuity_edges) + √events + √(Σ|valenceDelta|²)
+  Continuity mutations (per-entity inner world changes) drive the first term.
+  Events drive the second. Relationship valenceDelta drives the third (L2 aggregated).
+  Reference mean: ~3.5/scene (~3-4 continuity nodes + ~2-3 events + relationship shifts ±0.2+).
+  → A character-driven text should have HIGH change: many continuity mutations per entity, rich relationship shifts.
+  → An idea-driven text (academic paper, essay) may have LOW change — fewer characters experiencing things.
+  → Background characters who are merely present get NO mutations. Quiet scenes = few mutations.
+
+KNOWLEDGE = ΔN + √ΔE (world knowledge nodes + sqrt of edges)
+  Each new world concept node adds linearly. Edges between concepts add via sqrt.
+  Reference mean: ~3.5/scene (~2-3 new world knowledge nodes + connecting edges).
+  → A dense academic paper or hard sci-fi should have HIGH knowledge: many systems, concepts, principles.
+  → A simple character drama may have LOW knowledge — the world is already established.
+  → Only extract concepts the text explicitly reveals. Reuse existing node IDs for reinforcement.
+
+CALIBRATION — match your extraction density to what the text actually contains:
+- A climactic battle: high payoff (thread transitions), high change (many mutations), moderate knowledge.
+- A quiet character scene: low payoff (pulses only), moderate change (internal shifts), low knowledge.
+- An academic paper section: low payoff, low change, HIGH knowledge (many concepts/systems).
+- A world-building chapter: moderate payoff, moderate change, HIGH knowledge.
+- Extract what's there — never pad sparse scenes, never under-extract dense ones.
 ${cumulativeCtx ? `
 CUMULATIVE CONTINUITY:
 - Thread "statusAtStart" MUST match the thread's current status from the THREADS section above
@@ -598,7 +630,7 @@ Return a single JSON object with this exact structure:
     { "name": "Location Name", "parentName": "Parent Location or null", "description": "Brief atmospheric description", "imagePrompt": "1-2 sentence LITERAL visual description of architecture, landscape, lighting, weather for establishing shot generation. Use concrete physical details only — no metaphors, similes, or figurative language. Image generators interpret descriptions literally.", "lore": ["Notable detail or significance"], "tiedCharacterNames": ["Character names with a significant tie to this location — residents, employees, faction members, students. Not casual visitors"] }
   ],
   "artifacts": [
-    { "name": "Artifact Name", "significance": "key|notable|minor", "continuity": [{"type": "trait|state|history|capability|belief|relation|secret|goal|weakness", "content": "What it is, what it does, its properties, history, limitations"}], "ownerName": "Character or Location name that holds it" }
+    { "name": "Artifact Name", "significance": "key|notable|minor", "continuity": [{"type": "trait|state|history|capability|belief|relation|secret|goal|weakness", "content": "What it is, what it does, its properties, history, limitations"}], "ownerName": "Character or Location name, or null for world-owned (universally accessible tools, systems, technologies)" }
   ],
   "threads": [
     {
@@ -631,7 +663,7 @@ Return a single JSON object with this exact structure:
         { "from": "Name", "to": "Name", "type": "Description of relationship shift", "valenceDelta": -0.3 }
       ],
       "artifactUsages": [
-        { "artifactName": "Artifact Name", "characterName": "Who uses it" }
+        { "artifactName": "Artifact Name", "characterName": "Who uses it, or null if unattributed (e.g. a tool described without a specific user)" }
       ],
       "ownershipMutations": [
         { "artifactName": "Artifact Name", "fromName": "Previous owner name", "toName": "New owner name" }
@@ -658,7 +690,13 @@ RULES:
 - Every scene MUST have a non-empty "summary", at least one event tag, and a "povName"
 - "sections" is an array of section numbers (1-indexed) that this scene covers. Together, all scenes should cover all ${sections.length} sections.
 - characterMovements: only include characters who physically RELOCATE to a different location during the scene. The destination must differ from the scene's locationName. Omit characters who stay put.
-- artifacts: objects with narrative significance — weapons, relics, keys, letters, documents, tools. Only extract items that alter what characters can do or drive plot. A named sword that wins battles is an artifact; a generic chair is not. Track who owns each artifact. If ownership changes in a scene, record it as an ownershipMutation.
+- artifacts: TOOLS that extend what characters can do. Extract broadly across all genres:
+  * Physical objects: weapons, keys, vehicles, devices, instruments, documents
+  * Technologies: software platforms, APIs, databases, AI systems, networks, data centers
+  * Systems & methods: magic systems, research methodologies, algorithms, protocols, frameworks
+  * Services & institutions: companies (Google, Atlassian), exchanges, courts, laboratories
+  * Techniques: spells, martial arts styles, surgical procedures, investment strategies
+  An artifact is anything a character USES to accomplish something they couldn't do alone. A Bloomberg terminal is an artifact. Google Search is an artifact. A magic wand is an artifact. A gas station is an artifact. Even for sparse texts like academic papers, extract the techniques, tools, and systems described — these ARE the artifacts. ownerName is null for world-owned tools (the internet, a programming language, a legal system), a location name for place-bound tools (a library, a forge), or a character name for personal tools.
 - ownershipMutations: only when an artifact physically changes hands in a scene. fromName = previous owner (character or location name), toName = new owner.
 - worldKnowledgeMutations track the world's abstract structure — rules, systems, ideas, and tensions of the world characters inhabit. NOT character knowledge. Exists in EVERY genre:
   * Fantasy/sci-fi: magic systems, supernatural laws, alien species. Literary: class structures, social norms, economic systems. Historical: period customs, political systems. Crime: legal systems, criminal hierarchies.
@@ -753,12 +791,14 @@ export async function reconcileResults(
   const allCharNames = new Set<string>();
   const allThreadDescs = new Set<string>();
   const allLocNames = new Set<string>();
+  const allArtifactNames = new Set<string>();
   const allWKConcepts = new Set<string>();
 
   for (const r of results) {
     for (const c of r.characters ?? []) allCharNames.add(c.name);
     for (const t of r.threads ?? []) allThreadDescs.add(t.description);
     for (const l of r.locations ?? []) allLocNames.add(l.name);
+    for (const a of r.artifacts ?? []) allArtifactNames.add(a.name);
     for (const s of r.scenes ?? []) {
       for (const n of s.worldKnowledgeMutations?.addedNodes ?? []) allWKConcepts.add(n.concept);
     }
@@ -777,6 +817,9 @@ ${[...allThreadDescs].map((d, i) => `${i + 1}. "${d}"`).join('\n')}
 LOCATIONS found across all chunks:
 ${[...allLocNames].map((n, i) => `${i + 1}. "${n}"`).join('\n')}
 
+ARTIFACTS found across all chunks:
+${[...allArtifactNames].map((n, i) => `${i + 1}. "${n}"`).join('\n')}
+
 WORLD KNOWLEDGE CONCEPTS found across all chunks:
 ${[...allWKConcepts].map((c, i) => `${i + 1}. "${c}"`).join('\n')}
 
@@ -792,6 +835,9 @@ Return JSON:
   },
   "locationMerges": {
     "variant location name": "canonical location name"
+  },
+  "artifactMerges": {
+    "variant artifact name": "canonical artifact name"
   },
   "worldKnowledgeMerges": {
     "variant concept": "canonical concept"
@@ -816,6 +862,11 @@ THREAD MERGING — BE AGGRESSIVE:
 - Goal: 8-15 major threads, not 30+ overlapping ones. When in doubt, merge.
 - Pick the most encompassing description as canonical
 
+ARTIFACT MERGING:
+- Merge name variants for the same tool ("the Elder Wand" / "Elder Wand" / "Dumbledore's wand")
+- Merge when the same tool is described at different abstraction levels ("Google" / "Google Search" → keep the more specific)
+- Do NOT merge distinct tools that happen to be related (a sword and a shield are separate)
+
 WORLD KNOWLEDGE MERGING:
 - Only merge concepts that are clearly the same idea in different words
 - Related but distinct concepts should remain separate
@@ -830,6 +881,7 @@ If no duplicates for a category, return empty object {}`;
     characterMerges: CharacterNameMap;
     threadMerges: Record<string, string>;
     locationMerges: Record<string, string>;
+    artifactMerges?: Record<string, string>;
     worldKnowledgeMerges?: Record<string, string>;
   };
   try {
@@ -845,11 +897,13 @@ If no duplicates for a category, return empty object {}`;
   const charMap = merges.characterMerges ?? {};
   const threadMap = merges.threadMerges ?? {};
   const locMap = merges.locationMerges ?? {};
+  const artMap = merges.artifactMerges ?? {};
   const wkMap = merges.worldKnowledgeMerges ?? {};
 
   const resolveChar = (name: string) => charMap[name] ?? name;
   const resolveThread = (desc: string) => threadMap[desc] ?? desc;
   const resolveLoc = (name: string) => locMap[name] ?? name;
+  const resolveArt = (name: string) => artMap[name] ?? name;
   const resolveWK = (concept: string) => wkMap[concept] ?? concept;
 
   // Apply merges to all results
@@ -876,6 +930,19 @@ If no duplicates for a category, return empty object {}`;
       })),
       (l) => l.name,
       (a, b) => ({ ...a, lore: [...(a.lore ?? []), ...(b.lore ?? [])] }),
+    ),
+    artifacts: deduplicateBy(
+      (r.artifacts ?? []).map((a) => ({
+        ...a,
+        name: resolveArt(a.name),
+        ownerName: a.ownerName ? (resolveChar(a.ownerName) !== a.ownerName ? resolveChar(a.ownerName) : resolveLoc(a.ownerName)) : null,
+      })),
+      (a) => a.name,
+      (a, b) => ({
+        ...a,
+        significance: higherSignificance(a.significance, b.significance),
+        continuity: [...(a.continuity ?? []), ...(b.continuity ?? [])],
+      }),
     ),
     threads: deduplicateBy(
       (r.threads ?? []).map((t) => ({
@@ -904,14 +971,27 @@ If no duplicates for a category, return empty object {}`;
         // When two mutations target the same thread in one scene, keep the widest transition
         (a, b) => ({ ...a, from: a.from, to: b.to }),
       ),
-      continuityMutations: (s.continuityMutations ?? []).map((km) => ({
-        ...km,
-        entityName: resolveChar(km.entityName),
-      })),
+      continuityMutations: (s.continuityMutations ?? []).map((km) => {
+        // Entity can be character, location, or artifact — try each resolver
+        const n = km.entityName;
+        const resolved = charMap[n] ? resolveChar(n) : locMap[n] ? resolveLoc(n) : artMap[n] ? resolveArt(n) : n;
+        return { ...km, entityName: resolved };
+      }),
       relationshipMutations: (s.relationshipMutations ?? []).map((rm) => ({
         ...rm,
         from: resolveChar(rm.from),
         to: resolveChar(rm.to),
+      })),
+      artifactUsages: (s.artifactUsages ?? []).map((au) => ({
+        ...au,
+        artifactName: resolveArt(au.artifactName),
+        characterName: au.characterName ? resolveChar(au.characterName) : null,
+      })),
+      ownershipMutations: (s.ownershipMutations ?? []).map((om) => ({
+        ...om,
+        artifactName: resolveArt(om.artifactName),
+        fromName: resolveChar(om.fromName) !== om.fromName ? resolveChar(om.fromName) : resolveLoc(om.fromName),
+        toName: resolveChar(om.toName) !== om.toName ? resolveChar(om.toName) : resolveLoc(om.toName),
       })),
       worldKnowledgeMutations: s.worldKnowledgeMutations ? {
         addedNodes: (s.worldKnowledgeMutations.addedNodes ?? []).map((n) => ({
@@ -1050,6 +1130,11 @@ function normalizeStatus(raw: string): string {
     if (s.includes(canonical)) return canonical;
   }
   return s; // keep original if no match — assembleNarrative will still accept it
+}
+
+function higherSignificance(a: string, b: string): string {
+  const rank: Record<string, number> = { minor: 0, notable: 1, key: 2 };
+  return (rank[b] ?? 0) > (rank[a] ?? 0) ? b : a;
 }
 
 function higherRole(a: string, b: string): string {
@@ -1272,8 +1357,10 @@ export async function assembleNarrative(
     // Artifacts
     for (const a of ch.artifacts ?? []) {
       const id = getArtifactId(a.name);
-      const ownerName = a.ownerName ?? '';
-      const parentId = charNameToId[ownerName] ?? locNameToId[ownerName] ?? (ownerName ? getLocId(ownerName) : '');
+      const ownerName = a.ownerName;
+      const parentId = ownerName
+        ? (charNameToId[ownerName] ?? locNameToId[ownerName] ?? getLocId(ownerName))
+        : null;
       if (!artifactEntities[id]) {
         artifactEntities[id] = {
           id, name: a.name,
@@ -1378,8 +1465,8 @@ export async function assembleNarrative(
           if (aus.length === 0) return undefined;
           return aus.map((au) => ({
             artifactId: getArtifactId(au.artifactName),
-            characterId: getCharId(au.characterName),
-          })).filter((au) => artifactEntities[au.artifactId] && au.characterId);
+            characterId: au.characterName ? getCharId(au.characterName) : null,
+          })).filter((au) => artifactEntities[au.artifactId]);
         })() || undefined,
         ownershipMutations: (() => {
           const oms = s.ownershipMutations ?? [];

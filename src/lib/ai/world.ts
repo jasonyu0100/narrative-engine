@@ -657,7 +657,7 @@ Return JSON with this exact structure:
       "locationId": "L-01",
       "povId": "C-01",
       "participantIds": ["C-01"],
-      "artifactUsages": [{"artifactId": "A-XX", "characterId": "C-XX"}],
+      "artifactUsages": [{"artifactId": "A-XX", "characterId": "C-XX or null for unattributed usage"}],
       "events": ["event_tag"],
       "threadMutations": [{"threadId": "T-01", "from": "dormant", "to": "active"}],
       "continuityMutations": [{"entityId": "C-XX", "addedNodes": [{"id": "K-GEN-001", "content": "what they learned or became", "type": "trait|state|history|capability|belief|relation|secret|goal|weakness"}]}],

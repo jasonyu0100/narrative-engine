@@ -396,6 +396,7 @@ export function narrativeContext(
     }).join('; ');
     const artifactUsages = (s.artifactUsages ?? []).map((au) => {
       const artName = n.artifacts?.[au.artifactId]?.name ?? au.artifactId;
+      if (!au.characterId) return `${artName} used`;
       const charName = n.characters[au.characterId]?.name ?? au.characterId;
       return `${charName} uses ${artName}`;
     }).join('; ');
@@ -645,6 +646,7 @@ export function sceneContext(
 
   const artifactUsageLines = (scene.artifactUsages ?? []).map((au) => {
     const artName = narrative.artifacts?.[au.artifactId]?.name ?? au.artifactId;
+    if (!au.characterId) return `  <usage artifact="${artName}" />`;
     const charName = narrative.characters[au.characterId]?.name ?? au.characterId;
     return `  <usage artifact="${artName}" character="${charName}" />`;
   });

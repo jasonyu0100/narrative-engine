@@ -283,7 +283,7 @@ export default function SceneDetail({ sceneId }: Props) {
           <div className="flex flex-wrap gap-1.5">
             {(scene.artifactUsages ?? []).map((au, auIdx) => {
               const artifact = narrative.artifacts[au.artifactId];
-              const character = narrative.characters[au.characterId];
+              const character = au.characterId ? narrative.characters[au.characterId] : null;
               if (!artifact) return null;
               return (
                 <button

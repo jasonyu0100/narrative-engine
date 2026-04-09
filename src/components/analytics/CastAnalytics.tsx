@@ -3,12 +3,12 @@
 import { useMemo, useState } from 'react';
 import { useStore } from '@/lib/store';
 import { resolveEntry, isScene } from '@/types/narrative';
-import type { Scene, Character, Location } from '@/types/narrative';
+import type { Scene } from '@/types/narrative';
 import { computeWorldMetrics, type WorldMetrics } from '@/lib/ai';
 import { Modal, ModalHeader, ModalBody, ModalFooter } from '@/components/Modal';
 
 type Props = { onClose: () => void };
-type View = 'cast' | 'locations' | 'metrics';
+type View = 'cast' | 'locations' | 'tools' | 'metrics';
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -37,6 +37,29 @@ type LocationStat = {
   presence: boolean[];
   /** Number of unique characters who have visited */
   uniqueVisitors: number;
+};
+
+type ArtifactStat = {
+  id: string;
+  name: string;
+  significance: 'key' | 'notable' | 'minor';
+  ownerName: string | null;
+  ownerType: 'character' | 'location' | 'world';
+  usageCount: number;
+  /** Unique characters who have used this artifact */
+  uniqueUsers: number;
+  firstIndex: number;
+  lastIndex: number;
+  staleness: number;
+  presence: boolean[];
+  /** Character names who used it, with count */
+  userBreakdown: { name: string; count: number }[];
+};
+
+const SIGNIFICANCE_COLORS: Record<string, string> = {
+  key: '#f59e0b',
+  notable: '#d97706',
+  minor: '#6b7280',
 };
 
 // ── Role colors ──────────────────────────────────────────────────────────────
@@ -174,6 +197,69 @@ export function CastAnalytics({ onClose }: Props) {
       .filter((s): s is LocationStat => s !== null);
   }, [narrative, allScenes]);
 
+  // ── Artifact stats ───────────────────────────────────────────────
+
+  const artifactStats = useMemo((): ArtifactStat[] => {
+    if (!narrative || allScenes.length === 0) return [];
+
+    const stats = new Map<string, { usages: number; first: number; last: number; presence: boolean[]; users: Map<string, number> }>();
+
+    for (const [i, scene] of allScenes.entries()) {
+      for (const au of scene.artifactUsages ?? []) {
+        const ex = stats.get(au.artifactId);
+        if (ex) {
+          ex.usages++;
+          ex.last = i;
+          ex.presence[i] = true;
+          if (au.characterId) ex.users.set(au.characterId, (ex.users.get(au.characterId) ?? 0) + 1);
+        } else {
+          const presence = new Array(allScenes.length).fill(false);
+          presence[i] = true;
+          const users = new Map<string, number>();
+          if (au.characterId) users.set(au.characterId, 1);
+          stats.set(au.artifactId, { usages: 1, first: i, last: i, presence, users });
+        }
+      }
+    }
+
+    // Also include artifacts with zero usage so they show as stale
+    for (const art of Object.values(narrative.artifacts ?? {})) {
+      if (!stats.has(art.id)) {
+        stats.set(art.id, { usages: 0, first: -1, last: -1, presence: new Array(allScenes.length).fill(false), users: new Map() });
+      }
+    }
+
+    const totalScenes = allScenes.length;
+    return Array.from(stats.entries())
+      .map(([id, s]) => {
+        const art = narrative.artifacts[id];
+        if (!art) return null;
+        const isWorldOwned = !art.parentId;
+        const ownerType: 'character' | 'location' | 'world' = isWorldOwned ? 'world'
+          : narrative.characters[art.parentId!] ? 'character' : 'location';
+        const ownerName = isWorldOwned ? null
+          : (narrative.characters[art.parentId!]?.name ?? narrative.locations[art.parentId!]?.name ?? art.parentId);
+        const userBreakdown = Array.from(s.users.entries())
+          .map(([charId, count]) => ({ name: narrative.characters[charId]?.name ?? charId, count }))
+          .sort((a, b) => b.count - a.count);
+        return {
+          id,
+          name: art.name,
+          significance: art.significance as 'key' | 'notable' | 'minor',
+          ownerName,
+          ownerType,
+          usageCount: s.usages,
+          uniqueUsers: s.users.size,
+          firstIndex: s.first,
+          lastIndex: s.last,
+          staleness: s.last >= 0 ? totalScenes - 1 - s.last : totalScenes,
+          presence: s.presence,
+          userBreakdown,
+        };
+      })
+      .filter((s): s is ArtifactStat => s !== null);
+  }, [narrative, allScenes]);
+
   // ── World metrics ──────────────────────────────────────────────────
 
   const worldMetrics = useMemo((): WorldMetrics | null => {
@@ -198,6 +284,14 @@ export function CastAnalytics({ onClose }: Props) {
     else sorted.sort((a, b) => a.name.localeCompare(b.name));
     return sorted;
   }, [locationStats, sortBy]);
+
+  const sortedArtifacts = useMemo(() => {
+    const sorted = [...artifactStats];
+    if (sortBy === 'scenes') sorted.sort((a, b) => b.usageCount - a.usageCount);
+    else if (sortBy === 'staleness') sorted.sort((a, b) => b.staleness - a.staleness);
+    else sorted.sort((a, b) => a.name.localeCompare(b.name));
+    return sorted;
+  }, [artifactStats, sortBy]);
 
   // ── Summary metrics ──────────────────────────────────────────────────
 
@@ -271,6 +365,9 @@ export function CastAnalytics({ onClose }: Props) {
           <button onClick={() => setView('locations')} className={`flex-1 text-[11px] py-1.5 rounded-md transition-colors ${view === 'locations' ? 'bg-white/10 text-text-primary font-semibold' : 'text-text-dim hover:text-text-secondary'}`}>
             Locations
           </button>
+          <button onClick={() => setView('tools')} className={`flex-1 text-[11px] py-1.5 rounded-md transition-colors ${view === 'tools' ? 'bg-white/10 text-text-primary font-semibold' : 'text-text-dim hover:text-text-secondary'}`}>
+            Tools
+          </button>
           <button onClick={() => setView('metrics')} className={`flex-1 text-[11px] py-1.5 rounded-md transition-colors ${view === 'metrics' ? 'bg-white/10 text-text-primary font-semibold' : 'text-text-dim hover:text-text-secondary'}`}>
             Expansion
           </button>
@@ -292,6 +389,20 @@ export function CastAnalytics({ onClose }: Props) {
             <span>Top location: {locSummary.concentration}% of scenes</span>
           </div>
         )}
+        {view === 'tools' && (() => {
+          const totalArtifacts = Object.keys(narrative?.artifacts ?? {}).length;
+          const usedArtifacts = artifactStats.filter(a => a.usageCount > 0).length;
+          const totalUsages = artifactStats.reduce((s, a) => s + a.usageCount, 0);
+          const staleArtifacts = artifactStats.filter(a => a.usageCount === 0).length;
+          if (totalArtifacts === 0) return null;
+          return (
+            <div className="flex gap-4 mb-3 text-[10px] text-text-dim">
+              <span>{usedArtifacts}/{totalArtifacts} used</span>
+              <span>{totalUsages} total usages</span>
+              <span>{staleArtifacts} unused</span>
+            </div>
+          );
+        })()}
 
         {/* Sort controls */}
         <div className="flex gap-1 mb-3 shrink-0">
@@ -347,6 +458,40 @@ export function CastAnalytics({ onClose }: Props) {
                   <span>Last: scene {loc.lastIndex + 1}</span>
                   {loc.staleness > 0 && <span className={staleWarn ? 'text-amber-400/70' : ''}>{loc.staleness} ago</span>}
                 </div>
+              </div>
+            );
+          })}
+
+          {view === 'tools' && sortedArtifacts.map((art) => {
+            const pct = totalScenes > 0 ? (art.usageCount / totalScenes) * 100 : 0;
+            const staleWarn = art.usageCount === 0 || art.staleness > Math.max(5, totalScenes * 0.3);
+            const color = SIGNIFICANCE_COLORS[art.significance] ?? '#6b7280';
+            const ownerLabel = art.ownerType === 'world' ? 'world' : art.ownerType === 'location' ? `at ${art.ownerName}` : art.ownerName;
+            return (
+              <div key={art.id} className="rounded-lg border border-white/6 p-2.5 space-y-1.5">
+                <div className="flex items-center gap-2">
+                  <div className="w-1.5 h-1.5 rounded-sm shrink-0" style={{ backgroundColor: color }} />
+                  <span className="text-[12px] font-medium text-text-primary flex-1">{art.name}</span>
+                  <span className="text-[9px] text-text-dim/50 uppercase">{art.significance}</span>
+                  {staleWarn && art.usageCount === 0 && <span className="text-[9px] text-amber-400/70 uppercase">unused</span>}
+                  {staleWarn && art.usageCount > 0 && <span className="text-[9px] text-amber-400/70 uppercase">stale</span>}
+                </div>
+                <Sparkline presence={art.presence} color={color} />
+                <div className="flex gap-3 text-[10px] text-text-dim">
+                  <span>{art.usageCount} usage{art.usageCount !== 1 ? 's' : ''} ({pct.toFixed(0)}%)</span>
+                  {art.uniqueUsers > 0 && <span>{art.uniqueUsers} user{art.uniqueUsers !== 1 ? 's' : ''}</span>}
+                  <span className="text-text-dim/50">{ownerLabel}</span>
+                  {art.lastIndex >= 0 && <span>Last: scene {art.lastIndex + 1}</span>}
+                </div>
+                {art.userBreakdown.length > 0 && (
+                  <div className="flex flex-wrap gap-1.5 mt-0.5">
+                    {art.userBreakdown.map(({ name, count }) => (
+                      <span key={name} className="text-[9px] text-text-dim bg-white/5 rounded px-1.5 py-0.5">
+                        {name} <span className="text-text-dim/50">×{count}</span>
+                      </span>
+                    ))}
+                  </div>
+                )}
               </div>
             );
           })}

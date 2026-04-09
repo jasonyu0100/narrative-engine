@@ -220,8 +220,10 @@ export default function ArtifactDetail({ artifactId }: Props) {
                     {sceneId}
                   </button>
                   {usages.map((au, auIdx) => (
-                    <span key={`usage-${au.characterId}-${auIdx}`} className="text-xs text-amber-300/80">
-                      used by {narrative.characters[au.characterId]?.name ?? au.characterId}
+                    <span key={`usage-${au.characterId ?? 'unattributed'}-${auIdx}`} className="text-xs text-amber-300/80">
+                      {au.characterId
+                        ? `used by ${narrative.characters[au.characterId]?.name ?? au.characterId}`
+                        : 'used (unattributed)'}
                     </span>
                   ))}
                   {threadMuts.map((tm, tmIdx) => (

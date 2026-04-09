@@ -110,12 +110,18 @@ characterMovements — only characters whose location CHANGES. Transition should
 // ── Artifact Usage ──────────────────────────────────────────────────────────
 
 export const PROMPT_ARTIFACTS = `
-ARTIFACTS — tools that extend what's possible.
-- An artifact MODIFIES its wielder's capabilities. A character with a magical weapon fights differently. A character with AI access thinks at a different scale. A character with a map sees paths others can't.
-- When an artifact is used, generate continuityMutations for BOTH the artifact (what it underwent) AND the wielder (what new capability they gained or lost).
-- Has VALUE that characters recognise — people scheme to acquire/protect/destroy.
-- Creates DEPENDENCY and COST — power comes with consequences (attention, depletion, corruption, obligation).
-- Artifacts at locations are discoverable. Unused artifacts are wasted narrative elements.
+ARTIFACTS — the tools that make societies flourish.
+- Artifacts are anything a character USES to extend their capabilities. Not passive objects — active tools.
+- THREE OWNERSHIP TIERS:
+  • Character-owned: personal tools. A sword, a laptop, a key. Only the owner can use them.
+  • Location-owned: communal tools bound to a place. A gas station (fuel up), a grocery store (buy food), a library (access knowledge). Available to anyone at that location.
+  • World-owned (parentId: null): universally accessible. The internet, a search engine, a stock exchange, a legal system. Available to any character anywhere.
+- Artifacts span every genre: a Bloomberg terminal (finance), Google Search (tech), a magic wand (fantasy), a courtroom (legal), a forge (craft), a social media platform (modern), a printing press (historical).
+- When an artifact is used, generate artifactUsages AND continuityMutations for BOTH the artifact (what it underwent) AND the user (what new capability they gained, what they accomplished).
+- Artifact usage drives plot: an investor uses a trading platform to short a stock. A detective uses a forensic lab to analyze evidence. A wizard uses a staff to channel power. A startup founder uses cloud infrastructure to scale.
+- Has VALUE that characters recognise — people scheme to acquire, protect, control, or destroy.
+- Creates DEPENDENCY and COST — power comes with consequences (subscription fees, depletion, corruption, obligation, lock-in).
+- Unused artifacts are wasted narrative elements. A vibrant tool ecosystem makes stories richer.
 `;
 
 export const PROMPT_LOCATIONS = `

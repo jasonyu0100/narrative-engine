@@ -50,8 +50,11 @@ export default function WorldGraph() {
 
   const [showEdgeLabels, setShowEdgeLabels] = useState(false);
   const [showHeatmap, setShowHeatmap] = useState(false);
-  const [showItems, setShowItems] = useState(false);
+  const [showItems, setShowItems] = useState(true);
   const [showEval, setShowEval] = useState(true);
+  const [showCharacters, setShowCharacters] = useState(true);
+  const [showLocations, setShowLocations] = useState(true);
+  const [showArtifacts, setShowArtifacts] = useState(true);
   const [groups, setGroups] = useState<GraphNode[][]>([]);
   const [focusedGroupIndex, setFocusedGroupIndex] = useState<number | null>(null);
   const [nodeTooltip, setNodeTooltip] = useState<{ x: number; y: number; label: string; kind: string; imagePrompt: string } | null>(null);
@@ -172,17 +175,22 @@ export default function WorldGraph() {
       ? Object.fromEntries(Object.entries(narrative.artifacts ?? {}).filter(([id]) => introduced.artifactIds.has(id)))
       : {};
 
+    // Entity visibility filters
+    const filteredCharacters = showCharacters ? narrative.characters : {};
+    const filteredLocations = showLocations ? narrative.locations : {};
+    const filteredArtifacts = showArtifacts ? visibleArtifacts : {};
+
     if (graphViewMode === 'overview') {
       // Overview mode: all characters/locations sized by usage
       const result = buildOverviewGraphData(
-        narrative.characters,
-        narrative.locations,
+        filteredCharacters,
+        filteredLocations,
         narrative.relationships,
         narrative.scenes,
         narrative.worldBuilds,
         resolvedEntryKeys,
         resolvedEntryKeys.length - 1,
-        visibleArtifacts,
+        filteredArtifacts,
       );
       nodes = result.nodes;
       links = result.links;
@@ -334,6 +342,17 @@ export default function WorldGraph() {
         if (n.kind === 'character') n.usageCount = charUsage[n.id] ?? 1;
         if (n.kind === 'location') n.usageCount = locUsage[n.id] ?? 1;
       }
+    }
+
+    // Apply entity visibility filters
+    const hiddenKinds = new Set<string>();
+    if (!showCharacters) hiddenKinds.add('character');
+    if (!showLocations) hiddenKinds.add('location');
+    if (!showArtifacts) hiddenKinds.add('artifact');
+    if (hiddenKinds.size > 0) {
+      const hiddenIds = new Set(nodes.filter(n => hiddenKinds.has(n.kind)).map(n => n.id));
+      nodes = nodes.filter(n => !hiddenKinds.has(n.kind));
+      links = links.filter(l => !hiddenIds.has(l.source as string) && !hiddenIds.has(l.target as string));
     }
 
     // Store nodes ref for intra-arc updates
@@ -726,7 +745,7 @@ export default function WorldGraph() {
       gRef.current = null;
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [narrative, activeArcId, graphViewMode, currentWorldBuildId, showHeatmap, sceneFocus, showItems, currentScene, resolvedImageUrls.size, selectedKnowledgeEntity]);
+  }, [narrative, activeArcId, graphViewMode, currentWorldBuildId, showHeatmap, sceneFocus, showItems, currentScene, resolvedImageUrls.size, selectedKnowledgeEntity, showCharacters, showLocations, showArtifacts]);
 
   // ── Lightweight: update selected node highlight + relationship edges ──
   useEffect(() => {
@@ -932,7 +951,23 @@ export default function WorldGraph() {
             { key: 'heat', label: 'Heat', checked: showHeatmap, toggle: () => setShowHeatmap((v) => !v) },
             { key: 'eval', label: 'Eval', checked: showEval, toggle: () => setShowEval((v) => !v) },
             ...(graphViewMode === 'spatial' ? [{ key: 'focus', label: 'Focus', checked: sceneFocus, toggle: () => setSceneFocus((v: boolean) => !v) }] : []),
-            { key: 'items', label: 'Items', checked: showItems, toggle: () => setShowItems((v) => !v) },
+            { key: 'artifacts', label: 'Artifacts', checked: showItems, toggle: () => setShowItems((v) => !v) },
+          ] as { key: string; label: string; checked: boolean; toggle: () => void }[]).map(({ key, label, checked, toggle }) => (
+            <button
+              key={key}
+              onClick={toggle}
+              className={`text-[9px] px-2 py-1 rounded transition-colors select-none ${
+                checked ? 'text-text-secondary' : 'text-text-dim/40 hover:text-text-dim'
+              }`}
+            >
+              {label}
+            </button>
+          ))}
+          <div className="w-px h-3 bg-border mx-1" />
+          {([
+            { key: 'chars', label: 'Characters', checked: showCharacters, toggle: () => setShowCharacters((v) => !v) },
+            { key: 'locs', label: 'Locations', checked: showLocations, toggle: () => setShowLocations((v) => !v) },
+            { key: 'arts', label: 'Artifacts', checked: showArtifacts, toggle: () => setShowArtifacts((v) => !v) },
           ] as { key: string; label: string; checked: boolean; toggle: () => void }[]).map(({ key, label, checked, toggle }) => (
             <button
               key={key}

@@ -255,7 +255,7 @@ Return JSON with this exact structure. IMPORTANT: Fill out "arcOutline" FIRST �
       "locationId": "existing location ID from the narrative",
       "povId": "character ID whose perspective this scene is told from (must be a participant)${storySettings.povMode !== 'free' && storySettings.povCharacterIds.length > 0 ? ` — RESTRICTED to: ${storySettings.povCharacterIds.join(', ')}` : storySettings.povMode === 'free' && storySettings.povCharacterIds.length > 0 ? ` — PREFER: ${storySettings.povCharacterIds.join(', ')} (but may use others)` : ''}",
       "participantIds": ["existing character IDs"],
-      "artifactUsages": [{"artifactId": "A-XX", "characterId": "C-XX"}],
+      "artifactUsages": [{"artifactId": "A-XX", "characterId": "C-XX or null for unattributed usage"}],
       "characterMovements": {"C-XX": {"locationId": "L-YY", "transition": "Descriptive transition: 'Rode horseback through the night', 'Slipped through the back gate at dawn'"}},
       "events": ["event_tag_1", "event_tag_2"],
       "threadMutations": [{"threadId": "T-XX", "from": "current_status", "to": "new_status"}],
@@ -1916,10 +1916,10 @@ function sanitizeScenes(scenes: Scene[], narrative: NarrativeState, label: strin
     // character-owned artifacts can only be used by their owner, location-owned are communal
     scene.artifactUsages = (scene.artifactUsages ?? []).filter((au) => {
       if (!validArtifactIds.has(au.artifactId)) { stripped.push(`artifactUsage artifact "${au.artifactId}" in scene ${scene.id}`); return false; }
-      if (!validCharIds.has(au.characterId)) { stripped.push(`artifactUsage character "${au.characterId}" in scene ${scene.id}`); return false; }
+      if (au.characterId && !validCharIds.has(au.characterId)) { stripped.push(`artifactUsage character "${au.characterId}" in scene ${scene.id}`); return false; }
       const artifact = narrative.artifacts[au.artifactId];
       // Character-owned artifacts can only be used by their owner; location-owned and world-owned (null) are communal
-      if (artifact && artifact.parentId && narrative.characters[artifact.parentId] && artifact.parentId !== au.characterId) {
+      if (artifact && artifact.parentId && au.characterId && narrative.characters[artifact.parentId] && artifact.parentId !== au.characterId) {
         stripped.push(`artifactUsage "${au.characterId}" cannot use character-owned artifact "${au.artifactId}" (owned by ${artifact.parentId}) in scene ${scene.id}`);
         return false;
       }
@@ -2155,7 +2155,7 @@ Return JSON:
   "locationId": "existing location ID",
   "povId": "character ID${storySettings.povMode !== 'free' && storySettings.povCharacterIds.length > 0 ? ` — RESTRICTED to: ${storySettings.povCharacterIds.join(', ')}` : ''}",
   "participantIds": ["character IDs"],
-  "artifactUsages": [{"artifactId": "A-XX", "characterId": "C-XX"}],
+  "artifactUsages": [{"artifactId": "A-XX", "characterId": "C-XX or null for unattributed usage"}],
   "characterMovements": {},
   "events": ["event_tags"],
   "threadMutations": [{"threadId": "T-XX", "from": "status", "to": "status"}],
