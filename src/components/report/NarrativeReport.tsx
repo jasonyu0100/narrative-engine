@@ -919,8 +919,8 @@ export function NarrativeReport({
             })}
           </Section>
 
-          {/* ── 06 Cast & Locations ── */}
-          <Section title="Cast & Locations" number={++sec}>
+          {/* ── 06 Cast, Locations & Artefacts ── */}
+          <Section title="Cast, Locations & Artefacts" number={++sec}>
             <div className="grid grid-cols-2 gap-10 mt-5">
               <div>
                 <h3 className="text-[9px] uppercase tracking-[0.15em] text-white/20 mb-3">Characters</h3>
@@ -951,23 +951,57 @@ export function NarrativeReport({
               <div>
                 <h3 className="text-[9px] uppercase tracking-[0.15em] text-white/20 mb-3">Locations</h3>
                 <div className="space-y-2.5">
-                  {data.topLocations.slice(0, 6).map((l, i) => (
-                    <div key={l.location.id} className="flex items-center gap-2">
-                      <span className="text-[10px] text-white/15 font-mono w-4 text-right">{i + 1}</span>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center justify-between mb-0.5">
-                          <span className="text-[11px] text-white/55">{l.location.name}</span>
-                          <span className="text-[9px] text-white/20 font-mono">{l.sceneCount}</span>
-                        </div>
-                        <div className="h-[3px] rounded-full bg-white/[0.03] overflow-hidden">
-                          <div className="h-full rounded-full bg-emerald-500" style={{ width: `${(l.sceneCount / (data.topLocations[0]?.sceneCount ?? 1)) * 100}%`, opacity: 0.3 }} />
+                  {data.topLocations.slice(0, 6).map((l, i) => {
+                    const tiedNames = l.location.tiedCharacterIds
+                      .map((id) => narrative.characters[id]?.name)
+                      .filter(Boolean);
+                    return (
+                      <div key={l.location.id} className="flex items-center gap-2">
+                        <span className="text-[10px] text-white/15 font-mono w-4 text-right">{i + 1}</span>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center justify-between mb-0.5">
+                            <span className="text-[11px] text-white/55">{l.location.name}</span>
+                            <span className="text-[9px] text-white/20 font-mono">{l.sceneCount}</span>
+                          </div>
+                          <div className="h-[3px] rounded-full bg-white/[0.03] overflow-hidden">
+                            <div className="h-full rounded-full bg-emerald-500" style={{ width: `${(l.sceneCount / (data.topLocations[0]?.sceneCount ?? 1)) * 100}%`, opacity: 0.3 }} />
+                          </div>
+                          {tiedNames.length > 0 && (
+                            <div className="text-[9px] text-white/20 mt-0.5 truncate">{tiedNames.join(', ')}</div>
+                          )}
                         </div>
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </div>
             </div>
+            {data.topArtifacts.length > 0 && (
+              <div className="mt-6">
+                <h3 className="text-[9px] uppercase tracking-[0.15em] text-white/20 mb-3">Artefacts</h3>
+                <div className="grid grid-cols-2 gap-x-8 gap-y-2">
+                  {data.topArtifacts.slice(0, 8).map((a, i) => {
+                    const owner = a.artifact.parentId
+                      ? (narrative.characters[a.artifact.parentId]?.name ?? narrative.locations[a.artifact.parentId]?.name ?? null)
+                      : null;
+                    return (
+                      <div key={a.artifact.id} className="flex items-center gap-2">
+                        <span className="text-[10px] text-white/15 font-mono w-4 text-right">{i + 1}</span>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center justify-between mb-0.5">
+                            <span className="text-[11px] text-white/55">{a.artifact.name}</span>
+                            <span className="text-[9px] text-white/20 font-mono">{a.usageCount}</span>
+                          </div>
+                          <div className="text-[9px] text-white/20 truncate">
+                            {owner ?? 'world'}{a.artifact.significance !== 'minor' ? ` \u00b7 ${a.artifact.significance}` : ''}
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
             {prose('cast')}
             {prose('locations')}
           </Section>

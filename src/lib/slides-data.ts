@@ -1,6 +1,6 @@
 import type {
   NarrativeState, Scene, ForceSnapshot, CubeCornerKey,
-  Character, Location, Thread,
+  Character, Location, Artifact, Thread,
   BeatSampler,
   PropositionBaseCategory,
 } from '@/types/narrative';
@@ -120,6 +120,7 @@ export type SlidesData = {
   threadConvergences: { fromId: string; toId: string }[];
   topCharacters: { character: Character; sceneCount: number }[];
   topLocations: { location: Location; sceneCount: number }[];
+  topArtifacts: { artifact: Artifact; usageCount: number }[];
 
   overallGrades: ForceGrades;
   archetype: NarrativeArchetype;
@@ -304,6 +305,23 @@ export function computeSlidesData(
     .map(([id, count]) => ({ location: narrative.locations[id], sceneCount: count }))
     .filter((l) => l.location);
 
+  // Top artifacts by usage count
+  const artUsageCounts = new Map<string, number>();
+  for (const s of scenes) {
+    for (const au of s.artifactUsages ?? []) {
+      artUsageCounts.set(au.artifactId, (artUsageCounts.get(au.artifactId) ?? 0) + 1);
+    }
+  }
+  // Include zero-usage artifacts so they appear
+  for (const art of Object.values(narrative.artifacts ?? {})) {
+    if (!artUsageCounts.has(art.id)) artUsageCounts.set(art.id, 0);
+  }
+  const topArtifacts = Array.from(artUsageCounts.entries())
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 8)
+    .map(([id, count]) => ({ artifact: narrative.artifacts[id], usageCount: count }))
+    .filter((a) => a.artifact);
+
   // Grades
   const arcIds = Object.keys(narrative.arcs);
   const sceneIdToIdx = new Map(scenes.map((s, i) => [s.id, i]));
@@ -386,6 +404,7 @@ export function computeSlidesData(
     threadConvergences,
     topCharacters,
     topLocations,
+    topArtifacts,
     overallGrades: overallGrades,
     archetype: classifyArchetype(overallGrades),
     scale: classifyScale(scenes.length),

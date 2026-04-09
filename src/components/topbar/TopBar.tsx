@@ -959,7 +959,7 @@ export default function TopBar() {
           items={[
             { label: 'Slides', onClick: () => setSlidesOpen(true), disabled: !hasNarrative },
             { label: 'Scorecard', onClick: () => setScorecardOpen((v) => !v), disabled: !hasNarrative },
-            { label: 'Cast & Locations', onClick: () => window.dispatchEvent(new Event('open-cast-analytics')), disabled: !hasNarrative },
+            { label: 'Cast, Locations & Artefacts', onClick: () => window.dispatchEvent(new Event('open-cast-analytics')), disabled: !hasNarrative },
           ]}
         />
 

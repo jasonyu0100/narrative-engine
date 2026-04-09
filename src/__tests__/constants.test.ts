@@ -1,7 +1,6 @@
 import {
   // Analysis & Extraction
   ANALYSIS_CONCURRENCY,
-  ANALYSIS_MAX_CHUNK_RETRIES,
   ANALYSIS_MAX_CORPUS_WORDS,
   ANALYSIS_MODEL,
   ANALYSIS_STAGGER_DELAY_MS,
@@ -62,10 +61,6 @@ describe("Analysis & Extraction Constants", () => {
     expect(ANALYSIS_STAGGER_DELAY_MS).toBeLessThanOrEqual(1000);
   });
 
-  it("ANALYSIS_MAX_CHUNK_RETRIES is reasonable (1-10)", () => {
-    expect(ANALYSIS_MAX_CHUNK_RETRIES).toBeGreaterThanOrEqual(1);
-    expect(ANALYSIS_MAX_CHUNK_RETRIES).toBeLessThanOrEqual(10);
-  });
 
   it("ANALYSIS_TARGET_SECTIONS_PER_CHUNK is positive", () => {
     expect(ANALYSIS_TARGET_SECTIONS_PER_CHUNK).toBeGreaterThan(0);

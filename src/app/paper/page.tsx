@@ -103,17 +103,17 @@ function ShapeCurve({
 // 2.5 Flash: $0.30/M input, $2.50/M output+reasoning — structure, planning, analysis
 // 3 Flash:   $0.50/M input, $3.00/M output+reasoning — prose only
 //
-// GENERATION (per arc, ~5 scenes):
+// GENERATION (per arc, ~4 scenes, ~4800 words):
 //   generateScenes      1× 2.5F  40K in + 4K out + 2K rsn  = $0.03
-//   generateScenePlan   5× 2.5F  28K in + 0.5K out + 2K rsn = $0.07
-//   generateSceneProse  5× 3F    35K in + 4K out + 2K rsn   = $0.18
+//   generateScenePlan   4× 2.5F  28K in + 0.5K out + 2K rsn = $0.06
+//   generateSceneProse  4× 3F    35K in + 4K out + 2K rsn   = $0.15
 //   refreshDirection    1× 2.5F  32K in + 0.3K out + 2K rsn = $0.02
 //   expandWorld         1× 2.5F  25K in + 0.6K out + 1K rsn = $0.01
 //   phaseCompletionRpt  1× 2.5F  25K in + 0.3K out + 1K rsn = $0.01
 //   generatePhaseDir    1× 2.5F  28K in + 0.5K out + 1K rsn = $0.01
-//                                                    Total  = $0.33/arc
+//                                                    Total  = $0.29/arc
 //
-// EVALUATION & REVISION (per arc, ~5 scenes, 25% edit rate):
+// EVALUATION & REVISION (per arc, ~4 scenes, 25% edit rate):
 //   evaluateBranch        1× 2.5F  12K in + 2K out + 2K rsn         = $0.01
 //   editScene            ~1× 2.5F  30K in + 0.5K out + 1K rsn       = $0.01
 //   evaluateProseQuality  1× 2.5F  10K in + 0.5K out + 1K rsn       = $0.01  (edit verdicts + critique)
@@ -121,13 +121,18 @@ function ShapeCurve({
 //                                                    Total  ≈ $0.06/arc
 // (rewriteSceneProse in StoryReader is spot-fix only — not in this estimate)
 //
-// ANALYSIS (per corpus, no reasoning):
-//   analyzeChunkParallel  N× 2.5F  8K in + 2K out × N chunks = ~$0.01/chunk
-//   revEngScenePlan       N× 2.5F  3K in + 0.5K out × N scenes = ~$0.002/scene (optional)
-//   reconcileResults      1× 2.5F  5K in + 1K out = ~$0.004 (once)
-//   assembleNarrative     1× 2.5F  35K in + 2K out = ~$0.016 (once)
-//   100K novel (25 chunks, no plans):  25×$0.010 + $0.004 + $0.016 = ~$0.24
-//   500K series (125 chunks, no plans): 125×$0.010 + $0.004 + $0.016 = ~$1.12
+// ANALYSIS (per corpus, scene-first pipeline, no reasoning):
+//   reverseEngineerScenePlan  N× 2.5F  ~5K in + 1K out × N scenes = ~$0.005/scene
+//   extractSceneStructure    N× 2.5F  ~6K in + 2K out × N scenes = ~$0.008/scene
+//   embeddings (OpenAI)      N× ada   summaries + propositions + prose = ~$0.003/scene
+//   groupScenesIntoArcs      1× 2.5F  2K in + 0.5K out = ~$0.002 (once)
+//   reconcileResults         1× 2.5F  8K in + 2K out = ~$0.008 (once)
+//   analyzeThreading         1× 2.5F  3K in + 0.5K out = ~$0.003 (once)
+//   assembleNarrative        1× 2.5F  35K in + 3K out = ~$0.025 (once)
+//   Per scene: ~$0.016 (plan + structure + embeddings)
+//   77K novel (~64 scenes, e.g. HP):  64×$0.016 + $0.038 = ~$1.06
+//   100K novel (~83 scenes):  83×$0.016 + $0.038 = ~$1.37
+//   500K series (~416 scenes): 416×$0.016 + $0.038 = ~$6.70
 
 type BreakdownRow = { call: string; count: string; model: '2.5 Flash' | '3 Flash'; note: string; cost: string };
 type BreakdownCategory = { label: string; unit: string; rows: BreakdownRow[]; subtotal: { calls: string; cost: string } | null };
@@ -135,21 +140,21 @@ type BreakdownCategory = { label: string; unit: string; rows: BreakdownRow[]; su
 const BREAKDOWN_CATEGORIES: BreakdownCategory[] = [
   {
     label: 'Generation',
-    unit: 'per arc  ·  ~5 scenes',
+    unit: 'per arc  ·  ~4 scenes  ·  ~4800 words',
     rows: [
       { call: 'generateScenes',          count: '×1',  model: '2.5 Flash', note: 'Scene structures & mutations',           cost: '$0.03' },
-      { call: 'generateScenePlan',        count: '×5',  model: '2.5 Flash', note: 'Beat plan per scene',                    cost: '$0.07' },
-      { call: 'generateSceneProse',       count: '×5',  model: '3 Flash',   note: '~1K words of prose per scene',           cost: '$0.18' },
+      { call: 'generateScenePlan',        count: '×4',  model: '2.5 Flash', note: 'Beat plan per scene (~12 beats)',        cost: '$0.06' },
+      { call: 'generateSceneProse',       count: '×4',  model: '3 Flash',   note: '~1.2K words of prose per scene',         cost: '$0.15' },
       { call: 'refreshDirection',         count: '×1',  model: '2.5 Flash', note: 'Arc direction & constraints',             cost: '$0.02' },
       { call: 'expandWorld',              count: '×1',  model: '2.5 Flash', note: 'New characters, locations & threads',    cost: '$0.01' },
       { call: 'phaseCompletionReport',    count: '×1',  model: '2.5 Flash', note: 'Phase retrospective',                    cost: '$0.01' },
       { call: 'generatePhaseDirection',   count: '×1',  model: '2.5 Flash', note: 'Next phase objectives & constraints',    cost: '$0.01' },
     ],
-    subtotal: { calls: '15 calls', cost: '$0.33' },
+    subtotal: { calls: '13 calls', cost: '$0.29' },
   },
   {
     label: 'Evaluation & Revision',
-    unit: 'per arc  ·  ~5 scenes  ·  25% edit rate',
+    unit: 'per arc  ·  ~4 scenes  ·  25% edit rate',
     rows: [
       { call: 'evaluateBranch',       count: '×1',  model: '2.5 Flash', note: 'Structure verdicts + thematic critique',  cost: '$0.01' },
       { call: 'editScene',            count: '×~1', model: '2.5 Flash', note: 'Scene structure edit (summary + mutations)', cost: '$0.01' },
@@ -160,14 +165,17 @@ const BREAKDOWN_CATEGORIES: BreakdownCategory[] = [
   },
   {
     label: 'Analysis',
-    unit: 'per arc  ·  ~5K words  ·  no reasoning',
+    unit: 'per corpus  ·  scene-first pipeline  ·  ~$0.016/scene',
     rows: [
-      { call: 'analyzeChunkParallel',       count: '×~1', model: '2.5 Flash', note: 'Text extraction',                            cost: '~$0.01' },
-      { call: 'reverseEngineerScenePlan',   count: '×~5', model: '2.5 Flash', note: 'Beat plan per scene (optional)',              cost: '~$0.01' },
-      { call: 'reconcileResults',           count: '×1',  model: '2.5 Flash', note: 'Entity deduplication — once per corpus',     cost: '~$0.01' },
-      { call: 'assembleNarrative',          count: '×1',  model: '2.5 Flash', note: 'Rules, world systems, profile — once',       cost: '~$0.02' },
+      { call: 'reverseEngineerScenePlan',   count: '×N',  model: '2.5 Flash', note: 'Beat plan + propositions per scene',          cost: '~$0.005/scene' },
+      { call: 'extractSceneStructure',      count: '×N',  model: '2.5 Flash', note: 'Entities & mutations from prose + plan',      cost: '~$0.008/scene' },
+      { call: 'embeddings',                 count: '×N',  model: '2.5 Flash', note: 'Summaries, propositions, prose (OpenAI)',      cost: '~$0.003/scene' },
+      { call: 'groupScenesIntoArcs',        count: '×1',  model: '2.5 Flash', note: 'Name arcs from scene summaries',              cost: '~$0.002' },
+      { call: 'reconcileResults',           count: '×1',  model: '2.5 Flash', note: 'Entity deduplication across scenes',          cost: '~$0.008' },
+      { call: 'analyzeThreading',           count: '×1',  model: '2.5 Flash', note: 'Thread dependency analysis',                  cost: '~$0.003' },
+      { call: 'assembleNarrative',          count: '×1',  model: '2.5 Flash', note: 'Rules, world systems, prose profile',         cost: '~$0.025' },
     ],
-    subtotal: { calls: '~8 calls', cost: '~$0.05' },
+    subtotal: { calls: '3N + 3', cost: '~$1.06 for HP (64 scenes)' },
   },
 ];
 

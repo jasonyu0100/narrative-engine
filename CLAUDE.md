@@ -82,7 +82,7 @@ src/
 │   ├── narrative-utils.ts  # Force calculation formulas, cube logic, graph algorithms
 │   ├── pacing-profile.ts           # Markov chain pacing — transition matrices, sequence sampling, presets, prompt generation
 │   ├── store.tsx           # State management + reducer actions
-│   ├── text-analysis.ts    # Corpus → NarrativeState extraction (window-function chunking)
+│   ├── text-analysis.ts    # Corpus → NarrativeState extraction (scene-first: plans → structure → arcs)
 │   ├── auto-engine.ts      # Automated story generation loop
 │   ├── mcts-engine.ts      # MCTS scene exploration
 │   ├── mcts-state.ts       # MCTS state management

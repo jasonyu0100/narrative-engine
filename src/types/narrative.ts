@@ -1117,8 +1117,8 @@ export type SystemLogEntry = {
 export type AnalysisChunkResult = {
   chapterSummary: string;
   characters: { name: string; role: string; firstAppearance: boolean; imagePrompt?: string; continuity: { type: string; content: string }[] }[];
-  locations: { name: string; parentName: string | null; description: string; imagePrompt?: string; lore: string[]; tiedCharacterNames?: string[] }[];
-  artifacts?: { name: string; significance: string; continuity: { type: string; content: string }[]; ownerName: string | null }[];
+  locations: { name: string; prominence?: string; parentName: string | null; description: string; imagePrompt?: string; lore: string[]; tiedCharacterNames?: string[] }[];
+  artifacts?: { name: string; significance: string; imagePrompt?: string; continuity: { type: string; content: string }[]; ownerName: string | null }[];
   threads: { description: string; participantNames: string[]; statusAtStart: string; statusAtEnd: string; development: string; relatedThreadDescriptions?: string[] }[];
   scenes: {
     locationName: string; povName: string; participantNames: string[]; events: string[];
