@@ -1525,9 +1525,11 @@ export default function PaperPage() {
               to each of the three forces plus <B>swing</B> — the Euclidean
               distance between consecutive force snapshots, measuring dynamic contrast. The grading curve is piecewise, calibrated so published works land in the 85–92 range.
             </P>
-            <Eq tex="g(\tilde{x}) = \begin{cases} 21\,\tilde{x}^{1.5} & \tilde{x} \leq 1 \\ 21 + 4\left(1 - e^{-2(\tilde{x}-1)}\right) & \tilde{x} > 1 \end{cases} \qquad \text{where} \quad \tilde{x} = \frac{\bar{x}}{\mu_{\text{ref}}}" />
+            <Eq tex="g(\tilde{x}) = \begin{cases} 8 + 13\sqrt{\tilde{x}} & \tilde{x} \leq 1 \\ 21 + 4\left(1 - e^{-(\tilde{x}-1)}\right) & \tilde{x} > 1 \end{cases} \qquad \text{where} \quad \tilde{x} = \frac{\bar{x}}{\mu_{\text{ref}}}" />
             <P>
-              Below the reference mean, the power curve penalises proportionally — half the reference earns roughly 7, not 16.
+              The floor of 8 ensures every force contributes a baseline score — even a structurally empty story scores 32/100.
+              The square root naturally decelerates — early gains come easily, but the last few points before the reference mean are harder to earn.
+              This maps onto quality bands: bad (10–15), mediocre (15–20), good (21–25).
               At <Tex>{"\\tilde{x} = 1"}</Tex> (matching the reference mean),
               the grade is 21 out of 25 — the dominance threshold used by the archetype classifier.
               Above reference, exponential saturation makes each additional point harder to earn, asymptoting toward 25.

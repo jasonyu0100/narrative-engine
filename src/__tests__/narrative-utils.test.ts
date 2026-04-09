@@ -537,6 +537,10 @@ describe('gradeForce', () => {
   it('returns 21 at normalized mean of 1 (dominance threshold)', () => {
     expect(gradeForce(1)).toBe(21);
   });
+
+  it('returns floor of 8 at zero', () => {
+    expect(gradeForce(0)).toBe(8);
+  });
 });
 
 describe('gradeForces', () => {
