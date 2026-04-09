@@ -28,14 +28,45 @@ export function splitCorpusIntoScenes(text: string): { index: number; prose: str
   const TARGET = WORDS_PER_SCENE;
   const scenes: { index: number; prose: string; wordCount: number }[] = [];
 
-  // Split on paragraph breaks, then group into ~1200-word scenes
-  const paragraphs = text.split(/\n\s*\n/).map(p => p.trim()).filter(Boolean);
+  // Split on paragraph breaks first, then sentence breaks for long paragraphs
+  let paragraphs = text.split(/\n\s*\n/).map(p => p.trim()).filter(Boolean);
+
+  // Break any paragraph longer than TARGET into sentence-level chunks
+  const expanded: string[] = [];
+  for (const para of paragraphs) {
+    const wc = para.split(/\s+/).length;
+    if (wc > TARGET) {
+      // Split on sentence boundaries
+      const sentences = para.match(/[^.!?]+[.!?]+["']?\s*/g) ?? [para];
+      let sentBuf = '';
+      for (const sent of sentences) {
+        if (sentBuf && (sentBuf.split(/\s+/).length + sent.split(/\s+/).length) > TARGET) {
+          expanded.push(sentBuf.trim());
+          sentBuf = sent;
+        } else {
+          sentBuf += sent;
+        }
+      }
+      if (sentBuf.trim()) expanded.push(sentBuf.trim());
+    } else {
+      expanded.push(para);
+    }
+  }
+  paragraphs = expanded;
+
+  // Group paragraphs into ~1200-word scenes
   let buffer: string[] = [];
   let bufferWords = 0;
 
   for (const para of paragraphs) {
     const paraWords = para.split(/\s+/).length;
-    if (bufferWords > 0 && bufferWords + paraWords > TARGET * 1.3) {
+    if (bufferWords >= TARGET) {
+      // Buffer already at target — flush immediately
+      scenes.push({ index: scenes.length, prose: buffer.join('\n\n'), wordCount: bufferWords });
+      buffer = [para];
+      bufferWords = paraWords;
+    } else if (bufferWords > 0 && bufferWords + paraWords > TARGET * 1.15) {
+      // Adding this paragraph would overshoot — flush and start new
       scenes.push({ index: scenes.length, prose: buffer.join('\n\n'), wordCount: bufferWords });
       buffer = [para];
       bufferWords = paraWords;
@@ -49,7 +80,7 @@ export function splitCorpusIntoScenes(text: string): { index: number; prose: str
   }
 
   // Merge any tiny trailing scene into the previous one
-  if (scenes.length > 1 && scenes[scenes.length - 1].wordCount < TARGET * 0.4) {
+  if (scenes.length > 1 && scenes[scenes.length - 1].wordCount < TARGET * 0.3) {
     const last = scenes.pop()!;
     const prev = scenes[scenes.length - 1];
     scenes[scenes.length - 1] = { ...prev, prose: prev.prose + '\n\n' + last.prose, wordCount: prev.wordCount + last.wordCount };
@@ -814,6 +845,7 @@ export async function assembleNarrative(
   results: AnalysisChunkResult[],
   threadDependencies: Record<string, string[]>,
   onToken?: (token: string, accumulated: string) => void,
+  arcGroups?: { name: string; sceneIndices: number[] }[],
 ): Promise<NarrativeState> {
   const PREFIX = title.replace(/[^a-zA-Z]/g, '').slice(0, 3).toUpperCase() || 'TXT';
   let charCounter = 0, locCounter = 0, threadCounter = 0, sceneCounter = 0, arcCounter = 0, kCounter = 0, wkCounter = 0, artifactCounter = 0;
@@ -865,6 +897,7 @@ export async function assembleNarrative(
   const threadFirstChunk = new Map<string, number>();
   const artifactFirstChunk = new Map<string, number>();
   const chunkFirstSceneId = new Map<number, string>(); // chunkIdx → first scene id
+  const allOrderedSceneIds: string[] = []; // flat ordered list for arc group assignment
 
   for (let chunkIdx = 0; chunkIdx < results.length; chunkIdx++) {
     const ch = results[chunkIdx];
@@ -975,9 +1008,9 @@ export async function assembleNarrative(
       }
     }
 
-    // Scenes (one arc per chunk)
+    // Scenes — collect into flat list; arcs created from arcGroups after loop
     const chScenes: Scene[] = [];
-    const arcId = nextArcId();
+    const arcId = '__pending__'; // Will be assigned from arcGroups below
 
     for (const s of ch.scenes ?? []) {
       const sceneId = nextSceneId();
@@ -1104,23 +1137,12 @@ export async function assembleNarrative(
       // Continuity is built directly on entities — no deferred flush needed
     }
 
-    if (chScenes.length > 0) {
-      const sceneIds = chScenes.map((s) => s.id);
-      const develops = [...new Set(chScenes.flatMap((s) => s.threadMutations.map((tm) => tm.threadId)))];
-      const locationIds = [...new Set(chScenes.map((s) => s.locationId))];
-      const activeCharacterIds = [...new Set(chScenes.flatMap((s) => s.participantIds))];
-      const initialCharacterLocations: Record<string, string> = {};
-      for (const cid of activeCharacterIds) {
-        const first = chScenes.find((s) => s.participantIds.includes(cid));
-        if (first) initialCharacterLocations[cid] = first.locationId;
-      }
+    // Track scene order for arc group assignment below
+    allOrderedSceneIds.push(...chScenes.map(s => s.id));
 
-      arcs[arcId] = { id: arcId, name: ch.chapterSummary?.slice(0, 40) ?? `Part ${arcCounter}`, sceneIds, develops, locationIds, activeCharacterIds, initialCharacterLocations };
-
-      for (const tm of chScenes.flatMap((s) => s.threadMutations)) {
-        if (threads[tm.threadId] && !threads[tm.threadId].openedAt) {
-          threads[tm.threadId].openedAt = chScenes[0].id;
-        }
+    for (const tm of chScenes.flatMap((s) => s.threadMutations)) {
+      if (threads[tm.threadId] && !threads[tm.threadId].openedAt) {
+        threads[tm.threadId].openedAt = chScenes[0]?.id;
       }
     }
 
@@ -1137,6 +1159,48 @@ export async function assembleNarrative(
       } else {
         relationshipMap[key] = { from: fromId, to: toId, type: r.type, valence: r.valence };
       }
+    }
+  }
+
+  // ── Create arcs from arcGroups ──────────────────────────────────────────────
+  if (arcGroups && arcGroups.length > 0) {
+    for (const group of arcGroups) {
+      const arcId = nextArcId();
+      const sceneIds = group.sceneIndices
+        .filter(i => i < allOrderedSceneIds.length)
+        .map(i => allOrderedSceneIds[i]);
+      if (sceneIds.length === 0) continue;
+
+      const arcScenes = sceneIds.map(id => scenes[id]).filter(Boolean);
+      const develops = [...new Set(arcScenes.flatMap(s => s.threadMutations.map(tm => tm.threadId)))];
+      const locationIds = [...new Set(arcScenes.map(s => s.locationId))];
+      const activeCharacterIds = [...new Set(arcScenes.flatMap(s => s.participantIds))];
+      const initialCharacterLocations: Record<string, string> = {};
+      for (const cid of activeCharacterIds) {
+        const first = arcScenes.find(s => s.participantIds.includes(cid));
+        if (first) initialCharacterLocations[cid] = first.locationId;
+      }
+
+      arcs[arcId] = { id: arcId, name: group.name, sceneIds, develops, locationIds, activeCharacterIds, initialCharacterLocations };
+      // Assign arcId to scenes
+      for (const scene of arcScenes) scene.arcId = arcId;
+    }
+  } else {
+    // Fallback: group every 4 scenes into an arc
+    for (let i = 0; i < allOrderedSceneIds.length; i += 4) {
+      const arcId = nextArcId();
+      const sceneIds = allOrderedSceneIds.slice(i, i + 4);
+      const arcScenes = sceneIds.map(id => scenes[id]).filter(Boolean);
+      const develops = [...new Set(arcScenes.flatMap(s => s.threadMutations.map(tm => tm.threadId)))];
+      const locationIds = [...new Set(arcScenes.map(s => s.locationId))];
+      const activeCharacterIds = [...new Set(arcScenes.flatMap(s => s.participantIds))];
+      const initialCharacterLocations: Record<string, string> = {};
+      for (const cid of activeCharacterIds) {
+        const first = arcScenes.find(s => s.participantIds.includes(cid));
+        if (first) initialCharacterLocations[cid] = first.locationId;
+      }
+      arcs[arcId] = { id: arcId, name: `Arc ${Math.floor(i / 4) + 1}`, sceneIds, develops, locationIds, activeCharacterIds, initialCharacterLocations };
+      for (const scene of arcScenes) scene.arcId = arcId;
     }
   }
 

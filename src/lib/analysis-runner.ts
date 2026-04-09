@@ -348,7 +348,7 @@ class AnalysisRunner {
       const completed = results.filter((r): r is AnalysisChunkResult => r !== null);
       const narrative = await assembleNarrative(job.title, completed, threadDependencies, (_token, acc) => {
         this.emitStream(job.id, `Assembling...\n${acc}`);
-      });
+      }, (job as any).arcGroups);
 
       d({ type: 'ADD_NARRATIVE', narrative });
       d({ type: 'UPDATE_ANALYSIS_JOB', id: job.id, updates: { status: 'completed', narrativeId: narrative.id } });
