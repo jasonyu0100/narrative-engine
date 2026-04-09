@@ -1523,15 +1523,15 @@ export default function PaperPage() {
             <P>
               Each story receives a score out of 100, with 25 points allocated
               to each of the three forces plus <B>swing</B> — the Euclidean
-              distance between consecutive force snapshots, measuring dynamic contrast. The grading curve is exponential, calibrated so published works land in the 85–92 range.
+              distance between consecutive force snapshots, measuring dynamic contrast. The grading curve is piecewise, calibrated so published works land in the 85–92 range.
             </P>
-            <Eq tex="g(\tilde{x}) = 25\left(1 - e^{-2\tilde{x}}\right) \qquad \text{where} \quad \tilde{x} = \frac{\bar{x}}{\mu_{\text{ref}}}" />
+            <Eq tex="g(\tilde{x}) = \begin{cases} 21\,\tilde{x}^{1.5} & \tilde{x} \leq 1 \\ 21 + 4\left(1 - e^{-2(\tilde{x}-1)}\right) & \tilde{x} > 1 \end{cases} \qquad \text{where} \quad \tilde{x} = \frac{\bar{x}}{\mu_{\text{ref}}}" />
             <P>
+              Below the reference mean, the power curve penalises proportionally — half the reference earns roughly 7, not 16.
               At <Tex>{"\\tilde{x} = 1"}</Tex> (matching the reference mean),
-              the grade is ~22 out of 25. The curve rises steeply at first —
-              rewarding baseline competence — then flattens at higher levels,
-              making each additional point harder to earn. Reference works land
-              between 85 and 92.
+              the grade is 21 out of 25 — the dominance threshold used by the archetype classifier.
+              Above reference, exponential saturation makes each additional point harder to earn, asymptoting toward 25.
+              Reference works land between 85 and 92.
             </P>
 
             <P>
@@ -1542,7 +1542,7 @@ export default function PaperPage() {
               {[
                 { force: "Payoff", value: "1.5", color: "#EF4444" },
                 { force: "Change", value: "4", color: "#22C55E" },
-                { force: "Knowledge", value: "3.5", color: "#3B82F6" },
+                { force: "Knowledge", value: "4", color: "#3B82F6" },
               ].map(({ force, value, color }) => (
                 <div
                   key={force}
