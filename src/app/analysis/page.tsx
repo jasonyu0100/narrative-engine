@@ -14,6 +14,20 @@ import { calculateTotalCost, calculateApiCost } from '@/lib/api-logger';
 import { loadAnalysisApiLogs, saveAnalysisApiLogs } from '@/lib/persistence';
 import { Modal, ModalHeader, ModalBody } from '@/components/Modal';
 
+/* ── Elapsed timer ─────────────────────────────────────────────────────── */
+function useElapsed(startTime: number, running: boolean) {
+  const [now, setNow] = useState(Date.now());
+  useEffect(() => {
+    if (!running) return;
+    const id = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(id);
+  }, [running]);
+  const secs = Math.floor((now - startTime) / 1000);
+  const m = Math.floor(secs / 60);
+  const s = secs % 60;
+  return m > 0 ? `${m}m ${s.toString().padStart(2, '0')}s` : `${s}s`;
+}
+
 /* ── Word Node type ─────────────────────────────────────────────────────── */
 
 type WordNode = { label: string; type: 'character' | 'location' | 'thread' | 'knowledge' | 'artifact'; count: number; firstSeen: number; knowledgeType?: string; significance?: string };
@@ -38,6 +52,7 @@ function JobDetail({ job }: { job: AnalysisJob }) {
 
   const liveJob = state.analysisJobs.find((j) => j.id === job.id) ?? job;
   const isRunning = analysisRunner.isRunning(job.id) || liveJob.status === 'running';
+  const elapsed = useElapsed(liveJob.createdAt, isRunning);
 
   // Load persisted analysis logs on mount (for when returning to a completed job)
   useEffect(() => {
@@ -353,6 +368,12 @@ function JobDetail({ job }: { job: AnalysisJob }) {
           </div>
         )}
         <div className="flex gap-2 shrink-0">
+          {/* Timer */}
+          {(isRunning || liveJob.status === 'completed') && (
+            <div className="px-2.5 py-1 rounded-full flex items-center gap-1.5 text-[12px] border border-white/8">
+              <span className="font-semibold font-mono text-white/40">{elapsed}</span>
+            </div>
+          )}
           {/* API Logs button */}
           {jobApiLogs.length > 0 && (
             <button
