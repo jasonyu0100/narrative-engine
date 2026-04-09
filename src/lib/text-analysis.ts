@@ -510,6 +510,11 @@ Empty object {} if no merges needed for a category.`;
   const resolveArt = (name: string) => artMap[name] ?? name;
   const resolveWK = (concept: string) => wkMap[concept] ?? concept;
 
+  // Unified entity resolver — tries all maps so the same entity always resolves
+  // to the same canonical name regardless of which field references it.
+  const resolveEntity = (name: string): string =>
+    charMap[name] ?? locMap[name] ?? artMap[name] ?? name;
+
   // Apply merges to all results
   const reconciled: AnalysisChunkResult[] = results.map((r) => ({
     ...r,
@@ -530,16 +535,17 @@ Empty object {} if no merges needed for a category.`;
       (r.locations ?? []).map((l) => ({
         ...l,
         name: resolveLoc(l.name),
-        parentName: l.parentName ? resolveLoc(l.parentName) : null,
+        parentName: l.parentName ? resolveEntity(l.parentName) : null,
+        tiedCharacterNames: (l.tiedCharacterNames ?? []).map(resolveEntity),
       })),
       (l) => l.name,
-      (a, b) => ({ ...a, lore: [...(a.lore ?? []), ...(b.lore ?? [])] }),
+      (a, b) => ({ ...a, lore: [...(a.lore ?? []), ...(b.lore ?? [])], tiedCharacterNames: [...new Set([...(a.tiedCharacterNames ?? []), ...(b.tiedCharacterNames ?? [])])] }),
     ),
     artifacts: deduplicateBy(
       (r.artifacts ?? []).map((a) => ({
         ...a,
         name: resolveArt(a.name),
-        ownerName: a.ownerName ? (resolveChar(a.ownerName) !== a.ownerName ? resolveChar(a.ownerName) : resolveLoc(a.ownerName)) : null,
+        ownerName: a.ownerName ? resolveEntity(a.ownerName) : null,
       })),
       (a) => a.name,
       (a, b) => ({
@@ -552,7 +558,7 @@ Empty object {} if no merges needed for a category.`;
       (r.threads ?? []).map((t) => ({
         ...t,
         description: resolveThread(t.description),
-        participantNames: t.participantNames.map(resolveChar),
+        participantNames: t.participantNames.map(resolveEntity),
         statusAtStart: normalizeStatus(t.statusAtStart),
         statusAtEnd: normalizeStatus(t.statusAtEnd),
       })),
@@ -561,9 +567,9 @@ Empty object {} if no merges needed for a category.`;
     ),
     scenes: (r.scenes ?? []).map((s) => ({
       ...s,
-      povName: resolveChar(s.povName),
-      locationName: resolveLoc(s.locationName),
-      participantNames: [...new Set(s.participantNames.map(resolveChar))],
+      povName: resolveEntity(s.povName),
+      locationName: resolveEntity(s.locationName),
+      participantNames: [...new Set(s.participantNames.map(resolveEntity))],
       threadMutations: deduplicateBy(
         (s.threadMutations ?? []).map((tm) => ({
           ...tm,
@@ -575,37 +581,34 @@ Empty object {} if no merges needed for a category.`;
         // When two mutations target the same thread in one scene, keep the widest transition
         (a, b) => ({ ...a, from: a.from, to: b.to }),
       ),
-      continuityMutations: (s.continuityMutations ?? []).map((km) => {
-        // Entity can be character, location, or artifact — try each resolver
-        const n = km.entityName;
-        const resolved = charMap[n] ? resolveChar(n) : locMap[n] ? resolveLoc(n) : artMap[n] ? resolveArt(n) : n;
-        return { ...km, entityName: resolved };
-      }),
+      continuityMutations: (s.continuityMutations ?? []).map((km) => ({
+        ...km, entityName: resolveEntity(km.entityName),
+      })),
       relationshipMutations: (s.relationshipMutations ?? []).map((rm) => ({
         ...rm,
-        from: resolveChar(rm.from),
-        to: resolveChar(rm.to),
+        from: resolveEntity(rm.from),
+        to: resolveEntity(rm.to),
       })),
       artifactUsages: (s.artifactUsages ?? []).map((au) => ({
         ...au,
         artifactName: resolveArt(au.artifactName),
-        characterName: au.characterName ? resolveChar(au.characterName) : null,
+        characterName: au.characterName ? resolveEntity(au.characterName) : null,
       })),
       ownershipMutations: (s.ownershipMutations ?? []).map((om) => ({
         ...om,
         artifactName: resolveArt(om.artifactName),
-        fromName: resolveChar(om.fromName) !== om.fromName ? resolveChar(om.fromName) : resolveLoc(om.fromName),
-        toName: resolveChar(om.toName) !== om.toName ? resolveChar(om.toName) : resolveLoc(om.toName),
+        fromName: resolveEntity(om.fromName),
+        toName: resolveEntity(om.toName),
       })),
       tieMutations: (s.tieMutations ?? []).map((tm) => ({
         ...tm,
-        locationName: resolveLoc(tm.locationName),
-        characterName: resolveChar(tm.characterName),
+        locationName: resolveEntity(tm.locationName),
+        characterName: resolveEntity(tm.characterName),
       })),
       characterMovements: (s.characterMovements ?? []).map((cm) => ({
         ...cm,
-        characterName: resolveChar(cm.characterName),
-        locationName: resolveLoc(cm.locationName),
+        characterName: resolveEntity(cm.characterName),
+        locationName: resolveEntity(cm.locationName),
       })),
       worldKnowledgeMutations: s.worldKnowledgeMutations ? {
         addedNodes: (s.worldKnowledgeMutations.addedNodes ?? []).map((n) => ({
@@ -622,8 +625,8 @@ Empty object {} if no merges needed for a category.`;
     relationships: deduplicateBy(
       (r.relationships ?? []).map((rel) => ({
         ...rel,
-        from: resolveChar(rel.from),
-        to: resolveChar(rel.to),
+        from: resolveEntity(rel.from),
+        to: resolveEntity(rel.to),
       })),
       (rel) => `${rel.from}→${rel.to}`,
       (a, b) => ({ ...a, valence: b.valence }), // keep later valence
