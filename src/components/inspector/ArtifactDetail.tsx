@@ -220,11 +220,14 @@ export default function ArtifactDetail({ artifactId }: Props) {
                     {sceneId}
                   </button>
                   {usages.map((au, auIdx) => (
-                    <span key={`usage-${au.characterId ?? 'unattributed'}-${auIdx}`} className="text-xs text-amber-300/80">
-                      {au.characterId
-                        ? `used by ${narrative.characters[au.characterId]?.name ?? au.characterId}`
-                        : 'used (unattributed)'}
-                    </span>
+                    <div key={`usage-${au.characterId ?? 'unattributed'}-${auIdx}`} className="flex flex-col">
+                      <span className="text-xs text-amber-300/80">
+                        {au.characterId
+                          ? narrative.characters[au.characterId]?.name ?? au.characterId
+                          : 'unattributed'}
+                      </span>
+                      {au.usage && <span className="text-[10px] text-text-dim">{au.usage}</span>}
+                    </div>
                   ))}
                   {threadMuts.map((tm, tmIdx) => (
                     <span key={`${tm.threadId}-${tmIdx}`} className="text-xs text-text-secondary">

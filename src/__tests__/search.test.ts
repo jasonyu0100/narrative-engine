@@ -36,14 +36,14 @@ describe('searchNarrative', () => {
           propositions: [
             {
               content: 'The castle gates swing open',
-              embedding: { ref: 'embed-1', model: 'test' },
+              embedding: 'embed-1',
             },
             {
               content: 'Guards block the entrance',
-              embedding: { ref: 'embed-2', model: 'test' },
+              embedding: 'embed-2',
             },
           ],
-          embeddingCentroid: { ref: 'centroid-1', model: 'test' },
+          embeddingCentroid: 'centroid-1',
         },
         {
           fn: 'reveal',
@@ -52,15 +52,16 @@ describe('searchNarrative', () => {
           propositions: [
             {
               content: 'The ancient prophecy speaks of a chosen one',
-              embedding: { ref: 'embed-3', model: 'test' },
+              embedding: 'embed-3',
             },
           ],
-          embeddingCentroid: { ref: 'centroid-2', model: 'test' },
+          embeddingCentroid: 'centroid-2',
         },
       ],
     };
 
     const scene1: Scene = {
+      kind: 'scene',
       id: 'scene1',
       arcId: 'arc1',
       povId: 'char1',
@@ -68,21 +69,24 @@ describe('searchNarrative', () => {
       participantIds: ['char1', 'char2'],
       events: [],
       summary: 'Hero arrives at the castle',
-      summaryEmbedding: { ref: 'scene-embed-1', model: 'test' },
+      summaryEmbedding: 'scene-embed-1',
       planVersions: [
         {
           version: '1.0.0',
-          createdAt: Date.now(),
+          branchId: 'main',
+          timestamp: Date.now(),
+          versionType: 'generate',
           plan: mockBeatPlan,
         },
       ],
       threadMutations: [],
       continuityMutations: [],
       relationshipMutations: [],
-      characterMovements: [],
+      characterMovements: {},
     };
 
     const scene2: Scene = {
+      kind: 'scene',
       id: 'scene2',
       arcId: 'arc1',
       povId: 'char1',
@@ -90,11 +94,13 @@ describe('searchNarrative', () => {
       participantIds: ['char1'],
       events: [],
       summary: 'Hero faces a challenge',
-      summaryEmbedding: { ref: 'scene-embed-2', model: 'test' },
+      summaryEmbedding: 'scene-embed-2',
       planVersions: [
         {
           version: '1.0.0',
-          createdAt: Date.now(),
+          branchId: 'main',
+          timestamp: Date.now(),
+          versionType: 'generate',
           plan: {
             beats: [
               {
@@ -104,10 +110,10 @@ describe('searchNarrative', () => {
                 propositions: [
                   {
                     content: 'Swords clash in the courtyard',
-                    embedding: { ref: 'embed-4', model: 'test' },
+                    embedding: 'embed-4',
                   },
                 ],
-                embeddingCentroid: { ref: 'centroid-3', model: 'test' },
+                embeddingCentroid: 'centroid-3',
               },
             ],
           },
@@ -116,7 +122,7 @@ describe('searchNarrative', () => {
       threadMutations: [],
       continuityMutations: [],
       relationshipMutations: [],
-      characterMovements: [],
+      characterMovements: {},
     };
 
     mockNarrative = {
@@ -185,18 +191,14 @@ describe('searchNarrative', () => {
           name: 'main',
           parentBranchId: null,
           forkEntryId: null,
-          forkTimestamp: 0,
           entryIds: ['scene1', 'scene2'],
-          forceSnapshots: [],
-          completedAt: null,
-          planObjective: null,
-          direction: null,
+          createdAt: 0,
         },
       },
-      structureEvaluations: {},
-      activeBranchId: 'main',
-      timeline: [],
+      relationships: [],
+      worldKnowledge: { nodes: {}, edges: [] },
       createdAt: Date.now(),
+      updatedAt: Date.now(),
     };
 
     mockResolvedKeys = ['scene1', 'scene2'];
@@ -221,7 +223,7 @@ describe('searchNarrative', () => {
       };
 
       // Return embedding if exists, otherwise return a default one to avoid null
-      return Promise.resolve(embeddings[ref.ref] || [0.1, 0.2, 0.3]);
+      return Promise.resolve(embeddings[ref] || [0.1, 0.2, 0.3]);
     });
 
     // Mock cosine similarity to return descending similarities

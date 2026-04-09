@@ -86,13 +86,16 @@ threadMutations — lifecycle: dormant→active→escalating→critical→resolv
 - Only record a transition when the prose shows a clear, irreversible shift in tension level.
 - A scene touching 2-3 threads (mostly pulses) with one transition is a strong scene. More than that is overcounting.
 
-continuityMutations — the entity's inner world CHANGED. Not observations, not descriptions — CHANGES. Entities are characters (conscious beings with agency), locations (spatial areas), and artifacts (things that provide utility).
-- QUALITY BAR: each node must describe something the entity didn't know/feel/have before this scene.
-  BAD: "Alice is curious" (observation, not change). BAD: "The White Rabbit has pink eyes" (description, not mutation).
-  GOOD: "Alice abandons caution entirely, chasing the Rabbit without considering how to return" (new behaviour pattern).
-  GOOD: "The White Rabbit's panic about being late reveals it answers to a higher authority" (new understanding).
-- MAX 2-3 nodes per entity per scene. Only the POV character and one other entity typically earn continuity.
-- Background characters who don't change: ZERO nodes. An entity merely present is not mutated.
+continuityMutations — what we LEARN about an entity that wasn't known before. Applies to characters, locations, and artifacts.
+- Characters: new behaviour, belief, capability, or inner state revealed.
+- Locations: new history, rules, dangers, or properties revealed. A revisited location can earn continuity if the scene shows something new about it.
+- Artifacts: new capabilities, limitations, or properties demonstrated through usage.
+- QUALITY BAR: each node must describe something NOT KNOWN before this scene. Not restating established facts.
+  BAD: "Alice is curious" (observation, not new). BAD: "The White Rabbit has pink eyes" (already established).
+  GOOD: "Alice abandons caution entirely, chasing the Rabbit without considering how to return" (new behaviour).
+  GOOD: "The forest conceals an ancient boundary ward that repels outsiders" (new location property).
+- MAX 2-3 nodes per entity per scene. Most scenes: POV character + one other entity.
+- Entities that appear without revealing anything new: ZERO nodes.
 - addedEdges connect RELATED changes: "follows", "causes", "contradicts", "enables". Only add edges when nodes are causally linked.
 - Types: trait, state, history, capability, belief, relation, secret, goal, weakness.
 
@@ -109,7 +112,9 @@ worldKnowledgeMutations — REVEALED world rules, not character observations.
 - Edges: enables, governs, opposes, extends, created_by, constrains, exist_within.
 
 events — short descriptive tags (2-4 words). 2-4 per scene. Each tag names a discrete narrative beat.
-artifactUsages — when an artifact delivers its utility. Every artifact referenced for its PURPOSE (not just mentioned by name) is a usage. characterId null for unattributed.
+artifactUsages — when an artifact delivers utility. Every artifact referenced for what it DOES (not just mentioned by name) is a usage. Invoking, applying, demonstrating, or leveraging an artifact's capabilities all count. characterId null for unattributed.
+  usage: describe WHAT the artifact did — both literal uses (swung the sword, drove the car, fuelled the engine) and meta uses (cited the framework, applied the algorithm, invoked the theorem to prove a claim). The description should capture the specific utility delivered, not just "used".
+  When an artifact is used, also generate a continuityMutation for it if the usage reveals new properties, limitations, or capabilities.
 ownershipMutations — artifacts changing hands. Only when narratively meaningful.
 tieMutations — significant bond changes. NOT temporary visits.
 characterMovements — only characters whose location CHANGES. Vivid transitions.
@@ -141,11 +146,11 @@ ARTIFACTS — the tools that make societies flourish.
 `;
 
 export const PROMPT_LOCATIONS = `
-LOCATIONS — strictly SPATIAL places where events happen. A location is a physical or virtual space you can be IN.
+LOCATIONS — strictly PHYSICAL spatial places you can STAND IN. The test: could a character physically walk there and look around?
 - Ranges from micro (a room, a desk) to macro (a continent, a planet, cyberspace). All are valid if spatial.
-- NOT organizations, companies, institutions, or abstract concepts — those are artifacts or world knowledge.
-  A "hospital" is a location (you go there). "The medical system" is world knowledge. "Google" is an artifact. "Google's headquarters" is a location.
-- If the text has no spatial places, generate ZERO locations. Do not fabricate locations that don't exist.
+- NOT locations: abstract domains, conceptual spaces, fields of study, conferences, institutions, frameworks — these belong in world knowledge or as artifacts.
+  A hospital is a location (you walk in). A medical system is world knowledge. An organisation is an artifact. The organisation's headquarters is a location.
+- If the text has no physical places, generate ZERO locations. Do not fabricate locations that don't exist.
 - Locations have continuity — history, state, rules. A city that witnesses a massacre gains history. A kingdom that loses a war gains weakness.
 - Location rules constrain characters: a sacred grove forbids violence, a kingdom demands fealty.
 - Hierarchy via parentId: room → building → district → city → region → country.
@@ -210,7 +215,7 @@ export const SCHEMA_THREAD_MUTATIONS = `"threadMutations": [{"threadId": "T-XX",
 export const SCHEMA_CONTINUITY_MUTATIONS = `"continuityMutations": [{"entityId": "C-XX", "addedNodes": [{"id": "K-XX", "content": "complete sentence: what the entity experienced or became", "type": "trait|state|history|capability|belief|relation|secret|goal|weakness"}], "addedEdges": [{"from": "K-XX", "to": "K-YY", "relation": "follows|causes|contradicts|enables"}]}]`;
 export const SCHEMA_RELATIONSHIP_MUTATIONS = `"relationshipMutations": [{"from": "C-XX", "to": "C-YY", "type": "description", "valenceDelta": 0.1}]`;
 export const SCHEMA_WORLD_KNOWLEDGE_MUTATIONS = `"worldKnowledgeMutations": {"addedNodes": [{"id": "WK-XX", "concept": "well-named world concept", "type": "principle|system|concept|tension|event|structure|environment|convention|constraint"}], "addedEdges": [{"from": "WK-XX", "to": "WK-YY", "relation": "enables|governs|opposes|extends|created_by|constrains|exist_within"}]}`;
-export const SCHEMA_ARTIFACT_USAGES = `"artifactUsages": [{"artifactId": "A-XX", "characterId": "C-XX or null for unattributed usage"}]`;
+export const SCHEMA_ARTIFACT_USAGES = `"artifactUsages": [{"artifactId": "A-XX", "characterId": "C-XX or null for unattributed usage", "usage": "what the artifact did — how it delivered utility"}]`;
 export const SCHEMA_OWNERSHIP_MUTATIONS = `"ownershipMutations": [{"artifactId": "A-XX", "fromId": "C-XX or L-XX", "toId": "C-YY or L-YY"}]`;
 export const SCHEMA_TIE_MUTATIONS = `"tieMutations": [{"locationId": "L-XX", "characterId": "C-XX", "action": "add|remove"}]`;
 export const SCHEMA_CHARACTER_MOVEMENTS = `"characterMovements": {"C-XX": {"locationId": "L-YY", "transition": "vivid description of how they traveled"}}`;
@@ -220,7 +225,7 @@ export const SCHEMA_EVENTS = `"events": ["descriptive_2-4_word_tags"]`;
 export const SCHEMA_ANALYSIS_THREAD_MUTATIONS = `"threadMutations": [{"threadDescription": "exact thread description", "from": "status", "to": "status"}]`;
 export const SCHEMA_ANALYSIS_CONTINUITY_MUTATIONS = `"continuityMutations": [{"entityName": "Character, Location, or Artifact name", "addedNodes": [{"content": "complete sentence: what the entity experienced or became", "type": "trait|state|history|capability|belief|relation|secret|goal|weakness"}]}]`;
 export const SCHEMA_ANALYSIS_RELATIONSHIP_MUTATIONS = `"relationshipMutations": [{"from": "Name", "to": "Name", "type": "description", "valenceDelta": 0.1}]`;
-export const SCHEMA_ANALYSIS_ARTIFACT_USAGES = `"artifactUsages": [{"artifactName": "Name", "characterName": "who or null for unattributed"}]`;
+export const SCHEMA_ANALYSIS_ARTIFACT_USAGES = `"artifactUsages": [{"artifactName": "Name", "characterName": "who or null for unattributed", "usage": "what the artifact did — how it delivered utility"}]`;
 export const SCHEMA_ANALYSIS_OWNERSHIP_MUTATIONS = `"ownershipMutations": [{"artifactName": "Name", "fromName": "prev owner", "toName": "new owner"}]`;
 export const SCHEMA_ANALYSIS_TIE_MUTATIONS = `"tieMutations": [{"locationName": "Name", "characterName": "Name", "action": "add|remove"}]`;
 export const SCHEMA_ANALYSIS_CHARACTER_MOVEMENTS = `"characterMovements": [{"characterName": "Name", "locationName": "destination", "transition": "vivid description"}]`;
@@ -279,7 +284,7 @@ export const PROMPT_ENTITY_INTEGRATION = `
 INTEGRATION RULES:
 - Characters are conscious beings with agency. Non-sentient AI is an artifact. Every new character MUST have at least 1 relationship to an existing character.
 - Locations are spatial areas. Every new location SHOULD nest under an existing location via parentId (except top-level regions).
-- Artifacts are things that by themselves provide utility. Concepts belong in world knowledge. Artifacts MUST have parentId referencing a character, location, or null for world-owned.
+- Artifacts are anything that delivers utility — active tools, not passive concepts. Concepts belong in world knowledge. Artifacts MUST have parentId referencing a character, location, or null for world-owned.
 - Thread participants MUST include at least one existing character or location.
 - Names must match the cultural palette already established in the world.
 `;

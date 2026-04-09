@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach, beforeAll, afterAll } from 'vitest';
 import type { AnalysisJob, AnalysisChunkResult, NarrativeState } from '@/types/narrative';
 
 // Mock dependencies — new scene-first pipeline
@@ -620,7 +620,7 @@ describe('AnalysisRunner — Cancellation & Lifecycle', () => {
     const promise = analysisRunner.start(job, (action) => {
       dispatched.push(action);
       // Cancel after plans phase completes and structure phase starts
-      if (action.updates?.phase === 'structure') {
+      if ((action as any).updates?.phase === 'structure') {
         analysisRunner.pause(job.id);
       }
     });

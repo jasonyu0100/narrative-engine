@@ -263,7 +263,7 @@ describe('getStateAtIndex', () => {
             characters: [],
             locations: [],
             threads: [],
-            artifacts: [{ id: 'art-1', name: 'Artifact', significance: 'minor' as const, continuity: { nodes: {}, edges: [] }, parentId: 'c1' }],
+            artifacts: [{ id: 'art-1', name: 'Artifact', significance: 'minor' as const, continuity: { nodes: {}, edges: [] }, parentId: 'c1', threadIds: [] }],
             relationships: [],
             worldKnowledge: { addedNodes: [], addedEdges: [] },
           },

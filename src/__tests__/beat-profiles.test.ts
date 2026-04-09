@@ -154,7 +154,7 @@ describe('computeSamplerFromPlans', () => {
 
   it('returns null when no scenes have plans', () => {
     const scenes: Scene[] = [
-      { ...createSceneWithPlan('s1', []), plan: undefined },
+      { ...createSceneWithPlan('s1', []), planVersions: undefined },
     ];
     const result = computeSamplerFromPlans(scenes);
     expect(result).toBeNull();

@@ -61,18 +61,14 @@ describe('synthesizeSearchResults', () => {
           name: 'main',
           parentBranchId: null,
           forkEntryId: null,
-          forkTimestamp: 0,
           entryIds: [],
-          forceSnapshots: [],
-          completedAt: null,
-          planObjective: null,
-          direction: null,
+          createdAt: 0,
         },
       },
-      structureEvaluations: {},
-      activeBranchId: 'main',
-      timeline: [],
+      relationships: [],
+      worldKnowledge: { nodes: {}, edges: [] },
       createdAt: Date.now(),
+      updatedAt: Date.now(),
     };
 
     // Split results into scene-level and detail-level

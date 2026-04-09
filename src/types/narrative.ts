@@ -128,6 +128,8 @@ export type ArtifactUsage = {
   artifactId: string;
   /** Character who used the artifact, or null for unattributed usage (e.g. a tool described in a paper) */
   characterId: string | null;
+  /** What the artifact did — how it delivered utility (e.g. "cut through the ward", "predicted the market crash") */
+  usage: string;
 };
 
 export type TieMutation = {
@@ -1129,7 +1131,7 @@ export type AnalysisChunkResult = {
       addedNodes: { content: string; type: string }[];
     }[];
     relationshipMutations: { from: string; to: string; type: string; valenceDelta: number }[];
-    artifactUsages?: { artifactName: string; characterName: string | null }[];
+    artifactUsages?: { artifactName: string; characterName: string | null; usage: string }[];
     ownershipMutations?: { artifactName: string; fromName: string; toName: string }[];
     tieMutations?: { locationName: string; characterName: string; action: 'add' | 'remove' }[];
     characterMovements?: { characterName: string; locationName: string; transition: string }[];

@@ -58,6 +58,7 @@ function createArtifact(id: string, parentId: string, overrides: Partial<Artifac
     name: `Artifact ${id}`,
     significance: 'minor',
     continuity: { nodes: {}, edges: [] },
+    threadIds: [],
     ...overrides,
   };
 }

@@ -237,7 +237,7 @@ describe('exportEpub', () => {
         branchId: 'BR-01',
         prose: 'Chapter two begins.',
         timestamp: Date.now(),
-        type: 'generate',
+        versionType: 'generate',
       }],
     };
     const proseCache: Record<string, { text: string; status: string }> = {};
@@ -255,7 +255,7 @@ describe('exportEpub', () => {
       branchId: 'BR-01',
       prose: 'He said "Hello" & waved. The <tag> was visible.',
       timestamp: Date.now(),
-      type: 'generate',
+      versionType: 'generate',
     }];
     const proseCache: Record<string, { text: string; status: string }> = {};
 
@@ -274,7 +274,7 @@ describe('exportEpub', () => {
       branchId: 'BR-01',
       prose: 'Fallback prose.',
       timestamp: Date.now(),
-      type: 'generate',
+      versionType: 'generate',
     }];
     const proseCache: Record<string, { text: string; status: string }> = {
       'S-01': { text: 'This should not be used', status: 'pending' },

@@ -280,26 +280,30 @@ export default function SceneDetail({ sceneId }: Props) {
           <h3 className="text-[10px] uppercase tracking-widest text-text-dim">
             Artifacts
           </h3>
-          <div className="flex flex-wrap gap-1.5">
+          <div className="flex flex-col gap-1.5">
             {(scene.artifactUsages ?? []).map((au, auIdx) => {
               const artifact = narrative.artifacts[au.artifactId];
               const character = au.characterId ? narrative.characters[au.characterId] : null;
               if (!artifact) return null;
               return (
-                <button
-                  key={`${au.artifactId}-${au.characterId}-${auIdx}`}
-                  type="button"
-                  onClick={() =>
-                    dispatch({
-                      type: 'SET_INSPECTOR',
-                      context: { type: 'artifact', artifactId: au.artifactId },
-                    })
-                  }
-                  className="rounded-full bg-amber-400/10 px-2 py-0.5 text-[10px] text-amber-300 transition-colors hover:bg-amber-400/20"
-                >
-                  {artifact.name}
-                  {character && <span className="text-text-dim ml-1">({character.name})</span>}
-                </button>
+                <div key={`${au.artifactId}-${au.characterId}-${auIdx}`} className="flex flex-col gap-0.5">
+                  <div className="flex items-center gap-1.5">
+                    <button
+                      type="button"
+                      onClick={() =>
+                        dispatch({
+                          type: 'SET_INSPECTOR',
+                          context: { type: 'artifact', artifactId: au.artifactId },
+                        })
+                      }
+                      className="rounded-full bg-amber-400/10 px-2 py-0.5 text-[10px] text-amber-300 transition-colors hover:bg-amber-400/20"
+                    >
+                      {artifact.name}
+                    </button>
+                    {character && <span className="text-[10px] text-text-dim">({character.name})</span>}
+                  </div>
+                  {au.usage && <span className="text-[10px] text-text-dim pl-2">{au.usage}</span>}
+                </div>
               );
             })}
           </div>

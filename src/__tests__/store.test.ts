@@ -1,6 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import type { AppState } from '@/lib/store';
-import type { NarrativeState, Scene, Branch, ProseVersion, PlanVersion, SystemLogEntry } from '@/types/narrative';
+import type { AppState, NarrativeState, Scene, Branch, ProseVersion, PlanVersion, SystemLogEntry } from '@/types/narrative';
 
 // Import the reducer logic - we'll test the reducer directly
 // Note: In a real setup, you'd export the reducer from store.tsx for testing
@@ -18,16 +17,17 @@ describe('store reducer', () => {
       id: 'BR-01',
       name: 'main',
       parentBranchId: null,
+      forkEntryId: null,
       entryIds: ['S-001', 'S-002'],
       createdAt: Date.now(),
       versionPointers: {},
     };
 
     testScene = {
+      kind: 'scene' as const,
       id: 'S-001',
+      arcId: 'A-001',
       summary: 'Hero discovers ancient artifact',
-      sceneType: 'mcts' as const,
-      cubeCorner: 'change' as const,
       povId: 'C-001',
       locationId: 'L-001',
       participantIds: ['C-001', 'C-002'],
@@ -35,8 +35,8 @@ describe('store reducer', () => {
       threadMutations: [],
       continuityMutations: [],
       relationshipMutations: [],
-      characterMovements: [],
-      worldKnowledgeMutations: [],
+      characterMovements: {},
+      worldKnowledgeMutations: { addedNodes: [], addedEdges: [] },
       proseVersions: [],
       planVersions: [],
     };
@@ -44,10 +44,11 @@ describe('store reducer', () => {
     testNarrative = {
       id: 'N-001',
       title: 'Test Story',
-      premise: 'A test story for unit tests',
+      description: 'A test story for unit tests',
       characters: {},
       locations: {},
       threads: {},
+      artifacts: {},
       arcs: {},
       scenes: {
         'S-001': testScene,
@@ -57,40 +58,52 @@ describe('store reducer', () => {
       branches: {
         'BR-01': testBranch,
       },
-      structureEvaluations: {},
-      settings: {
-        activePhaseIndex: 0,
-        phases: [],
-        themes: [],
-        directionPrompt: '',
-        constraintPrompt: '',
-        contextScenes: 50,
-        worldKnowledge: { nodes: [], edges: [] },
-      },
+      relationships: [],
+      worldKnowledge: { nodes: {}, edges: [] },
+      worldSummary: '',
+      rules: [],
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
     };
 
     initialState = {
       narratives: [],
       activeNarrativeId: 'N-001',
       activeNarrative: testNarrative,
+      isPlaying: false,
       activeBranchId: 'BR-01',
       resolvedEntryKeys: ['S-001', 'S-002'],
       currentSceneIndex: 1,
       inspectorContext: null,
+      inspectorHistory: [],
       selectedKnowledgeEntity: null,
-      graphViewMode: 'auto',
-      autoRun: {
-        active: false,
-        phase: null,
-        arcsPending: 0,
-        arcsCompleted: 0,
-        waitingForUserChoice: false,
-        shouldStop: false,
+      graphViewMode: 'search',
+      currentSearchQuery: null,
+      currentResultIndex: 0,
+      searchFocusMode: false,
+      autoConfig: {
+        endConditions: [{ type: 'scene_count', target: 50 }],
+        minArcLength: 2,
+        maxArcLength: 5,
+        maxActiveThreads: 6,
+        threadStagnationThreshold: 5,
+        direction: '',
+        toneGuidance: '',
+        narrativeConstraints: '',
+        characterRotationEnabled: true,
+        minScenesBetweenCharacterFocus: 3,
       },
+      autoRunState: null,
+      apiLogs: [],
       systemLogs: [],
+      analysisJobs: [],
       wizardOpen: false,
-      apiKeyModalOpen: false,
-      initialLoadComplete: false,
+      wizardStep: 'form',
+      wizardData: { title: '', premise: '', characters: [], locations: [], threads: [], rules: [], worldSystems: [] },
+      activeChatThreadId: null,
+      activeNoteId: null,
+      beatProfilePresets: [],
+      mechanismProfilePresets: [],
     };
   });
 
@@ -103,9 +116,10 @@ describe('store reducer', () => {
         updates: {
           prose: 'The sun rose over the ancient temple...',
           beatProseMap: {
-            beats: [
-              { fn: 'breathe' as const, mechanism: 'environment' as const, startPara: 0, endPara: 1 },
+            chunks: [
+              { beatIndex: 0, prose: 'The sun rose over the ancient temple...' },
             ],
+            createdAt: Date.now(),
           },
         },
         versionType: 'generate' as const,
@@ -116,9 +130,10 @@ describe('store reducer', () => {
         version: '1',
         prose: 'The sun rose over the ancient temple...',
         beatProseMap: {
-          beats: [
-            { fn: 'breathe' as const, mechanism: 'environment' as const, startPara: 0, endPara: 1 },
+          chunks: [
+            { beatIndex: 0, prose: 'The sun rose over the ancient temple...' },
           ],
+          createdAt: Date.now(),
         },
         branchId: 'BR-01',
         timestamp: expect.any(Number),
@@ -385,6 +400,7 @@ describe('store reducer', () => {
         id: 'BR-02',
         name: 'alternate-ending',
         parentBranchId: 'BR-01',
+        forkEntryId: 'S-002',
         entryIds: ['S-001', 'S-002'], // Inherits from parent
         createdAt: Date.now(),
         versionPointers: {},
@@ -425,6 +441,7 @@ describe('store reducer', () => {
             id: 'BR-02',
             name: 'child1',
             parentBranchId: 'BR-01',
+            forkEntryId: 'S-002',
             entryIds: ['S-001', 'S-002', 'S-003'],
             createdAt: Date.now(),
             versionPointers: {},
@@ -433,6 +450,7 @@ describe('store reducer', () => {
             id: 'BR-03',
             name: 'child2',
             parentBranchId: 'BR-02',
+            forkEntryId: 'S-003',
             entryIds: ['S-001', 'S-002', 'S-003', 'S-004'],
             createdAt: Date.now(),
             versionPointers: {},
@@ -473,6 +491,7 @@ describe('store reducer', () => {
             id: 'BR-02',
             name: 'child1',
             parentBranchId: 'BR-01',
+            forkEntryId: 'S-002',
             entryIds: ['S-001', 'S-002', 'S-003'],
             createdAt: Date.now(),
             versionPointers: {},
@@ -520,6 +539,7 @@ describe('store reducer', () => {
             id: 'BR-02',
             name: 'alternate',
             parentBranchId: 'BR-01',
+            forkEntryId: 'S-002',
             entryIds: ['S-001', 'S-002', 'S-003'],
             createdAt: Date.now(),
             versionPointers: {},
@@ -587,10 +607,11 @@ describe('store reducer', () => {
           'A-001': {
             id: 'A-001',
             name: 'Test Arc',
-            description: 'A test arc',
-            objective: 'Test objective',
             sceneIds: ['S-001', 'S-002'],
-            completed: false,
+            develops: [],
+            locationIds: [],
+            activeCharacterIds: [],
+            initialCharacterLocations: {},
           },
         },
       };

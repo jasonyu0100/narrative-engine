@@ -153,7 +153,7 @@ Return JSON:
   "threadMutations": [{"threadDescription": "exact thread description", "from": "status", "to": "status"}],
   "continuityMutations": [{"entityName": "Name", "addedNodes": [{"content": "what", "type": "trait|state|history|capability|belief|relation|secret|goal|weakness"}]}],
   "relationshipMutations": [{"from": "Name", "to": "Name", "type": "description", "valenceDelta": 0.1}],
-  "artifactUsages": [{"artifactName": "Name", "characterName": "who or null"}],
+  "artifactUsages": [{"artifactName": "Name", "characterName": "who or null", "usage": "what the artifact did"}],
   "ownershipMutations": [{"artifactName": "Name", "fromName": "prev", "toName": "new"}],
   "tieMutations": [{"locationName": "Name", "characterName": "Name", "action": "add|remove"}],
   "characterMovements": [{"characterName": "Name", "locationName": "destination", "transition": "how"}],
@@ -169,13 +169,17 @@ threadMutations — lifecycle: dormant→active→escalating→critical→resolv
 - Only record a transition when the prose shows a clear, irreversible shift in tension.
 - Touching 2-3 threads per scene (mostly pulses) with at most one transition is typical.
 
-continuityMutations — the entity's inner world CHANGED. Not observations — CHANGES.
-- QUALITY BAR: each node must describe something the entity didn't know/feel/have BEFORE this scene.
-  BAD: "Alice is curious" (observation). BAD: "The White Rabbit has pink eyes" (description).
+continuityMutations — what we LEARN about an entity that wasn't known before. Applies to characters, locations, and artifacts.
+- Characters: new behaviour, belief, capability, or inner state revealed. Not restating what's already known.
+- Locations: new history, rules, dangers, or properties revealed. A location revisited can still earn continuity if the scene reveals something new about it.
+- Artifacts: new capabilities, limitations, or properties demonstrated through usage.
+- QUALITY BAR: each node must describe something NOT KNOWN before this scene.
+  BAD: "Alice is curious" (observation). BAD: "The White Rabbit has pink eyes" (already established).
   GOOD: "Alice abandons caution entirely, chasing the Rabbit without considering how to return" (new behaviour).
-  GOOD: "The White Rabbit's panic reveals it answers to a higher authority" (new understanding).
-- MAX 2-3 nodes per entity per scene. Only POV character and one other entity typically earn continuity.
-- Background characters who don't change: ZERO nodes.
+  GOOD: "The forest conceals an ancient boundary ward that repels outsiders" (new location property).
+  GOOD: "The wand backfires when used against its maker" (new artifact limitation).
+- MAX 2-3 nodes per entity per scene. Most scenes: POV character + one other entity.
+- Entities that appear without revealing anything new: ZERO nodes.
 - addedEdges: connect causally linked changes with "follows", "causes", "contradicts", "enables".
 - Types: trait, state, history, capability, belief, relation, secret, goal, weakness.
 
@@ -194,18 +198,20 @@ ENTITY EXTRACTION — every entity gets at least 1 continuity node. Detail scale
   anchor: 3-5 continuity nodes on first appearance (traits, goals, beliefs, capabilities, weaknesses). 2-3 per subsequent scene.
   recurring: 2-4 continuity nodes on first appearance. 1-2 per subsequent scene.
   transient: 1-2 continuity nodes on first appearance (defining trait, role in the scene). Only update if they do something structurally meaningful.
-- locations: spatial areas or regions — physical places you can be IN. Nest via parentName. If the text has no spatial places, extract ZERO. Companies and institutions are artifacts, not locations. tiedCharacterNames: characters who BELONG (residents, faction members).
+- locations: PHYSICAL spatial areas you can STAND IN. The test: could a character physically walk there and look around? Rooms, buildings, cities, forests, planets — yes. Abstract domains, conceptual spaces, fields of study, conferences, institutions, frameworks — no (these belong in world knowledge or as artifacts). Nest via parentName. If the text has no physical places, extract ZERO. tiedCharacterNames: characters who BELONG (residents, faction members).
   domain: a region or world that contains other places. 3-5 lore entries on first appearance. 2-3 per subsequent scene.
   place: a specific named setting where scenes happen. 2-4 lore entries on first appearance. 1-2 per subsequent scene.
   margin: a fleeting or peripheral spot mentioned in passing. 1-2 lore entries on first appearance. Only update if something notable happens here.
-- artifacts: something that by itself can provide utility — it does something, not just describes something. Concepts and definitions belong in world knowledge. ownerName: character/location/null. significance: key/notable/minor.
-  key: 2-4 continuity nodes (lore, history, properties, limitations, state). Update per scene if used.
-  notable: 1-3 continuity nodes. Update only on significant use.
-  minor: 1 continuity node on first appearance (what it is, what it does). Only update if its role changes.
+- artifacts: anything that delivers utility — active tools, not passive concepts. Spans every genre and scale: a wand, a forge, a dataset, an algorithm, a platform, a search engine, AI. The test: does it DO something when applied? Concepts and definitions that only DESCRIBE belong in world knowledge. ownerName: character/location/null (null = world-owned, universally accessible). significance: key/notable/minor.
+  key: 2-4 continuity nodes on first appearance. Update continuity every scene the artifact is referenced — new properties revealed, limitations discovered, capabilities demonstrated.
+  notable: 1-3 continuity nodes on first appearance. Update on significant use.
+  minor: 1 continuity node on first appearance. Only update if its role changes.
+  IMPORTANT: when an artifact reappears in later scenes, generate BOTH an artifactUsage AND a continuityMutation for it. Invoking an artifact to explain, demonstrate, validate, or apply its capabilities counts as usage.
 - threads: narrative tensions. development: what specifically happened.
 
 events — 2-4 word tags. 2-4 per scene. Each names a discrete beat.
-artifactUsages — when an artifact delivers its utility. Every artifact referenced for its PURPOSE (not just by name) is a usage. characterName null for unattributed.
+artifactUsages — when an artifact delivers utility. Every artifact referenced for what it DOES (not just mentioned by name) is a usage. The artifact doesn't need to be physically held — a paper applying gradient descent or leveraging a framework is a usage. characterName null for unattributed.
+  usage: describe WHAT the artifact did — literal uses (swung the sword, drove the car) and meta uses (cited the framework, invoked the theorem). Capture the specific utility delivered.
 ownershipMutations — only when artifacts change hands.
 tieMutations — significant bond changes. NOT temporary visits.
 characterMovements — only physical relocation. Vivid transitions.
@@ -1162,6 +1168,7 @@ export async function assembleNarrative(
           return aus.map((au) => ({
             artifactId: getArtifactId(au.artifactName),
             characterId: au.characterName ? getCharId(au.characterName) : null,
+            usage: au.usage || '',
           })).filter((au) => artifactEntities[au.artifactId]);
         })() || undefined,
         ownershipMutations: (() => {

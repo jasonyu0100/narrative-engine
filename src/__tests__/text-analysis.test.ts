@@ -163,7 +163,7 @@ function createRichAnalysisResult(index: number): AnalysisChunkResult {
         relationshipMutations: [
           { from: 'Alice', to: 'Bob', type: 'growing trust', valenceDelta: 0.2 },
         ],
-        artifactUsages: [{ artifactName: 'Magic Sword', characterName: 'Alice' }],
+        artifactUsages: [{ artifactName: 'Magic Sword', characterName: 'Alice', usage: 'cut through the ward barrier' }],
         ownershipMutations: [],
         tieMutations: [{ locationName: 'Castle', characterName: 'Alice', action: 'add' as const }],
         characterMovements: [{ characterName: 'Bob', locationName: 'Forest', transition: 'walked into the forest' }],
@@ -312,7 +312,7 @@ describe('extractSceneStructure', () => {
       threadMutations: [{ threadDescription: 'Alice finding her way home', from: 'dormant', to: 'active' }],
       continuityMutations: [{ entityName: 'Alice', addedNodes: [{ content: 'Fell down the rabbit hole', type: 'history' }] }],
       relationshipMutations: [{ from: 'Alice', to: 'Cheshire Cat', type: 'uneasy acquaintance', valenceDelta: 0.2 }],
-      artifactUsages: [{ artifactName: 'Pocket Watch', characterName: null }],
+      artifactUsages: [{ artifactName: 'Pocket Watch', characterName: null, usage: 'ticked ominously marking the deadline' }],
       ownershipMutations: [],
       tieMutations: [],
       characterMovements: [{ characterName: 'Alice', locationName: 'Wonderland', transition: 'fell through' }],
@@ -617,7 +617,7 @@ describe('reconcileResults', () => {
       artifacts: [{ name: 'the Elder Wand', significance: 'key', continuity: [], ownerName: null }],
       scenes: [{
         ...createMockAnalysisResult(0).scenes[0],
-        artifactUsages: [{ artifactName: 'the Elder Wand', characterName: 'Harry' }],
+        artifactUsages: [{ artifactName: 'the Elder Wand', characterName: 'Harry', usage: 'cast the disarming charm' }],
       }],
     }];
 

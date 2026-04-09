@@ -98,7 +98,7 @@ describe('computeMatrixFromNarrative', () => {
       createScene({
         id: 'S-002',
         threadMutations: [{ threadId: 'T-01', from: 'dormant', to: 'active' }],
-        continuityMutations: [{ entityId: 'C-01', addedNodes: [{ id: 'K-01', content: 'x', type: 'fact' }], addedEdges: [] }],
+        continuityMutations: [{ entityId: 'C-01', addedNodes: [{ id: 'K-01', content: 'x', type: 'history' }], addedEdges: [] }],
         events: ['event1'],
       }),
       createScene({
@@ -234,7 +234,7 @@ describe('detectCurrentMode', () => {
           { threadId: 'T-01', from: 'dormant', to: 'resolved' },
           { threadId: 'T-02', from: 'dormant', to: 'resolved' },
         ],
-        continuityMutations: Array(10).fill({ entityId: 'C-01', addedNodes: [{ id: 'K-01', content: 'x', type: 'fact' }], addedEdges: [] }),
+        continuityMutations: Array(10).fill({ entityId: 'C-01', addedNodes: [{ id: 'K-01', content: 'x', type: 'history' }], addedEdges: [] }),
         events: Array(10).fill('event'),
         worldKnowledgeMutations: {
           addedNodes: Array(5).fill({ id: 'K-01', concept: 'x', type: 'system' }),

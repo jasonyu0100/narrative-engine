@@ -2,7 +2,7 @@ import type { NarrativeState, Scene, Arc, WorldBuild, StorySettings, Beat, BeatP
 import { DEFAULT_STORY_SETTINGS, REASONING_BUDGETS, BEAT_FN_LIST, BEAT_MECHANISM_LIST, NARRATIVE_CUBE } from '@/types/narrative';
 import { nextId, nextIds } from '@/lib/narrative-utils';
 import { callGenerate, callGenerateStream, SYSTEM_PROMPT } from './api';
-import { WRITING_MODEL, GENERATE_MODEL, MAX_TOKENS_LARGE, MAX_TOKENS_DEFAULT, MAX_TOKENS_SMALL, WORDS_PER_BEAT, BEATS_PER_SCENE, ANALYSIS_TEMPERATURE } from '@/lib/constants';
+import { WRITING_MODEL, GENERATE_MODEL, MAX_TOKENS_LARGE, MAX_TOKENS_DEFAULT, MAX_TOKENS_SMALL, WORDS_PER_BEAT, ANALYSIS_TEMPERATURE } from '@/lib/constants';
 import { parseJson } from './json';
 import { narrativeContext, sceneContext, deriveLogicRules, sceneScale } from './context';
 import { PROMPT_FORCE_STANDARDS, PROMPT_STRUCTURAL_RULES, PROMPT_MUTATIONS, PROMPT_ARTIFACTS, PROMPT_LOCATIONS, PROMPT_POV, PROMPT_CONTINUITY, PROMPT_SUMMARY_REQUIREMENT, PROMPT_BEAT_TAXONOMY, promptThreadLifecycle, buildThreadHealthPrompt, buildCompletedBeatsPrompt } from './prompts';
@@ -255,7 +255,7 @@ Return JSON with this exact structure. IMPORTANT: Fill out "arcOutline" FIRST �
       "locationId": "existing location ID from the narrative",
       "povId": "character ID whose perspective this scene is told from (must be a participant)${storySettings.povMode !== 'free' && storySettings.povCharacterIds.length > 0 ? ` — RESTRICTED to: ${storySettings.povCharacterIds.join(', ')}` : storySettings.povMode === 'free' && storySettings.povCharacterIds.length > 0 ? ` — PREFER: ${storySettings.povCharacterIds.join(', ')} (but may use others)` : ''}",
       "participantIds": ["existing character IDs"],
-      "artifactUsages": [{"artifactId": "A-XX", "characterId": "C-XX or null for unattributed usage"}],
+      "artifactUsages": [{"artifactId": "A-XX", "characterId": "C-XX or null for unattributed usage", "usage": "what the artifact did — how it delivered utility"}],
       "characterMovements": {"C-XX": {"locationId": "L-YY", "transition": "Descriptive transition: 'Rode horseback through the night', 'Slipped through the back gate at dawn'"}},
       "events": ["event_tag_1", "event_tag_2"],
       "threadMutations": [{"threadId": "T-XX", "from": "current_status", "to": "new_status"}],
@@ -845,49 +845,39 @@ Return the COMPLETE plan (all beats, not just changed ones) as JSON:
  * Split prose into evenly-sized chunks by sentence/paragraph boundaries.
  * Ensures consistent granularity for beat extraction.
  */
-function splitProseEvenly(prose: string, targetChunks: number): string[] {
-  // First try natural paragraph splits
-  const paragraphs = prose.split(/\n\s*\n/).filter(p => p.trim());
-
-  // If we have enough paragraphs, distribute them evenly
-  if (paragraphs.length >= targetChunks) {
-    const chunks: string[] = [];
-    const parasPerChunk = paragraphs.length / targetChunks;
-
-    for (let i = 0; i < targetChunks; i++) {
-      const start = Math.floor(i * parasPerChunk);
-      const end = i === targetChunks - 1 ? paragraphs.length : Math.floor((i + 1) * parasPerChunk);
-      chunks.push(paragraphs.slice(start, end).join('\n\n'));
-    }
-
-    return chunks;
-  }
-
-  // Not enough paragraphs - split by sentences using proper tokenization
+/**
+ * Split prose into ~100-word chunks on sentence boundaries.
+ * Chunks are allowed to exceed 100 words to avoid breaking mid-sentence.
+ */
+export function splitIntoWordChunks(prose: string, targetWords: number = WORDS_PER_BEAT): string[] {
   const sentences = splitIntoSentences(prose).filter(s => s.trim());
-  if (sentences.length >= targetChunks) {
-    const chunks: string[] = [];
-    const sentencesPerChunk = sentences.length / targetChunks;
+  if (sentences.length === 0) return [prose];
 
-    for (let i = 0; i < targetChunks; i++) {
-      const start = Math.floor(i * sentencesPerChunk);
-      const end = i === targetChunks - 1 ? sentences.length : Math.floor((i + 1) * sentencesPerChunk);
-      chunks.push(sentences.slice(start, end).join(' '));
+  const chunks: string[] = [];
+  let current: string[] = [];
+  let currentWords = 0;
+
+  for (const sentence of sentences) {
+    const sentenceWords = sentence.split(/\s+/).length;
+    current.push(sentence);
+    currentWords += sentenceWords;
+
+    // Break after reaching target — allows the sentence that crosses the boundary to finish
+    if (currentWords >= targetWords) {
+      chunks.push(current.join(' ').trim());
+      current = [];
+      currentWords = 0;
     }
-
-    return chunks;
   }
 
-  // Very short prose - split by words
-  const words = prose.split(/\s+/).filter(w => w.trim());
-  const chunks: string[] = [];
-  const wordsPerChunk = Math.ceil(words.length / targetChunks);
-
-  for (let i = 0; i < targetChunks; i++) {
-    const start = i * wordsPerChunk;
-    const end = Math.min((i + 1) * wordsPerChunk, words.length);
-    if (start < words.length) {
-      chunks.push(words.slice(start, end).join(' '));
+  // Flush remaining sentences
+  if (current.length > 0) {
+    const remainder = current.join(' ').trim();
+    // If remainder is very short, merge into the last chunk
+    if (chunks.length > 0 && currentWords < targetWords * 0.3) {
+      chunks[chunks.length - 1] += ' ' + remainder;
+    } else {
+      chunks.push(remainder);
     }
   }
 
@@ -937,7 +927,17 @@ async function reverseEngineerScenePlanOnce(
   summary: string,
   onToken?: (token: string, accumulated: string) => void,
 ): Promise<{ plan: BeatPlan; beatProseMap: BeatProseMap | null }> {
-  const systemPrompt = `You are a beat analyst. Given numbered prose paragraphs, identify the structural beat sequence — what each beat does, how it's delivered, which paragraphs it spans, and the propositions it establishes.
+  // Strip decorative content before splitting
+  const cleanedProse = prose
+    .split(/\n\s*\n/)
+    .filter((p: string) => p.replace(/[\s*·•–—\-=_#~.]/g, '').trim().length > 0)
+    .join('\n\n');
+
+  // Deterministic ~100-word chunks — one chunk = one beat
+  const chunks = splitIntoWordChunks(cleanedProse);
+  const numberedChunks = chunks.map((c: string, i: number) => `[${i}] ${c}`).join('\n\n');
+
+  const systemPrompt = `You are a beat analyst. Given pre-split prose chunks (~100 words each), annotate each chunk with its beat function, mechanism, and propositions. There is exactly one beat per chunk — do NOT merge or split chunks.
 
 Return ONLY valid JSON matching this schema:
 {
@@ -946,8 +946,6 @@ Return ONLY valid JSON matching this schema:
       "fn": "${BEAT_FN_LIST.join('|')}",
       "mechanism": "${BEAT_MECHANISM_LIST.join('|')}",
       "what": "STRUCTURAL SUMMARY: what happens, not how it reads",
-      "startIndex": 0,
-      "chunks": 2,
       "propositions": [
         {"content": "atomic claim", "type": "state|claim|definition|formula|evidence|rule|comparison|example"}
       ]
@@ -955,35 +953,18 @@ Return ONLY valid JSON matching this schema:
   ]
 }
 
-CHUNK MAPPING RULES:
-- "startIndex" is the 0-based index of the first paragraph this beat covers
-- "chunks" is how many consecutive paragraphs this beat spans (1, 2, 3, etc.)
-- Beats are sequential: beat 1 starts at 0, beat 2 starts at 0+chunks₁, beat 3 starts at 0+chunks₁+chunks₂, etc.
-- The sum of all "chunks" values MUST equal exactly N (the total paragraph count)
-- Each paragraph belongs to exactly one beat — no gaps, no overlaps
-- Typical beat: 1–3 chunks (~50–150 words). Avoid 4+ chunks per beat
-
-EXAMPLE (20 chunks, ~10 beats):
-[
-  {"fn": "breathe", "startIndex": 0,  "chunks": 2, ...},  // paragraphs [0-1]
-  {"fn": "inform",  "startIndex": 2,  "chunks": 1, ...},  // paragraph  [2]
-  {"fn": "advance", "startIndex": 3,  "chunks": 3, ...},  // paragraphs [3-5]
-  {"fn": "turn",    "startIndex": 6,  "chunks": 2, ...},  // paragraphs [6-7]
-  ...                                                       // chunks must sum to 20
-]
+CRITICAL: Return exactly ${chunks.length} beats — one per chunk, in order. Do NOT add startIndex or chunks fields.
+Every beat MUST have all three required fields: fn, mechanism, what. Never return an empty object or omit 'what' — even for transitional or atmospheric chunks, describe what the chunk does structurally.
 
 ${PROMPT_BEAT_TAXONOMY}
 
 RULES:
-- Identify one beat per meaningful unit of action, dialogue, or shift. Target ~${BEATS_PER_SCENE} beats per scene (~${WORDS_PER_BEAT} words per beat).
-- Every beat must map to a specific moment in the prose.
+- One beat per chunk. Annotate what the chunk does structurally.
 - STRUCTURAL SUMMARIES ONLY: The 'what' field describes WHAT HAPPENS, not how it reads as prose.
   • DO: "Guard confronts him about the forged papers" — structural event
   • DON'T: "He muttered, 'The academy won't hold me long'" — pre-written prose
   • DO: "Elders debate whether to proceed with the ceremony" — action summary
   • DON'T: "Her voice cut through the murmur of the crowd" — literary description
-  • DO: "Mist covers the village at dawn" — simple fact
-  • DON'T: "Mist clung to the village, blurring the distinction between homes and mountain" — literary prose
   Strip adjectives, adverbs, and literary embellishments. State the event, not its texture.
 - MECHANISM CHOICE must match how the prose was actually written:
   • dialogue: Prose contains quoted speech — characters speaking to be heard.
@@ -1071,39 +1052,18 @@ INVALID: craft goals, pacing instructions, meta-commentary.
 
 - Return ONLY valid JSON.`;
 
-  // Strip decorative content (section breaks like "* * * *", chapter dividers)
-  // before splitting — they carry no narrative information and waste chunk indices
-  const cleanedProse = prose
-    .split(/\n\s*\n/)
-    .filter(p => p.replace(/[\s*·•–—\-=_#~.]/g, '').trim().length > 0)
-    .join('\n\n');
-
-  // Estimate target beats based on word count and standard beat size
-  const wordCount = cleanedProse.split(/\s+/).length;
-  const estimatedBeats = Math.max(Math.round(wordCount / WORDS_PER_BEAT), 3);
-
-  // Split prose into fine-grained chunks (2x beats) so LLM can group naturally
-  const targetChunks = estimatedBeats * 2;
-  const paragraphs = splitProseEvenly(cleanedProse, targetChunks);
-
-  const numberedProse = paragraphs.map((p, i) => `[${i}] ${p}`).join('\n\n');
-
-  const lastIndex = paragraphs.length - 1;
   const prompt = `SCENE SUMMARY: ${summary}
 
-NUMBERED PROSE (${paragraphs.length} chunks, indices [0-${lastIndex}]):
-${numberedProse}
+NUMBERED CHUNKS (${chunks.length} chunks, ~100 words each):
+${numberedChunks}
 
 TASK:
-Group these chunks into beats by identifying natural narrative boundaries. Each beat should span consecutive chunks.
+Annotate each chunk with its beat function, mechanism, and propositions. One beat per chunk, in order.
 
-Extract propositions according to density guidelines - light fiction gets 1-2 props/beat, technical prose gets exhaustive extraction.
+Extract propositions according to density guidelines — light fiction gets 1-2 props/beat, technical prose gets exhaustive extraction.
 
-CRITICAL CONSTRAINTS:
-- Target ~${WORDS_PER_BEAT} words per beat, typically 1–3 chunks each
-- Aim for approximately ${estimatedBeats} beats
-- First beat MUST have startIndex: 0. Each subsequent startIndex = previous startIndex + previous chunks
-- All chunk counts MUST sum to exactly ${paragraphs.length}
+CONSTRAINTS:
+- Return exactly ${chunks.length} beats — one per chunk.
 - Use ONLY these 10 beat functions: breathe, inform, advance, bond, turn, reveal, shift, expand, foreshadow, resolve`;
 
   let accumulated = '';
@@ -1111,7 +1071,7 @@ CRITICAL CONSTRAINTS:
     ? await callGenerateStream(prompt, systemPrompt, (token) => { accumulated += token; onToken(token, accumulated); }, MAX_TOKENS_SMALL, 'reverseEngineerScenePlan', GENERATE_MODEL, undefined, undefined, ANALYSIS_TEMPERATURE)
     : await callGenerate(prompt, systemPrompt, MAX_TOKENS_SMALL, 'reverseEngineerScenePlan', GENERATE_MODEL, undefined, true, ANALYSIS_TEMPERATURE);
 
-  type BeatData = { fn: string; mechanism: string; what: string; propositions: unknown[]; startIndex?: number; chunks?: number };
+  type BeatData = { fn: string; mechanism: string; what: string; propositions: unknown[] };
   const parsed = parseJson(raw, 'reverseEngineerScenePlan') as { beats?: unknown[] };
 
   const beats: Beat[] = (parsed.beats ?? []).map((b: unknown) => {
@@ -1125,18 +1085,18 @@ CRITICAL CONSTRAINTS:
     };
   });
 
+  // LLM must return exactly one beat per chunk — mismatch is a retry-worthy failure
+  if (beats.length !== chunks.length) {
+    throw new Error(`Beat count mismatch: got ${beats.length} beats for ${chunks.length} chunks`);
+  }
+
   const plan: BeatPlan = { beats };
 
-  // Build BeatProseMap from LLM-provided chunk counts + startIndex cross-check
-  const rawBeats = (parsed.beats ?? []) as BeatData[];
-  const chunkCounts = rawBeats.map(b => b.chunks ?? 0);
-  const startIndices = rawBeats.map(b => b.startIndex);
-  const beatProseMap = buildBeatProseMapFromCounts(paragraphs, beats, chunkCounts, startIndices);
-
-  if (!beatProseMap) {
-    const total = chunkCounts.reduce((a, b) => a + b, 0);
-    console.log(`[beatProseMap] FAIL "${summary}" — ${beats.length} beats, counts sum ${total} (need ${paragraphs.length})`, rawBeats.map((b, i) => ({ i, startIndex: b.startIndex, chunks: b.chunks })));
-  }
+  // Prose map is deterministic — chunk i = beat i
+  const beatProseMap: BeatProseMap = {
+    chunks: chunks.map((prose, i) => ({ beatIndex: i, prose })),
+    createdAt: Date.now(),
+  };
 
   return { plan, beatProseMap };
 }
@@ -1153,13 +1113,13 @@ export function buildBeatProseMapFromCounts(
 ): BeatProseMap | null {
   if (paragraphs.length === 0 || beats.length === 0 || chunkCounts.length !== beats.length) return null;
 
+  // Fix simple off-by-one/two errors by adjusting the last beat; anything else regenerates
   const total = chunkCounts.reduce((a, b) => a + b, 0);
   if (total !== paragraphs.length) {
-    // Tolerate small mismatches by adjusting the last beat's count
     const diff = paragraphs.length - total;
-    const lastCount = chunkCounts[chunkCounts.length - 1] + diff;
-    if (Math.abs(diff) <= 2 && lastCount >= 1) {
-      chunkCounts[chunkCounts.length - 1] = lastCount;
+    const lastIdx = chunkCounts.length - 1;
+    if (Math.abs(diff) <= 2 && chunkCounts[lastIdx] + diff >= 1) {
+      chunkCounts[lastIdx] += diff;
     } else {
       logWarning('Beat chunk counts do not sum to paragraph count',
         `Sum ${total} ≠ ${paragraphs.length} paragraphs`,
@@ -2001,7 +1961,7 @@ Return JSON:
   "locationId": "existing location ID",
   "povId": "character ID${storySettings.povMode !== 'free' && storySettings.povCharacterIds.length > 0 ? ` — RESTRICTED to: ${storySettings.povCharacterIds.join(', ')}` : ''}",
   "participantIds": ["character IDs"],
-  "artifactUsages": [{"artifactId": "A-XX", "characterId": "C-XX or null for unattributed usage"}],
+  "artifactUsages": [{"artifactId": "A-XX", "characterId": "C-XX or null for unattributed usage", "usage": "what the artifact did — how it delivered utility"}],
   "characterMovements": {},
   "events": ["event_tags"],
   "threadMutations": [{"threadId": "T-XX", "from": "status", "to": "status"}],

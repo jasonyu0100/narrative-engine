@@ -28,5 +28,5 @@ export const TEST_EMBEDDINGS = {
 
 // Helper to get embedding by key
 export function getTestEmbedding(key: keyof typeof TEST_EMBEDDINGS): number[] {
-  return TEST_EMBEDDINGS[key] as number[];
+  return TEST_EMBEDDINGS[key] as unknown as number[];
 }

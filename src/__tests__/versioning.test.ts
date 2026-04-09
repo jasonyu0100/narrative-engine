@@ -158,7 +158,7 @@ describe('Prose Resolution', () => {
     it('should return undefined when no versions exist (no legacy fallback)', () => {
       const scene = createScene('scene-1');
       // Legacy prose field is ignored - no fallback
-      scene.prose = 'Legacy prose content';
+      (scene as any).prose = 'Legacy prose content';
       const branches = { 'branch-1': createBranch('branch-1') };
 
       const result = resolveProseForBranch(scene, 'branch-1', branches);
@@ -235,7 +235,7 @@ describe('Prose Resolution', () => {
 
     it('should return undefined for legacy (unversioned) prose', () => {
       const scene = createScene('scene-1');
-      scene.prose = 'Legacy prose';
+      (scene as any).prose = 'Legacy prose';
       const branches = { 'branch-1': createBranch('branch-1') };
 
       const version = getResolvedProseVersion(scene, 'branch-1', branches);
@@ -271,7 +271,7 @@ describe('Plan Resolution', () => {
     it('should return undefined when no versions exist (no legacy fallback)', () => {
       const scene = createScene('scene-1');
       // Legacy plan field is ignored - no fallback
-      scene.plan = { beats: [{ fn: 'advance', mechanism: 'action', what: 'Legacy beat', propositions: [] }] } as BeatPlan;
+      (scene as any).plan = { beats: [{ fn: 'advance', mechanism: 'action', what: 'Legacy beat', propositions: [] }] } as BeatPlan;
       const branches = { 'branch-1': createBranch('branch-1') };
 
       const result = resolvePlanForBranch(scene, 'branch-1', branches);
@@ -486,7 +486,7 @@ describe('Edge Cases', () => {
   it('should handle empty branches object', () => {
     const scene = createScene('scene-1');
     // Legacy prose is ignored - no branch to resolve
-    scene.prose = 'Legacy prose';
+    (scene as any).prose = 'Legacy prose';
 
     const result = resolveProseForBranch(scene, 'nonexistent', {});
     expect(result.prose).toBeUndefined();
@@ -625,8 +625,8 @@ describe('Beat Prose Map and Prose Score Resolution', () => {
   it('should return undefined beatProseMap when no versions exist (no legacy fallback)', () => {
     const scene = createScene('scene-1');
     // Legacy fields are ignored - no fallback
-    scene.prose = 'Legacy prose';
-    scene.beatProseMap = { chunks: [{ beatIndex: 0, prose: 'Legacy beat' }], createdAt: 500 };
+    (scene as any).prose = 'Legacy prose';
+    (scene as any).beatProseMap = { chunks: [{ beatIndex: 0, prose: 'Legacy beat' }], createdAt: 500 };
 
     const branches = { 'branch-1': createBranch('branch-1') };
 

@@ -698,7 +698,7 @@ Return JSON with this exact structure:
       "locationId": "L-01",
       "povId": "C-01",
       "participantIds": ["C-01"],
-      "artifactUsages": [{"artifactId": "A-XX", "characterId": "C-XX or null for unattributed usage"}],
+      "artifactUsages": [{"artifactId": "A-XX", "characterId": "C-XX or null for unattributed usage", "usage": "what the artifact did — how it delivered utility"}],
       "events": ["event_tag"],
       "threadMutations": [{"threadId": "T-01", "from": "dormant", "to": "active"}],
       "continuityMutations": [{"entityId": "C-XX", "addedNodes": [{"id": "K-GEN-001", "content": "complete sentence: what they experienced or became", "type": "trait|state|history|capability|belief|relation|secret|goal|weakness"}], "addedEdges": [{"from": "K-GEN-001", "to": "K-XX", "relation": "follows|causes|contradicts|enables"}]}],
@@ -740,7 +740,7 @@ PILOT EPISODE — establish a tight, focused world. These are minimums; exceed w
 ENTITY DEFINITIONS:
 - Characters are conscious beings with agency — people, named animals, sentient AI (AGI). Non-sentient AI systems are artifacts.
 - Locations are spatial areas or regions — physical places you can be IN.
-- Artifacts are things that by themselves can provide utility — they do something. Concepts and abstract ideas belong in world knowledge.
+- Artifacts are anything that delivers utility — active tools, not passive concepts. Concepts belong in world knowledge.
 - Threads are narrative tensions that drive action.
 
 CHARACTER DEPTH BY ROLE — minimums; go deeper for complex characters:

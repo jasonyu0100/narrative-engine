@@ -419,7 +419,7 @@ describe('scoreArc', () => {
   it('returns positive score for scenes with mutations', () => {
     const scene = createScene('S-001', {
       threadMutations: [{ threadId: 'T-01', from: 'dormant', to: 'active' }],
-      continuityMutations: [{ entityId: 'C-01', addedNodes: [{ id: 'K-01', content: 'x', type: 'fact' }], addedEdges: [] }],
+      continuityMutations: [{ entityId: 'C-01', addedNodes: [{ id: 'K-01', content: 'x', type: 'history' }], addedEdges: [] }],
       events: ['event1'],
     });
 
@@ -451,7 +451,7 @@ describe('scoreArc', () => {
         { threadId: 'T-01', from: 'dormant', to: 'resolved' },
         { threadId: 'T-02', from: 'active', to: 'critical' },
       ],
-      continuityMutations: Array(5).fill({ entityId: 'C-01', addedNodes: [{ id: 'K-01', content: 'x', type: 'fact' }], addedEdges: [] }),
+      continuityMutations: Array(5).fill({ entityId: 'C-01', addedNodes: [{ id: 'K-01', content: 'x', type: 'history' }], addedEdges: [] }),
       events: ['event1', 'event2', 'event3'],
       worldKnowledgeMutations: {
         addedNodes: [{ id: 'WK-01', concept: 'x', type: 'system' }],
@@ -493,7 +493,7 @@ describe('scoreScene', () => {
 
     const currentScene = createScene('S-002', {
       threadMutations: [{ threadId: 'T-01', from: 'active', to: 'resolved' }],
-      continuityMutations: Array(3).fill({ entityId: 'C-01', addedNodes: [{ id: 'K-01', content: 'x', type: 'fact' }], addedEdges: [] }),
+      continuityMutations: Array(3).fill({ entityId: 'C-01', addedNodes: [{ id: 'K-01', content: 'x', type: 'history' }], addedEdges: [] }),
     });
 
     const scoreWithPrior = scoreScene(currentScene, [priorScene]);

@@ -41,7 +41,7 @@ describe('buildBeatProseMapFromCounts', () => {
     );
     expect(result).not.toBeNull();
     expect(result!.chunks).toHaveLength(2);
-    expect(result!.chunks[1].prose).toContain('para 4'); // last beat absorbed the extra paragraph
+    expect(result!.chunks[1].prose).toContain('para 4');
   });
 
   it('rejects when counts are off by more than 2', () => {

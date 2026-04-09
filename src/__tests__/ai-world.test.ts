@@ -244,15 +244,16 @@ describe('computeWorldMetrics', () => {
       const narrative = createMinimalNarrative();
       narrative.characters = {
         'C-01': createCharacter('C-01', {
-          continuity: { nodes: [{ id: 'K-01', type: 'secret', content: 'A secret' }] },
+          continuity: { nodes: { 'K-01': { id: 'K-01', type: 'secret', content: 'A secret' } }, edges: [] },
         }),
         'C-02': createCharacter('C-02', {
           continuity: {
-            nodes: [
-              { id: 'K-02', type: 'fact', content: 'Fact 1' },
-              { id: 'K-03', type: 'fact', content: 'Fact 2' },
-              { id: 'K-04', type: 'fact', content: 'Fact 3' },
-            ],
+            nodes: {
+              'K-02': { id: 'K-02', type: 'history', content: 'Fact 1' },
+              'K-03': { id: 'K-03', type: 'history', content: 'Fact 2' },
+              'K-04': { id: 'K-04', type: 'history', content: 'Fact 3' },
+            },
+            edges: [],
           },
         }),
       };
@@ -275,7 +276,7 @@ describe('computeWorldMetrics', () => {
       narrative.characters = {
         'C-01': createCharacter('C-01'), // No continuity
         'C-02': createCharacter('C-02', {
-          continuity: { nodes: [{ id: 'K-01', type: 'fact', content: 'Fact' }] },
+          continuity: { nodes: { 'K-01': { id: 'K-01', type: 'history', content: 'Fact' } }, edges: [] },
         }),
       };
 
@@ -515,10 +516,10 @@ describe('computeWorldMetrics', () => {
       const narrative = createMinimalNarrative();
       // Enough knowledge to avoid that signal, but orphans + sparse relationships
       narrative.characters = {
-        'C-01': createCharacter('C-01', { continuity: { nodes: [{ id: 'K-01', type: 'secret', content: 'Secret 1' }, { id: 'K-02', type: 'fact', content: 'Fact 1' }, { id: 'K-03', type: 'fact', content: 'Fact 2' }] } }),
-        'C-02': createCharacter('C-02', { continuity: { nodes: [{ id: 'K-04', type: 'fact', content: 'Fact 3' }, { id: 'K-05', type: 'fact', content: 'Fact 4' }, { id: 'K-06', type: 'fact', content: 'Fact 5' }] } }),
-        'C-03': createCharacter('C-03', { continuity: { nodes: [{ id: 'K-07', type: 'fact', content: 'Fact 6' }, { id: 'K-08', type: 'fact', content: 'Fact 7' }, { id: 'K-09', type: 'fact', content: 'Fact 8' }] } }),
-        'C-04': createCharacter('C-04', { continuity: { nodes: [{ id: 'K-10', type: 'fact', content: 'Fact 9' }, { id: 'K-11', type: 'fact', content: 'Fact 10' }, { id: 'K-12', type: 'fact', content: 'Fact 11' }] } }),
+        'C-01': createCharacter('C-01', { continuity: { nodes: { 'K-01': { id: 'K-01', type: 'secret', content: 'Secret 1' }, 'K-02': { id: 'K-02', type: 'history', content: 'Fact 1' }, 'K-03': { id: 'K-03', type: 'history', content: 'Fact 2' } }, edges: [] } }),
+        'C-02': createCharacter('C-02', { continuity: { nodes: { 'K-04': { id: 'K-04', type: 'history', content: 'Fact 3' }, 'K-05': { id: 'K-05', type: 'history', content: 'Fact 4' }, 'K-06': { id: 'K-06', type: 'history', content: 'Fact 5' } }, edges: [] } }),
+        'C-03': createCharacter('C-03', { continuity: { nodes: { 'K-07': { id: 'K-07', type: 'history', content: 'Fact 6' }, 'K-08': { id: 'K-08', type: 'history', content: 'Fact 7' }, 'K-09': { id: 'K-09', type: 'history', content: 'Fact 8' } }, edges: [] } }),
+        'C-04': createCharacter('C-04', { continuity: { nodes: { 'K-10': { id: 'K-10', type: 'history', content: 'Fact 9' }, 'K-11': { id: 'K-11', type: 'history', content: 'Fact 10' }, 'K-12': { id: 'K-12', type: 'history', content: 'Fact 11' } }, edges: [] } }),
       };
       // No relationships: 4 orphaned (> 2), 0 per char (< 2) - two depth signals
       narrative.relationships = [];
@@ -549,34 +550,34 @@ describe('computeWorldMetrics', () => {
       // Add enough knowledge and relationships to avoid depth signals
       narrative.characters = {
         'C-01': createCharacter('C-01', {
-          continuity: { nodes: [{ id: 'K-01', type: 'fact', content: 'Fact 1' }, { id: 'K-02', type: 'fact', content: 'Fact 2' }, { id: 'K-03', type: 'fact', content: 'Fact 3' }] },
+          continuity: { nodes: { 'K-01': { id: 'K-01', type: 'history', content: 'Fact 1' }, 'K-02': { id: 'K-02', type: 'history', content: 'Fact 2' }, 'K-03': { id: 'K-03', type: 'history', content: 'Fact 3' } }, edges: [] },
         }),
         'C-02': createCharacter('C-02', {
-          continuity: { nodes: [{ id: 'K-04', type: 'fact', content: 'Fact 4' }, { id: 'K-05', type: 'fact', content: 'Fact 5' }, { id: 'K-06', type: 'fact', content: 'Fact 6' }] },
+          continuity: { nodes: { 'K-04': { id: 'K-04', type: 'history', content: 'Fact 4' }, 'K-05': { id: 'K-05', type: 'history', content: 'Fact 5' }, 'K-06': { id: 'K-06', type: 'history', content: 'Fact 6' } }, edges: [] },
         }),
         'C-03': createCharacter('C-03', {
-          continuity: { nodes: [{ id: 'K-07', type: 'fact', content: 'Fact 7' }, { id: 'K-08', type: 'fact', content: 'Fact 8' }, { id: 'K-09', type: 'fact', content: 'Fact 9' }] },
+          continuity: { nodes: { 'K-07': { id: 'K-07', type: 'history', content: 'Fact 7' }, 'K-08': { id: 'K-08', type: 'history', content: 'Fact 8' }, 'K-09': { id: 'K-09', type: 'history', content: 'Fact 9' } }, edges: [] },
         }),
         'C-04': createCharacter('C-04', {
-          continuity: { nodes: [{ id: 'K-10', type: 'fact', content: 'Fact 10' }, { id: 'K-11', type: 'fact', content: 'Fact 11' }, { id: 'K-12', type: 'fact', content: 'Fact 12' }] },
+          continuity: { nodes: { 'K-10': { id: 'K-10', type: 'history', content: 'Fact 10' }, 'K-11': { id: 'K-11', type: 'history', content: 'Fact 11' }, 'K-12': { id: 'K-12', type: 'history', content: 'Fact 12' } }, edges: [] },
         }),
         'C-05': createCharacter('C-05', {
-          continuity: { nodes: [{ id: 'K-13', type: 'fact', content: 'Fact 13' }, { id: 'K-14', type: 'fact', content: 'Fact 14' }, { id: 'K-15', type: 'fact', content: 'Fact 15' }] },
+          continuity: { nodes: { 'K-13': { id: 'K-13', type: 'history', content: 'Fact 13' }, 'K-14': { id: 'K-14', type: 'history', content: 'Fact 14' }, 'K-15': { id: 'K-15', type: 'history', content: 'Fact 15' } }, edges: [] },
         }),
         'C-06': createCharacter('C-06', {
-          continuity: { nodes: [{ id: 'K-16', type: 'fact', content: 'Fact 16' }, { id: 'K-17', type: 'fact', content: 'Fact 17' }, { id: 'K-18', type: 'fact', content: 'Fact 18' }] },
+          continuity: { nodes: { 'K-16': { id: 'K-16', type: 'history', content: 'Fact 16' }, 'K-17': { id: 'K-17', type: 'history', content: 'Fact 17' }, 'K-18': { id: 'K-18', type: 'history', content: 'Fact 18' } }, edges: [] },
         }),
         'C-07': createCharacter('C-07', {
-          continuity: { nodes: [{ id: 'K-19', type: 'fact', content: 'Fact 19' }, { id: 'K-20', type: 'fact', content: 'Fact 20' }, { id: 'K-21', type: 'fact', content: 'Fact 21' }] },
+          continuity: { nodes: { 'K-19': { id: 'K-19', type: 'history', content: 'Fact 19' }, 'K-20': { id: 'K-20', type: 'history', content: 'Fact 20' }, 'K-21': { id: 'K-21', type: 'history', content: 'Fact 21' } }, edges: [] },
         }),
         'C-08': createCharacter('C-08', {
-          continuity: { nodes: [{ id: 'K-22', type: 'fact', content: 'Fact 22' }, { id: 'K-23', type: 'fact', content: 'Fact 23' }, { id: 'K-24', type: 'fact', content: 'Fact 24' }] },
+          continuity: { nodes: { 'K-22': { id: 'K-22', type: 'history', content: 'Fact 22' }, 'K-23': { id: 'K-23', type: 'history', content: 'Fact 23' }, 'K-24': { id: 'K-24', type: 'history', content: 'Fact 24' } }, edges: [] },
         }),
         'C-09': createCharacter('C-09', {
-          continuity: { nodes: [{ id: 'K-25', type: 'fact', content: 'Fact 25' }, { id: 'K-26', type: 'fact', content: 'Fact 26' }, { id: 'K-27', type: 'fact', content: 'Fact 27' }] },
+          continuity: { nodes: { 'K-25': { id: 'K-25', type: 'history', content: 'Fact 25' }, 'K-26': { id: 'K-26', type: 'history', content: 'Fact 26' }, 'K-27': { id: 'K-27', type: 'history', content: 'Fact 27' } }, edges: [] },
         }),
         'C-10': createCharacter('C-10', {
-          continuity: { nodes: [{ id: 'K-28', type: 'fact', content: 'Fact 28' }, { id: 'K-29', type: 'fact', content: 'Fact 29' }, { id: 'K-30', type: 'fact', content: 'Fact 30' }] },
+          continuity: { nodes: { 'K-28': { id: 'K-28', type: 'history', content: 'Fact 28' }, 'K-29': { id: 'K-29', type: 'history', content: 'Fact 29' }, 'K-30': { id: 'K-30', type: 'history', content: 'Fact 30' } }, edges: [] },
         }),
       };
       // Add enough relationships to avoid sparse/orphan signals (at least 2/char)
@@ -613,16 +614,16 @@ describe('computeWorldMetrics', () => {
       // 10 characters - 5 will be stale (> 40%)
       // Only 2 locations for 10 chars (20% < 30%) - another breadth signal
       narrative.characters = {
-        'C-01': createCharacter('C-01', { continuity: { nodes: [{ id: 'K-01', type: 'fact', content: 'Fact' }, { id: 'K-02', type: 'fact', content: 'Fact' }, { id: 'K-03', type: 'fact', content: 'Fact' }] } }),
-        'C-02': createCharacter('C-02', { continuity: { nodes: [{ id: 'K-04', type: 'fact', content: 'Fact' }, { id: 'K-05', type: 'fact', content: 'Fact' }, { id: 'K-06', type: 'fact', content: 'Fact' }] } }),
-        'C-03': createCharacter('C-03', { continuity: { nodes: [{ id: 'K-07', type: 'fact', content: 'Fact' }, { id: 'K-08', type: 'fact', content: 'Fact' }, { id: 'K-09', type: 'fact', content: 'Fact' }] } }),
-        'C-04': createCharacter('C-04', { continuity: { nodes: [{ id: 'K-10', type: 'fact', content: 'Fact' }, { id: 'K-11', type: 'fact', content: 'Fact' }, { id: 'K-12', type: 'fact', content: 'Fact' }] } }),
-        'C-05': createCharacter('C-05', { continuity: { nodes: [{ id: 'K-13', type: 'fact', content: 'Fact' }, { id: 'K-14', type: 'fact', content: 'Fact' }, { id: 'K-15', type: 'fact', content: 'Fact' }] } }),
-        'C-06': createCharacter('C-06', { continuity: { nodes: [{ id: 'K-16', type: 'fact', content: 'Fact' }, { id: 'K-17', type: 'fact', content: 'Fact' }, { id: 'K-18', type: 'fact', content: 'Fact' }] } }),
-        'C-07': createCharacter('C-07', { continuity: { nodes: [{ id: 'K-19', type: 'fact', content: 'Fact' }, { id: 'K-20', type: 'fact', content: 'Fact' }, { id: 'K-21', type: 'fact', content: 'Fact' }] } }),
-        'C-08': createCharacter('C-08', { continuity: { nodes: [{ id: 'K-22', type: 'fact', content: 'Fact' }, { id: 'K-23', type: 'fact', content: 'Fact' }, { id: 'K-24', type: 'fact', content: 'Fact' }] } }),
-        'C-09': createCharacter('C-09', { continuity: { nodes: [{ id: 'K-25', type: 'fact', content: 'Fact' }, { id: 'K-26', type: 'fact', content: 'Fact' }, { id: 'K-27', type: 'fact', content: 'Fact' }] } }),
-        'C-10': createCharacter('C-10', { continuity: { nodes: [{ id: 'K-28', type: 'fact', content: 'Fact' }, { id: 'K-29', type: 'fact', content: 'Fact' }, { id: 'K-30', type: 'fact', content: 'Fact' }] } }),
+        'C-01': createCharacter('C-01', { continuity: { nodes: { 'K-01': { id: 'K-01', type: 'history', content: 'Fact' }, 'K-02': { id: 'K-02', type: 'history', content: 'Fact' }, 'K-03': { id: 'K-03', type: 'history', content: 'Fact' } }, edges: [] } }),
+        'C-02': createCharacter('C-02', { continuity: { nodes: { 'K-04': { id: 'K-04', type: 'history', content: 'Fact' }, 'K-05': { id: 'K-05', type: 'history', content: 'Fact' }, 'K-06': { id: 'K-06', type: 'history', content: 'Fact' } }, edges: [] } }),
+        'C-03': createCharacter('C-03', { continuity: { nodes: { 'K-07': { id: 'K-07', type: 'history', content: 'Fact' }, 'K-08': { id: 'K-08', type: 'history', content: 'Fact' }, 'K-09': { id: 'K-09', type: 'history', content: 'Fact' } }, edges: [] } }),
+        'C-04': createCharacter('C-04', { continuity: { nodes: { 'K-10': { id: 'K-10', type: 'history', content: 'Fact' }, 'K-11': { id: 'K-11', type: 'history', content: 'Fact' }, 'K-12': { id: 'K-12', type: 'history', content: 'Fact' } }, edges: [] } }),
+        'C-05': createCharacter('C-05', { continuity: { nodes: { 'K-13': { id: 'K-13', type: 'history', content: 'Fact' }, 'K-14': { id: 'K-14', type: 'history', content: 'Fact' }, 'K-15': { id: 'K-15', type: 'history', content: 'Fact' } }, edges: [] } }),
+        'C-06': createCharacter('C-06', { continuity: { nodes: { 'K-16': { id: 'K-16', type: 'history', content: 'Fact' }, 'K-17': { id: 'K-17', type: 'history', content: 'Fact' }, 'K-18': { id: 'K-18', type: 'history', content: 'Fact' } }, edges: [] } }),
+        'C-07': createCharacter('C-07', { continuity: { nodes: { 'K-19': { id: 'K-19', type: 'history', content: 'Fact' }, 'K-20': { id: 'K-20', type: 'history', content: 'Fact' }, 'K-21': { id: 'K-21', type: 'history', content: 'Fact' } }, edges: [] } }),
+        'C-08': createCharacter('C-08', { continuity: { nodes: { 'K-22': { id: 'K-22', type: 'history', content: 'Fact' }, 'K-23': { id: 'K-23', type: 'history', content: 'Fact' }, 'K-24': { id: 'K-24', type: 'history', content: 'Fact' } }, edges: [] } }),
+        'C-09': createCharacter('C-09', { continuity: { nodes: { 'K-25': { id: 'K-25', type: 'history', content: 'Fact' }, 'K-26': { id: 'K-26', type: 'history', content: 'Fact' }, 'K-27': { id: 'K-27', type: 'history', content: 'Fact' } }, edges: [] } }),
+        'C-10': createCharacter('C-10', { continuity: { nodes: { 'K-28': { id: 'K-28', type: 'history', content: 'Fact' }, 'K-29': { id: 'K-29', type: 'history', content: 'Fact' }, 'K-30': { id: 'K-30', type: 'history', content: 'Fact' } }, edges: [] } }),
       };
       narrative.relationships = [
         { from: 'C-01', to: 'C-02', type: 'ally', valence: 0.5 },
@@ -683,16 +684,16 @@ describe('computeWorldMetrics', () => {
       // - Locations well distributed → no breadth signal
       narrative.characters = {
         'C-01': createCharacter('C-01', {
-          continuity: { nodes: [{ id: 'K-01', type: 'fact', content: 'Fact 1' }, { id: 'K-02', type: 'fact', content: 'Fact 2' }, { id: 'K-03', type: 'fact', content: 'Fact 3' }] },
+          continuity: { nodes: { 'K-01': { id: 'K-01', type: 'history', content: 'Fact 1' }, 'K-02': { id: 'K-02', type: 'history', content: 'Fact 2' }, 'K-03': { id: 'K-03', type: 'history', content: 'Fact 3' } }, edges: [] },
         }),
         'C-02': createCharacter('C-02', {
-          continuity: { nodes: [{ id: 'K-04', type: 'fact', content: 'Fact 4' }, { id: 'K-05', type: 'fact', content: 'Fact 5' }, { id: 'K-06', type: 'fact', content: 'Fact 6' }] },
+          continuity: { nodes: { 'K-04': { id: 'K-04', type: 'history', content: 'Fact 4' }, 'K-05': { id: 'K-05', type: 'history', content: 'Fact 5' }, 'K-06': { id: 'K-06', type: 'history', content: 'Fact 6' } }, edges: [] },
         }),
         'C-03': createCharacter('C-03', {
-          continuity: { nodes: [{ id: 'K-07', type: 'fact', content: 'Fact 7' }, { id: 'K-08', type: 'fact', content: 'Fact 8' }, { id: 'K-09', type: 'fact', content: 'Fact 9' }] },
+          continuity: { nodes: { 'K-07': { id: 'K-07', type: 'history', content: 'Fact 7' }, 'K-08': { id: 'K-08', type: 'history', content: 'Fact 8' }, 'K-09': { id: 'K-09', type: 'history', content: 'Fact 9' } }, edges: [] },
         }),
         'C-04': createCharacter('C-04', {
-          continuity: { nodes: [{ id: 'K-10', type: 'fact', content: 'Fact 10' }, { id: 'K-11', type: 'fact', content: 'Fact 11' }, { id: 'K-12', type: 'fact', content: 'Fact 12' }] },
+          continuity: { nodes: { 'K-10': { id: 'K-10', type: 'history', content: 'Fact 10' }, 'K-11': { id: 'K-11', type: 'history', content: 'Fact 11' }, 'K-12': { id: 'K-12', type: 'history', content: 'Fact 12' } }, edges: [] },
         }),
       };
       narrative.relationships = [
@@ -728,16 +729,16 @@ describe('computeWorldMetrics', () => {
       // (avoid "few locations" signal by having >= 30% ratio: 2 locs / 4 chars = 50%)
       narrative.characters = {
         'C-01': createCharacter('C-01', {
-          continuity: { nodes: [{ id: 'K-01', type: 'fact', content: 'Fact 1' }, { id: 'K-02', type: 'fact', content: 'Fact 2' }, { id: 'K-03', type: 'fact', content: 'Fact 3' }] },
+          continuity: { nodes: { 'K-01': { id: 'K-01', type: 'history', content: 'Fact 1' }, 'K-02': { id: 'K-02', type: 'history', content: 'Fact 2' }, 'K-03': { id: 'K-03', type: 'history', content: 'Fact 3' } }, edges: [] },
         }),
         'C-02': createCharacter('C-02', {
-          continuity: { nodes: [{ id: 'K-04', type: 'fact', content: 'Fact 4' }, { id: 'K-05', type: 'fact', content: 'Fact 5' }, { id: 'K-06', type: 'fact', content: 'Fact 6' }] },
+          continuity: { nodes: { 'K-04': { id: 'K-04', type: 'history', content: 'Fact 4' }, 'K-05': { id: 'K-05', type: 'history', content: 'Fact 5' }, 'K-06': { id: 'K-06', type: 'history', content: 'Fact 6' } }, edges: [] },
         }),
         'C-03': createCharacter('C-03', {
-          continuity: { nodes: [{ id: 'K-07', type: 'fact', content: 'Fact 7' }, { id: 'K-08', type: 'fact', content: 'Fact 8' }, { id: 'K-09', type: 'fact', content: 'Fact 9' }] },
+          continuity: { nodes: { 'K-07': { id: 'K-07', type: 'history', content: 'Fact 7' }, 'K-08': { id: 'K-08', type: 'history', content: 'Fact 8' }, 'K-09': { id: 'K-09', type: 'history', content: 'Fact 9' } }, edges: [] },
         }),
         'C-04': createCharacter('C-04', {
-          continuity: { nodes: [{ id: 'K-10', type: 'fact', content: 'Fact 10' }, { id: 'K-11', type: 'fact', content: 'Fact 11' }, { id: 'K-12', type: 'fact', content: 'Fact 12' }] },
+          continuity: { nodes: { 'K-10': { id: 'K-10', type: 'history', content: 'Fact 10' }, 'K-11': { id: 'K-11', type: 'history', content: 'Fact 11' }, 'K-12': { id: 'K-12', type: 'history', content: 'Fact 12' } }, edges: [] },
         }),
       };
       // Only 1 relationship → 2 endpoints / 4 chars = 0.5/char (< 2) → depth signal
@@ -795,8 +796,8 @@ describe('computeWorldMetrics', () => {
     it('detects high cast concentration', () => {
       const narrative = createMinimalNarrative();
       narrative.characters = {
-        'C-01': createCharacter('C-01', { continuity: { nodes: [{ id: 'K-01', type: 'fact', content: 'Fact' }, { id: 'K-02', type: 'fact', content: 'Fact' }, { id: 'K-03', type: 'fact', content: 'Fact' }] } }),
-        'C-02': createCharacter('C-02', { continuity: { nodes: [{ id: 'K-04', type: 'fact', content: 'Fact' }, { id: 'K-05', type: 'fact', content: 'Fact' }, { id: 'K-06', type: 'fact', content: 'Fact' }] } }),
+        'C-01': createCharacter('C-01', { continuity: { nodes: { 'K-01': { id: 'K-01', type: 'history', content: 'Fact' }, 'K-02': { id: 'K-02', type: 'history', content: 'Fact' }, 'K-03': { id: 'K-03', type: 'history', content: 'Fact' } }, edges: [] } }),
+        'C-02': createCharacter('C-02', { continuity: { nodes: { 'K-04': { id: 'K-04', type: 'history', content: 'Fact' }, 'K-05': { id: 'K-05', type: 'history', content: 'Fact' }, 'K-06': { id: 'K-06', type: 'history', content: 'Fact' } }, edges: [] } }),
       };
       narrative.relationships = [
         { from: 'C-01', to: 'C-02', type: 'ally', valence: 0.5 },
@@ -821,10 +822,10 @@ describe('computeWorldMetrics', () => {
     it('detects sparse relationships', () => {
       const narrative = createMinimalNarrative();
       narrative.characters = {
-        'C-01': createCharacter('C-01', { continuity: { nodes: [{ id: 'K-01', type: 'fact', content: 'Fact' }, { id: 'K-02', type: 'fact', content: 'Fact' }, { id: 'K-03', type: 'fact', content: 'Fact' }] } }),
-        'C-02': createCharacter('C-02', { continuity: { nodes: [{ id: 'K-04', type: 'fact', content: 'Fact' }, { id: 'K-05', type: 'fact', content: 'Fact' }, { id: 'K-06', type: 'fact', content: 'Fact' }] } }),
-        'C-03': createCharacter('C-03', { continuity: { nodes: [{ id: 'K-07', type: 'fact', content: 'Fact' }, { id: 'K-08', type: 'fact', content: 'Fact' }, { id: 'K-09', type: 'fact', content: 'Fact' }] } }),
-        'C-04': createCharacter('C-04', { continuity: { nodes: [{ id: 'K-10', type: 'fact', content: 'Fact' }, { id: 'K-11', type: 'fact', content: 'Fact' }, { id: 'K-12', type: 'fact', content: 'Fact' }] } }),
+        'C-01': createCharacter('C-01', { continuity: { nodes: { 'K-01': { id: 'K-01', type: 'history', content: 'Fact' }, 'K-02': { id: 'K-02', type: 'history', content: 'Fact' }, 'K-03': { id: 'K-03', type: 'history', content: 'Fact' } }, edges: [] } }),
+        'C-02': createCharacter('C-02', { continuity: { nodes: { 'K-04': { id: 'K-04', type: 'history', content: 'Fact' }, 'K-05': { id: 'K-05', type: 'history', content: 'Fact' }, 'K-06': { id: 'K-06', type: 'history', content: 'Fact' } }, edges: [] } }),
+        'C-03': createCharacter('C-03', { continuity: { nodes: { 'K-07': { id: 'K-07', type: 'history', content: 'Fact' }, 'K-08': { id: 'K-08', type: 'history', content: 'Fact' }, 'K-09': { id: 'K-09', type: 'history', content: 'Fact' } }, edges: [] } }),
+        'C-04': createCharacter('C-04', { continuity: { nodes: { 'K-10': { id: 'K-10', type: 'history', content: 'Fact' }, 'K-11': { id: 'K-11', type: 'history', content: 'Fact' }, 'K-12': { id: 'K-12', type: 'history', content: 'Fact' } }, edges: [] } }),
       };
       // Only 1 relationship = 0.5 per character (< 2)
       narrative.relationships = [
@@ -850,7 +851,7 @@ describe('computeWorldMetrics', () => {
       for (let i = 1; i <= 10; i++) {
         const id = `C-${String(i).padStart(2, '0')}`;
         chars[id] = createCharacter(id, {
-          continuity: { nodes: [{ id: `K-${i}`, type: 'fact', content: 'Fact' }, { id: `K-${i}0`, type: 'fact', content: 'Fact' }, { id: `K-${i}00`, type: 'fact', content: 'Fact' }] },
+          continuity: { nodes: { [`K-${i}`]: { id: `K-${i}`, type: 'history', content: 'Fact' }, [`K-${i}0`]: { id: `K-${i}0`, type: 'history', content: 'Fact' }, [`K-${i}00`]: { id: `K-${i}00`, type: 'history', content: 'Fact' } }, edges: [] },
         });
       }
       narrative.characters = chars;

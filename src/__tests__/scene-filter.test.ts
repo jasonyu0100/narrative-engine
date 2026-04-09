@@ -5,7 +5,7 @@ import {
   getRelationshipsAtScene,
   getThreadIdsAtScene,
 } from '@/lib/scene-filter';
-import type { WorldBuild, Scene, ContinuityNode, NarrativeState, Thread } from '@/types/narrative';
+import type { WorldBuild, Scene, ContinuityNode, ContinuityNodeType, NarrativeState, Thread } from '@/types/narrative';
 
 // ── Test Fixtures ────────────────────────────────────────────────────────────
 
@@ -33,7 +33,7 @@ function createWorldBuild(
 
 function createScene(
   id: string,
-  continuityMutations: { entityId: string; addedNodes: { id: string; content: string; type: string }[] }[] = [],
+  continuityMutations: { entityId: string; addedNodes: { id: string; content: string; type: ContinuityNodeType }[] }[] = [],
   relationshipMutations: { from: string; to: string; type: string; valenceDelta: number }[] = [],
 ): Scene {
   return {
@@ -138,8 +138,8 @@ describe('getIntroducedIds', () => {
 
 describe('getContinuityNodesAtScene', () => {
   const nodes: Record<string, ContinuityNode> = {
-    'K-01': { id: 'K-01', type: 'fact', content: 'Initial knowledge' },
-    'K-03': { id: 'K-03', type: 'fact', content: 'Never mutated' },
+    'K-01': { id: 'K-01', type: 'history', content: 'Initial knowledge' },
+    'K-03': { id: 'K-03', type: 'history', content: 'Never mutated' },
   };
 
   it('returns all nodes when no mutations exist', () => {
@@ -150,7 +150,7 @@ describe('getContinuityNodesAtScene', () => {
 
   it('includes nodes added up to current index', () => {
     const scenes: Record<string, Scene> = {
-      'S-001': createScene('S-001', [{ entityId: 'C-01', addedNodes: [{ id: 'K-02', content: 'Added', type: 'fact' }] }]),
+      'S-001': createScene('S-001', [{ entityId: 'C-01', addedNodes: [{ id: 'K-02', content: 'Added', type: 'history' }] }]),
       'S-002': createScene('S-002'),
     };
     const resolvedKeys = ['S-001', 'S-002'];
@@ -162,7 +162,7 @@ describe('getContinuityNodesAtScene', () => {
   it('does not include nodes added after current index', () => {
     const scenes: Record<string, Scene> = {
       'S-001': createScene('S-001'),
-      'S-002': createScene('S-002', [{ entityId: 'C-01', addedNodes: [{ id: 'K-04', content: 'Future', type: 'fact' }] }]),
+      'S-002': createScene('S-002', [{ entityId: 'C-01', addedNodes: [{ id: 'K-04', content: 'Future', type: 'history' }] }]),
     };
     const resolvedKeys = ['S-001', 'S-002'];
 
@@ -177,8 +177,8 @@ describe('getContinuityNodesAtScene', () => {
 
   it('accumulates nodes across scenes', () => {
     const scenes: Record<string, Scene> = {
-      'S-001': createScene('S-001', [{ entityId: 'C-01', addedNodes: [{ id: 'K-05', content: 'First', type: 'fact' }] }]),
-      'S-002': createScene('S-002', [{ entityId: 'C-01', addedNodes: [{ id: 'K-06', content: 'Second', type: 'fact' }] }]),
+      'S-001': createScene('S-001', [{ entityId: 'C-01', addedNodes: [{ id: 'K-05', content: 'First', type: 'history' }] }]),
+      'S-002': createScene('S-002', [{ entityId: 'C-01', addedNodes: [{ id: 'K-06', content: 'Second', type: 'history' }] }]),
     };
     const resolvedKeys = ['S-001', 'S-002'];
 
@@ -190,8 +190,8 @@ describe('getContinuityNodesAtScene', () => {
   it('filters by entity ID', () => {
     const scenes: Record<string, Scene> = {
       'S-001': createScene('S-001', [
-        { entityId: 'C-01', addedNodes: [{ id: 'K-07', content: 'C01 learns', type: 'fact' }] },
-        { entityId: 'C-02', addedNodes: [{ id: 'K-08', content: 'C02 learns', type: 'fact' }] },
+        { entityId: 'C-01', addedNodes: [{ id: 'K-07', content: 'C01 learns', type: 'history' }] },
+        { entityId: 'C-02', addedNodes: [{ id: 'K-08', content: 'C02 learns', type: 'history' }] },
       ]),
     };
     const resolvedKeys = ['S-001'];
@@ -204,7 +204,7 @@ describe('getContinuityNodesAtScene', () => {
 
   it('includes never-mutated nodes', () => {
     const scenes: Record<string, Scene> = {
-      'S-001': createScene('S-001', [{ entityId: 'C-01', addedNodes: [{ id: 'K-09', content: 'New', type: 'fact' }] }]),
+      'S-001': createScene('S-001', [{ entityId: 'C-01', addedNodes: [{ id: 'K-09', content: 'New', type: 'history' }] }]),
     };
     const resolvedKeys = ['S-001'];
 

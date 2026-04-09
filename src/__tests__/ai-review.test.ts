@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import type { NarrativeState, Scene, Arc, Thread, Character, Location } from '@/types/narrative';
+import type { NarrativeState, Scene, Arc, Thread, Character, Location, BeatPlan } from '@/types/narrative';
 
 // Mock the AI module
 vi.mock('@/lib/ai/api', () => ({
@@ -17,7 +17,14 @@ import { callGenerate, callGenerateStream } from '@/lib/ai/api';
 
 // ── Test Fixtures ────────────────────────────────────────────────────────────
 
-function createScene(id: string, overrides: Partial<Scene> = {}): Scene {
+/** Extends Partial<Scene> with shorthand `prose` and `plan` fields that
+ *  get auto-wrapped into `proseVersions` / `planVersions` by createScene. */
+type SceneOverrides = Partial<Scene> & { prose?: string; plan?: BeatPlan };
+
+function createScene(id: string, overrides: SceneOverrides = {}): Scene {
+  // Pull out shorthand fields before spreading
+  const { prose, plan, ...rest } = overrides;
+
   const scene: Scene = {
     kind: 'scene',
     id,
@@ -31,31 +38,29 @@ function createScene(id: string, overrides: Partial<Scene> = {}): Scene {
     continuityMutations: [],
     relationshipMutations: [],
     characterMovements: {},
-    ...overrides,
+    ...rest,
   };
 
   // Shorthand: prose override auto-wraps into proseVersions
-  if ('prose' in overrides && overrides.prose !== undefined) {
+  if (prose !== undefined) {
     scene.proseVersions = [{
       version: '1.0.0',
       branchId: 'main',
-      prose: overrides.prose as string,
+      prose,
       timestamp: Date.now(),
       versionType: 'generate',
     }];
-    delete (scene as any).prose;
   }
 
   // Shorthand: plan override auto-wraps into planVersions
-  if ('plan' in overrides && overrides.plan !== undefined) {
+  if (plan !== undefined) {
     scene.planVersions = [{
       version: '1.0.0',
       branchId: 'main',
-      plan: overrides.plan,
+      plan,
       timestamp: Date.now(),
       versionType: 'generate',
     }];
-    delete (scene as any).plan;
   }
 
   return scene;
@@ -542,7 +547,6 @@ describe('evaluatePlanQuality', () => {
     narrative.scenes = {
       'S-001': createScene('S-001', {
         plan: {
-          propositions: [],
           beats: [
             { fn: 'breathe', mechanism: 'environment', what: 'Intro scene', propositions: [{ content: 'The door opens' }] },
           ],
@@ -550,7 +554,6 @@ describe('evaluatePlanQuality', () => {
       }),
       'S-002': createScene('S-002', {
         plan: {
-          propositions: [],
           beats: [
             { fn: 'advance', mechanism: 'action', what: 'Discovery', propositions: [{ content: 'She finds the letter' }] },
           ],
@@ -574,7 +577,7 @@ describe('evaluatePlanQuality', () => {
     const narrative = createMinimalNarrative();
     narrative.scenes = {
       'S-001': createScene('S-001', {
-        plan: { propositions: [], beats: [{ fn: 'breathe', mechanism: 'environment', what: 'Test', propositions: [{ content: 'Anchor' }] }] },
+        plan: { beats: [{ fn: 'breathe', mechanism: 'environment', what: 'Test', propositions: [{ content: 'Anchor' }] }] },
       }),
     };
 
@@ -605,7 +608,7 @@ describe('evaluatePlanQuality', () => {
     });
     narrative.scenes = {
       'S-001': createScene('S-001', {
-        plan: { propositions: [], beats: [{ fn: 'breathe', mechanism: 'environment', what: 'Test', propositions: [{ content: 'A' }] }] },
+        plan: { beats: [{ fn: 'breathe', mechanism: 'environment', what: 'Test', propositions: [{ content: 'A' }] }] },
       }),
     };
 
@@ -627,7 +630,7 @@ describe('evaluatePlanQuality', () => {
     const narrative = createMinimalNarrative();
     narrative.scenes = {
       'S-001': createScene('S-001', {
-        plan: { propositions: [], beats: [{ fn: 'breathe', mechanism: 'environment', what: 'Test', propositions: [{ content: 'A' }] }] },
+        plan: { beats: [{ fn: 'breathe', mechanism: 'environment', what: 'Test', propositions: [{ content: 'A' }] }] },
       }),
     };
     const onReasoning = vi.fn();
@@ -647,7 +650,7 @@ describe('evaluatePlanQuality', () => {
     const narrative = createMinimalNarrative();
     narrative.scenes = {
       'S-001': createScene('S-001', {
-        plan: { propositions: [], beats: [{ fn: 'breathe', mechanism: 'environment', what: 'Test', propositions: [{ content: 'A' }] }] },
+        plan: { beats: [{ fn: 'breathe', mechanism: 'environment', what: 'Test', propositions: [{ content: 'A' }] }] },
       }),
     };
 
@@ -665,9 +668,9 @@ describe('evaluatePlanQuality', () => {
 
     const narrative = createMinimalNarrative();
     narrative.scenes = {
-      'S-001': createScene('S-001', { plan: { propositions: [], beats: [] } }), // Empty beats
+      'S-001': createScene('S-001', { plan: { beats: [] } }), // Empty beats
       'S-002': createScene('S-002', {
-        plan: { propositions: [], beats: [{ fn: 'breathe', mechanism: 'environment', what: 'Test', propositions: [{ content: 'A' }] }] },
+        plan: { beats: [{ fn: 'breathe', mechanism: 'environment', what: 'Test', propositions: [{ content: 'A' }] }] },
       }),
     };
 
@@ -687,7 +690,7 @@ describe('evaluatePlanQuality', () => {
     const narrative = createMinimalNarrative();
     narrative.scenes = {
       'S-001': createScene('S-001', {
-        plan: { propositions: [], beats: [{ fn: 'breathe', mechanism: 'environment', what: 'Test', propositions: [{ content: 'A' }] }] },
+        plan: { beats: [{ fn: 'breathe', mechanism: 'environment', what: 'Test', propositions: [{ content: 'A' }] }] },
       }),
     };
 

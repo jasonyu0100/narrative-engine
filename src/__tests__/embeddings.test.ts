@@ -136,14 +136,14 @@ function mockEmbeddingResponse(texts: string[]) {
     embeddings: texts.map((text) => {
       const fixtureKey = TEXT_TO_FIXTURE_KEY[text];
       if (fixtureKey) {
-        return TEST_EMBEDDINGS[fixtureKey] as number[];
+        return TEST_EMBEDDINGS[fixtureKey] as unknown as number[];
       }
 
       // For texts not in fixtures (like batch test texts or scene summaries with indices),
       // generate a deterministic but realistic-looking embedding
       // This is just for tests that generate dynamic text (e.g., "Scene 0 about magic", "Text 0", etc.)
       const hash = text.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
-      const baseEmbedding = TEST_EMBEDDINGS.testText as number[];
+      const baseEmbedding = TEST_EMBEDDINGS.testText as unknown as number[];
 
       // Create a variant by slightly perturbing the base embedding deterministically
       return baseEmbedding.map((val, i) => {
@@ -607,28 +607,35 @@ describe('Export/Import with Embeddings', () => {
   it('should preserve embeddings in exported JSON', async () => {
     const embedding = await generateEmbeddings(['Test text'], mockNarrative.id).then(e => e[0]);
 
+    const embRef = 'emb_test123';
     const scene: Scene = {
       ...mockScene,
-      summaryEmbedding: embedding,
-      plan: {
-        beats: [
-          {
-            fn: 'advance',
-            mechanism: 'action',
-            what: 'Test beat',
-            propositions: [
-              {
-                content: 'Test proposition',
-                embedding,
-                embeddedAt: Date.now(),
-                embeddingModel: 'text-embedding-3-small',
-              },
-            ],
-            embeddingCentroid: embedding,
-          },
-        ],
-      },
-      planEmbeddingCentroid: embedding,
+      summaryEmbedding: embRef,
+      planVersions: [{
+        plan: {
+          beats: [
+            {
+              fn: 'advance',
+              mechanism: 'action',
+              what: 'Test beat',
+              propositions: [
+                {
+                  content: 'Test proposition',
+                  embedding: embRef,
+                  embeddedAt: Date.now(),
+                  embeddingModel: 'text-embedding-3-small',
+                },
+              ],
+              embeddingCentroid: embRef,
+            },
+          ],
+        },
+        branchId: 'main',
+        timestamp: Date.now(),
+        version: '1',
+        versionType: 'generate',
+      }],
+      planEmbeddingCentroid: embRef,
     };
 
     // Serialize and deserialize
@@ -636,10 +643,10 @@ describe('Export/Import with Embeddings', () => {
     const imported = JSON.parse(exported) as Scene;
 
     // Verify embeddings are preserved
-    expect(imported.summaryEmbedding).toEqual(embedding);
-    expect(imported.plan?.beats[0].propositions[0].embedding).toEqual(embedding);
-    expect(imported.plan?.beats[0].embeddingCentroid).toEqual(embedding);
-    expect(imported.planEmbeddingCentroid).toEqual(embedding);
+    expect(imported.summaryEmbedding).toEqual(embRef);
+    expect(imported.planVersions?.[0].plan.beats[0].propositions[0].embedding).toEqual(embRef);
+    expect(imported.planVersions?.[0].plan.beats[0].embeddingCentroid).toEqual(embRef);
+    expect(imported.planEmbeddingCentroid).toEqual(embRef);
   });
 
   it('should handle scenes without embeddings', () => {
