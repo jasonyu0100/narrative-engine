@@ -124,11 +124,11 @@ VARIANCE IS SIGNAL:
 
 export const PROMPT_ARTIFACTS = `
 ARTIFACTS — the tools that make societies flourish.
-- Artifacts are anything a character USES to extend their capabilities. Not passive objects — active tools.
-- THREE OWNERSHIP TIERS:
-  • Character-owned: personal tools. A sword, a laptop, a key. Only the owner can use them.
-  • Location-owned: communal tools bound to a place. A gas station (fuel up), a grocery store (buy food), a library (access knowledge). Available to anyone at that location.
-  • World-owned (parentId: null): universally accessible. The internet, a search engine, a stock exchange, a legal system. Available to any character anywhere.
+- Artifacts are anything that delivers UTILITY. Not passive objects — active tools across every scale.
+- THREE OWNERSHIP TIERS (ownership = control, not just possession):
+  • Character-owned: controlled by one entity. A founder owns their company. A wizard owns their wand. An investor owns their portfolio. Others cannot use it without the owner's permission. A CEO who doesn't hold equity does NOT own the company — the shareholders do.
+  • Location-owned: bound to a place. A forge, a library, a data center, a courtroom, a hospital. You must be at the location to access it. Available to anyone present.
+  • World-owned (parentId: null): no one controls it. AI, the internet, gravity, a dream realm available to all cultivators, a programming language, natural law, a stock market. Universally accessible — anyone can use it anywhere.
 - Artifacts span every genre: a Bloomberg terminal (finance), Google Search (tech), a magic wand (fantasy), a courtroom (legal), a forge (craft), a social media platform (modern), a printing press (historical).
 - When an artifact delivers utility, generate an artifactUsage entry. Every time an artifact is referenced for what it DOES (not just mentioned by name), that's a usage.
   Fiction: wielding a sword, consulting a map, casting with a wand, driving a vehicle.
