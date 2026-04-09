@@ -52,6 +52,42 @@ const MECH_ICONS: Record<string, string> = {
   comic: "\u{1F604}",
 };
 
+/** Split prose into readable paragraphs — handles double newlines, single newlines (dialogue), and wall-of-text blocks */
+function formatProse(text: string): string[] {
+  // Split on double newlines first (standard paragraph breaks)
+  const blocks = text.split(/\n\s*\n/).map(b => b.trim()).filter(Boolean);
+
+  // If we got a reasonable number of paragraphs, return them
+  if (blocks.length > 1) return blocks;
+
+  // Single block — try splitting on single newlines (dialogue, verse)
+  const lines = text.split(/\n/).map(l => l.trim()).filter(Boolean);
+  if (lines.length > 1) return lines;
+
+  // True wall of text — split on dialogue markers or sentence boundaries after ~300 chars
+  const result: string[] = [];
+  let remaining = text.trim();
+  while (remaining.length > 0) {
+    if (remaining.length <= 400) { result.push(remaining); break; }
+    // Try to find a dialogue break (line starting with " after a .)
+    const dialogueBreak = remaining.indexOf('."', 50);
+    if (dialogueBreak > 0 && dialogueBreak < 500) {
+      result.push(remaining.slice(0, dialogueBreak + 2).trim());
+      remaining = remaining.slice(dialogueBreak + 2).trim();
+      continue;
+    }
+    // Fall back to sentence boundary near 300 chars
+    const sentenceEnd = remaining.indexOf('. ', 200);
+    if (sentenceEnd > 0 && sentenceEnd < 500) {
+      result.push(remaining.slice(0, sentenceEnd + 1).trim());
+      remaining = remaining.slice(sentenceEnd + 2).trim();
+      continue;
+    }
+    result.push(remaining); break;
+  }
+  return result.filter(Boolean);
+}
+
 export function SceneProseView({
   narrative,
   scene,
@@ -573,10 +609,10 @@ export function SceneProseView({
             ) : (
               // Regular prose view
               <div className="prose-content">
-                {text.split("\n\n").map((paragraph, i) => (
+                {formatProse(text).map((paragraph, i) => (
                   <p
                     key={i}
-                    className="text-[13px] text-text-secondary leading-[1.8] mb-5 first:first-letter:text-2xl first:first-letter:font-semibold first:first-letter:text-text-primary first:first-letter:mr-0.5"
+                    className="text-[13px] text-text-secondary leading-[1.8] mb-4 indent-6 first:indent-0 first:first-letter:text-2xl first:first-letter:font-semibold first:first-letter:text-text-primary first:first-letter:mr-0.5"
                   >
                     {paragraph}
                   </p>
