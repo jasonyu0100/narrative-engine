@@ -937,15 +937,13 @@ export async function reverseEngineerScenePlan(
         throw new Error(`Beat plan validation failed:\n${planValidation.errors.join('\n')}`);
       }
 
-      // Validate prose map if present
+      // Validate prose map — required for side-by-side view
       if (result.beatProseMap) {
         const mapValidation = validateBeatProseMap(result.beatProseMap, result.plan, prose);
         if (!mapValidation.valid) {
-          // Fail on prose map validation to trigger retry - this ensures side-by-side view works
           throw new Error(`Beat prose map validation failed:\n${mapValidation.errors.join('\n')}`);
         }
       } else {
-        // No prose map generated - this is a problem for side-by-side views
         throw new Error('No beat prose map generated - side-by-side view requires valid mapping');
       }
 
@@ -1196,6 +1194,18 @@ CRITICAL CONSTRAINTS - INDEXING:
 
   const beatProseMap = buildBeatProseMap(paragraphs, beatsWithRanges);
 
+  if (!beatProseMap) {
+    console.log(`\n${'='.repeat(80)}\n[reverseEngineerScenePlan] FAILED PROSE MAP — ${summary}\n${'='.repeat(80)}`);
+    console.log(`\n── PROMPT ──\n${prompt}`);
+    console.log(`\n── RAW LLM RESPONSE ──\n${raw}`);
+    console.log(`\n── PARSED BEATS (${beatsWithRanges.length} beats, ${paragraphs.length} paragraphs, valid indices 0–${paragraphs.length - 1}) ──`);
+    console.log(JSON.stringify((parsed.beats ?? []).map((b: unknown) => {
+      const d = b as BeatData;
+      return { fn: d.fn, mechanism: d.mechanism, startPara: d.startPara, endPara: d.endPara, what: d.what };
+    }), null, 2));
+    console.log(`${'='.repeat(80)}\n`);
+  }
+
   return { plan, beatProseMap };
 }
 
@@ -1205,7 +1215,7 @@ function buildBeatProseMap(
 ): BeatProseMap | null {
   if (paragraphs.length === 0 || beatsWithRanges.length === 0) return null;
 
-  // Validate and build from LLM ranges - no heuristic fallback
+  // Validate and build from LLM ranges — no heuristic fallback
   const chunks = tryBuildFromRanges(paragraphs, beatsWithRanges);
   if (chunks) {
     return { chunks, createdAt: Date.now() };
@@ -1236,6 +1246,7 @@ function tryBuildFromRanges(
 
     // Check if ranges exist
     if (typeof startPara !== 'number' || typeof endPara !== 'number') {
+      console.log(`[tryBuildFromRanges] FAIL beat ${i}/${beatsWithRanges.length}: missing range — startPara=${JSON.stringify(startPara)} endPara=${JSON.stringify(endPara)}`);
       logWarning(
         'Beat extraction validation failed: missing paragraph range',
         `Beat ${i} has undefined startPara or endPara`,
@@ -1250,6 +1261,7 @@ function tryBuildFromRanges(
 
     // Validate sequential (no gaps or overlaps)
     if (startPara !== lastEndPara + 1) {
+      console.log(`[tryBuildFromRanges] FAIL beat ${i}/${beatsWithRanges.length}: non-sequential — range [${startPara}, ${endPara}], expected startPara=${lastEndPara + 1} (last endPara was ${lastEndPara})`);
       logWarning(
         'Beat extraction validation failed: non-sequential ranges',
         `Beat ${i} range [${startPara}, ${endPara}] not sequential (last ended at ${lastEndPara})`,
@@ -1264,6 +1276,7 @@ function tryBuildFromRanges(
 
     // Validate bounds
     if (startPara < 0 || endPara >= paragraphs.length || startPara > endPara) {
+      console.log(`[tryBuildFromRanges] FAIL beat ${i}/${beatsWithRanges.length}: out of bounds — range [${startPara}, ${endPara}], valid=[0, ${paragraphs.length - 1}]`);
       logWarning(
         'Beat extraction validation failed: out of bounds range',
         `Beat ${i} has invalid range [${startPara}, ${endPara}] (paragraphs: ${paragraphs.length})`,
@@ -1319,6 +1332,7 @@ function tryBuildFromRanges(
 
   // Verify full coverage (all paragraphs assigned)
   if (lastEndPara !== paragraphs.length - 1) {
+    console.log(`[tryBuildFromRanges] FAIL: incomplete coverage — last endPara=${lastEndPara}, expected ${paragraphs.length - 1} (${paragraphs.length} paragraphs)`);
     logWarning(
       'Beat extraction validation failed: incomplete coverage',
       `Beats only cover paragraphs 0-${lastEndPara}, but prose has ${paragraphs.length} paragraphs`,
@@ -1335,13 +1349,14 @@ function tryBuildFromRanges(
   const proseSet = new Set<string>();
   for (let i = 0; i < chunks.length; i++) {
     if (proseSet.has(chunks[i].prose)) {
+      console.log(`[tryBuildFromRanges] FAIL: duplicate prose — beat ${i} has identical prose to a previous beat:\n${chunks[i].prose}`);
       logWarning(
         'Beat extraction validation failed: duplicate prose detected',
         `Beat ${i} has identical prose to a previous beat`,
         {
           source: 'analysis',
           operation: 'beat-range-validation',
-          details: { beatIndex: i, totalBeats: chunks.length, prosePreview: chunks[i].prose.substring(0, 100) },
+          details: { beatIndex: i, totalBeats: chunks.length, prose: chunks[i].prose },
         }
       );
       return null;
