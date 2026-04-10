@@ -15,7 +15,7 @@ export type ReportAnalysis = {
   verdict: string;
   /** 1-2 short paragraphs. What the delivery curve reveals about the reading experience. */
   delivery: string;
-  /** 1-2 short paragraphs. How the three forces (Payoff, Change, Knowledge) interact. */
+  /** 1-2 short paragraphs. How the three forces (Drive, World, System) interact. */
   forces: string;
   /** 1 short paragraph. What the force decomposition chart shows over time. */
   forces_over_time: string;
@@ -145,7 +145,7 @@ function buildStoryContext(narrative: NarrativeState, data: SlidesData, resolved
     const sceneRange = arc?.sceneIds.length > 0
       ? `scenes ${scenes.findIndex((s) => s.id === arc.sceneIds[0]) + 1}–${scenes.findIndex((s) => s.id === arc.sceneIds[arc.sceneIds.length - 1]) + 1}`
       : '';
-    return `"${ag.arcName}" (${ag.sceneCount} scenes, ${sceneRange}): Score ${ag.grades.overall}/100 [P=${ag.grades.payoff} C=${ag.grades.change} K=${ag.grades.knowledge} S=${ag.grades.swing}]${direction ? ` — Direction: "${direction}"` : ''}`;
+    return `"${ag.arcName}" (${ag.sceneCount} scenes, ${sceneRange}): Score ${ag.grades.overall}/100 [P=${ag.grades.drive} C=${ag.grades.world} K=${ag.grades.system} S=${ag.grades.swing}]${direction ? ` — Direction: "${direction}"` : ''}`;
   }).join('\n  ');
 
   // ── Cube sequence ──
@@ -192,9 +192,9 @@ ${data.description}
 
 ═══ METRICS ═══
 Score: ${data.overallGrades.overall}/100 | Shape: ${data.shape.name} | Archetype: ${data.archetype.name}
-Payoff: ${data.overallGrades.payoff}/25 (avg ${avg(raw.payoff)}, σ ${stdDev(raw.payoff)}, peak ${Math.max(...raw.payoff).toFixed(2)})
-Change: ${data.overallGrades.change}/25 (avg ${avg(raw.change)}, σ ${stdDev(raw.change)}, peak ${Math.max(...raw.change).toFixed(2)})
-Knowledge: ${data.overallGrades.knowledge}/25 (avg ${avg(raw.knowledge)}, σ ${stdDev(raw.knowledge)}, peak ${Math.max(...raw.knowledge).toFixed(2)})
+Drive: ${data.overallGrades.drive}/25 (avg ${avg(raw.drive)}, σ ${stdDev(raw.drive)}, peak ${Math.max(...raw.drive).toFixed(2)})
+World: ${data.overallGrades.world}/25 (avg ${avg(raw.world)}, σ ${stdDev(raw.world)}, peak ${Math.max(...raw.world).toFixed(2)})
+System: ${data.overallGrades.system}/25 (avg ${avg(raw.system)}, σ ${stdDev(raw.system)}, peak ${Math.max(...raw.system).toFixed(2)})
 Swing: ${data.overallGrades.swing}/25 (avg ${avg(data.swings)}, σ ${stdDev(data.swings)}, peak ${Math.max(...data.swings).toFixed(2)})
 Peaks: ${data.peaks.length} | Valleys: ${data.troughs.length}
 
@@ -239,7 +239,7 @@ Top transitions: ${transBlock}
 Total: ${data.propositionCount} propositions across ${n} scenes
 Base categories: Anchor ${data.propositionTotals.Anchor} (${data.propositionCount > 0 ? ((data.propositionTotals.Anchor / data.propositionCount) * 100).toFixed(0) : 0}%), Seed ${data.propositionTotals.Seed} (${data.propositionCount > 0 ? ((data.propositionTotals.Seed / data.propositionCount) * 100).toFixed(0) : 0}%), Close ${data.propositionTotals.Close} (${data.propositionCount > 0 ? ((data.propositionTotals.Close / data.propositionCount) * 100).toFixed(0) : 0}%), Texture ${data.propositionTotals.Texture} (${data.propositionCount > 0 ? ((data.propositionTotals.Texture / data.propositionCount) * 100).toFixed(0) : 0}%)
 Anchor ratio: ${data.propositionCount > 0 ? ((data.propositionTotals.Anchor / data.propositionCount) * 100).toFixed(1) : 0}% (20-30% = strong structure)
-Anchor = load-bearing both directions. Seed = foreshadowing. Close = payoff/resolution. Texture = atmosphere.
+Anchor = load-bearing both directions. Seed = foreshadowing. Close = drive/resolution. Texture = atmosphere.
 Each category has local and global variants with distinct names:
   Local: anchor, seed, close, texture (within-arc connections)
   Global: foundation, foreshadow, ending, atmosphere (cross-arc connections)
@@ -258,7 +258,7 @@ STYLE:
 - Write short, readable paragraphs — 2-4 sentences each. Never write walls of text.
 - Be warm but authoritative, like an experienced editor sharing insights over coffee.
 - Ground every observation in specific scenes, characters, or events by name.
-- Focus on the three narrative forces: Payoff (thread resolutions), Change (character transformation), and Knowledge (world-building). Also discuss Delivery (the composite pacing curve).
+- Focus on the three narrative forces: Drive (thread resolutions), World (character transformation), and System (world-building). Also discuss Delivery (the composite pacing curve).
 - Do NOT focus on Tension as a metric. It's derived and not a primary force.
 - No markdown, no bullet points, no headers. Just flowing prose.
 - Use the present tense when describing what the story does.`;
@@ -280,7 +280,7 @@ Return a JSON object with these keys. Follow the length guidance exactly — the
   "story_intro": "2-3 sentences introducing the story's premise, world, and central characters to someone who hasn't read it. Set the stage — what kind of story is this, what world does it inhabit, who are we following?",
   "verdict": "2-3 sentences. The headline: what score did this narrative earn, what shape and archetype define it, and what single force drives it most? This sits right after the score display.",
   "delivery": "1-2 short paragraphs. What does the delivery curve tell us about the reading experience? When does the story grip the reader vs let them breathe? Reference specific scenes where peaks and valleys occur and what happens in them.",
-  "forces": "1-2 short paragraphs. How do Payoff, Change, and Knowledge interact in this story? Which dominates and why — name the specific threads, character arcs, or world-building that drives each. What's the balance like?",
+  "forces": "1-2 short paragraphs. How do Drive, World, and System interact in this story? Which dominates and why — name the specific threads, character arcs, or world-building that drives each. What's the balance like?",
   "forces_over_time": "3-5 sentences. Commentary on the force decomposition chart — how do the three forces evolve over the story's timeline? Are there phases where one force takes over? Do they converge at key moments?",
   "swing": "3-5 sentences. What does the scene-to-scene volatility tell us? Is the pacing steady, varied, or erratic? Name a specific high-swing moment and what causes the dramatic shift between those consecutive scenes.",
   "segments": "A JSON array of strings, one per segment (the narrative is divided into segments at valleys). For each segment, write 2-4 sentences describing what happens in this stretch of the story, what force dominates it, and what the key moments are. Introduce characters and events naturally. Example: [\"The opening segment establishes...\", \"The second segment shifts to...\"]",

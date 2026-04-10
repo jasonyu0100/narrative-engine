@@ -45,7 +45,7 @@ export function AutoLogModal({ log, onClose }: { log: AutoRunLog[]; onClose: () 
                   <span className="text-emerald-400/70">{entry.scenesGenerated} scenes</span>
                 )}
                 {entry.worldExpanded && (
-                  <span className="text-change/70">+world</span>
+                  <span className="text-world/70">+world</span>
                 )}
               </div>
 

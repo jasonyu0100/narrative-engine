@@ -7,7 +7,7 @@ import { resolveEntry, isScene, type Scene, type ForceSnapshot, type CubeCornerK
 import { computeForceSnapshots, computeWindowedForces, computeRawForceTotals, computeSwingMagnitudes, detectCubeCorner, gradeForces, FORCE_REFERENCE_MEANS, zScoreNormalize, movingAverage, FORCE_WINDOW_SIZE, computeDeliveryCurve, classifyCurrentPosition, type DeliveryPoint } from '@/lib/narrative-utils';
 import { IconLineChart, IconPencilDraw } from '@/components/icons';
 
-type ForceKey = 'payoff' | 'change' | 'knowledge' | 'swing' | 'delivery';
+type ForceKey = 'drive' | 'world' | 'system' | 'swing' | 'delivery';
 
 type SceneDataPoint = {
   index: number;
@@ -33,11 +33,11 @@ type ArcRegion = {
 
 type DrawLine = { points: [number, number][] };
 
-type ChartForceKey = 'payoff' | 'change' | 'knowledge' | 'swing';
+type ChartForceKey = 'drive' | 'world' | 'system' | 'swing';
 const FORCE_CONFIG: { key: ChartForceKey; label: string; color: string }[] = [
-  { key: 'payoff', label: 'PAYOFF', color: '#EF4444' },
-  { key: 'change', label: 'CHANGE', color: '#22C55E' },
-  { key: 'knowledge', label: 'KNOWLEDGE', color: '#3B82F6' },
+  { key: 'drive', label: 'PAYOFF', color: '#EF4444' },
+  { key: 'world', label: 'WORLD', color: '#22C55E' },
+  { key: 'system', label: 'SYSTEM', color: '#3B82F6' },
   { key: 'swing', label: 'SWING', color: '#facc15' },
 ];
 
@@ -431,10 +431,10 @@ function ZoneBar({
     if (allScenes.length === 0 || arcRegions.length === 0) return [];
 
     const raw = computeRawForceTotals(allScenes);
-    const rawForces = raw.payoff.map((_, i) => ({
-      payoff: raw.payoff[i],
-      change: raw.change[i],
-      knowledge: raw.knowledge[i],
+    const rawForces = raw.drive.map((_, i) => ({
+      drive: raw.drive[i],
+      world: raw.world[i],
+      system: raw.system[i],
     }));
     const swings = computeSwingMagnitudes(rawForces, FORCE_REFERENCE_MEANS);
 
@@ -445,11 +445,11 @@ function ZoneBar({
           forceIndices.push(i);
         }
       }
-      const arcPayoff = forceIndices.map((i) => raw.payoff[i]);
-      const arcChange = forceIndices.map((i) => raw.change[i]);
-      const arcKnowledge = forceIndices.map((i) => raw.knowledge[i]);
+      const arcDrive = forceIndices.map((i) => raw.drive[i]);
+      const arcWorld = forceIndices.map((i) => raw.world[i]);
+      const arcSystem = forceIndices.map((i) => raw.system[i]);
       const arcSwing = forceIndices.map((i, idx) => idx === 0 ? 0 : swings[i]);
-      const { overall: grade } = gradeForces(arcPayoff, arcChange, arcKnowledge, arcSwing);
+      const { overall: grade } = gradeForces(arcDrive, arcWorld, arcSystem, arcSwing);
 
       return {
         arcId: arc.arcId,
@@ -988,7 +988,7 @@ export function ForceAnalytics({ onClose }: { onClose: () => void }) {
   // Drawing state
   const [drawing, setDrawing] = useState(false);
   const [drawLines, setDrawLines] = useState<Record<ForceKey, DrawLine[]>>({
-    payoff: [], change: [], knowledge: [], swing: [], delivery: [],
+    drive: [], world: [], system: [], swing: [], delivery: [],
   });
   const [activeDrawKey, setActiveDrawKey] = useState<ForceKey | null>(null);
   const activeLineRef = useRef<[number, number][]>([]);
@@ -1025,7 +1025,7 @@ export function ForceAnalytics({ onClose }: { onClose: () => void }) {
   }, [activeDrawKey]);
 
   const clearDrawings = useCallback(() => {
-    setDrawLines({ payoff: [], change: [], knowledge: [], swing: [], delivery: [] });
+    setDrawLines({ drive: [], world: [], system: [], swing: [], delivery: [] });
   }, []);
 
   // Resize observer
@@ -1058,7 +1058,7 @@ export function ForceAnalytics({ onClose }: { onClose: () => void }) {
   const dataPoints = useMemo((): SceneDataPoint[] => {
     if (!narrative || allScenes.length === 0) return [];
     const points = allScenes.map((scene, i) => {
-      const forces = forceMap[scene.id] ?? { payoff: 0, change: 0, knowledge: 0 };
+      const forces = forceMap[scene.id] ?? { drive: 0, world: 0, system: 0 };
       const corner = detectCubeCorner(forces);
       const arc = Object.values(narrative.arcs).find((a) => a.sceneIds.includes(scene.id));
       const location = narrative.locations[scene.locationId];
@@ -1084,9 +1084,9 @@ export function ForceAnalytics({ onClose }: { onClose: () => void }) {
       if (i === 0) return 0;
       const prev = points[i - 1].forces;
       const curr = points[i].forces;
-      const dp = curr.payoff - prev.payoff;
-      const dc = curr.change - prev.change;
-      const dk = curr.knowledge - prev.knowledge;
+      const dp = curr.drive - prev.drive;
+      const dc = curr.world - prev.world;
+      const dk = curr.system - prev.system;
       return Math.sqrt(dp * dp + dc * dc + dk * dk);
     });
     const normSwings = zScoreNormalize(rawSwings);
@@ -1103,14 +1103,14 @@ export function ForceAnalytics({ onClose }: { onClose: () => void }) {
     return dataPoints.map((dp, i) => ({
       ...dp,
       forces: {
-        payoff: raw.payoff[i] ?? 0,
-        change: raw.change[i] ?? 0,
-        knowledge: raw.knowledge[i] ?? 0,
+        drive: raw.drive[i] ?? 0,
+        world: raw.world[i] ?? 0,
+        system: raw.system[i] ?? 0,
       },
       swing: i === 0 ? 0 : (() => {
-        const dP = raw.payoff[i] - raw.payoff[i - 1];
-        const dC = raw.change[i] - raw.change[i - 1];
-        const dV = raw.knowledge[i] - raw.knowledge[i - 1];
+        const dP = raw.drive[i] - raw.drive[i - 1];
+        const dC = raw.world[i] - raw.world[i - 1];
+        const dV = raw.system[i] - raw.system[i - 1];
         return Math.sqrt(dP * dP + dC * dC + dV * dV);
       })(),
     }));
@@ -1532,9 +1532,9 @@ export function ForceAnalytics({ onClose }: { onClose: () => void }) {
                       );
                     })}
                   </svg>
-                  <span className="text-[10px] font-mono" style={{ color: '#EF4444' }}>P:{infoScene.forces.payoff >= 0 ? '+' : ''}{infoScene.forces.payoff.toFixed(2)}</span>
-                  <span className="text-[10px] font-mono" style={{ color: '#22C55E' }}>C:{infoScene.forces.change >= 0 ? '+' : ''}{infoScene.forces.change.toFixed(2)}</span>
-                  <span className="text-[10px] font-mono" style={{ color: '#3B82F6' }}>K:{infoScene.forces.knowledge >= 0 ? '+' : ''}{infoScene.forces.knowledge.toFixed(2)}</span>
+                  <span className="text-[10px] font-mono" style={{ color: '#EF4444' }}>P:{infoScene.forces.drive >= 0 ? '+' : ''}{infoScene.forces.drive.toFixed(2)}</span>
+                  <span className="text-[10px] font-mono" style={{ color: '#22C55E' }}>W:{infoScene.forces.world >= 0 ? '+' : ''}{infoScene.forces.world.toFixed(2)}</span>
+                  <span className="text-[10px] font-mono" style={{ color: '#3B82F6' }}>S:{infoScene.forces.system >= 0 ? '+' : ''}{infoScene.forces.system.toFixed(2)}</span>
                   <span className="text-[10px] font-mono" style={{ color: '#facc15' }}>S:{infoScene.swing.toFixed(2)}</span>
                 </div>
               </div>

@@ -128,7 +128,7 @@ export function buildVirtualState(
 
 /**
  * Score a generated arc's scenes using the force grading system.
- * Raw forces for payoff/change/knowledge (normalised by reference means in gradeForces).
+ * Raw forces for drive/change/knowledge (normalised by reference means in gradeForces).
  * Swing from mean-normalised raw forces (single normalisation, preserves absolute magnitude).
  *
  * @param arcScenes - The scenes in this arc
@@ -138,14 +138,14 @@ export function scoreArc(arcScenes: Scene[], priorScenes: Scene[]): number {
   if (arcScenes.length === 0) return 0;
 
   const raw = computeRawForceTotals(arcScenes);
-  const forces = raw.payoff.map((_, i) => ({
-    payoff: raw.payoff[i],
-    change: raw.change[i],
-    knowledge: raw.knowledge[i],
+  const forces = raw.drive.map((_, i) => ({
+    drive: raw.drive[i],
+    world: raw.world[i],
+    system: raw.system[i],
   }));
   const swings = computeSwingMagnitudes(forces, FORCE_REFERENCE_MEANS);
 
-  const grades = gradeForces(raw.payoff, raw.change, raw.knowledge, swings);
+  const grades = gradeForces(raw.drive, raw.world, raw.system, swings);
   return grades.overall;
 }
 
@@ -167,10 +167,10 @@ export function scoreScene(scene: Scene, priorScenes: Scene[]): number {
   if (priorScenes.length > 0) {
     const lastScene = priorScenes[priorScenes.length - 1];
     const combined = computeRawForceTotals([lastScene, scene]);
-    const combinedForces = combined.payoff.map((_, i) => ({
-      payoff: combined.payoff[i],
-      change: combined.change[i],
-      knowledge: combined.knowledge[i],
+    const combinedForces = combined.drive.map((_, i) => ({
+      drive: combined.drive[i],
+      world: combined.world[i],
+      system: combined.system[i],
     }));
     const allSwings = computeSwingMagnitudes(combinedForces, FORCE_REFERENCE_MEANS);
     swings = [allSwings[allSwings.length - 1] ?? 0];
@@ -178,7 +178,7 @@ export function scoreScene(scene: Scene, priorScenes: Scene[]): number {
     swings = [0];
   }
 
-  const grades = gradeForces(raw.payoff, raw.change, raw.knowledge, swings);
+  const grades = gradeForces(raw.drive, raw.world, raw.system, swings);
   return grades.overall;
 }
 

@@ -151,9 +151,9 @@ describe('samplePacingSequence', () => {
       expect(step).toHaveProperty('name');
       expect(step).toHaveProperty('description');
       expect(step).toHaveProperty('forces');
-      expect(step.forces).toHaveProperty('payoff');
-      expect(step.forces).toHaveProperty('change');
-      expect(step.forces).toHaveProperty('knowledge');
+      expect(step.forces).toHaveProperty('drive');
+      expect(step.forces).toHaveProperty('world');
+      expect(step.forces).toHaveProperty('system');
     }
   });
 
@@ -226,7 +226,7 @@ describe('detectCurrentMode', () => {
   });
 
   it('detects mode from last scene forces', () => {
-    // Create scenes with high payoff to push toward H** corners
+    // Create scenes with high drive to push toward H** corners
     const scenes = [
       createScene({
         id: 'S-001',
@@ -260,9 +260,9 @@ describe('buildSingleStepPrompt', () => {
       name: 'Climax',
       description: 'Threads pay off, characters transform',
       forces: {
-        payoff: [2, 6] as [number, number],
-        change: [4, 8] as [number, number],
-        knowledge: [0, 1.5] as [number, number],
+        drive: [2, 6] as [number, number],
+        world: [4, 8] as [number, number],
+        system: [0, 1.5] as [number, number],
       },
     };
 
@@ -271,8 +271,8 @@ describe('buildSingleStepPrompt', () => {
     expect(prompt).toContain('Scene 3/5');
     expect(prompt).toContain('Climax');
     expect(prompt).toContain('P:HIGH');
-    expect(prompt).toContain('C:HIGH');
-    expect(prompt).toContain('K:LOW');
+    expect(prompt).toContain('W:HIGH');
+    expect(prompt).toContain('S:LOW');
   });
 });
 

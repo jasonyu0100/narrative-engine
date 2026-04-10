@@ -12,6 +12,7 @@ import ArcDetail from './ArcDetail';
 import KnowledgeDetail from './KnowledgeDetail';
 import ArtifactDetail from './ArtifactDetail';
 import ContinuityNodeDetail from './ContinuityNodeDetail';
+import ThreadLogNodeDetail from './ThreadLogNodeDetail';
 import ChatPanel from '@/components/sidebar/ChatPanel';
 import NotesPanel from '@/components/sidebar/NotesPanel';
 import BranchEval from '@/components/timeline/BranchEval';
@@ -111,6 +112,8 @@ export default function SidePanel() {
         return <ArtifactDetail artifactId={ctx.artifactId} />;
       case 'continuity':
         return <ContinuityNodeDetail entityId={ctx.entityId} nodeId={ctx.nodeId} />;
+      case 'threadLog':
+        return <ThreadLogNodeDetail threadId={ctx.threadId} nodeId={ctx.nodeId} />;
       default:
         return <EmptyState />;
     }

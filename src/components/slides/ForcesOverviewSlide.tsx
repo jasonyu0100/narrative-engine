@@ -5,9 +5,9 @@ import * as d3 from 'd3';
 import type { SlidesData } from '@/lib/slides-data';
 
 const FORCE_COLORS = {
-  payoff: '#EF4444',
-  change: '#22C55E',
-  knowledge: '#3B82F6',
+  drive: '#EF4444',
+  world: '#22C55E',
+  system: '#3B82F6',
   swing: '#FACC15',
 };
 
@@ -29,9 +29,9 @@ export function ForcesOverviewSlide({ data }: { data: SlidesData }) {
 
     // Axes: P, C, K, S at 90 degree intervals
     const axes = [
-      { key: 'payoff' as const, label: 'Payoff', angle: -Math.PI / 2 },
-      { key: 'change' as const, label: 'Change', angle: 0 },
-      { key: 'knowledge' as const, label: 'Knowledge', angle: Math.PI / 2 },
+      { key: 'drive' as const, label: 'Drive', angle: -Math.PI / 2 },
+      { key: 'world' as const, label: 'World', angle: 0 },
+      { key: 'system' as const, label: 'System', angle: Math.PI / 2 },
       { key: 'swing' as const, label: 'Swing', angle: Math.PI },
     ];
 
@@ -63,9 +63,9 @@ export function ForcesOverviewSlide({ data }: { data: SlidesData }) {
 
     // Normalize grades to 0-1 (grade is 0-25)
     const values = {
-      payoff: data.overallGrades.payoff / 25,
-      change: data.overallGrades.change / 25,
-      knowledge: data.overallGrades.knowledge / 25,
+      drive: data.overallGrades.drive / 25,
+      world: data.overallGrades.world / 25,
+      system: data.overallGrades.system / 25,
       swing: data.overallGrades.swing / 25,
     };
 
@@ -97,18 +97,18 @@ export function ForcesOverviewSlide({ data }: { data: SlidesData }) {
   }, [data]);
 
   // Determine dominant force
-  const forces = ['payoff', 'change', 'knowledge', 'swing'] as const;
+  const forces = ['drive', 'world', 'system', 'swing'] as const;
   const avgRaw = {
-    payoff: data.rawForces.payoff.reduce((s, v) => s + v, 0) / data.sceneCount,
-    change: data.rawForces.change.reduce((s, v) => s + v, 0) / data.sceneCount,
-    knowledge: data.rawForces.knowledge.reduce((s, v) => s + v, 0) / data.sceneCount,
+    drive: data.rawForces.drive.reduce((s, v) => s + v, 0) / data.sceneCount,
+    world: data.rawForces.world.reduce((s, v) => s + v, 0) / data.sceneCount,
+    system: data.rawForces.system.reduce((s, v) => s + v, 0) / data.sceneCount,
   };
   const dominant = forces.reduce((a, b) => data.overallGrades[a] > data.overallGrades[b] ? a : b);
 
   const forceDescriptions: Record<string, string> = {
-    payoff: 'Thread resolutions and relationship shifts carry the narrative weight',
-    change: 'Character transformation and knowledge mutations drive the story forward',
-    knowledge: 'World-building density — new concepts, systems, and connections expand the reader\'s understanding',
+    drive: 'Thread resolutions and relationship shifts carry the narrative weight',
+    world: 'Character transformation and continuity mutations drive the story forward',
+    system: 'World-building density — new concepts, systems, and connections expand the reader\'s understanding',
   };
 
   return (

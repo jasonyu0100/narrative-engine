@@ -818,8 +818,8 @@ function DiscoverInner({ inquiryId: initialInquiryId }: { inquiryId?: string } =
           )}
 
           {state.error && (
-            <div className="bg-payoff/10 border border-payoff/30 rounded-lg px-3 py-2 mt-4">
-              <p className="text-xs text-payoff/80">{state.error}</p>
+            <div className="bg-drive/10 border border-drive/30 rounded-lg px-3 py-2 mt-4">
+              <p className="text-xs text-drive/80">{state.error}</p>
             </div>
           )}
         </div>

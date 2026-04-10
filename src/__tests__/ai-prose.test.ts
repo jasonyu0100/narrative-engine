@@ -38,7 +38,7 @@ function createMinimalNarrative(): NarrativeState {
       'L-02': { id: 'L-02', name: 'Forest', prominence: 'place' as const, parentId: null, tiedCharacterIds: [], continuity: { nodes: {}, edges: [] }, threadIds: [] },
     },
     threads: {
-      'T-01': { id: 'T-01', description: 'Save the kingdom', status: 'active', participants: [], dependents: [], openedAt: 'S-01' },
+      'T-01': { id: 'T-01', description: 'Save the kingdom', status: 'active', participants: [], dependents: [], openedAt: 'S-01', threadLog: { nodes: {}, edges: [] } },
     },
     arcs: {
       'ARC-01': { id: 'ARC-01', name: 'Beginning', sceneIds: ['S-01', 'S-02', 'S-03'], develops: [], locationIds: [], activeCharacterIds: [], initialCharacterLocations: {} },

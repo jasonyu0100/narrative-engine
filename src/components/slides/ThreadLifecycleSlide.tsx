@@ -3,9 +3,9 @@
 import type { SlidesData } from '@/lib/slides-data';
 
 const STATUS_COLORS: Record<string, string> = {
-  dormant:    '#475569',
+  latent:     '#475569',
+  seeded:     '#FBBF24',
   active:     '#38BDF8',
-  escalating: '#FBBF24',
   critical:   '#F87171',
   resolved:   '#34D399',
   subverted:  '#C084FC',
@@ -25,7 +25,7 @@ export function ThreadLifecycleSlide({ data }: { data: SlidesData }) {
     .map((tl) => {
       const firstScene = tl.statuses[0]?.sceneIdx ?? 0;
       const lastScene = tl.statuses[tl.statuses.length - 1]?.sceneIdx ?? totalScenes - 1;
-      const endStatus = tl.statuses[tl.statuses.length - 1]?.status ?? 'dormant';
+      const endStatus = tl.statuses[tl.statuses.length - 1]?.status ?? 'latent';
 
       // Build segments
       const segments: { start: number; end: number; status: string }[] = [];

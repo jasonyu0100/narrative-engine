@@ -122,7 +122,7 @@
       "threadMutations": [
         {
           "threadId": "T-01",
-          "from": "dormant",
+          "from": "latent",
           "to": "active"
         }
       ],
@@ -197,7 +197,7 @@
       "threadMutations": [
         {
           "threadId": "T-03",
-          "from": "dormant",
+          "from": "latent",
           "to": "active"
         }
       ],
@@ -285,7 +285,7 @@
       "threadMutations": [
         {
           "threadId": "T-02",
-          "from": "dormant",
+          "from": "latent",
           "to": "active"
         }
       ],
@@ -367,7 +367,7 @@
       "threadMutations": [
         {
           "threadId": "T-06",
-          "from": "dormant",
+          "from": "latent",
           "to": "active"
         }
       ],
@@ -458,7 +458,7 @@
       "threadMutations": [
         {
           "threadId": "T-02",
-          "from": "dormant",
+          "from": "latent",
           "to": "active"
         }
       ],
@@ -585,7 +585,7 @@
         {
           "threadId": "T-03",
           "from": "active",
-          "to": "escalating"
+          "to": "active"
         }
       ],
       "continuityMutations": [
@@ -674,7 +674,7 @@
         {
           "threadId": "T-02",
           "from": "active",
-          "to": "escalating"
+          "to": "active"
         }
       ],
       "continuityMutations": [
@@ -762,7 +762,7 @@
         {
           "threadId": "T-01",
           "from": "active",
-          "to": "escalating"
+          "to": "active"
         }
       ],
       "continuityMutations": [
@@ -831,7 +831,7 @@
       "threadMutations": [
         {
           "threadId": "T-04",
-          "from": "dormant",
+          "from": "latent",
           "to": "active"
         }
       ],
@@ -925,7 +925,7 @@
         {
           "threadId": "T-04",
           "from": "active",
-          "to": "escalating"
+          "to": "active"
         }
       ],
       "continuityMutations": [
@@ -1007,8 +1007,8 @@
       "threadMutations": [
         {
           "threadId": "T-02",
-          "from": "escalating",
-          "to": "escalating"
+          "from": "active",
+          "to": "active"
         }
       ],
       "continuityMutations": [
@@ -1068,13 +1068,13 @@
       "threadMutations": [
         {
           "threadId": "T-01",
-          "from": "escalating",
-          "to": "escalating"
+          "from": "active",
+          "to": "active"
         },
         {
           "threadId": "T-06",
           "from": "active",
-          "to": "escalating"
+          "to": "active"
         }
       ],
       "continuityMutations": [
@@ -1158,8 +1158,8 @@
       "threadMutations": [
         {
           "threadId": "T-03",
-          "from": "escalating",
-          "to": "escalating"
+          "from": "active",
+          "to": "active"
         }
       ],
       "continuityMutations": [
@@ -1248,8 +1248,8 @@
       "threadMutations": [
         {
           "threadId": "T-04",
-          "from": "escalating",
-          "to": "escalating"
+          "from": "active",
+          "to": "active"
         }
       ],
       "continuityMutations": [
@@ -1341,7 +1341,7 @@
       "threadMutations": [
         {
           "threadId": "T-03",
-          "from": "dormant",
+          "from": "latent",
           "to": "active"
         }
       ],
@@ -1431,7 +1431,7 @@
         {
           "threadId": "T-03",
           "from": "active",
-          "to": "escalating"
+          "to": "active"
         }
       ],
       "continuityMutations": [
@@ -1491,13 +1491,13 @@
       "threadMutations": [
         {
           "threadId": "T-03",
-          "from": "escalating",
-          "to": "escalating"
+          "from": "active",
+          "to": "active"
         },
         {
           "threadId": "T-01",
-          "from": "escalating",
-          "to": "escalating"
+          "from": "active",
+          "to": "active"
         }
       ],
       "continuityMutations": [
@@ -2238,7 +2238,7 @@
               }
             ],
             "description": "Spring Autumn Cicada \u2014 Fang Yuan's rebirth secret, the one truth that must never be exposed",
-            "status": "dormant",
+            "status": "latent",
             "openedAt": "S-001",
             "dependents": [
               "T-03",
@@ -2262,7 +2262,7 @@
               }
             ],
             "description": "The Awakening Ceremony \u2014 who receives which vital Gu, and whose future is sealed",
-            "status": "dormant",
+            "status": "latent",
             "openedAt": "S-001",
             "dependents": []
           },
@@ -2279,7 +2279,7 @@
               }
             ],
             "description": "Brother against brother \u2014 Fang Zheng's growing suspicion that something is deeply wrong with Fang Yuan",
-            "status": "dormant",
+            "status": "latent",
             "openedAt": "S-001",
             "dependents": []
           },
@@ -2300,7 +2300,7 @@
               }
             ],
             "description": "Clan politics \u2014 Mo Bei Liu's faction against Gu Yue Bo's loyalists, the Gu Yue clan fracturing from within",
-            "status": "dormant",
+            "status": "latent",
             "openedAt": "S-009",
             "dependents": []
           },
@@ -2313,7 +2313,7 @@
               }
             ],
             "description": "Bai Ning Bing's curse \u2014 the Northern Dark Ice Soul physique, a ticking clock toward death before age 20",
-            "status": "dormant",
+            "status": "latent",
             "openedAt": "S-001",
             "dependents": []
           },
@@ -2330,7 +2330,7 @@
               }
             ],
             "description": "The Flower Wine Monk's inheritance ground \u2014 hidden power buried beneath Qing Mao Mountain",
-            "status": "dormant",
+            "status": "latent",
             "openedAt": "S-001",
             "dependents": [
               "T-01"
@@ -2345,7 +2345,7 @@
               }
             ],
             "description": "Tie Ruo Nan's investigation \u2014 the righteous path hunting demonic cultivator traces near the mountain",
-            "status": "dormant",
+            "status": "latent",
             "openedAt": "S-001",
             "dependents": []
           }

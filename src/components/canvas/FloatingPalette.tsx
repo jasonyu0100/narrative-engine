@@ -320,7 +320,7 @@ export default function FloatingPalette({
                   <>
                     <button
                       type="button"
-                      className="text-xs font-semibold px-2 py-1 rounded-md transition-colors uppercase tracking-wider text-change bg-change/10 hover:bg-change/20"
+                      className="text-xs font-semibold px-2 py-1 rounded-md transition-colors uppercase tracking-wider text-world bg-world/10 hover:bg-world/20"
                       onClick={() => {
                         setGenerateOpen((v) => !v);
                         setRewriteOpen(false);
@@ -407,7 +407,7 @@ export default function FloatingPalette({
                   <>
                     <button
                       type="button"
-                      className={`text-xs font-semibold px-2 py-1 rounded-md transition-colors uppercase tracking-wider ${!hasPlan ? "text-text-dim/30 bg-white/3 cursor-not-allowed" : "text-change bg-change/10 hover:bg-change/20"}`}
+                      className={`text-xs font-semibold px-2 py-1 rounded-md transition-colors uppercase tracking-wider ${!hasPlan ? "text-text-dim/30 bg-white/3 cursor-not-allowed" : "text-world bg-world/10 hover:bg-world/20"}`}
                       onClick={() => {
                         if (hasPlan) {
                           setGenerateOpen((v) => !v);
@@ -480,7 +480,7 @@ export default function FloatingPalette({
                   <>
                     <button
                       type="button"
-                      className={`text-xs font-semibold px-2 py-1 rounded-md transition-colors uppercase tracking-wider ${hasProse ? "text-change bg-change/10 hover:bg-change/20" : "text-text-dim/30 bg-white/3 cursor-not-allowed"}`}
+                      className={`text-xs font-semibold px-2 py-1 rounded-md transition-colors uppercase tracking-wider ${hasProse ? "text-world bg-world/10 hover:bg-world/20" : "text-text-dim/30 bg-white/3 cursor-not-allowed"}`}
                       onClick={() =>
                         hasProse &&
                         window.dispatchEvent(
@@ -593,7 +593,7 @@ export default function FloatingPalette({
               {/* Generate */}
               <button
                 type="button"
-                className="text-xs font-semibold text-change bg-change/10 px-2 py-1 rounded-md hover:bg-change/20 transition-colors uppercase tracking-wider"
+                className="text-xs font-semibold text-world bg-world/10 px-2 py-1 rounded-md hover:bg-world/20 transition-colors uppercase tracking-wider"
                 onClick={() => {
                   if (access.userApiKeys && !access.hasOpenRouterKey) {
                     window.dispatchEvent(new Event("open-api-keys"));

@@ -83,7 +83,7 @@ export const DELIVERY_DIRECTIONS: Record<DeliveryDirection, { name: string; desc
     name: 'Escalate',
     description: 'Rising deliveries — each scene raises the stakes',
     prompt: `Structure this arc so each scene raises the stakes higher than the last.
-- THREADS: Advance progressively — dormant→active, active→escalating, escalating→critical. Each scene pushes at least one thread forward. Widen the circle of consequence across scenes.
+- THREADS: Advance progressively — latent→seeded, seeded→active, active→critical. Each scene pushes at least one thread forward. Widen the circle of consequence across scenes.
 - RELATIONSHIPS: Test alliances and loyalties — shifts of ±0.2 to ±0.3 as pressure mounts. Knowledge asymmetries deepen between characters.
 - WORLD: Reveal concepts that raise stakes — rules that constrain, systems that threaten, tensions with no easy resolution. 2+ nodes per scene connecting to existing graph.
 - Maintain POV streaks (2-4 scenes per perspective).`,
@@ -103,7 +103,7 @@ export const DELIVERY_DIRECTIONS: Record<DeliveryDirection, { name: string; desc
     description: 'Peak then fall — a single climactic moment',
     prompt: `Structure this arc around one explosive peak scene, bookended by build-up and aftermath.
 BUILD (early scenes):
-- Small thread advances (dormant→active, pulses on active threads), characters noticing details (2-3 continuity mutations), 1-2 world concepts planted as seeds.
+- Small thread advances (latent→seeded, seeded→active, pulses on active threads), characters noticing details (2-3 continuity mutations), 1-2 world concepts planted as seeds.
 
 PEAK (one defining scene — load it with mutations):
 - THREADS reach critical/terminal phases. Multiple relationship shifts ±0.3-0.5. All participants learn critical information. World rules are TESTED — connections forged through action. This scene should be the densest in the arc.

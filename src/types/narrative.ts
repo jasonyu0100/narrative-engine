@@ -2,21 +2,65 @@
 export type ThreadStatus = string;
 
 // Canonical thread status vocabulary — single source of truth.
-// Active: dormant → active → escalating → critical. Terminal ends a thread.
-export const THREAD_ACTIVE_STATUSES = ['dormant', 'active', 'escalating', 'critical'] as const;
-export const THREAD_TERMINAL_STATUSES = ['resolved', 'subverted', 'abandoned'] as const;
+// Forward: latent → seeded → active → critical → resolved/subverted.
+// Abandoned resets the thread to a latent-like state for potential repickup.
+export const THREAD_ACTIVE_STATUSES = ['latent', 'seeded', 'active', 'critical'] as const;
+export const THREAD_TERMINAL_STATUSES = ['resolved', 'subverted'] as const;
 export const THREAD_PRIMED_STATUSES = ['critical'] as const;
+/** Abandoned is special — not terminal, but resets the thread for potential repickup */
+export const THREAD_RESET_STATUSES = ['abandoned'] as const;
 
 export const THREAD_STATUS_LABELS: Record<string, string> = {
+  latent: 'introduced but not yet developed',
+  seeded: 'setup established, tension planted',
+  active: 'actively driving narrative',
+  critical: 'at peak tension, demanding resolution',
   resolved: 'concluded or ran its course',
-  subverted: 'upended, inverted, or twisted',
-  abandoned: 'faded without resolution',
+  subverted: 'fate defied — resolved contrary to expectations',
+  abandoned: 'dropped and reset — available for repickup',
 };
 
 export type ThreadParticipant = {
   id: string;
   type: 'character' | 'location' | 'artifact';
 };
+
+// ── Thread Log ──────────────────────────────────────────────────────────────
+
+/** Nine perceptual primitives — the thread's model of its own situation.
+ *  Whatever doesn't register as one of these doesn't exist for the thread. */
+export type ThreadLogNodeType =
+  | 'pulse'       // "I was acknowledged but nothing changed." Continuity maintenance.
+  | 'transition'  // "My fundamental state has changed." Lifecycle position updated.
+  | 'setup'       // "Something is being prepared on my behalf." Forward-looking — promises being made.
+  | 'escalation'  // "The stakes around me are rising." Increasing pressure without advancing.
+  | 'payoff'      // "A promise made to me has been fulfilled." Experiencing own resolution.
+  | 'twist'       // "My understanding of my own direction has changed." Revising own drive vector.
+  | 'callback'    // "Something from my past has been referenced." History being honored.
+  | 'resistance'  // "Something is working against me." Experiencing opposition directly.
+  | 'stall';      // "I am not moving and I don't know why." Self-diagnosis of dysfunction.
+
+export const THREAD_LOG_NODE_TYPES: ThreadLogNodeType[] = ['pulse', 'transition', 'setup', 'escalation', 'payoff', 'twist', 'callback', 'resistance', 'stall'];
+
+export type ThreadLogNode = {
+  id: string;
+  type: ThreadLogNodeType;
+  content: string;
+};
+
+export type ThreadLogEdge = {
+  from: string;
+  to: string;
+  relation: string;
+};
+
+export type ThreadLog = {
+  nodes: Record<string, ThreadLogNode>;
+  edges: ThreadLogEdge[];
+};
+
+/** Storyline: long-running thread spanning multiple arcs. Incident: short-lived, resolves within 1-2 arcs. */
+export type ThreadKind = 'storyline' | 'incident';
 
 export type Thread = {
   id: string;
@@ -25,6 +69,8 @@ export type Thread = {
   status: ThreadStatus;
   openedAt: string;
   dependents: string[];
+  /** Accumulated lifecycle graph — nodes added per scene, edges link sequential events */
+  threadLog: ThreadLog;
 };
 
 // ── Character ────────────────────────────────────────────────────────────────
@@ -396,17 +442,17 @@ export type WorldKnowledgeMutation = {
 
 /** Force values are z-score normalized (mean = 0, units = standard deviations).
  *  0 = average moment, positive = above average, negative = below average.
- *  - payoff:  thread phase transitions (weighted by jump magnitude) + relationship valence deltas
- *  - change:  mutation reach (log₂ depth per character, includes events)
- *  - knowledge: world knowledge graph complexity delta (new nodes + new edges per scene)
+ *  - drive:  thread phase transitions (weighted by jump magnitude) + relationship valence deltas
+ *  - world:  entity continuity graph complexity delta (ΔN_c + √ΔE_c per scene)
+ *  - system: world knowledge graph complexity delta (new nodes + new edges per scene)
  */
 export type ForceSnapshot = {
-  payoff: number;
-  change: number;
-  knowledge: number;
+  drive: number;
+  world: number;
+  system: number;
 };
 
-// ── Narrative Cube (Payoff · Change · Knowledge) ────────────────────────────
+// ── Narrative Cube (Drive · World · System) ─────────────────────────────────
 // The three forces (P·C·K) define a cube. Each corner is a recognisable narrative state.
 export type CubeCornerKey =
   | 'HHH' | 'HHL' | 'HLH' | 'HLL'
@@ -424,49 +470,49 @@ export const NARRATIVE_CUBE: Record<CubeCornerKey, CubeCorner> = {
     key: 'HHH',
     name: 'Epoch',
     description: 'Everything converges — threads resolve, characters transform, and the world\'s rules expand. A defining moment that reshapes the narrative landscape.',
-    forces: { payoff: 1, change: 1, knowledge: 1 },
+    forces: { drive: 1, world: 1, system: 1 },
   },
   HHL: {
     key: 'HHL',
     name: 'Climax',
-    description: 'Threads resolve and characters transform within established world rules. The payoff of what\'s already been built — no new lore needed.',
-    forces: { payoff: 1, change: 1, knowledge: -1 },
+    description: 'Threads resolve and characters transform within established world rules. The drive of what\'s already been built — no new lore needed.',
+    forces: { drive: 1, world: 1, system: -1 },
   },
   HLH: {
     key: 'HLH',
     name: 'Revelation',
     description: 'Threads pay off through world-building. The world\'s rules explain why things happened — lore unlocks resolution without personal transformation.',
-    forces: { payoff: 1, change: -1, knowledge: 1 },
+    forces: { drive: 1, world: -1, system: 1 },
   },
   HLL: {
     key: 'HLL',
     name: 'Closure',
     description: 'Quiet resolution within established world rules. Tying up loose ends — conversations that needed to happen, debts paid, promises kept or broken.',
-    forces: { payoff: 1, change: -1, knowledge: -1 },
+    forces: { drive: 1, world: -1, system: -1 },
   },
   LHH: {
     key: 'LHH',
     name: 'Discovery',
     description: 'Characters transform through encountering new world systems. No threads resolve — pure exploration, world-building, and possibility.',
-    forces: { payoff: -1, change: 1, knowledge: 1 },
+    forces: { drive: -1, world: 1, system: 1 },
   },
   LHL: {
     key: 'LHL',
     name: 'Growth',
     description: 'Internal character development within established world rules. Characters train, bond, argue, and change through interaction — no new lore.',
-    forces: { payoff: -1, change: 1, knowledge: -1 },
+    forces: { drive: -1, world: 1, system: -1 },
   },
   LLH: {
     key: 'LLH',
     name: 'Lore',
-    description: 'Pure world-building without resolution or transformation. Establishing rules, systems, cultures, and connections for future payoff. Seeds planted in the world\'s structure.',
-    forces: { payoff: -1, change: -1, knowledge: 1 },
+    description: 'Pure world-building without resolution or transformation. Establishing rules, systems, cultures, and connections for future drive. Seeds planted in the world\'s structure.',
+    forces: { drive: -1, world: -1, system: 1 },
   },
   LLL: {
     key: 'LLL',
     name: 'Rest',
     description: 'Nothing resolves, no one transforms, no new world concepts. Recovery and breathing room — quiet character deliveries and seed-planting.',
-    forces: { payoff: -1, change: -1, knowledge: -1 },
+    forces: { drive: -1, world: -1, system: -1 },
   },
 };
 
@@ -809,10 +855,6 @@ export type POVMode = 'single' | 'pareto' | 'ensemble' | 'free';
 /** Which world commit to seed generations with */
 export type WorldFocusMode = 'latest' | 'custom' | 'none';
 
-/** How quickly threads should progress through their lifecycle to resolution.
- *  Controls expected scenes-per-lifecycle-phase and prompts thread acceleration/deceleration. */
-export type ThreadResolutionSpeed = 'slow' | 'moderate' | 'fast';
-
 /** How scenes within an arc are generated — batch (all at once, fast) or stepwise (one at a time, higher context) */
 export type GenerationMode = 'batch' | 'stepwise';
 
@@ -858,8 +900,6 @@ export type StorySettings = {
   worldFocus: WorldFocusMode;
   /** Specific WorldBuild ID when worldFocus is 'custom' */
   worldFocusId?: string;
-  /** How quickly threads progress through lifecycle phases to resolution */
-  threadResolutionSpeed: ThreadResolutionSpeed;
   /** Editorial guidance — storytelling principles that shape how the narrative is told (scope, pacing philosophy, reveal discipline, tonal rules) */
   narrativeGuidance: string;
   /** Default world expansion strategy — depth deepens the existing sandbox, breadth widens the map, dynamic auto-selects based on metrics */
@@ -898,7 +938,6 @@ export const DEFAULT_STORY_SETTINGS: StorySettings = {
   branchTimeHorizon: 50,
   coverPrompt: '',
   worldFocus: 'none',
-  threadResolutionSpeed: 'moderate',
   narrativeGuidance: '',
   expansionStrategy: 'dynamic',
   generationMode: 'batch',
@@ -932,7 +971,7 @@ export type PlanningPhase = {
   status: PlanningPhaseStatus;
   /** Phase-specific constraint overrides (empty = use story settings) */
   constraints: string;
-  /** Structural mechanics rules — convergence, payoff density, scene function variety, protagonist gravity */
+  /** Structural mechanics rules — convergence, drive density, scene function variety, protagonist gravity */
   structuralRules?: string;
   /** AI-generated direction for this phase (set when phase becomes active) */
   direction: string;
@@ -961,7 +1000,7 @@ export type PlanningProfile = {
     objective: string;
     sceneAllocation: number;
     constraints: string;
-    /** Structural mechanics rules — convergence, payoff density, scene function variety, protagonist gravity */
+    /** Structural mechanics rules — convergence, drive density, scene function variety, protagonist gravity */
     structuralRules?: string;
     worldExpansionHints: string;
     sourceText?: string;
@@ -1125,7 +1164,7 @@ export type AnalysisChunkResult = {
   scenes: {
     locationName: string; povName: string; participantNames: string[]; events: string[];
     summary: string; sections: number[]; prose?: string;
-    threadMutations: { threadDescription: string; from: string; to: string }[];
+    threadMutations: { threadDescription: string; from: string; to: string; log?: { content: string; type: string }[] }[];
     continuityMutations: {
       entityName: string;
       addedNodes: { content: string; type: string }[];
@@ -1217,7 +1256,8 @@ export type InspectorContext =
   | { type: 'arc'; arcId: string }
   | { type: 'knowledge'; nodeId: string }
   | { type: 'artifact'; artifactId: string }
-  | { type: 'continuity'; entityId: string; nodeId: string };
+  | { type: 'continuity'; entityId: string; nodeId: string }
+  | { type: 'threadLog'; threadId: string; nodeId: string };
 
 export type WizardStep = 'form' | 'details' | 'generate';
 

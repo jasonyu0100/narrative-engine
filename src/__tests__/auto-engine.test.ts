@@ -41,6 +41,7 @@ function createThread(id: string, overrides: Partial<Thread> = {}): Thread {
     participants: [],
     dependents: [],
     openedAt: 's1',
+    threadLog: { nodes: {}, edges: [] },
     ...overrides,
   };
 }
@@ -361,7 +362,7 @@ describe('checkEndConditions', () => {
     const narrative = createMinimalNarrative();
     narrative.threads = {
       'T-001': createThread('T-001', { status: 'resolved' }),
-      'T-002': createThread('T-002', { status: 'abandoned' }),
+      'T-002': createThread('T-002', { status: 'subverted' }),
     };
     const config = createAutoConfig({
       endConditions: [{ type: 'all_threads_resolved' }],
@@ -466,7 +467,7 @@ describe('checkEndConditions', () => {
 describe('pickArcLength', () => {
   const config = createAutoConfig({ minArcLength: 3, maxArcLength: 8 });
 
-  it('returns maxArcLength for high change + high payoff corners (HHH)', () => {
+  it('returns maxArcLength for high world + high drive corners (HHH)', () => {
     expect(pickArcLength(config, 'HHH')).toBe(8);
   });
 
@@ -474,7 +475,7 @@ describe('pickArcLength', () => {
     expect(pickArcLength(config, 'HHL')).toBe(8);
   });
 
-  it('returns minArcLength for low change + low payoff corners (LLL)', () => {
+  it('returns minArcLength for low world + low drive corners (LLL)', () => {
     expect(pickArcLength(config, 'LLL')).toBe(3);
   });
 
@@ -601,7 +602,7 @@ describe('evaluateNarrativeState', () => {
     });
 
     const { weights } = evaluateNarrativeState(narrative, [], 0, config);
-    // High payoff corners should get boost when threads need resolution
+    // High drive corners should get boost when threads need resolution
     const hhhWeight = weights.find(w => w.action === 'HHH');
     expect(hhhWeight?.reason).toContain('active threads');
   });
@@ -637,9 +638,9 @@ describe('evaluateNarrativeState', () => {
 
     const { directiveCtx } = evaluateNarrativeState(narrative, [], 0, config);
     expect(directiveCtx.forceSaturation).toBeDefined();
-    expect(directiveCtx.forceSaturation.payoff).toBeDefined();
-    expect(directiveCtx.forceSaturation.change).toBeDefined();
-    expect(directiveCtx.forceSaturation.knowledge).toBeDefined();
+    expect(directiveCtx.forceSaturation.drive).toBeDefined();
+    expect(directiveCtx.forceSaturation.world).toBeDefined();
+    expect(directiveCtx.forceSaturation.system).toBeDefined();
   });
 
   it('includes recentSwing in directiveCtx', () => {
@@ -677,9 +678,9 @@ describe('buildOutlineDirective', () => {
     primedThreads: [],
     continuityOpportunities: [],
     forceSaturation: {
-      payoff: { saturated: false, direction: 0 },
-      change: { saturated: false, direction: 0 },
-      knowledge: { saturated: false, direction: 0 },
+      drive: { saturated: false, direction: 0 },
+      world: { saturated: false, direction: 0 },
+      system: { saturated: false, direction: 0 },
     },
     recentSwing: 0.6,
     storyProgress: 0.5,
@@ -727,15 +728,15 @@ describe('buildOutlineDirective', () => {
     const ctx: DirectiveContext = {
       ...baseCtx,
       forceSaturation: {
-        payoff: { saturated: true, direction: 1 },
-        change: { saturated: false, direction: 0 },
-        knowledge: { saturated: false, direction: 0 },
+        drive: { saturated: true, direction: 1 },
+        world: { saturated: false, direction: 0 },
+        system: { saturated: false, direction: 0 },
       },
     };
 
     const directive = buildOutlineDirective(narrative, config, ctx);
     expect(directive).toContain('FORCE BALANCE CORRECTION');
-    expect(directive).toContain('Payoff has been at maximum');
+    expect(directive).toContain('Drive has been at maximum');
   });
 
   it('includes force balance correction when forces saturated low', () => {
@@ -744,15 +745,15 @@ describe('buildOutlineDirective', () => {
     const ctx: DirectiveContext = {
       ...baseCtx,
       forceSaturation: {
-        payoff: { saturated: false, direction: 0 },
-        change: { saturated: true, direction: -1 },
-        knowledge: { saturated: false, direction: 0 },
+        drive: { saturated: false, direction: 0 },
+        world: { saturated: true, direction: -1 },
+        system: { saturated: false, direction: 0 },
       },
     };
 
     const directive = buildOutlineDirective(narrative, config, ctx);
     expect(directive).toContain('FORCE BALANCE CORRECTION');
-    expect(directive).toContain('Change has stagnated');
+    expect(directive).toContain('World has stagnated');
   });
 
   it('includes swing vibrancy warning for low swing', () => {
@@ -850,7 +851,7 @@ describe('buildOutlineDirective', () => {
         expansionManifest: {
           characters: [{ id: 'char-unused', name: 'Unused Char', role: 'recurring', continuity: { nodes: {}, edges: [] }, threadIds: [] }],
           locations: [{ id: 'loc-unused', name: 'Unused Location', prominence: 'place' as const, parentId: null, tiedCharacterIds: [], continuity: { nodes: {}, edges: [] }, threadIds: [] }],
-          threads: [{ id: 'T-unused', description: 'Unused thread', participants: [], status: 'dormant', openedAt: 's1', dependents: [] }],
+          threads: [{ id: 'T-unused', description: 'Unused thread', participants: [], status: 'latent', openedAt: 's1', dependents: [], threadLog: { nodes: {}, edges: [] } }],
           artifacts: [],
           relationships: [],
           worldKnowledge: { addedNodes: [], addedEdges: [] },
@@ -920,22 +921,22 @@ describe('auto-engine edge cases', () => {
     expect(weights).toHaveLength(8);
   });
 
-  it('handles narrative with only dormant threads', () => {
+  it('handles narrative with only latent threads', () => {
     const narrative = createMinimalNarrative();
-    // Need > 2 dormant threads to trigger the boost
+    // Need > 2 latent threads to trigger the boost
     narrative.threads = {
-      'T-001': createThread('T-001', { status: 'dormant' }),
-      'T-002': createThread('T-002', { status: 'dormant' }),
-      'T-003': createThread('T-003', { status: 'dormant' }),
+      'T-001': createThread('T-001', { status: 'latent' }),
+      'T-002': createThread('T-002', { status: 'latent' }),
+      'T-003': createThread('T-003', { status: 'latent' }),
     };
     const config = createAutoConfig({
       endConditions: [{ type: 'scene_count', target: 50 }],
     });
 
     const { weights } = evaluateNarrativeState(narrative, [], 0, config);
-    // Should boost knowledge corners since > 2 dormant threads exist
+    // Should boost knowledge corners since > 2 latent (dormant) threads exist
     const lhhWeight = weights.find(w => w.action === 'LHH');
-    expect(lhhWeight?.reason).toContain('dormant');
+    expect(lhhWeight?.reason).toContain('dormant'); // source uses "dormant" in reason string
   });
 
   it('handles progress > 1 gracefully', () => {

@@ -27,16 +27,16 @@ function CubeTab() {
 
       <div className="flex items-center gap-4 text-[9px] text-text-dim pb-2 border-b border-border/30">
         <div className="flex items-center gap-1.5">
-          <div className="w-2 h-2 rounded-sm bg-payoff" />
-          <span>Payoff</span>
+          <div className="w-2 h-2 rounded-sm bg-drive" />
+          <span>Drive</span>
         </div>
         <div className="flex items-center gap-1.5">
-          <div className="w-2 h-2 rounded-sm bg-change" />
-          <span>Change</span>
+          <div className="w-2 h-2 rounded-sm bg-world" />
+          <span>World</span>
         </div>
         <div className="flex items-center gap-1.5">
-          <div className="w-2 h-2 rounded-sm bg-knowledge" />
-          <span>Knowledge</span>
+          <div className="w-2 h-2 rounded-sm bg-system" />
+          <span>System</span>
         </div>
       </div>
 
@@ -226,9 +226,9 @@ function PropositionsTab() {
 // ── Archetypes Tab ───────────────────────────────────────────────────────────
 
 const ARCHETYPES = [
-  { name: 'Opus', key: 'opus' as ArchetypeKey, forces: 'P + C + K', desc: 'All three forces in concert — payoffs land, characters transform, and the world deepens together' },
-  { name: 'Series', key: 'series' as ArchetypeKey, forces: 'P + C', desc: 'Consequential events that permanently reshape characters — payoffs land and lives change' },
-  { name: 'Atlas', key: 'atlas' as ArchetypeKey, forces: 'P + K', desc: 'Resolutions that map the world — each payoff reveals how things work' },
+  { name: 'Opus', key: 'opus' as ArchetypeKey, forces: 'P + C + K', desc: 'All three forces in concert — drives land, characters transform, and the world deepens together' },
+  { name: 'Series', key: 'series' as ArchetypeKey, forces: 'P + C', desc: 'Consequential events that permanently reshape characters — drives land and lives change' },
+  { name: 'Atlas', key: 'atlas' as ArchetypeKey, forces: 'P + K', desc: 'Resolutions that map the world — each drive reveals how things work' },
   { name: 'Chronicle', key: 'chronicle' as ArchetypeKey, forces: 'C + K', desc: 'Characters transform within a deepening world — lives and systems evolve together' },
   { name: 'Classic', key: 'classic' as ArchetypeKey, forces: 'P', desc: 'Driven by resolution — threads pay off and relationships shift decisively' },
   { name: 'Show', key: 'show' as ArchetypeKey, forces: 'C', desc: 'People-driven — characters transform and their journeys are the heart of the story' },

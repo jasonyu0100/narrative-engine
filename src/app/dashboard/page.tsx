@@ -202,7 +202,7 @@ export default function DashboardPage() {
                       <div className={`w-2 h-2 rounded-full shrink-0 ${
                         job.status === 'completed' ? 'bg-emerald-400' :
                         job.status === 'failed' ? 'bg-red-400' :
-                        job.status === 'running' ? 'bg-change animate-pulse' :
+                        job.status === 'running' ? 'bg-world animate-pulse' :
                         job.status === 'paused' ? 'bg-yellow-400/60' : 'bg-white/20'
                       }`} />
                       <div className="flex-1 min-w-0">
@@ -210,7 +210,7 @@ export default function DashboardPage() {
                         <span className="text-[10px] text-white/25 font-mono">{completedChunks}/{totalChunks} chunks &middot; {progress}%</span>
                       </div>
                       <div className="w-24 h-1.5 bg-white/6 rounded-full overflow-hidden shrink-0">
-                        <div className={`h-full rounded-full transition-all ${job.status === 'failed' ? 'bg-red-500/60' : job.status === 'completed' ? 'bg-emerald-500/60' : 'bg-change/60'}`} style={{ width: `${progress}%` }} />
+                        <div className={`h-full rounded-full transition-all ${job.status === 'failed' ? 'bg-red-500/60' : job.status === 'completed' ? 'bg-emerald-500/60' : 'bg-world/60'}`} style={{ width: `${progress}%` }} />
                       </div>
                       <button
                         onClick={(e) => { e.stopPropagation(); dispatch({ type: 'DELETE_ANALYSIS_JOB', id: job.id }); }}

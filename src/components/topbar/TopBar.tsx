@@ -687,7 +687,7 @@ export default function TopBar() {
   const scorecard = useMemo(() => {
     if (allScenes.length === 0 || !narrative) return null;
     const raw = computeRawForceTotals(allScenes);
-    const n = raw.payoff.length;
+    const n = raw.drive.length;
     if (n === 0) return null;
 
     const sum = (arr: number[]) => arr.reduce((s, v) => s + v, 0);
@@ -698,10 +698,10 @@ export default function TopBar() {
       return Math.sqrt(arr.reduce((s, v) => s + (v - m) ** 2, 0) / arr.length);
     };
 
-    const rawForces = raw.payoff.map((_, i) => ({
-      payoff: raw.payoff[i],
-      change: raw.change[i],
-      knowledge: raw.knowledge[i],
+    const rawForces = raw.drive.map((_, i) => ({
+      drive: raw.drive[i],
+      world: raw.world[i],
+      system: raw.system[i],
     }));
     const swings = computeSwingMagnitudes(rawForces, FORCE_REFERENCE_MEANS);
 
@@ -713,9 +713,9 @@ export default function TopBar() {
     });
 
     const stats = {
-      payoff: forceStats(raw.payoff),
-      change: forceStats(raw.change),
-      knowledge: forceStats(raw.knowledge),
+      drive: forceStats(raw.drive),
+      world: forceStats(raw.world),
+      system: forceStats(raw.system),
       swing: forceStats(swings),
     };
 
@@ -730,20 +730,20 @@ export default function TopBar() {
           .filter((i): i is number => i !== undefined);
         if (forceIndices.length === 0) return null;
 
-        const arcPayoffs = forceIndices.map((i) => raw.payoff[i]);
-        const arcChanges = forceIndices.map((i) => raw.change[i]);
-        const arcKnowledge = forceIndices.map((i) => raw.knowledge[i]);
+        const arcDrives = forceIndices.map((i) => raw.drive[i]);
+        const arcWorlds = forceIndices.map((i) => raw.world[i]);
+        const arcSystem = forceIndices.map((i) => raw.system[i]);
         const arcSwingVals = forceIndices.map((i, idx) => idx === 0 ? 0 : swings[i]);
 
         return {
           name: arc.name,
           scenes: forceIndices.length,
-          grades: gradeForces(arcPayoffs, arcChanges, arcKnowledge, arcSwingVals),
+          grades: gradeForces(arcDrives, arcWorlds, arcSystem, arcSwingVals),
         };
       })
       .filter((a): a is NonNullable<typeof a> => a !== null);
 
-    const seriesGrades = gradeForces(raw.payoff, raw.change, raw.knowledge, swings);
+    const seriesGrades = gradeForces(raw.drive, raw.world, raw.system, swings);
 
     const normSnapshots = Object.values(computeForceSnapshots(allScenes));
     const deliveryPoints = computeDeliveryCurve(normSnapshots);
@@ -844,7 +844,7 @@ export default function TopBar() {
                               </button>
                               <button
                                 onClick={(e) => { e.stopPropagation(); setDeletingId(isDeleting ? null : entry.id); setDeleteConfirm(''); }}
-                                className="px-2.5 py-1 mr-1.5 text-text-dim hover:text-payoff text-xs rounded transition-colors shrink-0 hover:bg-white/5"
+                                className="px-2.5 py-1 mr-1.5 text-text-dim hover:text-drive text-xs rounded transition-colors shrink-0 hover:bg-white/5"
                                 title="Delete narrative"
                               >
                                 &times;
@@ -873,7 +873,7 @@ export default function TopBar() {
                                     }
                                   }}
                                   disabled={deleteConfirm !== entry.title}
-                                  className="w-full text-xs font-medium py-1.5 rounded-md transition-colors bg-payoff/20 text-payoff hover:bg-payoff/30 disabled:opacity-30 disabled:pointer-events-none"
+                                  className="w-full text-xs font-medium py-1.5 rounded-md transition-colors bg-drive/20 text-drive hover:bg-drive/30 disabled:opacity-30 disabled:pointer-events-none"
                                 >
                                   Delete permanently
                                 </button>
@@ -1089,9 +1089,9 @@ export default function TopBar() {
                   </div>
                 ))}
                 {([
-                  { key: 'payoff' as const, label: 'Payoff', color: '#EF4444' },
-                  { key: 'change' as const, label: 'Change', color: '#22C55E' },
-                  { key: 'knowledge' as const, label: 'Knowledge', color: '#3B82F6' },
+                  { key: 'drive' as const, label: 'Drive', color: '#EF4444' },
+                  { key: 'world' as const, label: 'World', color: '#22C55E' },
+                  { key: 'system' as const, label: 'System', color: '#3B82F6' },
                   { key: 'swing' as const, label: 'Swing', color: '#facc15' },
                 ]).map((row) => {
                   const s = scorecard[row.key];
@@ -1156,7 +1156,7 @@ export default function TopBar() {
                     {scorecard.archetype.dominant.length > 0 && (
                       <span className="flex items-center gap-0.5">
                         {scorecard.archetype.dominant.map((f) => (
-                          <span key={f} className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: f === 'payoff' ? 'var(--color-payoff)' : f === 'change' ? 'var(--color-change)' : 'var(--color-knowledge)' }} title={f} />
+                          <span key={f} className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: f === 'drive' ? 'var(--color-drive)' : f === 'world' ? 'var(--color-world)' : 'var(--color-system)' }} title={f} />
                         ))}
                       </span>
                     )}

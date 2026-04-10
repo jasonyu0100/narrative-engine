@@ -66,8 +66,8 @@ export function PacingProfileSlide({ data }: { data: SlidesData }) {
     let selfLoops = 0;
     for (let i = 1; i < seq.length; i++) if (seq[i] === seq[i - 1]) selfLoops++;
     const selfLoopRate = selfLoops / Math.max(seq.length - 1, 1);
-    const payoffModes: CubeCornerKey[] = ['HHH', 'HHL', 'HLH', 'HLL'];
-    const payoffFrac = payoffModes.reduce((s, c) => s + (stat[c] ?? 0), 0);
+    const driveModes: CubeCornerKey[] = ['HHH', 'HHL', 'HLH', 'HLL'];
+    const driveFrac = driveModes.reduce((s, c) => s + (stat[c] ?? 0), 0);
 
     const absent = CORNERS.filter((c) => (stat[c] ?? 0) < 0.02);
     const observations: string[] = [];
@@ -97,7 +97,7 @@ export function PacingProfileSlide({ data }: { data: SlidesData }) {
 
     return {
       matrix: m, visitCounts: visits, stationary: stat,
-      metrics: { entropy, maxEntropy: Math.log2(8), selfLoopRate, payoffFrac, buildupFrac: 1 - payoffFrac, observations, oscillationPairs: oscPairs.slice(0, 3) },
+      metrics: { entropy, maxEntropy: Math.log2(8), selfLoopRate, driveFrac, buildupFrac: 1 - driveFrac, observations, oscillationPairs: oscPairs.slice(0, 3) },
     };
   }, [data.forceSnapshots]);
 
@@ -231,18 +231,18 @@ export function PacingProfileSlide({ data }: { data: SlidesData }) {
             <p className="text-[9px] text-text-dim mt-1">How often consecutive scenes stay in the same mode. High = sticky, low = every scene shifts.</p>
           </div>
 
-          {/* Payoff / Buildup */}
+          {/* Drive / Buildup */}
           <div>
             <div className="flex items-center justify-between mb-1">
-              <span className="text-[10px] text-text-dim uppercase tracking-wider">Payoff / Buildup</span>
-              <span className="text-xs font-mono text-text-primary">{(metrics.payoffFrac * 100).toFixed(0)}% / {(metrics.buildupFrac * 100).toFixed(0)}%</span>
+              <span className="text-[10px] text-text-dim uppercase tracking-wider">Drive / Buildup</span>
+              <span className="text-xs font-mono text-text-primary">{(metrics.driveFrac * 100).toFixed(0)}% / {(metrics.buildupFrac * 100).toFixed(0)}%</span>
             </div>
             <div className="h-1.5 rounded-full bg-white/5 overflow-hidden flex">
-              <div className="h-full bg-red-400" style={{ width: `${metrics.payoffFrac * 100}%` }} />
+              <div className="h-full bg-red-400" style={{ width: `${metrics.driveFrac * 100}%` }} />
               <div className="h-full bg-sky-400" style={{ width: `${metrics.buildupFrac * 100}%` }} />
             </div>
             <p className="text-[9px] text-text-dim mt-1">
-              <span className="text-red-400">Payoff</span> = Epoch, Climax, Revelation, Closure.{' '}
+              <span className="text-red-400">Drive</span> = Epoch, Climax, Revelation, Closure.{' '}
               <span className="text-sky-400">Buildup</span> = Discovery, Growth, Lore, Rest.
             </p>
           </div>

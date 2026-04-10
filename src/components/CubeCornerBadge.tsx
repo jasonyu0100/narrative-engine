@@ -15,8 +15,8 @@ const SIZES = {
   lg: { width: 30, height: 14, barWidth: 8, spacing: 11, rx: 1 },
 };
 
-const FORCE_COLORS = ['#EF4444', '#22C55E', '#3B82F6']; // Payoff, Change, Knowledge
-const FORCE_LABELS = ['P', 'C', 'K'];
+const FORCE_COLORS = ['#EF4444', '#22C55E', '#3B82F6']; // Drive, World, System
+const FORCE_LABELS = ['P', 'W', 'S'];
 
 export function CubeCornerBadge({ cornerKey, size = 'md', showLabels = false }: Props) {
   const { width, height, barWidth, spacing, rx } = SIZES[size];

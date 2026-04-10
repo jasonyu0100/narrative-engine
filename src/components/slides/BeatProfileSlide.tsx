@@ -99,7 +99,7 @@ export function BeatProfileSlide({ data }: { data: SlidesData }) {
       matrix: m, sequence: seq, visitCounts: visits, stationary: stat,
       metrics: {
         entropy, maxEntropy: Math.log2(10), selfLoopRate,
-        setupFrac, payoffFrac: 1 - setupFrac,
+        setupFrac, driveFrac: 1 - setupFrac,
         observations, oscillationPairs: oscPairs.slice(0, 3),
         density: data.beatSampler?.beatsPerKWord ?? 0,
       },
@@ -246,19 +246,19 @@ export function BeatProfileSlide({ data }: { data: SlidesData }) {
             <p className="text-[9px] text-text-dim mt-1">How often consecutive beats repeat the same function. High = monotonous, low = every beat shifts.</p>
           </div>
 
-          {/* Setup / Payoff */}
+          {/* Setup / Drive */}
           <div>
             <div className="flex items-center justify-between mb-1">
-              <span className="text-[10px] text-text-dim uppercase tracking-wider">Setup / Payoff</span>
-              <span className="text-xs font-mono text-text-primary">{(metrics.setupFrac * 100).toFixed(0)}% / {(metrics.payoffFrac * 100).toFixed(0)}%</span>
+              <span className="text-[10px] text-text-dim uppercase tracking-wider">Setup / Drive</span>
+              <span className="text-xs font-mono text-text-primary">{(metrics.setupFrac * 100).toFixed(0)}% / {(metrics.driveFrac * 100).toFixed(0)}%</span>
             </div>
             <div className="h-1.5 rounded-full bg-white/5 overflow-hidden flex">
               <div className="h-full bg-sky-400" style={{ width: `${metrics.setupFrac * 100}%` }} />
-              <div className="h-full bg-red-400" style={{ width: `${metrics.payoffFrac * 100}%` }} />
+              <div className="h-full bg-red-400" style={{ width: `${metrics.driveFrac * 100}%` }} />
             </div>
             <p className="text-[9px] text-text-dim mt-1">
               <span className="text-sky-400">Setup</span> = breathe, inform, expand, foreshadow, bond.{' '}
-              <span className="text-red-400">Payoff</span> = advance, turn, reveal, shift, resolve.
+              <span className="text-red-400">Drive</span> = advance, turn, reveal, shift, resolve.
             </p>
           </div>
         </div>

@@ -266,7 +266,7 @@ export default function LocationDetail({ locationId }: Props) {
                     {continuityMuts.flatMap((km, kmIdx) =>
                       (km.addedNodes ?? []).map((node, nIdx) => (
                         <span key={`${km.entityId}-${node.id}-${kmIdx}-${nIdx}`} className="text-xs text-text-secondary">
-                          <span className="text-change">+</span>{' '}
+                          <span className="text-world">+</span>{' '}
                           {node.content}
                         </span>
                       ))

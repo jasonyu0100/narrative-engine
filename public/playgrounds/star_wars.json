@@ -115,17 +115,17 @@
       "threadMutations": [
         {
           "threadId": "T-SW-02",
-          "from": "dormant",
+          "from": "latent",
           "to": "active"
         },
         {
           "threadId": "T-SW-06",
-          "from": "dormant",
+          "from": "latent",
           "to": "active"
         },
         {
           "threadId": "T-SW-07",
-          "from": "dormant",
+          "from": "latent",
           "to": "active"
         }
       ],
@@ -476,7 +476,7 @@
         {
           "threadId": "T-SW-02",
           "from": "active",
-          "to": "escalating"
+          "to": "active"
         }
       ],
       "continuityMutations": [
@@ -552,7 +552,7 @@
       "threadMutations": [
         {
           "threadId": "T-SW-01",
-          "from": "dormant",
+          "from": "latent",
           "to": "active"
         }
       ],
@@ -639,8 +639,8 @@
       "threadMutations": [
         {
           "threadId": "T-SW-02",
-          "from": "escalating",
-          "to": "escalating"
+          "from": "active",
+          "to": "active"
         }
       ],
       "continuityMutations": [
@@ -710,7 +710,7 @@
         {
           "threadId": "T-SW-01",
           "from": "active",
-          "to": "escalating"
+          "to": "active"
         }
       ],
       "continuityMutations": [
@@ -769,7 +769,7 @@
       "threadMutations": [
         {
           "threadId": "T-SW-03",
-          "from": "dormant",
+          "from": "latent",
           "to": "active"
         }
       ],
@@ -853,13 +853,13 @@
       "threadMutations": [
         {
           "threadId": "T-SW-05",
-          "from": "dormant",
+          "from": "latent",
           "to": "active"
         },
         {
           "threadId": "T-SW-03",
           "from": "active",
-          "to": "escalating"
+          "to": "active"
         }
       ],
       "continuityMutations": [
@@ -957,13 +957,13 @@
       "threadMutations": [
         {
           "threadId": "T-SW-02",
-          "from": "escalating",
-          "to": "escalating"
+          "from": "active",
+          "to": "active"
         },
         {
           "threadId": "T-SW-06",
           "from": "active",
-          "to": "escalating"
+          "to": "active"
         }
       ],
       "continuityMutations": [
@@ -1050,7 +1050,7 @@
         {
           "threadId": "T-SW-05",
           "from": "active",
-          "to": "escalating"
+          "to": "active"
         }
       ],
       "continuityMutations": [
@@ -1131,13 +1131,13 @@
       "threadMutations": [
         {
           "threadId": "T-SW-01",
-          "from": "escalating",
-          "to": "escalating"
+          "from": "active",
+          "to": "active"
         },
         {
           "threadId": "T-SW-07",
           "from": "active",
-          "to": "escalating"
+          "to": "active"
         }
       ],
       "continuityMutations": [
@@ -1217,7 +1217,7 @@
       "threadMutations": [
         {
           "threadId": "T-SW-01",
-          "from": "dormant",
+          "from": "latent",
           "to": "active"
         }
       ],
@@ -1266,7 +1266,7 @@
         {
           "threadId": "T-SW-01",
           "from": "active",
-          "to": "escalating"
+          "to": "active"
         }
       ],
       "continuityMutations": [
@@ -1313,8 +1313,8 @@
       "threadMutations": [
         {
           "threadId": "T-SW-01",
-          "from": "escalating",
-          "to": "escalating"
+          "from": "active",
+          "to": "active"
         }
       ],
       "continuityMutations": [
@@ -2033,7 +2033,7 @@
               }
             ],
             "description": "Luke's journey from farm boy to hero \u2014 the call that pulls him from sand and silence into the stars",
-            "status": "dormant",
+            "status": "latent",
             "openedAt": "S-SW-001",
             "dependents": [
               "T-SW-05"
@@ -2052,7 +2052,7 @@
               }
             ],
             "description": "The stolen Death Star plans \u2014 a sliver of data that carries the hope of an entire galaxy",
-            "status": "dormant",
+            "status": "latent",
             "openedAt": "S-SW-001",
             "dependents": [
               "T-SW-07"
@@ -2071,7 +2071,7 @@
               }
             ],
             "description": "Obi-Wan's unfinished business with Vader \u2014 master and apprentice, bound by betrayal and a lightsaber that cut both ways",
-            "status": "dormant",
+            "status": "latent",
             "openedAt": "S-SW-003",
             "dependents": []
           },
@@ -2084,7 +2084,7 @@
               }
             ],
             "description": "Han Solo's arc from mercenary to ally \u2014 the smuggler who insists he does not care, protesting too much",
-            "status": "dormant",
+            "status": "latent",
             "openedAt": "S-SW-005",
             "dependents": []
           },
@@ -2101,7 +2101,7 @@
               }
             ],
             "description": "The Force awakening in Luke \u2014 an ancient power stirring in the blood of a boy who does not yet know what he is",
-            "status": "dormant",
+            "status": "latent",
             "openedAt": "S-SW-003",
             "dependents": [
               "T-SW-03"
@@ -2120,7 +2120,7 @@
               }
             ],
             "description": "Leia and the Rebellion's desperate fight \u2014 a princess who refuses to break and the cause she would die for",
-            "status": "dormant",
+            "status": "latent",
             "openedAt": "S-SW-001",
             "dependents": []
           },
@@ -2137,7 +2137,7 @@
               }
             ],
             "description": "The Death Star \u2014 ultimate weapon and ultimate vulnerability, a monument to Imperial hubris with a fatal flaw at its heart",
-            "status": "dormant",
+            "status": "latent",
             "openedAt": "S-SW-002",
             "dependents": []
           }

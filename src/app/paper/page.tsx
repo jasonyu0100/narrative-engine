@@ -285,37 +285,37 @@ const ARCHETYPES = [
   {
     key: "series" as const,
     name: "Series",
-    desc: "Payoff + Change",
+    desc: "Drive + World",
     color: ARCHETYPE_COLORS.series,
   },
   {
     key: "atlas" as const,
     name: "Atlas",
-    desc: "Payoff + Knowledge",
+    desc: "Drive + System",
     color: ARCHETYPE_COLORS.atlas,
   },
   {
     key: "chronicle" as const,
     name: "Chronicle",
-    desc: "Change + Knowledge",
+    desc: "World + System",
     color: ARCHETYPE_COLORS.chronicle,
   },
   {
     key: "classic" as const,
     name: "Classic",
-    desc: "Payoff-driven",
+    desc: "Drive-driven",
     color: ARCHETYPE_COLORS.classic,
   },
   {
     key: "show" as const,
     name: "Show",
-    desc: "Change-driven",
+    desc: "World-driven",
     color: ARCHETYPE_COLORS.show,
   },
   {
     key: "paper" as const,
     name: "Paper",
-    desc: "Knowledge-driven",
+    desc: "System-driven",
     color: ARCHETYPE_COLORS.paper,
   },
   {
@@ -552,22 +552,31 @@ export default function PaperPage() {
           {/* ── Abstract ──────────────────────────────────────────────── */}
           <Section id="abstract" label="Abstract">
             <P>
-              Structured text exhibits measurable regularities — threads
-              that progress, worlds that deepen, rhythms that breathe — yet
-              no established framework captures these mechanisms as computable
-              quantities. This paper introduces a framework that makes textual
-              structure <B>measurable, searchable, and generative</B>. We model
-              long-form text as knowledge graphs mutating across three layers —
-              thread lifecycle transitions, continuity shifts, and world
-              knowledge expansion — then run multiple layers of analysis: force
-              scoring, semantic embeddings, pacing rhythm extraction, world
-              density grading, and dynamic contrast measurement.
+              Structured text exhibits measurable regularities. Threads
+              progress through lifecycles. Characters accumulate inner change.
+              Worlds deepen through rules and systems. Readers perceive these
+              patterns intuitively — a scene &ldquo;feels&rdquo; like a climax, a
+              chapter &ldquo;drags&rdquo; — but no established framework captures
+              these mechanisms as computable quantities. This paper proposes
+              one: a soft-science approach to quantifying narrative structure
+              through three observable forces.
+            </P>
+            <P>
+              We model long-form text as knowledge graphs that mutate section
+              by section. An LLM extracts structural mutations — thread
+              transitions, entity continuity shifts, world knowledge additions
+              — and three forces are derived deterministically from these
+              mutations: <B>drive</B> (the accumulated commitment of threads
+              toward resolution), <B>world</B> (the inner transformation of
+              entities), and <B>system</B> (the deepening of rules and structures).
               Applied to <em>Harry Potter and the Sorcerer&apos;s Stone</em>, the
-              system identifies the Sorting Hat, troll confrontation,
-              and Quirrell climax as structural peaks — recovering the dramatic shape that readers intuitively recognize.
-              The model is validated on fiction; the structural primitives
-              (threads, knowledge accumulation, continuity shifts) are
-              domain-general. Early results on academic papers (Yann LeCun&apos;s <em>A Path Towards Autonomous Machine Intelligence</em>) confirm the structural primitives transfer to non-fiction.
+              framework recovers the Sorting Hat, troll confrontation, and
+              Quirrell climax as structural peaks — the dramatic shape that
+              readers intuitively recognise, now measurable.
+            </P>
+            <P>
+              The structural primitives are domain-general — early results on
+              academic papers confirm they transfer to non-fiction.
             </P>
             <P>
               The primary contribution is <B>analysis and querying</B>. Every
@@ -778,9 +787,9 @@ export default function PaperPage() {
                 <span className="text-white/25 shrink-0">1.</span>
                 <span>
                   <B>Thread mutations</B> — lifecycle transitions of narrative
-                  tensions (rivalries, secrets, quests) through discrete states: dormant &rarr; active &rarr;
-                  escalating &rarr; critical &rarr; resolved/subverted/abandoned.
-                  Transitions can recycle — a resolved thread may reactivate as new tensions emerge — making each state change a quantifiable dramatic commitment.
+                  tensions (rivalries, secrets, quests) through discrete states: latent &rarr; seeded &rarr; active &rarr;
+                  critical &rarr; resolved/subverted. Abandoned resets a thread for repickup.
+                  Each thread maintains a lifecycle log of perceptual events, and drive is computed as bandwidth-weighted payoff: sustained threads that resolve earn superlinearly.
                 </span>
               </li>
               <li className="flex gap-2">
@@ -799,7 +808,23 @@ export default function PaperPage() {
               </li>
             </ul>
             <P>
-              Three forces derive directly from these mutations: Payoff from thread transitions, Change from continuity shifts, Knowledge from graph expansion. All are z-score normalized, making them comparable across works of arbitrary length. Every coefficient is documented and tunable.
+              Three forces derive directly from these mutations:
+            </P>
+            <ul className="space-y-2 text-[13px] text-white/60 leading-relaxed pl-4">
+              <li><B>Drive</B> measures how threads compete for narrative bandwidth
+                and accumulate commitment — the unifying force that pulls world
+                and system toward resolution.</li>
+              <li><B>World</B> measures entity transformation through continuity
+                shifts — what the story does to the people in it.</li>
+              <li><B>System</B> measures how the world&apos;s rules and structures
+                deepen through knowledge graph expansion.</li>
+            </ul>
+            <P>
+              The composition of these three forces defines a work&apos;s archetype.
+              A <B>Classic</B> is drive-dominant. A <B>Show</B> is world-dominant.
+              A <B>Paper</B> is system-dominant. An <B>Opus</B> balances all three.
+              All forces are z-score normalized, making them comparable across
+              works of arbitrary length.
             </P>
           </Section>
 
@@ -1164,7 +1189,7 @@ export default function PaperPage() {
               <P>
                 <B>Scenes</B> — Atomic units of structural mutation. Each scene records thread transitions, continuity mutations, and knowledge graph additions. Forces derive from these mutations, not from prose.
                 <span className="block text-white/25 text-[11px] mt-1 italic">
-                  HP: The troll fight — &ldquo;friendship with Hermione&rdquo; thread jumps dormant → active, relationship mutation between Harry/Ron/Hermione, knowledge node for troll vulnerability.
+                  HP: The troll fight — &ldquo;friendship with Hermione&rdquo; thread jumps latent → seeded, relationship mutation between Harry/Ron/Hermione, knowledge node for troll vulnerability.
                 </span>
               </P>
               <P>
@@ -1195,7 +1220,7 @@ export default function PaperPage() {
               Forces measure <B>what changes</B> in the knowledge graph. Propositions measure <B>what is stated</B> in the prose. Every proposition is embedded as a 1536-dimensional vector (OpenAI text-embedding-3-small), transforming prose into a geometric space where similarity is distance and structural relationships become computable.
             </P>
             <P>
-              Coherent writing is a <B>proof graph</B>. Each proposition introduces, derives from, or resolves prior content. A plot hole is a broken inference chain; a satisfying payoff is a deep proof tree resolving. Quality is structural — how propositions relate across time — and that structure is now computable.
+              Coherent writing is a <B>proof graph</B>. Each proposition introduces, derives from, or resolves prior content. A plot hole is a broken inference chain; a satisfying drive is a deep proof tree resolving. Quality is structural — how propositions relate across time — and that structure is now computable.
             </P>
 
             <h3 className="text-[15px] font-semibold text-white/80 mt-10 mb-3">
@@ -1217,64 +1242,77 @@ export default function PaperPage() {
           <Section id="forces" label="The Three Forces">
             <div className="mb-12">
               <h3 className="text-[15px] font-semibold text-white/80 mb-2">
-                Payoff
+                Drive
               </h3>
               <P>
-                Payoff quantifies narrative commitments by measuring
-                thread lifecycle transitions. Each thread (a rivalry, secret,
-                quest, or other narrative tension) progresses through discrete
-                states. Transitions forward in the lifecycle represent dramatic
-                escalation or resolution.
+                Drive is the force that unifies narrative &mdash; the accumulated investment of threads
+                pulling the world and its systems toward resolution. Where world
+                and system measure what the story <em>is</em>, drive measures what
+                the story <em>wants</em>. Threads compete for narrative bandwidth
+                across arcs, and the longer a thread sustains attention before
+                resolving, the greater its contribution to drive.
               </P>
-              <Eq tex="P = \sum_{t} \max\left(0,\ \varphi_{\text{to}} - \varphi_{\text{from}}\right)" />
+              <Eq tex="D = \sum_{t} \text{activeArcs}(t)^{\alpha} \times w(t)" />
               <P>
-                Thread phases are indexed: dormant (0), active (1), escalating (2),
-                critical (3), resolved/subverted/abandoned (4). A thread jumping
-                from active to critical contributes{" "}
-                <Tex>{"|3 - 1| = 2"}</Tex> to Payoff. Threads mentioned in a scene
-                without changing state receive a pulse of 0.25 to maintain
-                visibility without inflating the metric. The formula aggregates
-                across all thread mutations recorded for the scene.
+                Threads progress through a lifecycle: latent &rarr; seeded &rarr;
+                active &rarr; critical &rarr; resolved/subverted. Each transition
+                earns a stage weight: pulse = 0.25, latent&rarr;seeded = 0.5,
+                seeded&rarr;active = 1.0, active&rarr;critical = 2.0,
+                critical&rarr;resolved/subverted = 4.0. The exponent{" "}
+                <Tex>{"\\alpha = 1.3"}</Tex> provides superlinear reward for sustained
+                commitment &mdash; a thread active across 5 arcs resolving at
+                critical&rarr;resolved earns{" "}
+                <Tex>{"5^{1.3} \\times 4 \\approx 34"}</Tex> versus{" "}
+                <Tex>{"1^{1.3} \\times 4 = 4"}</Tex> for a single-arc incident.
+                Abandoned threads earn zero drive &mdash; they move to the done pile
+                cleanly and can be picked back up later as latent if the story needs them.
+              </P>
+              <P>
+                Each thread maintains a lifecycle log using nine perceptual
+                primitives &mdash; pulse, transition, setup, escalation, payoff,
+                twist, callback, resistance, stall &mdash; that model the
+                thread&apos;s experience of its own situation. This log accumulates
+                as a graph parallel to entity continuity, enabling structural
+                analysis of how threads develop over time.
               </P>
             </div>
 
             <div className="mb-12">
               <h3 className="text-[15px] font-semibold text-white/80 mb-2">
-                Change
+                World
               </h3>
               <P>
-                Change measures entity transformation — what we learn about
-                characters, locations, and artifacts. It mirrors the Knowledge
-                formula but operates on entity continuity graphs instead of the
-                world knowledge graph: nodes contribute linearly, edges use
-                square root.
+                World measures the transformation of entities &mdash; what we learn
+                about characters, locations, and artifacts as drive pulls them
+                through the story. Where drive measures what the story wants,
+                world measures what the story does to the people in it.
               </P>
               <Eq
-                tex={String.raw`C = \Delta N_c + \sqrt{\Delta E_c}`}
+                tex={String.raw`W = \Delta N_c + \sqrt{\Delta E_c}`}
               />
               <P>
                 <Tex>{String.raw`\Delta N_c`}</Tex> counts continuity nodes
                 added to entity inner worlds (traits, beliefs, goals, secrets,
                 capabilities, states), and <Tex>{String.raw`\Delta E_c`}</Tex> counts
                 continuity edges (causal connections between inner-world facts).
-                The symmetry with Knowledge is deliberate — both measure
-                structural complexity growth, but in different domains: Knowledge
-                tracks what we learn about the <em>world</em>, Change tracks what
+                The symmetry with System is deliberate — both measure
+                structural complexity growth, but in different domains: System
+                tracks what we learn about the <em>world</em>, World tracks what
                 we learn about <em>entities</em>.
               </P>
             </div>
 
             <div>
               <h3 className="text-[15px] font-semibold text-white/80 mb-2">
-                Knowledge
+                System
               </h3>
               <P>
-                Knowledge measures world-building graph expansion. It counts
-                additions to the typed knowledge graph with asymmetric weighting:
-                new concepts (nodes) contribute more than new connections (edges)
-                between existing concepts.
+                System measures the deepening of the world itself &mdash; the rules,
+                structures, and concepts that form the substrate on which drive
+                and world operate. A world without systems is a stage without physics;
+                drive cannot create meaningful resolution in a vacuum of rules.
               </P>
-              <Eq tex={String.raw`K = \Delta N + \sqrt{\Delta E}`} />
+              <Eq tex={String.raw`S = \Delta N + \sqrt{\Delta E}`} />
               <P>
                 <Tex>{"\\Delta N"}</Tex> counts new nodes added to the graph
                 (principles, systems, concepts, tensions, events, structures), and <Tex>{"\\Delta E"}</Tex>{" "}
@@ -1292,7 +1330,7 @@ export default function PaperPage() {
                 Delivery
               </h3>
               <P>
-                While Payoff, Change, and Knowledge measure structural{" "}
+                While Drive, World, and System measure structural{" "}
                 <em>operations</em>, Delivery quantifies reader-perceived{" "}
                 <em>impact</em> — the aggregate effect of all three forces,
                 weighted by tension-release dynamics.
@@ -1308,7 +1346,7 @@ export default function PaperPage() {
                 <Tex>{"\\text{contrast}_i = \\max(0,\\; T_{i-1} - T_i)"}</Tex>{" "}
                 where <Tex>{"T_i = C_i + K_i - P_i"}</Tex> rewards
                 tension-release patterns: the bigger the drop from buildup to
-                payoff, the stronger the delivery. Constants were determined by systematic parameter sweep across a reference corpus (<em>Harry Potter</em>, <em>Nineteen Eighty-Four</em>, <em>The Great Gatsby</em>, <em>Alice&apos;s Adventures in Wonderland</em>), optimizing for alignment between computed delivery peaks and established dramatic moments identified in literary analysis.
+                drive, the stronger the delivery. Constants were determined by systematic parameter sweep across a reference corpus (<em>Harry Potter</em>, <em>Nineteen Eighty-Four</em>, <em>The Great Gatsby</em>, <em>Alice&apos;s Adventures in Wonderland</em>), optimizing for alignment between computed delivery peaks and established dramatic moments identified in literary analysis.
               </P>
             </div>
           </Section>
@@ -1539,9 +1577,9 @@ export default function PaperPage() {
             </P>
             <div className="mt-3 mb-4 grid grid-cols-1 sm:grid-cols-3 gap-2 text-[11px] max-w-sm">
               {[
-                { force: "Payoff", value: "1.5", color: "#EF4444" },
-                { force: "Change", value: "7", color: "#22C55E" },
-                { force: "Knowledge", value: "4", color: "#3B82F6" },
+                { force: "Drive", value: "3", color: "#EF4444" },
+                { force: "World", value: "7", color: "#22C55E" },
+                { force: "System", value: "4", color: "#3B82F6" },
               ].map(({ force, value, color }) => (
                 <div
                   key={force}
@@ -1562,13 +1600,13 @@ export default function PaperPage() {
               The overall score sums all four sub-grades:{" "}
               <Tex>
                 {
-                  "\\text{Overall} = g(\\tilde{P}) + g(\\tilde{C}) + g(\\tilde{K}) + g(\\tilde{S})"
+                  "\\text{Overall} = g(\\tilde{D}) + g(\\tilde{W}) + g(\\tilde{S}) + g(\\tilde{\\sigma})"
                 }
               </Tex>
-              , where <Tex>{"\\tilde{S}"}</Tex> is swing. Swing values are
+              , where <Tex>{"\\tilde{\\sigma}"}</Tex> is swing. Swing values are
               already mean-normalised by the reference means during distance
               computation, so no separate reference mean is needed —{" "}
-              <Tex>{"g(\\tilde{S})"}</Tex> is applied directly to the average
+              <Tex>{"g(\\tilde{\\sigma})"}</Tex> is applied directly to the average
               swing magnitude.
             </P>
           </Section>
@@ -1602,8 +1640,8 @@ export default function PaperPage() {
 
             <P>
               We compute force vectors for each scene from raw mutation data —
-              thread phase transitions for Payoff, continuity and relationship
-              mutations for Change, world knowledge additions for Knowledge —
+              thread phase transitions for Drive, continuity and relationship
+              mutations for World, world knowledge additions for System —
               then z-score normalise across the novel and classify each scene
               into its cube corner. Consecutive corners form the chain.
             </P>
@@ -1696,7 +1734,7 @@ export default function PaperPage() {
 
             <P>
               Harry Potter&apos;s pacing chain is remarkably well-distributed:
-              entropy 2.93/3.00, self-loop rate 16.7%, payoff-to-buildup ratio
+              entropy 2.93/3.00, self-loop rate 16.7%, drive-to-buildup ratio
               54/37. Climax (18 visits) and Epoch (16) lead — the story runs hot,
               with high-force scenes appearing more often than quiet ones. But the
               chain never stays in one place long: the strongest transitions
@@ -1705,7 +1743,7 @@ export default function PaperPage() {
             </P>
             <P>
               Other works produce strikingly different fingerprints.{" "}
-              <em>Nineteen Eighty-Four</em> is payoff-heavy —
+              <em>Nineteen Eighty-Four</em> is drive-heavy —
               72% of scenes land in the top four corners, reflecting Orwell&apos;s sustained pressure
               rather than Rowling&apos;s pivoting. <em>The Great Gatsby</em> oscillates between Epoch
               and Rest with little middle ground — Fitzgerald&apos;s pendulum rhythm. Each work&apos;s transition matrix is a measurable authorial signature.
@@ -1752,7 +1790,7 @@ export default function PaperPage() {
                 <span style={{ color: '#a855f7' }}>reveal</span> (character nature exposed),{" "}
                 <span style={{ color: '#ef4444' }}>shift</span> (power dynamics invert),{" "}
                 <span style={{ color: '#06b6d4' }}>expand</span> (world-building),{" "}
-                <span style={{ color: '#84cc16' }}>foreshadow</span> (plants for later payoff),{" "}
+                <span style={{ color: '#84cc16' }}>foreshadow</span> (plants for later drive),{" "}
                 <span style={{ color: '#14b8a6' }}>resolve</span> (tension releases).
               </span>
             </P>
@@ -2561,7 +2599,7 @@ export default function PaperPage() {
               {[
                 { name: 'Anchor', color: '#6366f1', back: 'HI', fwd: 'HI', desc: 'Load-bearing both directions. The structural spine — removing it collapses what comes before and after.' },
                 { name: 'Seed', color: '#10b981', back: 'LO', fwd: 'HI', desc: 'Plants forward. Weakly grounded when introduced but proves foundational later. Foreshadowing, Chekhov\'s gun.' },
-                { name: 'Close', color: '#f59e0b', back: 'HI', fwd: 'LO', desc: 'Resolves prior chains. Deeply earned but terminal — satisfying payoff that doesn\'t seed further.' },
+                { name: 'Close', color: '#f59e0b', back: 'HI', fwd: 'LO', desc: 'Resolves prior chains. Deeply earned but terminal — satisfying drive that doesn\'t seed further.' },
                 { name: 'Texture', color: '#6b7280', back: 'LO', fwd: 'LO', desc: 'Atmosphere, world-color, sensory grounding. Structurally inert but narratively essential.' },
               ].map(({ name, color, back, fwd, desc }) => (
                 <div key={name} className="px-3 py-3 rounded-lg border border-white/6 bg-white/2">
@@ -2616,8 +2654,8 @@ export default function PaperPage() {
             <P>
               At the narrative level, classification answers a practical question: when comparing
               or generating texts, what kind of structural emphasis does this
-              work have? A &ldquo;Chronicle&rdquo; (Payoff + Knowledge) and a
-              &ldquo;Show&rdquo; (Change-driven) require different pacing
+              work have? A &ldquo;Chronicle&rdquo; (Drive + System) and a
+              &ldquo;Show&rdquo; (World-driven) require different pacing
               strategies, different thread management, and different revision
               priorities. Each text is classified by which forces dominate
               its profile — a force is &ldquo;dominant&rdquo; if it scores
@@ -2760,7 +2798,7 @@ export default function PaperPage() {
             </P>
             <P>
               This is deliberate. Narrative analysis should be transparent. If
-              you disagree with how we weight payoff against knowledge, change
+              you disagree with how we weight drive against knowledge, change
               the constant. If your genre needs a fourth force, add it. The
               formulas are tools, not doctrine.
             </P>

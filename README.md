@@ -2,13 +2,13 @@
 
 # InkTide
 
-**Knowledge-graph-based text analysis, querying, and generation engine.**
+**Narrative is a composition of three forces in flux.**
 
-Paste any long-form text — a novel, a paper, a screenplay — and InkTide builds a living knowledge graph that evolves section by section. Multiple analysis layers reveal the structural forces shaping the narrative: how threads resolve, how characters transform, how the world deepens, and how the rhythm breathes. Applied to Harry Potter, the system surfaces the Sorting Hat, the troll fight, and the Quirrell confrontation as structural peaks — discovered, not labeled.
+Every story is drive, world, and system — threads accumulating commitment toward resolution, entities transforming under pressure, rules deepening beneath the surface. InkTide makes these forces measurable. Paste any long-form text and it builds a living knowledge graph that evolves section by section, deriving the structural forces that shape the work. A Classic is drive-dominant. A Show is world-dominant. A Paper is system-dominant. An Opus balances all three.
 
 Everything becomes searchable by meaning. Every proposition is embedded as a vector. Search for "sacrifice" and surface every moment of selfless choice across the timeline, even when the word never appears. Each analyzed work contributes its pacing fingerprint to a growing network of structural intelligence.
 
-The same analysis layers power generation — new content shaped by the rhythms of published works, branching paths explored via MCTS, and drafts refined through structural evaluation.
+The same forces power generation — new content shaped by the rhythms of published works, branching paths explored via MCTS, and drafts refined through structural evaluation.
 
 **[Read the paper →](https://inktide-sourcenovel.vercel.app/paper)** · **[Case analysis →](https://inktide-sourcenovel.vercel.app/case-analysis)** · **[Try it →](https://inktide-sourcenovel.vercel.app/)**
 
@@ -32,15 +32,15 @@ You need an **[OpenRouter API key](https://openrouter.ai/keys)** for LLM access.
 
 ### Analyze
 
-Three force dimensions, all z-score normalised, computed from knowledge graph evolution — pure math, no LLM:
+Three forces, all z-score normalised, derived from knowledge graph mutations — pure math, no LLM:
 
-| Force | What it reveals |
+| Force | What it measures |
 |-------|-----------------|
-| **Payoff** | Thread resolution — promises kept, tensions released, turning points that reshape the story |
-| **Change** | Transformation depth — how characters grow, relationships shift, and the familiar becomes new |
-| **Knowledge** | World enrichment — new concepts, systems, and connections that expand what's possible |
+| **Drive** | Thread resolution — how narrative tensions compete for bandwidth, accumulate structural commitment, and resolve. The unifying force that pulls world and system toward resolution. |
+| **World** | Entity transformation — what we learn about characters, locations, and artifacts as drive pulls them through the story. |
+| **System** | World deepening — the rules, structures, and concepts that form the substrate on which drive and world operate. |
 
-Each force is graded 0–25 on an exponential curve, 100 total. The **narrative cube** maps force combinations into 8 modes (Epoch, Climax, Revelation, Closure, Discovery, Growth, Lore, Rest) — a vocabulary for how stories move.
+Each force is graded 0–25, 100 total. The **narrative cube** maps force combinations into 8 modes — a vocabulary for how stories move through drive/world/system space.
 
 Additional layers: **swing** (the rhythm of contrast between sections), **pacing profiles** (Markov transition matrices capturing an author's structural signature), and **scale & density** (how richly interconnected the world becomes).
 

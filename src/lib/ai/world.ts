@@ -489,7 +489,7 @@ Return JSON with this exact structure:
       "id": "${nextThreadId}",
       "participants": [{"id": "character or location ID", "type": "character|location"}],
       "description": "string",
-      "status": "dormant",
+      "status": "latent",
       "openedAt": "new",
       "dependents": ["T-XX (existing thread IDs this thread connects to, accelerates, or converges with — see THREAD CONVERGENCE below)"]
     }
@@ -542,7 +542,7 @@ CONTENT RULES:
 - New locations should CONTRAST with existing ones — if the story has been set in cities, add wilderness; if in palaces, add slums or ruins. Environmental variety drives scene variety.
 - Location knowledge should establish what makes each place narratively distinct (2-3 nodes per location — its defining atmosphere, a constraint or danger, and a resource or opportunity it offers)
 - Threads should introduce DIFFERENT types of open questions than existing ones — if current threads are about conflict, add threads about mystery, loyalty, or forbidden knowledge.
-- ALL new threads MUST have status "dormant" — they are seeds for future arcs, not active storylines yet
+- ALL new threads MUST have status "latent" — they are seeds for future arcs, not active storylines yet
 - Generate the exact counts specified above (${EXPANSION_SIZE_CONFIG[size].characters} characters, ${EXPANSION_SIZE_CONFIG[size].locations} locations, ${EXPANSION_SIZE_CONFIG[size].threads} threads)
 
 THREAD CONVERGENCE (critical for long-form narrative):
@@ -568,7 +568,7 @@ worldKnowledgeMutations define the FOUNDATIONAL abstractions this expansion esta
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const parsed = parseJson(raw, 'expandWorld') as any;
 
-  // Force all world-build threads to dormant — they're seeds, not active storylines
+  // Force all world-build threads to latent — they're seeds, not active storylines
   // Normalize: LLM may still output "anchors" (legacy field name) — remap to "participants"
   // Validate dependents — only keep IDs that reference real existing or new threads
   const newThreadIds = new Set((parsed.threads ?? []).map((t: { id: string }) => t.id));
@@ -682,7 +682,7 @@ Return JSON with this exact structure:
     {"id": "L-01", "name": "string", "prominence": "domain|place|margin", "parentId": null, "threadIds": [], "imagePrompt": "1-2 sentence LITERAL visual description — concrete architecture, landscape, lighting. No metaphors or figurative language; image generators interpret literally.", "continuity": {"nodes": [{"id": "LK-01", "type": "trait|state|history|capability|belief|relation|secret|goal|weakness", "content": "string"}]}}
   ],
   "threads": [
-    {"id": "T-01", "participants": [{"id": "C-01", "type": "character|location|artifact"}], "description": "string", "status": "dormant", "openedAt": "S-001", "dependents": []}
+    {"id": "T-01", "participants": [{"id": "C-01", "type": "character|location|artifact"}], "description": "string", "status": "latent", "openedAt": "S-001", "dependents": []}
   ],
   "relationships": [
     {"from": "C-01", "to": "C-02", "type": "description", "valence": 0.5}
@@ -700,7 +700,7 @@ Return JSON with this exact structure:
       "participantIds": ["C-01"],
       "artifactUsages": [{"artifactId": "A-XX", "characterId": "C-XX or null for unattributed usage", "usage": "what the artifact did — how it delivered utility"}],
       "events": ["event_tag"],
-      "threadMutations": [{"threadId": "T-01", "from": "dormant", "to": "active"}],
+      "threadMutations": [{"threadId": "T-01", "from": "latent", "to": "active"}],
       "continuityMutations": [{"entityId": "C-XX", "addedNodes": [{"id": "K-GEN-001", "content": "complete sentence: what they experienced or became", "type": "trait|state|history|capability|belief|relation|secret|goal|weakness"}], "addedEdges": [{"from": "K-GEN-001", "to": "K-XX", "relation": "follows|causes|contradicts|enables"}]}],
       "relationshipMutations": [],
       "worldKnowledgeMutations": {"addedNodes": [{"id": "WK-GEN-001", "concept": "name of a world concept, rule, system, or structure", "type": "principle|system|concept|tension|event|structure|environment|convention|constraint"}], "addedEdges": [{"from": "WK-GEN-001", "to": "WK-GEN-002", "relation": "typed relationship: enables, requires, governs, opposes, created_by, extends, etc."}]},
@@ -840,7 +840,7 @@ The goal is to make the world feel like a coherent machine where systems interlo
   // Normalize: LLM may still output "anchors" (legacy field name) — remap to "participants"
   for (const t of parsed.threads) {
     const { anchors, ...rest } = t as Thread & { anchors?: Thread['participants'] };
-    threads[t.id] = { ...rest, participants: rest.participants ?? anchors ?? [] };
+    threads[t.id] = { ...rest, participants: rest.participants ?? anchors ?? [], threadLog: { nodes: {}, edges: [] } };
   }
 
   const scenes: NarrativeState['scenes'] = {};
@@ -932,6 +932,27 @@ The goal is to make the world feel like a coherent machine where systems interlo
       }
     } catch {
       // Don't fail world generation if embedding fails
+    }
+  }
+
+  // Build thread log graphs from initial scene mutations
+  let threadNodeCounter = 0;
+  const lastThreadNodeId: Record<string, string> = {};
+  for (const scene of sceneList) {
+    for (const tm of scene.threadMutations ?? []) {
+      const thread = threads[tm.threadId];
+      if (!thread) continue;
+      const nodeId = `TK-${String(++threadNodeCounter).padStart(3, '0')}`;
+      const nodeType = tm.from === tm.to ? 'pulse' as const : 'transition' as const;
+      const content = tm.from === tm.to
+        ? `Pulse: ${scene.summary?.slice(0, 100) ?? 'thread touched'}`
+        : `${tm.from}→${tm.to}: ${scene.summary?.slice(0, 100) ?? 'transition'}`;
+      thread.threadLog.nodes[nodeId] = { id: nodeId, content, type: nodeType };
+      const prevId = lastThreadNodeId[tm.threadId];
+      if (prevId) {
+        thread.threadLog.edges.push({ from: prevId, to: nodeId, relation: tm.from === tm.to ? 'continues' : 'causes' });
+      }
+      lastThreadNodeId[tm.threadId] = nodeId;
     }
   }
 

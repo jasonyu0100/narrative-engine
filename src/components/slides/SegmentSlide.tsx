@@ -5,9 +5,9 @@ import * as d3 from 'd3';
 import type { SlidesData, Segment } from '@/lib/slides-data';
 
 const FORCE_META: Record<string, { label: string; color: string }> = {
-  payoff: { label: 'Payoff', color: '#EF4444' },
-  change: { label: 'Change', color: '#22C55E' },
-  knowledge: { label: 'Knowledge', color: '#3B82F6' },
+  drive: { label: 'Drive', color: '#EF4444' },
+  world: { label: 'World', color: '#22C55E' },
+  system: { label: 'System', color: '#3B82F6' },
 };
 
 export function SegmentSlide({ data, segment }: { data: SlidesData; segment: Segment }) {
@@ -52,9 +52,9 @@ export function SegmentSlide({ data, segment }: { data: SlidesData; segment: Seg
 
   // Average force values for this segment
   const avgForces = {
-    payoff: segForces.reduce((s, f) => s + f.payoff, 0) / (segForces.length || 1),
-    change: segForces.reduce((s, f) => s + f.change, 0) / (segForces.length || 1),
-    knowledge: segForces.reduce((s, f) => s + f.knowledge, 0) / (segForces.length || 1),
+    drive: segForces.reduce((s, f) => s + f.drive, 0) / (segForces.length || 1),
+    world: segForces.reduce((s, f) => s + f.world, 0) / (segForces.length || 1),
+    system: segForces.reduce((s, f) => s + f.system, 0) / (segForces.length || 1),
   };
 
   const dominant = FORCE_META[segment.dominantForce];
@@ -176,10 +176,10 @@ export function SegmentSlide({ data, segment }: { data: SlidesData; segment: Seg
         <div>
           <div className="text-[9px] uppercase tracking-widest text-text-dim mb-3">Force Profile</div>
           <div className="space-y-2.5">
-            {(['payoff', 'change', 'knowledge'] as const).map((f) => {
+            {(['drive', 'world', 'system'] as const).map((f) => {
               const meta = FORCE_META[f];
               const val = avgForces[f];
-              const maxVal = Math.max(avgForces.payoff, avgForces.change, avgForces.knowledge, 0.5);
+              const maxVal = Math.max(avgForces.drive, avgForces.world, avgForces.system, 0.5);
               return (
                 <div key={f} className="flex items-center gap-2">
                   <span className="text-[10px] font-medium w-12 capitalize" style={{ color: meta.color }}>{meta.label}</span>

@@ -14,12 +14,12 @@ export default function SceneDetail({ sceneId }: Props) {
   const { state, dispatch } = useStore();
   const narrative = state.activeNarrative;
   const forceSnapshot = useMemo(() => {
-    if (!narrative) return { payoff: 0, change: 0, knowledge: 0 };
+    if (!narrative) return { drive: 0, world: 0, system: 0 };
     const allScenes = state.resolvedEntryKeys
       .map((k) => resolveEntry(narrative, k))
       .filter((e): e is Scene => !!e && isScene(e));
     const forceMap = computeForceSnapshots(allScenes);
-    return forceMap[sceneId] ?? { payoff: 0, change: 0, knowledge: 0 };
+    return forceMap[sceneId] ?? { drive: 0, world: 0, system: 0 };
   }, [narrative, state.resolvedEntryKeys, sceneId]);
 
   // Resolve entry early to determine imageUrl for hook
@@ -165,7 +165,7 @@ export default function SceneDetail({ sceneId }: Props) {
   const effectivePovId = scene.povId || scene.participantIds[0];
   const povCharacter = effectivePovId ? narrative.characters[effectivePovId] : null;
 
-  const { payoff, change, knowledge } = forceSnapshot;
+  const { drive, world, system } = forceSnapshot;
   const cubeCorner = detectCubeCorner(forceSnapshot);
 
   const arc = Object.values(narrative.arcs).find((a) =>
@@ -432,7 +432,7 @@ export default function SceneDetail({ sceneId }: Props) {
                   >
                     {entityName}
                   </button>
-                  <span className="text-change">+</span>
+                  <span className="text-world">+</span>
                   <span className="font-mono text-[10px] text-text-dim">{node.id}</span>
                 </div>
                 <span className="text-text-secondary pl-2">{node.content}</span>
@@ -479,7 +479,7 @@ export default function SceneDetail({ sceneId }: Props) {
                   >
                     {toName}
                   </button>
-                  <span className={rm.valenceDelta >= 0 ? 'text-change' : 'text-payoff'}>
+                  <span className={rm.valenceDelta >= 0 ? 'text-world' : 'text-drive'}>
                     {rm.valenceDelta > 0 ? '+' : ''}{rm.valenceDelta}
                   </span>
                 </div>
@@ -527,7 +527,7 @@ export default function SceneDetail({ sceneId }: Props) {
             const locName = narrative.locations[mm.locationId]?.name ?? mm.locationId;
             return (
               <div key={`mm-${mm.locationId}-${mm.characterId}-${i}`} className="flex items-center gap-1.5 text-xs">
-                <span className={mm.action === 'add' ? 'text-change' : 'text-payoff'}>
+                <span className={mm.action === 'add' ? 'text-world' : 'text-drive'}>
                   {mm.action === 'add' ? '+' : '−'}
                 </span>
                 <button
@@ -559,7 +559,7 @@ export default function SceneDetail({ sceneId }: Props) {
           </h3>
           {(scene.worldKnowledgeMutations.addedNodes ?? []).map((node, i) => (
             <div key={`wk-node-${node.id}-${i}`} className="flex items-center gap-1.5 text-xs">
-              <span className="text-change">+</span>
+              <span className="text-world">+</span>
               <span className="text-text-primary">{node.concept}</span>
               <span className="text-[10px] text-text-dim">({node.type})</span>
             </div>

@@ -453,7 +453,7 @@ function JobDetail({ job }: { job: AnalysisJob }) {
                   <>
                     <div className="flex items-center justify-center gap-1.5">
                       {[0, 1, 2].map((i) => (
-                        <div key={i} className="w-2 h-2 rounded-full bg-change/30" style={{ animation: `pulse 1.4s ease-in-out ${i * 0.2}s infinite` }} />
+                        <div key={i} className="w-2 h-2 rounded-full bg-world/30" style={{ animation: `pulse 1.4s ease-in-out ${i * 0.2}s infinite` }} />
                       ))}
                     </div>
                     <p className="text-white/12 text-xs font-mono">
@@ -1181,7 +1181,7 @@ function JobDetail({ job }: { job: AnalysisJob }) {
                               : extracted
                                 ? 'bg-emerald-500/12 hover:bg-emerald-500/20'
                                 : isInFlight
-                                  ? 'bg-change/10 ring-1 ring-change/20'
+                                  ? 'bg-world/10 ring-1 ring-world/20'
                                   : 'bg-white/3'
                     } ${extracted || isInFlight ? 'cursor-pointer' : 'cursor-default'}`}
                     title={result
@@ -1189,7 +1189,7 @@ function JobDetail({ job }: { job: AnalysisJob }) {
                       : isInFlight ? `Scene ${i + 1}: extracting...` : `Scene ${i + 1}: pending`}
                   >
                     {isInFlight ? (
-                      <IconSpinner size={16} className="absolute inset-0 m-auto text-change/60 animate-spin" />
+                      <IconSpinner size={16} className="absolute inset-0 m-auto text-world/60 animate-spin" />
                     ) : (
                       <span className={`text-[10px] font-mono absolute top-1.5 inset-x-0 flex items-center justify-center transition ${
                         isSelected ? 'text-white/80 font-semibold'
@@ -1402,8 +1402,8 @@ function NewJobSetup({ sourceText, onCreated }: { sourceText: string; onCreated:
           <div className="flex items-center justify-between mb-1.5">
             <label className="text-[10px] uppercase tracking-[0.15em] text-white/30 font-mono">Title</label>
             {detecting && (
-              <span className="text-[9px] text-change/60 font-mono flex items-center gap-1">
-                <span className="w-1 h-1 rounded-full bg-change/60 animate-pulse" />
+              <span className="text-[9px] text-world/60 font-mono flex items-center gap-1">
+                <span className="w-1 h-1 rounded-full bg-world/60 animate-pulse" />
                 detecting...
               </span>
             )}
@@ -1495,7 +1495,7 @@ function JobsList({ jobs, selectedId, onSelect }: { jobs: AnalysisJob[]; selecte
             <div className={`w-2 h-2 rounded-full shrink-0 ${
               job.status === 'completed' ? 'bg-emerald-400' :
               job.status === 'failed' ? 'bg-red-400' :
-              job.status === 'running' ? 'bg-change animate-pulse' :
+              job.status === 'running' ? 'bg-world animate-pulse' :
               job.status === 'paused' ? 'bg-yellow-400/60' :
               'bg-white/20'
             }`} />

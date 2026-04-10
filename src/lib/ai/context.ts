@@ -426,17 +426,17 @@ export function narrativeContext(
     .map((k) => resolveEntry(n, k))
     .filter((e): e is Scene => e?.kind === 'scene');
   const forceMap = computeForceSnapshots(allScenes);
-  const forceSnapshots = allScenes.map((s) => forceMap[s.id] ?? { payoff: 0, change: 0, knowledge: 0 });
+  const forceSnapshots = allScenes.map((s) => forceMap[s.id] ?? { drive: 0, world: 0, system: 0 });
   const swings = computeSwingMagnitudes(forceSnapshots);
-  const payoffMA = movingAverage(forceSnapshots.map(f => f.payoff), FORCE_WINDOW_SIZE);
-  const changeMA = movingAverage(forceSnapshots.map(f => f.change), FORCE_WINDOW_SIZE);
-  const knowledgeMA = movingAverage(forceSnapshots.map(f => f.knowledge), FORCE_WINDOW_SIZE);
+  const driveMA = movingAverage(forceSnapshots.map(f => f.drive), FORCE_WINDOW_SIZE);
+  const worldMA = movingAverage(forceSnapshots.map(f => f.world), FORCE_WINDOW_SIZE);
+  const systemMA = movingAverage(forceSnapshots.map(f => f.system), FORCE_WINDOW_SIZE);
   const swingMA = movingAverage(swings, FORCE_WINDOW_SIZE);
   const forceTrajectory = allScenes.map((s, i) => {
     const f = forceMap[s.id];
     if (!f) return null;
     const corner = detectCubeCorner(f);
-    return `[${horizonStart + i + 1}] P:${f.payoff >= 0 ? '+' : ''}${f.payoff.toFixed(1)} C:${f.change >= 0 ? '+' : ''}${f.change.toFixed(1)} K:${f.knowledge >= 0 ? '+' : ''}${f.knowledge.toFixed(1)} Sw:${swings[i].toFixed(1)} MA(P:${payoffMA[i].toFixed(1)} C:${changeMA[i].toFixed(1)} K:${knowledgeMA[i].toFixed(1)} Sw:${swingMA[i].toFixed(1)}) (${corner.name})`;
+    return `[${horizonStart + i + 1}] P:${f.drive >= 0 ? '+' : ''}${f.drive.toFixed(1)} C:${f.world >= 0 ? '+' : ''}${f.world.toFixed(1)} K:${f.system >= 0 ? '+' : ''}${f.system.toFixed(1)} Sw:${swings[i].toFixed(1)} MA(P:${driveMA[i].toFixed(1)} C:${worldMA[i].toFixed(1)} K:${systemMA[i].toFixed(1)} Sw:${swingMA[i].toFixed(1)}) (${corner.name})`;
   }).filter(Boolean).join('\n');
 
   // Current cube position and local delivery position
@@ -516,7 +516,7 @@ ${characters}
 ${locations}
 </locations>
 
-<threads hint="Lifecycle: dormant → active → escalating → critical → resolved/subverted/abandoned. Advance through action. Threads sharing participants should collide.">
+<threads hint="Lifecycle: latent → seeded → active → critical → resolved/subverted. Abandoned resets. Advance through action. Threads sharing participants should collide.">
 ${threads}
 </threads>
 
@@ -532,7 +532,7 @@ ${arcs}
 ${sceneHistory}
 </scene-history>
 
-<force-trajectory hint="P=Payoff C=Change K=Knowledge. Use this to gauge pacing rhythm — vary density between scenes.">
+<force-trajectory hint="D=Drive (thread fate) W=World (entity transformation) S=System (world deepening). Vary density between scenes.">
 ${forceTrajectory || '(no scenes yet)'}
 ${currentStateBlock}</force-trajectory>
 ${worldKnowledgeBlock}${buildDramaticIronyBlock(n, keysUpToCurrent)}

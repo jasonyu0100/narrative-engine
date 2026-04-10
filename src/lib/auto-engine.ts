@@ -17,10 +17,10 @@ import { logInfo } from '@/lib/system-logger';
 
 // ── Thread status helpers (derived from canonical lists in narrative.ts) ─────
 const TERMINAL_SET = new Set<string>(THREAD_TERMINAL_STATUSES);
-const ACTIVE_SET = new Set<string>(THREAD_ACTIVE_STATUSES.filter((s) => s !== 'dormant'));
+const ACTIVE_SET = new Set<string>(THREAD_ACTIVE_STATUSES.filter((s) => s !== 'latent'));
 const PRIMED_SET = new Set<string>(THREAD_PRIMED_STATUSES);
 
-const FORCE_KEYS = ['payoff', 'change', 'knowledge'] as const;
+const FORCE_KEYS = ['drive', 'world', 'system'] as const;
 
 function isTerminal(status: string): boolean {
   return TERMINAL_SET.has(status.toLowerCase());
@@ -32,8 +32,8 @@ function isActive(status: string): boolean {
 
 // ── Objective multipliers for cube corners ──────────────────────────────────
 // Bias action selection toward the high-level goal.
-// High-payoff corners (H__) tend toward payoff/climax.
-// Low-payoff corners (L__) tend toward exploration/open-endedness.
+// High-drive corners (H__) tend toward drive/climax.
+// Low-drive corners (L__) tend toward exploration/open-endedness.
 const OBJECTIVE_MULTIPLIERS: Record<string, Record<CubeCornerKey, number>> = {
   resolve_threads: {
     HHH: 1.4, HHL: 1.6, HLH: 1.0, HLL: 1.2,
@@ -201,14 +201,14 @@ function analyzeKnowledgeAsymmetries(
 
 // ── Composite tension from force snapshot ───────────────────────────────────
 function compositeTension(f: ForceSnapshot): number {
-  return f.payoff * 0.4 + f.change * 0.3 + f.knowledge * 0.3;
+  return f.drive * 0.4 + f.world * 0.3 + f.system * 0.3;
 }
 
 // ── Story trajectory ────────────────────────────────────────────────────────
 // Maps story progress (0–1) to a dramatic phase that shapes corner selection.
-// The key insight: human-written stories have SHAPE — they breathe, with payoff
-// and change oscillating across the zero line. Knowledge naturally declines as
-// the story narrows focus, but payoff and change MUST dip into negative
+// The key insight: human-written stories have SHAPE — they breathe, with drive
+// and world oscillating across the zero line. System naturally declines as
+// the story narrows focus, but drive and world MUST dip into negative
 // territory regularly to create contrast and quiet moments.
 
 export type StoryPhase = 'setup' | 'rising' | 'midpoint' | 'escalation' | 'climax' | 'resolution';
@@ -225,7 +225,7 @@ const STORY_PHASES: PhaseDefinition[] = [
   {
     name: 'setup',
     range: [0, 0.15],
-    description: 'Establishing the world and characters. Payoff should be low, change moderate, knowledge high. Plant seeds — do not harvest them.',
+    description: 'Establishing the world and characters. Drive should be low, world moderate, system high. Plant seeds — do not harvest them.',
     cornerBias: {
       LHH: 0.35, LLH: 0.3, LHL: 0.2, LLL: 0.1,  // exploration, discovery, routine
       HHH: -0.35, HHL: -0.3, HLH: -0.15,          // way too early for crisis
@@ -234,7 +234,7 @@ const STORY_PHASES: PhaseDefinition[] = [
   {
     name: 'rising',
     range: [0.15, 0.35],
-    description: 'Complications emerge and payoff begins to rise, but the story still breathes. Alternate tension-building scenes with quieter character moments. Payoff should cross zero — some high, some low.',
+    description: 'Complications emerge and drive begins to rise, but the story still breathes. Alternate tension-building scenes with quieter character moments. Drive should cross zero — some high, some low.',
     cornerBias: {
       HLH: 0.2, LHH: 0.15, HLL: 0.15, LHL: 0.1, LLL: 0.1,  // slow burn + exploration + breathers
       HHH: -0.25, HHL: -0.1,                                   // don't peak yet
@@ -243,7 +243,7 @@ const STORY_PHASES: PhaseDefinition[] = [
   {
     name: 'midpoint',
     range: [0.35, 0.50],
-    description: 'A significant shift — a revelation, betrayal, or escalation that redefines the conflict. One intense arc, then pull back to absorb the impact. Payoff and change should spike then dip.',
+    description: 'A significant shift — a revelation, betrayal, or escalation that redefines the conflict. One intense arc, then pull back to absorb the impact. Drive and world should spike then dip.',
     cornerBias: {
       HHL: 0.25, HLH: 0.15, LLL: 0.1,  // climactic moment then tension + recovery
       LLH: -0.1,                          // shouldn't wander aimlessly
@@ -252,7 +252,7 @@ const STORY_PHASES: PhaseDefinition[] = [
   {
     name: 'escalation',
     range: [0.50, 0.75],
-    description: 'Building toward the climax. Payoff trends upward but MUST still include valleys — quiet scenes between intense ones. Change should alternate between bursts and pauses.',
+    description: 'Building toward the climax. Drive trends upward but MUST still include valleys — quiet scenes between intense ones. World should alternate between bursts and pauses.',
     cornerBias: {
       HHL: 0.2, HLH: 0.2, HHH: 0.1, LLL: 0.1, HLL: 0.1,  // tension building + mandatory breathers
       LLH: -0.15,                                             // less wandering
@@ -271,7 +271,7 @@ const STORY_PHASES: PhaseDefinition[] = [
   {
     name: 'resolution',
     range: [0.90, 1.0],
-    description: 'Wind down and resolve remaining threads. Payoff and change should drop — the storm has passed. Focus on aftermath, character growth, and closure.',
+    description: 'Wind down and resolve remaining threads. Drive and world should drop — the storm has passed. Focus on aftermath, character growth, and closure.',
     cornerBias: {
       LLL: 0.35, LLH: 0.2, LHL: 0.2, HLL: 0.1,   // recovery and resolution
       HHH: -0.35, HHL: -0.25, LHH: -0.1,           // don't restart intensity
@@ -400,17 +400,17 @@ export function checkEndConditions(
 
 // ── Per-force saturation detection ───────────────────────────────────────────
 // Detects when individual forces are pinned at extremes, which composite
-// metrics like avgTension mask (e.g. payoff=1 + knowledge=-1 = "moderate").
+// metrics like avgTension mask (e.g. drive=1 + system=-1 = "moderate").
 type ForceSaturation = { saturated: boolean; direction: number };
 
 function detectForceSaturation(
   scenes: Scene[],
   forceMap: Record<string, ForceSnapshot>,
-): Record<'payoff' | 'change' | 'knowledge', ForceSaturation> {
-  const result: Record<'payoff' | 'change' | 'knowledge', ForceSaturation> = {
-    payoff: { saturated: false, direction: 0 },
-    change: { saturated: false, direction: 0 },
-    knowledge: { saturated: false, direction: 0 },
+): Record<'drive' | 'world' | 'system', ForceSaturation> {
+  const result: Record<'drive' | 'world' | 'system', ForceSaturation> = {
+    drive: { saturated: false, direction: 0 },
+    world: { saturated: false, direction: 0 },
+    system: { saturated: false, direction: 0 },
   };
   const window = scenes.slice(-FORCE_WINDOW_SIZE);
   if (window.length < 4) return result;
@@ -489,16 +489,16 @@ export function evaluateNarrativeState(
   const windowed = computeWindowedForces(scenes, scenes.length - 1);
   const forceMap = windowed.forceMap;
   const lastScene = scenes[scenes.length - 1];
-  const currentForce = (lastScene ? forceMap[lastScene.id] : null) ?? { payoff: 0, change: 0, knowledge: 0 };
+  const currentForce = (lastScene ? forceMap[lastScene.id] : null) ?? { drive: 0, world: 0, system: 0 };
   const currentCorner = detectCubeCorner(currentForce);
 
   // ── Swing analysis ────────────────────────────────────────────────────────
-  const recentForceSnapshots = scenes.slice(-FORCE_WINDOW_SIZE).map((s) => forceMap[s.id] ?? { payoff: 0, change: 0, knowledge: 0 });
+  const recentForceSnapshots = scenes.slice(-FORCE_WINDOW_SIZE).map((s) => forceMap[s.id] ?? { drive: 0, world: 0, system: 0 });
   const recentSwing = averageSwing(recentForceSnapshots, FORCE_WINDOW_SIZE);
 
   // ── Thread analysis ─────────────────────────────────────────────────────
   const activeThreads = threads.filter((t) => isActive(t.status));
-  const dormantThreads = threads.filter((t) => t.status.toLowerCase() === THREAD_ACTIVE_STATUSES[0]);
+  const latentThreads = threads.filter((t) => t.status.toLowerCase() === THREAD_ACTIVE_STATUSES[0]);
 
   const threadLastMutated: Record<string, number> = {};
   scenes.forEach((scene, idx) => {
@@ -522,7 +522,7 @@ export function evaluateNarrativeState(
 
   // ── Post-climax detection ─────────────────────────────────────────────
   const recentWindow = scenes.slice(-FORCE_WINDOW_SIZE);
-  const recentForces = recentWindow.map((s) => forceMap[s.id] ?? { payoff: 0, change: 0, knowledge: 0 });
+  const recentForces = recentWindow.map((s) => forceMap[s.id] ?? { drive: 0, world: 0, system: 0 });
   const isPostClimax = recentForces.length >= 3 &&
     compositeTension(recentForces[0]) > 0.75 &&
     compositeTension(recentForces[recentForces.length - 1]) - compositeTension(recentForces[0]) < -0.15;
@@ -573,10 +573,10 @@ export function evaluateNarrativeState(
 
   for (const key of ALL_CORNERS) {
     const corner = NARRATIVE_CUBE[key];
-    const isHighPayoff = corner.forces.payoff > 0;
-    const isHighChange = corner.forces.change > 0;
-    const isLowChange = corner.forces.change < 0;
-    const isHighKnowledge = corner.forces.knowledge > 0;
+    const isHighDrive = corner.forces.drive > 0;
+    const isHighWorld = corner.forces.world > 0;
+    const isLowWorld = corner.forces.world < 0;
+    const isHighKnowledge = corner.forces.system > 0;
 
     // Eliminated corners get a floor score — they can only win if nothing else works
     if (!eligibleCorners.has(key)) {
@@ -608,56 +608,56 @@ export function evaluateNarrativeState(
     const recentCount = cornerRepetition[key] ?? 0;
     if (recentCount >= 2) {
       score -= 0.15 * (recentCount - 1);
-      reasons.push(`picked ${recentCount}x in recent arcs — needs knowledge`);
+      reasons.push(`picked ${recentCount}x in recent arcs — needs system`);
     }
 
     // ── 3. Thread-driven signals ────────────────────────────────────────
     // These are now GATED by saturation: thread signals that push in the
     // same direction as a saturated force are suppressed.
-    const payoffNotSaturatedHigh = !forceSaturation.payoff.saturated || forceSaturation.payoff.direction !== 1;
-    const changeNotSaturatedLow = !forceSaturation.change.saturated || forceSaturation.change.direction !== -1;
+    const driveNotSaturatedHigh = !forceSaturation.drive.saturated || forceSaturation.drive.direction !== 1;
+    const worldNotSaturatedLow = !forceSaturation.world.saturated || forceSaturation.world.direction !== -1;
 
-    // Too many active threads → favor resolution, but NOT if payoff already saturated high
-    if (activeThreads.length > config.maxActiveThreads && isHighPayoff && payoffNotSaturatedHigh) {
+    // Too many active threads → favor resolution, but NOT if drive already saturated high
+    if (activeThreads.length > config.maxActiveThreads && isHighDrive && driveNotSaturatedHigh) {
       score += 0.2;
       reasons.push(`${activeThreads.length} active threads need resolution`);
-    } else if (activeThreads.length > config.maxActiveThreads && isHighChange) {
-      // Redirect thread pressure to change instead when payoff is saturated
+    } else if (activeThreads.length > config.maxActiveThreads && isHighWorld) {
+      // Redirect thread pressure to world instead when drive is saturated
       score += 0.15;
-      reasons.push(`${activeThreads.length} active threads — change can advance them`);
+      reasons.push(`${activeThreads.length} active threads — world can advance them`);
     }
 
-    // Stagnant threads → change, but gate if change is already saturated low
-    if (stagnantThreads.length > 0 && isHighChange && changeNotSaturatedLow) {
+    // Stagnant threads → world, but gate if world is already saturated low
+    if (stagnantThreads.length > 0 && isHighWorld && worldNotSaturatedLow) {
       score += 0.15;
       reasons.push(`${stagnantThreads.length} stagnant threads need movement`);
     }
 
-    // Dormant threads → knowledge
-    if (dormantThreads.length > 2 && isHighKnowledge) {
+    // Latent threads → system
+    if (latentThreads.length > 2 && isHighKnowledge) {
       score += 0.1;
-      reasons.push(`${dormantThreads.length} dormant threads — knowledge can surface them`);
+      reasons.push(`${latentThreads.length} latent threads — system can surface them`);
     }
 
-    // Primed threads → resolution, gated by payoff saturation
-    if (primedThreads.length > 0 && isHighPayoff && payoffNotSaturatedHigh) {
+    // Primed threads → resolution, gated by drive saturation
+    if (primedThreads.length > 0 && isHighDrive && driveNotSaturatedHigh) {
       const boost = Math.min(0.35, primedThreads.length * 0.12);
       score += boost;
       reasons.push(`${primedThreads.length} thread(s) primed for resolution`);
-    } else if (primedThreads.length > 0 && isHighChange) {
-      // Can still resolve through change-driven payoff
+    } else if (primedThreads.length > 0 && isHighWorld) {
+      // Can still resolve through world-driven drive
       score += 0.1;
-      reasons.push(`${primedThreads.length} primed thread(s) — change can deliver payoff`);
+      reasons.push(`${primedThreads.length} primed thread(s) — world can deliver drive`);
     }
 
-    // Knowledge asymmetries → revelation, favor knowledge over payoff when payoff saturated
+    // Knowledge asymmetries → revelation, favor system over drive when drive saturated
     if (hasHighDramaOpportunities) {
       if (isHighKnowledge) {
         score += 0.2;
-        reasons.push('knowledge asymmetries — knowledge creates revelation opportunities');
-      } else if (isHighPayoff && payoffNotSaturatedHigh) {
+        reasons.push('knowledge asymmetries — system creates revelation opportunities');
+      } else if (isHighDrive && driveNotSaturatedHigh) {
         score += 0.15;
-        reasons.push('knowledge asymmetries — payoff can force confrontation');
+        reasons.push('knowledge asymmetries — drive can force confrontation');
       }
     }
 
@@ -680,14 +680,14 @@ export function evaluateNarrativeState(
       if (key === 'LLL' || key === 'LLH' || key === 'LHL') {
         score += 0.4;
         reasons.push('post-climax recovery');
-      } else if (isHighPayoff && isHighChange) {
+      } else if (isHighDrive && isHighWorld) {
         score *= 0.2;
         reasons.push('suppressed post-climax');
       }
     }
 
     // ── 6. Neglected characters ─────────────────────────────────────────
-    if (neglectedAnchors.length > 0 && isLowChange) {
+    if (neglectedAnchors.length > 0 && isLowWorld) {
       score += 0.1;
       reasons.push(`${neglectedAnchors.length} neglected anchors — good for character focus`);
     }
@@ -763,13 +763,13 @@ export function pickArcLength(config: AutoConfig, action: AutoAction): number {
   const corner = NARRATIVE_CUBE[action];
   const f = corner.forces;
 
-  // High change → longer arcs (more scenes to carry the pace)
-  // Low change → shorter arcs (brief, contemplative)
-  // High payoff → medium-long (need scenes to build/release payoff)
-  if (f.change > 0 && f.payoff > 0) {
+  // High world → longer arcs (more scenes to carry the pace)
+  // Low world → shorter arcs (brief, contemplative)
+  // High drive → medium-long (need scenes to build/release drive)
+  if (f.world > 0 && f.drive > 0) {
     // High energy corners (HHH, HHL) — full arcs
     return config.maxArcLength;
-  } else if (f.change < 0 && f.payoff < 0) {
+  } else if (f.world < 0 && f.drive < 0) {
     // Low energy corners (LLL, LLH) — brief interludes
     return config.minArcLength;
   } else {
@@ -796,7 +796,7 @@ export type DirectiveContext = {
   stagnantThreads: Thread[];
   primedThreads: ThreadMaturity[];
   continuityOpportunities: KnowledgeOpportunity[];
-  forceSaturation: Record<'payoff' | 'change' | 'knowledge', ForceSaturation>;
+  forceSaturation: Record<'drive' | 'world' | 'system', ForceSaturation>;
   recentSwing: number;
   storyProgress: number;
   storyPhase: { name: StoryPhase; description: string };
@@ -845,17 +845,17 @@ export function buildOutlineDirective(
 
 /** Build LLM correction text from pre-computed saturation results */
 function buildForceBalanceClause(
-  saturation: Record<'payoff' | 'change' | 'knowledge', ForceSaturation>,
+  saturation: Record<'drive' | 'world' | 'system', ForceSaturation>,
 ): string {
   const HIGH_CORRECTIONS: Record<string, string> = {
-    payoff: 'Payoff has been at maximum for too long. Write scenes where immediate danger recedes — characters regroup, reflect, or shift focus to personal/interpersonal matters rather than existential threats. Use low-payoff thread mutations.',
-    change: 'Change has been relentlessly fast. Slow down — write contemplative, dialogue-heavy scenes. Let characters process events instead of rushing to the next plot point.',
-    knowledge: 'Knowledge has been too high for too long. Ground the narrative — return to familiar locations and established character dynamics instead of constantly introducing new elements.',
+    drive: 'Drive has been at maximum for too long. Write scenes where immediate danger recedes — characters regroup, reflect, or shift focus to personal/interpersonal matters rather than existential threats. Use low-drive thread mutations.',
+    world: 'World has been relentlessly fast. Slow down — write contemplative, dialogue-heavy scenes. Let characters process events instead of rushing to the next plot point.',
+    system: 'System has been too high for too long. Ground the narrative — return to familiar locations and established character dynamics instead of constantly introducing new elements.',
   };
   const LOW_CORRECTIONS: Record<string, string> = {
-    payoff: 'Payoff has been too low for too long. Introduce genuine consequences — a betrayal, a threat, a revelation that changes everything. Characters should face real risk.',
-    change: 'Change has stagnated. Inject urgency — time pressure, pursuit, rapid developments. Move characters into action instead of contemplation.',
-    knowledge: 'Knowledge has collapsed — the story feels repetitive. Shift perspective, introduce an unexpected character, change location, or subvert an established pattern. Break the routine.',
+    drive: 'Drive has been too low for too long. Introduce genuine consequences — a betrayal, a threat, a revelation that changes everything. Characters should face real risk.',
+    world: 'World has stagnated. Inject urgency — time pressure, pursuit, rapid developments. Move characters into action instead of contemplation.',
+    system: 'System has collapsed — the story feels repetitive. Shift perspective, introduce an unexpected character, change location, or subvert an established pattern. Break the routine.',
   };
 
   const corrections: string[] = [];

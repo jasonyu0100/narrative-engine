@@ -14,9 +14,9 @@ const gradeColor = (v: number, max: number) => {
 };
 
 const FORCES = [
-  { key: 'payoff' as const, label: 'Payoff', color: '#EF4444' },
-  { key: 'change' as const, label: 'Change', color: '#22C55E' },
-  { key: 'knowledge' as const, label: 'Knowledge', color: '#3B82F6' },
+  { key: 'drive' as const, label: 'Drive', color: '#EF4444' },
+  { key: 'world' as const, label: 'World', color: '#22C55E' },
+  { key: 'system' as const, label: 'System', color: '#3B82F6' },
   { key: 'swing' as const, label: 'Swing', color: '#FACC15' },
 ];
 
@@ -30,9 +30,9 @@ export function ReportCardSlide({ data }: { data: SlidesData }) {
     return Math.sqrt(arr.reduce((s, v) => s + (v - mean) ** 2, 0) / arr.length);
   };
   const stats = {
-    payoff: { avg: raw.payoff.reduce((s, v) => s + v, 0) / n, peak: Math.max(...raw.payoff), total: raw.payoff.reduce((s, v) => s + v, 0), sd: stdDev(raw.payoff) },
-    change: { avg: raw.change.reduce((s, v) => s + v, 0) / n, peak: Math.max(...raw.change), total: raw.change.reduce((s, v) => s + v, 0), sd: stdDev(raw.change) },
-    knowledge: { avg: raw.knowledge.reduce((s, v) => s + v, 0) / n, peak: Math.max(...raw.knowledge), total: raw.knowledge.reduce((s, v) => s + v, 0), sd: stdDev(raw.knowledge) },
+    drive: { avg: raw.drive.reduce((s, v) => s + v, 0) / n, peak: Math.max(...raw.drive), total: raw.drive.reduce((s, v) => s + v, 0), sd: stdDev(raw.drive) },
+    world: { avg: raw.world.reduce((s, v) => s + v, 0) / n, peak: Math.max(...raw.world), total: raw.world.reduce((s, v) => s + v, 0), sd: stdDev(raw.world) },
+    system: { avg: raw.system.reduce((s, v) => s + v, 0) / n, peak: Math.max(...raw.system), total: raw.system.reduce((s, v) => s + v, 0), sd: stdDev(raw.system) },
     swing: { avg: data.swings.reduce((s, v) => s + v, 0) / data.swings.length, peak: Math.max(...data.swings), total: data.swings.reduce((s, v) => s + v, 0), sd: stdDev(data.swings) },
   };
 

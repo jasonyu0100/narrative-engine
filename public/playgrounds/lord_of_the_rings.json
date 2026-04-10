@@ -259,7 +259,7 @@
       "threadMutations": [
         {
           "threadId": "T-LOTR-02",
-          "from": "dormant",
+          "from": "latent",
           "to": "active"
         }
       ],
@@ -336,7 +336,7 @@
       "threadMutations": [
         {
           "threadId": "T-LOTR-05",
-          "from": "dormant",
+          "from": "latent",
           "to": "active"
         }
       ],
@@ -412,8 +412,8 @@
       "threadMutations": [
         {
           "threadId": "T-LOTR-07",
-          "from": "dormant",
-          "to": "dormant"
+          "from": "latent",
+          "to": "latent"
         }
       ],
       "continuityMutations": [
@@ -473,7 +473,7 @@
       "threadMutations": [
         {
           "threadId": "T-LOTR-01",
-          "from": "dormant",
+          "from": "latent",
           "to": "active"
         }
       ],
@@ -567,7 +567,7 @@
       "threadMutations": [
         {
           "threadId": "T-LOTR-07",
-          "from": "dormant",
+          "from": "latent",
           "to": "active"
         }
       ],
@@ -667,7 +667,7 @@
         {
           "threadId": "T-LOTR-02",
           "from": "active",
-          "to": "escalating"
+          "to": "active"
         }
       ],
       "continuityMutations": [
@@ -744,7 +744,7 @@
         {
           "threadId": "T-LOTR-01",
           "from": "active",
-          "to": "escalating"
+          "to": "active"
         }
       ],
       "continuityMutations": [
@@ -903,7 +903,7 @@
         {
           "threadId": "T-LOTR-07",
           "from": "active",
-          "to": "escalating"
+          "to": "active"
         }
       ],
       "continuityMutations": [
@@ -990,7 +990,7 @@
       "threadMutations": [
         {
           "threadId": "T-LOTR-03",
-          "from": "dormant",
+          "from": "latent",
           "to": "active"
         }
       ],
@@ -1191,7 +1191,7 @@
         {
           "threadId": "T-LOTR-02",
           "from": "active",
-          "to": "escalating"
+          "to": "active"
         }
       ],
       "continuityMutations": [
@@ -1389,7 +1389,7 @@
         {
           "threadId": "T-LOTR-05",
           "from": "active",
-          "to": "escalating"
+          "to": "active"
         }
       ],
       "continuityMutations": [
@@ -2120,7 +2120,7 @@
               }
             ],
             "description": "The burden of the Ring \u2014 its corruption seeps into every mind that touches it, promising power, whispering dominion, turning love into possession",
-            "status": "dormant",
+            "status": "latent",
             "openedAt": "S-LOTR-001",
             "dependents": [
               "T-LOTR-02",
@@ -2140,7 +2140,7 @@
               }
             ],
             "description": "Frodo's transformation \u2014 from a gentle hobbit of the Shire into a Ring-bearer scarred by a burden no mortal was meant to carry",
-            "status": "dormant",
+            "status": "latent",
             "openedAt": "S-LOTR-001",
             "dependents": []
           },
@@ -2153,7 +2153,7 @@
               }
             ],
             "description": "Aragorn's hidden kingship \u2014 Isildur's heir walks as a Ranger, bearing the weight of a lineage that both commands and condemns him",
-            "status": "dormant",
+            "status": "latent",
             "openedAt": "S-LOTR-004",
             "dependents": []
           },
@@ -2170,7 +2170,7 @@
               }
             ],
             "description": "The Fellowship's unity and fracture \u2014 nine walkers bound by oath, pulled apart by the Ring's will and the separate griefs they carry",
-            "status": "dormant",
+            "status": "latent",
             "openedAt": "S-LOTR-006",
             "dependents": [
               "T-LOTR-06"
@@ -2189,7 +2189,7 @@
               }
             ],
             "description": "Saruman's betrayal and Isengard's corruption \u2014 the White Wizard fallen, breeding armies in the caverns beneath Orthanc, reaching for the Ring",
-            "status": "dormant",
+            "status": "latent",
             "openedAt": "S-LOTR-003",
             "dependents": [
               "T-LOTR-01"
@@ -2204,7 +2204,7 @@
               }
             ],
             "description": "Boromir's internal struggle \u2014 a good man undone by love for his city and the Ring's whispered promise that he alone can save it",
-            "status": "dormant",
+            "status": "latent",
             "openedAt": "S-LOTR-007",
             "dependents": []
           },
@@ -2221,7 +2221,7 @@
               }
             ],
             "description": "The road to Mordor \u2014 the quest itself, each step south a step closer to the fire and the end of all things or the saving of them",
-            "status": "dormant",
+            "status": "latent",
             "openedAt": "S-LOTR-002",
             "dependents": [
               "T-LOTR-01",

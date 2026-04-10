@@ -111,16 +111,16 @@ For EACH scene, assign a verdict. These map to concrete operations:
 - "edit" — scene should exist but needs revision. You may change ANYTHING: POV, location, participants, summary, events, mutations. Use for: wrong POV for this moment, repetitive beats that need variation, weak execution, continuity breaks, scenes that need restructuring while keeping their place in the timeline.
 - "merge" — this scene covers the same beat as another and should be ABSORBED into the stronger one. You MUST specify "mergeInto" with the target scene ID. The two become one denser scene. Use when two scenes advance the same thread with similar dramatic shape.
 - "cut" — scene is redundant and adds nothing. The story is tighter without it.
-- "move" — scene content is correct but it is in the wrong position. You MUST specify "moveAfter" with the scene ID it should follow. The scene is lifted from its current position and re-planted there with NO content changes. Use for sequencing adjustments: a scene that reveals information too early, a payoff arriving before its setup, an out-of-order character introduction. Combine with "edit" by using "move" on the scene and a separate "edit" if content also needs changing.
+- "move" — scene content is correct but it is in the wrong position. You MUST specify "moveAfter" with the scene ID it should follow. The scene is lifted from its current position and re-planted there with NO content changes. Use for sequencing adjustments: a scene that reveals information too early, a drive arriving before its setup, an out-of-order character introduction. Combine with "edit" by using "move" on the scene and a separate "edit" if content also needs changing.
 - "insert" — a new scene should be CREATED at this position to fill a pacing gap, advance a stalled thread, or add a missing beat. You MUST specify "insertAfter" with the scene ID it should follow, or "START" to insert before the very first scene. The "reason" field is the generation brief: describe what happens, who is involved, the location, which threads advance, and any specific beats. The "sceneId" should be a placeholder like "INSERT-1", "INSERT-2", etc.
 
 STRUCTURAL OPERATIONS GUIDE:
 - If 5 scenes cover the same beat: keep the strongest as "ok", merge 1-2 into it, cut the rest.
 - If a thread has 8 scenes but only 3 distinct beats: merge within each beat, cut the remainder.
 - If a scene is premature but otherwise good: use "move" to place it after the scene that sets it up.
-- If a payoff arrives before its setup: "move" the payoff to after the setup scene.
+- If a drive arrives before its setup: "move" the drive to after the setup scene.
 - If a scene needs to be BOTH moved AND revised: "move" it to the right position, and also mark it "edit" — wait, these are separate verdicts. Instead: move it, and in the reason note that content also needs changing so the editor can apply a follow-up edit pass.
-- If there is a missing transition, an unearned payoff, or a thread that needs setup before it pays off: insert a new scene at the right position.
+- If there is a missing transition, an unearned drive, or a thread that needs setup before it pays off: insert a new scene at the right position.
 - "mergeInto" must reference a scene that is NOT itself cut/merged/moved.
 - "moveAfter" must reference a scene that is NOT itself being cut/merged. It can reference an INSERT placeholder ID if the scene should follow a newly inserted scene.
 - Prefer merge over cut when the weaker scene has unique content worth absorbing.
@@ -562,30 +562,13 @@ export async function refreshDirection(
   const scenesRemaining = phase.sceneAllocation - phase.scenesCompleted;
   const avgArcSize = 4; // typical arc length
   const estimatedArcsRemaining = Math.max(1, Math.ceil(scenesRemaining / avgArcSize));
-  const speed = narrative.storySettings?.threadResolutionSpeed ?? DEFAULT_STORY_SETTINGS.threadResolutionSpeed;
-  const threadHealthBlock = buildThreadHealthPrompt(narrative, resolvedKeys, currentIndex, speed);
+  const threadHealthBlock = buildThreadHealthPrompt(narrative, resolvedKeys, currentIndex);
 
-  // Speed-specific pacing directives
-  const PACING_DIRECTIVES: Record<string, string> = {
-    fast: `PACING MODE: FAST — This is a thriller. The thread velocity report above is your dashboard.
-- Threads over the benchmark MUST transition or resolve in the next arc. No exceptions.
-- Every arc should push at least 2 threads forward by one phase. Zero-progress arcs are failures.
-- If a thread has a high pulse ratio (being touched but not transitioning), force a transition NOW — either escalate it or kill it.
-- Prioritise resolution: threads at "critical" should reach terminal status. Threads at "escalating" should hit "critical".
-- Name specific threads that need to transition and what their target status should be.`,
-
-    moderate: `PACING MODE: BALANCED — Steady progression matching published literature.
-- Threads over the benchmark need attention — push them forward or consciously let them breathe for one more arc with justification.
-- Each arc should advance at least 1 thread by one phase. Arcs that only pulse threads without transitions are losing momentum.
-- Balance development with payoff: if the last 2 arcs were buildup, the next should deliver at least one transition to a higher phase.
-- Name threads that are closest to their next transition and what should trigger it.`,
-
-    slow: `PACING MODE: SLOW BURN — Threads develop gradually but must still progress.
-- Threads well over the benchmark need a transition — even slow burns can't stagnate indefinitely.
-- Each arc should deepen at least 1-2 threads through meaningful interaction, even if the status doesn't change. But if a thread has gone 15+ scenes without a transition, push it.
-- Favour earned transitions over forced ones — the reader should feel the shift was inevitable, not arbitrary.
-- Name threads that are ripe for their next phase and what would make the transition feel organic.`,
-  };
+  const PACING_DIRECTIVE = `PACING — Bandwidth-based thread management.
+- Threads with low activeArcs relative to total arcs are starved — prioritise them for bandwidth in the next arc.
+- Each arc should advance at least 1 thread by one lifecycle phase. Arcs that only pulse threads are losing momentum.
+- Threads at critical MUST resolve soon. Threads at latent/seeded that remain stale should be discarded or advanced.
+- Name specific threads that need bandwidth and what their target lifecycle phase should be.`;
 
   // Build phase progress block showing what's been completed
   let phaseProgressBlock = '';
@@ -681,9 +664,9 @@ ${threadHealthBlock}
 
 ${buildCompletedBeatsPrompt(narrative, resolvedKeys, currentIndex)}
 
-${PACING_DIRECTIVES[speed] ?? PACING_DIRECTIVES.moderate}
+${PACING_DIRECTIVE}
 
-Review the scene history and thread velocity report through these lenses:
+Review the scene history and thread bandwidth report through these lenses:
 
 1. THREAD COMPRESSION AUDIT — For EACH active thread, answer:
    a) How many scenes has this thread appeared in so far?
@@ -693,7 +676,7 @@ Review the scene history and thread velocity report through these lenses:
    e) Therefore, how many MORE scenes should this thread appear in? (Answer: same as beats remaining, plus at most 1 setup scene.)
    Name each thread, its ratio, and its scene budget for the next arc. If a thread's ratio is worse than 3:1, the direction MUST either compress it (force a transition) or cut it from the next arc entirely.
 
-2. THREAD VELOCITY — Study the velocity report above. Which threads are over the benchmark? Which have high pulse ratios? Name specific threads, their current status, and what the next arc should do with them.
+2. THREAD BANDWIDTH — Study the bandwidth report above. Which threads have low activeArcs relative to total arcs? Which are starved? Name specific threads, their lifecycle stage, and whether they need bandwidth allocation, advancement, or discarding.
 
 3. CHARACTER COST — Has the protagonist faced a genuine setback they didn't choose? Have secondary characters changed or are they stuck in loops? Name who needs to change and how.
 
@@ -705,7 +688,7 @@ Review the scene history and thread velocity report through these lenses:
 
 7. ARTIFACTS — Are any existing artifacts being ignored or underused? Should one change hands?
 
-8. STRUCTURAL COMPLIANCE — Audit the recent scenes against the STRUCTURAL RULES above (if any). Are convergence requirements being met? Is payoff density on target? Are scene functions varied or repeating? Is protagonist gravity maintained? Name specific violations and what the next arc must do to correct them.
+8. STRUCTURAL COMPLIANCE — Audit the recent scenes against the STRUCTURAL RULES above (if any). Are convergence requirements being met? Is drive density on target? Are scene functions varied or repeating? Is protagonist gravity maintained? Name specific violations and what the next arc must do to correct them.
 
 9. THREAD COLLISION OPPORTUNITIES — Which threads share characters, locations, or resources? The next arc's direction should specify at least one scene where two threads collide — characters from different subplots in the same location, forced to deal with each other. This is how you compress: instead of Thread A getting 3 scenes and Thread B getting 3 scenes, you get 3-4 scenes where both advance simultaneously.
 

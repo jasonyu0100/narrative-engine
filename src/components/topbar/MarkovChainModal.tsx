@@ -104,7 +104,7 @@ type MatrixMetrics = {
   entropy: number;
   maxEntropy: number;
   selfLoopRate: number;
-  payoffFrac: number;
+  driveFrac: number;
   buildupFrac: number;
   observations: string[];
   oscillationPairs: { a: CubeCornerKey; b: CubeCornerKey; strength: number }[];
@@ -127,9 +127,9 @@ function computeMatrixMetrics(
   }
   const selfLoopRate = selfLoops / Math.max(sequence.length - 1, 1);
 
-  const payoffModes: CubeCornerKey[] = ['HHH', 'HHL', 'HLH', 'HLL'];
-  const payoffFrac = payoffModes.reduce((s, c) => s + (stationary[c] ?? 0), 0);
-  const buildupFrac = 1 - payoffFrac;
+  const driveModes: CubeCornerKey[] = ['HHH', 'HHL', 'HLH', 'HLL'];
+  const driveFrac = driveModes.reduce((s, c) => s + (stationary[c] ?? 0), 0);
+  const buildupFrac = 1 - driveFrac;
 
   const bigrams: Record<string, number> = {};
   for (let i = 0; i < sequence.length - 1; i++) {
@@ -168,7 +168,7 @@ function computeMatrixMetrics(
     observations.push(`${NARRATIVE_CUBE[p.a].name} ↔ ${NARRATIVE_CUBE[p.b].name} oscillation (${p.strength}×).`);
   }
 
-  return { entropy, maxEntropy, selfLoopRate, payoffFrac, buildupFrac, observations, oscillationPairs: oscillationPairs.slice(0, 3) };
+  return { entropy, maxEntropy, selfLoopRate, driveFrac, buildupFrac, observations, oscillationPairs: oscillationPairs.slice(0, 3) };
 }
 
 // ── Graph Layout ─────────────────────────────────────────────────────────────
@@ -333,7 +333,7 @@ export function MarkovChainModal({ narrative, resolvedKeys, currentSceneIndex, o
     }
 
     const snapshots = computeForceSnapshots(scenes);
-    const scenesWithForces = scenes.map((s) => ({ id: s.id, forces: snapshots[s.id] || { payoff: 0, change: 0, knowledge: 0 } }));
+    const scenesWithForces = scenes.map((s) => ({ id: s.id, forces: snapshots[s.id] || { drive: 0, world: 0, system: 0 } }));
     const mat = buildTransitionMatrix(scenesWithForces);
     const seq = cornerSequence(scenesWithForces);
     const stat = stationaryDistribution(mat);
@@ -404,11 +404,11 @@ export function MarkovChainModal({ narrative, resolvedKeys, currentSceneIndex, o
               pct={metrics.selfLoopRate * 100} color="bg-amber-500/70" />
             <div>
               <div className="flex justify-between text-[11px] mb-0.5">
-                <span className="text-text-dim">Payoff / Buildup</span>
-                <span className="text-text-primary tabular-nums">{(metrics.payoffFrac * 100).toFixed(0)}% / {(metrics.buildupFrac * 100).toFixed(0)}%</span>
+                <span className="text-text-dim">Drive / Buildup</span>
+                <span className="text-text-primary tabular-nums">{(metrics.driveFrac * 100).toFixed(0)}% / {(metrics.buildupFrac * 100).toFixed(0)}%</span>
               </div>
               <div className="w-full h-1.5 rounded-full bg-white/5 overflow-hidden flex">
-                <div className="h-full bg-red-500/70" style={{ width: `${metrics.payoffFrac * 100}%` }} />
+                <div className="h-full bg-red-500/70" style={{ width: `${metrics.driveFrac * 100}%` }} />
                 <div className="h-full bg-blue-500/70" style={{ width: `${metrics.buildupFrac * 100}%` }} />
               </div>
             </div>

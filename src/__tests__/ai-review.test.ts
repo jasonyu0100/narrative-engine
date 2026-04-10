@@ -87,6 +87,7 @@ function createThread(id: string, overrides: Partial<Thread> = {}): Thread {
     participants: [],
     dependents: [],
     openedAt: 's1',
+    threadLog: { nodes: {}, edges: [] },
     ...overrides,
   };
 }

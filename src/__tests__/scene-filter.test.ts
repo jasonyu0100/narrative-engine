@@ -23,7 +23,7 @@ function createWorldBuild(
     expansionManifest: {
       characters: characters.map((c) => ({ id: c.id, name: `Char ${c.id}`, role: 'anchor' as const, continuity: { nodes: {}, edges: [] }, threadIds: [] })),
       locations: locations.map((l) => ({ id: l.id, name: `Loc ${l.id}`, prominence: 'place' as const, parentId: null, tiedCharacterIds: [] as string[], continuity: { nodes: {}, edges: [] }, threadIds: [] })),
-      threads: threads.map((t) => ({ id: t.id, description: `Thread ${t.id}`, status: 'dormant' as const, participants: [], dependents: [], openedAt: 'S-001' })),
+      threads: threads.map((t) => ({ id: t.id, description: `Thread ${t.id}`, status: 'latent' as const, participants: [], dependents: [], openedAt: 'S-001', threadLog: { nodes: {}, edges: [] } })),
       artifacts: artifacts.map((a) => ({ id: a.id, name: `Artifact ${a.id}`, significance: 'key' as const, parentId: 'C-01', continuity: { nodes: {}, edges: [] }, threadIds: [] })),
       relationships: [],
       worldKnowledge: { addedNodes: [], addedEdges: [] },
@@ -306,14 +306,16 @@ describe('getThreadIdsAtScene', () => {
         openedAt: 'WB-01',
         dependents: [],
         participants: [],
+        threadLog: { nodes: {}, edges: [] },
       },
       'T-02': {
         id: 'T-02',
         description: 'Desc 2',
-        status: 'dormant',
+        status: 'latent',
         openedAt: 'S-002',
         dependents: [],
         participants: [],
+        threadLog: { nodes: {}, edges: [] },
       },
     };
     const resolvedKeys = ['WB-01', 'S-001', 'S-002'];
@@ -336,6 +338,7 @@ describe('getThreadIdsAtScene', () => {
         openedAt: 'UNKNOWN-KEY',
         dependents: [],
         participants: [],
+        threadLog: { nodes: {}, edges: [] },
       },
     };
     const resolvedKeys = ['WB-01', 'S-001'];

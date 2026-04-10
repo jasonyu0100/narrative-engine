@@ -199,7 +199,7 @@ export default function CharacterDetail({ characterId }: Props) {
                   <span className="text-xs text-text-secondary">
                     <span className="text-text-dim">{tm.from}</span>
                     {' \u2192 '}
-                    <span className="text-payoff">{tm.to}</span>
+                    <span className="text-drive">{tm.to}</span>
                   </span>
                 </li>
               ))}
@@ -212,7 +212,7 @@ export default function CharacterDetail({ characterId }: Props) {
               {recentContinuityMuts.flatMap((km, kmIdx) =>
                 (km.addedNodes ?? []).map((node, nIdx) => (
                   <li key={`${node.id}-${kmIdx}-${nIdx}`} className="flex items-start gap-1">
-                    <span className="shrink-0 text-change">+</span>
+                    <span className="shrink-0 text-world">+</span>
                     <span className="text-xs text-text-secondary">{node.content}</span>
                   </li>
                 ))
@@ -228,7 +228,7 @@ export default function CharacterDetail({ characterId }: Props) {
                 const otherName = narrative.characters[otherId]?.name ?? otherId;
                 return (
                   <li key={`${rm.from}-${rm.to}-${rmIdx}`} className="text-xs text-text-secondary">
-                    <span className={rm.valenceDelta >= 0 ? 'text-change' : 'text-payoff'}>
+                    <span className={rm.valenceDelta >= 0 ? 'text-world' : 'text-drive'}>
                       {rm.valenceDelta > 0 ? '+' : ''}{rm.valenceDelta}
                     </span>{' '}
                     {otherName}: {rm.type}
@@ -400,7 +400,7 @@ export default function CharacterDetail({ characterId }: Props) {
                           <div className="absolute top-0 bottom-0 rounded-l-full" style={{ width: `${pct / 2}%`, right: '50%', backgroundColor: '#EF4444' }} />
                         )}
                       </div>
-                      <span className={`text-[10px] font-mono w-6 text-right ${isPositive ? 'text-change' : isNegative ? 'text-payoff' : 'text-text-dim'}`}>
+                      <span className={`text-[10px] font-mono w-6 text-right ${isPositive ? 'text-world' : isNegative ? 'text-drive' : 'text-text-dim'}`}>
                         {rel.valence > 0 ? '+' : ''}{Number(rel.valence.toFixed(2))}
                       </span>
                     </div>
@@ -436,7 +436,7 @@ export default function CharacterDetail({ characterId }: Props) {
                   {continuityMuts.flatMap((km, kmIdx) =>
                     (km.addedNodes ?? []).map((node, nIdx) => (
                       <span key={`${node.id}-${kmIdx}-${nIdx}`} className="text-xs text-text-secondary">
-                        <span className="text-change">+</span>{' '}
+                        <span className="text-world">+</span>{' '}
                         {node.content}
                       </span>
                     ))
@@ -446,7 +446,7 @@ export default function CharacterDetail({ characterId }: Props) {
                     const otherName = narrative.characters[otherId]?.name ?? otherId;
                     return (
                       <span key={`${rm.from}-${rm.to}-${rmIdx}`} className="text-xs text-text-secondary">
-                        <span className={rm.valenceDelta >= 0 ? 'text-change' : 'text-payoff'}>
+                        <span className={rm.valenceDelta >= 0 ? 'text-world' : 'text-drive'}>
                           {rm.valenceDelta > 0 ? '+' : ''}{rm.valenceDelta}
                         </span>{' '}
                         {otherName}: {rm.type}

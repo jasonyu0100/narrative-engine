@@ -785,7 +785,7 @@ export function PlanningQueueEditor({ onClose, onStartAuto }: Props) {
               Reset Progress
             </button>
             <button onClick={handleClear}
-              className="px-4 text-xs font-medium py-2 rounded-lg text-payoff hover:bg-white/6 transition-colors">
+              className="px-4 text-xs font-medium py-2 rounded-lg text-drive hover:bg-white/6 transition-colors">
               Remove Queue
             </button>
           </>

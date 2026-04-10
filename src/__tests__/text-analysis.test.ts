@@ -686,11 +686,11 @@ describe('reconcileResults', () => {
     }];
 
     const reconciled = await reconcileResults(results);
-    // 'inactive' → 'dormant', 'developing' → 'active'
-    expect(reconciled[0].threads[0].statusAtStart).toBe('dormant');
-    expect(reconciled[0].threads[0].statusAtEnd).toBe('active');
-    expect(reconciled[0].scenes[0].threadMutations[0].from).toBe('dormant');
-    expect(reconciled[0].scenes[0].threadMutations[0].to).toBe('active');
+    // 'inactive' → 'latent', 'developing' → 'seeded'
+    expect(reconciled[0].threads[0].statusAtStart).toBe('latent');
+    expect(reconciled[0].threads[0].statusAtEnd).toBe('seeded');
+    expect(reconciled[0].scenes[0].threadMutations[0].from).toBe('latent');
+    expect(reconciled[0].scenes[0].threadMutations[0].to).toBe('seeded');
   });
 
   it('deduplicates characters within same chunk by name', async () => {

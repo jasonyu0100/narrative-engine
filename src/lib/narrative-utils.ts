@@ -1,4 +1,4 @@
-import type { Branch, NarrativeState, Scene, ThreadStatus, ForceSnapshot, CubeCornerKey, CubeCorner, WorldKnowledgeGraph, WorldKnowledgeNode, WorldKnowledgeEdge, WorldKnowledgeMutation, WorldBuild } from '@/types/narrative';
+import type { Branch, NarrativeState, Scene, Thread, ThreadStatus, ForceSnapshot, CubeCornerKey, CubeCorner, WorldKnowledgeGraph, WorldKnowledgeNode, WorldKnowledgeEdge, WorldKnowledgeMutation, WorldBuild } from '@/types/narrative';
 import { NARRATIVE_CUBE } from '@/types/narrative';
 import { FORCE_WINDOW_SIZE, PEAK_WINDOW_SCENES_DIVISOR, SHAPE_TROUGH_BAND_LO, SHAPE_TROUGH_BAND_HI, BEAT_DENSITY_MIN, BEAT_DENSITY_MAX } from '@/lib/constants';
 
@@ -391,14 +391,38 @@ export function computeThreadStatuses(
   return statuses;
 }
 
+/** Count distinct arcs where a thread received bandwidth (derived from scenes). */
+export function computeActiveArcs(threadId: string, scenes: Record<string, Scene>): number {
+  const arcIds = new Set<string>();
+  for (const scene of Object.values(scenes)) {
+    if (scene.threadMutations.some((tm) => tm.threadId === threadId)) {
+      arcIds.add(scene.arcId);
+    }
+  }
+  return arcIds.size;
+}
+
+/** Classify a thread as storyline or incident based on lifecycle span.
+ *  Storyline: activeArcs > 2, or has reached active/critical without resolving quickly.
+ *  Incident: resolves within 1-2 arcs, or never progresses past seeded. */
+export function classifyThreadKind(thread: Thread, scenes: Record<string, Scene>): 'storyline' | 'incident' {
+  const activeArcs = computeActiveArcs(thread.id, scenes);
+  if (activeArcs > 2) return 'storyline';
+  if (Object.keys(thread.threadLog?.nodes ?? {}).length >= 4) return 'storyline';
+  const terminalSet = new Set(['resolved', 'subverted']);
+  if (terminalSet.has(thread.status) && activeArcs <= 2) return 'incident';
+  if ((thread.status === 'active' || thread.status === 'critical') && activeArcs > 1) return 'storyline';
+  return 'incident';
+}
+
 // ── Narrative Cube detection ───────────────────────────────────────────────
 
 /** Euclidean distance between two force snapshots */
 export function forceDistance(a: ForceSnapshot, b: ForceSnapshot): number {
   return Math.sqrt(
-    (a.payoff - b.payoff) ** 2 +
-    (a.change - b.change) ** 2 +
-    (a.knowledge - b.knowledge) ** 2,
+    (a.drive - b.drive) ** 2 +
+    (a.world - b.world) ** 2 +
+    (a.system - b.system) ** 2,
   );
 }
 
@@ -429,16 +453,16 @@ export function cubeCornerProximity(forces: ForceSnapshot, cornerKey: CubeCorner
  *  Returns an array of the same length; the first element is always 0. */
 export function computeSwingMagnitudes(
   forceSnapshots: ForceSnapshot[],
-  refMeans?: { payoff: number; change: number; knowledge: number },
+  refMeans?: { drive: number; world: number; system: number },
 ): number[] {
-  const rp = refMeans?.payoff ?? 1;
-  const rc = refMeans?.change ?? 1;
-  const rk = refMeans?.knowledge ?? 1;
+  const rp = refMeans?.drive ?? 1;
+  const rc = refMeans?.world ?? 1;
+  const rk = refMeans?.system ?? 1;
   const swings: number[] = [0];
   for (let i = 1; i < forceSnapshots.length; i++) {
-    const dp = (forceSnapshots[i].payoff - forceSnapshots[i - 1].payoff) / rp;
-    const dc = (forceSnapshots[i].change - forceSnapshots[i - 1].change) / rc;
-    const dk = (forceSnapshots[i].knowledge - forceSnapshots[i - 1].knowledge) / rk;
+    const dp = (forceSnapshots[i].drive - forceSnapshots[i - 1].drive) / rp;
+    const dc = (forceSnapshots[i].world - forceSnapshots[i - 1].world) / rc;
+    const dk = (forceSnapshots[i].system - forceSnapshots[i - 1].system) / rk;
     swings.push(Math.sqrt(dp * dp + dc * dc + dk * dk));
   }
   return swings;
@@ -496,82 +520,78 @@ export function zScoreNormalize(values: number[]): number[] {
 // Three forces measure distinct dimensions of narrative movement per scene.
 // Raw values are z-score normalized: z = (x - μ) / σ.
 //
-// P = Σ max(0, φ_to - φ_from) + 0.25 per same-status mention  (phase distance)
-// C = ΔN_c + √ΔE_c                       (entity continuity — mirrors K for inner worlds)
-// K = ΔN + √ΔE                           (new world-knowledge nodes + sqrt edges)
+// P = Σ activeArcs^α × stageWeight(from, to)  (bandwidth-weighted fate)
+// W = ΔN_c + √ΔE_c                           (entity continuity — mirrors S for inner worlds)
+// S = ΔN + √ΔE                               (new world-knowledge nodes + sqrt edges)
 //
-// S = ‖f_i - f_{i-1}‖₂                   (Euclidean distance in PCK space)
-// E = 0.3·Σ tanh(f/1.5) + 0.2·contrast  (delivery, all forces symmetric via tanh)
-//     contrast = max(0, T[i-1] - T[i])                      (tension release bonus)
-//     T = C + K - P                                          (tension: buildup without payoff)
-// g(x̃) = 25(1 - e^{-2x̃}), x̃ = x̄/μ     (grade, μ = {1.5, 4, 3.5})
+// S = ‖f_i - f_{i-1}‖₂                       (Euclidean distance in PWS space)
+// E = 0.3·Σ tanh(f/1.5) + 0.2·contrast       (delivery, all forces symmetric via tanh)
+//     contrast = max(0, T[i-1] - T[i])        (tension release bonus)
+//     T = W + S - P                            (tension: buildup without fate)
+// g(x̃) = 25 - 17·e^{-kx̃}, k = ln(17/4)     (grade, μ = {3, 7, 4})
 //
 
-/** Phase index — distance between indices = magnitude of the phase jump.
- *  Linear ordering: each step is one unit of payoff.
- *  Backwards transitions (e.g. escalating→active) use absolute magnitude.
- *  Terminal statuses sit at the top of the scale (4) so resolving from
- *  any active status produces a natural |φ_to - φ_from| distance. */
-const PHASE_INDEX: Record<string, number> = {
-  dormant: 0, active: 1, escalating: 2, critical: 3,
-  resolved: 4, subverted: 4, abandoned: 4,
-};
-/** Small reward for same-status "pulse" — thread is mentioned but doesn't transition */
-const PULSE_REWARD = 0.25;
+/** Superlinear exponent for bandwidth reward — sustained threads earn more */
+const PAYOFF_ALPHA = 1.3;
 
-function computeRawPayoff(scene: Scene): number {
+/** Stage weight for thread lifecycle transitions.
+ *  Pulses (same→same): 0.25. Forward transitions earn more at higher stages.
+ *  Abandoned earns 0 — it's cleanup, moving threads to the done pile without contributing to drive.
+ *  Backward transitions and unrecognized statuses earn 0. */
+function getStageWeight(from: string, to: string): number {
+  if (to === 'abandoned') return 0;  // cleanup, not resolution — no drive
+  if (from === to) return 0.25;
+  const key = `${from}->${to}`;
+  const WEIGHTS: Record<string, number> = {
+    'latent->seeded': 0.5,
+    'seeded->active': 1.0,
+    'active->critical': 2.0,
+    'critical->resolved': 4.0,
+    'critical->subverted': 4.0,  // subverted = fate defied, same weight as resolved
+  };
+  return WEIGHTS[key] ?? 0;
+}
+
+function computeRawDrive(scene: Scene, activeArcsMap: Record<string, number> = {}): number {
   let score = 0;
-
   for (const tm of scene.threadMutations) {
     const from = tm.from.toLowerCase();
     const to = tm.to.toLowerCase();
-
-    if (from === to) {
-      score += PULSE_REWARD;
-    } else {
-      const fi = PHASE_INDEX[from];
-      const ti = PHASE_INDEX[to];
-      score += fi !== undefined && ti !== undefined ? Math.max(0, ti - fi) : 1;
-    }
+    const weight = getStageWeight(from, to);
+    const arcs = Math.max(1, activeArcsMap[tm.threadId] ?? 1);
+    score += arcs ** PAYOFF_ALPHA * weight;
   }
-
   return score;
 }
 
-/** Raw change: total mutation intensity with sqrt scaling.
- *  C = √M + √E + √R
- *  M = continuity mutations, E = events, R = Σ|Δv|² (L2 relationship valence).
- *  Ownership mutations are structural bookkeeping (like character movements) —
- *  their narrative impact is captured by the thread/continuity/relationship
- *  mutations that accompany them. */
-/** Raw change: C = ΔN_c + √ΔE_c
+/** Raw world: W = ΔN_c + √ΔE_c
  *
  *  Entity continuity graph complexity delta per scene.
- *  Mirrors Knowledge but for inner worlds — nodes contribute linearly,
+ *  Mirrors System but for inner worlds — nodes contribute linearly,
  *  edges use sqrt. Same structure, different domain:
- *  Knowledge measures what we learn about the WORLD, Change measures
+ *  System measures what we learn about the WORLD's rules, World measures
  *  what we learn about ENTITIES (characters, locations, artifacts). */
-function rawChange(scene: Scene): number {
+function rawWorld(scene: Scene): number {
   const contNodes = scene.continuityMutations.reduce((sum, km) => sum + (km.addedNodes?.length ?? 0), 0);
   const contEdges = scene.continuityMutations.reduce((sum, km) => sum + (km.addedEdges?.length ?? 0), 0);
   return contNodes + Math.sqrt(contEdges);
 }
 
-/** Raw knowledge: K = ΔN + √ΔE
+/** Raw system: S = ΔN + √ΔE
  *
  *  World knowledge graph complexity delta per scene.
  *  Nodes contribute linearly — each new concept is genuinely new information.
  *  Edges use sqrt — the first few connections between concepts matter more
- *  than the tenth. Prevents bulk edge additions from inflating Knowledge.
+ *  than the tenth. Prevents bulk edge additions from inflating System.
  *
  *  Examples:
- *    3 nodes, 0 edges → K = 3        (isolated concepts)
- *    2 nodes, 2 edges → K = 3.4      (connected)
- *    3 nodes, 4 edges → K = 5        (dense)
- *    1 node,  4 edges → K = 3        (hub integration)
- *    0 nodes, 4 edges → K = 2        (pure reconnection)
- *    0 nodes, 10 edges → K = 3.2     (diminishing returns) */
-function rawKnowledge(scene: Scene): number {
+ *    3 nodes, 0 edges → S = 3        (isolated concepts)
+ *    2 nodes, 2 edges → S = 3.4      (connected)
+ *    3 nodes, 4 edges → S = 5        (dense)
+ *    1 node,  4 edges → S = 3        (hub integration)
+ *    0 nodes, 4 edges → S = 2        (pure reconnection)
+ *    0 nodes, 10 edges → S = 3.2     (diminishing returns) */
+function rawSystem(scene: Scene): number {
   const wkm = scene.worldKnowledgeMutations;
   if (!wkm) return 0;
   const n = wkm.addedNodes?.length ?? 0;
@@ -634,9 +654,9 @@ export function buildCumulativeWorldKnowledge(
  * Compute ForceSnapshots for a batch of scenes using z-score normalization.
  * 0 = average moment; positive = above average; negative = below average (units of std deviation).
  *
- * - **Payoff**: phase transitions — thread status changes (weighted by jump magnitude) and relationship valence deltas
- * - **Change**: mutation reach — sum of log₂(1 + mutations) per affected character (includes events)
- * - **Knowledge**: Σr_char + r_loc — character and location recency
+ * - **Drive**: phase transitions — thread status changes (weighted by jump magnitude) and relationship valence deltas
+ * - **World**: entity continuity graph complexity delta (ΔN_c + √ΔE_c per scene)
+ * - **System**: world knowledge graph complexity delta (new nodes + sqrt edges per scene)
  *
  * @param scenes - Ordered list of scenes to compute forces for
  * @param priorScenes - Scenes before this batch (for usage tracking). Empty for initial generation.
@@ -648,27 +668,39 @@ export function computeForceSnapshots(
   const result: Record<string, ForceSnapshot> = {};
   if (scenes.length === 0) return result;
 
+  // Pre-compute activeArcs per thread from scenes
+  const allScenes = [...priorScenes, ...scenes];
+  const activeArcsMap: Record<string, number> = {};
+  const threadArcSets: Record<string, Set<string>> = {};
+  for (const s of allScenes) {
+    for (const tm of s.threadMutations) {
+      if (!threadArcSets[tm.threadId]) threadArcSets[tm.threadId] = new Set();
+      threadArcSets[tm.threadId].add(s.arcId);
+    }
+  }
+  for (const [tid, arcs] of Object.entries(threadArcSets)) activeArcsMap[tid] = arcs.size;
+
   // Compute raw values per scene
-  const rawPayoffs: number[] = [];
-  const rawChanges: number[] = [];
-  const rawKnowledges: number[] = [];
+  const rawDrives: number[] = [];
+  const rawWorlds: number[] = [];
+  const rawSystems: number[] = [];
 
   for (const scene of scenes) {
-    rawPayoffs.push(computeRawPayoff(scene));
-    rawChanges.push(rawChange(scene));
-    rawKnowledges.push(rawKnowledge(scene));
+    rawDrives.push(computeRawDrive(scene, activeArcsMap));
+    rawWorlds.push(rawWorld(scene));
+    rawSystems.push(rawSystem(scene));
   }
 
   // Z-score normalize each dimension (mean = 0, units = std deviations)
-  const normPayoffs = zScoreNormalize(rawPayoffs);
-  const normChanges = zScoreNormalize(rawChanges);
-  const normKnowledges = zScoreNormalize(rawKnowledges);
+  const normDrives = zScoreNormalize(rawDrives);
+  const normWorlds = zScoreNormalize(rawWorlds);
+  const normSystems = zScoreNormalize(rawSystems);
 
   for (let i = 0; i < scenes.length; i++) {
     result[scenes[i].id] = {
-      payoff: normPayoffs[i],
-      change: normChanges[i],
-      knowledge: normKnowledges[i],
+      drive: normDrives[i],
+      world: normWorlds[i],
+      system: normSystems[i],
     };
   }
   return result;
@@ -680,20 +712,31 @@ export function computeForceSnapshots(
  */
 export function computeRawForceTotals(
   scenes: Scene[],
-): { payoff: number[]; change: number[]; knowledge: number[] } {
-  if (scenes.length === 0) return { payoff: [], change: [], knowledge: [] };
+): { drive: number[]; world: number[]; system: number[] } {
+  if (scenes.length === 0) return { drive: [], world: [], system: [] };
 
-  const payoff: number[] = [];
-  const change: number[] = [];
-  const knowledge: number[] = [];
+  // Pre-compute activeArcs per thread
+  const activeArcsMap: Record<string, number> = {};
+  const threadArcSets: Record<string, Set<string>> = {};
+  for (const s of scenes) {
+    for (const tm of s.threadMutations) {
+      if (!threadArcSets[tm.threadId]) threadArcSets[tm.threadId] = new Set();
+      threadArcSets[tm.threadId].add(s.arcId);
+    }
+  }
+  for (const [tid, arcs] of Object.entries(threadArcSets)) activeArcsMap[tid] = arcs.size;
+
+  const drive: number[] = [];
+  const world: number[] = [];
+  const system: number[] = [];
 
   for (const scene of scenes) {
-    payoff.push(computeRawPayoff(scene));
-    change.push(rawChange(scene));
-    knowledge.push(rawKnowledge(scene));
+    drive.push(computeRawDrive(scene, activeArcsMap));
+    world.push(rawWorld(scene));
+    system.push(rawSystem(scene));
   }
 
-  return { payoff, change, knowledge };
+  return { drive, world, system };
 }
 
 /** Compute a simple moving average over a data series.
@@ -802,10 +845,10 @@ function detectPeaksAndValleys(
 export interface DeliveryPoint {
   /** Scene index (0-based) */
   index: number;
-  /** Delivery: equal-weighted mean of payoff, change, and knowledge z-scores.
+  /** Delivery: equal-weighted mean of drive, world, and system z-scores.
    *  Measures the overall narrative presence of a scene — how strongly all three forces radiate. */
   delivery: number;
-  /** Tension buildup: change + knowledge − payoff. High when energy accumulates without release. */
+  /** Tension buildup: world + system − drive. High when energy accumulates without release. */
   tension: number;
   /** Gaussian-smoothed delivery (σ=1.5) — local curve shape for display. */
   smoothed: number;
@@ -840,8 +883,8 @@ export function computeDeliveryCurve(snapshots: ForceSnapshot[]): DeliveryPoint[
   const GAMMA = 0.2;       // contrast weight
 
   // Tension per scene: buildup without release
-  const tensions = snapshots.map(({ payoff, change, knowledge }) =>
-    change + knowledge - payoff,
+  const tensions = snapshots.map(({ drive, world, system }) =>
+    world + system - drive,
   );
 
   // Contrast: reward scenes where tension drops (= release)
@@ -849,8 +892,8 @@ export function computeDeliveryCurve(snapshots: ForceSnapshot[]): DeliveryPoint[
     i === 0 ? 0 : Math.max(0, tensions[i - 1] - t),
   );
 
-  const engValues = snapshots.map(({ payoff, change, knowledge }, i) =>
-    W * (Math.tanh(payoff / ALPHA) + Math.tanh(change / ALPHA) + Math.tanh(knowledge / ALPHA)) + GAMMA * contrasts[i],
+  const engValues = snapshots.map(({ drive, world, system }, i) =>
+    W * (Math.tanh(drive / ALPHA) + Math.tanh(world / ALPHA) + Math.tanh(system / ALPHA)) + GAMMA * contrasts[i],
   );
 
   const smoothed = gaussianSmooth(engValues, 1.5);
@@ -867,10 +910,10 @@ export function computeDeliveryCurve(snapshots: ForceSnapshot[]): DeliveryPoint[
 
   const { peaks, valleys } = detectPeaksAndValleys(smoothed, minDrop, windowR);
 
-  return snapshots.map(({ payoff, change, knowledge }, i) => ({
+  return snapshots.map(({ drive, world, system }, i) => ({
     index: i,
     delivery: engValues[i],
-    tension: change + knowledge - payoff,
+    tension: world + system - drive,
     smoothed: smoothed[i],
     macroTrend: macroTrend[i],
     isPeak: peaks.has(i),
@@ -1070,7 +1113,7 @@ export function classifyNarrativeShape(deliveries: number[]): NarrativeShape {
   if (hasDeepTrough && hasStrongRecovery) return SHAPES.rebounding;
 
   // Episodic: many peaks, none dominant, after directional shapes ruled out.
-  // Long-form narratives with repeated payoff cycles and no clear slope.
+  // Long-form narratives with repeated drive cycles and no clear slope.
   if (hasManyPeaks && !hasDominantPeak) return SHAPES.episodic;
 
   // Climactic: dominant mid/late peak, or fallback
@@ -1086,17 +1129,17 @@ export interface NarrativeArchetype {
   name: string;
   description: string;
   /** Which force(s) define this archetype */
-  dominant: ('payoff' | 'change' | 'knowledge')[];
+  dominant: ('drive' | 'world' | 'system')[];
 }
 
 const ARCHETYPES = {
-  opus:        { key: 'opus',        name: 'Opus',        description: 'All three forces in concert — payoffs land, characters transform, and the world deepens together', dominant: ['payoff', 'change', 'knowledge'] as const },
-  series:      { key: 'series',      name: 'Series',      description: 'Consequential events that permanently reshape characters — payoffs land and lives change', dominant: ['payoff', 'change'] as const },
-  atlas:       { key: 'atlas',       name: 'Atlas',       description: 'Resolutions that map the world — each payoff reveals how things work', dominant: ['payoff', 'knowledge'] as const },
-  chronicle:   { key: 'chronicle',   name: 'Chronicle',   description: 'Characters transform within a deepening world — lives and systems evolve together', dominant: ['change', 'knowledge'] as const },
-  classic:     { key: 'classic',     name: 'Classic',     description: 'Driven by resolution — threads pay off and relationships shift decisively', dominant: ['payoff'] as const },
-  show:        { key: 'show',        name: 'Show',        description: 'People-driven — characters transform and their journeys are the heart of the story', dominant: ['change'] as const },
-  paper:       { key: 'paper',       name: 'Paper',       description: 'Dense with ideas and systems — the depth of the world itself is the draw', dominant: ['knowledge'] as const },
+  opus:        { key: 'opus',        name: 'Opus',        description: 'All three forces in concert — drives land, characters transform, and the world deepens together', dominant: ['drive', 'world', 'system'] as const },
+  series:      { key: 'series',      name: 'Series',      description: 'Consequential events that permanently reshape characters — drives land and lives change', dominant: ['drive', 'world'] as const },
+  atlas:       { key: 'atlas',       name: 'Atlas',       description: 'Resolutions that map the world — each drive reveals how things work', dominant: ['drive', 'system'] as const },
+  chronicle:   { key: 'chronicle',   name: 'Chronicle',   description: 'Characters transform within a deepening world — lives and systems evolve together', dominant: ['world', 'system'] as const },
+  classic:     { key: 'classic',     name: 'Classic',     description: 'Driven by resolution — threads pay off and relationships shift decisively', dominant: ['drive'] as const },
+  show:        { key: 'show',        name: 'Show',        description: 'People-driven — characters transform and their journeys are the heart of the story', dominant: ['world'] as const },
+  paper:       { key: 'paper',       name: 'Paper',       description: 'Dense with ideas and systems — the depth of the world itself is the draw', dominant: ['system'] as const },
   emerging:    { key: 'emerging',    name: 'Emerging',    description: 'No single force has reached its potential yet — the story is still finding its voice', dominant: [] as const },
 } satisfies Record<string, NarrativeArchetype>;
 
@@ -1110,9 +1153,9 @@ const ARCHETYPES = {
  * - Balanced + high (avg ≥ 18) = Masterwork; balanced + low = Intimate
  */
 export function classifyArchetype(grades: ForceGrades): NarrativeArchetype {
-  const p = grades.payoff;
-  const c = grades.change;
-  const k = grades.knowledge;
+  const p = grades.drive;
+  const c = grades.world;
+  const k = grades.system;
   const max = Math.max(p, c, k);
   const gap = 5;
   const floor = 21;
@@ -1278,7 +1321,7 @@ export type WindowedForceResult = {
 /**
  * Compute forces normalized within a rolling window around the current scene.
  * The window is the last `windowSize` scenes ending at `currentIndex`.
- * Knowledge usage is seeded from scenes before the window so novelty is still relative.
+ * System usage is seeded from scenes before the window so novelty is still relative.
  */
 export function computeWindowedForces(
   scenes: Scene[],
@@ -1303,9 +1346,9 @@ export function computeWindowedForces(
 // ── Scorecard Grading ────────────────────────────────────────────────────────
 
 export type ForceGrades = {
-  payoff: number;
-  change: number;
-  knowledge: number;
+  drive: number;
+  world: number;
+  system: number;
   swing: number;
   overall: number;
 };
@@ -1316,8 +1359,8 @@ const avg = (arr: number[]) => arr.length > 0 ? arr.reduce((s, v) => s + v, 0) /
  *  Raw force values are divided by these to produce a unit-free normalized value
  *  (x̃ = x̄ / μ_ref). At x̃ = 1 the grade reaches ~18/25 (73%).
  *  Originally calibrated from literary works (HP, Gatsby, Crime & Punishment, Coiling Dragon).
- *  Change reference is 7 (entity continuity spans multiple entities per scene vs one world graph). */
-export const FORCE_REFERENCE_MEANS = { payoff: 1.5, change: 7, knowledge: 4 } as const;
+ *  World reference is 7 (entity continuity spans multiple entities per scene vs one world graph). */
+export const FORCE_REFERENCE_MEANS = { drive: 3, world: 7, system: 4 } as const;
 
 /** Grade a mean-normalized force value 8→25: g(x̃) = 25 − 17·e^{−kx̃}, k = ln(17/4).
  *  Single exponential — floor 8, reference 21 (dominance threshold), cap 25.
@@ -1329,27 +1372,27 @@ export function gradeForce(normalizedMean: number): number {
 
 /**
  * Grade narrative forces (0–25 each, 0–100 overall).
- * Payoff/change/knowledge are raw values, normalised here by FORCE_REFERENCE_MEANS.
+ * Drive/world/system are raw values, normalised here by FORCE_REFERENCE_MEANS.
  * Swing values are mean-normalised Euclidean distances — graded directly (single normalisation).
  */
 export function gradeForces(
-  payoff: number[],
-  change: number[],
-  knowledge: number[],
+  drive: number[],
+  world: number[],
+  system: number[],
   swing: number[],
 ): ForceGrades {
   const R = FORCE_REFERENCE_MEANS;
-  const payoffGrade = gradeForce(avg(payoff) / R.payoff);
-  const changeGrade = gradeForce(avg(change) / R.change);
-  const knowledgeGrade = gradeForce(avg(knowledge) / R.knowledge);
+  const driveGrade = gradeForce(avg(drive) / R.drive);
+  const worldGrade = gradeForce(avg(world) / R.world);
+  const systemGrade = gradeForce(avg(system) / R.system);
   const swingGrade = gradeForce(avg(swing));
 
-  const overall = payoffGrade + changeGrade + knowledgeGrade + swingGrade;
+  const overall = driveGrade + worldGrade + systemGrade + swingGrade;
 
   return {
-    payoff: Math.round(payoffGrade),
-    change: Math.round(changeGrade),
-    knowledge: Math.round(knowledgeGrade),
+    drive: Math.round(driveGrade),
+    world: Math.round(worldGrade),
+    system: Math.round(systemGrade),
     swing: Math.round(swingGrade),
     overall: Math.round(overall),
   };

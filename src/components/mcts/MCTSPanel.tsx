@@ -862,7 +862,7 @@ function NodeInspector({ node, tree }: { node: MCTSNode; tree: MCTSTree }) {
           .map((k) => node.virtualNarrative.scenes[k])
           .filter((s): s is Scene => !!s);
         const forceMap = computeForceSnapshots(allScenes);
-        const forces = forceMap[scene.id] ?? { payoff: 0, change: 0, knowledge: 0 };
+        const forces = forceMap[scene.id] ?? { drive: 0, world: 0, system: 0 };
         const corner = detectCubeCorner(forces);
         const loc = node.virtualNarrative.locations[scene.locationId];
         const pov = scene.povId ? node.virtualNarrative.characters[scene.povId] : null;
@@ -935,9 +935,9 @@ function NodeInspector({ node, tree }: { node: MCTSNode; tree: MCTSTree }) {
             </div>
             <div className="flex gap-3">
               {([
-                { label: 'Payoff', value: forces.payoff, color: '#EF4444' },
-                { label: 'Change', value: forces.change, color: '#22C55E' },
-                { label: 'Knowledge', value: forces.knowledge, color: '#3B82F6' },
+                { label: 'Drive', value: forces.drive, color: '#EF4444' },
+                { label: 'World', value: forces.world, color: '#22C55E' },
+                { label: 'System', value: forces.system, color: '#3B82F6' },
               ] as const).map(({ label, value, color }) => (
                 <div key={label} className="flex flex-1 flex-col gap-1">
                   <span className="text-[10px] uppercase text-text-dim">{label}</span>
@@ -1013,7 +1013,7 @@ function NodeInspector({ node, tree }: { node: MCTSNode; tree: MCTSTree }) {
                   <div key={`${j}-${k}`} className="flex flex-col gap-0.5 text-xs">
                     <div className="flex items-center gap-1.5">
                       <span className="text-text-primary">{entityName}</span>
-                      <span className="text-change">+</span>
+                      <span className="text-world">+</span>
                       <span className="font-mono text-[10px] text-text-dim">{nd.id}</span>
                     </div>
                     <span className="text-text-secondary pl-2">{nd.content}</span>
@@ -1029,7 +1029,7 @@ function NodeInspector({ node, tree }: { node: MCTSNode; tree: MCTSTree }) {
               <h3 className="text-[10px] uppercase tracking-widest text-text-dim">World Knowledge</h3>
               {scene.worldKnowledgeMutations.addedNodes?.map((wkn, j) => (
                 <div key={`wkn-${j}`} className="flex items-center gap-1.5 text-xs">
-                  <span className="text-change">+</span>
+                  <span className="text-world">+</span>
                   <span className="text-text-primary">{wkn.concept}</span>
                   <span className="text-[10px] text-text-dim">({wkn.type})</span>
                 </div>

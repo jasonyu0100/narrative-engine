@@ -134,12 +134,12 @@
       "threadMutations": [
         {
           "threadId": "T-HP-02",
-          "from": "dormant",
+          "from": "latent",
           "to": "active"
         },
         {
           "threadId": "T-HP-06",
-          "from": "dormant",
+          "from": "latent",
           "to": "active"
         }
       ],
@@ -442,7 +442,7 @@
       "threadMutations": [
         {
           "threadId": "T-HP-07",
-          "from": "dormant",
+          "from": "latent",
           "to": "active"
         }
       ],
@@ -605,7 +605,7 @@
       "threadMutations": [
         {
           "threadId": "T-HP-03",
-          "from": "dormant",
+          "from": "latent",
           "to": "active"
         }
       ],
@@ -761,7 +761,7 @@
       "threadMutations": [
         {
           "threadId": "T-HP-01",
-          "from": "dormant",
+          "from": "latent",
           "to": "active"
         }
       ],
@@ -960,7 +960,7 @@
       "threadMutations": [
         {
           "threadId": "T-HP-04",
-          "from": "dormant",
+          "from": "latent",
           "to": "active"
         }
       ],
@@ -1050,7 +1050,7 @@
         {
           "threadId": "T-HP-07",
           "from": "active",
-          "to": "escalating"
+          "to": "active"
         }
       ],
       "continuityMutations": [
@@ -1137,7 +1137,7 @@
       "threadMutations": [
         {
           "threadId": "T-HP-03",
-          "from": "dormant",
+          "from": "latent",
           "to": "active"
         }
       ],
@@ -1211,7 +1211,7 @@
       "threadMutations": [
         {
           "threadId": "T-HP-04",
-          "from": "dormant",
+          "from": "latent",
           "to": "active"
         }
       ],
@@ -1293,7 +1293,7 @@
       "threadMutations": [
         {
           "threadId": "T-HP-01",
-          "from": "dormant",
+          "from": "latent",
           "to": "active"
         }
       ],
@@ -2114,7 +2114,7 @@
               }
             ],
             "description": "The Philosopher's Stone \u2014 who is trying to steal it, what it creates, and why someone would kill for immortality",
-            "status": "dormant",
+            "status": "latent",
             "openedAt": "S-HP-001",
             "dependents": [
               "T-HP-05",
@@ -2134,7 +2134,7 @@
               }
             ],
             "description": "Harry's identity \u2014 the Boy Who Lived discovering that he is famous, magical, and marked by a destiny he never chose",
-            "status": "dormant",
+            "status": "latent",
             "openedAt": "S-HP-001",
             "dependents": [
               "T-HP-06"
@@ -2149,7 +2149,7 @@
               }
             ],
             "description": "Snape's ambiguous loyalty \u2014 the man who seems to hate Harry, appears to threaten Quirrell, and whose true allegiance lies buried beneath layers of cruelty",
-            "status": "dormant",
+            "status": "latent",
             "openedAt": "S-HP-006",
             "dependents": []
           },
@@ -2170,7 +2170,7 @@
               }
             ],
             "description": "The trio's friendship \u2014 three misfits forging a bond under pressure that will define the shape of the war to come",
-            "status": "dormant",
+            "status": "latent",
             "openedAt": "S-HP-004",
             "dependents": []
           },
@@ -2183,7 +2183,7 @@
               }
             ],
             "description": "Voldemort's return \u2014 the shadow behind Quirrell's turban, drinking unicorn blood in the forest, clawing back toward life one desperate act at a time",
-            "status": "dormant",
+            "status": "latent",
             "openedAt": "S-HP-011",
             "dependents": []
           },
@@ -2200,7 +2200,7 @@
               }
             ],
             "description": "Harry versus the Dursleys \u2014 the muggle world that tried to crush the magic out of him, and the reckoning when it failed",
-            "status": "dormant",
+            "status": "latent",
             "openedAt": "S-HP-001",
             "dependents": []
           },
@@ -2217,7 +2217,7 @@
               }
             ],
             "description": "Draco and the house rivalry \u2014 blood purity against chosen loyalty, Slytherin ambition against Gryffindor courage, a schoolboy feud that mirrors the larger war",
-            "status": "dormant",
+            "status": "latent",
             "openedAt": "S-HP-005",
             "dependents": []
           }

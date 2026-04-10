@@ -226,7 +226,7 @@ ${worldBuildFocus ? (() => {
     const live = narrative.threads[t.id];
     return `${t.description} [${live?.status ?? t.status}]`;
   });
-  const lines: string[] = [`WORLD BUILD FOCUS (${wb.id} — "${wb.summary}"): The entities below were recently introduced and have not yet had a presence in the story. This arc should bring them in — use these characters in scenes, set at least one scene in these locations, and begin activating these dormant threads:`];
+  const lines: string[] = [`WORLD BUILD FOCUS (${wb.id} — "${wb.summary}"): The entities below were recently introduced and have not yet had a presence in the story. This arc should bring them in — use these characters in scenes, set at least one scene in these locations, and begin seeding these latent threads:`];
   if (chars.length) lines.push(`  Characters: ${chars.join(', ')}`);
   if (locs.length) lines.push(`  Locations: ${locs.join(', ')}`);
   if (threads.length) lines.push(`  Threads to activate: ${threads.join('; ')}`);
@@ -283,7 +283,7 @@ ${Object.keys(narrative.artifacts ?? {}).length > 0 ? PROMPT_ARTIFACTS : ''}
 ${PROMPT_POV}
 ${PROMPT_CONTINUITY}
 ${promptThreadLifecycle()}
-${buildThreadHealthPrompt(narrative, resolvedKeys, currentIndex, storySettings.threadResolutionSpeed ?? 'moderate')}
+${buildThreadHealthPrompt(narrative, resolvedKeys, currentIndex)}
 ${buildCompletedBeatsPrompt(narrative, resolvedKeys, currentIndex)}`;
 
   // Retry on JSON parse failures (truncation, malformed output)
@@ -624,13 +624,12 @@ FICTION:
 • {"content": "The Cheshire Cat can disappear", "type": "rule"}
 
 NON-FICTION (exhaustive example):
-• {"content": "P = Σt max(0, φto − φfrom)", "type": "formula"}
-• {"content": "P represents Payoff", "type": "definition"}
-• {"content": "Payoff quantifies irreversible narrative commitments", "type": "definition"}
-• {"content": "dormant=0, active=1, escalating=2, critical=3", "type": "definition"}
+• {"content": "D = activeArcs^α × stageWeight", "type": "formula"}
+• {"content": "D represents Drive — the fate of threads pulling world and system toward resolution", "type": "definition"}
+• {"content": "W = ΔN_c + √ΔE_c — entity transformation (what we learn about characters, locations, artifacts)", "type": "definition"}
+• {"content": "S = ΔN + √ΔE — world deepening (rules, structures, concepts)", "type": "definition"}
+• {"content": "Thread lifecycle: latent→seeded→active→critical→resolved/subverted. Abandoned earns 0.", "type": "definition"}
 • {"content": "Published works score 85-95", "type": "evidence"}
-• {"content": "AI-generated narratives score 65-78", "type": "evidence"}
-• {"content": "Threads without transition receive pulse of 0.25", "type": "parameter"}
 
 INVALID: craft goals, pacing instructions, meta-commentary.
 
@@ -1016,9 +1015,9 @@ If the prose says "Published works score 85–95, while unguided AI output achie
 • {"content": "Unguided AI output scores 65-78", "type": "evidence"}
 • {"content": "There is a score gap between published works and AI output", "type": "claim"}
 
-If the prose mentions "three fundamental forces (Payoff, Change, Knowledge)", you need:
+If the prose mentions "three fundamental forces (Drive, World, System)", you need:
 • {"content": "There are three fundamental forces", "type": "claim"}
-• {"content": "The three forces are Payoff, Change, and Knowledge", "type": "definition"}
+• {"content": "The three forces are Drive, World, and System", "type": "definition"}
 
 DO NOT summarize multiple claims into one. Each atomic fact gets its own proposition.
 
@@ -1032,15 +1031,13 @@ FICTION:
 • {"content": "The Cheshire Cat can disappear", "type": "rule"}
 
 NON-FICTION (exhaustive example from a technical paper):
-• {"content": "P = Σt max(0, φto − φfrom)", "type": "formula"}
-• {"content": "P represents Payoff", "type": "definition"}
-• {"content": "Payoff quantifies irreversible narrative commitments", "type": "definition"}
-• {"content": "dormant=0, active=1, escalating=2, critical=3, resolved/subverted/abandoned=4", "type": "definition"}
-• {"content": "A thread transitioning from active to critical contributes |3-1|=2 to Payoff", "type": "example"}
+• {"content": "D = activeArcs^α × stageWeight", "type": "formula"}
+• {"content": "D represents Drive — the fate of threads pulling world and system toward resolution", "type": "definition"}
+• {"content": "W = ΔN_c + √ΔE_c — entity transformation (what we learn about characters, locations, artifacts)", "type": "definition"}
+• {"content": "S = ΔN + √ΔE — world deepening (rules, structures, concepts)", "type": "definition"}
+• {"content": "Thread lifecycle: latent→seeded→active→critical→resolved/subverted. Abandoned earns 0.", "type": "definition"}
+• {"content": "Sustained threads earn superlinearly: 5 arcs at critical→resolved earns ~34 vs 4 for single-arc", "type": "example"}
 • {"content": "Published works score 85-95", "type": "evidence"}
-• {"content": "AI-generated narratives score 65-78", "type": "evidence"}
-• {"content": "Threads without transition receive pulse of 0.25", "type": "parameter"}
-• {"content": "The pulse is sufficient for visibility without inflating the metric", "type": "claim"}
 • {"content": "C = √ΔM + √ΔE + √ΔR", "type": "formula"}
 • {"content": "ΔM counts continuity mutations", "type": "definition"}
 • {"content": "ΔE counts events", "type": "definition"}
@@ -1550,7 +1547,7 @@ SHOW, DON'T TELL (non-negotiable):
 THREE PILLARS — the prose must honour all three:
 1. CONTINUITY: POV character perceives only what their senses and existing knowledge allow. New continuity mutations discovered through specific mechanisms, never referenced before revelation.
 2. THREADS: Every thread shift lands at a dramatic moment through action, not narration.
-3. KNOWLEDGE: New world concepts feel EARNED — demonstrated through consequence, dialogue, or action. Never explain after showing. Established knowledge can be referenced. New knowledge cannot be pre-explained.
+3. SYSTEM: New world concepts feel EARNED — demonstrated through consequence, dialogue, or action. Never explain after showing. Established knowledge can be referenced. New knowledge cannot be pre-explained.
 
 You must satisfy every logical requirement and achieve every proposition — but achieve them through craft, implication, and demonstration. Write at least ~${sceneScale(scene).estWords} words. If the scene demands more, write more.
 
@@ -1570,7 +1567,7 @@ SHOW, DON'T TELL (non-negotiable):
 THREE PILLARS — the prose must honour all three:
 1. CONTINUITY: POV character perceives only what senses and existing knowledge allow. New continuity mutations discovered through specific moments, never referenced before revelation.
 2. THREADS: Every thread shift lands at a dramatic moment through action, not narration.
-3. KNOWLEDGE: New world concepts feel EARNED — demonstrated through consequence, dialogue, or action. Never explain after showing. Established knowledge can be referenced. New knowledge cannot be pre-explained.
+3. SYSTEM: New world concepts feel EARNED — demonstrated through consequence, dialogue, or action. Never explain after showing. Established knowledge can be referenced. New knowledge cannot be pre-explained.
 
 Every thread shift, continuity change, relationship mutation, and world knowledge reveal must be dramatised through action and scene. Foreshadow through imagery, subtext, environmental details — never telegraph. Write at least ~${sceneScale(scene).estWords} words, more if the scene demands it.
 
@@ -1813,7 +1810,22 @@ function applySceneMutations(n: NarrativeState, scenes: Scene[]): NarrativeState
     }
     for (const tm of scene.threadMutations) {
       const thread = threads[tm.threadId];
-      if (thread) threads[tm.threadId] = { ...thread, status: tm.to };
+      if (!thread) continue;
+      // Build thread log node
+      const existingNodeCount = Object.keys(thread.threadLog?.nodes ?? {}).length;
+      const nodeId = `TK-${String(existingNodeCount + 1).padStart(3, '0')}`;
+      const nodeType = tm.from === tm.to ? 'pulse' as const : 'transition' as const;
+      const content = tm.from === tm.to
+        ? `Pulse: ${scene.summary?.slice(0, 100) ?? 'thread touched'}`
+        : `${tm.from}→${tm.to}: ${scene.summary?.slice(0, 100) ?? 'transition'}`;
+      const node = { id: nodeId, content, type: nodeType };
+      const existingNodes = Object.keys(thread.threadLog?.nodes ?? {});
+      const prevId = existingNodes.length > 0 ? existingNodes[existingNodes.length - 1] : null;
+      const newThreadLog = {
+        nodes: { ...thread.threadLog?.nodes, [nodeId]: node },
+        edges: [...(thread.threadLog?.edges ?? []), ...(prevId ? [{ from: prevId, to: nodeId, relation: tm.from === tm.to ? 'continues' : 'causes' }] : [])],
+      };
+      threads[tm.threadId] = { ...thread, status: tm.to, threadLog: newThreadLog };
     }
     const wkm = scene.worldKnowledgeMutations;
     if (wkm) {
@@ -1867,16 +1879,13 @@ async function generateArcPlan(
   sequence: PacingSequence,
 ): Promise<ArcPlan> {
   const ctx = narrativeContext(narrative, resolvedKeys, currentIndex);
-  const storySettings: StorySettings = { ...DEFAULT_STORY_SETTINGS, ...narrative.storySettings };
-  const speed = storySettings.threadResolutionSpeed ?? 'moderate';
-
   const prompt = `${ctx}
 
 ${direction.trim() ? `DIRECTION — THIS IS YOUR PRIMARY BRIEF. Your arc plan must execute the beats described here. The direction may include prose-level guidance (time compression, tone shifts, structural techniques, dialogue register) — carry these through into your scene descriptions so the prose writer receives them.\n${direction}` : 'DIRECTION: Use your judgment — choose the most compelling next development.'}
 
 Plan a ${count}-scene arc that faithfully executes the direction above. For each scene, write ONE sentence describing the key action and which threads it advances. Include any prose-level guidance from the direction that applies to that scene. Scenes that collide 2+ threads are preferred.
 
-${buildThreadHealthPrompt(narrative, resolvedKeys, currentIndex, speed)}
+${buildThreadHealthPrompt(narrative, resolvedKeys, currentIndex)}
 ${buildCompletedBeatsPrompt(narrative, resolvedKeys, currentIndex)}
 
 ID REFERENCE:
@@ -1921,7 +1930,6 @@ async function generateSingleScene(
   onReasoning?: (token: string) => void,
 ): Promise<Scene> {
   const ctx = narrativeContext(narrative, resolvedKeys, currentIndex);
-  const speed = storySettings.threadResolutionSpeed ?? 'moderate';
   const stepPrompt = buildSingleStepPrompt(pacingStep, sceneIndex, totalScenes);
 
   // Show the full arc plan with completion markers
@@ -1978,7 +1986,7 @@ ${PROMPT_MUTATIONS}
 ${PROMPT_LOCATIONS}
 ${Object.keys(narrative.artifacts ?? {}).length > 0 ? PROMPT_ARTIFACTS : ''}
 ${PROMPT_CONTINUITY}
-${buildThreadHealthPrompt(narrative, resolvedKeys, currentIndex, speed)}
+${buildThreadHealthPrompt(narrative, resolvedKeys, currentIndex)}
 ${buildCompletedBeatsPrompt(narrative, resolvedKeys, currentIndex)}
 Use ONLY these IDs:
   Characters: ${Object.entries(narrative.characters).map(([id, c]) => `${c.name} (${id})`).join(', ')}
@@ -2035,7 +2043,7 @@ export async function generateArcStepwise(
     // No Markov chain — repeat current mode for all scenes (no pacing constraints)
     const currentMode = detectCurrentMode(narrative, resolvedKeys);
     const corner = NARRATIVE_CUBE[currentMode];
-    const neutralStep: ModeStep = { mode: currentMode, name: corner.name, description: corner.description, forces: { payoff: [-2, 2], change: [-2, 2], knowledge: [-2, 2] } };
+    const neutralStep: ModeStep = { mode: currentMode, name: corner.name, description: corner.description, forces: { drive: [-2, 2], world: [-2, 2], system: [-2, 2] } };
     sequence = { steps: Array.from({ length: sceneCount }, () => neutralStep), pacingDescription: 'AI Optimal — no pacing chain constraints' };
   } else if (pacingSequence) {
     sequence = pacingSequence;

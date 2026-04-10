@@ -43,24 +43,24 @@ function ForcesTab() {
         Three forces capture distinct dimensions of narrative intensity. All z-score normalized: <Tex>{'z_i = (x_i - \\mu) \\,/\\, \\sigma'}</Tex>
       </p>
 
-      <S title="Payoff" analogy="Did something permanent happen? A betrayal, a death, a vow — moments that can't be undone.">
-        <Block tex="P = \sum_{t} \max\left(0,\ \varphi_{\text{to}} - \varphi_{\text{from}}\right)" />
+      <S title="Drive" analogy="How much narrative fate has been earned? Long-running threads that resolve pay off superlinearly.">
+        <Block tex={String.raw`D = \sum_{t} \text{activeArcs}(t)^{1.3} \times w(t)`} />
         <p className="text-[10px] text-text-dim">
-          Phase index: dormant(0), active(1), escalating(2), critical(3), resolved/subverted/abandoned(4).
-          Transitions score by distance. Same-status mentions earn a 0.25 pulse.
+          Lifecycle: latent→seeded→active→critical→resolved/subverted. Weights: pulse=0.25, latent→seeded=0.5, seeded→active=1.0, active→critical=2.0, critical→resolved/subverted=4.0.
+          Threads earn fate through sustained bandwidth — activeArcs counts arcs where the thread received attention.
         </p>
       </S>
 
-      <S title="Change" analogy="How much did we learn about the entities? Mirrors Knowledge but for inner worlds — characters, locations, artifacts.">
+      <S title="World" analogy="How much did we learn about the entities? Mirrors System but for inner worlds — characters, locations, artifacts.">
         <Block tex={String.raw`C = \Delta N_c + \sqrt{\Delta E_c}`} />
         <p className="text-[10px] text-text-dim">
           <Tex>{String.raw`\Delta N_c`}</Tex> = continuity nodes added to entity inner worlds (traits, beliefs, goals, secrets, capabilities, states).{' '}
           <Tex>{String.raw`\Delta E_c`}</Tex> = continuity edges (causal connections between inner-world facts).{' '}
-          Same structure as Knowledge — nodes linear, edges sqrt — but spanning every entity rather than one world graph.
+          Same structure as System — nodes linear, edges sqrt — but spanning every entity rather than one world graph.
         </p>
       </S>
 
-      <S title="Knowledge" analogy="Is the world growing richer? Revealing a new principle expands the world more than linking two known concepts.">
+      <S title="System" analogy="Is the world growing richer? Revealing a new principle expands the world more than linking two known concepts.">
         <Block tex={String.raw`K = \Delta N + \sqrt{\Delta E}`} />
         <p className="text-[10px] text-text-dim">
           <Tex>{String.raw`\Delta N`}</Tex> = new world-building nodes (principles, systems, concepts, tensions, events, structures).{' '}
@@ -81,7 +81,7 @@ function DynamicsTab() {
       <S title="Tension" analogy="The coiled spring — energy building without release.">
         <Block tex="T_i = C_i + K_i - P_i" />
         <p className="text-[10px] text-text-dim">
-          High when characters change and the world expands but nothing resolves. Drops sharply at payoff scenes.
+          High when characters change and the world expands but nothing resolves. Drops sharply at drive scenes.
         </p>
       </S>
 
@@ -125,9 +125,9 @@ function ScoringTab() {
         </p>
         <div className="mt-2 flex gap-2 text-[10px]">
           {[
-            { label: 'Payoff', value: '1.5', color: '#EF4444' },
-            { label: 'Change', value: '7', color: '#22C55E' },
-            { label: 'Knowledge', value: '4', color: '#3B82F6' },
+            { label: 'Drive', value: '3', color: '#EF4444' },
+            { label: 'World', value: '7', color: '#22C55E' },
+            { label: 'System', value: '4', color: '#3B82F6' },
           ].map(({ label, value, color }) => (
             <div key={label} className="flex items-center gap-1.5 px-2 py-1 rounded bg-white/5 border border-white/8">
               <div className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: color }} />

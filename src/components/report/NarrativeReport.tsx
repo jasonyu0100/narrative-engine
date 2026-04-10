@@ -4,7 +4,7 @@ import React, { useMemo, useRef, useEffect, useCallback, useState } from 'react'
 import { createPortal } from 'react-dom';
 import * as d3 from 'd3';
 import type { NarrativeState, CubeCornerKey, ForceSnapshot } from '@/types/narrative';
-import { NARRATIVE_CUBE } from '@/types/narrative';
+import { NARRATIVE_CUBE, THREAD_TERMINAL_STATUSES } from '@/types/narrative';
 import { computeSlidesData, type SlidesData } from '@/lib/slides-data';
 import { detectCubeCorner } from '@/lib/narrative-utils';
 import { generateReportAnalysis, type ReportAnalysis } from '@/lib/ai/report';
@@ -17,14 +17,14 @@ import type { PropositionBaseCategory } from '@/types/narrative';
 // ── Constants ────────────────────────────────────────────────────────────────
 
 const FORCE_COLORS: Record<string, string> = {
-  payoff: '#EF4444', change: '#22C55E', knowledge: '#3B82F6', swing: '#FACC15',
+  drive: '#EF4444', world: '#22C55E', system: '#3B82F6', swing: '#FACC15',
 };
 const FORCE_LABELS: Record<string, string> = {
-  payoff: 'Payoff', change: 'Change', knowledge: 'Knowledge', swing: 'Swing',
+  drive: 'Drive', world: 'World', system: 'System', swing: 'Swing',
 };
 const STATUS_COLORS: Record<string, string> = {
-  dormant: '#475569', active: '#38BDF8', escalating: '#FBBF24',
-  critical: '#F87171', resolved: '#34D399', subverted: '#C084FC', abandoned: '#64748B',
+  latent: '#475569', seeded: '#FBBF24', active: '#38BDF8',
+  critical: '#F87171', resolved: '#34D399', subverted: '#C084FC', abandoned: '#444444',
 };
 const CORNER_COLORS: Record<CubeCornerKey, string> = {
   HHH: '#f59e0b', HHL: '#ef4444', HLH: '#a855f7', HLL: '#6366f1',
@@ -167,9 +167,9 @@ function ForceDecompositionChart({ data }: { data: SlidesData }) {
     const n = data.sceneCount;
     const raw = data.rawForces;
     const x = d3.scaleLinear().domain([0, n - 1]).range([0, w]);
-    const maxVal = Math.max(...raw.payoff, ...raw.change, ...raw.knowledge, 1);
+    const maxVal = Math.max(...raw.drive, ...raw.world, ...raw.system, 1);
     const y = d3.scaleLinear().domain([0, maxVal * 1.1]).range([h, 0]);
-    for (const f of [{ data: raw.knowledge, color: '#3B82F6' }, { data: raw.change, color: '#22C55E' }, { data: raw.payoff, color: '#EF4444' }]) {
+    for (const f of [{ data: raw.system, color: '#3B82F6' }, { data: raw.world, color: '#22C55E' }, { data: raw.drive, color: '#EF4444' }]) {
       const area = d3.area<number>().x((_, i) => x(i)).y0(h).y1((d) => y(d)).curve(d3.curveMonotoneX);
       g.append('path').datum(f.data).attr('d', area).attr('fill', f.color).attr('fill-opacity', 0.04);
       const line = d3.line<number>().x((_, i) => x(i)).y((d) => y(d)).curve(d3.curveMonotoneX);
@@ -222,9 +222,9 @@ function RadarChart({ data }: { data: SlidesData }) {
     svg.attr('viewBox', `0 0 ${size} ${size}`);
     const g = svg.append('g').attr('transform', `translate(${center},${center})`);
     const axes = [
-      { key: 'payoff' as const, label: 'P', angle: -Math.PI / 2 },
-      { key: 'change' as const, label: 'C', angle: 0 },
-      { key: 'knowledge' as const, label: 'K', angle: Math.PI / 2 },
+      { key: 'drive' as const, label: 'P', angle: -Math.PI / 2 },
+      { key: 'world' as const, label: 'W', angle: 0 },
+      { key: 'system' as const, label: 'S', angle: Math.PI / 2 },
       { key: 'swing' as const, label: 'S', angle: Math.PI },
     ];
     for (let r = 0.25; r <= 1; r += 0.25) {
@@ -235,7 +235,7 @@ function RadarChart({ data }: { data: SlidesData }) {
       g.append('line').attr('x1', 0).attr('y1', 0).attr('x2', Math.cos(a.angle) * maxR).attr('y2', Math.sin(a.angle) * maxR).attr('stroke', 'white').attr('stroke-opacity', 0.08);
       g.append('text').attr('x', Math.cos(a.angle) * (maxR + 14)).attr('y', Math.sin(a.angle) * (maxR + 14)).attr('text-anchor', 'middle').attr('dominant-baseline', 'middle').attr('fill', FORCE_COLORS[a.key]).attr('font-size', 9).attr('font-weight', 600).text(a.label);
     }
-    const values = { payoff: data.overallGrades.payoff / 25, change: data.overallGrades.change / 25, knowledge: data.overallGrades.knowledge / 25, swing: data.overallGrades.swing / 25 };
+    const values = { drive: data.overallGrades.drive / 25, world: data.overallGrades.world / 25, system: data.overallGrades.system / 25, swing: data.overallGrades.swing / 25 };
     const dataPoints = axes.map((a) => [Math.cos(a.angle) * maxR * values[a.key], Math.sin(a.angle) * maxR * values[a.key]]);
     g.append('polygon').attr('points', dataPoints.map((p) => p.join(',')).join(' ')).attr('fill', '#F59E0B').attr('fill-opacity', 0.12).attr('stroke', '#F59E0B').attr('stroke-width', 1.5).attr('stroke-opacity', 0.5);
     for (let i = 0; i < axes.length; i++) g.append('circle').attr('cx', dataPoints[i][0]).attr('cy', dataPoints[i][1]).attr('r', 2.5).attr('fill', FORCE_COLORS[axes[i].key]);
@@ -577,14 +577,14 @@ export function NarrativeReport({
     );
   }
 
-  const forces = ['payoff', 'change', 'knowledge', 'swing'] as const;
-  const dominant = (['payoff', 'change', 'knowledge'] as const).reduce((a, b) => data.overallGrades[a] > data.overallGrades[b] ? a : b);
+  const forces = ['drive', 'world', 'system', 'swing'] as const;
+  const dominant = (['drive', 'world', 'system'] as const).reduce((a, b) => data.overallGrades[a] > data.overallGrades[b] ? a : b);
   const raw = data.rawForces;
   const n = data.sceneCount;
   const stats = {
-    payoff: { avg: avg(raw.payoff), peak: Math.max(...raw.payoff), total: raw.payoff.reduce((s, v) => s + v, 0), sd: stdDev(raw.payoff) },
-    change: { avg: avg(raw.change), peak: Math.max(...raw.change), total: raw.change.reduce((s, v) => s + v, 0), sd: stdDev(raw.change) },
-    knowledge: { avg: avg(raw.knowledge), peak: Math.max(...raw.knowledge), total: raw.knowledge.reduce((s, v) => s + v, 0), sd: stdDev(raw.knowledge) },
+    drive: { avg: avg(raw.drive), peak: Math.max(...raw.drive), total: raw.drive.reduce((s, v) => s + v, 0), sd: stdDev(raw.drive) },
+    world: { avg: avg(raw.world), peak: Math.max(...raw.world), total: raw.world.reduce((s, v) => s + v, 0), sd: stdDev(raw.world) },
+    system: { avg: avg(raw.system), peak: Math.max(...raw.system), total: raw.system.reduce((s, v) => s + v, 0), sd: stdDev(raw.system) },
     swing: { avg: avg(data.swings), peak: Math.max(...data.swings), total: data.swings.reduce((s, v) => s + v, 0), sd: stdDev(data.swings) },
   };
   const avgSwing = avg(data.swings);
@@ -768,7 +768,7 @@ export function NarrativeReport({
             <Figure caption="Raw force decomposition over time.">
               <ForceDecompositionChart data={data} />
               <div className="flex items-center gap-4 mt-3 px-1">
-                {(['Payoff', 'Change', 'Knowledge'] as const).map((l) => (
+                {(['Drive', 'World', 'System'] as const).map((l) => (
                   <span key={l} className="flex items-center gap-1.5 text-[9px] text-white/25">
                     <span className="w-3 h-[1.5px] rounded" style={{ backgroundColor: FORCE_COLORS[l.toLowerCase()], opacity: 0.7 }} />
                     {l}
@@ -1030,8 +1030,8 @@ export function NarrativeReport({
               {prose('threads')}
               <div className="mt-5 space-y-px rounded-lg overflow-hidden border border-white/[0.05]">
                 {data.threadLifecycles.slice(0, 12).map((tl, i) => {
-                  const endStatus = tl.statuses[tl.statuses.length - 1]?.status ?? 'dormant';
-                  const isTerminal = ['resolved', 'subverted', 'abandoned'].includes(endStatus);
+                  const endStatus = tl.statuses[tl.statuses.length - 1]?.status ?? 'latent';
+                  const isTerminal = (THREAD_TERMINAL_STATUSES as readonly string[]).includes(endStatus);
                   const firstScene = tl.statuses[0]?.sceneIdx ?? 0;
                   const lastScene = tl.statuses[tl.statuses.length - 1]?.sceneIdx ?? 0;
                   return (
@@ -1097,8 +1097,8 @@ export function NarrativeReport({
                     <tr className="border-b border-white/[0.06]">
                       <th className="text-left py-2 text-[9px] uppercase tracking-[0.15em] text-white/20 font-normal">Arc</th>
                       <th className="text-right py-2 text-[9px] uppercase tracking-[0.15em] text-white/20 font-normal w-12">Sc.</th>
-                      {['P', 'C', 'K', 'S'].map((h, i) => (
-                        <th key={h} className="text-right py-2 text-[9px] font-normal w-10" style={{ color: [FORCE_COLORS.payoff, FORCE_COLORS.change, FORCE_COLORS.knowledge, FORCE_COLORS.swing][i] + '66' }}>{h}</th>
+                      {['P', 'W', 'S', 'Sw'].map((h, i) => (
+                        <th key={h} className="text-right py-2 text-[9px] font-normal w-10" style={{ color: [FORCE_COLORS.drive, FORCE_COLORS.world, FORCE_COLORS.system, FORCE_COLORS.swing][i] + '66' }}>{h}</th>
                       ))}
                       <th className="text-right py-2 text-[9px] uppercase tracking-[0.15em] text-white/20 font-normal w-14">Score</th>
                     </tr>
@@ -1108,9 +1108,9 @@ export function NarrativeReport({
                       <tr key={arc.arcId} className={`border-b border-white/[0.03] ${i % 2 === 0 ? 'bg-white/[0.01]' : ''}`}>
                         <td className="py-2.5 text-[11px] text-white/40">{arc.arcName}</td>
                         <td className="text-right py-2.5 text-[11px] font-mono text-white/20">{arc.sceneCount}</td>
-                        <td className="text-right py-2.5 text-[11px] font-mono text-white/30">{arc.grades.payoff}</td>
-                        <td className="text-right py-2.5 text-[11px] font-mono text-white/30">{arc.grades.change}</td>
-                        <td className="text-right py-2.5 text-[11px] font-mono text-white/30">{arc.grades.knowledge}</td>
+                        <td className="text-right py-2.5 text-[11px] font-mono text-white/30">{arc.grades.drive}</td>
+                        <td className="text-right py-2.5 text-[11px] font-mono text-white/30">{arc.grades.world}</td>
+                        <td className="text-right py-2.5 text-[11px] font-mono text-white/30">{arc.grades.system}</td>
                         <td className="text-right py-2.5 text-[11px] font-mono text-white/30">{arc.grades.swing}</td>
                         <td className="text-right py-2.5"><span className="text-[12px] font-semibold font-mono" style={{ color: gradeColor(arc.grades.overall) + 'CC' }}>{arc.grades.overall}</span></td>
                       </tr>

@@ -74,10 +74,11 @@ function createThread(id: string, description: string, participants: string[] = 
   return {
     id,
     description,
-    status: 'dormant',
+    status: 'latent',
     participants: participants.map((pid) => ({ id: pid, type: 'character' as const })),
     dependents: [],
     openedAt: 's1',
+    threadLog: { nodes: {}, edges: [] },
   };
 }
 
@@ -132,9 +133,8 @@ function createArc(id: string, name: string, sceneIds: string[]): Arc {
 describe('THREAD_LIFECYCLE_DOC', () => {
   it('contains active statuses', () => {
     expect(THREAD_LIFECYCLE_DOC).toContain('Active statuses');
-    expect(THREAD_LIFECYCLE_DOC).toContain('dormant');
+    expect(THREAD_LIFECYCLE_DOC).toContain('latent');
     expect(THREAD_LIFECYCLE_DOC).toContain('active');
-    expect(THREAD_LIFECYCLE_DOC).toContain('escalating');
     expect(THREAD_LIFECYCLE_DOC).toContain('critical');
   });
 
@@ -142,7 +142,6 @@ describe('THREAD_LIFECYCLE_DOC', () => {
     expect(THREAD_LIFECYCLE_DOC).toContain('Terminal');
     expect(THREAD_LIFECYCLE_DOC).toContain('resolved');
     expect(THREAD_LIFECYCLE_DOC).toContain('subverted');
-    expect(THREAD_LIFECYCLE_DOC).toContain('abandoned');
   });
 });
 
@@ -235,20 +234,20 @@ describe('getStateAtIndex', () => {
       scenes: {
         's1': createScene('s1', {
           threadMutations: [
-            { threadId: 't1', from: 'dormant', to: 'active' },
+            { threadId: 't1', from: 'latent', to: 'active' },
           ],
         }),
         's2': createScene('s2', {
           threadMutations: [
-            { threadId: 't1', from: 'active', to: 'escalating' },
-            { threadId: 't2', from: 'dormant', to: 'active' },
+            { threadId: 't1', from: 'active', to: 'active' },
+            { threadId: 't2', from: 'latent', to: 'active' },
           ],
         }),
       },
     });
 
     const state = getStateAtIndex(n, ['s1', 's2'], 1);
-    expect(state.threadStatuses['t1']).toBe('escalating');
+    expect(state.threadStatuses['t1']).toBe('active');
     expect(state.threadStatuses['t2']).toBe('active');
   });
 
@@ -423,12 +422,12 @@ describe('sceneContext', () => {
     const scene = createScene('s1', {
       povId: 'c1',
       locationId: 'loc1',
-      threadMutations: [{ threadId: 't1', from: 'dormant', to: 'active' }],
+      threadMutations: [{ threadId: 't1', from: 'latent', to: 'active' }],
     });
 
     const ctx = sceneContext(n, scene);
     expect(ctx).toContain('Quest for the Sword');
-    expect(ctx).toContain('dormant');
+    expect(ctx).toContain('latent');
     expect(ctx).toContain('active');
   });
 
@@ -487,12 +486,12 @@ describe('deriveLogicRules', () => {
     const scene = createScene('s1', {
       povId: 'c1',
       locationId: 'loc1',
-      threadMutations: [{ threadId: 't1', from: 'dormant', to: 'active' }],
+      threadMutations: [{ threadId: 't1', from: 'latent', to: 'active' }],
     });
 
     const rules = deriveLogicRules(n, scene);
     expect(rules).toContain('The Quest');
-    expect(rules).toContain('dormant');
+    expect(rules).toContain('latent');
     expect(rules).toContain('active');
   });
 

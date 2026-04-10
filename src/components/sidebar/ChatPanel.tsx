@@ -344,7 +344,7 @@ ${ctx}`;
                               </button>
                               <button
                                 onClick={(e) => { e.stopPropagation(); dispatch({ type: 'DELETE_CHAT_THREAD', threadId: thread.id }); }}
-                                className="p-1 rounded text-text-dim hover:text-payoff hover:bg-white/8 transition-colors"
+                                className="p-1 rounded text-text-dim hover:text-drive hover:bg-white/8 transition-colors"
                                 title="Delete"
                               >
                                 <IconTrash size={9} />

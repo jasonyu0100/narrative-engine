@@ -126,7 +126,25 @@ function computeDerivedEntities(
       }
       for (const tm of scene.threadMutations ?? []) {
         const thread = threads[tm.threadId];
-        if (thread) threads[tm.threadId] = { ...thread, status: tm.to };
+        if (!thread) continue;
+        // Build thread log node for this lifecycle touch
+        const existingNodeCount = Object.keys(thread.threadLog?.nodes ?? {}).length;
+        const nodeId = `TK-${String(existingNodeCount + 1).padStart(3, '0')}`;
+        const nodeType = tm.from === tm.to ? 'pulse' as const : 'transition' as const;
+        const content = tm.from === tm.to
+          ? `Pulse: ${scene.summary?.slice(0, 100) ?? 'thread touched'}`
+          : `${tm.from}→${tm.to}: ${scene.summary?.slice(0, 100) ?? 'transition'}`;
+        const node = { id: nodeId, content, type: nodeType };
+        const existingNodes = Object.keys(thread.threadLog?.nodes ?? {});
+        const prevId = existingNodes.length > 0 ? existingNodes[existingNodes.length - 1] : null;
+        const edges = prevId
+          ? [{ from: prevId, to: nodeId, relation: tm.from === tm.to ? 'continues' : 'causes' }]
+          : [];
+        const newThreadLog = {
+          nodes: { ...thread.threadLog?.nodes, [nodeId]: node },
+          edges: [...(thread.threadLog?.edges ?? []), ...edges],
+        };
+        threads[tm.threadId] = { ...thread, status: tm.to, threadLog: newThreadLog };
       }
       // Apply relationship mutations from scene
       for (const rm of scene.relationshipMutations ?? []) {
@@ -239,16 +257,16 @@ export function narrativeToEntry(n: NarrativeState): NarrativeEntry {
 
   if (allScenes.length >= 3) {
     const raw = computeRawForceTotals(allScenes);
-    const rawForces = raw.payoff.map((_, i) => ({
-      payoff: raw.payoff[i],
-      change: raw.change[i],
-      knowledge: raw.knowledge[i],
+    const rawForces = raw.drive.map((_, i) => ({
+      drive: raw.drive[i],
+      world: raw.world[i],
+      system: raw.system[i],
     }));
     const swings = computeSwingMagnitudes(rawForces, FORCE_REFERENCE_MEANS);
     const forceMap = computeForceSnapshots(allScenes);
-    const ordered = allScenes.map((s) => forceMap[s.id] ?? { payoff: 0, change: 0, knowledge: 0 });
+    const ordered = allScenes.map((s) => forceMap[s.id] ?? { drive: 0, world: 0, system: 0 });
     const deliveryPoints = computeDeliveryCurve(ordered);
-    const grades = gradeForces(raw.payoff, raw.change, raw.knowledge, swings);
+    const grades = gradeForces(raw.drive, raw.world, raw.system, swings);
 
     const shape = classifyNarrativeShape(deliveryPoints.map((d) => d.delivery));
     const archetype = classifyArchetype(grades);

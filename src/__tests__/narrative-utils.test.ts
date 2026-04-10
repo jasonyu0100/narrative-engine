@@ -176,34 +176,34 @@ describe('computeThreadStatuses', () => {
   it('returns base statuses when no scenes', () => {
     const narrative = createNarrative({
       threads: {
-        'T-01': { id: 'T-01', status: 'dormant', description: 'Thread 1', participants: [], dependents: [], openedAt: 'S-000' },
-        'T-02': { id: 'T-02', status: 'active', description: 'Thread 2', participants: [], dependents: [], openedAt: 'S-000' },
+        'T-01': { id: 'T-01', status: 'latent', description: 'Thread 1', participants: [], dependents: [], openedAt: 'S-000', threadLog: { nodes: {}, edges: [] } },
+        'T-02': { id: 'T-02', status: 'active', description: 'Thread 2', participants: [], dependents: [], openedAt: 'S-000', threadLog: { nodes: {}, edges: [] } },
       },
     });
     const statuses = computeThreadStatuses(narrative, 0);
-    expect(statuses['T-01']).toBe('dormant');
+    expect(statuses['T-01']).toBe('latent');
     expect(statuses['T-02']).toBe('active');
   });
 
   it('applies thread mutations from scenes', () => {
     const narrative = createNarrative({
       threads: {
-        'T-01': { id: 'T-01', status: 'dormant', description: 'Thread', participants: [], dependents: [], openedAt: 'S-000' },
+        'T-01': { id: 'T-01', status: 'latent', description: 'Thread', participants: [], dependents: [], openedAt: 'S-000', threadLog: { nodes: {}, edges: [] } },
       },
       scenes: {
         'S-001': createScene({
           id: 'S-001',
-          threadMutations: [{ threadId: 'T-01', from: 'dormant', to: 'active' }],
+          threadMutations: [{ threadId: 'T-01', from: 'latent', to: 'active' }],
         }),
         'S-002': createScene({
           id: 'S-002',
-          threadMutations: [{ threadId: 'T-01', from: 'active', to: 'escalating' }],
+          threadMutations: [{ threadId: 'T-01', from: 'active', to: 'active' }],
         }),
       },
     });
 
     expect(computeThreadStatuses(narrative, 0, ['S-001', 'S-002'])['T-01']).toBe('active');
-    expect(computeThreadStatuses(narrative, 1, ['S-001', 'S-002'])['T-01']).toBe('escalating');
+    expect(computeThreadStatuses(narrative, 1, ['S-001', 'S-002'])['T-01']).toBe('active');
   });
 });
 
@@ -211,26 +211,26 @@ describe('computeThreadStatuses', () => {
 
 describe('forceDistance', () => {
   it('returns 0 for identical snapshots', () => {
-    const a: ForceSnapshot = { payoff: 1, change: 1, knowledge: 1 };
+    const a: ForceSnapshot = { drive: 1, world: 1, system: 1 };
     expect(forceDistance(a, a)).toBe(0);
   });
 
   it('computes Euclidean distance', () => {
-    const a: ForceSnapshot = { payoff: 0, change: 0, knowledge: 0 };
-    const b: ForceSnapshot = { payoff: 3, change: 4, knowledge: 0 };
+    const a: ForceSnapshot = { drive: 0, world: 0, system: 0 };
+    const b: ForceSnapshot = { drive: 3, world: 4, system: 0 };
     expect(forceDistance(a, b)).toBe(5);
   });
 });
 
 describe('detectCubeCorner', () => {
   it('detects HHH corner for high forces', () => {
-    const forces: ForceSnapshot = { payoff: 1.5, change: 1.5, knowledge: 1.5 };
+    const forces: ForceSnapshot = { drive: 1.5, world: 1.5, system: 1.5 };
     const corner = detectCubeCorner(forces);
     expect(corner.key).toBe('HHH');
   });
 
   it('detects LLL corner for low forces', () => {
-    const forces: ForceSnapshot = { payoff: -1.5, change: -1.5, knowledge: -1.5 };
+    const forces: ForceSnapshot = { drive: -1.5, world: -1.5, system: -1.5 };
     const corner = detectCubeCorner(forces);
     expect(corner.key).toBe('LLL');
   });
@@ -238,13 +238,13 @@ describe('detectCubeCorner', () => {
 
 describe('cubeCornerProximity', () => {
   it('returns 1 when at the corner', () => {
-    const forces: ForceSnapshot = { payoff: 1, change: 1, knowledge: 1 };
+    const forces: ForceSnapshot = { drive: 1, world: 1, system: 1 };
     expect(cubeCornerProximity(forces, 'HHH')).toBeCloseTo(1, 1);
   });
 
   it('returns smaller values further from corner', () => {
-    const close: ForceSnapshot = { payoff: 0.9, change: 0.9, knowledge: 0.9 };
-    const far: ForceSnapshot = { payoff: -1, change: -1, knowledge: -1 };
+    const close: ForceSnapshot = { drive: 0.9, world: 0.9, system: 0.9 };
+    const far: ForceSnapshot = { drive: -1, world: -1, system: -1 };
     expect(cubeCornerProximity(close, 'HHH')).toBeGreaterThan(cubeCornerProximity(far, 'HHH'));
   });
 });
@@ -253,14 +253,14 @@ describe('cubeCornerProximity', () => {
 
 describe('computeSwingMagnitudes', () => {
   it('returns [0] for single snapshot', () => {
-    const snapshots: ForceSnapshot[] = [{ payoff: 1, change: 1, knowledge: 1 }];
+    const snapshots: ForceSnapshot[] = [{ drive: 1, world: 1, system: 1 }];
     expect(computeSwingMagnitudes(snapshots)).toEqual([0]);
   });
 
   it('computes Euclidean distance between consecutive snapshots', () => {
     const snapshots: ForceSnapshot[] = [
-      { payoff: 0, change: 0, knowledge: 0 },
-      { payoff: 1, change: 0, knowledge: 0 },
+      { drive: 0, world: 0, system: 0 },
+      { drive: 1, world: 0, system: 0 },
     ];
     const swings = computeSwingMagnitudes(snapshots);
     expect(swings[0]).toBe(0);
@@ -269,10 +269,10 @@ describe('computeSwingMagnitudes', () => {
 
   it('normalizes by reference means when provided', () => {
     const snapshots: ForceSnapshot[] = [
-      { payoff: 0, change: 0, knowledge: 0 },
-      { payoff: 2, change: 0, knowledge: 0 },
+      { drive: 0, world: 0, system: 0 },
+      { drive: 2, world: 0, system: 0 },
     ];
-    const refMeans = { payoff: 2, change: 1, knowledge: 1 };
+    const refMeans = { drive: 2, world: 1, system: 1 };
     const swings = computeSwingMagnitudes(snapshots, refMeans);
     expect(swings[1]).toBe(1); // 2/2 = 1
   });
@@ -281,7 +281,7 @@ describe('computeSwingMagnitudes', () => {
 describe('averageSwing', () => {
   it('returns 0 for empty or single snapshot', () => {
     expect(averageSwing([])).toBe(0);
-    expect(averageSwing([{ payoff: 1, change: 1, knowledge: 1 }])).toBe(0);
+    expect(averageSwing([{ drive: 1, world: 1, system: 1 }])).toBe(0);
   });
 });
 
@@ -321,13 +321,13 @@ describe('computeForceSnapshots', () => {
     const scenes: Scene[] = [
       createScene({
         id: 'S-001',
-        threadMutations: [{ threadId: 'T-01', from: 'dormant', to: 'active' }],
+        threadMutations: [{ threadId: 'T-01', from: 'latent', to: 'seeded' }],
         continuityMutations: [],
         events: ['event1'],
       }),
       createScene({
         id: 'S-002',
-        threadMutations: [{ threadId: 'T-01', from: 'active', to: 'critical' }],
+        threadMutations: [{ threadId: 'T-01', from: 'seeded', to: 'active' }],
         continuityMutations: [{ entityId: 'C-01', addedNodes: [{ id: 'K-01', content: 'secret', type: 'secret' }], addedEdges: [] }],
         events: ['event1', 'event2'],
       }),
@@ -343,20 +343,20 @@ describe('computeForceSnapshots', () => {
 describe('computeRawForceTotals', () => {
   it('returns empty arrays for empty scenes', () => {
     const result = computeRawForceTotals([]);
-    expect(result).toEqual({ payoff: [], change: [], knowledge: [] });
+    expect(result).toEqual({ drive: [], world: [], system: [] });
   });
 
   it('computes raw values without normalization', () => {
     const scenes: Scene[] = [
       createScene({
         id: 'S-001',
-        threadMutations: [{ threadId: 'T-01', from: 'dormant', to: 'active' }],
+        threadMutations: [{ threadId: 'T-01', from: 'latent', to: 'seeded' }],
       }),
     ];
 
     const result = computeRawForceTotals(scenes);
-    expect(result.payoff).toHaveLength(1);
-    expect(result.payoff[0]).toBe(1); // dormant→active = 1 step
+    expect(result.drive).toHaveLength(1);
+    expect(result.drive[0]).toBe(0.5); // latent→seeded = 0.5 weight, activeArcs=1
   });
 });
 
@@ -388,10 +388,10 @@ describe('computeDeliveryCurve', () => {
 
   it('computes delivery points with all properties', () => {
     const snapshots: ForceSnapshot[] = [
-      { payoff: 0, change: 0, knowledge: 0 },
-      { payoff: 1, change: 1, knowledge: 1 },
-      { payoff: -1, change: -1, knowledge: -1 },
-      { payoff: 0.5, change: 0.5, knowledge: 0.5 },
+      { drive: 0, world: 0, system: 0 },
+      { drive: 1, world: 1, system: 1 },
+      { drive: -1, world: -1, system: -1 },
+      { drive: 0.5, world: 0.5, system: 0.5 },
     ];
 
     const curve = computeDeliveryCurve(snapshots);
@@ -434,17 +434,17 @@ describe('classifyNarrativeShape', () => {
 
 describe('classifyArchetype', () => {
   it('returns opus for balanced high grades', () => {
-    const grades = { payoff: 24, change: 23, knowledge: 22, swing: 20, overall: 89 };
+    const grades = { drive: 24, world: 23, system: 22, swing: 20, overall: 89 };
     expect(classifyArchetype(grades).key).toBe('opus');
   });
 
-  it('returns classic for payoff-dominant', () => {
-    const grades = { payoff: 24, change: 15, knowledge: 15, swing: 18, overall: 72 };
+  it('returns classic for drive-dominant', () => {
+    const grades = { drive: 24, world: 15, system: 15, swing: 18, overall: 72 };
     expect(classifyArchetype(grades).key).toBe('classic');
   });
 
   it('returns emerging for low grades', () => {
-    const grades = { payoff: 10, change: 12, knowledge: 8, swing: 10, overall: 40 };
+    const grades = { drive: 10, world: 12, system: 8, swing: 10, overall: 40 };
     expect(classifyArchetype(grades).key).toBe('emerging');
   });
 });
@@ -526,8 +526,8 @@ describe('computeWindowedForces', () => {
 // ── Grading Functions ────────────────────────────────────────────────────────
 
 describe('gradeForce', () => {
-  it('returns 0 for 0 input', () => {
-    expect(gradeForce(0)).toBe(0);
+  it('returns floor of 8 for 0 input', () => {
+    expect(gradeForce(0)).toBe(8);
   });
 
   it('caps at 25', () => {
@@ -546,20 +546,20 @@ describe('gradeForce', () => {
 describe('gradeForces', () => {
   it('returns grades for each force and overall', () => {
     const grades = gradeForces(
-      [1.5, 1.5], // payoff at reference
-      [7, 7],     // change at reference
-      [4, 4],     // knowledge at reference
+      [1.5, 1.5], // drive at reference
+      [7, 7],     // world at reference
+      [4, 4],     // system at reference
       [1, 1],     // swing
     );
 
-    expect(grades).toHaveProperty('payoff');
-    expect(grades).toHaveProperty('change');
-    expect(grades).toHaveProperty('knowledge');
+    expect(grades).toHaveProperty('drive');
+    expect(grades).toHaveProperty('world');
+    expect(grades).toHaveProperty('system');
     expect(grades).toHaveProperty('swing');
     expect(grades).toHaveProperty('overall');
     // Individual grades are rounded before summing for overall, which is also rounded
     // So overall should be within ±2 of the sum due to rounding
-    const sum = grades.payoff + grades.change + grades.knowledge + grades.swing;
+    const sum = grades.drive + grades.world + grades.system + grades.swing;
     expect(Math.abs(grades.overall - sum)).toBeLessThanOrEqual(2);
   });
 });

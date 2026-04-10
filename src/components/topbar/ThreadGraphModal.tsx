@@ -9,13 +9,13 @@ import { Modal, ModalHeader, ModalBody } from '@/components/Modal';
 // ── Colors ──────────────────────────────────────────────────────────────────
 
 const STATUS_FILLS: Record<string, string> = {
-  dormant:    '#475569',
+  latent:     '#475569',
+  seeded:     '#FBBF24',
   active:     '#38BDF8',
-  escalating: '#FBBF24',
   critical:   '#F87171',
   resolved:   '#34D399',
   subverted:  '#C084FC',
-  abandoned:  '#64748B',
+  abandoned:  '#444444',
 };
 
 const CLUSTER_COLORS = [

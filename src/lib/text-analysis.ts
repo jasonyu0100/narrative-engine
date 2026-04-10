@@ -13,7 +13,8 @@ import type {
   WorldBuild, Branch, ProseProfile, SceneVersionPointers, WorldKnowledgeNodeType, ContinuityNodeType,
   BeatPlan,
 } from '@/types/narrative';
-import { THREAD_ACTIVE_STATUSES, THREAD_TERMINAL_STATUSES, THREAD_STATUS_LABELS, DEFAULT_STORY_SETTINGS } from '@/types/narrative';
+import { THREAD_ACTIVE_STATUSES, THREAD_TERMINAL_STATUSES, THREAD_STATUS_LABELS, THREAD_LOG_NODE_TYPES, DEFAULT_STORY_SETTINGS } from '@/types/narrative';
+import type { ThreadLogNodeType } from '@/types/narrative';
 import { ANALYSIS_TARGET_SECTIONS_PER_CHUNK, ANALYSIS_TARGET_CHUNK_WORDS, ANALYSIS_MODEL, MAX_TOKENS_DEFAULT, ANALYSIS_TEMPERATURE, WORDS_PER_SCENE, SCENES_PER_ARC } from '@/lib/constants';
 import { validateExtractionResult, validateWorldKnowledge } from '@/lib/ai/validation';
 import { logWarning, logInfo } from '@/lib/system-logger';
@@ -133,10 +134,10 @@ export async function extractSceneStructure(
 SCENE PROSE:
 ${prose}${beatSection}
 
-FORCE FORMULAS — your extractions are the direct inputs to these formulas:
-- PAYOFF = Σ max(0, φ_to - φ_from) + 0.25/pulse. Phase: dormant=0, active=1, escalating=2, critical=3, terminal=4. Ref: ~1.3/scene.
-- CHANGE = ΔN_c + √ΔE_c (entity continuity — mirrors Knowledge but for inner worlds). Ref: ~7/scene.
-- KNOWLEDGE = ΔN + √ΔE (world knowledge). Ref: ~4/scene.
+FORCE FORMULAS — your extractions are the direct inputs:
+- DRIVE = activeArcs^1.3 × stageWeight (thread fate). Ref: ~3/scene.
+- WORLD = ΔN_c + √ΔE_c (entity transformation — what we learn about characters, locations, artifacts). Ref: ~7/scene.
+- SYSTEM = ΔN + √ΔE (world deepening — rules, structures, concepts). Ref: ~4/scene.
 
 Return JSON:
 {
@@ -150,7 +151,7 @@ Return JSON:
   "artifacts": [{"name": "Artifact Name", "significance": "key|notable|minor", "imagePrompt": "1-2 sentence LITERAL visual description — concrete physical details only, no metaphors or figurative language", "continuity": [{"type": "...", "content": "..."}], "ownerName": "owner or null"}],
   "threads": [{"description": "narrative tension", "participantNames": ["names"], "statusAtStart": "status", "statusAtEnd": "status", "development": "how it developed"}],
   "relationships": [{"from": "Name", "to": "Name", "type": "description", "valence": 0.0}],
-  "threadMutations": [{"threadDescription": "exact thread description", "from": "status", "to": "status"}],
+  "threadMutations": [{"threadDescription": "exact thread description", "from": "status", "to": "status", "log": [{"content": "what happened to the thread", "type": "pulse|transition|setup|escalation|payoff|twist|callback|resistance|stall"}]}],
   "continuityMutations": [{"entityName": "Name", "addedNodes": [{"content": "what", "type": "trait|state|history|capability|belief|relation|secret|goal|weakness"}]}],
   "relationshipMutations": [{"from": "Name", "to": "Name", "type": "description", "valenceDelta": 0.1}],
   "artifactUsages": [{"artifactName": "Name", "characterName": "who or null", "usage": "what the artifact did"}],
@@ -163,11 +164,18 @@ Return JSON:
   const fieldGuide = `
 EXTRACTION STANDARDS — every mutation must EARN its place. Low-value mutations flatten the force graph.
 
-threadMutations — lifecycle: dormant→active→escalating→critical→resolved/subverted/abandoned.
+threadMutations — lifecycle: latent→seeded→active→critical→resolved/subverted. Abandoned resets to latent.
 - ONE step at a time. NEVER skip phases.
 - Most scenes: 1-2 PULSES (same→same). Real transitions are RARE: 0-1 per scene.
 - Only record a transition when the prose shows a clear, irreversible shift in tension.
 - Touching 2-3 threads per scene (mostly pulses) with at most one transition is typical.
+- THREAD LOG: each threadMutation MUST include 1-3 log entries recording what happened to the thread.
+  Log types: pulse (bandwidth maintained), transition (stage advanced), setup (groundwork laid), escalation (stakes raised within stage), payoff (promise fulfilled), twist (expectations subverted), callback (reference to earlier thread event), resistance (opposition encountered), stall (thread stagnated).
+  DENSITY STANDARDS (per thread touch):
+    Pulse: 1 log node — what aspect of the thread was maintained or reinforced.
+    Transition: 2-3 log nodes — what caused the shift, what changed, and what it means going forward.
+    Critical/resolution scenes: 2-3 nodes — the payoff, its consequences, and any callbacks to earlier setup.
+  Each log node describes a SPECIFIC observation about thread progression, not a restatement of the scene summary.
 
 continuityMutations — what we LEARN about an entity that wasn't known before. Applies to characters, locations, and artifacts.
 - Characters: new behaviour, belief, capability, or inner state revealed. Not restating what's already known.
@@ -217,7 +225,7 @@ tieMutations — significant bond changes. NOT temporary visits.
 characterMovements — only physical relocation. Vivid transitions.
 
 VARIANCE IS SIGNAL:
-- Quiet scene: 0 transitions, 1 continuity node, 0 knowledge, 2 events = CORRECT.
+- Quiet scene: 0 transitions, 1 continuity node, 0 system, 2 events = CORRECT.
 - Climactic scene: 2 transitions, 5 nodes, 3 concepts, 5 events = CORRECT.
 - If every scene has similar counts, you are extracting noise. The graph needs peaks and valleys.`;
 
@@ -601,8 +609,8 @@ Empty object {} if no merges needed for a category.`;
           to: normalizeStatus(tm.to),
         })),
         (tm) => tm.threadDescription,
-        // When two mutations target the same thread in one scene, keep the widest transition
-        (a, b) => ({ ...a, from: a.from, to: b.to }),
+        // When two mutations target the same thread in one scene, keep widest transition and merge logs
+        (a, b) => ({ ...a, from: a.from, to: b.to, log: [...(a.log ?? []), ...(b.log ?? [])] }),
       ),
       continuityMutations: deduplicateBy(
         (s.continuityMutations ?? []).map((km) => ({
@@ -760,13 +768,14 @@ function normalizeStatus(raw: string): string {
   if (allStatuses.includes(s)) return s;
   // Common LLM variants → canonical
   const aliases: Record<string, string> = {
-    'inactive': 'dormant', 'latent': 'dormant', 'introduced': 'dormant', 'emerging': 'dormant',
-    'developing': 'active', 'ongoing': 'active', 'progressing': 'active', 'in progress': 'active',
-    'rising': 'escalating', 'intensifying': 'escalating', 'heightening': 'escalating', 'building': 'escalating',
+    'inactive': 'latent', 'introduced': 'latent', 'emerging': 'latent',
+    'developing': 'seeded', 'planted': 'seeded', 'setup': 'seeded', 'hinted': 'seeded',
+    'ongoing': 'active', 'progressing': 'active', 'in progress': 'active',
+    'rising': 'active', 'intensifying': 'active', 'heightening': 'active', 'building': 'active',
     'peak': 'critical', 'climactic': 'critical', 'urgent': 'critical', 'crisis': 'critical',
     'concluded': 'resolved', 'completed': 'resolved', 'settled': 'resolved', 'closed': 'resolved',
-    'twisted': 'subverted', 'inverted': 'subverted', 'upended': 'subverted', 'reversed': 'subverted',
-    'dropped': 'abandoned', 'forgotten': 'abandoned', 'faded': 'abandoned', 'unresolved': 'abandoned',
+    'twisted': 'subverted', 'inverted': 'subverted', 'upended': 'subverted', 'reversed': 'subverted', 'defied': 'subverted',
+    'dropped': 'abandoned', 'forgotten': 'abandoned', 'faded': 'abandoned', 'reset': 'abandoned',
   };
   if (aliases[s]) return aliases[s];
   // Fuzzy: check if any canonical status is a substring
@@ -1096,7 +1105,7 @@ export async function assembleNarrative(
         return { id: getCharId(name), type: 'character' as const };
       });
       if (!threads[id]) {
-        threads[id] = { id, participants: newAnchors, description: t.description, status: t.statusAtEnd ?? 'dormant', openedAt: '', dependents: [] };
+        threads[id] = { id, participants: newAnchors, description: t.description, status: t.statusAtEnd ?? 'latent', openedAt: '', dependents: [], threadLog: { nodes: {}, edges: [] } };
         threadFirstChunk.set(id, chunkIdx);
       } else {
         threads[id].status = t.statusAtEnd ?? threads[id].status;
@@ -1344,6 +1353,49 @@ export async function assembleNarrative(
     }
   }
 
+  // Build thread log graphs from extracted log nodes (same pattern as entity continuity)
+  // Uses the raw analysis data which includes per-mutation log entries
+  let threadNodeCounter = 0;
+  const lastThreadNodeId: Record<string, string> = {};
+  for (let chunkIdx = 0; chunkIdx < results.length; chunkIdx++) {
+    const ch = results[chunkIdx];
+    for (const s of ch.scenes ?? []) {
+      for (const tm of s.threadMutations ?? []) {
+        const threadId = getThreadId(tm.threadDescription);
+        const thread = threads[threadId];
+        if (!thread) continue;
+        const logEntries = tm.log ?? [];
+        // If LLM returned log nodes, use them; otherwise auto-generate a single node
+        const nodes = logEntries.length > 0
+          ? logEntries.map((entry) => {
+              const nodeId = `TK-${String(++threadNodeCounter).padStart(3, '0')}`;
+              const type = THREAD_LOG_NODE_TYPES.includes(entry.type as ThreadLogNodeType) ? entry.type as ThreadLogNodeType : (tm.from === tm.to ? 'pulse' : 'transition');
+              return { id: nodeId, content: entry.content, type };
+            })
+          : [{
+              id: `TK-${String(++threadNodeCounter).padStart(3, '0')}`,
+              content: tm.from === tm.to
+                ? `Thread maintained`
+                : `${tm.from}→${tm.to}`,
+              type: (tm.from === tm.to ? 'pulse' : 'transition') as ThreadLogNodeType,
+            }];
+        // Add nodes to thread log
+        for (const node of nodes) {
+          thread.threadLog.nodes[node.id] = node;
+          // Link sequentially within this batch
+          const prevId = lastThreadNodeId[threadId];
+          if (prevId) {
+            thread.threadLog.edges.push({ from: prevId, to: node.id, relation: tm.from === tm.to ? 'continues' : 'causes' });
+          }
+          lastThreadNodeId[threadId] = node.id;
+        }
+        // Chain nodes within the same mutation with co_occurs edges
+        for (let i = 1; i < nodes.length; i++) {
+          thread.threadLog.edges.push({ from: nodes[i - 1].id, to: nodes[i].id, relation: 'co_occurs' });
+        }
+      }
+    }
+  }
   // Build continuity graphs from scene mutations (forward replay, additive)
   // This ensures continuity.nodes is the final accumulated state and enables temporal filtering.
   const allSceneKeys = Object.keys(scenes);

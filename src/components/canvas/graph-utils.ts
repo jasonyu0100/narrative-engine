@@ -111,11 +111,11 @@ export const LOCATION_FILL = '#333333';
 
 /** Interpolate from cool (blue) to hot (red) matching force graph colors */
 export function heatColor(t: number): string {
-  // knowledge (blue) → change (green) → payoff (red)
+  // knowledge (blue) → change (green) → drive (red)
   const stops = [
     [59, 130, 246],   // #3B82F6 knowledge blue
     [34, 197, 94],    // #22C55E change green
-    [239, 68, 68],    // #EF4444 payoff red
+    [239, 68, 68],    // #EF4444 drive red
   ];
   const idx = t * (stops.length - 1);
   const lo = Math.floor(idx);

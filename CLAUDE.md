@@ -4,10 +4,12 @@ Knowledge-graph-based text analysis, querying, and generation platform. Primary 
 
 ## Core Concept
 
-Text is modelled as a **knowledge graph** that mutates section by section. An LLM records structural mutations (threads, knowledge, relationships) at each section, and multiple analysis layers extract structural intelligence from those mutations. Each analyzed work contributes to a growing network — pacing patterns become reusable, prose profiles capture authorial rhythm, and propositions are embedded for cross-corpus search. This enables:
+Narrative is a composition of three forces in flux: **drive** (the accumulated commitment of threads pulling the story toward resolution), **world** (the inner transformation of entities), and **system** (the deepening of rules and structures). Different works weight these forces differently — a Classic is drive-dominant, a Show is world-dominant, a Paper is system-dominant, and an Opus balances all three. Drive is the unifying force: it pulls world and system toward narrative resolution. A story without drive has no resolution; a story without world has no people; a story without system has no physics.
+
+Text is modelled as a **knowledge graph** that mutates section by section. An LLM records structural mutations (threads, continuity, knowledge) at each section, and the three forces are derived deterministically from these mutations. Each analyzed work contributes to a growing network — pacing patterns become reusable, prose profiles capture authorial rhythm, and propositions are embedded for cross-corpus search. This enables:
 
 ### Analysis
-- **Force analysis** — Payoff, Change, Knowledge derived from graph mutations via deterministic z-score normalised formulas
+- **Force analysis** — Drive, World, System derived from graph mutations via deterministic z-score normalised formulas
 - **Embedding analysis** — vector embeddings over every beat and proposition for meaning-based search and propositional logic
 - **Pacing analysis** — Markov transition matrices on scene-level cube modes and beat-level prose rhythm, derived from published works
 - **Scale & density** — story scale metrics and world knowledge interconnection depth
@@ -108,7 +110,7 @@ src/
 - **Location** — `prominence: domain|place|margin`, continuity graph (accumulated history), threadIds
 - **Artifact** — `significance: key|notable|minor`, continuity graph (provenance, properties), threadIds
 - **Scene** — povId, locationId, participantIds, events, threadMutations, continuityMutations, relationshipMutations, characterMovements, plan, prose, proseScore
-- **Thread** — participants can be `character|location|artifact`; lifecycle status; mutations record payoff/change per scene
+- **Thread** — participants can be `character|location|artifact`; lifecycle status; mutations record drive/world per scene
 - **Branch** — git-like branching for story timelines; entryIds interleave scenes + world commits
 - **StructureEvaluation** — per-scene verdicts (ok/edit/merge/insert/cut), overall critique, repetition patterns, thematic question
 - **Arc** — world-building arcs that group scenes and expand the narrative world
@@ -141,25 +143,25 @@ Files: `src/lib/search.ts`, `src/lib/embeddings.ts`, `src/lib/ai/search-synthesi
 
 Every scene records structural changes to the knowledge graph. These mutations are the raw inputs to the force formulas — the forces are computed *from* the mutations, not from the prose.
 
-### Thread Mutations → Payoff
-Threads are narrative tensions with a lifecycle: `dormant → active → escalating → critical → resolved/subverted/abandoned`. Each scene records thread mutations as `{threadId, from, to}` status transitions. A thread jumping from `active` to `critical` contributes `|3 - 1| = 2` to Payoff. Threads mentioned without transitioning earn a pulse of 0.25.
+### Thread Mutations → Drive
+Threads are narrative tensions with a lifecycle: `latent → seeded → active → critical → resolved/subverted`. Abandoned moves a thread to the done pile cleanly — it earns zero drive and can be picked back up later as latent. Each scene records thread mutations as `{threadId, from, to}` status transitions. Drive uses bandwidth-weighted payoff: `D = activeArcs^1.3 × stageWeight` where stageWeight is pulse=0.25, latent→seeded=0.5, seeded→active=1.0, active→critical=2.0, critical→resolved/subverted=4.0. Long-running threads that resolve earn superlinear drive. Each thread maintains a `threadLog` — an accumulated graph of lifecycle events using nine perceptual primitives (pulse, transition, setup, escalation, payoff, twist, callback, resistance, stall).
 
-### Continuity Mutations → Change
-Continuity mutations are additive changes to any entity's inner knowledge graph: `{entityId, addedNodes: [{id, content, type}], addedEdges: [{from, to, relation}]}`. Entities are characters, locations, or artifacts — each maintains its own continuity graph parallel to the world knowledge graph. Change mirrors Knowledge but for entity inner worlds: `C = ΔN_c + √ΔE_c` — continuity nodes linear, continuity edges sqrt.
+### Continuity Mutations → World
+Continuity mutations are additive changes to any entity's inner knowledge graph: `{entityId, addedNodes: [{id, content, type}], addedEdges: [{from, to, relation}]}`. Entities are characters, locations, or artifacts — each maintains its own continuity graph parallel to the world knowledge graph. World mirrors System but for entity inner worlds: `W = ΔN_c + √ΔE_c` — continuity nodes linear, continuity edges sqrt.
 
-### World Knowledge Mutations → Knowledge
-The world knowledge graph tracks laws, systems, concepts, and tensions as nodes with typed edges. Knowledge is computed as `K = ΔN + √ΔE` — nodes linear, edges sqrt.
+### World Knowledge Mutations → System
+The world knowledge graph tracks laws, systems, concepts, and tensions as nodes with typed edges. System is computed as `S = ΔN + √ΔE` — nodes linear, edges sqrt.
 
 ## Narrative Forces & Formulas
 
 Three force dimensions, all **z-score normalised** (mean=0, units=standard deviations):
 
-- **Payoff (P)** — `Σ max(0, φ_to - φ_from)` over thread mutations, plus 0.25 pulse per same-status mention
-- **Change (C)** — `ΔN_c + √ΔE_c` — mirrors Knowledge but for entity continuity
-- **Knowledge (K)** — `ΔN + √ΔE`
+- **Drive (D)** — `activeArcs^1.3 × stageWeight` — bandwidth-weighted payoff; abandoned earns 0 (cleanup, not resolution)
+- **World (W)** — `ΔN_c + √ΔE_c` — mirrors System but for entity continuity
+- **System (S)** — `ΔN + √ΔE`
 
 Derived metrics:
-- **Tension** — `T = C + K - P`
+- **Tension** — `T = W + S - D`
 - **Delivery** — `0.3·Σ tanh(f/1.5) + 0.2·contrast` where `contrast = max(0, T[i-1] - T[i])`
 - **Swing** — Euclidean distance between consecutive force snapshots
 

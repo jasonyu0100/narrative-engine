@@ -168,7 +168,7 @@ CRITICAL RULES:
 
 4. objective is a SHORT compass heading (2-4 sentences) for display purposes. The detail lives in sourceText.
 
-5. STRUCTURAL RULES are mechanical requirements — convergence density, payoff density, scene function variety, protagonist gravity. Be specific and enforceable.
+5. STRUCTURAL RULES are mechanical requirements — convergence density, drive density, scene function variety, protagonist gravity. Be specific and enforceable.
 
 6. WORLD EXPANSION HINTS: identify what new characters, locations, or systems the world needs before this phase can be told.
 

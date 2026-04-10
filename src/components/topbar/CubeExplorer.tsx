@@ -7,7 +7,7 @@ import { computeForceSnapshots, computeWindowedForces, detectCubeCorner, FORCE_W
 import { Modal, ModalHeader, ModalBody } from '@/components/Modal';
 
 type Scope = 'global' | 'local';
-type SortKey = 'index' | 'payoff' | 'change' | 'knowledge' | 'proximity';
+type SortKey = 'index' | 'drive' | 'world' | 'system' | 'proximity';
 
 type SceneEntry = {
   scene: Scene;
@@ -15,7 +15,7 @@ type SceneEntry = {
   corner: CubeCornerKey;
   cornerName: string;
   proximity: number;
-  forces: { payoff: number; change: number; knowledge: number };
+  forces: { drive: number; world: number; system: number };
   arcName: string;
   locationName: string;
   povName: string;
@@ -60,7 +60,7 @@ export function CubeExplorer({
   const entries = useMemo((): SceneEntry[] => {
     if (allScenes.length === 0) return [];
 
-    let forceMap: Record<string, { payoff: number; change: number; knowledge: number }>;
+    let forceMap: Record<string, { drive: number; world: number; system: number }>;
 
     if (scope === 'local') {
       const currentIdx = Math.min(
@@ -75,13 +75,13 @@ export function CubeExplorer({
     }
 
     return allScenes.map((scene, i) => {
-      const forces = forceMap[scene.id] ?? { payoff: 0, change: 0, knowledge: 0 };
+      const forces = forceMap[scene.id] ?? { drive: 0, world: 0, system: 0 };
       const corner = detectCubeCorner(forces);
       const cubeForces = NARRATIVE_CUBE[corner.key].forces;
       const dist = Math.sqrt(
-        (forces.payoff - cubeForces.payoff) ** 2 +
-        (forces.change - cubeForces.change) ** 2 +
-        (forces.knowledge - cubeForces.knowledge) ** 2,
+        (forces.drive - cubeForces.drive) ** 2 +
+        (forces.world - cubeForces.world) ** 2 +
+        (forces.system - cubeForces.system) ** 2,
       );
       const proximity = Math.exp(-dist / 2);
 
@@ -118,9 +118,9 @@ export function CubeExplorer({
       let cmp = 0;
       switch (sortKey) {
         case 'index': cmp = a.index - b.index; break;
-        case 'payoff': cmp = a.forces.payoff - b.forces.payoff; break;
-        case 'change': cmp = a.forces.change - b.forces.change; break;
-        case 'knowledge': cmp = a.forces.knowledge - b.forces.knowledge; break;
+        case 'drive': cmp = a.forces.drive - b.forces.drive; break;
+        case 'world': cmp = a.forces.world - b.forces.world; break;
+        case 'system': cmp = a.forces.system - b.forces.system; break;
         case 'proximity': cmp = a.proximity - b.proximity; break;
       }
       return sortAsc ? cmp : -cmp;
@@ -209,9 +209,9 @@ export function CubeExplorer({
             { key: 'index' as SortKey, label: '#', width: '' },
             { key: 'proximity' as SortKey, label: 'Corner', width: '' },
             { key: 'index' as SortKey, label: 'Summary', width: '' },
-            { key: 'payoff' as SortKey, label: 'P', width: '' },
-            { key: 'change' as SortKey, label: 'C', width: '' },
-            { key: 'knowledge' as SortKey, label: 'K', width: '' },
+            { key: 'drive' as SortKey, label: 'P', width: '' },
+            { key: 'world' as SortKey, label: 'W', width: '' },
+            { key: 'system' as SortKey, label: 'S', width: '' },
             { key: 'proximity' as SortKey, label: 'Prox', width: '' },
           ].map((col, i) => (
             <button
@@ -254,9 +254,9 @@ export function CubeExplorer({
                       </span>
                     </span>
                     <span className="text-[11px] text-text-secondary truncate pr-2">{entry.scene.summary}</span>
-                    <span className="text-[10px] font-mono text-[#EF4444]">{entry.forces.payoff.toFixed(1)}</span>
-                    <span className="text-[10px] font-mono text-[#22C55E]">{entry.forces.change.toFixed(1)}</span>
-                    <span className="text-[10px] font-mono text-[#3B82F6]">{entry.forces.knowledge.toFixed(1)}</span>
+                    <span className="text-[10px] font-mono text-[#EF4444]">{entry.forces.drive.toFixed(1)}</span>
+                    <span className="text-[10px] font-mono text-[#22C55E]">{entry.forces.world.toFixed(1)}</span>
+                    <span className="text-[10px] font-mono text-[#3B82F6]">{entry.forces.system.toFixed(1)}</span>
                     <span className="text-[10px] font-mono text-text-dim">{(entry.proximity * 100).toFixed(0)}%</span>
                   </button>
 

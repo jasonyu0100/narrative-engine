@@ -787,33 +787,6 @@ export function StorySettingsModal({ onClose }: { onClose: () => void }) {
                 </div>
               </div>
 
-              {/* Thread Resolution Speed */}
-              <div>
-                <label className="text-[10px] text-text-dim uppercase tracking-wider block mb-2">
-                  Thread Resolution Speed
-                </label>
-                <div className="space-y-1.5">
-                  {([
-                    { value: 'slow' as const, label: 'Slow Burn', desc: '~10 scenes between transitions — threads develop gradually with room to breathe' },
-                    { value: 'moderate' as const, label: 'Balanced', desc: '~6 scenes between transitions — steady progression matching published literature' },
-                    { value: 'fast' as const, label: 'Fast Paced', desc: '~4 scenes between transitions — threads escalate and resolve quickly, every arc must advance the plot' },
-                  ]).map((opt) => (
-                    <button
-                      key={opt.value}
-                      onClick={() => update({ threadResolutionSpeed: opt.value })}
-                      className={`w-full text-left px-3 py-2 rounded-lg border transition-colors ${
-                        (settings.threadResolutionSpeed ?? 'moderate') === opt.value
-                          ? 'border-blue-500/50 bg-blue-500/10'
-                          : 'border-white/5 bg-white/2 hover:bg-white/5'
-                      }`}
-                    >
-                      <span className="text-[11px] font-semibold text-text-primary">{opt.label}</span>
-                      <span className="text-[10px] text-text-dim ml-2">{opt.desc}</span>
-                    </button>
-                  ))}
-                </div>
-              </div>
-
               {/* Reasoning Level */}
               <div>
                 <label className="text-[10px] text-text-dim uppercase tracking-wider block mb-2">

@@ -2,9 +2,9 @@
 
 import { useMemo, useState } from 'react';
 import { useStore } from '@/lib/store';
-import { computeThreadStatuses } from '@/lib/narrative-utils';
-import type { Thread, ThreadStatus, NarrativeState, ThreadResolutionSpeed } from '@/types/narrative';
-import { THREAD_ACTIVE_STATUSES, THREAD_TERMINAL_STATUSES, DEFAULT_STORY_SETTINGS } from '@/types/narrative';
+import { computeThreadStatuses, computeActiveArcs } from '@/lib/narrative-utils';
+import type { Thread, ThreadStatus, NarrativeState } from '@/types/narrative';
+import { THREAD_ACTIVE_STATUSES, THREAD_TERMINAL_STATUSES } from '@/types/narrative';
 
 // Display order: active statuses (reversed so highest-tension first), then terminal
 const STATUS_ORDER: ThreadStatus[] = [
@@ -14,14 +14,10 @@ const STATUS_ORDER: ThreadStatus[] = [
 
 const CLOSED_STATUSES = new Set<string>(THREAD_TERMINAL_STATUSES);
 
-const PHASE_INDEX: Record<string, number> = { dormant: 0, active: 1, escalating: 2, critical: 3, resolved: 4, subverted: 4, abandoned: 4 };
-
-const SPEED_BENCHMARKS: Record<ThreadResolutionSpeed, number> = { slow: 10, moderate: 6, fast: 4 };
-
 const STATUS_COLORS: Record<string, string> = {
-  dormant: 'bg-white/10 text-white/40',
+  latent: 'bg-white/10 text-white/40',
+  seeded: 'bg-amber-500/15 text-amber-400',
   active: 'bg-blue-500/15 text-blue-400',
-  escalating: 'bg-amber-500/15 text-amber-400',
   critical: 'bg-red-500/15 text-red-400',
   resolved: 'bg-emerald-500/15 text-emerald-400',
   subverted: 'bg-violet-500/15 text-violet-400',
@@ -90,11 +86,14 @@ function computeThreadMetrics(
 
 // ── Thread item ─────────────────────────────────────────────────────────────
 
+const LIFECYCLE_INDEX: Record<string, number> = { latent: 0, seeded: 1, active: 2, critical: 3, resolved: 4 };
+
 function ThreadItem({
   thread,
   statusLabel,
   metrics,
-  benchmark,
+  totalArcs,
+  activeArcs,
   convergenceCount,
   dimmed,
   onClick,
@@ -102,13 +101,15 @@ function ThreadItem({
   thread: Thread;
   statusLabel: string;
   metrics?: ThreadMetrics;
-  benchmark: number;
+  totalArcs: number;
+  activeArcs: number;
   convergenceCount: number;
   dimmed?: boolean;
   onClick: () => void;
 }) {
-  const phase = PHASE_INDEX[statusLabel] ?? 0;
-  const isOverBenchmark = metrics && metrics.scenesSinceLastTransition > benchmark;
+  const phase = LIFECYCLE_INDEX[statusLabel] ?? 0;
+  const bandwidthRatio = totalArcs > 0 ? activeArcs / totalArcs : 0;
+  const isStarved = bandwidthRatio < 0.3 && (statusLabel === 'active' || statusLabel === 'critical');
   const isHighPulse = metrics && metrics.pulseRatio > 0.8 && metrics.totalMutations > 2;
 
   return (
@@ -156,8 +157,8 @@ function ThreadItem({
           <span className="text-white/10">|</span>
           <span>{metrics.transitions}&#x2191; {metrics.pulses}~</span>
           <span className="text-white/10">|</span>
-          <span className={isOverBenchmark ? 'text-amber-400' : ''}>
-            {metrics.scenesSinceLastTransition}s ago
+          <span className={isStarved ? 'text-amber-400' : ''}>
+            {activeArcs}/{totalArcs} arcs
           </span>
           {isHighPulse && (
             <>
@@ -223,8 +224,6 @@ export default function ThreadPortfolio() {
     return computeThreadMetrics(narrative, state.resolvedEntryKeys, state.currentSceneIndex);
   }, [narrative, state.resolvedEntryKeys, state.currentSceneIndex]);
 
-  const speed = narrative?.storySettings?.threadResolutionSpeed ?? DEFAULT_STORY_SETTINGS.threadResolutionSpeed;
-  const benchmark = SPEED_BENCHMARKS[speed];
 
   // Compute bidirectional convergence counts per thread
   const convergenceCounts = useMemo(() => {
@@ -312,7 +311,8 @@ export default function ThreadPortfolio() {
         thread={thread}
         statusLabel={thread.currentStatus}
         metrics={threadMetrics[thread.id]}
-        benchmark={benchmark}
+        totalArcs={Object.keys(narrative?.arcs ?? {}).length || 1}
+        activeArcs={computeActiveArcs(thread.id, narrative?.scenes ?? {})}
         convergenceCount={convergenceCounts[thread.id] ?? 0}
         dimmed={dimmed}
         onClick={() =>

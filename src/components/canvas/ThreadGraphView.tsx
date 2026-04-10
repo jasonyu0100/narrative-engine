@@ -12,13 +12,13 @@ import EvalBar from '@/components/timeline/EvalBar';
 // ── Status colors & glow ────────────────────────────────────────────────────
 
 export const STATUS_COLORS: Record<string, string> = {
-  dormant:    '#475569',
+  latent:     '#475569',
+  seeded:     '#FBBF24',
   active:     '#38BDF8',
-  escalating: '#FBBF24',
   critical:   '#F87171',
   resolved:   '#34D399',
   subverted:  '#C084FC',
-  abandoned:  '#64748B',
+  abandoned:  '#444444',
 };
 
 const TERMINAL = new Set<string>(THREAD_TERMINAL_STATUSES);
@@ -126,7 +126,7 @@ export default function ThreadGraphView({
   // ── Build graph data ──
   const graphData = useMemo(() => {
     const allThreads = Object.values(narrative.threads);
-    const ACTIVE_STATUSES = new Set(['active', 'escalating', 'critical']);
+    const ACTIVE_STATUSES = new Set(['seeded', 'active', 'critical']);
 
     // Only show threads that have been introduced by the current scene index
     const visibleKeys = new Set(resolvedKeys.slice(0, currentIndex + 1));

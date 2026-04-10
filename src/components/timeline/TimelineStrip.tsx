@@ -75,10 +75,10 @@ export default function TimelineStrip() {
 
     const raw = computeRawForceTotals(allScenes);
     // Swing from mean-normalised raw forces (preserves cross-series differences)
-    const rawForces = raw.payoff.map((_, i) => ({
-      payoff: raw.payoff[i],
-      change: raw.change[i],
-      knowledge: raw.knowledge[i],
+    const rawForces = raw.drive.map((_, i) => ({
+      drive: raw.drive[i],
+      world: raw.world[i],
+      system: raw.system[i],
     }));
     const swings = computeSwingMagnitudes(rawForces, FORCE_REFERENCE_MEANS);
 
@@ -90,11 +90,11 @@ export default function TimelineStrip() {
         .map((sid) => sceneIdToForceIdx.get(sid))
         .filter((i): i is number => i !== undefined);
       if (forceIndices.length === 0) continue;
-      const arcPayoffs = forceIndices.map((i) => raw.payoff[i]);
-      const arcChanges = forceIndices.map((i) => raw.change[i]);
-      const arcKnowledge = forceIndices.map((i) => raw.knowledge[i]);
+      const arcDrives = forceIndices.map((i) => raw.drive[i]);
+      const arcWorlds = forceIndices.map((i) => raw.world[i]);
+      const arcSystem = forceIndices.map((i) => raw.system[i]);
       const arcSwingVals = forceIndices.map((i, idx) => idx === 0 ? 0 : swings[i]);
-      const { overall } = gradeForces(arcPayoffs, arcChanges, arcKnowledge, arcSwingVals);
+      const { overall } = gradeForces(arcDrives, arcWorlds, arcSystem, arcSwingVals);
       grades.set(band.arc.id, overall);
     }
     return grades;

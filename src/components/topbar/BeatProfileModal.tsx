@@ -107,7 +107,7 @@ type BeatMetrics = {
   maxEntropy: number;
   selfLoopRate: number;
   setupFrac: number;
-  payoffFrac: number;
+  driveFrac: number;
   observations: string[];
   oscillationPairs: { a: BeatFn; b: BeatFn; strength: number }[];
 };
@@ -124,7 +124,7 @@ function computeBeatMetrics(matrix: BeatMatrix, stationary: Record<BeatFn, numbe
   const selfLoopRate = selfLoops / Math.max(sequence.length - 1, 1);
 
   const setupFrac = SETUP_FNS.reduce((s, c) => s + (stationary[c] ?? 0), 0);
-  const payoffFrac = 1 - setupFrac;
+  const driveFrac = 1 - setupFrac;
 
   const bigrams: Record<string, number> = {};
   for (let i = 0; i < sequence.length - 1; i++) {
@@ -162,7 +162,7 @@ function computeBeatMetrics(matrix: BeatMatrix, stationary: Record<BeatFn, numbe
     observations.push(`${p.a} \u2194 ${p.b} oscillation (${p.strength}\u00D7).`);
   }
 
-  return { entropy, maxEntropy, selfLoopRate, setupFrac, payoffFrac, observations, oscillationPairs: oscillationPairs.slice(0, 3) };
+  return { entropy, maxEntropy, selfLoopRate, setupFrac, driveFrac, observations, oscillationPairs: oscillationPairs.slice(0, 3) };
 }
 
 // ── Graph Layout ─────────────────────────────────────────────────────────────
@@ -418,12 +418,12 @@ export function BeatProfileModal({ narrative, resolvedKeys, branchId, onClose }:
                 pct={metrics.selfLoopRate * 100} color="bg-amber-500/70" />
               <div>
                 <div className="flex justify-between text-[11px] mb-0.5">
-                  <span className="text-text-dim">Setup / Payoff</span>
-                  <span className="text-text-primary tabular-nums">{(metrics.setupFrac * 100).toFixed(0)}% / {(metrics.payoffFrac * 100).toFixed(0)}%</span>
+                  <span className="text-text-dim">Setup / Drive</span>
+                  <span className="text-text-primary tabular-nums">{(metrics.setupFrac * 100).toFixed(0)}% / {(metrics.driveFrac * 100).toFixed(0)}%</span>
                 </div>
                 <div className="w-full h-1.5 rounded-full bg-white/5 overflow-hidden flex">
                   <div className="h-full bg-sky-500/70" style={{ width: `${metrics.setupFrac * 100}%` }} />
-                  <div className="h-full bg-red-500/70" style={{ width: `${metrics.payoffFrac * 100}%` }} />
+                  <div className="h-full bg-red-500/70" style={{ width: `${metrics.driveFrac * 100}%` }} />
                 </div>
               </div>
 

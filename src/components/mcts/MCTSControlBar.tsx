@@ -124,7 +124,7 @@ export function MCTSControlBar({ runState, onPause, onResume, onStop, onOpenPane
           </button>
         )}
 
-        <button onClick={onStop} className="w-6 h-6 flex items-center justify-center text-text-dim hover:text-payoff hover:bg-white/6 rounded transition-colors" title="Stop">
+        <button onClick={onStop} className="w-6 h-6 flex items-center justify-center text-text-dim hover:text-drive hover:bg-white/6 rounded transition-colors" title="Stop">
           <IconStop size={10} />
         </button>
 

@@ -26,7 +26,7 @@ export function ForceDecompositionSlide({ data }: { data: SlidesData }) {
 
     const x = d3.scaleLinear().domain([0, n - 1]).range([0, w]);
     const maxVal = Math.max(
-      ...raw.payoff, ...raw.change, ...raw.knowledge, 1,
+      ...raw.drive, ...raw.world, ...raw.system, 1,
     );
     const y = d3.scaleLinear().domain([0, maxVal * 1.1]).range([h, 0]);
 
@@ -42,9 +42,9 @@ export function ForceDecompositionSlide({ data }: { data: SlidesData }) {
 
     // Areas (stacked look but overlaid with transparency)
     const forces = [
-      { data: raw.knowledge, color: '#3B82F6', label: 'Knowledge' },
-      { data: raw.change, color: '#22C55E', label: 'Change' },
-      { data: raw.payoff, color: '#EF4444', label: 'Payoff' },
+      { data: raw.system, color: '#3B82F6', label: 'System' },
+      { data: raw.world, color: '#22C55E', label: 'World' },
+      { data: raw.drive, color: '#EF4444', label: 'Drive' },
     ];
 
     for (const f of forces) {
@@ -95,10 +95,10 @@ export function ForceDecompositionSlide({ data }: { data: SlidesData }) {
   const crossovers: { idx: number; from: string; to: string }[] = [];
   let prevDom = '';
   for (let i = 0; i < data.sceneCount; i++) {
-    const p = data.rawForces.payoff[i];
-    const c = data.rawForces.change[i];
-    const k = data.rawForces.knowledge[i];
-    const dom = p >= c && p >= k ? 'Payoff' : c >= p && c >= k ? 'Change' : 'Knowledge';
+    const p = data.rawForces.drive[i];
+    const c = data.rawForces.world[i];
+    const k = data.rawForces.system[i];
+    const dom = p >= c && p >= k ? 'Drive' : c >= p && c >= k ? 'World' : 'System';
     if (prevDom && dom !== prevDom) {
       crossovers.push({ idx: i, from: prevDom, to: dom });
     }
@@ -117,9 +117,9 @@ export function ForceDecompositionSlide({ data }: { data: SlidesData }) {
       {/* Legend + crossover highlights */}
       <div className="flex items-center gap-6 mt-4">
         {[
-          { label: 'Payoff', color: '#EF4444' },
-          { label: 'Change', color: '#22C55E' },
-          { label: 'Knowledge', color: '#3B82F6' },
+          { label: 'Drive', color: '#EF4444' },
+          { label: 'World', color: '#22C55E' },
+          { label: 'System', color: '#3B82F6' },
         ].map((f) => (
           <span key={f.label} className="flex items-center gap-1.5 text-xs">
             <span className="w-3 h-0.5 rounded" style={{ backgroundColor: f.color }} />

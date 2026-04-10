@@ -240,19 +240,19 @@ describe('heatColor', () => {
   it('returns blue at t=0', () => {
     const color = heatColor(0);
     expect(color).toMatch(/^rgb\(\d+,\d+,\d+\)$/);
-    // Should be close to knowledge blue (#3B82F6 = rgb(59,130,246))
+    // Should be close to system blue (#3B82F6 = rgb(59,130,246))
     expect(color).toBe('rgb(59,130,246)');
   });
 
   it('returns green at t=0.5', () => {
     const color = heatColor(0.5);
-    // Should be close to change green (#22C55E = rgb(34,197,94))
+    // Should be close to world green (#22C55E = rgb(34,197,94))
     expect(color).toBe('rgb(34,197,94)');
   });
 
   it('returns red at t=1', () => {
     const color = heatColor(1);
-    // Should be close to payoff red (#EF4444 = rgb(239,68,68))
+    // Should be close to drive red (#EF4444 = rgb(239,68,68))
     expect(color).toBe('rgb(239,68,68)');
   });
 

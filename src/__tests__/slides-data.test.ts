@@ -79,8 +79,8 @@ describe('computeSlidesData', () => {
         loc1: { id: 'loc1', name: 'Castle', prominence: 'place' as const, parentId: null, tiedCharacterIds: [], continuity: { nodes: {}, edges: [] }, threadIds: [] },
       },
       threads: {
-        t1: { id: 't1', description: 'Quest', status: 'active', participants: [], dependents: [], openedAt: 's1' },
-        t2: { id: 't2', description: 'Romance', status: 'dormant', participants: [], dependents: [], openedAt: 's1' },
+        t1: { id: 't1', description: 'Quest', status: 'active', participants: [], dependents: [], openedAt: 's1', threadLog: { nodes: {}, edges: [] } },
+        t2: { id: 't2', description: 'Romance', status: 'latent', participants: [], dependents: [], openedAt: 's1', threadLog: { nodes: {}, edges: [] } },
       },
     });
     const data = computeSlidesData(n, []);
@@ -99,18 +99,18 @@ describe('computeSlidesData', () => {
         loc1: { id: 'loc1', name: 'Castle', prominence: 'place' as const, parentId: null, tiedCharacterIds: [], continuity: { nodes: {}, edges: [] }, threadIds: [] },
       },
       threads: {
-        t1: { id: 't1', description: 'Quest', status: 'active', participants: [], dependents: [], openedAt: 's1' },
+        t1: { id: 't1', description: 'Quest', status: 'active', participants: [], dependents: [], openedAt: 's1', threadLog: { nodes: {}, edges: [] } },
       },
       scenes: {
         s1: createScene('s1', {
-          threadMutations: [{ threadId: 't1', from: 'dormant', to: 'active' }],
+          threadMutations: [{ threadId: 't1', from: 'latent', to: 'active' }],
           continuityMutations: [
             { entityId: 'c1', addedNodes: [{ id: 'n1', content: 'Learned something', type: 'belief' }], addedEdges: [] },
           ],
           events: ['event_1', 'event_2'],
         }),
         s2: createScene('s2', {
-          threadMutations: [{ threadId: 't1', from: 'active', to: 'escalating' }],
+          threadMutations: [{ threadId: 't1', from: 'active', to: 'active' }],
           events: ['event_3'],
         }),
       },
@@ -131,14 +131,14 @@ describe('computeSlidesData', () => {
   it('computes thread lifecycles', () => {
     const n = createMinimalNarrative({
       threads: {
-        t1: { id: 't1', description: 'Quest', status: 'active', participants: [], dependents: [], openedAt: 's1' },
+        t1: { id: 't1', description: 'Quest', status: 'active', participants: [], dependents: [], openedAt: 's1', threadLog: { nodes: {}, edges: [] } },
       },
       scenes: {
         s1: createScene('s1', {
-          threadMutations: [{ threadId: 't1', from: 'dormant', to: 'active' }],
+          threadMutations: [{ threadId: 't1', from: 'latent', to: 'active' }],
         }),
         s2: createScene('s2', {
-          threadMutations: [{ threadId: 't1', from: 'active', to: 'escalating' }],
+          threadMutations: [{ threadId: 't1', from: 'active', to: 'active' }],
         }),
       },
     });
@@ -153,8 +153,8 @@ describe('computeSlidesData', () => {
   it('computes thread convergences', () => {
     const n = createMinimalNarrative({
       threads: {
-        t1: { id: 't1', description: 'Main Quest', status: 'active', participants: [], dependents: ['t2'], openedAt: 's1' },
-        t2: { id: 't2', description: 'Sub Quest', status: 'active', participants: [], dependents: [], openedAt: 's1' },
+        t1: { id: 't1', description: 'Main Quest', status: 'active', participants: [], dependents: ['t2'], openedAt: 's1', threadLog: { nodes: {}, edges: [] } },
+        t2: { id: 't2', description: 'Sub Quest', status: 'active', participants: [], dependents: [], openedAt: 's1', threadLog: { nodes: {}, edges: [] } },
       },
     });
 
@@ -212,7 +212,7 @@ describe('computeSlidesData', () => {
     const n = createMinimalNarrative({
       scenes: {
         s1: createScene('s1', {
-          threadMutations: [{ threadId: 't1', from: 'dormant', to: 'critical' }],
+          threadMutations: [{ threadId: 't1', from: 'latent', to: 'critical' }],
         }),
         s2: createScene('s2', {
           continuityMutations: [
@@ -221,7 +221,7 @@ describe('computeSlidesData', () => {
         }),
       },
       threads: {
-        t1: { id: 't1', description: 'Quest', status: 'active', participants: [], dependents: [], openedAt: 's1' },
+        t1: { id: 't1', description: 'Quest', status: 'active', participants: [], dependents: [], openedAt: 's1', threadLog: { nodes: {}, edges: [] } },
       },
     });
 
@@ -243,7 +243,7 @@ describe('computeSlidesData', () => {
         loc1: { id: 'loc1', name: 'Castle', prominence: 'place' as const, parentId: null, tiedCharacterIds: [], continuity: { nodes: {}, edges: [] }, threadIds: [] },
       },
       threads: {
-        t1: { id: 't1', description: 'Quest', status: 'active', participants: [], dependents: [], openedAt: 's1' },
+        t1: { id: 't1', description: 'Quest', status: 'active', participants: [], dependents: [], openedAt: 's1', threadLog: { nodes: {}, edges: [] } },
       },
     });
 
@@ -267,15 +267,15 @@ describe('computeSlidesData', () => {
     const n = createMinimalNarrative({
       scenes: {
         s1: createScene('s1', {
-          threadMutations: [{ threadId: 't1', from: 'dormant', to: 'active' }],
+          threadMutations: [{ threadId: 't1', from: 'latent', to: 'active' }],
           events: ['e1', 'e2'],
         }),
         s2: createScene('s2', {
-          threadMutations: [{ threadId: 't1', from: 'active', to: 'escalating' }],
+          threadMutations: [{ threadId: 't1', from: 'active', to: 'active' }],
         }),
       },
       threads: {
-        t1: { id: 't1', description: 'Quest', status: 'active', participants: [], dependents: [], openedAt: 's1' },
+        t1: { id: 't1', description: 'Quest', status: 'active', participants: [], dependents: [], openedAt: 's1', threadLog: { nodes: {}, edges: [] } },
       },
       arcs: {
         'arc-1': { id: 'arc-1', name: 'Act I', sceneIds: ['s1', 's2'], develops: ['t1'], locationIds: [], activeCharacterIds: [], initialCharacterLocations: {} },

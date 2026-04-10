@@ -12,25 +12,37 @@
  *
  * When updating: check src/lib/narrative-utils.ts FORCE_REFERENCE_MEANS
  * to keep prompt numbers in sync with grading formulas.
- * Current: { payoff: 1.5, change: 7, knowledge: 4 }
+ * Current: { drive: 3, world: 7, system: 4 }
  */
 
 import { THREAD_TERMINAL_STATUSES } from '@/types/narrative';
-import type { NarrativeState, ThreadResolutionSpeed } from '@/types/narrative';
+import type { NarrativeState } from '@/types/narrative';
 import { THREAD_LIFECYCLE_DOC } from './context';
 
 // ── Force Standards ──────────────────────────────────────────────────────────
 // Numbers here MUST match FORCE_REFERENCE_MEANS in narrative-utils.ts:
-//   { payoff: 1.5, change: 7, knowledge: 4 }
+//   { drive: 3, world: 7, system: 4 }
 // These are the values where the grading curve hits the dominance threshold (21/25).
 
 export const PROMPT_FORCE_STANDARDS = `
-FORCE SCORING — reference means (dominance threshold): P ~1.5 | C ~7 | K ~4 per scene (~12 beats, ~1200 words).
+THE THREE FORCES — narrative is a composition of drive, world, and system in flux.
 
-In practice (per 12-beat scene):
-- PAYOFF ~1.5: 1-2 thread transitions averaging ~1 phase jump, OR several pulses.
-- CHANGE ~7: ~5-8 continuity nodes across 2-3 entities + connecting edges. Change mirrors Knowledge but spans every entity's inner world.
-- KNOWLEDGE ~4: ~2-3 new world knowledge nodes + connecting edges.
+DRIVE is the fate of threads — the unifying force that pulls world and system toward resolution.
+  Threads compete for narrative bandwidth across arcs. The longer a thread sustains attention before resolving, the greater its contribution.
+  Drive measures what the story WANTS. Without drive, there is no fate — entities transform and systems deepen but nothing resolves.
+  Reference: ~3 per scene. Thread transitions weighted by lifecycle stage; sustained threads earn superlinearly.
+
+WORLD is the inner transformation of entities — what we learn about characters, locations, and artifacts.
+  Where drive measures what the story wants, world measures what the story DOES TO THE PEOPLE IN IT.
+  Every continuity node is a permanent mark on an entity's inner graph — a new trait, belief, capability, or wound.
+  Reference: ~7 per scene (~5-8 continuity nodes across 2-3 entities + connecting edges).
+
+SYSTEM is the deepening of rules and structures — the substrate on which drive and world operate.
+  A world without systems is a stage without physics. Drive cannot create meaningful fate in a vacuum of rules.
+  Every knowledge node expands what is possible or constrains what is allowed.
+  Reference: ~4 per scene (~2-3 new world knowledge nodes + connecting edges).
+
+Different works weight these forces differently. A Classic is drive-dominant. A Show is world-dominant. A Paper is system-dominant. An Opus balances all three.
 
 SCALE STANDARDS: Beat ~100 words | Scene ~12 beats (~1200 words) | Arc ~4 scenes (~4800 words).
 Thin mutations = low scores. REUSE existing world knowledge node IDs when reinforcing established concepts.
@@ -75,16 +87,23 @@ SCAN BEFORE RETURNING:
 export const PROMPT_MUTATIONS = `
 MUTATIONS — these feed force formulas. Every mutation must EARN its place. Low-value mutations flatten the graph and destroy analytical signal.
 
-FORCE FORMULAS:
-- PAYOFF = Σ max(0, φ_to - φ_from) + 0.25/pulse. Phase: dormant=0, active=1, escalating=2, critical=3, terminal=4.
-- CHANGE = ΔN_c + √ΔE_c (entity continuity — mirrors Knowledge but for inner worlds).
-- KNOWLEDGE = ΔN_world + √ΔE_world.
+FORCE FORMULAS — your mutations are the direct inputs:
+- DRIVE = activeArcs^1.3 × stageWeight. Weights: pulse=0.25, latent→seeded=0.5, seeded→active=1.0, active→critical=2.0, critical→resolved/subverted=4.0. Abandoned earns 0.
+- WORLD = ΔN_c + √ΔE_c — continuity nodes added to entity inner worlds, edges linking them causally.
+- SYSTEM = ΔN + √ΔE — world knowledge nodes (principles, systems, concepts), edges connecting them.
 
-threadMutations — lifecycle: dormant→active→escalating→critical→resolved/subverted/abandoned.
+threadMutations — lifecycle: latent→seeded→active→critical→resolved/subverted.
+  latent: the thread exists as a concept but has no narrative weight yet. A name dropped, a rumour mentioned.
+  seeded: setup is planted — the reader can feel something brewing. A promise made, a weapon found, a secret shared.
+  active: the thread is actively shaping scenes. Characters make decisions because of it, events are driven by it.
+  critical: peak tension — the thread demands resolution. Delay feels artificial, the audience expects payoff.
+  resolved: the thread has concluded. The question is answered, the tension released, the promise fulfilled.
+  subverted: fate defied — the thread resolves contrary to expectations. The promise was broken, the prophecy was wrong.
+  abandoned: the thread is moved to the done pile without earning drive. A clean way to drop threads that aren't working — they can be picked back up later as latent if the story needs them. Earns 0 drive.
 - Transitions ONE step at a time. NEVER skip phases.
-- Most scenes: 1-2 thread PULSES (same→same, 0.25 payoff each). Real transitions are RARE — 0-1 per scene.
-- Only record a transition when the prose shows a clear, irreversible shift in tension level.
-- A scene touching 2-3 threads (mostly pulses) with one transition is a strong scene. More than that is overcounting.
+- Pulses (same→same) are healthy — they show a thread receiving bandwidth without transitioning. 1-2 per scene.
+- Real transitions are RARE — 0-1 per scene. Only when the prose shows a clear, irreversible shift.
+- Touch 2-3 threads per scene (mostly pulses) with at most one transition.
 
 continuityMutations — what we LEARN about an entity that wasn't known before. Applies to characters, locations, and artifacts.
 - Characters: new behaviour, belief, capability, or inner state revealed.
@@ -182,11 +201,11 @@ CONTINUITY:
 
 export function promptThreadLifecycle(): string {
   return `
-THREAD LIFECYCLE:
+THREAD LIFECYCLE: latent → seeded → active → critical → resolved/subverted.
 - ${THREAD_LIFECYCLE_DOC}
-- Terminal statuses: ${THREAD_TERMINAL_STATUSES.map((s) => `"${s}"`).join(', ')}.
-- Threads can regress (escalating→active) when tension eases.
-- Dormant threads: surface within a few scenes.
+- Terminal: ${THREAD_TERMINAL_STATUSES.map((s) => `"${s}"`).join(', ')}.
+- latent: introduced but undeveloped. seeded: setup planted. active: driving narrative. critical: demands resolution.
+- Threads earn fate through sustained bandwidth — long-running threads that resolve pay off superlinearly.
 - Touch 2-4 threads per scene on average.
 `;
 }
@@ -289,76 +308,40 @@ INTEGRATION RULES:
 - Names must match the cultural palette already established in the world.
 `;
 
-// ── Thread Health Analysis ──────────────────────────────────────────────────
-
-const PHASE_INDEX: Record<string, number> = { dormant: 0, active: 1, escalating: 2, critical: 3, resolved: 4, subverted: 4, abandoned: 4 };
-
-/** Resolution speed standards — guidelines, not mechanical rules. */
-const SPEED_STANDARDS: Record<ThreadResolutionSpeed, { benchmark: number; label: string }> = {
-  slow: { benchmark: 10, label: 'Slow burn — ~10 scenes between transitions' },
-  moderate: { benchmark: 6, label: 'Balanced — ~6 scenes between transitions' },
-  fast: { benchmark: 4, label: 'Thriller — ~4 scenes between transitions' },
-};
+// ── Thread Bandwidth Analysis ───────────────────────────────────────────────
 
 /**
- * Build a data-driven thread health report for the LLM.
- * Surfaces velocity metrics so the LLM can make intelligent decisions
- * about which threads to accelerate, sustain, or abandon.
+ * Build a bandwidth-based thread health report for the LLM.
+ * Surfaces activeArcs, staleness, and lifecycle stage to guide
+ * which threads should receive narrative bandwidth in the next arc.
  */
 export function buildThreadHealthPrompt(
   narrative: NarrativeState,
   resolvedKeys: string[],
   currentIndex: number,
-  speed: ThreadResolutionSpeed,
 ): string {
-  const standard = SPEED_STANDARDS[speed];
   const terminalStatuses = new Set(THREAD_TERMINAL_STATUSES as readonly string[]);
 
-  // ── Compute per-thread metrics from scene history ──────────────────────
-  type ThreadMetrics = {
-    transitions: number;
-    pulses: number;
-    totalMutations: number;
-    scenesSinceLastTransition: number;
-    transitionHistory: string[];
-  };
+  // Count total arcs in the narrative so far
+  const totalArcs = Object.keys(narrative.arcs).length || 1;
 
-  const metrics: Record<string, ThreadMetrics> = {};
+  // Compute per-thread metrics from scene history
   const threadFirstSeen: Record<string, number> = {};
+  const threadLastSeen: Record<string, number> = {};
+  const threadArcSets: Record<string, Set<string>> = {};
   let sceneCount = 0;
 
   for (let i = 0; i <= currentIndex && i < resolvedKeys.length; i++) {
     const scene = narrative.scenes[resolvedKeys[i]];
     if (!scene) continue;
     sceneCount++;
-
     for (const tm of scene.threadMutations) {
-      if (!metrics[tm.threadId]) {
-        metrics[tm.threadId] = { transitions: 0, pulses: 0, totalMutations: 0, scenesSinceLastTransition: 0, transitionHistory: [] };
-      }
-      const m = metrics[tm.threadId];
-      m.totalMutations++;
       if (threadFirstSeen[tm.threadId] === undefined) threadFirstSeen[tm.threadId] = sceneCount;
-
-      if (tm.from === tm.to) {
-        m.pulses++;
-      } else {
-        m.transitions++;
-        m.scenesSinceLastTransition = 0;
-        m.transitionHistory.push(`${tm.from}→${tm.to} (scene ${sceneCount})`);
-      }
-    }
-
-    for (const m of Object.values(metrics)) {
-      m.scenesSinceLastTransition++;
+      threadLastSeen[tm.threadId] = sceneCount;
+      if (!threadArcSets[tm.threadId]) threadArcSets[tm.threadId] = new Set();
+      threadArcSets[tm.threadId].add(scene.arcId);
     }
   }
-
-  // ── Build per-thread report ────────────────────────────────────────────
-  const lines: string[] = [
-    `THREAD VELOCITY (${speed.toUpperCase()}) — benchmark: ~${standard.benchmark} scenes/transition`,
-    '',
-  ];
 
   const allThreads = Object.values(narrative.threads);
   const resolved = allThreads.filter((t) => terminalStatuses.has(t.status));
@@ -366,50 +349,48 @@ export function buildThreadHealthPrompt(
 
   if (active.length === 0 && resolved.length === 0) return '';
 
-  const sortedActive = active
+  const lines: string[] = [
+    `THREAD BANDWIDTH — ${active.length} active, ${resolved.length} resolved, ${totalArcs} arcs elapsed`,
+    '',
+  ];
+
+  // Sort by staleness (lowest bandwidth ratio first = most neglected)
+  const sorted = active
     .map((t) => {
-      const m = metrics[t.id] ?? { transitions: 0, pulses: 0, totalMutations: 0, scenesSinceLastTransition: 0, transitionHistory: [] };
+      const activeArcs = threadArcSets[t.id]?.size ?? 0;
+      const bandwidthRatio = totalArcs > 0 ? activeArcs / totalArcs : 0;
+      const scenesSinceLast = threadLastSeen[t.id] !== undefined ? sceneCount - threadLastSeen[t.id] : sceneCount;
       const age = threadFirstSeen[t.id] !== undefined ? sceneCount - threadFirstSeen[t.id] + 1 : 0;
-      const velocity = age > 0 ? m.transitions / age : 0;
-      return { ...t, m, age, velocity };
+      return { ...t, bandwidthRatio, scenesSinceLast, age };
     })
-    .sort((a, b) => b.m.scenesSinceLastTransition - a.m.scenesSinceLastTransition);
+    .sort((a, b) => a.bandwidthRatio - b.bandwidthRatio);
 
-  for (const t of sortedActive) {
-    const phaseIdx = PHASE_INDEX[t.status] ?? 0;
-    const velocityLabel = t.velocity > 0 ? (t.velocity * 10).toFixed(1) + '/10 scenes' : 'no transitions';
-    const sinceLabel = t.m.scenesSinceLastTransition > standard.benchmark
-      ? `[!] ${t.m.scenesSinceLastTransition} since last (>${standard.benchmark})`
-      : `${t.m.scenesSinceLastTransition} since last`;
-    const history = t.m.transitionHistory.length > 0
-      ? t.m.transitionHistory.join(' → ')
-      : 'no transitions yet';
+  for (const t of sorted) {
+    const stale = t.bandwidthRatio < 0.3;
+    const critical = stale && (t.status === 'active' || t.status === 'critical');
+    const discardCandidate = stale && (t.status === 'latent' || t.status === 'seeded');
+    const flag = critical ? ' [!] EMERGENCY — active/critical thread starved of bandwidth'
+      : discardCandidate ? ' [?] STALE — consider discarding or advancing'
+      : '';
 
-    // Pulse ratio warning
-    let pulseWarning = '';
-    if (t.m.totalMutations >= 3 && t.m.pulses / t.m.totalMutations > 0.8) {
-      pulseWarning = ' [!] HIGH PULSE RATIO — next mention MUST transition';
+    lines.push(`"${t.description}" [${t.id}] ${t.status}`);
+    lines.push(`  activeArcs: ${threadArcSets[t.id]?.size ?? 0}/${totalArcs} (${Math.round(t.bandwidthRatio * 100)}%) | age: ${t.age} scenes | silent: ${t.scenesSinceLast} scenes${flag}`);
+
+    // Recent thread log nodes
+    const logNodes = Object.values(t.threadLog?.nodes ?? {});
+    const recentNodes = logNodes.slice(-3);
+    if (recentNodes.length > 0) {
+      lines.push(`  log: ${recentNodes.map((n) => `[${n.type}] ${n.content.slice(0, 60)}`).join(' | ')}`);
     }
 
-    lines.push(`"${t.description}" [${t.id}] ${t.status} (phase ${phaseIdx}/4)`);
-    lines.push(`  Age: ${t.age} | Velocity: ${velocityLabel} | ${sinceLabel}${pulseWarning}`);
-    lines.push(`  History: ${history}`);
-
-    // Convergence links
     if (t.dependents.length > 0) {
-      const depDescs = t.dependents
-        .map((depId) => narrative.threads[depId])
-        .filter(Boolean)
-        .map((dep) => `[${dep.id}]`);
-      if (depDescs.length > 0) {
-        lines.push(`  ↔ Converges: ${depDescs.join(', ')}`);
-      }
+      const depDescs = t.dependents.map((depId) => narrative.threads[depId]).filter(Boolean).map((dep) => `[${dep.id}]`);
+      if (depDescs.length > 0) lines.push(`  ↔ Converges: ${depDescs.join(', ')}`);
     }
     lines.push('');
   }
 
   lines.push(`Progress: ${resolved.length}/${allThreads.length} resolved`);
-
   return lines.join('\n');
 }
 

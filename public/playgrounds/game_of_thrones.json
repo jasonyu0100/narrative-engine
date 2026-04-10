@@ -116,8 +116,8 @@
       "threadMutations": [
         {
           "threadId": "T-GOT-02",
-          "from": "dormant",
-          "to": "dormant"
+          "from": "latent",
+          "to": "latent"
         }
       ],
       "continuityMutations": [
@@ -262,8 +262,8 @@
       "threadMutations": [
         {
           "threadId": "T-GOT-04",
-          "from": "dormant",
-          "to": "dormant"
+          "from": "latent",
+          "to": "latent"
         }
       ],
       "continuityMutations": [
@@ -437,7 +437,7 @@
       "threadMutations": [
         {
           "threadId": "T-GOT-04",
-          "from": "dormant",
+          "from": "latent",
           "to": "active"
         }
       ],
@@ -617,7 +617,7 @@
       "threadMutations": [
         {
           "threadId": "T-GOT-02",
-          "from": "dormant",
+          "from": "latent",
           "to": "active"
         }
       ],
@@ -691,7 +691,7 @@
       "threadMutations": [
         {
           "threadId": "T-GOT-06",
-          "from": "dormant",
+          "from": "latent",
           "to": "active"
         }
       ],
@@ -791,7 +791,7 @@
         {
           "threadId": "T-GOT-06",
           "from": "active",
-          "to": "escalating"
+          "to": "active"
         }
       ],
       "continuityMutations": [
@@ -874,7 +874,7 @@
         {
           "threadId": "T-GOT-02",
           "from": "active",
-          "to": "escalating"
+          "to": "active"
         }
       ],
       "continuityMutations": [
@@ -967,7 +967,7 @@
         {
           "threadId": "T-GOT-04",
           "from": "active",
-          "to": "escalating"
+          "to": "active"
         }
       ],
       "continuityMutations": [
@@ -1043,12 +1043,12 @@
       "threadMutations": [
         {
           "threadId": "T-GOT-01",
-          "from": "dormant",
+          "from": "latent",
           "to": "active"
         },
         {
           "threadId": "T-GOT-05",
-          "from": "dormant",
+          "from": "latent",
           "to": "active"
         }
       ],
@@ -1138,12 +1138,12 @@
         {
           "threadId": "T-GOT-02",
           "from": "active",
-          "to": "escalating"
+          "to": "active"
         },
         {
           "threadId": "T-GOT-01",
           "from": "active",
-          "to": "escalating"
+          "to": "active"
         }
       ],
       "continuityMutations": [
@@ -1246,7 +1246,7 @@
       "threadMutations": [
         {
           "threadId": "T-GOT-04",
-          "from": "dormant",
+          "from": "latent",
           "to": "active"
         }
       ],
@@ -1351,7 +1351,7 @@
       "threadMutations": [
         {
           "threadId": "T-GOT-02",
-          "from": "dormant",
+          "from": "latent",
           "to": "active"
         }
       ],
@@ -2123,7 +2123,7 @@
               }
             ],
             "description": "The Lannister secret \u2014 Cersei's children are Jaime's, and the truth is a blade that kills everyone who touches it",
-            "status": "dormant",
+            "status": "latent",
             "openedAt": "S-GOT-001",
             "dependents": [
               "T-GOT-02",
@@ -2139,7 +2139,7 @@
               }
             ],
             "description": "Ned's honor versus survival \u2014 a good man in a place where goodness is a death sentence",
-            "status": "dormant",
+            "status": "latent",
             "openedAt": "S-GOT-001",
             "dependents": []
           },
@@ -2152,7 +2152,7 @@
               }
             ],
             "description": "Daenerys's transformation \u2014 from a frightened girl sold into marriage to a queen who walks through fire",
-            "status": "dormant",
+            "status": "latent",
             "openedAt": "S-GOT-002",
             "dependents": []
           },
@@ -2169,7 +2169,7 @@
               }
             ],
             "description": "Jon Snow's search for identity and belonging \u2014 a bastard seeking purpose at the edge of the world",
-            "status": "dormant",
+            "status": "latent",
             "openedAt": "S-GOT-003",
             "dependents": []
           },
@@ -2186,7 +2186,7 @@
               }
             ],
             "description": "The Game of Thrones \u2014 political maneuvering in King's Landing where every alliance is a dagger waiting to turn",
-            "status": "dormant",
+            "status": "latent",
             "openedAt": "S-GOT-004",
             "dependents": [
               "T-GOT-01"
@@ -2201,7 +2201,7 @@
               }
             ],
             "description": "Robert's failing kingship \u2014 a warrior king drowning in wine, debt, and the weight of a crown he never wanted",
-            "status": "dormant",
+            "status": "latent",
             "openedAt": "S-GOT-001",
             "dependents": [
               "T-GOT-05"
@@ -2216,7 +2216,7 @@
               }
             ],
             "description": "Littlefinger's machinations \u2014 the spider at the center of every web, spinning chaos into a ladder only he can climb",
-            "status": "dormant",
+            "status": "latent",
             "openedAt": "S-GOT-006",
             "dependents": [
               "T-GOT-01",

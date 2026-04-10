@@ -64,7 +64,7 @@ function createScene(id: string, threadMutations: Array<{ threadId: string; from
   };
 }
 
-function createThread(id: string, description: string, status: string = 'dormant'): Thread {
+function createThread(id: string, description: string, status: string = 'latent'): Thread {
   return {
     id,
     description,
@@ -72,6 +72,7 @@ function createThread(id: string, description: string, status: string = 'dormant
     participants: [],
     dependents: [],
     openedAt: 's1',
+    threadLog: { nodes: {}, edges: [] },
   };
 }
 
@@ -79,20 +80,20 @@ function createThread(id: string, description: string, status: string = 'dormant
 
 describe('Static Prompt Constants', () => {
   describe('PROMPT_FORCE_STANDARDS', () => {
-    it('contains payoff reference mean', () => {
+    it('contains drive reference mean', () => {
       expect(PROMPT_FORCE_STANDARDS).toContain('P ~1.5');
     });
 
-    it('contains change reference mean', () => {
-      expect(PROMPT_FORCE_STANDARDS).toContain('C ~7');
+    it('contains world reference mean', () => {
+      expect(PROMPT_FORCE_STANDARDS).toContain('W ~7');
     });
 
-    it('contains knowledge reference mean', () => {
-      expect(PROMPT_FORCE_STANDARDS).toContain('K ~4');
+    it('contains system reference mean', () => {
+      expect(PROMPT_FORCE_STANDARDS).toContain('S ~4');
     });
 
-    it('mentions exponential grading', () => {
-      expect(PROMPT_FORCE_STANDARDS).toContain('exponential');
+    it('mentions dominance threshold', () => {
+      expect(PROMPT_FORCE_STANDARDS).toContain('dominance');
     });
   });
 
@@ -120,7 +121,7 @@ describe('Static Prompt Constants', () => {
   describe('PROMPT_MUTATIONS', () => {
     it('describes threadMutations', () => {
       expect(PROMPT_MUTATIONS).toContain('threadMutations');
-      expect(PROMPT_MUTATIONS).toContain('dormant→active→escalating→critical→resolved/subverted/abandoned');
+      expect(PROMPT_MUTATIONS).toContain('latent→seeded→active→critical→resolved/subverted');
     });
 
     it('describes continuityMutations', () => {
@@ -190,22 +191,22 @@ describe('promptThreadLifecycle', () => {
     expect(result.length).toBeGreaterThan(0);
   });
 
-  it('includes active and terminal statuses', () => {
+  it('includes lifecycle stages', () => {
     const result = promptThreadLifecycle();
-    expect(result).toContain('Active statuses');
-    expect(result).toContain('Terminal statuses');
+    expect(result).toContain('latent');
+    expect(result).toContain('seeded');
+    expect(result).toContain('critical');
   });
 
-  it('includes resolved, subverted, abandoned', () => {
+  it('includes terminal statuses', () => {
     const result = promptThreadLifecycle();
     expect(result).toContain('resolved');
     expect(result).toContain('subverted');
-    expect(result).toContain('abandoned');
   });
 
-  it('mentions thread regression', () => {
+  it('mentions bandwidth and fate', () => {
     const result = promptThreadLifecycle();
-    expect(result).toContain('regress');
+    expect(result).toContain('bandwidth');
   });
 });
 
@@ -214,72 +215,37 @@ describe('promptThreadLifecycle', () => {
 describe('buildThreadHealthPrompt', () => {
   it('returns empty string when no threads exist', () => {
     const n = createMinimalNarrative();
-    const result = buildThreadHealthPrompt(n, [], 0, 'moderate');
+    const result = buildThreadHealthPrompt(n, [], 0);
     expect(result).toBe('');
   });
 
-  it('includes speed benchmark in header', () => {
+  it('includes bandwidth header', () => {
     const n = createMinimalNarrative({
       threads: { t1: createThread('t1', 'Test thread', 'active') },
     });
-    const result = buildThreadHealthPrompt(n, [], 0, 'fast');
-    expect(result).toContain('FAST');
-    expect(result).toContain('~4 scenes/transition');
+    const result = buildThreadHealthPrompt(n, [], 0);
+    expect(result).toContain('THREAD BANDWIDTH');
+    expect(result).toContain('1 active');
   });
 
-  it('shows different benchmarks for different speeds', () => {
+  it('reports thread description and status', () => {
     const n = createMinimalNarrative({
-      threads: { t1: createThread('t1', 'Test thread', 'active') },
+      threads: { t1: createThread('t1', 'The mystery unfolds', 'latent') },
     });
-
-    const slow = buildThreadHealthPrompt(n, [], 0, 'slow');
-    expect(slow).toContain('~10 scenes/transition');
-
-    const moderate = buildThreadHealthPrompt(n, [], 0, 'moderate');
-    expect(moderate).toContain('~6 scenes/transition');
-
-    const fast = buildThreadHealthPrompt(n, [], 0, 'fast');
-    expect(fast).toContain('~4 scenes/transition');
-  });
-
-  it('reports thread with no transitions yet', () => {
-    const n = createMinimalNarrative({
-      threads: { t1: createThread('t1', 'The mystery unfolds', 'dormant') },
-    });
-    const result = buildThreadHealthPrompt(n, [], 0, 'moderate');
+    const result = buildThreadHealthPrompt(n, [], 0);
     expect(result).toContain('The mystery unfolds');
-    expect(result).toContain('no transitions yet');
+    expect(result).toContain('latent');
   });
 
-  it('tracks transition history', () => {
+  it('reports activeArcs and bandwidth ratio', () => {
     const n = createMinimalNarrative({
-      threads: { t1: createThread('t1', 'Quest thread', 'escalating') },
+      threads: { t1: createThread('t1', 'Quest thread', 'active') },
       scenes: {
-        s1: createScene('s1', [{ threadId: 't1', from: 'dormant', to: 'active' }]),
-        s2: createScene('s2', [{ threadId: 't1', from: 'active', to: 'escalating' }]),
+        s1: createScene('s1', [{ threadId: 't1', from: 'latent', to: 'active' }]),
       },
     });
-    const result = buildThreadHealthPrompt(n, ['s1', 's2'], 1, 'moderate');
-    expect(result).toContain('dormant→active');
-    expect(result).toContain('active→escalating');
-  });
-
-  it('warns about high pulse ratio', () => {
-    // Need pulse ratio > 0.8. With 1 transition and 4 pulses = 5 total, ratio = 4/5 = 0.8
-    // Need 5 pulses: ratio = 5/6 = 0.83
-    const n = createMinimalNarrative({
-      threads: { t1: createThread('t1', 'Stalled thread', 'active') },
-      scenes: {
-        s1: createScene('s1', [{ threadId: 't1', from: 'dormant', to: 'active' }]),
-        s2: createScene('s2', [{ threadId: 't1', from: 'active', to: 'active' }]),
-        s3: createScene('s3', [{ threadId: 't1', from: 'active', to: 'active' }]),
-        s4: createScene('s4', [{ threadId: 't1', from: 'active', to: 'active' }]),
-        s5: createScene('s5', [{ threadId: 't1', from: 'active', to: 'active' }]),
-        s6: createScene('s6', [{ threadId: 't1', from: 'active', to: 'active' }]),
-      },
-    });
-    const result = buildThreadHealthPrompt(n, ['s1', 's2', 's3', 's4', 's5', 's6'], 5, 'moderate');
-    expect(result).toContain('HIGH PULSE RATIO');
+    const result = buildThreadHealthPrompt(n, ['s1'], 0);
+    expect(result).toContain('activeArcs');
   });
 
   it('shows convergence links when present', () => {
@@ -288,10 +254,10 @@ describe('buildThreadHealthPrompt', () => {
     const n = createMinimalNarrative({
       threads: {
         t1,
-        t2: createThread('t2', 'Sub thread', 'dormant'),
+        t2: createThread('t2', 'Sub thread', 'latent'),
       },
     });
-    const result = buildThreadHealthPrompt(n, [], 0, 'moderate');
+    const result = buildThreadHealthPrompt(n, [], 0);
     expect(result).toContain('Converges');
     expect(result).toContain('[t2]');
   });
@@ -303,27 +269,17 @@ describe('buildThreadHealthPrompt', () => {
         t2: createThread('t2', 'Resolved thread', 'resolved'),
       },
     });
-    const result = buildThreadHealthPrompt(n, [], 0, 'moderate');
+    const result = buildThreadHealthPrompt(n, [], 0);
     expect(result).toContain('1/2 resolved');
   });
 
-  it('warns when scenes since last transition exceeds benchmark', () => {
+  it('flags starved active threads', () => {
     const n = createMinimalNarrative({
-      threads: { t1: createThread('t1', 'Stale thread', 'active') },
-      scenes: {
-        s1: createScene('s1', [{ threadId: 't1', from: 'dormant', to: 'active' }]),
-        s2: createScene('s2', []),
-        s3: createScene('s3', []),
-        s4: createScene('s4', []),
-        s5: createScene('s5', []),
-        s6: createScene('s6', []),
-        s7: createScene('s7', []),
-      },
+      threads: { t1: createThread('t1', 'Starved thread', 'active') },
+      arcs: { 'ARC-01': { id: 'ARC-01', name: 'Arc 1', sceneIds: [], develops: [], locationIds: [], activeCharacterIds: [], initialCharacterLocations: {} } },
     });
-    const result = buildThreadHealthPrompt(n, ['s1', 's2', 's3', 's4', 's5', 's6', 's7'], 6, 'fast');
-    // Fast = 4 scenes/transition, we're at 7 since transition
-    expect(result).toContain('[!]');
-    expect(result).toContain('>4');
+    const result = buildThreadHealthPrompt(n, [], 0);
+    expect(result).toContain('EMERGENCY');
   });
 });
 
@@ -332,9 +288,9 @@ describe('buildThreadHealthPrompt', () => {
 describe('buildCompletedBeatsPrompt', () => {
   it('returns empty string when no transitions have occurred', () => {
     const n = createMinimalNarrative({
-      threads: { t1: createThread('t1', 'Test', 'dormant') },
+      threads: { t1: createThread('t1', 'Test', 'latent') },
       scenes: {
-        s1: createScene('s1', [{ threadId: 't1', from: 'dormant', to: 'dormant' }]), // pulse, not transition
+        s1: createScene('s1', [{ threadId: 't1', from: 'latent', to: 'latent' }]), // pulse, not transition
       },
     });
     const result = buildCompletedBeatsPrompt(n, ['s1'], 0);
@@ -345,7 +301,7 @@ describe('buildCompletedBeatsPrompt', () => {
     const n = createMinimalNarrative({
       threads: { t1: createThread('t1', 'Test thread', 'active') },
       scenes: {
-        s1: createScene('s1', [{ threadId: 't1', from: 'dormant', to: 'active' }]),
+        s1: createScene('s1', [{ threadId: 't1', from: 'latent', to: 'active' }]),
       },
     });
     const result = buildCompletedBeatsPrompt(n, ['s1'], 0);
@@ -355,23 +311,23 @@ describe('buildCompletedBeatsPrompt', () => {
 
   it('lists thread transition chain', () => {
     const n = createMinimalNarrative({
-      threads: { t1: createThread('t1', 'Quest thread', 'escalating') },
+      threads: { t1: createThread('t1', 'Quest thread', 'active') },
       scenes: {
-        s1: createScene('s1', [{ threadId: 't1', from: 'dormant', to: 'active' }]),
-        s2: createScene('s2', [{ threadId: 't1', from: 'active', to: 'escalating' }]),
+        s1: createScene('s1', [{ threadId: 't1', from: 'latent', to: 'active' }]),
+        s2: createScene('s2', [{ threadId: 't1', from: 'active', to: 'active' }]),
       },
     });
     const result = buildCompletedBeatsPrompt(n, ['s1', 's2'], 1);
     expect(result).toContain('Quest thread');
-    expect(result).toContain('dormant → active');
-    expect(result).toContain('escalating');
+    expect(result).toContain('latent → active');
+    expect(result).toContain('active');
   });
 
   it('includes scene summaries', () => {
     const n = createMinimalNarrative({
       threads: { t1: createThread('t1', 'Test', 'active') },
       scenes: {
-        s1: createScene('s1', [{ threadId: 't1', from: 'dormant', to: 'active' }], {
+        s1: createScene('s1', [{ threadId: 't1', from: 'latent', to: 'active' }], {
           summary: 'The hero discovers the secret passage',
         }),
       },
@@ -384,7 +340,7 @@ describe('buildCompletedBeatsPrompt', () => {
     const n = createMinimalNarrative({
       threads: { t1: createThread('t1', 'Test', 'active') },
       scenes: {
-        s1: createScene('s1', [{ threadId: 't1', from: 'dormant', to: 'active' }], {
+        s1: createScene('s1', [{ threadId: 't1', from: 'latent', to: 'active' }], {
           events: ['ambush_triggered', 'ally_wounded'],
         }),
       },
@@ -409,15 +365,15 @@ describe('buildCompletedBeatsPrompt', () => {
     const n = createMinimalNarrative({
       threads: {
         t1: createThread('t1', 'Thread one', 'active'),
-        t2: createThread('t2', 'Thread two', 'escalating'),
+        t2: createThread('t2', 'Thread two', 'active'),
       },
       scenes: {
         s1: createScene('s1', [
-          { threadId: 't1', from: 'dormant', to: 'active' },
-          { threadId: 't2', from: 'dormant', to: 'active' },
+          { threadId: 't1', from: 'latent', to: 'active' },
+          { threadId: 't2', from: 'latent', to: 'active' },
         ]),
         s2: createScene('s2', [
-          { threadId: 't2', from: 'active', to: 'escalating' },
+          { threadId: 't2', from: 'active', to: 'active' },
         ]),
       },
     });
@@ -431,7 +387,7 @@ describe('buildCompletedBeatsPrompt', () => {
     const n = createMinimalNarrative({
       threads: { t1: createThread('t1', longDescription, 'active') },
       scenes: {
-        s1: createScene('s1', [{ threadId: 't1', from: 'dormant', to: 'active' }]),
+        s1: createScene('s1', [{ threadId: 't1', from: 'latent', to: 'active' }]),
       },
     });
     const result = buildCompletedBeatsPrompt(n, ['s1'], 0);

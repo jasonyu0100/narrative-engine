@@ -463,7 +463,7 @@ export default function HomePage() {
                 },
                 {
                   q: "What does the analysis measure?",
-                  a: "Thread development and resolution (Payoff). Transformation intensity — how much shifts per section (Change). New information entering the text (Knowledge). Pacing rhythm — how the author transitions between fast and slow sections. World density — how interconnected the knowledge graph is. Dynamic contrast — whether the text varies its intensity or flatlines. Each layer is a different lens on the same underlying structure.",
+                  a: "Thread development and resolution (Drive). Transformation intensity — how much shifts per section (Change). New information entering the text (Knowledge). Pacing rhythm — how the author transitions between fast and slow sections. World density — how interconnected the knowledge graph is. Dynamic contrast — whether the text varies its intensity or flatlines. Each layer is a different lens on the same underlying structure.",
                 },
                 {
                   q: "How does search work?",

@@ -20,9 +20,9 @@ export type ModeStep = {
   description: string;
   /** Target force ranges derived from the cube corner */
   forces: {
-    payoff: [number, number];
-    change: [number, number];
-    knowledge: [number, number];
+    drive: [number, number];
+    world: [number, number];
+    system: [number, number];
   };
 };
 
@@ -55,12 +55,12 @@ export function computeMatrixFromNarrative(narrative: NarrativeState): Transitio
   if (scenes.length < 3) return emptyMatrix();
 
   const raw = computeRawForceTotals(scenes);
-  const np = zScoreNormalize(raw.payoff);
-  const nc = zScoreNormalize(raw.change);
-  const nk = zScoreNormalize(raw.knowledge);
+  const np = zScoreNormalize(raw.drive);
+  const nc = zScoreNormalize(raw.world);
+  const nk = zScoreNormalize(raw.system);
 
   const sequence: CubeCornerKey[] = scenes.map((_, i) =>
-    detectCubeCorner({ payoff: np[i], change: nc[i], knowledge: nk[i] }).key
+    detectCubeCorner({ drive: np[i], world: nc[i], system: nk[i] }).key
   );
 
   const counts = emptyMatrix();
@@ -105,10 +105,10 @@ export type MatrixPreset = {
  *
  *  1. Escalation ladder: Rest → Lore/Growth → Discovery → Climax/Revelation → Epoch
  *  2. Recovery after peaks: Epoch/Climax always descend to Rest/Closure/Growth
- *  3. Growth as hub: most modes reach Growth, Growth feeds into payoff
+ *  3. Growth as hub: most modes reach Growth, Growth feeds into drive
  *  4. Lore feeds Discovery: world-building leads to exploration
  *  5. No back-to-back Epoch; low self-loops throughout
- *  6. ~35% payoff-mode steady state — earned, not inflated
+ *  6. ~35% drive-mode steady state — earned, not inflated
  */
 const STORYTELLER_MATRIX: TransitionMatrix = (() => {
   const m = emptyMatrix();
@@ -135,7 +135,7 @@ const STORYTELLER_MATRIX: TransitionMatrix = (() => {
 const STORYTELLER_PRESET: MatrixPreset = {
   key: 'storyteller',
   name: 'Storyteller',
-  description: 'Hand-tuned for strong pacing. Escalation ladders, earned payoffs, recovery after peaks.',
+  description: 'Hand-tuned for strong pacing. Escalation ladders, earned drives, recovery after peaks.',
   matrix: STORYTELLER_MATRIX,
 };
 
@@ -157,7 +157,7 @@ export function initMatrixPresets(works: { key: string; name: string; narrative:
     if (totalTransitions < 0.5) continue; // empty matrix, skip
 
     // Auto-generate description from matrix properties
-    const payoffFrac = CORNERS.filter((c) => c[0] === 'H')
+    const driveFrac = CORNERS.filter((c) => c[0] === 'H')
       .reduce((s, c) => {
         // sum stationary-ish weight
         let w = 0;
@@ -169,12 +169,12 @@ export function initMatrixPresets(works: { key: string; name: string; narrative:
       for (const from of CORNERS) w += matrix[from][c];
       return s + w;
     }, 0);
-    const payoffPct = totalWeight > 0 ? Math.round((payoffFrac / totalWeight) * 100) : 50;
+    const drivePct = totalWeight > 0 ? Math.round((driveFrac / totalWeight) * 100) : 50;
 
     presets.push({
       key: work.key,
       name: work.name,
-      description: `${payoffPct}% payoff modes. Computed from ${work.name}.`,
+      description: `${drivePct}% drive modes. Computed from ${work.name}.`,
       matrix,
     });
   }
@@ -188,23 +188,23 @@ export function initMatrixPresets(works: { key: string; name: string; narrative:
  * High = above reference mean, Low = below or near zero.
  * Ranges are [min, max] raw force values to guide generation.
  */
-const FORCE_TARGETS: Record<CubeCornerKey, { payoff: [number, number]; change: [number, number]; knowledge: [number, number] }> = {
+const FORCE_TARGETS: Record<CubeCornerKey, { drive: [number, number]; world: [number, number]; system: [number, number] }> = {
   // Epoch: everything high
-  'HHH': { payoff: [2, 6], change: [3.5, 7], knowledge: [3, 7] },
-  // Climax: high payoff + change, low knowledge
-  'HHL': { payoff: [2, 6], change: [3.5, 7], knowledge: [0, 1.5] },
-  // Revelation: high payoff + knowledge, low change
-  'HLH': { payoff: [2, 5], change: [0, 1.5], knowledge: [3, 7] },
-  // Closure: high payoff, low change + knowledge
-  'HLL': { payoff: [2, 5], change: [0, 1.5], knowledge: [0, 1.5] },
-  // Discovery: high change + knowledge, low payoff
-  'LHH': { payoff: [0, 1], change: [2.5, 6], knowledge: [3, 6] },
-  // Growth: high change, low payoff + knowledge
-  'LHL': { payoff: [0, 1], change: [2.5, 6], knowledge: [0, 1.5] },
-  // Lore: high knowledge, low payoff + change
-  'LLH': { payoff: [0, 1], change: [0, 1.5], knowledge: [3, 7] },
+  'HHH': { drive: [2, 6], world: [3.5, 7], system: [3, 7] },
+  // Climax: high drive + world, low system
+  'HHL': { drive: [2, 6], world: [3.5, 7], system: [0, 1.5] },
+  // Revelation: high drive + system, low world
+  'HLH': { drive: [2, 5], world: [0, 1.5], system: [3, 7] },
+  // Closure: high drive, low world + system
+  'HLL': { drive: [2, 5], world: [0, 1.5], system: [0, 1.5] },
+  // Discovery: high world + system, low drive
+  'LHH': { drive: [0, 1], world: [2.5, 6], system: [3, 6] },
+  // Growth: high world, low drive + system
+  'LHL': { drive: [0, 1], world: [2.5, 6], system: [0, 1.5] },
+  // Lore: high system, low drive + world
+  'LLH': { drive: [0, 1], world: [0, 1.5], system: [3, 7] },
   // Rest: everything low
-  'LLL': { payoff: [0, 1], change: [0, 1.5], knowledge: [0, 1.5] },
+  'LLL': { drive: [0, 1], world: [0, 1.5], system: [0, 1.5] },
 };
 
 // ── Pacing Presets ───────────────────────────────────────────────────────────
@@ -234,7 +234,7 @@ export type PacingPreset = {
  * 2. Lore — reveal the world's rules, systems, or history that will matter later
  * 3. Growth — characters interact, bonds form, tensions surface
  * 4. Discovery — something new enters the picture, characters are changed by it
- * 5. Lore — deepen the world further, plant seeds for future payoff
+ * 5. Lore — deepen the world further, plant seeds for future drive
  * 6. Growth — relationships develop, alliances or rivalries crystallise
  * 7. Discovery — the stakes become clear, the world expands again
  * 8. Climax — threads converge for the first time, the story can't go back
@@ -245,7 +245,7 @@ export const PACING_PRESETS: PacingPreset[] = [
   // ── 3-scene arcs ───────────────────────────────────
   { key: 'sucker-punch',   name: 'Sucker Punch',      description: 'Quiet calm, then everything hits at once',                                modes: ['LLL', 'LHL', 'HHH'] },
   { key: 'quick-resolve',  name: 'Quick Resolve',     description: 'Set up the world, pay it off, tie it up',                                modes: ['LLH', 'HHL', 'HLL'] },
-  { key: 'crucible',       name: 'Crucible',          description: 'Discover, grow through it, earn the payoff',                              modes: ['LHH', 'LHL', 'HHL'] },
+  { key: 'crucible',       name: 'Crucible',          description: 'Discover, grow through it, earn the drive',                              modes: ['LHH', 'LHL', 'HHL'] },
 
   // ── 5-scene arcs ───────────────────────────────────
   { key: 'classic-arc',    name: 'Classic Arc',        description: 'The workhorse — rest, build, build, climax, closure',                     modes: ['LLL', 'LHL', 'LHH', 'HHL', 'HLL'] },
@@ -342,19 +342,19 @@ export function samplePacingSequence(
 
 function buildPacingDescription(steps: ModeStep[]): string {
   const total = steps.length;
-  const payoffCount = steps.filter((s) => s.mode[0] === 'H').length;
-  const buildupCount = total - payoffCount;
-  const payoffPct = Math.round((payoffCount / total) * 100);
+  const driveCount = steps.filter((s) => s.mode[0] === 'H').length;
+  const buildupCount = total - driveCount;
+  const drivePct = Math.round((driveCount / total) * 100);
 
   // Find the peak scene (highest force targets)
   const peakIdx = steps.reduce((best, s, i) => {
-    const intensity = s.forces.payoff[1] + s.forces.change[1] + s.forces.knowledge[1];
-    const bestIntensity = steps[best].forces.payoff[1] + steps[best].forces.change[1] + steps[best].forces.knowledge[1];
+    const intensity = s.forces.drive[1] + s.forces.world[1] + s.forces.system[1];
+    const bestIntensity = steps[best].forces.drive[1] + steps[best].forces.world[1] + steps[best].forces.system[1];
     return intensity > bestIntensity ? i : best;
   }, 0);
 
   const lines: string[] = [];
-  lines.push(`${total}-scene arc: ${buildupCount} buildup, ${payoffCount} payoff (${payoffPct}% payoff).`);
+  lines.push(`${total}-scene arc: ${buildupCount} buildup, ${driveCount} drive (${drivePct}% drive).`);
 
   // Describe the shape
   const modeNames = steps.map((s) => s.name);
@@ -413,8 +413,8 @@ export function buildSingleStepPrompt(step: ModeStep, sceneIndex: number, totalS
   const p = step.mode[0] === 'H' ? 'HIGH' : 'LOW';
   const c = step.mode[1] === 'H' ? 'HIGH' : 'LOW';
   const k = step.mode[2] === 'H' ? 'HIGH' : 'LOW';
-  const targets = `P:${step.forces.payoff[0]}-${step.forces.payoff[1]} C:${step.forces.change[0]}-${step.forces.change[1]} K:${step.forces.knowledge[0]}-${step.forces.knowledge[1]}`;
-  return `PACING — Scene ${sceneIndex + 1}/${totalScenes}: ${NARRATIVE_CUBE[step.mode].name} [P:${p} C:${c} K:${k}]
+  const targets = `P:${step.forces.drive[0]}-${step.forces.drive[1]} W:${step.forces.world[0]}-${step.forces.world[1]} S:${step.forces.system[0]}-${step.forces.system[1]}`;
+  return `PACING — Scene ${sceneIndex + 1}/${totalScenes}: ${NARRATIVE_CUBE[step.mode].name} [P:${p} W:${c} S:${k}]
 ${MODE_GUIDANCE[step.mode]}
 Targets: ${targets}. Mutations ARE forces — match counts to targets.`;
 }
@@ -429,7 +429,7 @@ export function buildSequencePrompt(sequence: PacingSequence): string {
   lines.push(`PACING SEQUENCE (${sequence.pacingDescription})`);
   lines.push('');
   lines.push('Mode determines mutation profile. Formulas compute forces FROM mutations:');
-  lines.push('  P = Σ thread transitions (pulse=0.25) | C = ΔN_c + √ΔE_c (entity continuity) | K = ΔN + √ΔE (world knowledge)');
+  lines.push('  P = Σ thread transitions (pulse=0.25) | W = ΔN_c + √ΔE_c (entity continuity) | S = ΔN + √ΔE (world knowledge)');
   lines.push('');
 
   // Build compact scene assignments
@@ -438,9 +438,9 @@ export function buildSequencePrompt(sequence: PacingSequence): string {
     const p = step.mode[0] === 'H' ? 'HIGH' : 'LOW';
     const c = step.mode[1] === 'H' ? 'HIGH' : 'LOW';
     const k = step.mode[2] === 'H' ? 'HIGH' : 'LOW';
-    const targets = `P:${step.forces.payoff[0]}-${step.forces.payoff[1]} C:${step.forces.change[0]}-${step.forces.change[1]} K:${step.forces.knowledge[0]}-${step.forces.knowledge[1]}`;
+    const targets = `P:${step.forces.drive[0]}-${step.forces.drive[1]} W:${step.forces.world[0]}-${step.forces.world[1]} S:${step.forces.system[0]}-${step.forces.system[1]}`;
 
-    lines.push(`SCENE ${i + 1} — ${NARRATIVE_CUBE[step.mode].name} [P:${p} C:${c} K:${k}]`);
+    lines.push(`SCENE ${i + 1} — ${NARRATIVE_CUBE[step.mode].name} [P:${p} W:${c} S:${k}]`);
     lines.push(`  ${MODE_GUIDANCE[step.mode]}`);
     lines.push(`  Targets: ${targets}`);
     lines.push('');
