@@ -934,14 +934,15 @@ async function reverseEngineerScenePlanOnce(
 
   // Deterministic ~100-word chunks — one chunk = one beat
   const chunks = splitIntoWordChunks(cleanedProse);
-  const numberedChunks = chunks.map((c: string, i: number) => `[${i}] ${c}`).join('\n\n');
+  const chunksJson = JSON.stringify(chunks.map((c: string, i: number) => ({ index: i, text: c })));
 
-  const systemPrompt = `You are a beat analyst. Given pre-split prose chunks (~100 words each), annotate each chunk with its beat function, mechanism, and propositions. There is exactly one beat per chunk — do NOT merge or split chunks.
+  const systemPrompt = `You are a beat analyst. You receive a JSON array of pre-split prose chunks. Annotate EACH chunk with its beat function, mechanism, and propositions. The input and output arrays MUST be the same length — one beat per chunk, matched by index.
 
 Return ONLY valid JSON matching this schema:
 {
   "beats": [
     {
+      "index": 0,
       "fn": "${BEAT_FN_LIST.join('|')}",
       "mechanism": "${BEAT_MECHANISM_LIST.join('|')}",
       "what": "STRUCTURAL SUMMARY: what happens, not how it reads",
@@ -953,10 +954,9 @@ Return ONLY valid JSON matching this schema:
 }
 
 CRITICAL RULES:
-- Return EXACTLY ${chunks.length} beats — one per chunk [0] through [${chunks.length - 1}], in order.
-- Do NOT merge adjacent chunks into one beat. Do NOT skip any chunk. Every chunk gets its own beat, even if it's short or transitional.
-- Every beat MUST have all three required fields: fn, mechanism, what. Never return an empty object.
-- Do NOT add startIndex or chunks fields.
+- Return EXACTLY ${chunks.length} beats — one per input chunk, matched by index 0 through ${chunks.length - 1}.
+- Do NOT merge adjacent chunks into one beat. Do NOT skip any chunk. Every chunk gets its own beat.
+- Every beat MUST have all three required fields: fn, mechanism, what.
 
 ${PROMPT_BEAT_TAXONOMY}
 
@@ -1054,8 +1054,8 @@ INVALID: craft goals, pacing instructions, meta-commentary.
 
   const prompt = `SCENE SUMMARY: ${summary}
 
-NUMBERED CHUNKS (${chunks.length} chunks, ~100 words each):
-${numberedChunks}
+CHUNKS (${chunks.length} items, ~100 words each — annotate each one):
+${chunksJson}
 
 TASK:
 Annotate each chunk with its beat function, mechanism, and propositions. One beat per chunk, in order.
