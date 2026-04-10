@@ -197,7 +197,7 @@ describe('generateScenes', () => {
           povId: 'C-01',
           participantIds: ['C-01', 'C-02'],
           events: ['battle_prep'],
-          threadMutations: [{ threadId: 'T-01', from: 'active', to: 'active' }],
+          threadMutations: [{ threadId: 'T-01', from: 'active', to: 'active', addedNodes: [], addedEdges: [] }],
           continuityMutations: [],
           relationshipMutations: [],
           summary: 'Alice prepares the castle defenses while Bob rides out.',
@@ -299,8 +299,8 @@ describe('generateScenes', () => {
           participantIds: ['C-01'],
           events: [],
           threadMutations: [
-            { threadId: 'T-01', from: 'active', to: 'active' },
-            { threadId: 'T-INVALID', from: 'active', to: 'critical' },
+            { threadId: 'T-01', from: 'active', to: 'active', addedNodes: [], addedEdges: [] },
+            { threadId: 'T-INVALID', from: 'active', to: 'critical', addedNodes: [], addedEdges: [] },
           ],
           continuityMutations: [],
           relationshipMutations: [],
@@ -323,8 +323,8 @@ describe('generateScenes', () => {
       arcName: 'Test Arc',
       directionVector: 'Characters face challenges',
       scenes: [
-        { id: 'S-GEN-001', arcId: 'ARC-01', locationId: 'L-01', povId: 'C-01', participantIds: ['C-01'], events: [], threadMutations: [{ threadId: 'T-01', from: 'active', to: 'active' }], continuityMutations: [], relationshipMutations: [], summary: 'Scene 1' },
-        { id: 'S-GEN-002', arcId: 'ARC-01', locationId: 'L-02', povId: 'C-02', participantIds: ['C-02'], events: [], threadMutations: [{ threadId: 'T-02', from: 'active', to: 'critical' }], continuityMutations: [], relationshipMutations: [], summary: 'Scene 2' },
+        { id: 'S-GEN-001', arcId: 'ARC-01', locationId: 'L-01', povId: 'C-01', participantIds: ['C-01'], events: [], threadMutations: [{ threadId: 'T-01', from: 'active', to: 'active', addedNodes: [], addedEdges: [] }], continuityMutations: [], relationshipMutations: [], summary: 'Scene 1' },
+        { id: 'S-GEN-002', arcId: 'ARC-01', locationId: 'L-02', povId: 'C-02', participantIds: ['C-02'], events: [], threadMutations: [{ threadId: 'T-02', from: 'active', to: 'critical', addedNodes: [], addedEdges: [] }], continuityMutations: [], relationshipMutations: [], summary: 'Scene 2' },
       ],
     });
     vi.mocked(callGenerate).mockResolvedValue(mockResponse);

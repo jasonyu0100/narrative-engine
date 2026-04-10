@@ -1,31 +1,31 @@
 /**
- * Continuity graph utilities — mutation application.
+ * Thread log utilities — mutation application.
  *
- * Mirrors the thread log model: each mutation represents one scene's
- * contribution for an entity. Nodes added by a single mutation chain together
- * sequentially via 'co_occurs'. No edges are created across mutations/scenes —
- * each scene's contribution is a self-contained cluster.
+ * Mirrors continuity-graph.ts: each threadMutation represents one scene's
+ * contribution to a thread's log. Nodes added by a single mutation chain
+ * together sequentially via 'co_occurs'. No edges are created across
+ * mutations/scenes — each scene's contribution is a self-contained cluster.
  */
 
-import type { Continuity, ContinuityMutation } from '@/types/narrative';
+import type { ThreadLog, ThreadMutation } from '@/types/narrative';
 
-/** Empty continuity graph — the canonical "zero value" for entity initialization. */
-export const EMPTY_CONTINUITY: Continuity = { nodes: {}, edges: [] };
+/** Empty thread log — the canonical "zero value" for thread initialization. */
+export const EMPTY_THREAD_LOG: ThreadLog = { nodes: {}, edges: [] };
 
 /**
- * Apply one additive continuity mutation, returning a new graph.
+ * Apply one thread mutation, returning a new log.
  * New nodes are added and chained sequentially via 'co_occurs'. Any explicit
  * edges from the mutation are filtered for self-loops, orphans, and duplicates.
  */
-export function applyContinuityMutation(graph: Continuity, mutation: ContinuityMutation): Continuity {
-  const nodes = { ...(graph.nodes ?? {}) };
-  const edges = [...(graph.edges ?? [])];
+export function applyThreadMutation(log: ThreadLog, mutation: ThreadMutation): ThreadLog {
+  const nodes = { ...(log?.nodes ?? {}) };
+  const edges = [...(log?.edges ?? [])];
 
   const newNodeIds: string[] = [];
   for (const n of mutation.addedNodes ?? []) {
     if (!n.id || !n.content) continue;
     if (!nodes[n.id]) {
-      nodes[n.id] = { id: n.id, type: n.type || 'trait', content: n.content };
+      nodes[n.id] = { id: n.id, type: n.type || 'pulse', content: n.content };
       newNodeIds.push(n.id);
     }
   }

@@ -192,7 +192,7 @@ describe('buildVirtualState', () => {
     const rootNarrative = createMinimalNarrative();
     rootNarrative.threads['T-01'] = createThread('T-01');
 
-    const threadMutation: ThreadMutation = { threadId: 'T-01', from: 'latent', to: 'active' };
+    const threadMutation: ThreadMutation = { threadId: 'T-01', from: 'latent', to: 'active', addedNodes: [], addedEdges: [] };
     const scene = createScene('S-001', { threadMutations: [threadMutation] });
     const arc = createArc('ARC-01', ['S-001']);
 
@@ -368,12 +368,12 @@ describe('buildVirtualState', () => {
     rootNarrative.threads['T-01'] = createThread('T-01');
 
     const scene1 = createScene('S-001', {
-      threadMutations: [{ threadId: 'T-01', from: 'latent', to: 'active' }],
+      threadMutations: [{ threadId: 'T-01', from: 'latent', to: 'active', addedNodes: [], addedEdges: [] }],
     });
     const arc1 = createArc('ARC-01', ['S-001']);
 
     const scene2 = createScene('S-002', {
-      threadMutations: [{ threadId: 'T-01', from: 'active', to: 'critical' }],
+      threadMutations: [{ threadId: 'T-01', from: 'active', to: 'critical', addedNodes: [], addedEdges: [] }],
     });
     const arc2 = createArc('ARC-02', ['S-002']);
 
@@ -399,7 +399,7 @@ describe('buildVirtualState', () => {
     const originalStatus = rootNarrative.threads['T-01'].status;
 
     const scene = createScene('S-001', {
-      threadMutations: [{ threadId: 'T-01', from: 'latent', to: 'resolved' }],
+      threadMutations: [{ threadId: 'T-01', from: 'latent', to: 'resolved', addedNodes: [], addedEdges: [] }],
     });
     const arc = createArc('ARC-01', ['S-001']);
 
@@ -419,7 +419,7 @@ describe('scoreArc', () => {
 
   it('returns positive score for scenes with mutations', () => {
     const scene = createScene('S-001', {
-      threadMutations: [{ threadId: 'T-01', from: 'latent', to: 'active' }],
+      threadMutations: [{ threadId: 'T-01', from: 'latent', to: 'active', addedNodes: [], addedEdges: [] }],
       continuityMutations: [{ entityId: 'C-01', addedNodes: [{ id: 'K-01', content: 'x', type: 'history' }], addedEdges: [] }],
       events: ['event1'],
     });
@@ -431,10 +431,10 @@ describe('scoreArc', () => {
 
   it('scores multiple scenes', () => {
     const scene1 = createScene('S-001', {
-      threadMutations: [{ threadId: 'T-01', from: 'latent', to: 'active' }],
+      threadMutations: [{ threadId: 'T-01', from: 'latent', to: 'active', addedNodes: [], addedEdges: [] }],
     });
     const scene2 = createScene('S-002', {
-      threadMutations: [{ threadId: 'T-01', from: 'active', to: 'critical' }],
+      threadMutations: [{ threadId: 'T-01', from: 'active', to: 'critical', addedNodes: [], addedEdges: [] }],
       events: ['climax'],
     });
 
@@ -449,8 +449,8 @@ describe('scoreArc', () => {
 
     const highMutationScene = createScene('S-002', {
       threadMutations: [
-        { threadId: 'T-01', from: 'latent', to: 'resolved' },
-        { threadId: 'T-02', from: 'active', to: 'critical' },
+        { threadId: 'T-01', from: 'latent', to: 'resolved', addedNodes: [], addedEdges: [] },
+        { threadId: 'T-02', from: 'active', to: 'critical', addedNodes: [], addedEdges: [] },
       ],
       continuityMutations: Array(5).fill({ entityId: 'C-01', addedNodes: [{ id: 'K-01', content: 'x', type: 'history' }], addedEdges: [] }),
       events: ['event1', 'event2', 'event3'],
@@ -472,7 +472,7 @@ describe('scoreArc', () => {
 describe('scoreScene', () => {
   it('returns positive score for scene with mutations', () => {
     const scene = createScene('S-001', {
-      threadMutations: [{ threadId: 'T-01', from: 'latent', to: 'active' }],
+      threadMutations: [{ threadId: 'T-01', from: 'latent', to: 'active', addedNodes: [], addedEdges: [] }],
       events: ['event1'],
     });
 
@@ -489,11 +489,11 @@ describe('scoreScene', () => {
 
   it('considers swing when prior scenes exist', () => {
     const priorScene = createScene('S-001', {
-      threadMutations: [{ threadId: 'T-01', from: 'latent', to: 'active' }],
+      threadMutations: [{ threadId: 'T-01', from: 'latent', to: 'active', addedNodes: [], addedEdges: [] }],
     });
 
     const currentScene = createScene('S-002', {
-      threadMutations: [{ threadId: 'T-01', from: 'active', to: 'resolved' }],
+      threadMutations: [{ threadId: 'T-01', from: 'active', to: 'resolved', addedNodes: [], addedEdges: [] }],
       continuityMutations: Array(3).fill({ entityId: 'C-01', addedNodes: [{ id: 'K-01', content: 'x', type: 'history' }], addedEdges: [] }),
     });
 

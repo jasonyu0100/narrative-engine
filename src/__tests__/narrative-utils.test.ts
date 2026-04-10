@@ -193,11 +193,11 @@ describe('computeThreadStatuses', () => {
       scenes: {
         'S-001': createScene({
           id: 'S-001',
-          threadMutations: [{ threadId: 'T-01', from: 'latent', to: 'active' }],
+          threadMutations: [{ threadId: 'T-01', from: 'latent', to: 'active', addedNodes: [], addedEdges: [] }],
         }),
         'S-002': createScene({
           id: 'S-002',
-          threadMutations: [{ threadId: 'T-01', from: 'active', to: 'active' }],
+          threadMutations: [{ threadId: 'T-01', from: 'active', to: 'active', addedNodes: [], addedEdges: [] }],
         }),
       },
     });
@@ -321,13 +321,13 @@ describe('computeForceSnapshots', () => {
     const scenes: Scene[] = [
       createScene({
         id: 'S-001',
-        threadMutations: [{ threadId: 'T-01', from: 'latent', to: 'seeded' }],
+        threadMutations: [{ threadId: 'T-01', from: 'latent', to: 'seeded', addedNodes: [], addedEdges: [] }],
         continuityMutations: [],
         events: ['event1'],
       }),
       createScene({
         id: 'S-002',
-        threadMutations: [{ threadId: 'T-01', from: 'seeded', to: 'active' }],
+        threadMutations: [{ threadId: 'T-01', from: 'seeded', to: 'active', addedNodes: [], addedEdges: [] }],
         continuityMutations: [{ entityId: 'C-01', addedNodes: [{ id: 'K-01', content: 'secret', type: 'secret' }], addedEdges: [] }],
         events: ['event1', 'event2'],
       }),
@@ -350,7 +350,7 @@ describe('computeRawForceTotals', () => {
     const scenes: Scene[] = [
       createScene({
         id: 'S-001',
-        threadMutations: [{ threadId: 'T-01', from: 'latent', to: 'seeded' }],
+        threadMutations: [{ threadId: 'T-01', from: 'latent', to: 'seeded', addedNodes: [], addedEdges: [] }],
       }),
     ];
 

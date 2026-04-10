@@ -5,6 +5,9 @@ import type {
   Scene,
   WorldBuild,
   NarrativeState,
+  ThreadLog,
+  ThreadLogNode,
+  ThreadLogEdge,
 } from '@/types/narrative';
 
 // ── Introduced-entity tracking ──────────────────────────────────────────────
@@ -203,4 +206,35 @@ export function getThreadIdsAtScene(
     if (!thread) return false;
     return keysUpToCurrent.has(thread.openedAt);
   });
+}
+
+/**
+ * Progressive reveal for a thread's log: return only the nodes/edges that have
+ * been added by scene thread mutations up to (and including) currentSceneIndex.
+ *
+ * threadLog.nodes are appended sequentially by the store reducer as scenes play,
+ * so we count how many entries each scene contributed and take the first N
+ * nodes (in insertion order), then keep only edges where both endpoints survive.
+ */
+export function getThreadLogAtScene(
+  threadLog: ThreadLog,
+  threadId: string,
+  scenes: Record<string, Scene>,
+  resolvedEntryKeys: string[],
+  currentSceneIndex: number,
+): { nodes: ThreadLogNode[]; edges: ThreadLogEdge[] } {
+  let visibleCount = 0;
+  for (let i = 0; i <= currentSceneIndex && i < resolvedEntryKeys.length; i++) {
+    const scene = scenes[resolvedEntryKeys[i]];
+    if (!scene) continue;
+    for (const tm of scene.threadMutations ?? []) {
+      if (tm.threadId !== threadId) continue;
+      visibleCount += (tm.addedNodes && tm.addedNodes.length > 0) ? tm.addedNodes.length : 1;
+    }
+  }
+  const allNodes = Object.values(threadLog?.nodes ?? {});
+  const nodes = allNodes.slice(0, visibleCount);
+  const visibleIds = new Set(nodes.map((n) => n.id));
+  const edges = (threadLog?.edges ?? []).filter((e) => visibleIds.has(e.from) && visibleIds.has(e.to));
+  return { nodes, edges };
 }

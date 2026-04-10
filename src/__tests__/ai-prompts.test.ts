@@ -47,7 +47,7 @@ function createMinimalNarrative(overrides: Partial<NarrativeState> = {}): Narrat
   };
 }
 
-function createScene(id: string, threadMutations: Array<{ threadId: string; from: string; to: string }>, overrides: Partial<Scene> = {}): Scene {
+function createScene(id: string, threadMutations: Array<{ threadId: string; from: string; to: string; addedNodes?: []; addedEdges?: [] }>, overrides: Partial<Scene> = {}): Scene {
   return {
     kind: 'scene',
     id,
@@ -57,7 +57,7 @@ function createScene(id: string, threadMutations: Array<{ threadId: string; from
     participantIds: ['c1'],
     summary: `Scene ${id} summary`,
     events: ['event_1'],
-    threadMutations,
+    threadMutations: threadMutations.map((tm) => ({ threadId: tm.threadId, from: tm.from, to: tm.to, addedNodes: [], addedEdges: [] })),
     continuityMutations: [],
     relationshipMutations: [],
     ...overrides,
@@ -80,20 +80,20 @@ function createThread(id: string, description: string, status: string = 'latent'
 
 describe('Static Prompt Constants', () => {
   describe('PROMPT_FORCE_STANDARDS', () => {
-    it('contains drive reference mean', () => {
-      expect(PROMPT_FORCE_STANDARDS).toContain('P ~1.5');
+    it('contains drive reference per-scene target', () => {
+      expect(PROMPT_FORCE_STANDARDS).toMatch(/DRIVE[\s\S]+Reference:/);
     });
 
-    it('contains world reference mean', () => {
-      expect(PROMPT_FORCE_STANDARDS).toContain('W ~7');
+    it('contains world reference per-scene target', () => {
+      expect(PROMPT_FORCE_STANDARDS).toMatch(/WORLD[\s\S]+Reference:/);
     });
 
-    it('contains system reference mean', () => {
-      expect(PROMPT_FORCE_STANDARDS).toContain('S ~4');
+    it('contains system reference per-scene target', () => {
+      expect(PROMPT_FORCE_STANDARDS).toMatch(/SYSTEM[\s\S]+Reference:/);
     });
 
-    it('mentions dominance threshold', () => {
-      expect(PROMPT_FORCE_STANDARDS).toContain('dominance');
+    it('mentions dominance framing', () => {
+      expect(PROMPT_FORCE_STANDARDS).toContain('dominant');
     });
   });
 

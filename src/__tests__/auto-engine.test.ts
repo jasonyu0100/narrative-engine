@@ -936,7 +936,7 @@ describe('auto-engine edge cases', () => {
     const { weights } = evaluateNarrativeState(narrative, [], 0, config);
     // Should boost knowledge corners since > 2 latent (dormant) threads exist
     const lhhWeight = weights.find(w => w.action === 'LHH');
-    expect(lhhWeight?.reason).toContain('dormant'); // source uses "dormant" in reason string
+    expect(lhhWeight?.reason).toContain('latent'); // source uses "latent" in reason string
   });
 
   it('handles progress > 1 gracefully', () => {

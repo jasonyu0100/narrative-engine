@@ -3,7 +3,7 @@
 import { useState, useMemo } from 'react';
 import { useStore } from '@/lib/store';
 import { computeThreadStatuses, classifyThreadKind, computeActiveArcs } from '@/lib/narrative-utils';
-import type { Thread, NarrativeState } from '@/types/narrative';
+import { getThreadLogAtScene } from '@/lib/scene-filter';
 import { CollapsibleSection } from './CollapsibleSection';
 import { INSPECTOR_PAGE_SIZE } from '@/lib/constants';
 
@@ -51,191 +51,39 @@ const statusClasses: Record<string, string> = {
   abandoned: 'text-text-dim',
 };
 
-const STATUS_FILLS: Record<string, string> = {
-  latent: '#555',
-  seeded: '#f59e0b',
-  active: '#3b82f6',
-  critical: '#ef4444',
-  resolved: '#10b981',
-  subverted: '#8b5cf6',
-  abandoned: '#444',
-};
-
 const threadLogDotColors: Record<string, string> = {
   pulse: 'bg-white/40', transition: 'bg-drive', setup: 'bg-amber-400',
   escalation: 'bg-orange-400', payoff: 'bg-emerald-400', twist: 'bg-violet-400',
   callback: 'bg-sky-400', resistance: 'bg-red-500', stall: 'bg-red-400/50',
 };
 
-// ── Thread convergence graph ─────────────────────────────────────────────────
-
-type GraphNode = { id: string; label: string; status: string; isFocus: boolean };
-type GraphEdge = { from: string; to: string };
-
-function buildConvergenceGraph(
-  focusId: string,
-  narrative: NarrativeState,
-  statuses: Record<string, string>,
-): { nodes: GraphNode[]; edges: GraphEdge[] } | null {
-  const focusThread = narrative.threads[focusId];
-  if (!focusThread) return null;
-
-  const nodeMap = new Map<string, GraphNode>();
-  const edges: GraphEdge[] = [];
-
-  const addNode = (t: Thread, isFocus: boolean) => {
-    if (!nodeMap.has(t.id)) {
-      const status = statuses[t.id] ?? t.status;
-      // Truncate description for label
-      const label = t.description.length > 30 ? t.description.slice(0, 28) + '…' : t.description;
-      nodeMap.set(t.id, { id: t.id, label, status, isFocus });
-    }
-  };
-
-  addNode(focusThread, true);
-
-  // Direct dependents (focus → dep)
-  for (const depId of focusThread.dependents) {
-    const dep = narrative.threads[depId];
-    if (dep) {
-      addNode(dep, false);
-      edges.push({ from: focusId, to: depId });
-    }
-  }
-
-  // Reverse links (other → focus)
-  for (const t of Object.values(narrative.threads)) {
-    if (t.id !== focusId && t.dependents.includes(focusId)) {
-      addNode(t, false);
-      edges.push({ from: t.id, to: focusId });
-    }
-  }
-
-  // Also show edges between neighbors (not through focus)
-  for (const [id] of nodeMap) {
-    if (id === focusId) continue;
-    const t = narrative.threads[id];
-    if (!t) continue;
-    for (const depId of t.dependents) {
-      if (depId !== focusId && nodeMap.has(depId) && !edges.some((e) => e.from === id && e.to === depId)) {
-        edges.push({ from: id, to: depId });
-      }
-    }
-  }
-
-  if (nodeMap.size <= 1) return null;
-  return { nodes: Array.from(nodeMap.values()), edges };
-}
-
-function ThreadConvergenceGraph({
-  focusId,
-  narrative,
-  statuses,
-  onSelectThread,
-}: {
-  focusId: string;
-  narrative: NarrativeState;
-  statuses: Record<string, string>;
-  onSelectThread: (id: string) => void;
-}) {
-  const graph = useMemo(
-    () => buildConvergenceGraph(focusId, narrative, statuses),
-    [focusId, narrative, statuses],
-  );
-
-  if (!graph) return null;
-
-  // Layout: focus in center, neighbors in a circle
-  const W = 280;
-  const H = Math.max(120, graph.nodes.length * 28);
-  const cx = W / 2;
-  const cy = H / 2;
-  const radius = Math.min(cx - 40, cy - 30);
-
-  const neighbors = graph.nodes.filter((n) => !n.isFocus);
-  const positions = new Map<string, { x: number; y: number }>();
-  positions.set(focusId, { x: cx, y: cy });
-
-  neighbors.forEach((n, i) => {
-    const angle = (2 * Math.PI * i) / neighbors.length - Math.PI / 2;
-    positions.set(n.id, {
-      x: cx + radius * Math.cos(angle),
-      y: cy + radius * Math.sin(angle),
-    });
-  });
-
-  return (
-    <div className="flex flex-col gap-1">
-      <h3 className="text-[10px] uppercase tracking-widest text-text-dim">
-        Convergence Graph
-      </h3>
-      <svg width={W} height={H} className="rounded bg-white/[0.02]">
-        <defs>
-          <marker id="arrow" viewBox="0 0 10 10" refX="22" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse">
-            <path d="M 0 0 L 10 5 L 0 10 z" fill="#666" />
-          </marker>
-        </defs>
-        {/* Edges */}
-        {graph.edges.map((e, i) => {
-          const from = positions.get(e.from);
-          const to = positions.get(e.to);
-          if (!from || !to) return null;
-          return (
-            <line
-              key={i}
-              x1={from.x} y1={from.y} x2={to.x} y2={to.y}
-              stroke="#555" strokeWidth={1} markerEnd="url(#arrow)"
-              opacity={0.6}
-            />
-          );
-        })}
-        {/* Nodes */}
-        {graph.nodes.map((n) => {
-          const pos = positions.get(n.id);
-          if (!pos) return null;
-          const fill = STATUS_FILLS[n.status] ?? '#555';
-          return (
-            <g
-              key={n.id}
-              onClick={() => onSelectThread(n.id)}
-              className="cursor-pointer"
-            >
-              <circle
-                cx={pos.x} cy={pos.y} r={n.isFocus ? 10 : 7}
-                fill={fill}
-                stroke={n.isFocus ? '#fff' : 'transparent'}
-                strokeWidth={n.isFocus ? 1.5 : 0}
-                opacity={0.9}
-              />
-              <text
-                x={pos.x} y={pos.y + (n.isFocus ? 18 : 15)}
-                textAnchor="middle"
-                className="text-[8px] fill-[#999] select-none pointer-events-none"
-              >
-                {n.id}
-              </text>
-            </g>
-          );
-        })}
-      </svg>
-    </div>
-  );
-}
-
 export default function ThreadDetail({ threadId }: Props) {
   const { state, dispatch } = useStore();
   const narrative = state.activeNarrative;
   const [logPage, setLogPage] = useState(0);
   const [scenesPage, setScenesPage] = useState(0);
-  if (!narrative) return null;
 
-  const thread = narrative.threads[threadId];
-  if (!thread) return null;
+  const thread = narrative?.threads[threadId];
 
   const currentStatuses = useMemo(
-    () => computeThreadStatuses(narrative, state.currentSceneIndex),
+    () => (narrative ? computeThreadStatuses(narrative, state.currentSceneIndex) : {}),
     [narrative, state.currentSceneIndex],
   );
+
+  // Progressive reveal: thread log nodes visible at current scene index
+  const visibleLog = useMemo(() => {
+    if (!narrative || !thread) return { nodes: [], edges: [] };
+    return getThreadLogAtScene(
+      thread.threadLog ?? { nodes: {}, edges: [] },
+      threadId,
+      narrative.scenes,
+      state.resolvedEntryKeys,
+      state.currentSceneIndex,
+    );
+  }, [narrative, thread, threadId, state.resolvedEntryKeys, state.currentSceneIndex]);
+
+  if (!narrative || !thread) return null;
+
   const currentStatus = currentStatuses[threadId] ?? thread.status;
 
   // Resolve anchor names
@@ -251,7 +99,7 @@ export default function ThreadDetail({ threadId }: Props) {
     <div className="flex flex-col gap-4">
       {/* Thread ID badge + description */}
       <div className="flex flex-col gap-1">
-        <span className="rounded bg-white/[0.06] px-1.5 py-0.5 font-mono text-[10px] text-text-dim self-start">
+        <span className="rounded bg-white/6 px-1.5 py-0.5 font-mono text-[10px] text-text-dim self-start">
           {thread.id}
         </span>
         <p className="text-sm text-text-primary">{thread.description}</p>
@@ -276,13 +124,11 @@ export default function ThreadDetail({ threadId }: Props) {
         </span>
       </div>
 
-      {/* Thread Log — paginated, most recent first (mirrors entity continuity) */}
-      {(() => {
-        const logNodes = Object.values(thread.threadLog?.nodes ?? {});
-        if (logNodes.length === 0) return null;
-        const { pageItems, totalPages, safePage } = paginateRecent(logNodes, logPage);
+      {/* Thread Log — progressive-reveal paginated list */}
+      {visibleLog.nodes.length > 0 && (() => {
+        const { pageItems, totalPages, safePage } = paginateRecent(visibleLog.nodes, logPage);
         return (
-          <CollapsibleSection title="Thread Log" count={logNodes.length} defaultOpen>
+          <CollapsibleSection title="Thread Log" count={visibleLog.nodes.length} defaultOpen>
             <ul className="flex flex-col gap-1">
               {pageItems.map((node, i) => (
                 <li key={`${node.id}-${i}`} className="flex items-start gap-2">
@@ -302,7 +148,7 @@ export default function ThreadDetail({ threadId }: Props) {
         );
       })()}
 
-      {/* Scenes — derived from scene.threadMutations (same pattern as entity continuity) */}
+      {/* Scenes — derived from scene.threadMutations, up to current index */}
       {(() => {
         const sceneKeysUpToCurrent = state.resolvedEntryKeys.slice(0, state.currentSceneIndex + 1);
         const sceneTouches = sceneKeysUpToCurrent
@@ -426,15 +272,6 @@ export default function ThreadDetail({ threadId }: Props) {
           </div>
         );
       })()}
-
-      {/* Convergence graph */}
-      <ThreadConvergenceGraph
-        focusId={threadId}
-        narrative={narrative}
-        statuses={currentStatuses}
-        onSelectThread={(id) => dispatch({ type: 'SET_INSPECTOR', context: { type: 'thread', threadId: id } })}
-      />
-
     </div>
   );
 }

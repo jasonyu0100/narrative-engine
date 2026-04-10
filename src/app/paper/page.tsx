@@ -1579,7 +1579,7 @@ export default function PaperPage() {
               {[
                 { force: "Drive", value: "3", color: "#EF4444" },
                 { force: "World", value: "14", color: "#22C55E" },
-                { force: "System", value: "8", color: "#3B82F6" },
+                { force: "System", value: "5", color: "#3B82F6" },
               ].map(({ force, value, color }) => (
                 <div
                   key={force}

@@ -63,9 +63,6 @@ function createMockAnalysisResult(index: number, overrides: Partial<AnalysisChun
         role: 'anchor',
         firstAppearance: true,
         imagePrompt: 'A character',
-        continuity: [
-          { type: 'belief', content: `Character${index} knows something` },
-        ],
       },
     ],
     locations: [
@@ -73,7 +70,6 @@ function createMockAnalysisResult(index: number, overrides: Partial<AnalysisChun
         name: `Location${index}`,
         parentName: null,
         description: `A location ${index}`,
-        lore: [`History ${index}`],
       },
     ],
     threads: [
@@ -95,7 +91,7 @@ function createMockAnalysisResult(index: number, overrides: Partial<AnalysisChun
         sections: [0],
         prose: `Scene ${index} prose content here.`,
         threadMutations: [
-          { threadDescription: `Main quest ${index}`, from: 'dormant', to: 'active' },
+          { threadDescription: `Main quest ${index}`, from: 'dormant', to: 'active', addedNodes: [] },
         ],
         continuityMutations: [
           {
@@ -123,15 +119,15 @@ function createRichAnalysisResult(index: number): AnalysisChunkResult {
   return {
     chapterSummary: `Rich chunk ${index} summary`,
     characters: [
-      { name: 'Alice', role: 'anchor', firstAppearance: index === 0, continuity: [{ type: 'trait', content: 'Curious and adventurous' }] },
-      { name: 'Bob', role: 'recurring', firstAppearance: index === 0, continuity: [{ type: 'state', content: 'Guarded and suspicious' }] },
+      { name: 'Alice', role: 'anchor', firstAppearance: index === 0 },
+      { name: 'Bob', role: 'recurring', firstAppearance: index === 0 },
     ],
     locations: [
-      { name: 'Castle', parentName: null, description: 'A grand castle', lore: [`Castle lore ${index}`], tiedCharacterNames: ['Alice'] },
-      { name: 'Forest', parentName: null, description: 'A dark forest', lore: [`Forest lore ${index}`] },
+      { name: 'Castle', parentName: null, description: 'A grand castle', tiedCharacterNames: ['Alice'] },
+      { name: 'Forest', parentName: null, description: 'A dark forest' },
     ],
     artifacts: [
-      { name: 'Magic Sword', significance: 'key', continuity: [{ type: 'capability', content: 'Glows near danger' }], ownerName: 'Alice' },
+      { name: 'Magic Sword', significance: 'key', ownerName: 'Alice' },
     ],
     threads: [
       { description: 'The Quest for the Crown', participantNames: ['Alice', 'Bob'], statusAtStart: index === 0 ? 'dormant' : 'active', statusAtEnd: 'active', development: `Quest progresses in chunk ${index}` },
@@ -154,7 +150,7 @@ function createRichAnalysisResult(index: number): AnalysisChunkResult {
         },
         beatProseMap: { chunks: [{ beatIndex: 0, prose: 'Castle atmosphere prose' }, { beatIndex: 1, prose: 'Quest progress prose' }], createdAt: Date.now() },
         threadMutations: [
-          { threadDescription: 'The Quest for the Crown', from: index === 0 ? 'dormant' : 'active', to: 'active' },
+          { threadDescription: 'The Quest for the Crown', from: index === 0 ? 'dormant' : 'active', to: 'active', addedNodes: [] },
         ],
         continuityMutations: [
           { entityName: 'Alice', addedNodes: [{ content: 'Discovered a secret passage', type: 'history' }] },
@@ -309,7 +305,7 @@ describe('extractSceneStructure', () => {
       artifacts: [{ name: 'Pocket Watch', significance: 'notable', continuity: [], ownerName: null }],
       threads: [{ description: 'Alice finding her way home', participantNames: ['Alice'], statusAtStart: 'dormant', statusAtEnd: 'active', development: 'Alice realizes she is lost' }],
       relationships: [{ from: 'Alice', to: 'Cheshire Cat', type: 'uneasy acquaintance', valence: 2 }],
-      threadMutations: [{ threadDescription: 'Alice finding her way home', from: 'dormant', to: 'active' }],
+      threadMutations: [{ threadDescription: 'Alice finding her way home', from: 'dormant', to: 'active', addedNodes: [] }],
       continuityMutations: [{ entityName: 'Alice', addedNodes: [{ content: 'Fell down the rabbit hole', type: 'history' }] }],
       relationshipMutations: [{ from: 'Alice', to: 'Cheshire Cat', type: 'uneasy acquaintance', valenceDelta: 0.2 }],
       artifactUsages: [{ artifactName: 'Pocket Watch', characterName: null, usage: 'ticked ominously marking the deadline' }],
@@ -531,8 +527,8 @@ describe('reconcileResults', () => {
     } as Response);
 
     const results: AnalysisChunkResult[] = [
-      { ...createMockAnalysisResult(0), characters: [{ name: 'Prof. McGonagall', role: 'recurring', firstAppearance: true, continuity: [{ type: 'trait', content: 'Strict' }] }] },
-      { ...createMockAnalysisResult(1), characters: [{ name: 'Minerva McGonagall', role: 'anchor', firstAppearance: false, continuity: [{ type: 'trait', content: 'Caring' }] }] },
+      { ...createMockAnalysisResult(0), characters: [{ name: 'Prof. McGonagall', role: 'recurring', firstAppearance: true }] },
+      { ...createMockAnalysisResult(1), characters: [{ name: 'Minerva McGonagall', role: 'anchor', firstAppearance: false }] },
     ];
 
     const reconciled = await reconcileResults(results);
@@ -561,7 +557,7 @@ describe('reconcileResults', () => {
         threads: [{ description: "Harry's distrust of Snape", participantNames: ['Harry'], statusAtStart: 'dormant', statusAtEnd: 'active', development: 'Started' }],
         scenes: [{
           ...createMockAnalysisResult(0).scenes[0],
-          threadMutations: [{ threadDescription: "Harry's distrust of Snape", from: 'dormant', to: 'active' }],
+          threadMutations: [{ threadDescription: "Harry's distrust of Snape", from: 'dormant', to: 'active', addedNodes: [] }],
         }],
       },
     ];
@@ -588,7 +584,7 @@ describe('reconcileResults', () => {
     const results: AnalysisChunkResult[] = [
       {
         ...createMockAnalysisResult(0),
-        locations: [{ name: 'The Forest', parentName: null, description: 'Spooky', lore: [] }],
+        locations: [{ name: 'The Forest', parentName: null, description: 'Spooky' }],
         scenes: [{ ...createMockAnalysisResult(0).scenes[0], locationName: 'The Forest' }],
       },
     ];
@@ -614,7 +610,7 @@ describe('reconcileResults', () => {
 
     const results: AnalysisChunkResult[] = [{
       ...createMockAnalysisResult(0),
-      artifacts: [{ name: 'the Elder Wand', significance: 'key', continuity: [], ownerName: null }],
+      artifacts: [{ name: 'the Elder Wand', significance: 'key', ownerName: null }],
       scenes: [{
         ...createMockAnalysisResult(0).scenes[0],
         artifactUsages: [{ artifactName: 'the Elder Wand', characterName: 'Harry', usage: 'cast the disarming charm' }],
@@ -661,12 +657,12 @@ describe('reconcileResults', () => {
       {
         ...createMockAnalysisResult(0),
         threads: [{ description: 'Main quest', participantNames: ['Alice'], statusAtStart: 'dormant', statusAtEnd: 'active', development: 'Started' }],
-        scenes: [{ ...createMockAnalysisResult(0).scenes[0], threadMutations: [{ threadDescription: 'Main quest', from: 'dormant', to: 'active' }] }],
+        scenes: [{ ...createMockAnalysisResult(0).scenes[0], threadMutations: [{ threadDescription: 'Main quest', from: 'dormant', to: 'active', addedNodes: [] }] }],
       },
       {
         ...createMockAnalysisResult(1),
         threads: [{ description: 'Main quest', participantNames: ['Alice', 'Bob'], statusAtStart: 'dormant', statusAtEnd: 'escalating', development: 'Continued' }],
-        scenes: [{ ...createMockAnalysisResult(1).scenes[0], threadMutations: [{ threadDescription: 'Main quest', from: 'dormant', to: 'escalating' }] }],
+        scenes: [{ ...createMockAnalysisResult(1).scenes[0], threadMutations: [{ threadDescription: 'Main quest', from: 'dormant', to: 'escalating', addedNodes: [] }] }],
       },
     ];
 
@@ -682,7 +678,7 @@ describe('reconcileResults', () => {
     const results: AnalysisChunkResult[] = [{
       ...createMockAnalysisResult(0),
       threads: [{ description: 'Quest', participantNames: ['Hero'], statusAtStart: 'inactive', statusAtEnd: 'developing', development: 'Started' }],
-      scenes: [{ ...createMockAnalysisResult(0).scenes[0], threadMutations: [{ threadDescription: 'Quest', from: 'inactive', to: 'developing' }] }],
+      scenes: [{ ...createMockAnalysisResult(0).scenes[0], threadMutations: [{ threadDescription: 'Quest', from: 'inactive', to: 'developing', addedNodes: [] }] }],
     }];
 
     const reconciled = await reconcileResults(results);
@@ -697,25 +693,24 @@ describe('reconcileResults', () => {
     const results: AnalysisChunkResult[] = [{
       ...createMockAnalysisResult(0),
       characters: [
-        { name: 'Alice', role: 'recurring', firstAppearance: true, continuity: [{ type: 'trait', content: 'Brave' }] },
-        { name: 'Alice', role: 'anchor', firstAppearance: false, continuity: [{ type: 'state', content: 'Tired' }] },
+        { name: 'Alice', role: 'recurring', firstAppearance: true },
+        { name: 'Alice', role: 'anchor', firstAppearance: false },
       ],
     }];
 
     const reconciled = await reconcileResults(results);
     const alices = reconciled[0].characters.filter(c => c.name === 'Alice');
     expect(alices).toHaveLength(1);
-    // Should merge continuity and take higher role
+    // Should take higher role
     expect(alices[0].role).toBe('anchor');
-    expect(alices[0].continuity).toHaveLength(2);
   });
 
   it('deduplicates artifacts within same chunk by name with higher significance', async () => {
     const results: AnalysisChunkResult[] = [{
       ...createMockAnalysisResult(0),
       artifacts: [
-        { name: 'Sword', significance: 'minor', continuity: [{ type: 'capability', content: 'Sharp' }], ownerName: null },
-        { name: 'Sword', significance: 'key', continuity: [{ type: 'history', content: 'Ancient' }], ownerName: 'Hero' },
+        { name: 'Sword', significance: 'minor', ownerName: null },
+        { name: 'Sword', significance: 'key', ownerName: 'Hero' },
       ],
     }];
 
@@ -723,7 +718,6 @@ describe('reconcileResults', () => {
     const swords = reconciled[0].artifacts!.filter(a => a.name === 'Sword');
     expect(swords).toHaveLength(1);
     expect(swords[0].significance).toBe('key');
-    expect(swords[0].continuity).toHaveLength(2);
   });
 
   it('resolves character names in participant lists', async () => {
@@ -953,7 +947,7 @@ describe('assembleNarrative', () => {
   it('maps scene participant names to character IDs', async () => {
     const results: AnalysisChunkResult[] = [{
       ...createMockAnalysisResult(0),
-      characters: [{ name: 'Alice', role: 'anchor', firstAppearance: true, continuity: [] }],
+      characters: [{ name: 'Alice', role: 'anchor', firstAppearance: true }],
       scenes: [{
         locationName: 'Castle', povName: 'Alice', participantNames: ['Alice'],
         events: [], summary: 'Test', sections: [0],
@@ -972,7 +966,7 @@ describe('assembleNarrative', () => {
   it('maps scene location names to location IDs', async () => {
     const results: AnalysisChunkResult[] = [{
       ...createMockAnalysisResult(0),
-      locations: [{ name: 'Castle', parentName: null, description: 'A castle', lore: [] }],
+      locations: [{ name: 'Castle', parentName: null, description: 'A castle' }],
       scenes: [{
         locationName: 'Castle', povName: 'Alice', participantNames: ['Alice'],
         events: [], summary: 'Test', sections: [0],
@@ -1018,8 +1012,8 @@ describe('assembleNarrative', () => {
     const results: AnalysisChunkResult[] = [{
       ...createMockAnalysisResult(0),
       characters: [
-        { name: 'Alice', role: 'anchor', firstAppearance: true, continuity: [] },
-        { name: 'Bob', role: 'recurring', firstAppearance: true, continuity: [] },
+        { name: 'Alice', role: 'anchor', firstAppearance: true },
+        { name: 'Bob', role: 'recurring', firstAppearance: true },
       ],
       relationships: [{ from: 'Alice', to: 'Bob', type: 'ally', valence: 5 }],
     }];
@@ -1066,7 +1060,7 @@ describe('assembleNarrative', () => {
 
   // ── Rich assembly tests (artifacts, world knowledge, movements, etc.) ──
 
-  it('creates artifact entities with continuity and ownership', async () => {
+  it('creates artifact entities with ownership', async () => {
     const results = [createRichAnalysisResult(0)];
     const narrative = await assembleNarrative('Rich Test', results, {});
 
@@ -1076,7 +1070,9 @@ describe('assembleNarrative', () => {
     const sword = artifacts.find(a => a.name === 'Magic Sword');
     expect(sword).toBeDefined();
     expect(sword!.significance).toBe('key');
-    expect(Object.keys(sword!.continuity.nodes).length).toBeGreaterThan(0);
+    // Entity continuity graphs start empty — they're built at store replay from
+    // scene.continuityMutations, not during assembly.
+    expect(sword!.continuity).toBeDefined();
     // Owned by Alice — parentId should be Alice's character ID
     expect(sword!.parentId).toBeTruthy();
   });
@@ -1264,14 +1260,20 @@ describe('assembleNarrative', () => {
     expect(questB!.dependents).toContain(questA!.id);
   });
 
-  it('builds continuity graphs from scene mutations', async () => {
+  it('records continuity mutations on scenes for later replay', async () => {
     const results = [createRichAnalysisResult(0)];
     const narrative = await assembleNarrative('Rich Test', results, {});
 
     const alice = Object.values(narrative.characters).find(c => c.name === 'Alice');
     expect(alice).toBeDefined();
-    // Should have continuity from both character creation AND scene mutations
-    expect(Object.keys(alice!.continuity.nodes).length).toBeGreaterThan(0);
+    // Entity continuity starts empty — graphs are built at store replay time from
+    // scene.continuityMutations. Verify mutations landed on the scene instead.
+    const scenes = Object.values(narrative.scenes);
+    const aliceMutations = scenes.flatMap(s =>
+      (s.continuityMutations ?? []).filter(m => m.entityId === alice!.id),
+    );
+    expect(aliceMutations.length).toBeGreaterThan(0);
+    expect(aliceMutations[0].addedNodes.length).toBeGreaterThan(0);
   });
 
   it('extracts rules, systems, and prose profile', async () => {
@@ -1348,8 +1350,8 @@ describe('assembleNarrative', () => {
     const results: AnalysisChunkResult[] = [{
       ...createMockAnalysisResult(0),
       locations: [
-        { name: 'Kingdom', parentName: null, description: 'A kingdom', lore: [] },
-        { name: 'Castle', parentName: 'Kingdom', description: 'Royal castle', lore: [] },
+        { name: 'Kingdom', parentName: null, description: 'A kingdom' },
+        { name: 'Castle', parentName: 'Kingdom', description: 'Royal castle' },
       ],
     }];
 
@@ -1363,19 +1365,39 @@ describe('assembleNarrative', () => {
   });
 
   it('accumulates entities across multiple chunks without duplication', async () => {
-    // Same character appears across 3 chunks
+    // Same character appears across 3 chunks, each scene adds a continuity node for Alice
+    const makeChunk = (index: number, nodeContent: string, nodeType: string): AnalysisChunkResult => ({
+      ...createMockAnalysisResult(index),
+      characters: [{ name: 'Alice', role: 'anchor', firstAppearance: index === 0 }],
+      scenes: [{
+        ...createMockAnalysisResult(index).scenes[0],
+        povName: 'Alice',
+        participantNames: ['Alice'],
+        continuityMutations: [
+          { entityName: 'Alice', addedNodes: [{ content: nodeContent, type: nodeType }] },
+        ],
+      }],
+    });
+
     const results: AnalysisChunkResult[] = [
-      { ...createMockAnalysisResult(0), characters: [{ name: 'Alice', role: 'anchor', firstAppearance: true, continuity: [{ type: 'trait', content: 'Brave' }] }] },
-      { ...createMockAnalysisResult(1), characters: [{ name: 'Alice', role: 'anchor', firstAppearance: false, continuity: [{ type: 'state', content: 'Injured' }] }] },
-      { ...createMockAnalysisResult(2), characters: [{ name: 'Alice', role: 'anchor', firstAppearance: false, continuity: [{ type: 'goal', content: 'Find the treasure' }] }] },
+      makeChunk(0, 'Brave and adventurous', 'trait'),
+      makeChunk(1, 'Injured in battle', 'state'),
+      makeChunk(2, 'Seeks the treasure', 'goal'),
     ];
 
     const narrative = await assembleNarrative('Test', results, {});
 
     const alices = Object.values(narrative.characters).filter(c => c.name === 'Alice');
     expect(alices).toHaveLength(1); // Single character entity
-    // Should accumulate continuity from all chunks
-    expect(Object.keys(alices[0].continuity.nodes).length).toBeGreaterThanOrEqual(3);
+    // Continuity is replayed from scene mutations at store load — assembly only
+    // preserves the mutations themselves. Verify each chunk's scene added a node.
+    const scenes = Object.values(narrative.scenes);
+    const aliceMutationNodes = scenes.flatMap(s =>
+      (s.continuityMutations ?? [])
+        .filter(m => m.entityId === alices[0].id)
+        .flatMap(m => m.addedNodes),
+    );
+    expect(aliceMutationNodes.length).toBeGreaterThanOrEqual(3);
   });
 
   it('handles tie mutations creating location-character bindings', async () => {

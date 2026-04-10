@@ -12,7 +12,7 @@
  *
  * When updating: check src/lib/narrative-utils.ts FORCE_REFERENCE_MEANS
  * to keep prompt numbers in sync with grading formulas.
- * Current: { drive: 3, world: 14, system: 8 }
+ * Current: { drive: 3, world: 14, system: 5 }
  */
 
 import { THREAD_TERMINAL_STATUSES } from '@/types/narrative';
@@ -21,7 +21,7 @@ import { THREAD_LIFECYCLE_DOC } from './context';
 
 // ── Force Standards ──────────────────────────────────────────────────────────
 // Numbers here MUST match FORCE_REFERENCE_MEANS in narrative-utils.ts:
-//   { drive: 3, world: 14, system: 8 }
+//   { drive: 3, world: 14, system: 5 }
 // These are the values where the grading curve hits the dominance threshold (21/25).
 
 export const PROMPT_FORCE_STANDARDS = `
@@ -40,7 +40,7 @@ WORLD is the inner transformation of entities — what we learn about characters
 SYSTEM is the deepening of rules and structures — the substrate on which drive and world operate.
   A world without systems is a stage without physics. Drive cannot create meaningful resolution in a vacuum of rules.
   Every knowledge node expands what is possible or constrains what is allowed.
-  Reference: ~8 per scene (~4-6 new world knowledge nodes + connecting edges).
+  Reference: ~5 per scene (~3-4 new world knowledge nodes + connecting edges).
 
 Different works weight these forces differently. A Classic is drive-dominant. A Show is world-dominant. A Paper is system-dominant. An Opus balances all three.
 
@@ -104,6 +104,7 @@ threadMutations — lifecycle: latent→seeded→active→critical→resolved/su
 - Pulses (same→same) are healthy — they show a thread receiving bandwidth without transitioning. 1-2 per scene.
 - Real transitions are RARE — 0-1 per scene. Only when the prose shows a clear, irreversible shift.
 - Touch 2-3 threads per scene (mostly pulses) with at most one transition.
+- THREAD LOG: each threadMutation MUST include 1-2 log entries recording what happened to THIS thread specifically — NOT a scene summary. "Harry rejects Malfoy's friendship offer" (thread-specific) NOT "Harry meets Draco on the train" (scene summary). Types: pulse (passive touch), transition (status change), setup (planting), escalation (pressure rises), payoff (delivered), twist (subverted expectation), callback (echo), resistance (pushback), stall (momentum lost).
 
 continuityMutations — what we LEARN about an entity that wasn't known before. Applies to characters, locations, and artifacts.
 - Characters: new behaviour, belief, capability, or inner state revealed.
@@ -230,7 +231,7 @@ Example: "Michael Corleone sits across from Sollozzo and McCluskey at the small 
 // These are the single source of truth for mutation schemas used across
 // generation, analysis, reconstruction, and world expansion prompts.
 
-export const SCHEMA_THREAD_MUTATIONS = `"threadMutations": [{"threadId": "T-XX", "from": "status", "to": "status"}]`;
+export const SCHEMA_THREAD_MUTATIONS = `"threadMutations": [{"threadId": "T-XX", "from": "status", "to": "status", "addedNodes": [{"id": "TK-XX", "content": "thread-specific: what happened to THIS thread in THIS scene (not a scene summary)", "type": "pulse|transition|setup|escalation|payoff|twist|callback|resistance|stall"}], "addedEdges": []}]`;
 export const SCHEMA_CONTINUITY_MUTATIONS = `"continuityMutations": [{"entityId": "C-XX", "addedNodes": [{"id": "K-XX", "content": "complete sentence: what the entity experienced or became", "type": "trait|state|history|capability|belief|relation|secret|goal|weakness"}], "addedEdges": [{"from": "K-XX", "to": "K-YY", "relation": "follows|causes|contradicts|enables"}]}]`;
 export const SCHEMA_RELATIONSHIP_MUTATIONS = `"relationshipMutations": [{"from": "C-XX", "to": "C-YY", "type": "description", "valenceDelta": 0.1}]`;
 export const SCHEMA_WORLD_KNOWLEDGE_MUTATIONS = `"worldKnowledgeMutations": {"addedNodes": [{"id": "WK-XX", "concept": "well-named world concept", "type": "principle|system|concept|tension|event|structure|environment|convention|constraint"}], "addedEdges": [{"from": "WK-XX", "to": "WK-YY", "relation": "enables|governs|opposes|extends|created_by|constrains|exist_within"}]}`;

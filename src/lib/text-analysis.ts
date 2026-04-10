@@ -146,9 +146,9 @@ Return JSON:
   "participantNames": ["All characters present"],
   "events": ["short_event_tags"],
   "summary": "3-5 sentence narrative summary using character and location NAMES",
-  "characters": [{"name": "Full Name", "role": "anchor|recurring|transient", "firstAppearance": false, "imagePrompt": "1-2 sentence LITERAL physical description: concrete traits like hair colour, build, clothing style. No metaphors or figurative language.", "continuity": [{"type": "trait|state|history|capability|belief|relation|secret|goal|weakness", "content": "what changed"}]}],
-  "locations": [{"name": "Location Name", "prominence": "domain|place|margin", "parentName": "Parent or null", "description": "Brief description", "imagePrompt": "1-2 sentence LITERAL visual description: architecture, landscape, lighting, weather. Concrete physical details only, no metaphors.", "lore": ["detail"], "tiedCharacterNames": ["characters tied here"]}],
-  "artifacts": [{"name": "Artifact Name", "significance": "key|notable|minor", "imagePrompt": "1-2 sentence LITERAL visual description — concrete physical details only, no metaphors or figurative language", "continuity": [{"type": "...", "content": "..."}], "ownerName": "owner or null"}],
+  "characters": [{"name": "Full Name", "role": "anchor|recurring|transient", "firstAppearance": false, "imagePrompt": "1-2 sentence LITERAL physical description: concrete traits like hair colour, build, clothing style. No metaphors or figurative language."}],
+  "locations": [{"name": "Location Name", "prominence": "domain|place|margin", "parentName": "Parent or null", "description": "Brief description", "imagePrompt": "1-2 sentence LITERAL visual description: architecture, landscape, lighting, weather. Concrete physical details only, no metaphors.", "tiedCharacterNames": ["characters tied here"]}],
+  "artifacts": [{"name": "Artifact Name", "significance": "key|notable|minor", "imagePrompt": "1-2 sentence LITERAL visual description — concrete physical details only, no metaphors or figurative language", "ownerName": "owner or null"}],
   "threads": [{"description": "narrative tension", "participantNames": ["names"], "statusAtStart": "status", "statusAtEnd": "status", "development": "how it developed"}],
   "relationships": [{"from": "Name", "to": "Name", "type": "description", "valence": 0.0}],
   "threadMutations": [{"threadDescription": "exact thread description", "from": "status", "to": "status", "log": [{"content": "what happened to the thread", "type": "pulse|transition|setup|escalation|payoff|twist|callback|resistance|stall"}]}],
@@ -201,19 +201,19 @@ worldKnowledgeMutations — REVEALED world rules, not character observations.
 - Types: principle, system, concept, tension, event, structure, environment, convention, constraint.
 - Edges: enables, governs, opposes, extends, created_by, constrains, exist_within.
 
-ENTITY EXTRACTION — every entity gets at least 1 continuity node. Detail scales with importance:
+ENTITY EXTRACTION — entities carry ONLY identity (name, role, significance). ALL continuity/lore MUST be emitted as scenes[].continuityMutations on the scene where it is revealed. Never dump backstory — reveal it where the prose reveals it.
 - characters: conscious beings with agency — people, named animals, sentient AI (AGI). Non-sentient AI is an artifact. Role: anchor/recurring/transient.
-  anchor: 3-5 continuity nodes on first appearance (traits, goals, beliefs, capabilities, weaknesses). 2-3 per subsequent scene.
-  recurring: 2-4 continuity nodes on first appearance. 1-2 per subsequent scene.
-  transient: 1-2 continuity nodes on first appearance (defining trait, role in the scene). Only update if they do something structurally meaningful.
+  anchor: 3-5 continuityMutations on the scene where they first appear. 2-3 per subsequent scene.
+  recurring: 2-4 continuityMutations on first appearance. 1-2 per subsequent scene.
+  transient: 1-2 continuityMutations on first appearance (defining trait, role in the scene). Only update if they do something structurally meaningful.
 - locations: PHYSICAL spatial areas you can STAND IN. The test: could a character physically walk there and look around? Rooms, buildings, cities, forests, planets — yes. Abstract domains, conceptual spaces, fields of study, conferences, institutions, frameworks — no (these belong in world knowledge or as artifacts). Nest via parentName. If the text has no physical places, extract ZERO. tiedCharacterNames: characters who BELONG (residents, faction members).
-  domain: a region or world that contains other places. 3-5 lore entries on first appearance. 2-3 per subsequent scene.
-  place: a specific named setting where scenes happen. 2-4 lore entries on first appearance. 1-2 per subsequent scene.
-  margin: a fleeting or peripheral spot mentioned in passing. 1-2 lore entries on first appearance. Only update if something notable happens here.
+  domain: a region or world that contains other places. 3-5 continuityMutations on first-appearance scene. 2-3 per subsequent scene.
+  place: a specific named setting where scenes happen. 2-4 continuityMutations on first-appearance scene. 1-2 per subsequent scene.
+  margin: a fleeting or peripheral spot mentioned in passing. 1-2 continuityMutations on first-appearance scene. Only update if something notable happens here.
 - artifacts: anything that delivers utility — active tools, not passive concepts. Spans every genre and scale: a wand, a forge, a dataset, an algorithm, a platform, a search engine, AI. The test: does it DO something when applied? Concepts and definitions that only DESCRIBE belong in world knowledge. ownerName: character/location/null (null = world-owned, universally accessible). significance: key/notable/minor.
-  key: 2-4 continuity nodes on first appearance. Update continuity every scene the artifact is referenced — new properties revealed, limitations discovered, capabilities demonstrated.
-  notable: 1-3 continuity nodes on first appearance. Update on significant use.
-  minor: 1 continuity node on first appearance. Only update if its role changes.
+  key: 2-4 continuityMutations on first-appearance scene. Update continuity every scene the artifact is referenced — new properties revealed, limitations discovered, capabilities demonstrated.
+  notable: 1-3 continuityMutations on first-appearance scene. Update on significant use.
+  minor: 1 continuityMutation on first-appearance scene. Only update if its role changes.
   IMPORTANT: when an artifact reappears in later scenes, generate BOTH an artifactUsage AND a continuityMutation for it. Invoking an artifact to explain, demonstrate, validate, or apply its capabilities counts as usage.
 - threads: narrative tensions. development: what specifically happened.
 
@@ -542,18 +542,9 @@ Empty object {} if no merges needed for a category.`;
   const reconciled: AnalysisChunkResult[] = results.map((r) => ({
     ...r,
     characters: deduplicateBy(
-      (r.characters ?? []).map((c) => ({
-        ...c,
-        name: resolveChar(c.name),
-        continuity: c.continuity ?? [],
-      })),
+      (r.characters ?? []).map((c) => ({ ...c, name: resolveChar(c.name) })),
       (c) => c.name,
-      (a, b) => ({
-        ...a,
-        continuity: mergeContinuity(a.continuity, b.continuity),
-        role: higherRole(a.role, b.role),
-        imagePrompt: a.imagePrompt || b.imagePrompt,
-      }),
+      (a, b) => ({ ...a, role: higherRole(a.role, b.role), imagePrompt: a.imagePrompt || b.imagePrompt }),
     ),
     locations: deduplicateBy(
       (r.locations ?? []).map((l) => ({
@@ -565,7 +556,6 @@ Empty object {} if no merges needed for a category.`;
       (l) => l.name,
       (a, b) => ({
         ...a,
-        lore: mergeContinuity((a.lore ?? []).map(l => ({ type: 'history', content: l })), (b.lore ?? []).map(l => ({ type: 'history', content: l }))).map(n => n.content),
         tiedCharacterNames: [...new Set([...(a.tiedCharacterNames ?? []), ...(b.tiedCharacterNames ?? [])])],
         prominence: a.prominence && b.prominence ? (({ margin: 0, place: 1, domain: 2 } as Record<string, number>)[b.prominence] ?? 0) > (({ margin: 0, place: 1, domain: 2 } as Record<string, number>)[a.prominence] ?? 0) ? b.prominence : a.prominence : a.prominence || b.prominence,
         imagePrompt: a.imagePrompt || b.imagePrompt,
@@ -581,7 +571,6 @@ Empty object {} if no merges needed for a category.`;
       (a, b) => ({
         ...a,
         significance: higherSignificance(a.significance, b.significance),
-        continuity: mergeContinuity(a.continuity ?? [], b.continuity ?? []),
         imagePrompt: a.imagePrompt || b.imagePrompt,
       }),
     ),
@@ -610,7 +599,7 @@ Empty object {} if no merges needed for a category.`;
         })),
         (tm) => tm.threadDescription,
         // When two mutations target the same thread in one scene, keep widest transition and merge logs
-        (a, b) => ({ ...a, from: a.from, to: b.to, log: [...(a.log ?? []), ...(b.log ?? [])] }),
+        (a, b) => ({ ...a, from: a.from, to: b.to, addedNodes: [...(a.addedNodes ?? []), ...(b.addedNodes ?? [])] }),
       ),
       continuityMutations: deduplicateBy(
         (s.continuityMutations ?? []).map((km) => ({
@@ -916,17 +905,6 @@ function buildMetaContext(
   return lines.join('\n');
 }
 
-/** Auto-chain continuity nodes sequentially with "follows" edges */
-function chainContinuityEdges(continuity: { nodes: Record<string, { id: string }>; edges: { from: string; to: string; relation: string }[] }) {
-  const ids = Object.keys(continuity.nodes);
-  for (let i = 1; i < ids.length; i++) {
-    const edge = { from: ids[i - 1], to: ids[i], relation: 'follows' };
-    if (!continuity.edges.some(e => e.from === edge.from && e.to === edge.to)) {
-      continuity.edges.push(edge);
-    }
-  }
-}
-
 // ── Assemble Narrative ───────────────────────────────────────────────────────
 
 export async function assembleNarrative(
@@ -937,7 +915,7 @@ export async function assembleNarrative(
   arcGroups?: { name: string; sceneIndices: number[] }[],
 ): Promise<NarrativeState> {
   const PREFIX = title.replace(/[^a-zA-Z]/g, '').slice(0, 3).toUpperCase() || 'TXT';
-  let charCounter = 0, locCounter = 0, threadCounter = 0, sceneCounter = 0, arcCounter = 0, kCounter = 0, wkCounter = 0, artifactCounter = 0;
+  let charCounter = 0, locCounter = 0, threadCounter = 0, sceneCounter = 0, arcCounter = 0, kCounter = 0, tkCounter = 0, wkCounter = 0, artifactCounter = 0;
 
   const nextId = (pre: string, counter: () => number, pad = 2) => `${pre}-${PREFIX}-${String(counter()).padStart(pad, '0')}`;
   const nextCharId = () => nextId('C', () => ++charCounter);
@@ -946,6 +924,7 @@ export async function assembleNarrative(
   const nextSceneId = () => nextId('S', () => ++sceneCounter, 3);
   const nextArcId = () => nextId('ARC', () => ++arcCounter);
   const nextKId = () => nextId('K', () => ++kCounter, 3);
+  const nextTkId = () => nextId('TK', () => ++tkCounter, 3);
   const nextWkId = () => nextId('WK', () => ++wkCounter, 2);
   const nextArtifactIdFn = () => nextId('A', () => ++artifactCounter);
 
@@ -1009,19 +988,9 @@ export async function assembleNarrative(
       if ((rank[c.role] ?? 0) > (rank[characters[id].role] ?? 0)) {
         characters[id].role = c.role as Character['role'];
       }
-      // Build initial continuity directly on the entity (not deferred through scene mutations)
-      const charExisting = new Set(Object.values(characters[id].continuity.nodes).map(n => n.content.toLowerCase().trim()));
-      for (const k of c.continuity ?? []) {
-        const norm = k.content.toLowerCase().trim();
-        if (isContentSubsumed(norm, charExisting)) continue;
-        const nid = nextKId();
-        characters[id].continuity.nodes[nid] = { id: nid, type: (k.type || 'trait') as ContinuityNodeType, content: k.content };
-        charExisting.add(norm);
-      }
-      chainContinuityEdges(characters[id].continuity);
     }
 
-    // Locations — create entities but defer lore to scene mutations
+    // Locations — identity only; all lore flows through scene.continuityMutations
     for (const loc of ch.locations ?? []) {
       const id = getLocId(loc.name);
       if (!locations[id]) {
@@ -1034,9 +1003,7 @@ export async function assembleNarrative(
         };
         locFirstChunk.set(id, chunkIdx);
       } else {
-        if (loc.imagePrompt) {
-          locations[id].imagePrompt = loc.imagePrompt;
-        }
+        if (loc.imagePrompt) locations[id].imagePrompt = loc.imagePrompt;
         const promRank: Record<string, number> = { margin: 0, place: 1, domain: 2 };
         if ((promRank[loc.prominence ?? ''] ?? 0) > (promRank[locations[id].prominence] ?? 0)) {
           locations[id].prominence = loc.prominence as Location['prominence'];
@@ -1049,16 +1016,6 @@ export async function assembleNarrative(
           }
         }
       }
-      // Build location continuity directly on the entity
-      const locExisting = new Set(Object.values(locations[id].continuity.nodes).map(n => n.content.toLowerCase().trim()));
-      for (const lore of loc.lore ?? []) {
-        const norm = lore.toLowerCase().trim();
-        if (isContentSubsumed(norm, locExisting)) continue;
-        const nid = nextKId();
-        locations[id].continuity.nodes[nid] = { id: nid, type: 'history', content: lore };
-        locExisting.add(norm);
-      }
-      chainContinuityEdges(locations[id].continuity);
     }
 
     // Artifacts
@@ -1072,31 +1029,17 @@ export async function assembleNarrative(
         artifactEntities[id] = {
           id, name: a.name,
           significance: (['key', 'notable', 'minor'].includes(a.significance) ? a.significance : 'notable') as Artifact['significance'],
-          continuity: { nodes: Object.fromEntries((a.continuity ?? []).map((k) => { const id = nextKId(); return [id, { id, type: (k.type || 'trait') as ContinuityNodeType, content: k.content }]; })), edges: [] },
+          continuity: { nodes: {}, edges: [] },
           threadIds: [],
           parentId,
           ...(a.imagePrompt ? { imagePrompt: a.imagePrompt } : {}),
         };
         artifactFirstChunk.set(id, chunkIdx);
       } else {
-        if (a.imagePrompt) {
-          artifactEntities[id].imagePrompt = a.imagePrompt;
-        }
-        // Accumulate continuity from later chunks
-        const artExisting = new Set(Object.values(artifactEntities[id].continuity.nodes).map(n => n.content.toLowerCase().trim()));
-        for (const k of a.continuity ?? []) {
-          const norm = k.content.toLowerCase().trim();
-          if (isContentSubsumed(norm, artExisting)) continue;
-          const nid = nextKId();
-          artifactEntities[id].continuity.nodes[nid] = { id: nid, type: (k.type || 'trait') as ContinuityNodeType, content: k.content };
-          artExisting.add(norm);
-        }
+        if (a.imagePrompt) artifactEntities[id].imagePrompt = a.imagePrompt;
         if (parentId) artifactEntities[id].parentId = parentId;
       }
-      chainContinuityEdges(artifactEntities[id].continuity);
     }
-
-    // (continuity built directly on entities above — no deferred flush needed)
 
     // Threads
     for (const t of ch.threads ?? []) {
@@ -1140,11 +1083,25 @@ export async function assembleNarrative(
         povId,
         participantIds,
         events: s.events ?? [],
-        threadMutations: (s.threadMutations ?? []).map((tm) => ({
-          threadId: getThreadId(tm.threadDescription),
-          from: tm.from,
-          to: tm.to,
-        })),
+        threadMutations: (s.threadMutations ?? []).map((tm) => {
+          const fallbackType: ThreadLogNodeType = tm.from === tm.to ? 'pulse' : 'transition';
+          // Assign IDs to log nodes. Chain edges are created deterministically
+          // by applyThreadMutation during store replay — same as continuity.
+          const addedNodes = (tm.addedNodes ?? [])
+            .filter((e) => e && typeof e.content === 'string' && e.content.trim())
+            .map((e) => ({
+              id: nextTkId(),
+              content: e.content,
+              type: (THREAD_LOG_NODE_TYPES.includes(e.type as ThreadLogNodeType) ? e.type : fallbackType) as ThreadLogNodeType,
+            }));
+          return {
+            threadId: getThreadId(tm.threadDescription),
+            from: tm.from,
+            to: tm.to,
+            addedNodes,
+            addedEdges: [],
+          };
+        }),
         continuityMutations: (s.continuityMutations ?? []).map((km) => {
           const entityId = getEntityId(km.entityName);
           // Assign IDs to nodes
@@ -1216,6 +1173,17 @@ export async function assembleNarrative(
               };
             });
           const addedEdges = (wkm.addedEdges ?? [])
+            .filter((e) => {
+              // Only accept edges where both endpoints are declared nodes (known concepts)
+              // wkConceptToId tracks all concepts with IDs assigned via getWkId
+              const fromKey = e.fromConcept?.toLowerCase();
+              const toKey = e.toConcept?.toLowerCase();
+              if (!fromKey || !toKey) return false;
+              const fromId = wkConceptToId[fromKey];
+              const toId = wkConceptToId[toKey];
+              // Both concepts must already exist as actual nodes (seen in some scene)
+              return !!fromId && !!toId && seenWkNodeIds.has(fromId) && seenWkNodeIds.has(toId);
+            })
             .map((e) => ({
               from: getWkId(e.fromConcept),
               to: getWkId(e.toConcept),
@@ -1371,71 +1339,10 @@ export async function assembleNarrative(
     }
   }
 
-  // Build thread log graphs from extracted log nodes (same pattern as entity continuity)
-  // Uses the raw analysis data which includes per-mutation log entries
-  let threadNodeCounter = 0;
-  const lastThreadNodeId: Record<string, string> = {};
-  for (let chunkIdx = 0; chunkIdx < results.length; chunkIdx++) {
-    const ch = results[chunkIdx];
-    for (const s of ch.scenes ?? []) {
-      for (const tm of s.threadMutations ?? []) {
-        const threadId = getThreadId(tm.threadDescription);
-        const thread = threads[threadId];
-        if (!thread) continue;
-        const logEntries = tm.log ?? [];
-        // If LLM returned log nodes, use them; otherwise auto-generate a single node
-        const nodes = logEntries.length > 0
-          ? logEntries.map((entry) => {
-              const nodeId = `TK-${String(++threadNodeCounter).padStart(3, '0')}`;
-              const type = THREAD_LOG_NODE_TYPES.includes(entry.type as ThreadLogNodeType) ? entry.type as ThreadLogNodeType : (tm.from === tm.to ? 'pulse' : 'transition');
-              return { id: nodeId, content: entry.content, type };
-            })
-          : [{
-              id: `TK-${String(++threadNodeCounter).padStart(3, '0')}`,
-              content: tm.from === tm.to
-                ? `Thread maintained`
-                : `${tm.from}→${tm.to}`,
-              type: (tm.from === tm.to ? 'pulse' : 'transition') as ThreadLogNodeType,
-            }];
-        // Add nodes to thread log
-        for (const node of nodes) {
-          thread.threadLog.nodes[node.id] = node;
-          // Link sequentially within this batch
-          const prevId = lastThreadNodeId[threadId];
-          if (prevId) {
-            thread.threadLog.edges.push({ from: prevId, to: node.id, relation: tm.from === tm.to ? 'continues' : 'causes' });
-          }
-          lastThreadNodeId[threadId] = node.id;
-        }
-        // Chain nodes within the same mutation with co_occurs edges
-        for (let i = 1; i < nodes.length; i++) {
-          thread.threadLog.edges.push({ from: nodes[i - 1].id, to: nodes[i].id, relation: 'co_occurs' });
-        }
-      }
-    }
-  }
-  // Build continuity graphs from scene mutations (forward replay, additive)
-  // This ensures continuity.nodes is the final accumulated state and enables temporal filtering.
-  const allSceneKeys = Object.keys(scenes);
-  for (const sKey of allSceneKeys) {
-    const scene = scenes[sKey];
-    for (const km of scene.continuityMutations) {
-      // Mutations can target characters, locations, or artifacts
-      const entity = characters[km.entityId] ?? locations[km.entityId] ?? artifactEntities[km.entityId];
-      if (!entity) continue;
-      if (!entity.continuity) entity.continuity = { nodes: {}, edges: [] };
-      for (const node of km.addedNodes ?? []) {
-        if (!entity.continuity.nodes[node.id]) {
-          entity.continuity.nodes[node.id] = { id: node.id, type: (node.type || 'trait') as ContinuityNodeType, content: node.content };
-        }
-      }
-      for (const edge of km.addedEdges ?? []) {
-        if (!entity.continuity.edges.some(e => e.from === edge.from && e.to === edge.to && e.relation === edge.relation)) {
-          entity.continuity.edges.push(edge);
-        }
-      }
-    }
-  }
+  // Thread logs and continuity graphs are now derived from scene mutations by
+  // store.tsx/computeDerivedEntities via applyContinuityMutation on load. Entities
+  // start with empty continuity; the store builds them on replay with proper
+  // within-scene chain edges and no cross-scene links.
 
   const relationships = Object.values(relationshipMap);
 

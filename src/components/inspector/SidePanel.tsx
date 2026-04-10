@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useStore } from '@/lib/store';
 import type { WorldBuild } from '@/types/narrative';
 import EmptyState from './EmptyState';
@@ -89,6 +89,11 @@ export default function SidePanel() {
   const { state, dispatch } = useStore();
   const ctx = state.inspectorContext ?? getDefaultContext(state);
   const [tab, setTab] = useState<Tab>('inspector');
+
+  // Auto-switch to inspector tab when a new inspector context is set
+  useEffect(() => {
+    if (state.inspectorContext) setTab('inspector');
+  }, [state.inspectorContext]);
   const [evalMode, setEvalMode] = useState<'branch' | 'prose' | 'plan' | 'continuity'>('branch');
   const [evalRange, setEvalRange] = useState<SceneRange>(null);
 

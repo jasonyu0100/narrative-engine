@@ -103,14 +103,14 @@ describe('computeSlidesData', () => {
       },
       scenes: {
         s1: createScene('s1', {
-          threadMutations: [{ threadId: 't1', from: 'latent', to: 'active' }],
+          threadMutations: [{ threadId: 't1', from: 'latent', to: 'active', addedNodes: [], addedEdges: [] }],
           continuityMutations: [
             { entityId: 'c1', addedNodes: [{ id: 'n1', content: 'Learned something', type: 'belief' }], addedEdges: [] },
           ],
           events: ['event_1', 'event_2'],
         }),
         s2: createScene('s2', {
-          threadMutations: [{ threadId: 't1', from: 'active', to: 'active' }],
+          threadMutations: [{ threadId: 't1', from: 'active', to: 'active', addedNodes: [], addedEdges: [] }],
           events: ['event_3'],
         }),
       },
@@ -135,10 +135,10 @@ describe('computeSlidesData', () => {
       },
       scenes: {
         s1: createScene('s1', {
-          threadMutations: [{ threadId: 't1', from: 'latent', to: 'active' }],
+          threadMutations: [{ threadId: 't1', from: 'latent', to: 'active', addedNodes: [], addedEdges: [] }],
         }),
         s2: createScene('s2', {
-          threadMutations: [{ threadId: 't1', from: 'active', to: 'active' }],
+          threadMutations: [{ threadId: 't1', from: 'active', to: 'active', addedNodes: [], addedEdges: [] }],
         }),
       },
     });
@@ -212,7 +212,7 @@ describe('computeSlidesData', () => {
     const n = createMinimalNarrative({
       scenes: {
         s1: createScene('s1', {
-          threadMutations: [{ threadId: 't1', from: 'latent', to: 'critical' }],
+          threadMutations: [{ threadId: 't1', from: 'latent', to: 'critical', addedNodes: [], addedEdges: [] }],
         }),
         s2: createScene('s2', {
           continuityMutations: [
@@ -267,11 +267,11 @@ describe('computeSlidesData', () => {
     const n = createMinimalNarrative({
       scenes: {
         s1: createScene('s1', {
-          threadMutations: [{ threadId: 't1', from: 'latent', to: 'active' }],
+          threadMutations: [{ threadId: 't1', from: 'latent', to: 'active', addedNodes: [], addedEdges: [] }],
           events: ['e1', 'e2'],
         }),
         s2: createScene('s2', {
-          threadMutations: [{ threadId: 't1', from: 'active', to: 'active' }],
+          threadMutations: [{ threadId: 't1', from: 'active', to: 'active', addedNodes: [], addedEdges: [] }],
         }),
       },
       threads: {

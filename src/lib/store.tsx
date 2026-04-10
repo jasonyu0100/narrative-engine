@@ -2,7 +2,9 @@
 
 import React, { createContext, useContext, useReducer, useEffect, useRef, useMemo, type ReactNode } from 'react';
 import type { AppState, InspectorContext, NarrativeState, NarrativeEntry, WizardStep, WizardData, Scene, Arc, Branch, Character, Location, Thread, RelationshipEdge, GraphViewMode, AutoConfig, AutoRunLog, WorldBuild, WorldKnowledgeGraph, WorldKnowledgeNode, WorldKnowledgeEdge, WorldKnowledgeMutation, ApiLogEntry, SystemLogEntry, StorySettings, AnalysisJob, ChatThread, ChatMessage, Note, PlanningQueue, PlanningPhase, Artifact, StructureReview, ProseEvaluation, PlanEvaluation, WorldSystem, ProseProfile, BeatProfilePreset, MechanismProfilePreset, BeatPlan, BeatProseMap, ProseScore, SearchQuery, OwnershipMutation, TieMutation, ContinuityMutation, RelationshipMutation } from '@/types/narrative';
-import { EMPTY_CONTINUITY, applyContinuityMutation } from '@/lib/continuity-graph';
+import { applyContinuityMutation } from '@/lib/continuity-graph';
+import { applyThreadMutation } from '@/lib/thread-log';
+import { sanitizeWorldKnowledgeMutation, applyWorldKnowledgeMutation } from '@/lib/world-knowledge-graph';
 import { resolveEntrySequence, nextId, computeForceSnapshots, computeSwingMagnitudes, computeDeliveryCurve, classifyNarrativeShape, classifyArchetype, classifyScale, classifyWorldDensity, gradeForces, computeRawForceTotals, FORCE_REFERENCE_MEANS } from '@/lib/narrative-utils';
 import { initMatrixPresets } from '@/lib/pacing-profile';
 import { initBeatProfilePresets } from '@/lib/beat-profiles';
@@ -29,18 +31,23 @@ function computeDerivedEntities(
   const wkNodes: Record<string, WorldKnowledgeNode> = {};
   const wkEdges: WorldKnowledgeEdge[] = [];
 
+  // Graph derivation uses the shared sanitize→apply pipeline so that
+  // self-loops, orphans, bad fields, and cross-mutation duplicates are all
+  // filtered consistently with the generation and analysis pipelines.
+  const seenWkEdgeKeys = new Set<string>();
   const applyWkMutation = (wkm: WorldKnowledgeMutation) => {
-    for (const n of wkm.addedNodes ?? []) {
-      // Guard: skip nodes with missing concept or type (malformed LLM output)
-      if (!n.id || !n.concept || !n.type) continue;
-      if (!wkNodes[n.id]) wkNodes[n.id] = { id: n.id, concept: n.concept, type: n.type };
-    }
-    for (const e of wkm.addedEdges ?? []) {
-      if (!e.from || !e.to || !e.relation || e.from === e.to) continue;
-      if (!wkEdges.some((x) => x.from === e.from && x.to === e.to && x.relation === e.relation)) {
-        wkEdges.push({ from: e.from, to: e.to, relation: e.relation });
-      }
-    }
+    if (!wkm) return;
+    // Clone so we don't mutate the entry's stored mutation in place during derivation.
+    const clone: WorldKnowledgeMutation = {
+      addedNodes: [...(wkm.addedNodes ?? [])],
+      addedEdges: [...(wkm.addedEdges ?? [])],
+    };
+    // Valid ids at this moment: everything already in the accumulating graph
+    // plus anything this mutation is about to contribute.
+    const validIds = new Set<string>(Object.keys(wkNodes));
+    for (const n of clone.addedNodes) if (n?.id) validIds.add(n.id);
+    sanitizeWorldKnowledgeMutation(clone, validIds, seenWkEdgeKeys);
+    applyWorldKnowledgeMutation({ nodes: wkNodes, edges: wkEdges }, clone);
   };
 
   for (const key of resolvedKeys) {
@@ -127,24 +134,11 @@ function computeDerivedEntities(
       for (const tm of scene.threadMutations ?? []) {
         const thread = threads[tm.threadId];
         if (!thread) continue;
-        // Build thread log node for this lifecycle touch
-        const existingNodeCount = Object.keys(thread.threadLog?.nodes ?? {}).length;
-        const nodeId = `TK-${String(existingNodeCount + 1).padStart(3, '0')}`;
-        const nodeType = tm.from === tm.to ? 'pulse' as const : 'transition' as const;
-        const content = tm.from === tm.to
-          ? `Pulse: ${scene.summary?.slice(0, 100) ?? 'thread touched'}`
-          : `${tm.from}→${tm.to}: ${scene.summary?.slice(0, 100) ?? 'transition'}`;
-        const node = { id: nodeId, content, type: nodeType };
-        const existingNodes = Object.keys(thread.threadLog?.nodes ?? {});
-        const prevId = existingNodes.length > 0 ? existingNodes[existingNodes.length - 1] : null;
-        const edges = prevId
-          ? [{ from: prevId, to: nodeId, relation: tm.from === tm.to ? 'continues' : 'causes' }]
-          : [];
-        const newThreadLog = {
-          nodes: { ...thread.threadLog?.nodes, [nodeId]: node },
-          edges: [...(thread.threadLog?.edges ?? []), ...edges],
+        threads[tm.threadId] = {
+          ...thread,
+          status: tm.to,
+          threadLog: applyThreadMutation(thread.threadLog, tm),
         };
-        threads[tm.threadId] = { ...thread, status: tm.to, threadLog: newThreadLog };
       }
       // Apply relationship mutations from scene
       for (const rm of scene.relationshipMutations ?? []) {
@@ -207,7 +201,10 @@ function computeDerivedEntities(
     }
   }
 
-  return { characters, locations, threads, artifacts, relationships, worldKnowledge: { nodes: wkNodes, edges: wkEdges } };
+  // Strip orphan edges — edges referencing node IDs that were never defined as actual nodes
+  const validWkEdges = wkEdges.filter((e) => wkNodes[e.from] && wkNodes[e.to]);
+
+  return { characters, locations, threads, artifacts, relationships, worldKnowledge: { nodes: wkNodes, edges: validWkEdges } };
 }
 
 export function withDerivedEntities(n: NarrativeState, resolvedKeys: string[]): NarrativeState {
@@ -346,6 +343,7 @@ const initialState: AppState = {
   wizardStep: 'form',
   wizardData: { title: '', premise: '', characters: [], locations: [], threads: [], rules: [], worldSystems: [] },
   selectedKnowledgeEntity: null,
+  selectedThreadLog: null,
   graphViewMode: 'search',
   currentSearchQuery: null,
   currentResultIndex: 0,
@@ -391,6 +389,7 @@ export type Action =
   | { type: 'ADD_NARRATIVE'; narrative: NarrativeState }
   | { type: 'DELETE_NARRATIVE'; id: string }
   | { type: 'SELECT_KNOWLEDGE_ENTITY'; entityId: string | null }
+  | { type: 'SELECT_THREAD_LOG'; threadId: string | null }
   | { type: 'SET_GRAPH_VIEW_MODE'; mode: GraphViewMode }
   // Search
   | { type: 'SET_SEARCH_QUERY'; query: SearchQuery }
@@ -489,6 +488,7 @@ function reducer(state: AppState, action: Action): AppState {
         currentSceneIndex: 0,
         inspectorContext: null,
         selectedKnowledgeEntity: null,
+        selectedThreadLog: null,
         activeChatThreadId: null,
         activeNoteId: null,
         currentSearchQuery: null, // Clear search when switching narratives
@@ -518,21 +518,11 @@ function reducer(state: AppState, action: Action): AppState {
     case 'NEXT_SCENE': {
       const max = state.resolvedEntryKeys.length - 1;
       const nextIdx = Math.min(state.currentSceneIndex + 1, Math.max(0, max));
-      const nextSceneId = state.resolvedEntryKeys[nextIdx] ?? null;
-      return {
-        ...state,
-        currentSceneIndex: nextIdx,
-        inspectorContext: nextSceneId ? { type: 'scene' as const, sceneId: nextSceneId } : state.inspectorContext,
-      };
+      return { ...state, currentSceneIndex: nextIdx };
     }
     case 'PREV_SCENE': {
       const prevIdx = Math.max(state.currentSceneIndex - 1, 0);
-      const prevSceneId = state.resolvedEntryKeys[prevIdx] ?? null;
-      return {
-        ...state,
-        currentSceneIndex: prevIdx,
-        inspectorContext: prevSceneId ? { type: 'scene' as const, sceneId: prevSceneId } : state.inspectorContext,
-      };
+      return { ...state, currentSceneIndex: prevIdx };
     }
     case 'SET_SCENE_INDEX':
       return { ...state, currentSceneIndex: action.index };
@@ -670,9 +660,11 @@ function reducer(state: AppState, action: Action): AppState {
       };
     }
     case 'SELECT_KNOWLEDGE_ENTITY':
-      return { ...state, selectedKnowledgeEntity: action.entityId };
+      return { ...state, selectedKnowledgeEntity: action.entityId, selectedThreadLog: null };
+    case 'SELECT_THREAD_LOG':
+      return { ...state, selectedThreadLog: action.threadId, selectedKnowledgeEntity: null };
     case 'SET_GRAPH_VIEW_MODE':
-      return { ...state, graphViewMode: action.mode };
+      return { ...state, graphViewMode: action.mode, selectedThreadLog: null, selectedKnowledgeEntity: null };
 
     case 'SET_SEARCH_QUERY':
       return {
@@ -716,6 +708,7 @@ function reducer(state: AppState, action: Action): AppState {
           ? { type: 'scene' as const, sceneId: resolved[resolved.length - 1] }
           : null,
         selectedKnowledgeEntity: null,
+        selectedThreadLog: null,
       };
     }
 
@@ -2249,6 +2242,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         case 'Escape':
           dispatch({ type: 'SET_INSPECTOR', context: null });
           dispatch({ type: 'SELECT_KNOWLEDGE_ENTITY', entityId: null });
+          dispatch({ type: 'SELECT_THREAD_LOG', threadId: null });
           break;
       }
     }

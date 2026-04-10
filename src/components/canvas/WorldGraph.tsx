@@ -14,6 +14,7 @@ import EvalBar from '@/components/timeline/EvalBar';
 import KnowledgeGraphView, { FullscreenButton } from './KnowledgeGraphView';
 import ContinuityGraphView from './ContinuityGraphView';
 import ThreadGraphView from './ThreadGraphView';
+import ThreadLogGraphView from './ThreadLogGraphView';
 import { ScenePlanView } from './ScenePlanView';
 import { SceneProseView } from './SceneProseView';
 import { SceneAudioView } from './SceneAudioView';
@@ -62,6 +63,7 @@ export default function WorldGraph() {
   const narrative = state.activeNarrative;
   const inspectorContext = state.inspectorContext;
   const selectedKnowledgeEntity = state.selectedKnowledgeEntity;
+  const selectedThreadLog = state.selectedThreadLog;
   const graphViewMode = state.graphViewMode;
   const [sceneFocus, setSceneFocus] = useState(true);
 
@@ -1028,14 +1030,28 @@ export default function WorldGraph() {
           </div>
         )
       ) : graphViewMode === 'pulse' || graphViewMode === 'threads' ? (
-        <ThreadGraphView
-          narrative={narrative!}
-          resolvedKeys={state.resolvedEntryKeys}
-          currentIndex={state.currentSceneIndex}
-          mode={graphViewMode as 'pulse' | 'threads'}
-          onSelectThread={(id) => dispatch({ type: 'SET_INSPECTOR', context: { type: 'thread', threadId: id } })}
-          hideControls hideLegend
-        />
+        selectedThreadLog && narrative.threads[selectedThreadLog] ? (
+          <ThreadLogGraphView
+            threadId={selectedThreadLog}
+            threadDescription={narrative.threads[selectedThreadLog].description}
+            fullThreadLog={narrative.threads[selectedThreadLog].threadLog ?? { nodes: {}, edges: [] }}
+            scenes={narrative.scenes}
+            resolvedKeys={state.resolvedEntryKeys}
+            currentIndex={state.currentSceneIndex}
+          />
+        ) : (
+          <ThreadGraphView
+            narrative={narrative!}
+            resolvedKeys={state.resolvedEntryKeys}
+            currentIndex={state.currentSceneIndex}
+            mode={graphViewMode as 'pulse' | 'threads'}
+            onSelectThread={(id) => {
+              dispatch({ type: 'SELECT_THREAD_LOG', threadId: id });
+              dispatch({ type: 'SET_INSPECTOR', context: { type: 'thread', threadId: id } });
+            }}
+            hideControls hideLegend
+          />
+        )
       ) : graphViewMode === 'search' ? (
         <SearchView />
       ) : graphViewMode === 'spark' || graphViewMode === 'codex' ? (

@@ -154,6 +154,19 @@ export const KNOWLEDGE_OPACITY: Record<string, number> = {
 export const DEFAULT_CONTINUITY_FILL = '#FFFFFF';
 export const DEFAULT_KNOWLEDGE_OPACITY = 0.7;
 
+// ── Thread log node type colors ─────────────────────────────────────────────
+export const THREAD_LOG_FILL: Record<string, string> = {
+  pulse: '#FFFFFF99',     // faint white
+  transition: '#EF4444',  // red — lifecycle shift
+  setup: '#F59E0B',       // amber — forward promise
+  escalation: '#FB923C',  // orange — rising stakes
+  payoff: '#10B981',      // emerald — resolution
+  twist: '#8B5CF6',       // violet — direction revision
+  callback: '#38BDF8',    // sky — past reference
+  resistance: '#EF4444',  // red — opposition
+  stall: '#EF444488',     // faded red — dysfunction
+};
+
 // ── World Knowledge type colors ─────────────────────────────────────────────
 
 export const WK_TYPE_COLORS: Record<string, string> = {

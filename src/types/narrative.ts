@@ -185,10 +185,15 @@ export type TieMutation = {
 };
 
 // ── Scene & Arc ─────────────────────────────────────────────────────────────
+/** Parallels ContinuityMutation. `from`/`to` record the status transition;
+ *  `addedNodes` and `addedEdges` describe this scene's contribution to the
+ *  thread's log. applyThreadMutation chains new nodes via 'co_occurs' edges. */
 export type ThreadMutation = {
   threadId: string;
   from: string;
   to: string;
+  addedNodes: ThreadLogNode[];
+  addedEdges: ThreadLogEdge[];
 };
 
 /** Additive continuity mutation — mirrors WorldKnowledgeMutation.
@@ -1157,14 +1162,14 @@ export type SystemLogEntry = {
 
 export type AnalysisChunkResult = {
   chapterSummary: string;
-  characters: { name: string; role: string; firstAppearance: boolean; imagePrompt?: string; continuity: { type: string; content: string }[] }[];
-  locations: { name: string; prominence?: string; parentName: string | null; description: string; imagePrompt?: string; lore: string[]; tiedCharacterNames?: string[] }[];
-  artifacts?: { name: string; significance: string; imagePrompt?: string; continuity: { type: string; content: string }[]; ownerName: string | null }[];
+  characters: { name: string; role: string; firstAppearance: boolean; imagePrompt?: string }[];
+  locations: { name: string; prominence?: string; parentName: string | null; description: string; imagePrompt?: string; tiedCharacterNames?: string[] }[];
+  artifacts?: { name: string; significance: string; imagePrompt?: string; ownerName: string | null }[];
   threads: { description: string; participantNames: string[]; statusAtStart: string; statusAtEnd: string; development: string; relatedThreadDescriptions?: string[] }[];
   scenes: {
     locationName: string; povName: string; participantNames: string[]; events: string[];
     summary: string; sections: number[]; prose?: string;
-    threadMutations: { threadDescription: string; from: string; to: string; log?: { content: string; type: string }[] }[];
+    threadMutations: { threadDescription: string; from: string; to: string; addedNodes: { content: string; type: string }[] }[];
     continuityMutations: {
       entityName: string;
       addedNodes: { content: string; type: string }[];
@@ -1338,6 +1343,7 @@ export type AppState = {
   wizardStep: WizardStep;
   wizardData: WizardData;
   selectedKnowledgeEntity: string | null;
+  selectedThreadLog: string | null;
   graphViewMode: GraphViewMode;
   /** Current search query and results (persisted) */
   currentSearchQuery: SearchQuery | null;

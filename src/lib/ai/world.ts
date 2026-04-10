@@ -1,6 +1,9 @@
 import type { NarrativeState, Scene, Character, Location, Thread, RelationshipEdge, WorldKnowledgeNode, WorldKnowledgeEdge, WorldKnowledgeMutation, WorldKnowledgeNodeType, Artifact, ReasoningLevel, OwnershipMutation, TieMutation, ContinuityMutation, RelationshipMutation } from '@/types/narrative';
 import { THREAD_ACTIVE_STATUSES, resolveEntry, isScene, REASONING_BUDGETS, DEFAULT_STORY_SETTINGS } from '@/types/narrative';
 import { nextId, nextIds } from '@/lib/narrative-utils';
+import { applyThreadMutation } from '@/lib/thread-log';
+import { applyContinuityMutation } from '@/lib/continuity-graph';
+import { sanitizeWorldKnowledgeMutation, applyWorldKnowledgeMutation, wkEdgeKey } from '@/lib/world-knowledge-graph';
 import { callGenerate, callGenerateStream, SYSTEM_PROMPT } from './api';
 import { MAX_TOKENS_LARGE, GENERATE_MODEL } from '@/lib/constants';
 import { parseJson } from './json';
@@ -8,6 +11,37 @@ import { narrativeContext } from './context';
 import { PROMPT_FORCE_STANDARDS, PROMPT_STRUCTURAL_RULES, PROMPT_MUTATIONS, PROMPT_POV, PROMPT_CONTINUITY, PROMPT_SUMMARY_REQUIREMENT, PROMPT_ENTITY_INTEGRATION } from './prompts';
 import { buildSequencePrompt, buildIntroductionSequence } from '@/lib/pacing-profile';
 import { logInfo } from '@/lib/system-logger';
+
+/**
+ * Normalize LLM-emitted entity continuity: the schema requests a Record but
+ * the LLM reliably returns an array with no edges. Route the initial nodes
+ * through applyContinuityMutation so nodes become a Record keyed by id and
+ * get chained sequentially via co_occurs — matching exactly how scene
+ * continuityMutations build up entity graphs across the rest of the pipeline.
+ */
+function normalizeInitialContinuity(
+  entityId: string,
+  raw: unknown,
+): { nodes: Record<string, { id: string; type: ContinuityMutation['addedNodes'][number]['type']; content: string }>; edges: { from: string; to: string; relation: string }[] } {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const rawObj = raw as any;
+  const rawNodes: unknown[] = Array.isArray(rawObj?.nodes)
+    ? rawObj.nodes
+    : (rawObj?.nodes && typeof rawObj.nodes === 'object' ? Object.values(rawObj.nodes) : []);
+  const addedNodes = rawNodes
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    .filter((n: any) => n && typeof n.content === 'string' && n.content.trim())
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    .map((n: any, i: number) => ({
+      id: n.id || `K-${entityId}-${String(i + 1).padStart(3, '0')}`,
+      content: n.content,
+      type: (n.type || 'trait') as ContinuityMutation['addedNodes'][number]['type'],
+    }));
+  return applyContinuityMutation(
+    { nodes: {}, edges: [] },
+    { entityId, addedNodes, addedEdges: [] },
+  );
+}
 
 export type ExpansionEntityFilter = {
   characters: boolean;
@@ -582,11 +616,11 @@ worldKnowledgeMutations define the FOUNDATIONAL abstractions this expansion esta
     return { ...rest, participants: rest.participants ?? anchors ?? [], dependents, status: THREAD_ACTIVE_STATUSES[0] };
   });
 
-  // Process worldKnowledgeMutations: assign real WK-XX IDs
+  // Process worldKnowledgeMutations: assign real WK-XX IDs, filter self-loops
+  // and drop edges that duplicate ones already in the narrative graph.
   let worldKnowledgeMutations: WorldKnowledgeMutation | undefined;
   const rawWKM = parsed.worldKnowledgeMutations;
   if (rawWKM && Array.isArray(rawWKM.addedNodes) && rawWKM.addedNodes.length > 0) {
-    // Collect existing WK IDs from the narrative's world knowledge graph
     const existingWkIds = Object.keys(narrative.worldKnowledge?.nodes ?? {});
     const realIds = nextIds('WK', existingWkIds, rawWKM.addedNodes.length);
     const wkIdMap: Record<string, string> = {};
@@ -597,28 +631,46 @@ worldKnowledgeMutations define the FOUNDATIONAL abstractions this expansion esta
       return { id: realId, concept: node.concept, type: (node.type || 'concept') as WorldKnowledgeNodeType };
     });
 
-    // Remap edge references — edges can point to new WK-GEN-* IDs or existing WK-XX IDs
     const validWKIds = new Set([...existingWkIds, ...realIds]);
-    const addedEdges = (rawWKM.addedEdges ?? [])
-      .map((edge: { from: string; to: string; relation: string }) => ({
-        from: wkIdMap[edge.from] ?? edge.from,
-        to: wkIdMap[edge.to] ?? edge.to,
-        relation: edge.relation,
-      }))
-      .filter((edge: { from: string; to: string }) => validWKIds.has(edge.from) && validWKIds.has(edge.to));
+    const remappedEdges = (rawWKM.addedEdges ?? []).map((edge: { from: string; to: string; relation: string }) => ({
+      from: wkIdMap[edge.from] ?? edge.from,
+      to: wkIdMap[edge.to] ?? edge.to,
+      relation: edge.relation,
+    }));
 
-    worldKnowledgeMutations = { addedNodes, addedEdges };
+    const seenEdgeKeys = new Set<string>();
+    for (const e of narrative.worldKnowledge?.edges ?? []) seenEdgeKeys.add(wkEdgeKey(e));
+
+    worldKnowledgeMutations = { addedNodes, addedEdges: remappedEdges };
+    sanitizeWorldKnowledgeMutation(worldKnowledgeMutations, validWKIds, seenEdgeKeys);
   }
 
-  // Apply entity filter — strip types the user disabled
+  // Apply entity filter — strip types the user disabled. Freshly-created
+  // entities have their LLM-emitted continuity normalized (array → Record)
+  // and chained via co_occurs through applyContinuityMutation.
   const f = entityFilter ?? DEFAULT_EXPANSION_FILTER;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const normalizedCharacters = (parsed.characters ?? []).map((c: any) => ({
+    ...c,
+    continuity: normalizeInitialContinuity(c.id, c.continuity),
+  }));
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const normalizedLocations = (parsed.locations ?? []).map((l: any) => ({
+    ...l,
+    continuity: normalizeInitialContinuity(l.id, l.continuity),
+  }));
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const normalizedArtifacts = (parsed.artifacts ?? []).map((a: any) => ({
+    ...a,
+    continuity: normalizeInitialContinuity(a.id, a.continuity),
+  }));
   const result = {
-    characters: f.characters ? (parsed.characters ?? []) : [],
-    locations: f.locations ? (parsed.locations ?? []) : [],
+    characters: f.characters ? normalizedCharacters : [],
+    locations: f.locations ? normalizedLocations : [],
     threads: f.threads ? threads : [],
     relationships: f.relationships ? (parsed.relationships ?? []) : [],
     worldKnowledgeMutations: f.worldKnowledge ? worldKnowledgeMutations : undefined,
-    artifacts: f.artifacts ? (parsed.artifacts ?? []) : [],
+    artifacts: f.artifacts ? normalizedArtifacts : [],
     ownershipMutations: f.ownershipMutations ? (parsed.ownershipMutations ?? []) : [],
     tieMutations: f.tieMutations ? (parsed.tieMutations ?? []) : [],
     continuityMutations: f.continuityMutations ? (parsed.continuityMutations ?? []) : [],
@@ -831,10 +883,14 @@ The goal is to make the world feel like a coherent machine where systems interlo
   const id = `N-${now}`;
 
   const characters: NarrativeState['characters'] = {};
-  for (const c of parsed.characters) characters[c.id] = c;
+  for (const c of parsed.characters) {
+    characters[c.id] = { ...c, continuity: normalizeInitialContinuity(c.id, c.continuity) };
+  }
 
   const locations: NarrativeState['locations'] = {};
-  for (const l of parsed.locations) locations[l.id] = l;
+  for (const l of parsed.locations) {
+    locations[l.id] = { ...l, continuity: normalizeInitialContinuity(l.id, l.continuity) };
+  }
 
   const threads: NarrativeState['threads'] = {};
   // Normalize: LLM may still output "anchors" (legacy field name) — remap to "participants"
@@ -890,34 +946,37 @@ The goal is to make the world feel like a coherent machine where systems interlo
   const wkIds = nextIds('WK', [], totalWKNodes);
   let wkIdx = 0;
   const wkIdMap: Record<string, string> = {};
-  const worldKnowledgeNodes: Record<string, WorldKnowledgeNode> = {};
-  const worldKnowledgeEdges: WorldKnowledgeEdge[] = [];
+  const worldKnowledgeGraph: { nodes: Record<string, WorldKnowledgeNode>; edges: WorldKnowledgeEdge[] } = {
+    nodes: {},
+    edges: [],
+  };
+  const validWKIds = new Set<string>();
+  const seenWkEdgeKeys = new Set<string>();
 
   for (const mutation of allWKMutations) {
-    // Assign real IDs to new nodes
+    // Assign real IDs to new nodes; validity tracking used by the sanitizer below.
     for (const node of mutation.addedNodes) {
       const oldId = node.id;
       node.id = wkIds[wkIdx++];
       wkIdMap[oldId] = node.id;
-      worldKnowledgeNodes[node.id] = { id: node.id, concept: node.concept, type: node.type };
+      validWKIds.add(node.id);
     }
 
-    // Remap edge references and accumulate
-    const validWKIds = new Set(Object.keys(worldKnowledgeNodes));
-    mutation.addedEdges = mutation.addedEdges
-      .map((edge) => ({
-        from: wkIdMap[edge.from] ?? edge.from,
-        to: wkIdMap[edge.to] ?? edge.to,
-        relation: edge.relation,
-      }))
-      .filter((edge) => validWKIds.has(edge.from) && validWKIds.has(edge.to));
+    // Remap edge references, then run the shared sanitizer so that self-loops,
+    // orphans, bad fields, and cross-mutation duplicates are filtered
+    // consistently with every other pipeline.
+    mutation.addedEdges = mutation.addedEdges.map((edge) => ({
+      from: wkIdMap[edge.from] ?? edge.from,
+      to: wkIdMap[edge.to] ?? edge.to,
+      relation: edge.relation,
+    }));
+    sanitizeWorldKnowledgeMutation(mutation, validWKIds, seenWkEdgeKeys);
 
-    for (const edge of mutation.addedEdges) {
-      if (!worldKnowledgeEdges.some((e) => e.from === edge.from && e.to === edge.to && e.relation === edge.relation)) {
-        worldKnowledgeEdges.push({ from: edge.from, to: edge.to, relation: edge.relation });
-      }
-    }
+    // Accumulate into the cumulative graph through the shared applier.
+    applyWorldKnowledgeMutation(worldKnowledgeGraph, mutation);
   }
+  const worldKnowledgeNodes = worldKnowledgeGraph.nodes;
+  const worldKnowledgeEdges = worldKnowledgeGraph.edges;
 
   // Generate embeddings for scene summaries
   if (sceneList.length > 0) {
@@ -935,24 +994,13 @@ The goal is to make the world feel like a coherent machine where systems interlo
     }
   }
 
-  // Build thread log graphs from initial scene mutations
-  let threadNodeCounter = 0;
-  const lastThreadNodeId: Record<string, string> = {};
+  // Build thread log graphs from initial scene mutations. Each scene's
+  // contribution is a self-contained cluster — no cross-scene edges.
   for (const scene of sceneList) {
     for (const tm of scene.threadMutations ?? []) {
       const thread = threads[tm.threadId];
       if (!thread) continue;
-      const nodeId = `TK-${String(++threadNodeCounter).padStart(3, '0')}`;
-      const nodeType = tm.from === tm.to ? 'pulse' as const : 'transition' as const;
-      const content = tm.from === tm.to
-        ? `Pulse: ${scene.summary?.slice(0, 100) ?? 'thread touched'}`
-        : `${tm.from}→${tm.to}: ${scene.summary?.slice(0, 100) ?? 'transition'}`;
-      thread.threadLog.nodes[nodeId] = { id: nodeId, content, type: nodeType };
-      const prevId = lastThreadNodeId[tm.threadId];
-      if (prevId) {
-        thread.threadLog.edges.push({ from: prevId, to: nodeId, relation: tm.from === tm.to ? 'continues' : 'causes' });
-      }
-      lastThreadNodeId[tm.threadId] = nodeId;
+      thread.threadLog = applyThreadMutation(thread.threadLog, tm);
     }
   }
 
@@ -979,7 +1027,12 @@ The goal is to make the world feel like a coherent machine where systems interlo
     characters,
     locations,
     threads,
-    artifacts: Object.fromEntries((parsed.artifacts ?? []).map((a: Artifact) => [a.id, a])),
+    artifacts: Object.fromEntries(
+      (parsed.artifacts ?? []).map((a: Artifact) => [
+        a.id,
+        { ...a, continuity: normalizeInitialContinuity(a.id, a.continuity) },
+      ]),
+    ),
     arcs,
     scenes,
     worldBuilds: {},

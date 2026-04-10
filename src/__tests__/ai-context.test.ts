@@ -234,13 +234,13 @@ describe('getStateAtIndex', () => {
       scenes: {
         's1': createScene('s1', {
           threadMutations: [
-            { threadId: 't1', from: 'latent', to: 'active' },
+            { threadId: 't1', from: 'latent', to: 'active', addedNodes: [], addedEdges: [] },
           ],
         }),
         's2': createScene('s2', {
           threadMutations: [
-            { threadId: 't1', from: 'active', to: 'active' },
-            { threadId: 't2', from: 'latent', to: 'active' },
+            { threadId: 't1', from: 'active', to: 'active', addedNodes: [], addedEdges: [] },
+            { threadId: 't2', from: 'latent', to: 'active', addedNodes: [], addedEdges: [] },
           ],
         }),
       },
@@ -422,7 +422,7 @@ describe('sceneContext', () => {
     const scene = createScene('s1', {
       povId: 'c1',
       locationId: 'loc1',
-      threadMutations: [{ threadId: 't1', from: 'latent', to: 'active' }],
+      threadMutations: [{ threadId: 't1', from: 'latent', to: 'active', addedNodes: [], addedEdges: [] }],
     });
 
     const ctx = sceneContext(n, scene);
@@ -486,7 +486,7 @@ describe('deriveLogicRules', () => {
     const scene = createScene('s1', {
       povId: 'c1',
       locationId: 'loc1',
-      threadMutations: [{ threadId: 't1', from: 'latent', to: 'active' }],
+      threadMutations: [{ threadId: 't1', from: 'latent', to: 'active', addedNodes: [], addedEdges: [] }],
     });
 
     const rules = deriveLogicRules(n, scene);

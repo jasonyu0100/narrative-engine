@@ -77,6 +77,7 @@ describe('store reducer', () => {
       inspectorContext: null,
       inspectorHistory: [],
       selectedKnowledgeEntity: null,
+      selectedThreadLog: null,
       graphViewMode: 'search',
       currentSearchQuery: null,
       currentResultIndex: 0,

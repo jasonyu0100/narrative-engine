@@ -787,7 +787,7 @@ describe('AnalysisRunner — Edge Cases', () => {
   it('handles partial results from prior run', async () => {
     const existingResult: AnalysisChunkResult = {
       chapterSummary: 'Already analyzed',
-      characters: [{ name: 'Alice', role: 'anchor', firstAppearance: true, continuity: [] }],
+      characters: [{ name: 'Alice', role: 'anchor', firstAppearance: true }],
       locations: [],
       threads: [{ description: 'Thread', participantNames: ['Alice'], statusAtStart: 'dormant', statusAtEnd: 'active', development: 'Done' }],
       scenes: [{
