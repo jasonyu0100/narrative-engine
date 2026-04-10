@@ -16,8 +16,6 @@ export function getStateAtIndex(
 ): {
   /** Continuity node IDs that existed at this point (added and not removed) */
   liveNodeIds: Set<string>;
-  /** Continuity edges that exist at this point (added and not removed) */
-  liveEdges: ContinuityEdge[];
   /** Relationship states at this point (replayed from mutations) */
   relationships: RelationshipEdge[];
   /** Thread statuses at this point */
@@ -27,18 +25,14 @@ export function getStateAtIndex(
 } {
   const keysUpToCurrent = resolvedKeys.slice(0, currentIndex + 1);
 
-  // Replay continuity mutations to get accumulated node IDs and edges (additive only)
+  // Replay continuity mutations to get accumulated node IDs (additive only)
   const liveNodeIds = new Set<string>();
-  const liveEdges: ContinuityEdge[] = [];
   for (const k of keysUpToCurrent) {
     const entry = resolveEntry(n, k);
     if (entry?.kind !== 'scene') continue;
     for (const km of entry.continuityMutations) {
       for (const node of km.addedNodes ?? []) {
         if (node.id) liveNodeIds.add(node.id);
-      }
-      for (const edge of km.addedEdges ?? []) {
-        liveEdges.push(edge);
       }
     }
   }
@@ -98,7 +92,6 @@ export function getStateAtIndex(
 
   return {
     liveNodeIds,
-    liveEdges,
     relationships: [...relMap.values()],
     threadStatuses,
     artifactOwnership,
@@ -626,9 +619,7 @@ export function sceneContext(
 
   const continuityMutationLines = scene.continuityMutations.flatMap((km) => {
     const entityName = narrative.characters[km.entityId]?.name ?? narrative.locations[km.entityId]?.name ?? narrative.artifacts[km.entityId]?.name ?? km.entityId;
-    const nodeLines = (km.addedNodes ?? []).map(node => `  <change entity="${entityName}" type="${node.type}">${node.content}</change>`);
-    const edgeLines = (km.addedEdges ?? []).map(edge => `  <edge entity="${entityName}" from="${edge.from}" to="${edge.to}" relation="${edge.relation}" />`);
-    return [...nodeLines, ...edgeLines];
+    return (km.addedNodes ?? []).map(node => `  <change entity="${entityName}" type="${node.type}">${node.content}</change>`);
   });
 
   const relationshipMutationLines = scene.relationshipMutations.map((rm) => {

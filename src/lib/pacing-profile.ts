@@ -185,26 +185,28 @@ export function initMatrixPresets(works: { key: string; name: string; narrative:
 
 /**
  * Force target ranges per cube corner.
- * High = above reference mean, Low = below or near zero.
+ * High = above reference mean (drive 3, world 14, system 5), Low = below or near zero.
  * Ranges are [min, max] raw force values to guide generation.
+ * "High" anchors above reference (dominance territory); "Low" stays near the floor
+ * so the LLM produces real contrast instead of hugging the mean.
  */
 const FORCE_TARGETS: Record<CubeCornerKey, { drive: [number, number]; world: [number, number]; system: [number, number] }> = {
   // Epoch: everything high
-  'HHH': { drive: [2, 6], world: [3.5, 7], system: [3, 7] },
+  'HHH': { drive: [3, 7], world: [16, 28], system: [6, 12] },
   // Climax: high drive + world, low system
-  'HHL': { drive: [2, 6], world: [3.5, 7], system: [0, 1.5] },
+  'HHL': { drive: [3, 7], world: [16, 28], system: [0, 3] },
   // Revelation: high drive + system, low world
-  'HLH': { drive: [2, 5], world: [0, 1.5], system: [3, 7] },
+  'HLH': { drive: [2, 6], world: [0, 6], system: [6, 12] },
   // Closure: high drive, low world + system
-  'HLL': { drive: [2, 5], world: [0, 1.5], system: [0, 1.5] },
+  'HLL': { drive: [2, 6], world: [0, 6], system: [0, 3] },
   // Discovery: high world + system, low drive
-  'LHH': { drive: [0, 1], world: [2.5, 6], system: [3, 6] },
+  'LHH': { drive: [0, 1.5], world: [14, 24], system: [5, 10] },
   // Growth: high world, low drive + system
-  'LHL': { drive: [0, 1], world: [2.5, 6], system: [0, 1.5] },
+  'LHL': { drive: [0, 1.5], world: [14, 24], system: [0, 3] },
   // Lore: high system, low drive + world
-  'LLH': { drive: [0, 1], world: [0, 1.5], system: [3, 7] },
+  'LLH': { drive: [0, 1.5], world: [0, 6], system: [6, 12] },
   // Rest: everything low
-  'LLL': { drive: [0, 1], world: [0, 1.5], system: [0, 1.5] },
+  'LLL': { drive: [0, 1.5], world: [0, 6], system: [0, 3] },
 };
 
 // ── Pacing Presets ───────────────────────────────────────────────────────────
@@ -395,14 +397,14 @@ export function detectCurrentMode(
  * Compact mutation guidance per cube corner — concise version for token efficiency.
  */
 const MODE_GUIDANCE: Record<CubeCornerKey, string> = {
-  HHH: `EPOCH — densest scene. 2+ terminal threads, many continuity mutations, world knowledge. Everything spikes.`,
-  HHL: `CLIMAX — threads pay off, characters transform. 2+ terminal threads, high continuity, no new world knowledge.`,
-  HLH: `REVELATION — threads resolve via world-building. Thread transitions from discovery, few continuity, add world nodes.`,
-  HLL: `CLOSURE — quiet resolution. 1-2 terminal threads, few continuity, no world knowledge. Aftermath, not action.`,
-  LHH: `DISCOVERY — encounter something new. No terminals, high continuity, add world nodes. Exploration.`,
-  LHL: `GROWTH — character development. No resolutions, high continuity, no world knowledge. Relationships shift.`,
-  LLH: `LORE — pure world-building. Pulses only, few continuity, 3-5+ world nodes. Plant seeds.`,
-  LLL: `REST — minimal everything. 0-1 pulses, 1-3 continuity max, no world knowledge. Breathing room.`,
+  HHH: `EPOCH — densest scene. 2+ terminal threads, 18-25+ continuity nodes across 4-6 entities, 6-10 world knowledge nodes with 3-5 edges. Everything spikes.`,
+  HHL: `CLIMAX — threads pay off, characters transform. 2+ terminal threads, 18-25+ continuity nodes across 4-6 entities, minimal new world knowledge (0-2 nodes).`,
+  HLH: `REVELATION — threads resolve via world-building. Thread transitions from discovery, lean continuity (4-8 nodes), 6-10 new world knowledge nodes with 4-6 edges.`,
+  HLL: `CLOSURE — quiet resolution. 1-2 terminal threads, sparse continuity (3-6 nodes), 0-2 world knowledge. Aftermath, not action.`,
+  LHH: `DISCOVERY — encounter something new. No terminals, 14-22 continuity nodes across 3-5 entities, 5-8 world knowledge nodes with 3-5 edges. Exploration.`,
+  LHL: `GROWTH — character development. No resolutions, 14-22 continuity nodes across 3-5 entities, 0-2 world knowledge. Relationships shift, interiors deepen.`,
+  LLH: `LORE — pure world-building. Pulses only, 3-6 continuity nodes, 6-12 world knowledge nodes with 4-8 edges. Plant seeds, reveal systems.`,
+  LLL: `REST — minimal everything. 0-1 pulses, 3-6 continuity nodes across 2-3 entities, 0-2 world knowledge. Breathing room — but still DOES something to whoever is present.`,
 };
 
 /**
@@ -416,7 +418,7 @@ export function buildSingleStepPrompt(step: ModeStep, sceneIndex: number, totalS
   const targets = `P:${step.forces.drive[0]}-${step.forces.drive[1]} W:${step.forces.world[0]}-${step.forces.world[1]} S:${step.forces.system[0]}-${step.forces.system[1]}`;
   return `PACING — Scene ${sceneIndex + 1}/${totalScenes}: ${NARRATIVE_CUBE[step.mode].name} [P:${p} W:${c} S:${k}]
 ${MODE_GUIDANCE[step.mode]}
-Targets: ${targets}. Mutations ARE forces — match counts to targets.`;
+Targets: ${targets}. Reference means across the arc: P≈3, W≈14, S≈5. Mutations ARE forces — match counts to targets, never hug the mean.`;
 }
 
 /**
@@ -430,6 +432,7 @@ export function buildSequencePrompt(sequence: PacingSequence): string {
   lines.push('');
   lines.push('Mode determines mutation profile. Formulas compute forces FROM mutations:');
   lines.push('  P = Σ thread transitions (pulse=0.25) | W = ΔN_c + √ΔE_c (entity continuity) | S = ΔN + √ΔE (world knowledge)');
+  lines.push('  Reference means (target averages across the arc): P≈3, W≈14, S≈5. Scenes should breathe above/below these — not hug them.');
   lines.push('');
 
   // Build compact scene assignments

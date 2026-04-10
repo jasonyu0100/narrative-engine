@@ -312,7 +312,7 @@ describe('extractSceneStructure', () => {
       ownershipMutations: [],
       tieMutations: [],
       characterMovements: [{ characterName: 'Alice', locationName: 'Wonderland', transition: 'fell through' }],
-      worldKnowledgeMutations: { addedNodes: [{ concept: 'Size-Altering', type: 'system' }], addedEdges: [] },
+      worldKnowledgeMutations: { addedNodes: [{ concept: 'Size-Altering', type: 'system' }] },
     };
 
     vi.mocked(fetch).mockResolvedValueOnce({

@@ -99,7 +99,7 @@ const mockScene: Scene = {
   locationId: 'loc1',
   participantIds: ['char1'],
   events: ['Alice finds hidden door', 'Door leads to secret passage'],
-  threadMutations: [{ threadId: 'thread1', from: 'active', to: 'active', addedNodes: [], addedEdges: [] }],
+  threadMutations: [{ threadId: 'thread1', from: 'active', to: 'active', addedNodes: [] }],
   continuityMutations: [],
   relationshipMutations: [],
   worldKnowledgeMutations: { addedNodes: [], addedEdges: [] },

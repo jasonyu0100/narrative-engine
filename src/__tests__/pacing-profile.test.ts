@@ -97,16 +97,16 @@ describe('computeMatrixFromNarrative', () => {
       }),
       createScene({
         id: 'S-002',
-        threadMutations: [{ threadId: 'T-01', from: 'dormant', to: 'active', addedNodes: [], addedEdges: [] }],
-        continuityMutations: [{ entityId: 'C-01', addedNodes: [{ id: 'K-01', content: 'x', type: 'history' }], addedEdges: [] }],
+        threadMutations: [{ threadId: 'T-01', from: 'dormant', to: 'active', addedNodes: [] }],
+        continuityMutations: [{ entityId: 'C-01', addedNodes: [{ id: 'K-01', content: 'x', type: 'history' }] }],
         events: ['event1'],
       }),
       createScene({
         id: 'S-003',
-        threadMutations: [{ threadId: 'T-01', from: 'active', to: 'critical', addedNodes: [], addedEdges: [] }],
+        threadMutations: [{ threadId: 'T-01', from: 'active', to: 'critical', addedNodes: [] }],
         continuityMutations: [
-          { entityId: 'C-01', addedNodes: [{ id: 'K-02', content: 'y', type: 'belief' }], addedEdges: [] },
-          { entityId: 'C-02', addedNodes: [{ id: 'K-03', content: 'z', type: 'belief' }], addedEdges: [] },
+          { entityId: 'C-01', addedNodes: [{ id: 'K-02', content: 'y', type: 'belief' }] },
+          { entityId: 'C-02', addedNodes: [{ id: 'K-03', content: 'z', type: 'belief' }] },
         ],
         events: ['event2', 'event3'],
       }),
@@ -231,10 +231,10 @@ describe('detectCurrentMode', () => {
       createScene({
         id: 'S-001',
         threadMutations: [
-          { threadId: 'T-01', from: 'dormant', to: 'resolved', addedNodes: [], addedEdges: [] },
-          { threadId: 'T-02', from: 'dormant', to: 'resolved', addedNodes: [], addedEdges: [] },
+          { threadId: 'T-01', from: 'dormant', to: 'resolved', addedNodes: [] },
+          { threadId: 'T-02', from: 'dormant', to: 'resolved', addedNodes: [] },
         ],
-        continuityMutations: Array(10).fill({ entityId: 'C-01', addedNodes: [{ id: 'K-01', content: 'x', type: 'history' }], addedEdges: [] }),
+        continuityMutations: Array(10).fill({ entityId: 'C-01', addedNodes: [{ id: 'K-01', content: 'x', type: 'history' }] }),
         events: Array(10).fill('event'),
         worldKnowledgeMutations: {
           addedNodes: Array(5).fill({ id: 'K-01', concept: 'x', type: 'system' }),
@@ -345,19 +345,19 @@ describe('initMatrixPresets', () => {
     const workNarrative = createNarrative([
       createScene({
         id: 'S-001',
-        threadMutations: [{ threadId: 'T-01', from: 'dormant', to: 'active', addedNodes: [], addedEdges: [] }],
+        threadMutations: [{ threadId: 'T-01', from: 'dormant', to: 'active', addedNodes: [] }],
       }),
       createScene({
         id: 'S-002',
-        threadMutations: [{ threadId: 'T-01', from: 'active', to: 'escalating', addedNodes: [], addedEdges: [] }],
+        threadMutations: [{ threadId: 'T-01', from: 'active', to: 'escalating', addedNodes: [] }],
       }),
       createScene({
         id: 'S-003',
-        threadMutations: [{ threadId: 'T-01', from: 'escalating', to: 'critical', addedNodes: [], addedEdges: [] }],
+        threadMutations: [{ threadId: 'T-01', from: 'escalating', to: 'critical', addedNodes: [] }],
       }),
       createScene({
         id: 'S-004',
-        threadMutations: [{ threadId: 'T-01', from: 'critical', to: 'resolved', addedNodes: [], addedEdges: [] }],
+        threadMutations: [{ threadId: 'T-01', from: 'critical', to: 'resolved', addedNodes: [] }],
       }),
     ]);
 

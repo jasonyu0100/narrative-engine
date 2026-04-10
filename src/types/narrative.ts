@@ -186,22 +186,22 @@ export type TieMutation = {
 
 // ── Scene & Arc ─────────────────────────────────────────────────────────────
 /** Parallels ContinuityMutation. `from`/`to` record the status transition;
- *  `addedNodes` and `addedEdges` describe this scene's contribution to the
- *  thread's log. applyThreadMutation chains new nodes via 'co_occurs' edges. */
+ *  `addedNodes` lists log entries in order. applyThreadMutation chains them
+ *  sequentially via 'co_occurs' edges — node order alone defines the linkage. */
 export type ThreadMutation = {
   threadId: string;
   from: string;
   to: string;
   addedNodes: ThreadLogNode[];
-  addedEdges: ThreadLogEdge[];
 };
 
-/** Additive continuity mutation — mirrors WorldKnowledgeMutation.
- *  Changes to an entity's inner world are permanent (no removal actions). */
+/** Additive continuity mutation. `addedNodes` lists the entity's new
+ *  continuity entries in causal/temporal order — applyContinuityMutation
+ *  chains them sequentially via 'co_occurs'. Node order defines the linkage;
+ *  no explicit edges are stored. */
 export type ContinuityMutation = {
   entityId: string;
   addedNodes: { id: string; content: string; type: ContinuityNodeType }[];
-  addedEdges: ContinuityEdge[];
 };
 
 export type RelationshipMutation = {

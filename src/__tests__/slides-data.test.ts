@@ -103,14 +103,14 @@ describe('computeSlidesData', () => {
       },
       scenes: {
         s1: createScene('s1', {
-          threadMutations: [{ threadId: 't1', from: 'latent', to: 'active', addedNodes: [], addedEdges: [] }],
+          threadMutations: [{ threadId: 't1', from: 'latent', to: 'active', addedNodes: [] }],
           continuityMutations: [
-            { entityId: 'c1', addedNodes: [{ id: 'n1', content: 'Learned something', type: 'belief' }], addedEdges: [] },
+            { entityId: 'c1', addedNodes: [{ id: 'n1', content: 'Learned something', type: 'belief' }] },
           ],
           events: ['event_1', 'event_2'],
         }),
         s2: createScene('s2', {
-          threadMutations: [{ threadId: 't1', from: 'active', to: 'active', addedNodes: [], addedEdges: [] }],
+          threadMutations: [{ threadId: 't1', from: 'active', to: 'active', addedNodes: [] }],
           events: ['event_3'],
         }),
       },
@@ -135,10 +135,10 @@ describe('computeSlidesData', () => {
       },
       scenes: {
         s1: createScene('s1', {
-          threadMutations: [{ threadId: 't1', from: 'latent', to: 'active', addedNodes: [], addedEdges: [] }],
+          threadMutations: [{ threadId: 't1', from: 'latent', to: 'active', addedNodes: [] }],
         }),
         s2: createScene('s2', {
-          threadMutations: [{ threadId: 't1', from: 'active', to: 'active', addedNodes: [], addedEdges: [] }],
+          threadMutations: [{ threadId: 't1', from: 'active', to: 'active', addedNodes: [] }],
         }),
       },
     });
@@ -212,11 +212,11 @@ describe('computeSlidesData', () => {
     const n = createMinimalNarrative({
       scenes: {
         s1: createScene('s1', {
-          threadMutations: [{ threadId: 't1', from: 'latent', to: 'critical', addedNodes: [], addedEdges: [] }],
+          threadMutations: [{ threadId: 't1', from: 'latent', to: 'critical', addedNodes: [] }],
         }),
         s2: createScene('s2', {
           continuityMutations: [
-            { entityId: 'c1', addedNodes: [{ id: 'n1', content: 'K1', type: 'belief' }, { id: 'n2', content: 'K2', type: 'belief' }], addedEdges: [] },
+            { entityId: 'c1', addedNodes: [{ id: 'n1', content: 'K1', type: 'belief' }, { id: 'n2', content: 'K2', type: 'belief' }] },
           ],
         }),
       },
@@ -267,11 +267,11 @@ describe('computeSlidesData', () => {
     const n = createMinimalNarrative({
       scenes: {
         s1: createScene('s1', {
-          threadMutations: [{ threadId: 't1', from: 'latent', to: 'active', addedNodes: [], addedEdges: [] }],
+          threadMutations: [{ threadId: 't1', from: 'latent', to: 'active', addedNodes: [] }],
           events: ['e1', 'e2'],
         }),
         s2: createScene('s2', {
-          threadMutations: [{ threadId: 't1', from: 'active', to: 'active', addedNodes: [], addedEdges: [] }],
+          threadMutations: [{ threadId: 't1', from: 'active', to: 'active', addedNodes: [] }],
         }),
       },
       threads: {

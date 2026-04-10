@@ -197,7 +197,7 @@ describe('generateScenes', () => {
           povId: 'C-01',
           participantIds: ['C-01', 'C-02'],
           events: ['battle_prep'],
-          threadMutations: [{ threadId: 'T-01', from: 'active', to: 'active', addedNodes: [], addedEdges: [] }],
+          threadMutations: [{ threadId: 'T-01', from: 'active', to: 'active', addedNodes: [] }],
           continuityMutations: [],
           relationshipMutations: [],
           summary: 'Alice prepares the castle defenses while Bob rides out.',
@@ -299,8 +299,8 @@ describe('generateScenes', () => {
           participantIds: ['C-01'],
           events: [],
           threadMutations: [
-            { threadId: 'T-01', from: 'active', to: 'active', addedNodes: [], addedEdges: [] },
-            { threadId: 'T-INVALID', from: 'active', to: 'critical', addedNodes: [], addedEdges: [] },
+            { threadId: 'T-01', from: 'active', to: 'active', addedNodes: [] },
+            { threadId: 'T-INVALID', from: 'active', to: 'critical', addedNodes: [] },
           ],
           continuityMutations: [],
           relationshipMutations: [],
@@ -323,8 +323,8 @@ describe('generateScenes', () => {
       arcName: 'Test Arc',
       directionVector: 'Characters face challenges',
       scenes: [
-        { id: 'S-GEN-001', arcId: 'ARC-01', locationId: 'L-01', povId: 'C-01', participantIds: ['C-01'], events: [], threadMutations: [{ threadId: 'T-01', from: 'active', to: 'active', addedNodes: [], addedEdges: [] }], continuityMutations: [], relationshipMutations: [], summary: 'Scene 1' },
-        { id: 'S-GEN-002', arcId: 'ARC-01', locationId: 'L-02', povId: 'C-02', participantIds: ['C-02'], events: [], threadMutations: [{ threadId: 'T-02', from: 'active', to: 'critical', addedNodes: [], addedEdges: [] }], continuityMutations: [], relationshipMutations: [], summary: 'Scene 2' },
+        { id: 'S-GEN-001', arcId: 'ARC-01', locationId: 'L-01', povId: 'C-01', participantIds: ['C-01'], events: [], threadMutations: [{ threadId: 'T-01', from: 'active', to: 'active', addedNodes: [] }], continuityMutations: [], relationshipMutations: [], summary: 'Scene 1' },
+        { id: 'S-GEN-002', arcId: 'ARC-01', locationId: 'L-02', povId: 'C-02', participantIds: ['C-02'], events: [], threadMutations: [{ threadId: 'T-02', from: 'active', to: 'critical', addedNodes: [] }], continuityMutations: [], relationshipMutations: [], summary: 'Scene 2' },
       ],
     });
     vi.mocked(callGenerate).mockResolvedValue(mockResponse);
@@ -385,7 +385,7 @@ describe('generateScenes', () => {
           events: [],
           threadMutations: [],
           continuityMutations: [
-            { entityId: 'C-01', addedNodes: [{ id: 'K-GEN-001', content: 'First knowledge', type: 'fact' }, { id: 'K-GEN-002', content: 'Second knowledge', type: 'secret' }], addedEdges: [] },
+            { entityId: 'C-01', addedNodes: [{ id: 'K-GEN-001', content: 'First knowledge', type: 'fact' }, { id: 'K-GEN-002', content: 'Second knowledge', type: 'secret' }] },
           ],
           relationshipMutations: [],
           summary: 'Test scene',
@@ -418,6 +418,248 @@ describe('generateScenes', () => {
 
     expect(result.scenes).toHaveLength(1);
     expect(vi.mocked(callGenerate)).toHaveBeenCalledTimes(2);
+  });
+
+  // ── World knowledge mutation handling ──────────────────────────────────────
+
+  describe('worldKnowledgeMutations', () => {
+    it('assigns sequential WK IDs to new concepts', async () => {
+      const mockResponse = JSON.stringify({
+        arcName: 'Arc',
+        scenes: [
+          {
+            id: 'S-GEN-001', arcId: 'ARC-01', locationId: 'L-01', povId: 'C-01',
+            participantIds: ['C-01'], events: [], threadMutations: [],
+            continuityMutations: [], relationshipMutations: [],
+            worldKnowledgeMutations: {
+              addedNodes: [
+                { id: 'WK-GEN-1', concept: 'Mana Binding', type: 'system' },
+                { id: 'WK-GEN-2', concept: 'Leylines', type: 'concept' },
+              ],
+              addedEdges: [{ from: 'WK-GEN-2', to: 'WK-GEN-1', relation: 'enables' }],
+            },
+            summary: 'S',
+          },
+        ],
+      });
+      vi.mocked(callGenerate).mockResolvedValue(mockResponse);
+
+      const narrative = createMinimalNarrative();
+      const result = await generateScenes(narrative, [], 0, 1, 'Test');
+
+      const wkm = result.scenes[0].worldKnowledgeMutations!;
+      expect(wkm.addedNodes).toHaveLength(2);
+      expect(wkm.addedNodes[0].id).toBe('WK-01');
+      expect(wkm.addedNodes[1].id).toBe('WK-02');
+      // Edge endpoints were remapped from WK-GEN-* to real ids
+      expect(wkm.addedEdges).toHaveLength(1);
+      expect(wkm.addedEdges[0]).toEqual({ from: 'WK-02', to: 'WK-01', relation: 'enables' });
+    });
+
+    it('collapses re-asserted concepts to existing WK ids (no System inflation)', async () => {
+      const mockResponse = JSON.stringify({
+        arcName: 'Arc',
+        scenes: [
+          {
+            id: 'S-GEN-001', arcId: 'ARC-01', locationId: 'L-01', povId: 'C-01',
+            participantIds: ['C-01'], events: [], threadMutations: [],
+            continuityMutations: [], relationshipMutations: [],
+            worldKnowledgeMutations: {
+              addedNodes: [
+                { id: 'WK-GEN-1', concept: 'Mana Binding', type: 'principle' },
+              ],
+              addedEdges: [],
+            },
+            summary: 'S',
+          },
+        ],
+      });
+      vi.mocked(callGenerate).mockResolvedValue(mockResponse);
+
+      const narrative = createMinimalNarrative();
+      // Pre-seed the graph with a matching concept under a different id.
+      narrative.worldKnowledge = {
+        nodes: { 'WK-07': { id: 'WK-07', concept: 'Mana Binding', type: 'system' } },
+        edges: [],
+      };
+      const result = await generateScenes(narrative, [], 0, 1, 'Test');
+
+      // The re-asserted concept does not earn a new node.
+      expect(result.scenes[0].worldKnowledgeMutations!.addedNodes).toHaveLength(0);
+    });
+
+    it('collapses within-batch duplicate concepts across scenes', async () => {
+      const mockResponse = JSON.stringify({
+        arcName: 'Arc',
+        scenes: [
+          {
+            id: 'S-GEN-001', arcId: 'ARC-01', locationId: 'L-01', povId: 'C-01',
+            participantIds: ['C-01'], events: [], threadMutations: [],
+            continuityMutations: [], relationshipMutations: [],
+            worldKnowledgeMutations: {
+              addedNodes: [{ id: 'WK-GEN-1', concept: 'Mana Binding', type: 'system' }],
+              addedEdges: [],
+            },
+            summary: 'S1',
+          },
+          {
+            id: 'S-GEN-002', arcId: 'ARC-01', locationId: 'L-01', povId: 'C-01',
+            participantIds: ['C-01'], events: [], threadMutations: [],
+            continuityMutations: [], relationshipMutations: [],
+            worldKnowledgeMutations: {
+              addedNodes: [{ id: 'WK-GEN-2', concept: 'mana binding', type: 'principle' }],
+              addedEdges: [],
+            },
+            summary: 'S2',
+          },
+        ],
+      });
+      vi.mocked(callGenerate).mockResolvedValue(mockResponse);
+
+      const narrative = createMinimalNarrative();
+      const result = await generateScenes(narrative, [], 0, 2, 'Test');
+
+      // Scene 1 adds the node; scene 2 does not (re-mention).
+      expect(result.scenes[0].worldKnowledgeMutations!.addedNodes).toHaveLength(1);
+      expect(result.scenes[0].worldKnowledgeMutations!.addedNodes[0].id).toBe('WK-01');
+      expect(result.scenes[1].worldKnowledgeMutations!.addedNodes).toHaveLength(0);
+    });
+
+    it('remaps edges in a later scene to reference nodes added by an earlier scene', async () => {
+      const mockResponse = JSON.stringify({
+        arcName: 'Arc',
+        scenes: [
+          {
+            id: 'S-GEN-001', arcId: 'ARC-01', locationId: 'L-01', povId: 'C-01',
+            participantIds: ['C-01'], events: [], threadMutations: [],
+            continuityMutations: [], relationshipMutations: [],
+            worldKnowledgeMutations: {
+              addedNodes: [{ id: 'WK-GEN-1', concept: 'Mana Binding', type: 'system' }],
+              addedEdges: [],
+            },
+            summary: 'S1',
+          },
+          {
+            id: 'S-GEN-002', arcId: 'ARC-01', locationId: 'L-01', povId: 'C-01',
+            participantIds: ['C-01'], events: [], threadMutations: [],
+            continuityMutations: [], relationshipMutations: [],
+            worldKnowledgeMutations: {
+              addedNodes: [{ id: 'WK-GEN-2', concept: 'Leylines', type: 'concept' }],
+              // Refers to the prior-scene concept by its GEN id.
+              addedEdges: [{ from: 'WK-GEN-2', to: 'WK-GEN-1', relation: 'draws_from' }],
+            },
+            summary: 'S2',
+          },
+        ],
+      });
+      vi.mocked(callGenerate).mockResolvedValue(mockResponse);
+
+      const narrative = createMinimalNarrative();
+      const result = await generateScenes(narrative, [], 0, 2, 'Test');
+
+      expect(result.scenes[1].worldKnowledgeMutations!.addedEdges).toHaveLength(1);
+      // WK-GEN-1 from scene 1 was resolved to WK-01; scene 2's edge points to it.
+      expect(result.scenes[1].worldKnowledgeMutations!.addedEdges[0]).toEqual({
+        from: 'WK-02', to: 'WK-01', relation: 'draws_from',
+      });
+    });
+
+    it('filters self-loops from edges', async () => {
+      const mockResponse = JSON.stringify({
+        arcName: 'Arc',
+        scenes: [
+          {
+            id: 'S-GEN-001', arcId: 'ARC-01', locationId: 'L-01', povId: 'C-01',
+            participantIds: ['C-01'], events: [], threadMutations: [],
+            continuityMutations: [], relationshipMutations: [],
+            worldKnowledgeMutations: {
+              addedNodes: [
+                { id: 'WK-GEN-1', concept: 'Mana', type: 'concept' },
+                { id: 'WK-GEN-2', concept: 'Runes', type: 'concept' },
+              ],
+              addedEdges: [
+                { from: 'WK-GEN-1', to: 'WK-GEN-1', relation: 'enables' }, // self-loop
+                { from: 'WK-GEN-1', to: 'WK-GEN-2', relation: 'enables' }, // valid
+              ],
+            },
+            summary: 'S',
+          },
+        ],
+      });
+      vi.mocked(callGenerate).mockResolvedValue(mockResponse);
+
+      const narrative = createMinimalNarrative();
+      const result = await generateScenes(narrative, [], 0, 1, 'Test');
+
+      const edges = result.scenes[0].worldKnowledgeMutations!.addedEdges;
+      expect(edges).toHaveLength(1);
+      expect(edges[0].from).not.toBe(edges[0].to);
+    });
+
+    it('deduplicates edges across scenes', async () => {
+      const mockResponse = JSON.stringify({
+        arcName: 'Arc',
+        scenes: [
+          {
+            id: 'S-GEN-001', arcId: 'ARC-01', locationId: 'L-01', povId: 'C-01',
+            participantIds: ['C-01'], events: [], threadMutations: [],
+            continuityMutations: [], relationshipMutations: [],
+            worldKnowledgeMutations: {
+              addedNodes: [
+                { id: 'WK-GEN-1', concept: 'Mana', type: 'concept' },
+                { id: 'WK-GEN-2', concept: 'Runes', type: 'concept' },
+              ],
+              addedEdges: [{ from: 'WK-GEN-1', to: 'WK-GEN-2', relation: 'enables' }],
+            },
+            summary: 'S1',
+          },
+          {
+            id: 'S-GEN-002', arcId: 'ARC-01', locationId: 'L-01', povId: 'C-01',
+            participantIds: ['C-01'], events: [], threadMutations: [],
+            continuityMutations: [], relationshipMutations: [],
+            worldKnowledgeMutations: {
+              addedNodes: [],
+              // Both concepts collapse to existing WK ids; the edge is a dup of S1.
+              addedEdges: [{ from: 'WK-GEN-1', to: 'WK-GEN-2', relation: 'enables' }],
+            },
+            summary: 'S2',
+          },
+        ],
+      });
+      vi.mocked(callGenerate).mockResolvedValue(mockResponse);
+
+      const narrative = createMinimalNarrative();
+      const result = await generateScenes(narrative, [], 0, 2, 'Test');
+
+      // First scene keeps its edge; second scene's duplicate is dropped.
+      expect(result.scenes[0].worldKnowledgeMutations!.addedEdges).toHaveLength(1);
+      expect(result.scenes[1].worldKnowledgeMutations!.addedEdges).toHaveLength(0);
+    });
+
+    it('drops orphan edges referencing unknown WK ids', async () => {
+      const mockResponse = JSON.stringify({
+        arcName: 'Arc',
+        scenes: [
+          {
+            id: 'S-GEN-001', arcId: 'ARC-01', locationId: 'L-01', povId: 'C-01',
+            participantIds: ['C-01'], events: [], threadMutations: [],
+            continuityMutations: [], relationshipMutations: [],
+            worldKnowledgeMutations: {
+              addedNodes: [{ id: 'WK-GEN-1', concept: 'Mana', type: 'concept' }],
+              // WK-99 doesn't exist anywhere.
+              addedEdges: [{ from: 'WK-GEN-1', to: 'WK-99', relation: 'enables' }],
+            },
+            summary: 'S',
+          },
+        ],
+      });
+      vi.mocked(callGenerate).mockResolvedValue(mockResponse);
+
+      const narrative = createMinimalNarrative();
+      const result = await generateScenes(narrative, [], 0, 1, 'Test');
+
+      expect(result.scenes[0].worldKnowledgeMutations!.addedEdges).toHaveLength(0);
+    });
   });
 });
 

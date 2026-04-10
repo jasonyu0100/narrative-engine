@@ -2,9 +2,9 @@
  * Thread log utilities — mutation application.
  *
  * Mirrors continuity-graph.ts: each threadMutation represents one scene's
- * contribution to a thread's log. Nodes added by a single mutation chain
- * together sequentially via 'co_occurs'. No edges are created across
- * mutations/scenes — each scene's contribution is a self-contained cluster.
+ * contribution to a thread's log. New nodes chain sequentially in the order
+ * they appear via 'co_occurs' — no edges are created across mutations and
+ * LLM-emitted addedEdges are ignored. Node order alone defines the linkage.
  */
 
 import type { ThreadLog, ThreadMutation } from '@/types/narrative';
@@ -14,8 +14,7 @@ export const EMPTY_THREAD_LOG: ThreadLog = { nodes: {}, edges: [] };
 
 /**
  * Apply one thread mutation, returning a new log.
- * New nodes are added and chained sequentially via 'co_occurs'. Any explicit
- * edges from the mutation are filtered for self-loops, orphans, and duplicates.
+ * New nodes are added in order and chained sequentially via 'co_occurs'.
  */
 export function applyThreadMutation(log: ThreadLog, mutation: ThreadMutation): ThreadLog {
   const nodes = { ...(log?.nodes ?? {}) };
@@ -33,16 +32,6 @@ export function applyThreadMutation(log: ThreadLog, mutation: ThreadMutation): T
   // Chain new nodes sequentially within this mutation — no cross-scene link.
   for (let i = 1; i < newNodeIds.length; i++) {
     edges.push({ from: newNodeIds[i - 1], to: newNodeIds[i], relation: 'co_occurs' });
-  }
-
-  // Explicit edges from the mutation — filter self-loops, orphans, duplicates.
-  for (const e of mutation.addedEdges ?? []) {
-    if (!e.from || !e.to || !e.relation) continue;
-    if (e.from === e.to) continue;
-    if (!nodes[e.from] || !nodes[e.to]) continue;
-    if (!edges.some(x => x.from === e.from && x.to === e.to && x.relation === e.relation)) {
-      edges.push({ from: e.from, to: e.to, relation: e.relation });
-    }
   }
 
   return { nodes, edges };

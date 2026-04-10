@@ -163,12 +163,12 @@ describe('getStateAtIndex', () => {
       scenes: {
         's1': createScene('s1', {
           continuityMutations: [
-            { entityId: 'c1', addedNodes: [{ id: 'node-1', content: 'Knowledge 1', type: 'belief' }], addedEdges: [] },
+            { entityId: 'c1', addedNodes: [{ id: 'node-1', content: 'Knowledge 1', type: 'belief' }] },
           ],
         }),
         's2': createScene('s2', {
           continuityMutations: [
-            { entityId: 'c1', addedNodes: [{ id: 'node-2', content: 'Knowledge 2', type: 'belief' }], addedEdges: [{ from: 'node-1', to: 'node-2', relation: 'caused_by' }] },
+            { entityId: 'c1', addedNodes: [{ id: 'node-2', content: 'Knowledge 2', type: 'belief' }] },
           ],
         }),
       },
@@ -183,8 +183,6 @@ describe('getStateAtIndex', () => {
     const stateAt1 = getStateAtIndex(n, ['s1', 's2'], 1);
     expect(stateAt1.liveNodeIds.has('node-1')).toBe(true);
     expect(stateAt1.liveNodeIds.has('node-2')).toBe(true);
-    expect(stateAt1.liveEdges).toHaveLength(1);
-    expect(stateAt1.liveEdges[0].relation).toBe('caused_by');
   });
 
   it('replays relationship mutations correctly', () => {
@@ -234,13 +232,13 @@ describe('getStateAtIndex', () => {
       scenes: {
         's1': createScene('s1', {
           threadMutations: [
-            { threadId: 't1', from: 'latent', to: 'active', addedNodes: [], addedEdges: [] },
+            { threadId: 't1', from: 'latent', to: 'active', addedNodes: [] },
           ],
         }),
         's2': createScene('s2', {
           threadMutations: [
-            { threadId: 't1', from: 'active', to: 'active', addedNodes: [], addedEdges: [] },
-            { threadId: 't2', from: 'latent', to: 'active', addedNodes: [], addedEdges: [] },
+            { threadId: 't1', from: 'active', to: 'active', addedNodes: [] },
+            { threadId: 't2', from: 'latent', to: 'active', addedNodes: [] },
           ],
         }),
       },
@@ -422,7 +420,7 @@ describe('sceneContext', () => {
     const scene = createScene('s1', {
       povId: 'c1',
       locationId: 'loc1',
-      threadMutations: [{ threadId: 't1', from: 'latent', to: 'active', addedNodes: [], addedEdges: [] }],
+      threadMutations: [{ threadId: 't1', from: 'latent', to: 'active', addedNodes: [] }],
     });
 
     const ctx = sceneContext(n, scene);
@@ -486,7 +484,7 @@ describe('deriveLogicRules', () => {
     const scene = createScene('s1', {
       povId: 'c1',
       locationId: 'loc1',
-      threadMutations: [{ threadId: 't1', from: 'latent', to: 'active', addedNodes: [], addedEdges: [] }],
+      threadMutations: [{ threadId: 't1', from: 'latent', to: 'active', addedNodes: [] }],
     });
 
     const rules = deriveLogicRules(n, scene);

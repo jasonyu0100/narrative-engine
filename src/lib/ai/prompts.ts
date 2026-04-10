@@ -25,27 +25,27 @@ import { THREAD_LIFECYCLE_DOC } from './context';
 // These are the values where the grading curve hits the dominance threshold (21/25).
 
 export const PROMPT_FORCE_STANDARDS = `
-THE THREE FORCES — narrative is a composition of drive, world, and system in flux.
+THE THREE FORCES — narrative is a composition of drive, world, and system in flux. These are not decorative labels: each force is computed deterministically from the mutations you emit, normalised by a reference mean, and graded on a curve that hits the dominance threshold (21/25) exactly at the reference. Under-dense arcs get graded in the 60s. Match the floor.
 
-DRIVE is the fate of threads — the unifying force that pulls world and system toward resolution.
+DRIVE is the commitment of threads — the unifying force that pulls world and system toward resolution.
   Threads compete for narrative bandwidth across arcs. The longer a thread sustains attention before resolving, the greater its contribution.
-  Drive measures what the story WANTS. Without drive, there is no fate — entities transform and systems deepen but nothing resolves.
-  Reference: ~3 per scene. Thread transitions weighted by lifecycle stage; sustained threads earn superlinearly.
+  Drive measures what the story WANTS. Without drive, entities transform and systems deepen but nothing resolves.
+  Reference mean: ~3 per scene. Thread transitions weighted by lifecycle stage; sustained threads earn superlinearly.
 
 WORLD is the inner transformation of entities — what we learn about characters, locations, and artifacts.
   Where drive measures what the story wants, world measures what the story DOES TO THE PEOPLE IN IT.
-  Every continuity node is a permanent mark on an entity's inner graph — a new trait, belief, capability, or wound.
-  Reference: ~14 per scene (~10-16 continuity nodes across 3-5 entities + connecting edges).
+  Every continuity node is a permanent mark on an entity's inner graph — a new trait, belief, capability, or wound. Nodes listed in order auto-chain into each entity's causal sequence for the scene, so ordering matters.
+  Reference mean: ~14 per scene — a typical scene deposits 12-16 continuity nodes distributed across 3-5 entities (edges auto-chain from node order, you do NOT emit continuity edges manually). Climax/discovery scenes push to 18-25+ nodes. Only the quietest breather scenes drop below 8.
 
 SYSTEM is the deepening of rules and structures — the substrate on which drive and world operate.
   A world without systems is a stage without physics. Drive cannot create meaningful resolution in a vacuum of rules.
-  Every knowledge node expands what is possible or constrains what is allowed.
-  Reference: ~5 per scene (~3-4 new world knowledge nodes + connecting edges).
+  Every knowledge node expands what is possible or constrains what is allowed. Every edge links a new rule into the world's existing scaffolding.
+  Reference mean: ~5 per scene — a typical scene reveals 3-5 world knowledge concepts with 2-4 connecting edges. Lore/revelation scenes push to 6-12. Pure interpersonal scenes can drop to 0-2 but SHOULD log any rule the prose actually teaches.
 
 Different works weight these forces differently. A Classic is drive-dominant. A Show is world-dominant. A Paper is system-dominant. An Opus balances all three.
 
 SCALE STANDARDS: Beat ~100 words | Scene ~12 beats (~1200 words) | Arc ~4 scenes (~4800 words).
-Thin mutations = low scores. REUSE existing world knowledge node IDs when reinforcing established concepts.
+DENSITY IS NOT OPTIONAL. Thin mutations = 60s grading. Mutations must be EARNED by the prose — never invented — but a scene whose prose covers a discovery, a relationship shift, and a new rule without logging 10+ continuity nodes and 3+ knowledge concepts is leaving signal on the floor. REUSE existing world knowledge node IDs when reinforcing established concepts (reuse does not count as a new node).
 `;
 
 // ── Structural Rules (Consolidated) ──────────────────────────────────────────
@@ -114,9 +114,10 @@ continuityMutations — what we LEARN about an entity that wasn't known before. 
   BAD: "Alice is curious" (observation, not new). BAD: "The White Rabbit has pink eyes" (already established).
   GOOD: "Alice abandons caution entirely, chasing the Rabbit without considering how to return" (new behaviour).
   GOOD: "The forest conceals an ancient boundary ward that repels outsiders" (new location property).
-- MAX 2-3 nodes per entity per scene. Most scenes: POV character + one other entity.
-- Entities that appear without revealing anything new: ZERO nodes.
-- addedEdges connect RELATED changes: "follows", "causes", "contradicts", "enables". Only add edges when nodes are causally linked.
+- DENSITY FLOOR: a typical scene touches 3-5 entities and lays down 10-16 continuity nodes (reference W ≈ 14). Do NOT treat this as a ceiling. Climax/turning-point scenes should push 18-25+ nodes. Quiet scenes can drop to 3-6 but should never be empty if anyone was visibly changed.
+- 2-4 nodes per entity is the normal range; a POV character in a turning-point scene can legitimately earn 4-6. Side participants get 1-3. Background cameos get 0. An entity that appears and is NOT changed earns zero nodes — do not pad.
+- The POV character alone is not enough. Every scene has multiple living entities — the antagonist shifts too, the location accumulates history, the artifact in play gains a new limitation. Scan the whole cast before returning and ask "what did this scene DO to each person and place?"
+- Node ORDER matters: list nodes in the causal/temporal sequence they occur. Adjacent nodes in the array get linked automatically as the entity's chain for this scene — no explicit edges needed.
 - Types: trait, state, history, capability, belief, relation, secret, goal, weakness.
 
 relationshipMutations — only when a relationship SHIFTS, not just exists.
@@ -127,7 +128,9 @@ worldKnowledgeMutations — REVEALED world rules, not character observations.
 - Each concept must be a genuine world SYSTEM or PRINCIPLE the prose establishes.
   BAD: "Wonderland Logic" (vague). BAD: "Alice's Adventures" (not a world rule).
   GOOD: "Anthropomorphic Animals" (genuine world feature). GOOD: "Size-Altering Substances" (actionable world system).
-- MAX 1-2 concepts per scene. Most scenes reveal 0-1 new world rules. Only world-building and exposition scenes justify 3+.
+- DENSITY FLOOR: a typical scene reveals 3-5 concepts + 2-4 connecting edges (reference S ≈ 5). REUSE existing WK node IDs when reinforcing an established concept — only NEW concepts count toward density. Exposition, lore drops, and world-building scenes should push to 6-10 concepts with rich edge structures. Quiet interpersonal scenes can drop to 0-2, but any scene where the prose actually teaches the reader a rule MUST log it.
+- Edges are high-leverage: an edge contributes √ΔE to system and connects new concepts into the existing graph. Prefer emitting a new concept WITH an edge linking it to an existing WK node over a dangling concept. Aim for ≥1 edge per 2 nodes.
+- Think at multiple levels: micro-rules (a specific spell's limitation), mid-rules (how a faction's economy works), macro-rules (a cosmological law). Most scenes touch at least one level. Don't only harvest the biggest abstractions — the mid-level mechanics are where most scenes deposit system.
 - Types: principle, system, concept, tension, event, structure, environment, convention, constraint.
 - Edges: enables, governs, opposes, extends, created_by, constrains, exist_within.
 
@@ -139,10 +142,13 @@ ownershipMutations — artifacts changing hands. Only when narratively meaningfu
 tieMutations — significant bond changes. NOT temporary visits.
 characterMovements — only characters whose location CHANGES. Vivid transitions.
 
-VARIANCE IS SIGNAL:
-- A quiet scene with 0 thread transitions, 1 continuity node, 0 knowledge, and 2 events is CORRECT if the prose is quiet.
-- A climactic scene with 2 thread transitions, 5 continuity nodes, 3 knowledge concepts, and 5 events is CORRECT if the prose is dense.
+VARIANCE IS SIGNAL — targets cluster around the reference means (drive ≈ 3, world ≈ 14, system ≈ 5) with peaks and valleys around them. Continuity edges auto-chain from node order; only world knowledge edges are emitted manually.
+- A quiet breather scene: 0 thread transitions, 3-6 continuity nodes across 2-3 entities, 0-2 knowledge concepts, 2-3 events. Below-mean on all three forces.
+- A typical progressive scene: 0-1 thread transitions (rest pulses), 12-16 continuity nodes across 3-5 entities, 3-5 world knowledge concepts with 2-3 edges, 3-4 events. On-reference.
+- A climactic or revelation scene: 1-2 thread transitions, 18-25+ continuity nodes across 4-6 entities, 5-8 world knowledge concepts with 3-5 edges, 4-6 events. Above-reference.
+- A lore/exposition scene: modest world, high system — 5-10 continuity nodes but 6-12 knowledge concepts with dense edges.
 - If every scene has similar mutation counts, you are extracting noise. The graph should have peaks and valleys.
+- If scene AVERAGES over an arc fall well below reference (avg world < 12, avg system < 4), the arc is under-dense and will grade poorly. Fix by adding nodes that are GENUINELY earned by the prose — never by inventing detail the prose doesn't support.
 `;
 
 // ── Artifact Usage ──────────────────────────────────────────────────────────
@@ -231,8 +237,8 @@ Example: "Michael Corleone sits across from Sollozzo and McCluskey at the small 
 // These are the single source of truth for mutation schemas used across
 // generation, analysis, reconstruction, and world expansion prompts.
 
-export const SCHEMA_THREAD_MUTATIONS = `"threadMutations": [{"threadId": "T-XX", "from": "status", "to": "status", "addedNodes": [{"id": "TK-XX", "content": "thread-specific: what happened to THIS thread in THIS scene (not a scene summary)", "type": "pulse|transition|setup|escalation|payoff|twist|callback|resistance|stall"}], "addedEdges": []}]`;
-export const SCHEMA_CONTINUITY_MUTATIONS = `"continuityMutations": [{"entityId": "C-XX", "addedNodes": [{"id": "K-XX", "content": "complete sentence: what the entity experienced or became", "type": "trait|state|history|capability|belief|relation|secret|goal|weakness"}], "addedEdges": [{"from": "K-XX", "to": "K-YY", "relation": "follows|causes|contradicts|enables"}]}]`;
+export const SCHEMA_THREAD_MUTATIONS = `"threadMutations": [{"threadId": "T-XX", "from": "status", "to": "status", "addedNodes": [{"id": "TK-XX", "content": "thread-specific: what happened to THIS thread in THIS scene (not a scene summary)", "type": "pulse|transition|setup|escalation|payoff|twist|callback|resistance|stall"}]}]`;
+export const SCHEMA_CONTINUITY_MUTATIONS = `"continuityMutations": [{"entityId": "C-XX", "addedNodes": [{"id": "K-XX", "content": "complete sentence: what the entity experienced or became", "type": "trait|state|history|capability|belief|relation|secret|goal|weakness"}]}]`;
 export const SCHEMA_RELATIONSHIP_MUTATIONS = `"relationshipMutations": [{"from": "C-XX", "to": "C-YY", "type": "description", "valenceDelta": 0.1}]`;
 export const SCHEMA_WORLD_KNOWLEDGE_MUTATIONS = `"worldKnowledgeMutations": {"addedNodes": [{"id": "WK-XX", "concept": "well-named world concept", "type": "principle|system|concept|tension|event|structure|environment|convention|constraint"}], "addedEdges": [{"from": "WK-XX", "to": "WK-YY", "relation": "enables|governs|opposes|extends|created_by|constrains|exist_within"}]}`;
 export const SCHEMA_ARTIFACT_USAGES = `"artifactUsages": [{"artifactId": "A-XX", "characterId": "C-XX or null for unattributed usage", "usage": "what the artifact did — how it delivered utility"}]`;

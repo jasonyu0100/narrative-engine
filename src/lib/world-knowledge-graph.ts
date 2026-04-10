@@ -87,3 +87,102 @@ export function seenEdgeKeysFromGraph(graph: WorldKnowledgeGraph | undefined): S
   for (const e of graph?.edges ?? []) seen.add(wkEdgeKey(e));
   return seen;
 }
+
+/**
+ * Normalize a WK concept string for case-insensitive identity matching.
+ * Mirrors text-analysis.ts getWkId(): lowercase + trim. Two concepts that
+ * normalize to the same key are treated as the same node.
+ */
+export function normalizeWkConcept(concept: string): string {
+  return concept.trim().toLowerCase();
+}
+
+/**
+ * Create a closure that yields unique sequential WK-XX ids starting after
+ * the max number already present in seedIds. Each call returns a fresh id
+ * and increments the internal counter — safe to use across multiple resolve
+ * passes without manually tracking which ids have been allocated.
+ */
+export function makeWkIdAllocator(seedIds: Iterable<string>): () => string {
+  let counter = 0;
+  for (const id of seedIds) {
+    const m = /^WK-(\d+)$/.exec(id);
+    if (m) {
+      const n = parseInt(m[1], 10);
+      if (!isNaN(n) && n > counter) counter = n;
+    }
+  }
+  return () => {
+    counter++;
+    return `WK-${String(counter).padStart(2, '0')}`;
+  };
+}
+
+/**
+ * Resolve LLM-proposed WK node ids against an existing graph. Collapses
+ * concepts that already exist (case-insensitive exact match) to their
+ * existing id, and collapses within-batch duplicates to a single fresh id.
+ * Mirrors text-analysis.ts getWkId() so that generation and analysis
+ * pipelines produce comparable System scores — a concept seen before (in
+ * the existing graph or earlier in this batch) does not earn a new node.
+ *
+ * Returns:
+ *   idMap   — raw id → final canonical id for every resolved input node
+ *   newNodes — only the nodes that are genuinely new and need to be added
+ *              to the graph (existing-concept and within-batch-duplicate
+ *              inputs are excluded)
+ *
+ * Callers use idMap to remap edge endpoints, then replace addedNodes with
+ * newNodes so that downstream scoring only counts truly new concepts.
+ */
+export function resolveWkConceptIds(
+  rawNodes: { id: string; concept: string; type: WorldKnowledgeNodeType }[],
+  existingNodes: Record<string, WorldKnowledgeNode>,
+  allocateFreshId: () => string,
+): {
+  idMap: Record<string, string>;
+  newNodes: { id: string; concept: string; type: WorldKnowledgeNodeType }[];
+} {
+  // Index existing graph by normalized concept. If the graph ever grows a
+  // node with the same concept under different ids (shouldn't happen post-
+  // this helper being used everywhere, but historical data might), the first
+  // one wins — stable resolution.
+  const existingByConcept = new Map<string, string>();
+  for (const node of Object.values(existingNodes)) {
+    if (!node?.concept) continue;
+    const key = normalizeWkConcept(node.concept);
+    if (!existingByConcept.has(key)) existingByConcept.set(key, node.id);
+  }
+
+  const idMap: Record<string, string> = {};
+  const newNodes: { id: string; concept: string; type: WorldKnowledgeNodeType }[] = [];
+  const batchByConcept = new Map<string, string>();
+
+  for (const raw of rawNodes) {
+    if (!raw?.id || !raw.concept || !raw.type) continue;
+    const key = normalizeWkConcept(raw.concept);
+    if (!key) continue;
+
+    // 1. Existing graph wins — re-mentioned concepts collapse to their id.
+    const existingId = existingByConcept.get(key);
+    if (existingId) {
+      idMap[raw.id] = existingId;
+      continue;
+    }
+
+    // 2. Earlier-in-batch occurrence wins — within-batch duplicates collapse.
+    const batchId = batchByConcept.get(key);
+    if (batchId) {
+      idMap[raw.id] = batchId;
+      continue;
+    }
+
+    // 3. Genuinely new concept — allocate a fresh id.
+    const freshId = allocateFreshId();
+    idMap[raw.id] = freshId;
+    batchByConcept.set(key, freshId);
+    newNodes.push({ id: freshId, concept: raw.concept, type: raw.type });
+  }
+
+  return { idMap, newNodes };
+}

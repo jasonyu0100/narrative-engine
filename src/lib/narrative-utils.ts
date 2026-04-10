@@ -572,8 +572,11 @@ function computeRawDrive(scene: Scene, activeArcsMap: Record<string, number> = {
  *  System measures what we learn about the WORLD's rules, World measures
  *  what we learn about ENTITIES (characters, locations, artifacts). */
 function rawWorld(scene: Scene): number {
+  // Nodes contribute linearly; edges are derived from chain-by-order (one
+  // per pair of adjacent new nodes), so per mutation the edge count is
+  // max(0, nodes - 1).
   const contNodes = scene.continuityMutations.reduce((sum, km) => sum + (km.addedNodes?.length ?? 0), 0);
-  const contEdges = scene.continuityMutations.reduce((sum, km) => sum + (km.addedEdges?.length ?? 0), 0);
+  const contEdges = scene.continuityMutations.reduce((sum, km) => sum + Math.max(0, (km.addedNodes?.length ?? 0) - 1), 0);
   return contNodes + Math.sqrt(contEdges);
 }
 

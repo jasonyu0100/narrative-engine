@@ -1,10 +1,11 @@
 /**
  * Continuity graph utilities — mutation application.
  *
- * Mirrors the thread log model: each mutation represents one scene's
- * contribution for an entity. Nodes added by a single mutation chain together
- * sequentially via 'co_occurs'. No edges are created across mutations/scenes —
- * each scene's contribution is a self-contained cluster.
+ * Mirrors thread-log.ts: each continuityMutation represents one commit's
+ * contribution (a world build or a scene) for a single entity. New nodes
+ * chain sequentially in the order they appear via 'co_occurs' — no edges
+ * are created across mutations and LLM-emitted addedEdges are ignored.
+ * Node order alone defines the linkage.
  */
 
 import type { Continuity, ContinuityMutation } from '@/types/narrative';
@@ -14,8 +15,7 @@ export const EMPTY_CONTINUITY: Continuity = { nodes: {}, edges: [] };
 
 /**
  * Apply one additive continuity mutation, returning a new graph.
- * New nodes are added and chained sequentially via 'co_occurs'. Any explicit
- * edges from the mutation are filtered for self-loops, orphans, and duplicates.
+ * New nodes are added in order and chained sequentially via 'co_occurs'.
  */
 export function applyContinuityMutation(graph: Continuity, mutation: ContinuityMutation): Continuity {
   const nodes = { ...(graph.nodes ?? {}) };
@@ -30,19 +30,9 @@ export function applyContinuityMutation(graph: Continuity, mutation: ContinuityM
     }
   }
 
-  // Chain new nodes sequentially within this mutation — no cross-scene link.
+  // Chain new nodes sequentially within this mutation — no cross-commit link.
   for (let i = 1; i < newNodeIds.length; i++) {
     edges.push({ from: newNodeIds[i - 1], to: newNodeIds[i], relation: 'co_occurs' });
-  }
-
-  // Explicit edges from the mutation — filter self-loops, orphans, duplicates.
-  for (const e of mutation.addedEdges ?? []) {
-    if (!e.from || !e.to || !e.relation) continue;
-    if (e.from === e.to) continue;
-    if (!nodes[e.from] || !nodes[e.to]) continue;
-    if (!edges.some(x => x.from === e.from && x.to === e.to && x.relation === e.relation)) {
-      edges.push({ from: e.from, to: e.to, relation: e.relation });
-    }
   }
 
   return { nodes, edges };

@@ -1099,17 +1099,16 @@ export async function assembleNarrative(
             from: tm.from,
             to: tm.to,
             addedNodes,
-            addedEdges: [],
           };
         }),
         continuityMutations: (s.continuityMutations ?? []).map((km) => {
           const entityId = getEntityId(km.entityName);
-          // Assign IDs to nodes
+          // Assign IDs in the order the LLM listed nodes — applyContinuityMutation
+          // chains them sequentially via co_occurs during store replay.
           const nodes = (km.addedNodes ?? []).map((n) => ({
             id: nextKId(), content: n.content, type: (n.type || 'trait') as ContinuityNodeType,
           }));
-          // Edges are created deterministically by applyContinuityMutation during store replay
-          return { entityId, addedNodes: nodes, addedEdges: [] };
+          return { entityId, addedNodes: nodes };
         }),
         relationshipMutations: (s.relationshipMutations ?? []).map((rm) => ({
           from: getCharId(rm.from),

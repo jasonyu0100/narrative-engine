@@ -57,7 +57,7 @@ function createScene(id: string, threadMutations: Array<{ threadId: string; from
     participantIds: ['c1'],
     summary: `Scene ${id} summary`,
     events: ['event_1'],
-    threadMutations: threadMutations.map((tm) => ({ threadId: tm.threadId, from: tm.from, to: tm.to, addedNodes: [], addedEdges: [] })),
+    threadMutations: threadMutations.map((tm) => ({ threadId: tm.threadId, from: tm.from, to: tm.to, addedNodes: [] })),
     continuityMutations: [],
     relationshipMutations: [],
     ...overrides,
