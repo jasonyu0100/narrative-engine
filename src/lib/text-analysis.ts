@@ -987,6 +987,8 @@ export async function assembleNarrative(
   const artifactFirstChunk = new Map<string, number>();
   const chunkFirstSceneId = new Map<number, string>(); // chunkIdx → first scene id
   const allOrderedSceneIds: string[] = []; // flat ordered list for arc group assignment
+  const seenWkNodeIds = new Set<string>(); // track knowledge nodes already added by prior scenes
+  const seenWkEdgeKeys = new Set<string>(); // track knowledge edges already added (from→to→relation)
 
   for (let chunkIdx = 0; chunkIdx < results.length; chunkIdx++) {
     const ch = results[chunkIdx];
@@ -1201,16 +1203,32 @@ export async function assembleNarrative(
         worldKnowledgeMutations: (() => {
           const wkm = s.worldKnowledgeMutations;
           if (!wkm) return undefined;
-          const addedNodes = (wkm.addedNodes ?? []).map((n) => ({
-            id: getWkId(n.concept),
-            concept: n.concept,
-            type: (['principle', 'system', 'concept', 'tension', 'event', 'structure', 'environment', 'convention', 'constraint'].includes(n.type) ? n.type : 'concept') as WorldKnowledgeNodeType,
-          }));
-          const addedEdges = (wkm.addedEdges ?? []).map((e) => ({
-            from: getWkId(e.fromConcept),
-            to: getWkId(e.toConcept),
-            relation: e.relation,
-          }));
+          // Only add nodes not already seen in prior scenes
+          const addedNodes = (wkm.addedNodes ?? [])
+            .filter((n) => !seenWkNodeIds.has(getWkId(n.concept)))
+            .map((n) => {
+              const id = getWkId(n.concept);
+              seenWkNodeIds.add(id);
+              return {
+                id,
+                concept: n.concept,
+                type: (['principle', 'system', 'concept', 'tension', 'event', 'structure', 'environment', 'convention', 'constraint'].includes(n.type) ? n.type : 'concept') as WorldKnowledgeNodeType,
+              };
+            });
+          const addedEdges = (wkm.addedEdges ?? [])
+            .map((e) => ({
+              from: getWkId(e.fromConcept),
+              to: getWkId(e.toConcept),
+              relation: e.relation,
+            }))
+            // Filter self-loops and cross-scene duplicates
+            .filter((e) => {
+              if (e.from === e.to) return false;
+              const key = `${e.from}→${e.to}→${e.relation}`;
+              if (seenWkEdgeKeys.has(key)) return false;
+              seenWkEdgeKeys.add(key);
+              return true;
+            });
           if (addedNodes.length === 0 && addedEdges.length === 0) return undefined;
           return { addedNodes, addedEdges };
         })(),

@@ -349,6 +349,7 @@ ${buildCompletedBeatsPrompt(narrative, resolvedKeys, currentIndex)}`;
   const wkIds = nextIds('WK', existingWKIds, totalWKNodes);
   let wkIdx = 0;
   const wkIdMap: Record<string, string> = {}; // maps GEN ids to real ids
+  const seenWkEdgeKeys = new Set<string>(); // track edges already added (from→to→relation)
   for (const scene of scenes) {
     if (!scene.worldKnowledgeMutations) {
       scene.worldKnowledgeMutations = { addedNodes: [], addedEdges: [] };
@@ -369,7 +370,15 @@ ${buildCompletedBeatsPrompt(narrative, resolvedKeys, currentIndex)}`;
         to: wkIdMap[edge.to] ?? edge.to,
         relation: edge.relation,
       }))
-      .filter((edge) => validWKIds.has(edge.from) && validWKIds.has(edge.to));
+      .filter((edge) => {
+        if (!validWKIds.has(edge.from) || !validWKIds.has(edge.to)) return false;
+        // Filter self-loops and cross-scene duplicates
+        if (edge.from === edge.to) return false;
+        const key = `${edge.from}→${edge.to}→${edge.relation}`;
+        if (seenWkEdgeKeys.has(key)) return false;
+        seenWkEdgeKeys.add(key);
+        return true;
+      });
   }
 
   const newSceneIds = scenes.map((s) => s.id);
@@ -2126,7 +2135,7 @@ export async function generateArcStepwise(
       const validWKIds = new Set([...existingWKIds, ...Object.values(wkIdMap)]);
       wkm.addedEdges = wkm.addedEdges
         .map((e) => ({ from: wkIdMap[e.from] ?? e.from, to: wkIdMap[e.to] ?? e.to, relation: e.relation }))
-        .filter((e) => validWKIds.has(e.from) && validWKIds.has(e.to));
+        .filter((e) => validWKIds.has(e.from) && validWKIds.has(e.to) && e.from !== e.to);
     }
 
     allScenes.push(scene);
