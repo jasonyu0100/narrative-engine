@@ -5,7 +5,7 @@ import {
   scoreScene,
   extractOrderedScenes,
 } from '@/lib/mcts-state';
-import type { NarrativeState, Scene, Arc, Thread, Character, ContinuityMutation, RelationshipMutation, LogMutation } from '@/types/narrative';
+import type { NarrativeState, Scene, Arc, Thread, Character, ContinuityMutation, RelationshipMutation, ThreadMutation } from '@/types/narrative';
 
 // ── Test Fixtures ────────────────────────────────────────────────────────────
 
@@ -192,7 +192,7 @@ describe('buildVirtualState', () => {
     const rootNarrative = createMinimalNarrative();
     rootNarrative.threads['T-01'] = createThread('T-01');
 
-    const threadMutation: LogMutation = { threadId: 'T-01', from: 'latent', to: 'active', addedNodes: [] };
+    const threadMutation: ThreadMutation = { threadId: 'T-01', from: 'latent', to: 'active', addedNodes: [] };
     const scene = createScene('S-001', { threadMutations: [threadMutation] });
     const arc = createArc('ARC-01', ['S-001']);
 

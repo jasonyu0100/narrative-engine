@@ -129,6 +129,10 @@ export function usePlanningQueue() {
             worldKnowledgeMutations: expansion.worldKnowledgeMutations,
             artifacts: expansion.artifacts,
             branchId: bid,
+            ownershipMutations: expansion.ownershipMutations,
+            tieMutations: expansion.tieMutations,
+            continuityMutations: expansion.continuityMutations,
+            relationshipMutations: expansion.relationshipMutations,
           });
         }
 

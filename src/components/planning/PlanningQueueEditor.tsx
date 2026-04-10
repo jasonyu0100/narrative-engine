@@ -139,6 +139,10 @@ export function PlanningQueueEditor({ onClose, onStartAuto }: Props) {
           threads: expansion.threads, relationships: expansion.relationships,
           worldKnowledgeMutations: expansion.worldKnowledgeMutations,
           artifacts: expansion.artifacts, branchId,
+          ownershipMutations: expansion.ownershipMutations,
+          tieMutations: expansion.tieMutations,
+          continuityMutations: expansion.continuityMutations,
+          relationshipMutations: expansion.relationshipMutations,
         });
         const baseSettings = { ...DEFAULT_STORY_SETTINGS, ...narrative.storySettings };
         dispatch({ type: 'SET_STORY_SETTINGS', settings: { ...baseSettings, worldFocus: 'latest' } });
@@ -219,6 +223,10 @@ export function PlanningQueueEditor({ onClose, onStartAuto }: Props) {
           characters: expansion.characters, locations: expansion.locations, threads: expansion.threads,
           relationships: expansion.relationships, worldKnowledgeMutations: expansion.worldKnowledgeMutations,
           artifacts: expansion.artifacts, branchId,
+          ownershipMutations: expansion.ownershipMutations,
+          tieMutations: expansion.tieMutations,
+          continuityMutations: expansion.continuityMutations,
+          relationshipMutations: expansion.relationshipMutations,
         });
       }
 

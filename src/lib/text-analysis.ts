@@ -151,7 +151,7 @@ Return JSON:
   "artifacts": [{"name": "Artifact Name", "significance": "key|notable|minor", "imagePrompt": "1-2 sentence LITERAL visual description — concrete physical details only, no metaphors or figurative language", "ownerName": "owner or null"}],
   "threads": [{"description": "narrative tension", "participantNames": ["names"], "statusAtStart": "status", "statusAtEnd": "status", "development": "how it developed"}],
   "relationships": [{"from": "Name", "to": "Name", "type": "description", "valence": 0.0}],
-  "threadMutations": [{"threadDescription": "exact thread description", "from": "status", "to": "status", "addedNodes": [{"content": "thread-specific: what happened to THIS thread in this scene", "type": "pulse|transition|setup|escalation|payoff|twist|callback|resistance|stall"}]}],
+  "threadMutations": [{"threadDescription": "exact thread description", "from": "latent|seeded|active|critical|resolved|subverted|abandoned", "to": "latent|seeded|active|critical|resolved|subverted|abandoned", "addedNodes": [{"content": "thread-specific: what happened to THIS thread in this scene", "type": "pulse|transition|setup|escalation|payoff|twist|callback|resistance|stall"}]}],
   "continuityMutations": [{"entityName": "Name", "addedNodes": [{"content": "what", "type": "trait|state|history|capability|belief|relation|secret|goal|weakness"}]}],
   "relationshipMutations": [{"from": "Name", "to": "Name", "type": "description", "valenceDelta": 0.1}],
   "artifactUsages": [{"artifactName": "Name", "characterName": "who or null", "usage": "what the artifact did"}],
@@ -1084,7 +1084,14 @@ export async function assembleNarrative(
         participantIds,
         events: s.events ?? [],
         threadMutations: (s.threadMutations ?? []).map((tm) => {
-          const fallbackType: ThreadLogNodeType = tm.from === tm.to ? 'pulse' : 'transition';
+          // Coerce invalid from/to statuses — extraction sometimes returns
+          // log node type vocabulary (e.g. "pulse") in the status fields.
+          // Anything outside the lifecycle vocabulary collapses to a
+          // status-hold so the thread's stored phase can't be polluted.
+          const validStatuses = new Set<string>([...THREAD_ACTIVE_STATUSES, ...THREAD_TERMINAL_STATUSES, 'abandoned']);
+          const safeFrom = validStatuses.has(tm.from) ? tm.from : 'latent';
+          const safeTo = validStatuses.has(tm.to) ? tm.to : safeFrom;
+          const fallbackType: ThreadLogNodeType = safeFrom === safeTo ? 'pulse' : 'transition';
           // Assign IDs to log nodes. Chain edges are created deterministically
           // by applyThreadMutation during store replay — same as continuity.
           const addedNodes = (tm.addedNodes ?? [])
@@ -1101,16 +1108,16 @@ export async function assembleNarrative(
             const desc = tm.threadDescription || 'thread';
             addedNodes.push({
               id: nextTkId(),
-              content: tm.from === tm.to
-                ? `Thread "${desc}" held ${tm.to} without transition`
-                : `Thread "${desc}" advanced from ${tm.from} to ${tm.to}`,
+              content: safeFrom === safeTo
+                ? `Thread "${desc}" held ${safeTo} without transition`
+                : `Thread "${desc}" advanced from ${safeFrom} to ${safeTo}`,
               type: fallbackType,
             });
           }
           return {
             threadId: getThreadId(tm.threadDescription),
-            from: tm.from,
-            to: tm.to,
+            from: safeFrom,
+            to: safeTo,
             addedNodes,
           };
         }),
@@ -1393,7 +1400,7 @@ export async function assembleNarrative(
         locations: newLocIds.map((id) => locations[id]).filter(Boolean),
         threads: newThreadIds.map((id) => threads[id]).filter(Boolean),
         relationships: [],
-        worldKnowledge: { addedNodes: [], addedEdges: [] },
+        worldKnowledgeMutations: { addedNodes: [], addedEdges: [] },
         artifacts: newArtifactIds.map((id) => artifactEntities[id]).filter(Boolean),
       },
     };

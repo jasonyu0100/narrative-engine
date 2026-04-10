@@ -26,7 +26,7 @@ function createWorldBuild(
       threads: threads.map((t) => ({ id: t.id, description: `Thread ${t.id}`, status: 'latent' as const, participants: [], dependents: [], openedAt: 'S-001', threadLog: { nodes: {}, edges: [] } })),
       artifacts: artifacts.map((a) => ({ id: a.id, name: `Artifact ${a.id}`, significance: 'key' as const, parentId: 'C-01', continuity: { nodes: {}, edges: [] }, threadIds: [] })),
       relationships: [],
-      worldKnowledge: { addedNodes: [], addedEdges: [] },
+      worldKnowledgeMutations: { addedNodes: [], addedEdges: [] },
     },
   };
 }

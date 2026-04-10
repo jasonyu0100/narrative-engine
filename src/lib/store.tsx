@@ -82,7 +82,7 @@ function computeDerivedEntities(
         }
       }
       // Collect world knowledge
-      applyWkMutation(wb.expansionManifest.worldKnowledge ?? { addedNodes: [], addedEdges: [] });
+      applyWkMutation(wb.expansionManifest.worldKnowledgeMutations ?? { addedNodes: [], addedEdges: [] });
       // Apply expansion mutations on existing entities
       for (const km of wb.expansionManifest.continuityMutations ?? []) {
         const char = characters[km.entityId];
@@ -576,7 +576,7 @@ function reducer(state: AppState, action: Action): AppState {
             locations: allLocs,
             threads: allThreads,
             relationships: n.relationships,
-            worldKnowledge: {
+            worldKnowledgeMutations: {
               addedNodes: Object.values(n.worldKnowledge?.nodes ?? {}).map((node) => ({ id: node.id, concept: node.concept, type: node.type })),
               addedEdges: (n.worldKnowledge?.edges ?? []).map((edge) => ({ from: edge.from, to: edge.to, relation: edge.relation })),
             },
@@ -1183,7 +1183,7 @@ function reducer(state: AppState, action: Action): AppState {
           locations: action.locations,
           threads: action.threads.map((t) => ({ ...t, openedAt: worldBuildId })),
           relationships: action.relationships,
-          worldKnowledge: manifestWK,
+          worldKnowledgeMutations: manifestWK,
           artifacts: action.artifacts ?? [],
           ownershipMutations: action.ownershipMutations,
           tieMutations: action.tieMutations,

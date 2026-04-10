@@ -903,7 +903,7 @@ describe('computeWorldMetrics', () => {
             threads: [],
             artifacts: [],
             relationships: [],
-            worldKnowledge: { addedNodes: [], addedEdges: [] },
+            worldKnowledgeMutations: { addedNodes: [], addedEdges: [] },
           },
         },
       };

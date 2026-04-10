@@ -1,7 +1,7 @@
 /**
  * Thread log utilities — mutation application.
  *
- * Mirrors continuity-graph.ts: each threadMutation represents one scene's
+ * Mirrors continuity-graph.ts: each ThreadMutation represents one scene's
  * contribution to a thread's log. New nodes chain sequentially in the order
  * they appear via 'co_occurs' — no edges are created across mutations and
  * LLM-emitted addedEdges are ignored. Node order alone defines the linkage.
@@ -13,7 +13,7 @@ import type { ThreadLog, ThreadMutation } from '@/types/narrative';
 export const EMPTY_THREAD_LOG: ThreadLog = { nodes: {}, edges: [] };
 
 /**
- * Apply one thread mutation, returning a new log.
+ * Apply one log mutation, returning a new log.
  * New nodes are added in order and chained sequentially via 'co_occurs'.
  */
 export function applyThreadMutation(log: ThreadLog, mutation: ThreadMutation): ThreadLog {

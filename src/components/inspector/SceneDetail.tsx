@@ -32,6 +32,18 @@ export default function SceneDetail({ sceneId }: Props) {
   // ── World Build Commit view ─────────────────────────────────────────────
   if (entry.kind === 'world_build') {
     const m = entry.expansionManifest;
+    const totalContinuityNodes = (m.continuityMutations ?? []).reduce((acc, cm) => acc + (cm.addedNodes?.length ?? 0), 0);
+    const isEmpty =
+      m.characters.length === 0 &&
+      m.locations.length === 0 &&
+      m.threads.length === 0 &&
+      (m.artifacts?.length ?? 0) === 0 &&
+      (m.relationships?.length ?? 0) === 0 &&
+      (m.worldKnowledgeMutations?.addedNodes?.length ?? 0) === 0 &&
+      (m.continuityMutations?.length ?? 0) === 0 &&
+      (m.relationshipMutations?.length ?? 0) === 0 &&
+      (m.ownershipMutations?.length ?? 0) === 0 &&
+      (m.tieMutations?.length ?? 0) === 0;
     return (
       <div className="flex flex-col gap-4">
         <div className="flex items-baseline gap-2">
@@ -44,8 +56,8 @@ export default function SceneDetail({ sceneId }: Props) {
         <p className="text-xs text-text-secondary leading-relaxed">{entry.summary || 'No summary available.'}</p>
 
         <div className="flex flex-col gap-1.5">
-          {m.characters.length === 0 && m.locations.length === 0 && m.threads.length === 0 && (m.artifacts?.length ?? 0) === 0 && (m.relationships?.length ?? 0) === 0 && (m.worldKnowledge?.addedNodes?.length ?? 0) === 0 && (
-            <p className="text-[10px] text-text-dim italic">This expansion updated existing entities (continuity, relationships, or artifact lore).</p>
+          {isEmpty && (
+            <p className="text-[10px] text-text-dim italic">This expansion added nothing new.</p>
           )}
           {m.characters.length > 0 && (
             <div className="flex flex-col gap-1">
@@ -135,11 +147,11 @@ export default function SceneDetail({ sceneId }: Props) {
               </div>
             </div>
           )}
-          {(m.worldKnowledge?.addedNodes?.length ?? 0) > 0 && (
+          {(m.worldKnowledgeMutations?.addedNodes?.length ?? 0) > 0 && (
             <div className="flex flex-col gap-1">
               <h3 className="text-[10px] uppercase tracking-widest text-text-dim">World Knowledge</h3>
               <div className="flex flex-wrap gap-1.5">
-                {m.worldKnowledge.addedNodes.map((node) => (
+                {m.worldKnowledgeMutations!.addedNodes.map((node) => (
                   <button
                     key={node.id}
                     type="button"
@@ -150,6 +162,97 @@ export default function SceneDetail({ sceneId }: Props) {
                     <span className="text-text-dim ml-1">({node.type})</span>
                   </button>
                 ))}
+              </div>
+            </div>
+          )}
+          {(m.continuityMutations?.length ?? 0) > 0 && (
+            <div className="flex flex-col gap-1">
+              <h3 className="text-[10px] uppercase tracking-widest text-text-dim">Continuity ({totalContinuityNodes})</h3>
+              <div className="flex flex-col gap-0.5">
+                {m.continuityMutations!.map((cm, i) => {
+                  const char = narrative.characters[cm.entityId];
+                  const loc = narrative.locations[cm.entityId];
+                  const art = narrative.artifacts?.[cm.entityId];
+                  const name = char?.name ?? loc?.name ?? art?.name ?? cm.entityId;
+                  const kind = char ? 'character' : loc ? 'location' : art ? 'artifact' : null;
+                  return (
+                    <button
+                      key={`${cm.entityId}-${i}`}
+                      type="button"
+                      disabled={!kind}
+                      onClick={() => {
+                        if (kind === 'character') dispatch({ type: 'SET_INSPECTOR', context: { type: 'character', characterId: cm.entityId } });
+                        else if (kind === 'location') dispatch({ type: 'SET_INSPECTOR', context: { type: 'location', locationId: cm.entityId } });
+                        else if (kind === 'artifact') dispatch({ type: 'SET_INSPECTOR', context: { type: 'artifact', artifactId: cm.entityId } });
+                      }}
+                      className="text-left text-[10px] text-text-secondary hover:text-text-primary transition-colors disabled:opacity-60"
+                    >
+                      <span className="font-mono text-text-dim mr-1">{cm.entityId}</span>
+                      {name}
+                      <span className="text-text-dim ml-1">+{cm.addedNodes?.length ?? 0} node{(cm.addedNodes?.length ?? 0) === 1 ? '' : 's'}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+          {(m.relationshipMutations?.length ?? 0) > 0 && (
+            <div className="flex flex-col gap-1">
+              <h3 className="text-[10px] uppercase tracking-widest text-text-dim">Relationship Shifts</h3>
+              <div className="flex flex-col gap-0.5">
+                {m.relationshipMutations!.map((rm, i) => {
+                  const from = narrative.characters[rm.from]?.name ?? rm.from;
+                  const to = narrative.characters[rm.to]?.name ?? rm.to;
+                  const sign = rm.valenceDelta > 0 ? '+' : '';
+                  return (
+                    <div key={`${rm.from}-${rm.to}-${i}`} className="text-[10px] text-text-secondary">
+                      <span className="text-text-primary">{from}</span>
+                      <span className="text-text-dim mx-1">&rarr;</span>
+                      <span className="text-text-primary">{to}</span>
+                      <span className="text-text-dim ml-1">{rm.type}</span>
+                      <span className="text-drive ml-1">({sign}{rm.valenceDelta.toFixed(2)})</span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+          {(m.ownershipMutations?.length ?? 0) > 0 && (
+            <div className="flex flex-col gap-1">
+              <h3 className="text-[10px] uppercase tracking-widest text-text-dim">Ownership</h3>
+              <div className="flex flex-col gap-0.5">
+                {m.ownershipMutations!.map((om, i) => {
+                  const art = narrative.artifacts?.[om.artifactId];
+                  const fromName = narrative.characters[om.fromId]?.name ?? narrative.locations[om.fromId]?.name ?? om.fromId;
+                  const toName = narrative.characters[om.toId]?.name ?? narrative.locations[om.toId]?.name ?? om.toId;
+                  return (
+                    <div key={`${om.artifactId}-${i}`} className="text-[10px] text-text-secondary">
+                      <span className="text-text-primary">{art?.name ?? om.artifactId}</span>
+                      <span className="text-text-dim mx-1">:</span>
+                      <span>{fromName}</span>
+                      <span className="text-text-dim mx-1">&rarr;</span>
+                      <span>{toName}</span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+          {(m.tieMutations?.length ?? 0) > 0 && (
+            <div className="flex flex-col gap-1">
+              <h3 className="text-[10px] uppercase tracking-widest text-text-dim">Ties</h3>
+              <div className="flex flex-col gap-0.5">
+                {m.tieMutations!.map((tm, i) => {
+                  const loc = narrative.locations[tm.locationId];
+                  const char = narrative.characters[tm.characterId];
+                  return (
+                    <div key={`${tm.locationId}-${tm.characterId}-${i}`} className="text-[10px] text-text-secondary">
+                      <span className="text-text-primary">{char?.name ?? tm.characterId}</span>
+                      <span className="text-text-dim mx-1">{tm.action === 'add' ? 'joined' : 'left'}</span>
+                      <span className="text-text-primary">{loc?.name ?? tm.locationId}</span>
+                    </div>
+                  );
+                })}
               </div>
             </div>
           )}

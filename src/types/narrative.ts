@@ -187,7 +187,12 @@ export type TieMutation = {
 // ── Scene & Arc ─────────────────────────────────────────────────────────────
 /** Parallels ContinuityMutation. `from`/`to` record the status transition;
  *  `addedNodes` lists log entries in order. applyThreadMutation chains them
- *  sequentially via 'co_occurs' edges — node order alone defines the linkage. */
+ *  sequentially via 'co_occurs' edges — node order alone defines the linkage.
+ *  A scene-level thread mutation genuinely mutates the thread: `from`/`to`
+ *  advance its lifecycle status, and `addedNodes` are the log entries that
+ *  record what happened. The two behaviours are coupled — you cannot advance
+ *  a thread without logging why, and every log entry lives inside a
+ *  transition record. */
 export type ThreadMutation = {
   threadId: string;
   from: string;
@@ -524,11 +529,11 @@ export const NARRATIVE_CUBE: Record<CubeCornerKey, CubeCorner> = {
 export type ExpansionManifest = {
   characters: Character[];
   locations: Location[];
+  artifacts?: Artifact[];
   threads: Thread[];
   relationships: RelationshipEdge[];
-  worldKnowledge: WorldKnowledgeMutation;
-  artifacts?: Artifact[];
   /** Mutations on existing entities — same as scene-level mutations but applied at world-build time */
+  worldKnowledgeMutations: WorldKnowledgeMutation;
   ownershipMutations?: OwnershipMutation[];
   tieMutations?: TieMutation[];
   continuityMutations?: ContinuityMutation[];

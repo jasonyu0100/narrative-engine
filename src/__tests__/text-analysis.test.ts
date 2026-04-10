@@ -1487,13 +1487,13 @@ describe('assembleNarrative', () => {
       ...createMockAnalysisResult(0),
       characters: [{ name: 'Alice', role: 'anchor', firstAppearance: true }],
       locations: [{ name: 'Castle', parentName: null, description: 'A castle' }],
-      threads: [{ description: 'The Quest', participantNames: ['Alice'], statusAtStart: 'dormant', statusAtEnd: 'active', development: '' }],
+      threads: [{ description: 'The Quest', participantNames: ['Alice'], statusAtStart: 'latent', statusAtEnd: 'active', development: '' }],
       scenes: [{
         locationName: 'Castle', povName: 'Alice', participantNames: ['Alice'],
         events: [], summary: 'Alice sets off', sections: [0],
         threadMutations: [
           // LLM-returned extraction with no log entries — should be synthesized.
-          { threadDescription: 'The Quest', from: 'dormant', to: 'active', addedNodes: [] },
+          { threadDescription: 'The Quest', from: 'latent', to: 'active', addedNodes: [] },
         ],
         continuityMutations: [],
         relationshipMutations: [],
@@ -1507,10 +1507,44 @@ describe('assembleNarrative', () => {
     const tm = scene.threadMutations[0];
     expect(tm.addedNodes).toHaveLength(1);
     // Synthesized from the from→to status change.
-    expect(tm.addedNodes![0].content).toMatch(/advanced from dormant to active/);
+    expect(tm.addedNodes![0].content).toMatch(/advanced from latent to active/);
     expect(tm.addedNodes![0].type).toBe('transition');
     // Must be a real TK-* ID from the allocator, not a placeholder.
     expect(tm.addedNodes![0].id).toMatch(/^TK-/);
+  });
+
+  it('coerces invalid status values (e.g. "pulse") in analysis extraction to a status-hold', async () => {
+    // The LLM sometimes confuses the log type "pulse" with a status value
+    // and emits something like "from": "pulse", "to": "active". The mapper
+    // must coerce both fields to valid lifecycle statuses so the thread's
+    // stored status doesn't get polluted.
+    const results: AnalysisChunkResult[] = [{
+      ...createMockAnalysisResult(0),
+      characters: [{ name: 'Alice', role: 'anchor', firstAppearance: true }],
+      locations: [{ name: 'Castle', parentName: null, description: 'A castle' }],
+      threads: [{ description: 'The Quest', participantNames: ['Alice'], statusAtStart: 'latent', statusAtEnd: 'active', development: '' }],
+      scenes: [{
+        locationName: 'Castle', povName: 'Alice', participantNames: ['Alice'],
+        events: [], summary: 'Alice', sections: [0],
+        threadMutations: [
+          // Invalid: "pulse" is a log node type, never a status.
+          { threadDescription: 'The Quest', from: 'pulse', to: 'active', addedNodes: [] },
+        ],
+        continuityMutations: [],
+        relationshipMutations: [],
+      }],
+    }];
+
+    const narrative = await assembleNarrative('Test', results, {});
+    const scene = Object.values(narrative.scenes)[0];
+    const tm = scene.threadMutations[0];
+    // "pulse" coerces to "latent" (the safeFrom default), then "active"
+    // remains valid — but the synthesized fallback message reflects the
+    // coerced statuses, not the invalid input.
+    expect(tm.from).toBe('latent');
+    expect(tm.to).toBe('active');
+    expect(tm.addedNodes![0].content).toMatch(/advanced from latent to active/);
+    expect(tm.addedNodes![0].type).toBe('transition');
   });
 
   it('synthesizes pulse fallback when from === to and LLM omits addedNodes', async () => {

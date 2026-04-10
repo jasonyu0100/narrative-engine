@@ -1179,13 +1179,13 @@ Third beat prose.
 
 // ── Thread Log (TK) ID Handling ──────────────────────────────────────────────
 // These tests lock in the fix for the bug where the LLM emits TK-GEN-0 in
-// every scene of a stepwise arc and applyLogMutation's duplicate-id guard
+// every scene of a stepwise arc and applyThreadMutation's duplicate-id guard
 // silently drops every log entry after the first scene for each thread.
 
 describe('generateScenes — thread log TK ID remap', () => {
   it('assigns globally unique TK-* IDs when LLM re-uses GEN placeholders across scenes', async () => {
     // LLM emits TK-GEN-1 and TK-GEN-2 in BOTH scenes for the same thread —
-    // without a remap, applyLogMutation would silently drop scene 2's
+    // without a remap, applyThreadMutation would silently drop scene 2's
     // contribution during store replay.
     const mockResponse = JSON.stringify({
       arcName: 'Test Arc',
@@ -1266,6 +1266,45 @@ describe('generateScenes — thread log TK ID remap', () => {
     expect(t2.addedNodes).toHaveLength(1);
     expect(t2.addedNodes![0].content).toMatch(/held active without transition/);
     expect(t2.addedNodes![0].type).toBe('pulse');
+  });
+
+  it('coerces invalid status values (e.g. "pulse") in from/to fields', async () => {
+    // The LLM sometimes confuses the log node type "pulse" with a status
+    // value and emits something like "from": "pulse", "to": "active".
+    // The sanitizer must coerce both fields to valid lifecycle statuses
+    // so the thread's stored status can't be polluted.
+    const mockResponse = JSON.stringify({
+      arcName: 'Test Arc',
+      scenes: [
+        {
+          id: 'S-GEN-001', arcId: 'ARC-01', locationId: 'L-01', povId: 'C-01',
+          participantIds: ['C-01'], events: [],
+          threadMutations: [
+            // Invalid: "pulse" is a log node type, never a status.
+            { threadId: 'T-01', from: 'pulse', to: 'active', addedNodes: [] },
+            // Valid pulse pattern: same→same status with a pulse log entry.
+            { threadId: 'T-02', from: 'active', to: 'active', addedNodes: [{ id: 'TK-GEN-001', content: 'real pulse', type: 'pulse' }] },
+          ],
+          continuityMutations: [], relationshipMutations: [],
+          summary: 'Scene',
+        },
+      ],
+    });
+    vi.mocked(callGenerate).mockResolvedValue(mockResponse);
+
+    const narrative = createMinimalNarrative();
+    const result = await generateScenes(narrative, [], 0, 1, 'Test');
+
+    const tms = result.scenes[0].threadMutations;
+    // First mutation: "pulse" was coerced to T-01's current status ("active").
+    // T-01 in the minimal narrative is created with status "active".
+    expect(tms[0].from).toBe('active');
+    expect(tms[0].to).toBe('active');
+    // Second mutation passes through unchanged.
+    expect(tms[1].from).toBe('active');
+    expect(tms[1].to).toBe('active');
+    expect(tms[1].addedNodes![0].content).toBe('real pulse');
+    expect(tms[1].addedNodes![0].type).toBe('pulse');
   });
 
   it('synthesized fallback nodes are assigned unique TK-* IDs like any other', async () => {
@@ -1359,7 +1398,7 @@ describe('generateArcStepwise — thread log TK ID remap', () => {
     // LLM emitted 2 nodes per scene × 4 scenes = 8 total.
     expect(allTkIds).toHaveLength(8);
     // All must be unique — this is the bug fix. Before the fix, the LLM's
-    // TK-GEN-0/1 would collide across scenes and applyLogMutation would
+    // TK-GEN-0/1 would collide across scenes and applyThreadMutation would
     // silently drop scenes 2-4's log entries.
     expect(new Set(allTkIds).size).toBe(8);
     // All must be real TK-NNN IDs, not leftover GEN placeholders.

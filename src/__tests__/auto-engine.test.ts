@@ -854,7 +854,7 @@ describe('buildOutlineDirective', () => {
           threads: [{ id: 'T-unused', description: 'Unused thread', participants: [], status: 'latent', openedAt: 's1', dependents: [], threadLog: { nodes: {}, edges: [] } }],
           artifacts: [],
           relationships: [],
-          worldKnowledge: { addedNodes: [], addedEdges: [] },
+          worldKnowledgeMutations: { addedNodes: [], addedEdges: [] },
         },
       },
     };
@@ -883,7 +883,7 @@ describe('buildOutlineDirective', () => {
           threads: [],
           artifacts: [],
           relationships: [],
-          worldKnowledge: { addedNodes: [], addedEdges: [] },
+          worldKnowledgeMutations: { addedNodes: [], addedEdges: [] },
         },
       },
     };

@@ -111,7 +111,7 @@ function createWorldBuild(id: string, summary: string): WorldBuild {
       threads: [],
       artifacts: [],
       relationships: [],
-      worldKnowledge: { addedNodes: [], addedEdges: [] },
+      worldKnowledgeMutations: { addedNodes: [], addedEdges: [] },
     },
   };
 }
@@ -262,7 +262,7 @@ describe('getStateAtIndex', () => {
             threads: [],
             artifacts: [{ id: 'art-1', name: 'Artifact', significance: 'minor' as const, continuity: { nodes: {}, edges: [] }, parentId: 'c1', threadIds: [] }],
             relationships: [],
-            worldKnowledge: { addedNodes: [], addedEdges: [] },
+            worldKnowledgeMutations: { addedNodes: [], addedEdges: [] },
           },
         },
       },

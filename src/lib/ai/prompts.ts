@@ -92,19 +92,31 @@ FORCE FORMULAS — your mutations are the direct inputs:
 - WORLD = ΔN_c + √ΔE_c — continuity nodes added to entity inner worlds, edges linking them causally.
 - SYSTEM = ΔN + √ΔE — world knowledge nodes (principles, systems, concepts), edges connecting them.
 
-threadMutations — lifecycle: latent→seeded→active→critical→resolved/subverted.
-  latent: the thread exists as a concept but has no narrative weight yet. A name dropped, a rumour mentioned.
-  seeded: setup is planted — the reader can feel something brewing. A promise made, a weapon found, a secret shared.
-  active: the thread is actively shaping scenes. Characters make decisions because of it, events are driven by it.
-  critical: peak tension — the thread demands resolution. Delay feels artificial, the audience expects payoff.
-  resolved: the thread has concluded. The question is answered, the tension released, the promise fulfilled.
-  subverted: fate defied — the thread resolves contrary to expectations. The promise was broken, the prophecy was wrong.
-  abandoned: the thread is moved to the done pile without earning drive. A clean way to drop threads that aren't working — they can be picked back up later as latent if the story needs them. Earns 0 drive.
-- Transitions ONE step at a time. NEVER skip phases.
-- Pulses (same→same) are healthy — they show a thread receiving bandwidth without transitioning. 1-2 per scene.
-- Real transitions are RARE — 0-1 per scene. Only when the prose shows a clear, irreversible shift.
-- Touch 2-3 threads per scene (mostly pulses) with at most one transition.
-- THREAD LOG: each threadMutation MUST include 1-2 log entries recording what happened to THIS thread specifically — NOT a scene summary. "Harry rejects Malfoy's friendship offer" (thread-specific) NOT "Harry meets Draco on the train" (scene summary). Types: pulse (passive touch), transition (status change), setup (planting), escalation (pressure rises), payoff (delivered), twist (subverted expectation), callback (echo), resistance (pushback), stall (momentum lost).
+threadMutations — TWO SEPARATE AXES. Do not confuse them:
+
+  (A) STATUS AXIS — the "from" and "to" fields are thread lifecycle PHASES.
+      Valid statuses: latent | seeded | active | critical | resolved | subverted | abandoned
+      NOTHING ELSE is allowed in "from" or "to". "pulse" is NOT a status — it is a log-node type (see axis B).
+      Emitting "from": "pulse" or "to": "pulse" is a critical error.
+
+      latent: the thread exists as a concept but has no narrative weight yet. A name dropped, a rumour mentioned.
+      seeded: setup is planted — the reader can feel something brewing. A promise made, a weapon found, a secret shared.
+      active: the thread is actively shaping scenes. Characters make decisions because of it, events are driven by it.
+      critical: peak tension — the thread demands resolution. Delay feels artificial, the audience expects payoff.
+      resolved: the thread has concluded. The question is answered, the tension released, the promise fulfilled.
+      subverted: fate defied — the thread resolves contrary to expectations. The promise was broken, the prophecy was wrong.
+      abandoned: the thread is moved to the done pile without earning drive. A clean way to drop threads that aren't working — they can be picked back up later as latent if the story needs them. Earns 0 drive.
+
+  (B) LOG NODE TYPE AXIS — the "type" field on each entry in "addedNodes" describes WHAT HAPPENED to the thread this scene.
+      Valid log types: pulse | transition | setup | escalation | payoff | twist | callback | resistance | stall
+      This is a completely different vocabulary from status. A log entry with type "pulse" lives INSIDE a threadMutation whose from/to are both real statuses (e.g. "active" → "active").
+
+RULES:
+- Transitions (status change) move ONE step at a time along the status axis. NEVER skip phases.
+- A status-hold (from === to, e.g. active → active) is a healthy, common pattern — it means the thread received bandwidth this scene without advancing its phase. Log it with a "pulse" node type. Aim for 1-2 status-holds per scene.
+- Real status transitions are RARE — 0-1 per scene. Only when the prose shows a clear, irreversible shift in phase.
+- Touch 2-3 threads per scene on average (mostly status-holds) with at most one real transition.
+- THREAD LOG: each threadMutation MUST include 1-2 log entries (addedNodes) recording what happened to THIS thread specifically — NOT a scene summary. "Harry rejects Malfoy's friendship offer" (thread-specific) NOT "Harry meets Draco on the train" (scene summary). Log type vocabulary: pulse (passive touch where status held), transition (log entry marking a status change), setup (planting), escalation (pressure rises), payoff (delivered), twist (subverted expectation), callback (echo), resistance (pushback), stall (momentum lost).
 
 continuityMutations — what we LEARN about an entity that wasn't known before. Applies to characters, locations, and artifacts.
 - Characters: new behaviour, belief, capability, or inner state revealed.
@@ -237,7 +249,7 @@ Example: "Michael Corleone sits across from Sollozzo and McCluskey at the small 
 // These are the single source of truth for mutation schemas used across
 // generation, analysis, reconstruction, and world expansion prompts.
 
-export const SCHEMA_THREAD_MUTATIONS = `"threadMutations": [{"threadId": "T-XX", "from": "status", "to": "status", "addedNodes": [{"id": "TK-XX", "content": "thread-specific: what happened to THIS thread in THIS scene (not a scene summary)", "type": "pulse|transition|setup|escalation|payoff|twist|callback|resistance|stall"}]}]`;
+export const SCHEMA_THREAD_MUTATIONS = `"threadMutations": [{"threadId": "T-XX", "from": "latent|seeded|active|critical|resolved|subverted|abandoned", "to": "latent|seeded|active|critical|resolved|subverted|abandoned", "addedNodes": [{"id": "TK-XX", "content": "thread-specific: what happened to THIS thread in THIS scene (not a scene summary)", "type": "pulse|transition|setup|escalation|payoff|twist|callback|resistance|stall"}]}]`;
 export const SCHEMA_CONTINUITY_MUTATIONS = `"continuityMutations": [{"entityId": "C-XX", "addedNodes": [{"id": "K-XX", "content": "complete sentence: what the entity experienced or became", "type": "trait|state|history|capability|belief|relation|secret|goal|weakness"}]}]`;
 export const SCHEMA_RELATIONSHIP_MUTATIONS = `"relationshipMutations": [{"from": "C-XX", "to": "C-YY", "type": "description", "valenceDelta": 0.1}]`;
 export const SCHEMA_WORLD_KNOWLEDGE_MUTATIONS = `"worldKnowledgeMutations": {"addedNodes": [{"id": "WK-XX", "concept": "well-named world concept", "type": "principle|system|concept|tension|event|structure|environment|convention|constraint"}], "addedEdges": [{"from": "WK-XX", "to": "WK-YY", "relation": "enables|governs|opposes|extends|created_by|constrains|exist_within"}]}`;
@@ -248,7 +260,7 @@ export const SCHEMA_CHARACTER_MOVEMENTS = `"characterMovements": {"C-XX": {"loca
 export const SCHEMA_EVENTS = `"events": ["descriptive_2-4_word_tags"]`;
 
 /** Analysis scene mutations — name-based (pre-ID resolution) */
-export const SCHEMA_ANALYSIS_THREAD_MUTATIONS = `"threadMutations": [{"threadDescription": "exact thread description", "from": "status", "to": "status", "addedNodes": [{"content": "thread-specific: what happened to THIS thread in this scene", "type": "pulse|transition|setup|escalation|payoff|twist|callback|resistance|stall"}]}]`;
+export const SCHEMA_ANALYSIS_THREAD_MUTATIONS = `"threadMutations": [{"threadDescription": "exact thread description", "from": "latent|seeded|active|critical|resolved|subverted|abandoned", "to": "latent|seeded|active|critical|resolved|subverted|abandoned", "addedNodes": [{"content": "thread-specific: what happened to THIS thread in this scene", "type": "pulse|transition|setup|escalation|payoff|twist|callback|resistance|stall"}]}]`;
 export const SCHEMA_ANALYSIS_CONTINUITY_MUTATIONS = `"continuityMutations": [{"entityName": "Character, Location, or Artifact name", "addedNodes": [{"content": "complete sentence: what the entity experienced or became", "type": "trait|state|history|capability|belief|relation|secret|goal|weakness"}]}]`;
 export const SCHEMA_ANALYSIS_RELATIONSHIP_MUTATIONS = `"relationshipMutations": [{"from": "Name", "to": "Name", "type": "description", "valenceDelta": 0.1}]`;
 export const SCHEMA_ANALYSIS_ARTIFACT_USAGES = `"artifactUsages": [{"artifactName": "Name", "characterName": "who or null for unattributed", "usage": "what the artifact did — how it delivered utility"}]`;

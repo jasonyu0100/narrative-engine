@@ -95,6 +95,8 @@ export function useAutoPlay() {
               threads: expansion.threads, relationships: expansion.relationships,
               worldKnowledgeMutations: expansion.worldKnowledgeMutations, artifacts: expansion.artifacts,
               branchId: activeBranchId,
+              ownershipMutations: expansion.ownershipMutations, tieMutations: expansion.tieMutations,
+              continuityMutations: expansion.continuityMutations, relationshipMutations: expansion.relationshipMutations,
             });
           }
           dispatch({ type: 'SET_AUTO_STATUS', message: 'Generating direction...' });

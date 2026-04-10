@@ -646,8 +646,8 @@ export function buildCumulativeWorldKnowledge(
       applyMutation(scene.worldKnowledgeMutations);
     }
     const wb = worldBuilds?.[key];
-    if (wb?.expansionManifest.worldKnowledge) {
-      applyMutation(wb.expansionManifest.worldKnowledge);
+    if (wb?.expansionManifest.worldKnowledgeMutations) {
+      applyMutation(wb.expansionManifest.worldKnowledgeMutations);
     }
   }
   return { nodes, edges };

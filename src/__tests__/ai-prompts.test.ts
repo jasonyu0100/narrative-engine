@@ -121,7 +121,11 @@ describe('Static Prompt Constants', () => {
   describe('PROMPT_MUTATIONS', () => {
     it('describes threadMutations', () => {
       expect(PROMPT_MUTATIONS).toContain('threadMutations');
-      expect(PROMPT_MUTATIONS).toContain('latent→seeded→active→critical→resolved/subverted');
+      // Status axis explicitly enumerates the lifecycle vocabulary so the
+      // LLM can't slot in "pulse" (a log node type) as a status.
+      expect(PROMPT_MUTATIONS).toContain('latent | seeded | active | critical | resolved | subverted | abandoned');
+      // And the prompt must explicitly forbid the pulse-as-status confusion.
+      expect(PROMPT_MUTATIONS).toContain('"pulse" is NOT a status');
     });
 
     it('describes continuityMutations', () => {
