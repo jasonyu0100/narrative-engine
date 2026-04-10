@@ -248,7 +248,7 @@ export const SCHEMA_CHARACTER_MOVEMENTS = `"characterMovements": {"C-XX": {"loca
 export const SCHEMA_EVENTS = `"events": ["descriptive_2-4_word_tags"]`;
 
 /** Analysis scene mutations — name-based (pre-ID resolution) */
-export const SCHEMA_ANALYSIS_THREAD_MUTATIONS = `"threadMutations": [{"threadDescription": "exact thread description", "from": "status", "to": "status"}]`;
+export const SCHEMA_ANALYSIS_THREAD_MUTATIONS = `"threadMutations": [{"threadDescription": "exact thread description", "from": "status", "to": "status", "addedNodes": [{"content": "thread-specific: what happened to THIS thread in this scene", "type": "pulse|transition|setup|escalation|payoff|twist|callback|resistance|stall"}]}]`;
 export const SCHEMA_ANALYSIS_CONTINUITY_MUTATIONS = `"continuityMutations": [{"entityName": "Character, Location, or Artifact name", "addedNodes": [{"content": "complete sentence: what the entity experienced or became", "type": "trait|state|history|capability|belief|relation|secret|goal|weakness"}]}]`;
 export const SCHEMA_ANALYSIS_RELATIONSHIP_MUTATIONS = `"relationshipMutations": [{"from": "Name", "to": "Name", "type": "description", "valenceDelta": 0.1}]`;
 export const SCHEMA_ANALYSIS_ARTIFACT_USAGES = `"artifactUsages": [{"artifactName": "Name", "characterName": "who or null for unattributed", "usage": "what the artifact did — how it delivered utility"}]`;

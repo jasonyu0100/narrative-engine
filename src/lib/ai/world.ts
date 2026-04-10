@@ -1,6 +1,7 @@
 import type { NarrativeState, Scene, Character, Location, Thread, RelationshipEdge, WorldKnowledgeNode, WorldKnowledgeEdge, WorldKnowledgeMutation, WorldKnowledgeNodeType, Artifact, ReasoningLevel, OwnershipMutation, TieMutation, ContinuityMutation, RelationshipMutation } from '@/types/narrative';
 import { THREAD_ACTIVE_STATUSES, resolveEntry, isScene, REASONING_BUDGETS, DEFAULT_STORY_SETTINGS } from '@/types/narrative';
-import { nextId } from '@/lib/narrative-utils';
+import { nextId, nextIds } from '@/lib/narrative-utils';
+import type { ThreadLogNodeType } from '@/types/narrative';
 import { applyThreadMutation } from '@/lib/thread-log';
 import { applyContinuityMutation } from '@/lib/continuity-graph';
 import { sanitizeWorldKnowledgeMutation, applyWorldKnowledgeMutation, wkEdgeKey, makeWkIdAllocator, resolveWkConceptIds } from '@/lib/world-knowledge-graph';
@@ -764,7 +765,7 @@ Return JSON with this exact structure:
       "participantIds": ["C-01"],
       "artifactUsages": [{"artifactId": "A-XX", "characterId": "C-XX or null for unattributed usage", "usage": "what the artifact did — how it delivered utility"}],
       "events": ["event_tag"],
-      "threadMutations": [{"threadId": "T-01", "from": "latent", "to": "active"}],
+      "threadMutations": [{"threadId": "T-01", "from": "latent", "to": "active", "addedNodes": [{"id": "TK-GEN-001", "content": "thread-specific: what happened to THIS thread in THIS scene (NOT a scene summary)", "type": "pulse|transition|setup|escalation|payoff|twist|callback|resistance|stall"}]}],
       "continuityMutations": [{"entityId": "C-XX", "addedNodes": [{"id": "K-GEN-001", "content": "complete sentence: what they experienced or became", "type": "trait|state|history|capability|belief|relation|secret|goal|weakness"}]}],
       "relationshipMutations": [],
       "worldKnowledgeMutations": {"addedNodes": [{"id": "WK-GEN-001", "concept": "name of a world concept, rule, system, or structure", "type": "principle|system|concept|tension|event|structure|environment|convention|constraint"}], "addedEdges": [{"from": "WK-GEN-001", "to": "WK-GEN-002", "relation": "typed relationship: enables, requires, governs, opposes, created_by, extends, etc."}]},
@@ -1003,6 +1004,47 @@ The goal is to make the world feel like a coherent machine where systems interlo
       }
     } catch {
       // Don't fail world generation if embedding fails
+    }
+  }
+
+  // Sanitize thread log entries and assign globally-unique TK-* IDs. The LLM
+  // emits TK-GEN-* placeholders (or nothing) — we normalize each node (fill
+  // type from pulse/transition fallback, drop empty content), synthesize a
+  // fallback log entry when the mutation has none so every threadMutation
+  // produces at least one log node, then remap to sequential TK-NNN IDs so
+  // cross-scene collisions can't silently drop nodes in applyThreadMutation.
+  let totalTkNodes = 0;
+  for (const scene of sceneList) {
+    for (const tm of scene.threadMutations ?? []) {
+      const thread = threads[tm.threadId];
+      const fallbackType = tm.from === tm.to ? 'pulse' : 'transition';
+      tm.addedNodes = (tm.addedNodes ?? [])
+        .filter((n) => n && typeof n.content === 'string' && n.content.trim())
+        .map((n) => ({
+          id: n.id || 'TK-GEN',
+          content: n.content,
+          type: (n.type ?? fallbackType) as ThreadLogNodeType,
+        }));
+      if (tm.addedNodes.length === 0) {
+        const desc = thread?.description ?? tm.threadId;
+        tm.addedNodes = [{
+          id: 'TK-GEN',
+          content: tm.from === tm.to
+            ? `Thread "${desc}" held ${tm.to} without transition`
+            : `Thread "${desc}" advanced from ${tm.from} to ${tm.to}`,
+          type: fallbackType as ThreadLogNodeType,
+        }];
+      }
+      totalTkNodes += tm.addedNodes.length;
+    }
+  }
+  const tkIds = nextIds('TK', [], totalTkNodes);
+  let tkIdx = 0;
+  for (const scene of sceneList) {
+    for (const tm of scene.threadMutations ?? []) {
+      for (const node of tm.addedNodes ?? []) {
+        node.id = tkIds[tkIdx++];
+      }
     }
   }
 

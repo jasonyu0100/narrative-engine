@@ -315,12 +315,14 @@ export default function ThreadPortfolio() {
         activeArcs={computeActiveArcs(thread.id, narrative?.scenes ?? {})}
         convergenceCount={convergenceCounts[thread.id] ?? 0}
         dimmed={dimmed}
-        onClick={() =>
+        onClick={() => {
+          dispatch({ type: 'SET_GRAPH_VIEW_MODE', mode: 'threads' });
+          dispatch({ type: 'SELECT_THREAD_LOG', threadId: thread.id });
           dispatch({
             type: 'SET_INSPECTOR',
             context: { type: 'thread', threadId: thread.id },
-          })
-        }
+          });
+        }}
       />
     ));
 

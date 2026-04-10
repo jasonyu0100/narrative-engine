@@ -137,7 +137,7 @@ ${prose}${beatSection}
 FORCE FORMULAS — your extractions are the direct inputs:
 - DRIVE = activeArcs^1.3 × stageWeight (thread commitment toward resolution). Ref: ~3/scene.
 - WORLD = ΔN_c + √ΔE_c (entity transformation — what we learn about characters, locations, artifacts). Ref: ~14/scene.
-- SYSTEM = ΔN + √ΔE (world deepening — rules, structures, concepts). Ref: ~8/scene.
+- SYSTEM = ΔN + √ΔE (world deepening — rules, structures, concepts). Ref: ~5/scene.
 
 Return JSON:
 {
@@ -151,7 +151,7 @@ Return JSON:
   "artifacts": [{"name": "Artifact Name", "significance": "key|notable|minor", "imagePrompt": "1-2 sentence LITERAL visual description — concrete physical details only, no metaphors or figurative language", "ownerName": "owner or null"}],
   "threads": [{"description": "narrative tension", "participantNames": ["names"], "statusAtStart": "status", "statusAtEnd": "status", "development": "how it developed"}],
   "relationships": [{"from": "Name", "to": "Name", "type": "description", "valence": 0.0}],
-  "threadMutations": [{"threadDescription": "exact thread description", "from": "status", "to": "status", "log": [{"content": "what happened to the thread", "type": "pulse|transition|setup|escalation|payoff|twist|callback|resistance|stall"}]}],
+  "threadMutations": [{"threadDescription": "exact thread description", "from": "status", "to": "status", "addedNodes": [{"content": "thread-specific: what happened to THIS thread in this scene", "type": "pulse|transition|setup|escalation|payoff|twist|callback|resistance|stall"}]}],
   "continuityMutations": [{"entityName": "Name", "addedNodes": [{"content": "what", "type": "trait|state|history|capability|belief|relation|secret|goal|weakness"}]}],
   "relationshipMutations": [{"from": "Name", "to": "Name", "type": "description", "valenceDelta": 0.1}],
   "artifactUsages": [{"artifactName": "Name", "characterName": "who or null", "usage": "what the artifact did"}],
@@ -1094,6 +1094,19 @@ export async function assembleNarrative(
               content: e.content,
               type: (THREAD_LOG_NODE_TYPES.includes(e.type as ThreadLogNodeType) ? e.type : fallbackType) as ThreadLogNodeType,
             }));
+          // Synthesize a fallback log entry if the LLM omitted them — every
+          // threadMutation must produce at least one log node, otherwise the
+          // thread's history goes blank on a silent extraction miss.
+          if (addedNodes.length === 0) {
+            const desc = tm.threadDescription || 'thread';
+            addedNodes.push({
+              id: nextTkId(),
+              content: tm.from === tm.to
+                ? `Thread "${desc}" held ${tm.to} without transition`
+                : `Thread "${desc}" advanced from ${tm.from} to ${tm.to}`,
+              type: fallbackType,
+            });
+          }
           return {
             threadId: getThreadId(tm.threadDescription),
             from: tm.from,

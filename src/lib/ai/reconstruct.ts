@@ -595,6 +595,8 @@ You MUST:
 - Use only existing character, location, and thread IDs from the context
 - Maintain continuity with surrounding scenes
 - Address the evaluation reason directly
+- Every threadMutation MUST include 1-2 addedNodes log entries describing what happened to THAT thread in THIS scene (pulse/transition/setup/escalation/payoff/twist/callback/resistance/stall). If you omit them the thread log goes blank.
+- Every continuityMutation should list its nodes in causal/temporal order — adjacent nodes auto-chain (no explicit edges).
 
 Return JSON:
 {
@@ -603,7 +605,7 @@ Return JSON:
   "participantIds": ["C-XX"],
   "artifactUsages": [{"artifactId": "A-XX", "characterId": "C-XX or null for unattributed usage", "usage": "what the artifact did"}],
   "events": ["event_tag"],
-  "threadMutations": [{"threadId": "T-XX", "from": "status", "to": "status"}],
+  "threadMutations": [{"threadId": "T-XX", "from": "status", "to": "status", "addedNodes": [{"id": "TK-NEW-001", "content": "thread-specific: what happened to THIS thread in THIS scene (NOT a scene summary)", "type": "pulse|transition|setup|escalation|payoff|twist|callback|resistance|stall"}]}],
   "continuityMutations": [{"entityId": "C-XX", "addedNodes": [{"id": "K-NEW-001", "content": "complete sentence: what they experienced or became", "type": "trait|state|history|capability|belief|relation|secret|goal|weakness"}]}],
   "relationshipMutations": [{"from": "C-XX", "to": "C-YY", "type": "description", "valenceDelta": 0.1}],
   "worldKnowledgeMutations": {"addedNodes": [], "addedEdges": []},
@@ -693,8 +695,8 @@ ${sourceBlock}
 MERGE RULES:
 - The output is ONE scene, not multiple. It replaces the target scene.
 - You may change POV, location, and participants if the absorbed content demands it.
-- Combine thread mutations from all scenes — if the target advances T-01 and a source advances T-03, the merged scene should advance both.
-- Combine continuity and relationship mutations — deduplicate but preserve unique knowledge.
+- Combine thread mutations from all scenes — if the target advances T-01 and a source advances T-03, the merged scene should advance both. Each threadMutation MUST include 1-2 addedNodes log entries describing what happened to THAT thread in the merged scene.
+- Combine continuity and relationship mutations — deduplicate but preserve unique knowledge. List continuity nodes in causal/temporal order (adjacent nodes auto-chain).
 - The summary must use character NAMES and location NAMES (never raw IDs) and weave the best elements from all inputs into a cohesive narrative beat.
 - Do NOT simply concatenate summaries. Synthesize them into a single dramatic moment.
 - Use only existing character, location, and thread IDs from the context above.
@@ -706,7 +708,7 @@ Return JSON:
   "participantIds": ["C-XX"],
   "artifactUsages": [{"artifactId": "A-XX", "characterId": "C-XX or null for unattributed usage", "usage": "what the artifact did"}],
   "events": ["event_tag"],
-  "threadMutations": [{"threadId": "T-XX", "from": "status", "to": "status"}],
+  "threadMutations": [{"threadId": "T-XX", "from": "status", "to": "status", "addedNodes": [{"id": "TK-NEW-001", "content": "thread-specific: what happened to THIS thread in THIS scene (NOT a scene summary)", "type": "pulse|transition|setup|escalation|payoff|twist|callback|resistance|stall"}]}],
   "continuityMutations": [{"entityId": "C-XX", "addedNodes": [{"id": "K-NEW-001", "content": "complete sentence: what they experienced or became", "type": "trait|state|history|capability|belief|relation|secret|goal|weakness"}]}],
   "relationshipMutations": [{"from": "C-XX", "to": "C-YY", "type": "description", "valenceDelta": 0.1}],
   "worldKnowledgeMutations": {"addedNodes": [], "addedEdges": []},
@@ -759,6 +761,8 @@ ${evaluation.repetitions.length > 0 ? `PATTERNS TO AVOID: ${evaluation.repetitio
 Generate a complete scene that addresses the generation brief. The scene must:
 - Use only existing character, location, and thread IDs from the context
 - Advance at least one thread with a status transition
+- Every threadMutation MUST include 1-2 addedNodes log entries (pulse/transition/setup/escalation/payoff/twist/callback/resistance/stall) describing what happened to THAT thread in THIS scene. Missing log entries leave the thread log blank.
+- List each continuityMutation's nodes in causal/temporal order — adjacent nodes auto-chain into the entity's inner graph.
 
 Return JSON:
 {
@@ -767,7 +771,7 @@ Return JSON:
   "participantIds": ["C-XX"],
   "artifactUsages": [{"artifactId": "A-XX", "characterId": "C-XX or null for unattributed usage", "usage": "what the artifact did"}],
   "events": ["event_tag"],
-  "threadMutations": [{"threadId": "T-XX", "from": "status", "to": "status"}],
+  "threadMutations": [{"threadId": "T-XX", "from": "status", "to": "status", "addedNodes": [{"id": "TK-NEW-001", "content": "thread-specific: what happened to THIS thread in THIS scene (NOT a scene summary)", "type": "pulse|transition|setup|escalation|payoff|twist|callback|resistance|stall"}]}],
   "continuityMutations": [{"entityId": "C-XX", "addedNodes": [{"id": "K-NEW-001", "content": "complete sentence: what they experienced or became", "type": "trait|state|history|capability|belief|relation|secret|goal|weakness"}]}],
   "relationshipMutations": [{"from": "C-XX", "to": "C-YY", "type": "description", "valenceDelta": 0.1}],
   "worldKnowledgeMutations": {"addedNodes": [], "addedEdges": []},
