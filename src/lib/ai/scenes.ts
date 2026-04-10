@@ -952,8 +952,11 @@ Return ONLY valid JSON matching this schema:
   ]
 }
 
-CRITICAL: Return exactly ${chunks.length} beats — one per chunk, in order. Do NOT add startIndex or chunks fields.
-Every beat MUST have all three required fields: fn, mechanism, what. Never return an empty object or omit 'what' — even for transitional or atmospheric chunks, describe what the chunk does structurally.
+CRITICAL RULES:
+- Return EXACTLY ${chunks.length} beats — one per chunk [0] through [${chunks.length - 1}], in order.
+- Do NOT merge adjacent chunks into one beat. Do NOT skip any chunk. Every chunk gets its own beat, even if it's short or transitional.
+- Every beat MUST have all three required fields: fn, mechanism, what. Never return an empty object.
+- Do NOT add startIndex or chunks fields.
 
 ${PROMPT_BEAT_TAXONOMY}
 
