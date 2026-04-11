@@ -5,10 +5,7 @@ import {
   narrativeContext,
   sceneContext,
   sceneScale,
-  deriveLogicRules,
-  logicContext,
   outlineContext,
-  worldContext,
   THREAD_LIFECYCLE_DOC,
 } from '@/lib/ai/context';
 import type { NarrativeState, Scene, Character, Location, Thread, Arc, WorldBuild } from '@/types/narrative';
@@ -453,82 +450,6 @@ describe('sceneContext', () => {
   });
 });
 
-// ── deriveLogicRules / logicContext ──────────────────────────────────────────
-
-describe('deriveLogicRules', () => {
-  it('returns empty string for scene with no special constraints', () => {
-    const n = createMinimalNarrative({
-      characters: { c1: createCharacter('c1', 'Hero') },
-      locations: { loc1: createLocation('loc1', 'Castle') },
-    });
-    const scene = createScene('s1', {
-      povId: 'c1',
-      locationId: 'loc1',
-      participantIds: ['c1'],
-      events: [],
-      threadMutations: [],
-      continuityMutations: [],
-      relationshipMutations: [],
-    });
-
-    const rules = deriveLogicRules(n, scene);
-    expect(rules).toBe('');
-  });
-
-  it('includes thread transitions when present', () => {
-    const n = createMinimalNarrative({
-      characters: { c1: createCharacter('c1', 'Hero') },
-      locations: { loc1: createLocation('loc1', 'Castle') },
-      threads: { t1: createThread('t1', 'The Quest') },
-    });
-    const scene = createScene('s1', {
-      povId: 'c1',
-      locationId: 'loc1',
-      threadMutations: [{ threadId: 't1', from: 'latent', to: 'active', addedNodes: [] }],
-    });
-
-    const rules = deriveLogicRules(n, scene);
-    expect(rules).toContain('The Quest');
-    expect(rules).toContain('latent');
-    expect(rules).toContain('active');
-  });
-
-  it('includes events when present', () => {
-    const n = createMinimalNarrative({
-      characters: { c1: createCharacter('c1', 'Hero') },
-      locations: { loc1: createLocation('loc1', 'Castle') },
-    });
-    const scene = createScene('s1', {
-      povId: 'c1',
-      locationId: 'loc1',
-      events: ['The dragon attacks', 'Hero draws sword'],
-    });
-
-    const rules = deriveLogicRules(n, scene);
-    expect(rules).toContain('dragon attacks');
-    expect(rules).toContain('draws sword');
-  });
-});
-
-describe('logicContext', () => {
-  it('delegates to deriveLogicRules', () => {
-    const n = createMinimalNarrative({
-      characters: { c1: createCharacter('c1', 'Hero') },
-      locations: { loc1: createLocation('loc1', 'Castle') },
-    });
-    const scene = createScene('s1', {
-      povId: 'c1',
-      locationId: 'loc1',
-      events: ['Event 1'],
-    });
-
-    const rules = deriveLogicRules(n, scene, ['s1'], 0);
-    const ctx = logicContext(n, scene, ['s1'], 0);
-
-    expect(ctx).toBe(rules);
-  });
-});
-
 // ── outlineContext ───────────────────────────────────────────────────────────
 
 describe('outlineContext', () => {
@@ -569,46 +490,6 @@ describe('outlineContext', () => {
     const outline = outlineContext(n, ['wb1', 's1'], 1);
     expect(outline).toContain('world-commit');
     expect(outline).toContain('World expansion');
-  });
-});
-
-// ── worldContext ─────────────────────────────────────────────────────────────
-
-describe('worldContext', () => {
-  it('includes world summary', () => {
-    const n = createMinimalNarrative({
-      worldSummary: 'A magical realm of wonder',
-    });
-
-    const ctx = worldContext(n, [], 0);
-    expect(ctx).toContain('magical realm of wonder');
-  });
-
-  it('includes world rules when present', () => {
-    const n = createMinimalNarrative({
-      rules: ['Magic has a cost', 'Time flows differently'],
-    });
-
-    const ctx = worldContext(n, [], 0);
-    expect(ctx).toContain('Magic has a cost');
-    expect(ctx).toContain('Time flows differently');
-  });
-
-  it('includes world commits in chronological order', () => {
-    const n = createMinimalNarrative({
-      worldBuilds: {
-        wb1: createWorldBuild('wb1', 'First expansion'),
-        wb2: createWorldBuild('wb2', 'Second expansion'),
-      },
-    });
-
-    const ctx = worldContext(n, ['wb1', 'wb2'], 1);
-    expect(ctx).toContain('First expansion');
-    expect(ctx).toContain('Second expansion');
-    // Check ordering by finding indices
-    const first = ctx.indexOf('First expansion');
-    const second = ctx.indexOf('Second expansion');
-    expect(first).toBeLessThan(second);
   });
 });
 

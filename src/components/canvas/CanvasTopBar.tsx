@@ -18,11 +18,11 @@ const GRAPH_DOMAINS = [
     description: 'Characters & locations',
   },
   {
-    label: 'Knowledge',
+    label: 'System',
     local: 'spark' as GraphViewMode,
     global: 'codex' as GraphViewMode,
     Icon: IconLightbulb,
-    description: 'Character knowledge & world systems',
+    description: 'World knowledge & systems',
   },
   {
     label: 'Threads',

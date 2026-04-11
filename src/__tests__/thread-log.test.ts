@@ -5,8 +5,7 @@ import type { ThreadMutation } from '@/types/narrative';
 // Thread logs are the per-thread narrative history graph. Each scene's
 // threadMutation contributes a self-contained cluster of log nodes chained
 // by adjacency. These tests lock in the invariants the rest of the pipeline
-// (generateScenes TK remap, generateArcStepwise TK remap, world.ts pilot,
-// store replay) all depend on.
+// (generateScenes TK remap, world.ts pilot, store replay) all depend on.
 
 describe('applyThreadMutation', () => {
   it('adds nodes to an empty log and preserves content/type', () => {

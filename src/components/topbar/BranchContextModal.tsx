@@ -3,10 +3,10 @@
 import React, { useMemo, useState, useCallback } from 'react';
 import type { NarrativeState } from '@/types/narrative';
 import { resolveEntry, isScene } from '@/types/narrative';
-import { narrativeContext, sceneContext, outlineContext, worldContext, logicContext } from '@/lib/ai';
+import { narrativeContext, sceneContext, outlineContext } from '@/lib/ai';
 import { Modal, ModalHeader, ModalBody } from '@/components/Modal';
 
-type ContextView = 'narrative' | 'scene' | 'outline' | 'world' | 'logic';
+type ContextView = 'narrative' | 'scene' | 'outline';
 
 type Props = {
   narrative: NarrativeState;
@@ -261,17 +261,7 @@ export function BranchContextModal({ narrative, resolvedKeys, currentSceneIndex,
     [narrative, resolvedKeys, currentSceneIndex],
   );
 
-  const worldCtx = useMemo(
-    () => worldContext(narrative, resolvedKeys, currentSceneIndex),
-    [narrative, resolvedKeys, currentSceneIndex],
-  );
-
-  const logicCtx = useMemo(
-    () => currentScene ? logicContext(narrative, currentScene, resolvedKeys, currentSceneIndex) : null,
-    [narrative, currentScene, resolvedKeys, currentSceneIndex],
-  );
-
-  const context = view === 'logic' && logicCtx ? logicCtx : view === 'scene' && sceneCtx ? sceneCtx : view === 'outline' ? outlineCtx : view === 'world' ? worldCtx : narrativeCtx;
+  const context = view === 'scene' && sceneCtx ? sceneCtx : view === 'outline' ? outlineCtx : narrativeCtx;
 
   const wordCount = useMemo(() => context.split(/\s+/).length, [context]);
   const estimatedTokens = Math.round(context.length / 4);
@@ -310,31 +300,12 @@ export function BranchContextModal({ narrative, resolvedKeys, currentSceneIndex,
           </button>
           <div className="w-px h-3.5 bg-border" />
           <button
-            className={`px-2.5 py-1.5 transition-colors ${
+            className={`px-2.5 py-1.5 rounded-r transition-colors ${
               view === 'narrative' ? 'text-accent-cta' : 'text-text-dim hover:text-text-default'
             }`}
             onClick={() => setView('narrative')}
           >
             Narrative
-          </button>
-          <div className="w-px h-3.5 bg-border" />
-          <button
-            className={`px-2.5 py-1.5 transition-colors ${
-              view === 'world' ? 'text-accent-cta' : 'text-text-dim hover:text-text-default'
-            }`}
-            onClick={() => setView('world')}
-          >
-            World
-          </button>
-          <div className="w-px h-3.5 bg-border" />
-          <button
-            className={`px-2.5 py-1.5 rounded-r transition-colors ${
-              view === 'logic' ? 'text-accent-cta' : 'text-text-dim hover:text-text-default'
-            } ${!logicCtx ? 'opacity-30 pointer-events-none' : ''}`}
-            onClick={() => setView('logic')}
-            disabled={!logicCtx}
-          >
-            Logic
           </button>
         </div>
         <span className="text-[11px] text-text-dim px-2 py-0.5 rounded bg-bg-elevated">

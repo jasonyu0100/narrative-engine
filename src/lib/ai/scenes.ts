@@ -1,19 +1,17 @@
 import type { NarrativeState, Scene, Arc, WorldBuild, StorySettings, Beat, BeatPlan, BeatProse, BeatProseMap, Proposition, ThreadLogNodeType, SystemNode } from '@/types/narrative';
-import { applyThreadMutation } from '@/lib/thread-log';
-import { DEFAULT_STORY_SETTINGS, REASONING_BUDGETS, BEAT_FN_LIST, BEAT_MECHANISM_LIST, NARRATIVE_CUBE, THREAD_ACTIVE_STATUSES, THREAD_TERMINAL_STATUSES } from '@/types/narrative';
+import { DEFAULT_STORY_SETTINGS, REASONING_BUDGETS, BEAT_FN_LIST, BEAT_MECHANISM_LIST, THREAD_ACTIVE_STATUSES, THREAD_TERMINAL_STATUSES } from '@/types/narrative';
 import { nextId, nextIds } from '@/lib/narrative-utils';
 import { callGenerate, callGenerateStream, SYSTEM_PROMPT } from './api';
 import { WRITING_MODEL, GENERATE_MODEL, MAX_TOKENS_LARGE, MAX_TOKENS_DEFAULT, MAX_TOKENS_SMALL, WORDS_PER_BEAT, ANALYSIS_TEMPERATURE } from '@/lib/constants';
 import { parseJson } from './json';
-import { narrativeContext, sceneContext, deriveLogicRules, sceneScale } from './context';
+import { narrativeContext, sceneContext, sceneScale } from './context';
 import { PROMPT_FORCE_STANDARDS, PROMPT_STRUCTURAL_RULES, PROMPT_MUTATIONS, PROMPT_ARTIFACTS, PROMPT_LOCATIONS, PROMPT_POV, PROMPT_CONTINUITY, PROMPT_SUMMARY_REQUIREMENT, PROMPT_BEAT_TAXONOMY, promptThreadLifecycle, buildThreadHealthPrompt, buildCompletedBeatsPrompt } from './prompts';
-import { samplePacingSequence, buildSequencePrompt, buildSingleStepPrompt, detectCurrentMode, MATRIX_PRESETS, DEFAULT_TRANSITION_MATRIX, type PacingSequence, type ModeStep } from '@/lib/pacing-profile';
+import { samplePacingSequence, buildSequencePrompt, detectCurrentMode, MATRIX_PRESETS, DEFAULT_TRANSITION_MATRIX, type PacingSequence } from '@/lib/pacing-profile';
 import { resolveProfile, resolveSampler, sampleBeatSequence } from '@/lib/beat-profiles';
 import { FORMAT_INSTRUCTIONS } from './prose';
 import { logWarning, logError, logInfo } from '@/lib/system-logger';
 import { retryWithValidation, validateBeatPlan, validateBeatProseMap } from './validation';
-import { applyContinuityMutation } from '@/lib/continuity-graph';
-import { sanitizeSystemMutation, applySystemMutation, systemEdgeKey, makeSystemIdAllocator, resolveSystemConceptIds } from '@/lib/system-graph';
+import { sanitizeSystemMutation, systemEdgeKey, makeSystemIdAllocator, resolveSystemConceptIds } from '@/lib/system-graph';
 
 /**
  * Split text into sentences, handling edge cases like abbreviations, decimals, and ellipsis.
@@ -526,8 +524,6 @@ export async function generateScenePlan(
   const sceneIdx = resolvedKeys.indexOf(scene.id);
   const contextIndex = sceneIdx >= 0 ? sceneIdx : resolvedKeys.length - 1;
   const fullContext = narrativeContext(narrative, resolvedKeys, contextIndex);
-  const logicRules = deriveLogicRules(narrative, scene, resolvedKeys, contextIndex);
-  const logicBlock = logicRules ? `\n${logicRules}\n` : '';
 
   // Previous scene's beat plan for flow continuity
   const prevSceneKey = sceneIdx > 0 ? resolvedKeys[sceneIdx - 1] : null;
@@ -691,7 +687,7 @@ Participants: ${scene.participantIds.map(id => narrative.characters[id]?.name ??
   const prompt = `${profileBlock}NARRATIVE CONTEXT:\n${fullContext}
 ${adjacentBlock ? `${adjacentBlock}\n\n` : ''}
 ${sceneDesc}
-${logicBlock}
+
 Generate a structured beat plan for the scene at the branch head.
 
 REMINDER: All propositions (per-beat and scene-level) MUST conform to the PROSE PROFILE above. If the profile forbids figurative language, write plain factual propositions only.`;
@@ -1529,10 +1525,6 @@ CRITICAL: If a proposition contains figurative language and the prose profile fo
 \n`
     : '';
 
-  // Derive logical constraints from the scene graph — these are hard rules the prose must obey
-  const logicRules = deriveLogicRules(narrative, scene, resolvedKeys, contextIndex);
-  const logicBlock = logicRules ? `\n${logicRules}\n` : '';
-
   // Previous prose edge for transition continuity
   const adjacentProseBlock = prevProseEnding
     ? `PREVIOUS SCENE ENDING (match tone, avoid repeating imagery or phrasing):\n"""${prevProseEnding}"""`
@@ -1619,7 +1611,7 @@ Every thread shift, continuity change, relationship mutation, and world knowledg
 PROSE PROFILE COMPLIANCE IS MANDATORY: Every sentence must conform to the voice, register, devices, and rules specified above. Match the profile exactly — if it forbids figures of speech, use ZERO. If it demands specific devices, use them.`;
 
   const prompt = `${profileSection ? `${profileSection}\n\n` : ''}${adjacentProseBlock ? `${adjacentProseBlock}\n\n` : ''}${planBlock}${sceneBlock}
-${logicBlock}
+
 ${instruction}`;
 
   const reasoningBudget = REASONING_BUDGETS[narrative.storySettings?.reasoningLevel ?? 'low'] || undefined;
@@ -1713,8 +1705,8 @@ function sanitizeScenes(scenes: Scene[], narrative: NarrativeState, label: strin
   const validThreadIds = new Set(Object.keys(narrative.threads));
   // Pre-compute the union of WK node ids across the whole batch so that a
   // scene-2 edge referencing a scene-1 SYS-GEN-* id is not treated as orphaned.
-  // The later concept-resolution pass in generateScenes / generateArcStepwise
-  // remaps those GEN ids to real SYS-XX ids using a cumulative map.
+  // The later concept-resolution pass in generateScenes remaps those GEN ids
+  // to real SYS-XX ids using a cumulative map.
   const batchWkNodeIds = new Set<string>(Object.keys(narrative.systemGraph?.nodes ?? {}));
   for (const s of scenes) {
     for (const n of s.systemMutations?.addedNodes ?? []) {
@@ -1899,433 +1891,4 @@ function sanitizeScenes(scenes: Scene[], narrative: NarrativeState, label: strin
   }
 }
 
-/** Apply scene mutations to a narrative state (relationships, knowledge, threads, system graph). */
-function applySceneMutations(n: NarrativeState, scenes: Scene[]): NarrativeState {
-  let relationships = [...n.relationships];
-  const characters = { ...n.characters };
-  const threads = { ...n.threads };
-  const systemGraph = { nodes: { ...n.systemGraph?.nodes }, edges: [...(n.systemGraph?.edges ?? [])] };
 
-  for (const scene of scenes) {
-    for (const rm of scene.relationshipMutations) {
-      const idx = relationships.findIndex((r) => r.from === rm.from && r.to === rm.to);
-      if (idx >= 0) {
-        const existing = relationships[idx];
-        relationships = [...relationships.slice(0, idx), { ...existing, type: rm.type, valence: Math.max(-1, Math.min(1, existing.valence + rm.valenceDelta)) }, ...relationships.slice(idx + 1)];
-      } else {
-        relationships.push({ from: rm.from, to: rm.to, type: rm.type, valence: Math.max(-1, Math.min(1, rm.valenceDelta)) });
-      }
-    }
-    for (const km of scene.continuityMutations) {
-      const char = characters[km.entityId];
-      if (char) {
-        characters[km.entityId] = { ...char, continuity: applyContinuityMutation(char.continuity, km) };
-      }
-    }
-    for (const tm of scene.threadMutations) {
-      const thread = threads[tm.threadId];
-      if (!thread) continue;
-      threads[tm.threadId] = {
-        ...thread,
-        status: tm.to,
-        threadLog: applyThreadMutation(thread.threadLog, tm),
-      };
-    }
-    if (scene.systemMutations) {
-      applySystemMutation(systemGraph, scene.systemMutations);
-    }
-  }
-  return { ...n, relationships, characters, threads, systemGraph };
-}
-
-// ── Stepwise Arc Generation ──────────────────────────────────────────────────
-// Generates an arc one scene at a time. Each scene sees the full narrative
-// context including all previously generated scenes in this arc, preventing
-// the duplication that plagues batch generation.
-
-export type ArcPlan = {
-  arcName: string;
-  directionVector: string;
-  scenePlan: string[];  // One-line beat description per scene
-};
-
-export type GenerateStepwiseOptions = {
-  existingArc?: Arc;
-  pacingSequence?: PacingSequence;
-  worldBuildFocus?: WorldBuild;
-  onToken?: (token: string) => void;
-  /** Callback for streaming reasoning/thinking tokens */
-  onReasoning?: (token: string) => void;
-  /** Called after each scene is generated and sanitized. Use to dispatch to store for live UI updates. */
-  onScene?: (scene: Scene, arc: Arc, sceneIndex: number) => void;
-  /** Return true to abort generation early (e.g., user cancelled). */
-  shouldStop?: () => boolean;
-};
-
-/**
- * Plan an arc's structure without generating scenes.
- * Returns arc name, direction vector, and a one-line beat per scene.
- */
-async function generateArcPlan(
-  narrative: NarrativeState,
-  resolvedKeys: string[],
-  currentIndex: number,
-  count: number,
-  direction: string,
-  sequence: PacingSequence,
-): Promise<ArcPlan> {
-  const ctx = narrativeContext(narrative, resolvedKeys, currentIndex);
-  const prompt = `${ctx}
-
-${direction.trim() ? `DIRECTION — THIS IS YOUR PRIMARY BRIEF. Your arc plan must execute the beats described here. The direction may include prose-level guidance (time compression, tone shifts, structural techniques, dialogue register) — carry these through into your scene descriptions so the prose writer receives them.\n${direction}` : 'DIRECTION: Use your judgment — choose the most compelling next development.'}
-
-Plan a ${count}-scene arc that faithfully executes the direction above. For each scene, write ONE sentence describing the key action and which threads it advances. Include any prose-level guidance from the direction that applies to that scene. Scenes that collide 2+ threads are preferred.
-
-${buildThreadHealthPrompt(narrative, resolvedKeys, currentIndex)}
-${buildCompletedBeatsPrompt(narrative, resolvedKeys, currentIndex)}
-
-ID REFERENCE:
-  Characters: ${Object.entries(narrative.characters).map(([id, c]) => `${c.name} (${id})`).join(', ')}
-  Threads: ${Object.entries(narrative.threads).map(([id, t]) => `${t.description.slice(0, 40)} (${id})`).join(', ')}
-
-Return JSON:
-{
-  "arcName": "2-4 word evocative chapter title, unique",
-  "directionVector": "Single sentence (10-15 words) with character NAMES",
-  "scenePlan": ["Scene 1: [Character] does [action] at [location], advancing [T-XX] and [T-YY]", "Scene 2: ..."]
-}`;
-
-  const reasoningBudget = REASONING_BUDGETS[narrative.storySettings?.reasoningLevel ?? 'low'] || undefined;
-  const raw = await callGenerate(prompt, SYSTEM_PROMPT, MAX_TOKENS_SMALL, 'generateArcPlan', GENERATE_MODEL, reasoningBudget);
-  const parsed = parseJson(raw, 'generateArcPlan') as Partial<ArcPlan>;
-  return {
-    arcName: parsed.arcName ?? 'Untitled Arc',
-    directionVector: parsed.directionVector ?? '',
-    scenePlan: parsed.scenePlan ?? Array.from({ length: count }, (_, i) => `Scene ${i + 1}`),
-  };
-}
-
-/**
- * Generate a single scene within a stepwise arc build.
- * Gets the FULL narrative context (including prior scenes from this arc).
- */
-async function generateSingleScene(
-  narrative: NarrativeState,
-  resolvedKeys: string[],
-  currentIndex: number,
-  arcId: string,
-  arcPlan: ArcPlan,
-  sceneIndex: number,
-  pacingStep: ModeStep,
-  totalScenes: number,
-  direction: string,
-  storySettings: StorySettings,
-  /** Scene IDs already generated in this arc — used to build prior summaries */
-  priorArcSceneIds: string[],
-  onToken?: (token: string) => void,
-  onReasoning?: (token: string) => void,
-): Promise<Scene> {
-  const ctx = narrativeContext(narrative, resolvedKeys, currentIndex);
-  const stepPrompt = buildSingleStepPrompt(pacingStep, sceneIndex, totalScenes);
-
-  // Show the full arc plan with completion markers
-  const planContext = arcPlan.scenePlan
-    .map((beat, i) => {
-      const marker = i < sceneIndex ? '✓' : i === sceneIndex ? '→' : ' ';
-      return `  ${marker} Scene ${i + 1}: ${beat}`;
-    })
-    .join('\n');
-
-  // Summaries of scenes already generated in this arc (prevents duplication)
-  const priorSummaries = priorArcSceneIds
-    .map((id, i) => {
-      const s = narrative.scenes[id];
-      return s ? `  Scene ${i + 1} (DONE): ${s.summary}` : null;
-    })
-    .filter(Boolean)
-    .join('\n');
-
-  const prompt = `${ctx}
-
-ARC: "${arcPlan.arcName}" — ${arcPlan.directionVector}
-${direction.trim() ? `DIRECTION (follow these beats faithfully):\n${direction}` : ''}
-
-ARC PLAN (you are generating the scene marked with →):
-${planContext}
-
-${priorSummaries ? `SCENES ALREADY WRITTEN IN THIS ARC (do NOT repeat any action, discovery, or confrontation from these):\n${priorSummaries}\n` : ''}
-${stepPrompt}
-
-Generate exactly ONE scene. The summary must use character NAMES and location NAMES (never raw IDs). Include specifics and any context that shapes how the prose should be written (time span, technique, tone). No sentences ending in emotions or realizations.
-
-Return JSON:
-{
-  "id": "S-GEN-001",
-  "arcId": "${arcId}",
-  "locationId": "existing location ID",
-  "povId": "character ID${storySettings.povMode !== 'free' && storySettings.povCharacterIds.length > 0 ? ` — RESTRICTED to: ${storySettings.povCharacterIds.join(', ')}` : ''}",
-  "participantIds": ["character IDs"],
-  "artifactUsages": [{"artifactId": "A-XX", "characterId": "C-XX or null for unattributed usage", "usage": "what the artifact did — how it delivered utility"}],
-  "characterMovements": {},
-  "events": ["event_tags"],
-  "threadMutations": [{"threadId": "T-XX", "from": "latent|seeded|active|critical|resolved|subverted|abandoned", "to": "latent|seeded|active|critical|resolved|subverted|abandoned", "addedNodes": [{"id": "TK-GEN-001", "content": "thread-specific: what happened to THIS thread in THIS scene", "type": "pulse|transition|setup|escalation|payoff|twist|callback|resistance|stall"}]}],
-  "continuityMutations": [{"entityId": "C-XX", "addedNodes": [{"id": "K-GEN-001", "content": "complete sentence: what they experienced or became", "type": "trait|state|history|capability|belief|relation|secret|goal|weakness"}]}],
-  "relationshipMutations": [{"from": "C-XX", "to": "C-YY", "type": "desc", "valenceDelta": 0.1}],
-  "systemMutations": {"addedNodes": [], "addedEdges": []},
-  "ownershipMutations": [],
-  "tieMutations": [{"locationId": "L-XX", "characterId": "C-XX", "action": "add|remove"}],
-  "summary": "Rich prose sentences using character NAMES and location NAMES — never raw IDs. Include specifics and any context that shapes prose (time span, technique, tone). NO thin generic summaries."
-}
-
-${PROMPT_SUMMARY_REQUIREMENT}
-${PROMPT_MUTATIONS}
-${PROMPT_LOCATIONS}
-${Object.keys(narrative.artifacts ?? {}).length > 0 ? PROMPT_ARTIFACTS : ''}
-${PROMPT_CONTINUITY}
-${buildThreadHealthPrompt(narrative, resolvedKeys, currentIndex)}
-${buildCompletedBeatsPrompt(narrative, resolvedKeys, currentIndex)}
-Use ONLY these IDs:
-  Characters: ${Object.entries(narrative.characters).map(([id, c]) => `${c.name} (${id})`).join(', ')}
-  Locations: ${Object.entries(narrative.locations).map(([id, l]) => `${l.name} (${id})`).join(', ')}
-  Threads: ${Object.entries(narrative.threads).map(([id, t]) => `${t.description.slice(0, 40)} (${id})`).join(', ')}${Object.keys(narrative.artifacts ?? {}).length > 0 ? `\n  Artifacts: ${Object.entries(narrative.artifacts).map(([id, a]) => `${a.name} (${id})`).join(', ')}` : ''}`;
-
-  const reasoningBudget = REASONING_BUDGETS[narrative.storySettings?.reasoningLevel ?? 'low'] || undefined;
-  const useStream = !!(onToken || onReasoning);
-  const raw = useStream
-    ? await callGenerateStream(prompt, SYSTEM_PROMPT, onToken ?? (() => {}), MAX_TOKENS_SMALL, 'generateSingleScene', GENERATE_MODEL, reasoningBudget, onReasoning)
-    : await callGenerate(prompt, SYSTEM_PROMPT, MAX_TOKENS_SMALL, 'generateSingleScene', GENERATE_MODEL, reasoningBudget);
-
-  const parsed = parseJson(raw, 'generateSingleScene') as Scene;
-  return { ...parsed, kind: 'scene' as const, arcId };
-}
-
-/**
- * Generate an arc one scene at a time.
- * Each scene gets the full narrative context including all prior scenes
- * from this arc, preventing the duplication that plagues batch generation.
- *
- * The onScene callback is called after each scene is sanitized, allowing
- * the caller to dispatch to the store for live UI updates.
- */
-export async function generateArcStepwise(
-  narrative: NarrativeState,
-  resolvedKeys: string[],
-  currentIndex: number,
-  count: number,
-  direction: string,
-  options: GenerateStepwiseOptions = {},
-): Promise<{ scenes: Scene[]; arc: Arc }> {
-  const { existingArc, pacingSequence, worldBuildFocus, onToken, onReasoning, onScene, shouldStop } = options;
-  const storySettings: StorySettings = { ...DEFAULT_STORY_SETTINGS, ...narrative.storySettings };
-  const targetLen = storySettings.targetArcLength;
-  const sceneCount = count > 0 ? Math.max(4, count) : targetLen;
-
-  logInfo('Starting stepwise arc generation', {
-    source: 'manual-generation',
-    operation: 'generate-arc-stepwise',
-    details: {
-      narrativeId: narrative.id,
-      arcId: existingArc?.id ?? 'new',
-      sceneCount,
-      existingArc: !!existingArc,
-      hasPacingSequence: !!pacingSequence,
-      hasWorldBuildFocus: !!worldBuildFocus,
-    },
-  });
-
-  // Sample pacing sequence (when enabled)
-  let sequence: PacingSequence;
-  if (storySettings.usePacingChain === false) {
-    // No Markov chain — repeat current mode for all scenes (no pacing constraints)
-    const currentMode = detectCurrentMode(narrative, resolvedKeys);
-    const corner = NARRATIVE_CUBE[currentMode];
-    const neutralStep: ModeStep = { mode: currentMode, name: corner.name, description: corner.description, forces: { drive: [-2, 2], world: [-2, 2], system: [-2, 2] } };
-    sequence = { steps: Array.from({ length: sceneCount }, () => neutralStep), pacingDescription: 'AI Optimal — no pacing chain constraints' };
-  } else if (pacingSequence) {
-    sequence = pacingSequence;
-  } else {
-    const currentMode = detectCurrentMode(narrative, resolvedKeys);
-    const matrix = MATRIX_PRESETS.find((p) => p.key === storySettings.rhythmPreset)?.matrix ?? DEFAULT_TRANSITION_MATRIX;
-    sequence = samplePacingSequence(currentMode, sceneCount, matrix);
-  }
-
-  // World build focus appended to direction
-  let fullDirection = direction;
-  if (worldBuildFocus) {
-    const wb = worldBuildFocus;
-    const chars = wb.expansionManifest.characters.map((c) => `${c.name} (${c.role})`);
-    const locs = wb.expansionManifest.locations.map((l) => l.name);
-    const threads = wb.expansionManifest.threads.map((t) => {
-      const live = narrative.threads[t.id];
-      return `${t.description} [${live?.status ?? t.status}]`;
-    });
-    const wbLines = [`WORLD BUILD FOCUS: bring in recently introduced entities:`];
-    if (chars.length) wbLines.push(`  Characters: ${chars.join(', ')}`);
-    if (locs.length) wbLines.push(`  Locations: ${locs.join(', ')}`);
-    if (threads.length) wbLines.push(`  Threads: ${threads.join('; ')}`);
-    fullDirection = `${direction}\n${wbLines.join('\n')}`;
-  }
-
-  // Step 1: Plan the arc
-  const arcId = existingArc?.id ?? nextId('ARC', Object.keys(narrative.arcs));
-  const plan = await generateArcPlan(narrative, resolvedKeys, currentIndex, sequence.steps.length, fullDirection, sequence);
-
-  // Step 2: Generate scenes one at a time
-  const allScenes: Scene[] = [];
-  let liveNarrative = JSON.parse(JSON.stringify(narrative)) as NarrativeState;
-  let liveResolvedKeys = [...resolvedKeys];
-  let liveIndex = currentIndex;
-
-  // Pre-allocate scene IDs so they're sequential
-  const sceneIds = nextIds('S', Object.keys(narrative.scenes), sequence.steps.length, 3);
-
-  for (let i = 0; i < sequence.steps.length; i++) {
-    if (shouldStop?.()) break;
-
-    const step = sequence.steps[i];
-    const priorArcSceneIds = allScenes.map((s) => s.id);
-    const scene = await generateSingleScene(
-      liveNarrative, liveResolvedKeys, liveIndex,
-      arcId, plan, i, step, sequence.steps.length,
-      fullDirection, storySettings, priorArcSceneIds, onToken, onReasoning,
-    );
-
-    // Assign real scene ID
-    scene.id = sceneIds[i];
-    scene.summary = scene.summary || `Scene ${i + 1} of arc "${plan.arcName}"`;
-
-    // Sanitize
-    sanitizeScenes([scene], liveNarrative, 'generateArcStepwise');
-
-    // Fix knowledge mutation IDs (node mutations only)
-    const existingKIds = [
-      ...Object.values(liveNarrative.characters).flatMap((c) => Object.keys(c.continuity.nodes)),
-      ...Object.values(liveNarrative.locations).flatMap((l) => Object.keys(l.continuity.nodes)),
-      ...Object.values(liveNarrative.artifacts ?? {}).flatMap((a) => Object.keys(a.continuity.nodes)),
-    ];
-    const allAddedNodes = scene.continuityMutations.flatMap(km => km.addedNodes ?? []);
-    const kIds = nextIds('K', existingKIds, allAddedNodes.length);
-    allAddedNodes.forEach((node, j) => { node.id = kIds[j]; });
-
-    // Fix thread log node IDs — remap TK-GEN-* placeholders to globally-unique
-    // TK-NNN ids against the live thread logs. Without this, the LLM emits the
-    // same TK-GEN-0 / TK-GEN-1 across every scene in the arc, and
-    // applyThreadMutation's duplicate-id guard silently drops every log entry
-    // after scene 1 for each thread.
-    const existingTkIds = Object.values(liveNarrative.threads).flatMap((t) => Object.keys(t.threadLog?.nodes ?? {}));
-    const allTkNodes = (scene.threadMutations ?? []).flatMap((tm) => tm.addedNodes ?? []);
-    const tkIds = nextIds('TK', existingTkIds, allTkNodes.length);
-    allTkNodes.forEach((node, j) => { node.id = tkIds[j]; });
-
-    // Fix world knowledge IDs — concept-based resolution against the live
-    // graph so re-mentioned concepts from prior scenes in this arc collapse
-    // to the existing id and don't inflate System scores.
-    const wkm = scene.systemMutations;
-    if (wkm) {
-      wkm.addedNodes = wkm.addedNodes ?? [];
-      wkm.addedEdges = wkm.addedEdges ?? [];
-      const liveWkNodes = liveNarrative.systemGraph?.nodes ?? {};
-      const allocateFreshWkId = makeSystemIdAllocator(Object.keys(liveWkNodes));
-      const resolved = resolveSystemConceptIds(wkm.addedNodes, liveWkNodes, allocateFreshWkId);
-      wkm.addedNodes = resolved.newNodes;
-      const validWKIds = new Set<string>([
-        ...Object.keys(liveWkNodes),
-        ...resolved.newNodes.map((n) => n.id),
-      ]);
-      wkm.addedEdges = wkm.addedEdges.map((e) => ({
-        from: resolved.idMap[e.from] ?? e.from,
-        to: resolved.idMap[e.to] ?? e.to,
-        relation: e.relation,
-      }));
-      // Seed the stepwise seen-set from the live graph so we don't re-add
-      // edges accumulated from prior scenes in this arc or before it.
-      const stepwiseSeenEdgeKeys = new Set<string>();
-      for (const e of liveNarrative.systemGraph?.edges ?? []) {
-        stepwiseSeenEdgeKeys.add(systemEdgeKey(e));
-      }
-      sanitizeSystemMutation(wkm, validWKIds, stepwiseSeenEdgeKeys);
-    }
-
-    allScenes.push(scene);
-
-    // Update live narrative state so the next scene sees everything
-    liveNarrative = {
-      ...liveNarrative,
-      scenes: { ...liveNarrative.scenes, [scene.id]: scene },
-    };
-    liveNarrative = applySceneMutations(liveNarrative, [scene]);
-    liveResolvedKeys = [...liveResolvedKeys, scene.id];
-    liveIndex = liveResolvedKeys.length - 1;
-
-    // Build arc progressively
-    const currentArc: Arc = existingArc
-      ? {
-          ...existingArc,
-          sceneIds: [...existingArc.sceneIds, ...allScenes.map((s) => s.id)],
-          develops: [...new Set([...existingArc.develops, ...allScenes.flatMap((s) => s.threadMutations.map((tm) => tm.threadId))])],
-          locationIds: [...new Set([...existingArc.locationIds, ...allScenes.map((s) => s.locationId)])],
-          activeCharacterIds: [...new Set([...existingArc.activeCharacterIds, ...allScenes.flatMap((s) => s.participantIds)])],
-        }
-      : {
-          id: arcId,
-          name: plan.arcName,
-          sceneIds: allScenes.map((s) => s.id),
-          develops: [...new Set(allScenes.flatMap((s) => s.threadMutations.map((tm) => tm.threadId)))],
-          locationIds: [...new Set(allScenes.map((s) => s.locationId))],
-          activeCharacterIds: [...new Set(allScenes.flatMap((s) => s.participantIds))],
-          initialCharacterLocations: {},
-          directionVector: plan.directionVector,
-        };
-
-    // Notify caller for live UI updates
-    onScene?.(scene, currentArc, i);
-  }
-
-  // Build final arc
-  const newSceneIds = allScenes.map((s) => s.id);
-  const newDevelops = [...new Set(allScenes.flatMap((s) => s.threadMutations.map((tm) => tm.threadId)))];
-  const newLocationIds = [...new Set(allScenes.map((s) => s.locationId))];
-  const newCharacterIds = [...new Set(allScenes.flatMap((s) => s.participantIds))];
-
-  const arc: Arc = existingArc
-    ? {
-        ...existingArc,
-        sceneIds: [...existingArc.sceneIds, ...newSceneIds],
-        develops: [...new Set([...existingArc.develops, ...newDevelops])],
-        locationIds: [...new Set([...existingArc.locationIds, ...newLocationIds])],
-        activeCharacterIds: [...new Set([...existingArc.activeCharacterIds, ...newCharacterIds])],
-      }
-    : {
-        id: arcId,
-        name: plan.arcName,
-        sceneIds: newSceneIds,
-        develops: newDevelops,
-        locationIds: newLocationIds,
-        activeCharacterIds: newCharacterIds,
-        initialCharacterLocations: {},
-        directionVector: plan.directionVector,
-      };
-
-  if (!existingArc && allScenes.length > 0) {
-    for (const cid of arc.activeCharacterIds) {
-      const firstScene = allScenes.find((s) => s.participantIds.includes(cid));
-      if (firstScene) arc.initialCharacterLocations[cid] = firstScene.locationId;
-    }
-  }
-
-  logInfo('Completed stepwise arc generation', {
-    source: 'manual-generation',
-    operation: 'generate-arc-stepwise-complete',
-    details: {
-      narrativeId: narrative.id,
-      arcId: arc.id,
-      arcName: arc.name,
-      scenesGenerated: allScenes.length,
-      threadsInvolved: arc.develops.length,
-      locationsUsed: arc.locationIds.length,
-      charactersInvolved: arc.activeCharacterIds.length,
-    },
-  });
-
-  return { scenes: allScenes, arc };
-}

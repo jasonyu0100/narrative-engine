@@ -12,7 +12,6 @@ vi.mock('@/lib/ai/api', () => ({
 vi.mock('@/lib/ai/context', () => ({
   narrativeContext: vi.fn().mockReturnValue('Mock narrative context'),
   sceneContext: vi.fn().mockReturnValue('Mock scene context'),
-  deriveLogicRules: vi.fn().mockReturnValue(''),
   sceneScale: vi.fn().mockReturnValue({ estWords: 1500 }),
 }));
 
@@ -66,7 +65,7 @@ vi.mock('@/lib/beat-profiles', () => ({
   ]),
 }));
 
-import { generateScenes, generateScenePlan, editScenePlan, reverseEngineerScenePlan, rewriteScenePlan, generateSceneProse, generateArcStepwise } from '@/lib/ai/scenes';
+import { generateScenes, generateScenePlan, editScenePlan, reverseEngineerScenePlan, rewriteScenePlan, generateSceneProse } from '@/lib/ai/scenes';
 import { callGenerate, callGenerateStream } from '@/lib/ai/api';
 
 // ── Test Fixtures ────────────────────────────────────────────────────────────
@@ -1179,7 +1178,7 @@ Third beat prose.
 
 // ── Thread Log (TK) ID Handling ──────────────────────────────────────────────
 // These tests lock in the fix for the bug where the LLM emits TK-GEN-0 in
-// every scene of a stepwise arc and applyThreadMutation's duplicate-id guard
+// every scene of an arc and applyThreadMutation's duplicate-id guard
 // silently drops every log entry after the first scene for each thread.
 
 describe('generateScenes — thread log TK ID remap', () => {
@@ -1339,102 +1338,3 @@ describe('generateScenes — thread log TK ID remap', () => {
   });
 });
 
-// ── Stepwise Arc Generation — thread log handling ───────────────────────────
-
-describe('generateArcStepwise — thread log TK ID remap', () => {
-  /**
-   * Build a mock scene returned by generateSingleScene. The LLM reuses the
-   * same TK-GEN-0/1 placeholders across every stepwise scene because each
-   * call is independent — this is the exact scenario that broke before
-   * the stepwise TK-ID remap was added.
-   */
-  function mockSingleSceneResponse(threadId: string, from: string, to: string) {
-    return JSON.stringify({
-      id: 'S-GEN-SW', arcId: 'ARC-01', locationId: 'L-01', povId: 'C-01',
-      participantIds: ['C-01'], events: ['beat'],
-      threadMutations: [{
-        threadId, from, to,
-        addedNodes: [
-          { id: 'TK-GEN-0', content: `${threadId} ${from}→${to} entry A`, type: from === to ? 'pulse' : 'transition' },
-          { id: 'TK-GEN-1', content: `${threadId} ${from}→${to} entry B`, type: 'pulse' },
-        ],
-      }],
-      continuityMutations: [], relationshipMutations: [],
-      systemMutations: { addedNodes: [], addedEdges: [] },
-      summary: `Stepwise scene for ${threadId}`,
-    });
-  }
-
-  it('remaps TK-GEN placeholders to globally unique TK-* IDs across stepwise scenes', async () => {
-    // generateArcStepwise enforces a 4-scene minimum (Math.max(4, count)).
-    // Arc plan response — required by generateArcStepwise before the scene loop.
-    const arcPlanResponse = JSON.stringify({
-      arcName: 'Stepwise Arc',
-      directionVector: 'Things happen',
-      scenePlan: ['Scene 1 beat', 'Scene 2 beat', 'Scene 3 beat', 'Scene 4 beat'],
-    });
-
-    vi.mocked(callGenerate)
-      .mockResolvedValueOnce(arcPlanResponse) // generateArcPlan
-      .mockResolvedValueOnce(mockSingleSceneResponse('T-01', 'active', 'active'))
-      .mockResolvedValueOnce(mockSingleSceneResponse('T-01', 'active', 'active'))
-      .mockResolvedValueOnce(mockSingleSceneResponse('T-01', 'active', 'active'))
-      .mockResolvedValueOnce(mockSingleSceneResponse('T-01', 'active', 'active'));
-
-    const narrative = createMinimalNarrative();
-    // Disable pacing chain so detectCurrentMode returns LLL without needing markov setup.
-    narrative.storySettings = { ...narrative.storySettings, usePacingChain: false } as NarrativeState['storySettings'];
-
-    const result = await generateArcStepwise(narrative, [], -1, 4, 'Test');
-
-    // All four scenes should exist with TK IDs assigned.
-    expect(result.scenes).toHaveLength(4);
-
-    // Flatten all TK IDs across every threadMutation in every scene.
-    const allTkIds = result.scenes.flatMap((s) =>
-      (s.threadMutations ?? []).flatMap((tm) => tm.addedNodes?.map((n) => n.id) ?? [])
-    );
-
-    // LLM emitted 2 nodes per scene × 4 scenes = 8 total.
-    expect(allTkIds).toHaveLength(8);
-    // All must be unique — this is the bug fix. Before the fix, the LLM's
-    // TK-GEN-0/1 would collide across scenes and applyThreadMutation would
-    // silently drop scenes 2-4's log entries.
-    expect(new Set(allTkIds).size).toBe(8);
-    // All must be real TK-NNN IDs, not leftover GEN placeholders.
-    for (const id of allTkIds) {
-      expect(id).toMatch(/^TK-\d+$/);
-      expect(id).not.toMatch(/GEN/);
-    }
-  });
-
-  it('preserves distinct node content per scene (nothing dropped by collision)', async () => {
-    const arcPlanResponse = JSON.stringify({
-      arcName: 'Stepwise Arc',
-      directionVector: 'Things happen',
-      scenePlan: ['Scene 1', 'Scene 2', 'Scene 3', 'Scene 4'],
-    });
-
-    vi.mocked(callGenerate)
-      .mockResolvedValueOnce(arcPlanResponse)
-      .mockResolvedValueOnce(mockSingleSceneResponse('T-01', 'active', 'active'))
-      .mockResolvedValueOnce(mockSingleSceneResponse('T-01', 'active', 'active'))
-      .mockResolvedValueOnce(mockSingleSceneResponse('T-01', 'active', 'active'))
-      .mockResolvedValueOnce(mockSingleSceneResponse('T-01', 'active', 'active'));
-
-    const narrative = createMinimalNarrative();
-    narrative.storySettings = { ...narrative.storySettings, usePacingChain: false } as NarrativeState['storySettings'];
-
-    const result = await generateArcStepwise(narrative, [], -1, 4, 'Test');
-
-    // Every scene's log content must be present — if the bug were still there,
-    // scenes 2-4's TK-GEN-0/1 would collide with scene 1's and be dropped.
-    const allContent = result.scenes.flatMap((s) =>
-      (s.threadMutations ?? []).flatMap((tm) => tm.addedNodes?.map((n) => n.content) ?? [])
-    );
-    expect(allContent).toHaveLength(8); // 2 nodes × 4 scenes
-    // All scenes emit identical content strings — all should survive.
-    const occurrencesOfEntryA = allContent.filter((c) => c.endsWith('entry A')).length;
-    expect(occurrencesOfEntryA).toBe(4);
-  });
-});

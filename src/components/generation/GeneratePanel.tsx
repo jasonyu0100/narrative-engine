@@ -2,7 +2,7 @@
 
 import { useState, useMemo, useCallback } from 'react';
 import { useStore } from '@/lib/store';
-import { generateScenes, generateArcStepwise, expandWorld, suggestWorldExpansion, type WorldExpansionSize, type WorldExpansionStrategy, type ExpansionEntityFilter, DEFAULT_EXPANSION_FILTER } from '@/lib/ai';
+import { generateScenes, expandWorld, suggestWorldExpansion, type WorldExpansionSize, type WorldExpansionStrategy, type ExpansionEntityFilter, DEFAULT_EXPANSION_FILTER } from '@/lib/ai';
 import { resolveEntry, NARRATIVE_CUBE } from '@/types/narrative';
 import type { CubeCornerKey } from '@/types/narrative';
 import { nextId } from '@/lib/narrative-utils';
@@ -143,7 +143,6 @@ export function GeneratePanel({ onClose }: { onClose: () => void }) {
     setLoading(true);
     setStreamText('');
     setError('');
-    const genMode = narrative.storySettings?.generationMode ?? 'batch';
     try {
       // Apply direction/constraints to story settings so branchContext picks them up
       const currentSettings = { ...DEFAULT_STORY_SETTINGS, ...narrative.storySettings };
@@ -157,26 +156,11 @@ export function GeneratePanel({ onClose }: { onClose: () => void }) {
       const existingArc = !newArc ? currentArc ?? undefined : undefined;
       const worldBuildFocus = worldBuildFocusId ? narrative.worldBuilds[worldBuildFocusId] : undefined;
 
-      if (genMode === 'stepwise') {
-        await generateArcStepwise(
-          narrative, state.resolvedEntryKeys, headIndex, count, direction,
-          {
-            existingArc,
-            pacingSequence: previewSequence ?? undefined,
-            worldBuildFocus,
-            onReasoning: (token) => setStreamText((prev) => prev + token),
-            onScene: (scene, progressArc) => {
-              dispatch({ type: 'BULK_ADD_SCENES', scenes: [scene], arc: progressArc, branchId: state.activeBranchId! });
-            },
-          },
-        );
-      } else {
-        const { scenes, arc } = await generateScenes(
-          narrative, state.resolvedEntryKeys, headIndex, count, direction,
-          { existingArc, pacingSequence: previewSequence ?? undefined, worldBuildFocus, onReasoning: (token) => setStreamText((prev) => prev + token) },
-        );
-        dispatch({ type: 'BULK_ADD_SCENES', scenes, arc, branchId: state.activeBranchId! });
-      }
+      const { scenes, arc } = await generateScenes(
+        narrative, state.resolvedEntryKeys, headIndex, count, direction,
+        { existingArc, pacingSequence: previewSequence ?? undefined, worldBuildFocus, onReasoning: (token) => setStreamText((prev) => prev + token) },
+      );
+      dispatch({ type: 'BULK_ADD_SCENES', scenes, arc, branchId: state.activeBranchId! });
       onClose();
     } catch (err) {
       logError(
@@ -187,7 +171,6 @@ export function GeneratePanel({ onClose }: { onClose: () => void }) {
           operation: 'generate-scenes',
           details: {
             sceneCount: count,
-            generationMode: genMode,
             newArc,
           },
         }

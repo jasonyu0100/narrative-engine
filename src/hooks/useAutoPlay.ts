@@ -3,7 +3,7 @@
 import { useRef, useCallback, useEffect } from 'react';
 import { useStore } from '@/lib/store';
 import { evaluateNarrativeState, checkEndConditions, pickArcLength, buildOutlineDirective } from '@/lib/auto-engine';
-import { generateScenes, generateArcStepwise, expandWorld } from '@/lib/ai';
+import { generateScenes, expandWorld } from '@/lib/ai';
 import { refreshDirection } from '@/lib/ai/review';
 import { generatePhaseDirection } from '@/lib/planning-engine';
 import { DEFAULT_STORY_SETTINGS } from '@/types/narrative';
@@ -278,43 +278,20 @@ export function useAutoPlay() {
         }
       }
 
-      const genMode = activeNarrative.storySettings?.generationMode ?? 'batch';
-      let scenes: Awaited<ReturnType<typeof generateScenes>>['scenes'];
-      let arc: Awaited<ReturnType<typeof generateScenes>>['arc'];
-
       // Always generate from the HEAD of the story (end), not from the cursor position
       const headIndex = resolvedEntryKeys.length - 1;
 
-      if (genMode === 'stepwise') {
-        dispatch({ type: 'SET_AUTO_STATUS', message: `Writing ${sceneCount} scenes...` });
-        const result = await generateArcStepwise(
-          activeNarrative, resolvedEntryKeys, headIndex, sceneCount, directive,
-          {
-            worldBuildFocus,
-            shouldStop: () => cancelledRef.current,
-            onScene: (scene, progressArc, idx) => {
-              dispatch({ type: 'SET_AUTO_STATUS', message: `Writing scene ${idx + 1} of ${sceneCount}...` });
-              dispatch({ type: 'BULK_ADD_SCENES', scenes: [scene], arc: progressArc, branchId: activeBranchId });
-            },
-          },
-        );
-        scenes = result.scenes;
-        arc = result.arc;
-      } else {
-        dispatch({ type: 'SET_AUTO_STATUS', message: `Writing ${sceneCount} scenes...` });
-        const result = await generateScenes(
-          activeNarrative, resolvedEntryKeys, headIndex, sceneCount, directive, { worldBuildFocus },
-        );
-        scenes = result.scenes;
-        arc = result.arc;
-        // Truncate if LLM returned more scenes than requested
-        if (phaseRemaining < Infinity && scenes.length > phaseRemaining) {
-          scenes = scenes.slice(0, phaseRemaining);
-          arc = { ...arc, sceneIds: arc.sceneIds.slice(0, phaseRemaining) };
-        }
-        if (cancelledRef.current) return;
-        dispatch({ type: 'BULK_ADD_SCENES', scenes, arc, branchId: activeBranchId });
+      dispatch({ type: 'SET_AUTO_STATUS', message: `Writing ${sceneCount} scenes...` });
+      let { scenes, arc } = await generateScenes(
+        activeNarrative, resolvedEntryKeys, headIndex, sceneCount, directive, { worldBuildFocus },
+      );
+      // Truncate if LLM returned more scenes than requested
+      if (phaseRemaining < Infinity && scenes.length > phaseRemaining) {
+        scenes = scenes.slice(0, phaseRemaining);
+        arc = { ...arc, sceneIds: arc.sceneIds.slice(0, phaseRemaining) };
       }
+      if (cancelledRef.current) return;
+      dispatch({ type: 'BULK_ADD_SCENES', scenes, arc, branchId: activeBranchId });
 
       if (cancelledRef.current) return;
       scenesGenerated = scenes.length;
@@ -389,7 +366,6 @@ export function useAutoPlay() {
 
       let detailedMsg = `[auto-play] Cycle ${autoRunState.currentCycle + 1} failed`;
       detailedMsg += `\nAction: ${action} (${chosen.reason})`;
-      detailedMsg += `\nMode: ${activeNarrative.storySettings?.generationMode ?? 'batch'}`;
       detailedMsg += `\nTarget scenes: ${sceneCount}`;
 
       if (isFetchError) {
@@ -418,7 +394,6 @@ export function useAutoPlay() {
           operation: 'scene-generation',
           details: {
             action,
-            generationMode: activeNarrative.storySettings?.generationMode,
             phaseName: pq?.phases[pq.activePhaseIndex]?.name,
             phaseProgress: pq ? `${pq.phases[pq.activePhaseIndex]?.scenesCompleted}/${pq.phases[pq.activePhaseIndex]?.sceneAllocation}` : undefined,
           },

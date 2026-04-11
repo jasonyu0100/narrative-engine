@@ -1,9 +1,8 @@
 // Context builders
-export { narrativeContext, sceneContext, outlineContext, worldContext, deriveLogicRules, logicContext } from './context';
+export { narrativeContext, sceneContext, outlineContext } from './context';
 
 // Scene generation
-export { generateScenes, generateArcStepwise, generateScenePlan, rewriteScenePlan, generateSceneProse } from './scenes';
-export type { ArcPlan, GenerateStepwiseOptions } from './scenes';
+export { generateScenes, generateScenePlan, rewriteScenePlan, generateSceneProse } from './scenes';
 
 // Plan candidates
 export { runPlanCandidates } from './candidates';

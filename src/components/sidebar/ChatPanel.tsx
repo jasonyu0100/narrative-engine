@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { useStore } from '@/lib/store';
-import { narrativeContext, sceneContext, outlineContext, worldContext, logicContext } from '@/lib/ai';
+import { narrativeContext, sceneContext, outlineContext } from '@/lib/ai';
 import { resolveEntry } from '@/types/narrative';
 import { apiHeaders } from '@/lib/api-headers';
 import { logApiCall, updateApiLog } from '@/lib/api-logger';
@@ -15,7 +15,7 @@ export default function ChatPanel() {
   const access = useFeatureAccess();
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
-  const [contextMode, setContextMode] = useState<'scene' | 'outline' | 'narrative' | 'world' | 'logic'>('scene');
+  const [contextMode, setContextMode] = useState<'scene' | 'outline' | 'narrative'>('scene');
   const [threadPickerOpen, setThreadPickerOpen] = useState(false);
   const [renamingThreadId, setRenamingThreadId] = useState<string | null>(null);
   const [renameValue, setRenameValue] = useState('');
@@ -52,16 +52,9 @@ export default function ChatPanel() {
     return () => document.removeEventListener('mousedown', handleClick);
   }, [threadPickerOpen]);
 
-  // Update context scene index when user navigates, and auto-detect context mode
+  // Update context scene index when user navigates
   useEffect(() => {
     setContextSceneIndex(state.currentSceneIndex);
-    if (state.activeNarrative) {
-      const key = state.resolvedEntryKeys[state.currentSceneIndex];
-      const entry = key ? resolveEntry(state.activeNarrative, key) : null;
-      if (entry?.kind === 'world_build') setContextMode('world');
-      else setContextMode('scene');
-
-    }
   }, [state.currentSceneIndex]);
 
   const buildSystemPrompt = useCallback(() => {
@@ -100,29 +93,6 @@ ${sceneAnchor}
 Answer questions about story progression, recap events, identify patterns, or discuss where the narrative stands. You see the arc structure and scene summaries but not full mutation detail. Be concise and specific.
 
 ${ctx}`;
-    }
-
-    if (contextMode === 'world') {
-      const ctx = worldContext(n, state.resolvedEntryKeys, contextSceneIndex);
-      const currentKey = state.resolvedEntryKeys[contextSceneIndex];
-      const wb = n.worldBuilds[currentKey];
-      const commitLabel = wb ? ` Viewing world commit: ${currentKey} — "${wb.summary}".` : '';
-      return `You are a narrative consultant for the story "${n.title}". You have a cumulative view of the world as it has been built up to this point in the timeline.${commitLabel}
-${sceneAnchor}
-
-Answer questions about the world's characters, locations, threads, and lore. Explain what was introduced when, identify gaps or contradictions, or discuss how the world has evolved. Be concise and specific.
-
-${ctx}`;
-    }
-
-    if (contextMode === 'logic' && currentScene) {
-      const ctx = logicContext(n, currentScene, state.resolvedEntryKeys, contextSceneIndex);
-      return `You are a narrative consultant for the story "${n.title}". You have access to the logical constraints that prose for this scene must satisfy.
-${sceneAnchor}
-
-These constraints are derived from the scene's structure: POV restrictions, knowledge boundaries, relationship states, thread transitions, artifact ownership, and temporal ordering. Answer questions about what the prose can and cannot do, identify potential violations, or explain why certain rules exist. Be concise and specific.
-
-${ctx || 'No logical constraints for this scene.'}`;
     }
 
     const ctx = narrativeContext(n, state.resolvedEntryKeys, contextSceneIndex);
@@ -412,7 +382,7 @@ ${ctx}`;
         {/* Context mode toggle row */}
         <div className="flex items-center gap-2">
           <div className="flex rounded-md border border-border overflow-hidden text-[10px] font-medium">
-            {(['scene', 'outline', 'narrative', 'world', 'logic'] as const).map((mode, idx) => (
+            {(['scene', 'outline', 'narrative'] as const).map((mode, idx) => (
               <button
                 key={mode}
                 onClick={() => setContextMode(mode)}
