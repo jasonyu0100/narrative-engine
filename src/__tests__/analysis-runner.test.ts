@@ -64,7 +64,7 @@ const mockNarrative: NarrativeState = {
   scenes: {},
   branches: {},
   worldBuilds: {},
-  worldKnowledge: { nodes: {}, edges: [] },
+  systemGraph: { nodes: {}, edges: [] },
   relationships: [],
   artifacts: {},
   rules: [],

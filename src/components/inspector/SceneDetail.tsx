@@ -39,7 +39,7 @@ export default function SceneDetail({ sceneId }: Props) {
       m.threads.length === 0 &&
       (m.artifacts?.length ?? 0) === 0 &&
       (m.relationships?.length ?? 0) === 0 &&
-      (m.worldKnowledgeMutations?.addedNodes?.length ?? 0) === 0 &&
+      (m.systemMutations?.addedNodes?.length ?? 0) === 0 &&
       (m.continuityMutations?.length ?? 0) === 0 &&
       (m.relationshipMutations?.length ?? 0) === 0 &&
       (m.ownershipMutations?.length ?? 0) === 0 &&
@@ -147,11 +147,11 @@ export default function SceneDetail({ sceneId }: Props) {
               </div>
             </div>
           )}
-          {(m.worldKnowledgeMutations?.addedNodes?.length ?? 0) > 0 && (
+          {(m.systemMutations?.addedNodes?.length ?? 0) > 0 && (
             <div className="flex flex-col gap-1">
               <h3 className="text-[10px] uppercase tracking-widest text-text-dim">World Knowledge</h3>
               <div className="flex flex-wrap gap-1.5">
-                {m.worldKnowledgeMutations!.addedNodes.map((node) => (
+                {m.systemMutations!.addedNodes.map((node) => (
                   <button
                     key={node.id}
                     type="button"
@@ -655,21 +655,21 @@ export default function SceneDetail({ sceneId }: Props) {
       )}
 
       {/* World Knowledge Mutations */}
-      {scene.worldKnowledgeMutations && ((scene.worldKnowledgeMutations.addedNodes?.length ?? 0) > 0 || (scene.worldKnowledgeMutations.addedEdges?.length ?? 0) > 0) && (
+      {scene.systemMutations && ((scene.systemMutations.addedNodes?.length ?? 0) > 0 || (scene.systemMutations.addedEdges?.length ?? 0) > 0) && (
         <div className="flex flex-col gap-1.5">
           <h3 className="text-[10px] uppercase tracking-widest text-text-dim">
             World Knowledge
           </h3>
-          {(scene.worldKnowledgeMutations.addedNodes ?? []).map((node, i) => (
+          {(scene.systemMutations.addedNodes ?? []).map((node, i) => (
             <div key={`wk-node-${node.id}-${i}`} className="flex items-center gap-1.5 text-xs">
               <span className="text-world">+</span>
               <span className="text-text-primary">{node.concept}</span>
               <span className="text-[10px] text-text-dim">({node.type})</span>
             </div>
           ))}
-          {(scene.worldKnowledgeMutations.addedEdges ?? []).map((edge, i) => {
-            const fromNode = narrative.worldKnowledge.nodes[edge.from];
-            const toNode = narrative.worldKnowledge.nodes[edge.to];
+          {(scene.systemMutations.addedEdges ?? []).map((edge, i) => {
+            const fromNode = narrative.systemGraph.nodes[edge.from];
+            const toNode = narrative.systemGraph.nodes[edge.to];
             const shortName = (concept: string) => {
               const dash = concept.indexOf(' — ');
               return dash > 0 ? concept.slice(0, dash) : concept;

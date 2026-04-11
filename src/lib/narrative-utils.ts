@@ -1,4 +1,4 @@
-import type { Branch, NarrativeState, Scene, Thread, ThreadStatus, ForceSnapshot, CubeCornerKey, CubeCorner, WorldKnowledgeGraph, WorldKnowledgeNode, WorldKnowledgeEdge, WorldKnowledgeMutation, WorldBuild } from '@/types/narrative';
+import type { Branch, NarrativeState, Scene, Thread, ThreadStatus, ForceSnapshot, CubeCornerKey, CubeCorner, SystemGraph, SystemNode, SystemEdge, SystemMutation, WorldBuild } from '@/types/narrative';
 import { NARRATIVE_CUBE } from '@/types/narrative';
 import { FORCE_WINDOW_SIZE, PEAK_WINDOW_SCENES_DIVISOR, SHAPE_TROUGH_BAND_LO, SHAPE_TROUGH_BAND_HI, BEAT_DENSITY_MIN, BEAT_DENSITY_MAX } from '@/lib/constants';
 
@@ -595,18 +595,18 @@ function rawWorld(scene: Scene): number {
  *    0 nodes, 4 edges → S = 2        (pure reconnection)
  *    0 nodes, 10 edges → S = 3.2     (diminishing returns) */
 function rawSystem(scene: Scene): number {
-  const wkm = scene.worldKnowledgeMutations;
+  const wkm = scene.systemMutations;
   if (!wkm) return 0;
   const n = wkm.addedNodes?.length ?? 0;
   const e = wkm.addedEdges?.length ?? 0;
   return n + Math.sqrt(e);
 }
 
-// ── World Knowledge Graph Utilities ─────────────────────────────────────────
+// ── System Graph Utilities ─────────────────────────────────────────
 
-/** Compute degree centrality for each node in the world knowledge graph.
+/** Compute degree centrality for each node in the system graph.
  *  More edges = more significant concept. Returns sorted by relevance descending. */
-export function rankWorldKnowledgeNodes(graph: WorldKnowledgeGraph): { node: WorldKnowledgeNode; degree: number }[] {
+export function rankSystemNodes(graph: SystemGraph): { node: SystemNode; degree: number }[] {
   const degree = new Map<string, number>();
   for (const edge of graph.edges) {
     degree.set(edge.from, (degree.get(edge.from) ?? 0) + 1);
@@ -617,18 +617,18 @@ export function rankWorldKnowledgeNodes(graph: WorldKnowledgeGraph): { node: Wor
     .sort((a, b) => b.degree - a.degree);
 }
 
-/** Build the cumulative world knowledge graph up to a given scene index
- *  by replaying worldKnowledgeMutations from both scenes and world build commits. */
-export function buildCumulativeWorldKnowledge(
+/** Build the cumulative system graph up to a given scene index
+ *  by replaying systemMutations from both scenes and world build commits. */
+export function buildCumulativeSystemGraph(
   scenes: Record<string, Scene>,
   resolvedKeys: string[],
   upToIndex: number,
   worldBuilds?: Record<string, WorldBuild>,
-): WorldKnowledgeGraph {
-  const nodes: Record<string, WorldKnowledgeNode> = {};
-  const edges: WorldKnowledgeEdge[] = [];
+): SystemGraph {
+  const nodes: Record<string, SystemNode> = {};
+  const edges: SystemEdge[] = [];
 
-  const applyMutation = (wkm: WorldKnowledgeMutation) => {
+  const applyMutation = (wkm: SystemMutation) => {
     for (const n of wkm.addedNodes ?? []) {
       if (!nodes[n.id]) nodes[n.id] = { id: n.id, concept: n.concept, type: n.type };
     }
@@ -642,12 +642,12 @@ export function buildCumulativeWorldKnowledge(
   for (let i = 0; i <= upToIndex && i < resolvedKeys.length; i++) {
     const key = resolvedKeys[i];
     const scene = scenes[key];
-    if (scene?.worldKnowledgeMutations) {
-      applyMutation(scene.worldKnowledgeMutations);
+    if (scene?.systemMutations) {
+      applyMutation(scene.systemMutations);
     }
     const wb = worldBuilds?.[key];
-    if (wb?.expansionManifest.worldKnowledgeMutations) {
-      applyMutation(wb.expansionManifest.worldKnowledgeMutations);
+    if (wb?.expansionManifest.systemMutations) {
+      applyMutation(wb.expansionManifest.systemMutations);
     }
   }
   return { nodes, edges };
@@ -659,7 +659,7 @@ export function buildCumulativeWorldKnowledge(
  *
  * - **Drive**: phase transitions — thread status changes (weighted by jump magnitude) and relationship valence deltas
  * - **World**: entity continuity graph complexity delta (ΔN_c + √ΔE_c per scene)
- * - **System**: world knowledge graph complexity delta (new nodes + sqrt edges per scene)
+ * - **System**: system graph complexity delta (new nodes + sqrt edges per scene)
  *
  * @param scenes - Ordered list of scenes to compute forces for
  * @param priorScenes - Scenes before this batch (for usage tracking). Empty for initial generation.
@@ -1210,7 +1210,7 @@ export function classifyScale(sceneCount: number): NarrativeScale {
 
 // ── World Density Classification ─────────────────────────────────────────────
 // Measures richness of the world relative to story length.
-// Density = (characters + locations + threads + worldKnowledgeNodes) / scenes
+// Density = (characters + locations + threads + systemNodes) / scenes
 // Calibrated from analysed works:
 //   Two Cities:     (73+48+32+20)/100  = 1.7
 //   HP Azkaban:     (86+74+34+39)/110  = 2.1
@@ -1238,7 +1238,7 @@ export function classifyWorldDensity(
   characterCount: number,
   locationCount: number,
   threadCount: number,
-  worldKnowledgeNodeCount: number,
+  systemNodeCount: number,
   /** Total continuity nodes across all entities (characters + locations + artifacts) */
   entityContinuityNodeCount?: number,
   /** Total continuity edges across all entities */
@@ -1247,7 +1247,7 @@ export function classifyWorldDensity(
   if (sceneCount === 0) return { ...DENSITIES.sparse, density: 0 };
   // Entity continuity contributes to density via the same ΔN + √ΔE pattern
   const continuityContribution = (entityContinuityNodeCount ?? 0) + Math.sqrt(entityContinuityEdgeCount ?? 0);
-  const density = (characterCount + locationCount + threadCount + worldKnowledgeNodeCount + continuityContribution) / sceneCount;
+  const density = (characterCount + locationCount + threadCount + systemNodeCount + continuityContribution) / sceneCount;
   const base = density < 0.5 ? DENSITIES.sparse
     : density < 1.5 ? DENSITIES.focused
     : density < 2.5 ? DENSITIES.developed

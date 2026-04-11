@@ -27,8 +27,18 @@ export type ThreadParticipant = {
 
 // ── Thread Log ──────────────────────────────────────────────────────────────
 
-/** Nine perceptual primitives — the thread's model of its own situation.
- *  Whatever doesn't register as one of these doesn't exist for the thread. */
+/** Thread log node — a statement of something that occurred in a specific scene.
+ *  Written in simple past tense. One fact, one sentence, no interpretation.
+ *  Nine perceptual primitives — the thread's model of its own situation.
+ *  Whatever doesn't register as one of these doesn't exist for the thread.
+ *
+ *  Examples:
+ *  - "Harry caused the glass of the boa enclosure to vanish at the zoo." (payoff)
+ *  - "Fang Yuan observed that Bai Ning Bing's right arm gu worm is disrupted." (setup)
+ *  - "Uncle Vernon confiscated Harry's Hogwarts letter before Harry could read it." (resistance)
+ *  - "Dumbledore arrived at the Ministry with evidence of Voldemort's return." (transition)
+ *  - "The prophecy was mentioned again in Snape's memory." (callback)
+ */
 export type ThreadLogNodeType =
   | 'pulse'       // "I was acknowledged but nothing changed." Continuity maintenance.
   | 'transition'  // "My fundamental state has changed." Lifecycle position updated.
@@ -76,8 +86,16 @@ export type Thread = {
 // ── Character ────────────────────────────────────────────────────────────────
 export type CharacterRole = 'anchor' | 'recurring' | 'transient';
 
-/** Continuity node types — grounded in reality, facts, and entity-level truth.
- *  Works across characters, locations, and artifacts. */
+/** Continuity node — a statement of stable fact about an entity's nature, identity, or permanent condition.
+ *  Written in simple present tense. No events, no causation. Works across characters, locations, and artifacts.
+ *
+ *  Examples:
+ *  - "Harry Potter has a lightning-bolt scar on his forehead." (trait)
+ *  - "Fang Yuan is a reincarnated demon who conceals his true cultivation rank." (secret)
+ *  - "The Dursley household is hostile to anything associated with magic." (trait)
+ *  - "Gandalf carries the elven ring Narya, the Ring of Fire." (relation)
+ *  - "The Iron Throne is forged from a thousand surrendered swords." (history)
+ */
 export type ContinuityNodeType =
   | 'trait'       // Inherent characteristic — personality, atmosphere, physical property
   | 'state'       // Current condition — wounded, ruined, activated, contested
@@ -413,9 +431,19 @@ export const BEAT_MECHANISM_LIST: BeatMechanism[] = ['dialogue', 'thought', 'act
 
 // ── World Knowledge Graph ───────────────────────────────────────────────────
 
-/** World knowledge node types — narrator's structural truth about the universe.
- *  Works for fiction and non-fiction alike. */
-export type WorldKnowledgeNodeType =
+/** System node — a statement of how the world works.
+ *  Written as a general present-tense rule or structural fact.
+ *  No specific characters, no specific events. Narrator's structural truth about the universe.
+ *  Works for fiction and non-fiction alike.
+ *
+ *  Examples:
+ *  - "Magic performed near an underage wizard is attributed to that wizard by the Ministry, regardless of who cast it." (principle)
+ *  - "Gu worms must be fed primeval stones or they weaken and die." (constraint)
+ *  - "The Qing Mao Mountain sect allocates gu worms to disciples by rank each season." (convention)
+ *  - "Horcruxes anchor the creator's soul to the mortal plane, preventing true death." (system)
+ *  - "The Iron Bank of Braavos always collects its debts, even across generations." (structure)
+ */
+export type SystemNodeType =
   | 'principle'    // Fundamental truth — physical law, economic axiom, magic rule
   | 'system'       // Organized mechanism — governance, ecosystem, magic system, TCP/IP
   | 'concept'      // Abstract idea — theory, framework, phenomenon, category
@@ -426,27 +454,27 @@ export type WorldKnowledgeNodeType =
   | 'convention'   // Norm — custom, practice, etiquette, legal precedent
   | 'constraint';  // Limitation — scarcity, cost, boundary, physical limit
 
-export const WORLD_KNOWLEDGE_NODE_TYPES: WorldKnowledgeNodeType[] = ['principle', 'system', 'concept', 'tension', 'event', 'structure', 'environment', 'convention', 'constraint'];
+export const SYSTEM_NODE_TYPES: SystemNodeType[] = ['principle', 'system', 'concept', 'tension', 'event', 'structure', 'environment', 'convention', 'constraint'];
 
-export type WorldKnowledgeNode = {
+export type SystemNode = {
   id: string;
   concept: string;
-  type: WorldKnowledgeNodeType;
+  type: SystemNodeType;
 };
 
-export type WorldKnowledgeEdge = {
+export type SystemEdge = {
   from: string;
   to: string;
   relation: string;
 };
 
-export type WorldKnowledgeGraph = {
-  nodes: Record<string, WorldKnowledgeNode>;
-  edges: WorldKnowledgeEdge[];
+export type SystemGraph = {
+  nodes: Record<string, SystemNode>;
+  edges: SystemEdge[];
 };
 
-export type WorldKnowledgeMutation = {
-  addedNodes: { id: string; concept: string; type: WorldKnowledgeNodeType }[];
+export type SystemMutation = {
+  addedNodes: { id: string; concept: string; type: SystemNodeType }[];
   addedEdges: { from: string; to: string; relation: string }[];
 };
 
@@ -533,7 +561,7 @@ export type ExpansionManifest = {
   threads: Thread[];
   relationships: RelationshipEdge[];
   /** Mutations on existing entities — same as scene-level mutations but applied at world-build time */
-  worldKnowledgeMutations: WorldKnowledgeMutation;
+  systemMutations: SystemMutation;
   ownershipMutations?: OwnershipMutation[];
   tieMutations?: TieMutation[];
   continuityMutations?: ContinuityMutation[];
@@ -615,7 +643,7 @@ export type Scene = {
   continuityMutations: ContinuityMutation[];
   relationshipMutations: RelationshipMutation[];
   /** World knowledge graph mutations — new concepts and connections about how the world works */
-  worldKnowledgeMutations?: WorldKnowledgeMutation;
+  systemMutations?: SystemMutation;
   /** Artifact ownership changes — objects changing hands between characters/locations */
   ownershipMutations?: OwnershipMutation[];
   /** Tie changes — characters forming or breaking ties with locations */
@@ -794,7 +822,7 @@ export type NarrativeState = {
   /** Derived cache — recomputed from world-build manifests + scene mutations via resolvedEntryKeys */
   relationships: RelationshipEdge[];
   /** Derived cache — cumulative world knowledge graph built from world-build manifests + scene mutations */
-  worldKnowledge: WorldKnowledgeGraph;
+  systemGraph: SystemGraph;
   worldSummary: string;
   /** World rules / commandments that the narrative must follow */
   rules: string[];
@@ -1184,7 +1212,7 @@ export type AnalysisChunkResult = {
     ownershipMutations?: { artifactName: string; fromName: string; toName: string }[];
     tieMutations?: { locationName: string; characterName: string; action: 'add' | 'remove' }[];
     characterMovements?: { characterName: string; locationName: string; transition: string }[];
-    worldKnowledgeMutations?: {
+    systemMutations?: {
       addedNodes: { concept: string; type: string }[];
       addedEdges: { fromConcept: string; toConcept: string; relation: string }[];
     };

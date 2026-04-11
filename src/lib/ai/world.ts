@@ -1,10 +1,10 @@
-import type { NarrativeState, Scene, Character, Location, Thread, RelationshipEdge, WorldKnowledgeNode, WorldKnowledgeEdge, WorldKnowledgeMutation, WorldKnowledgeNodeType, Artifact, ReasoningLevel, OwnershipMutation, TieMutation, ContinuityMutation, RelationshipMutation } from '@/types/narrative';
+import type { NarrativeState, Scene, Character, Location, Thread, RelationshipEdge, SystemNode, SystemEdge, SystemMutation, SystemNodeType, Artifact, ReasoningLevel, OwnershipMutation, TieMutation, ContinuityMutation, RelationshipMutation } from '@/types/narrative';
 import { THREAD_ACTIVE_STATUSES, THREAD_TERMINAL_STATUSES, resolveEntry, isScene, REASONING_BUDGETS, DEFAULT_STORY_SETTINGS } from '@/types/narrative';
 import { nextId, nextIds } from '@/lib/narrative-utils';
 import type { ThreadLogNodeType } from '@/types/narrative';
 import { applyThreadMutation } from '@/lib/thread-log';
 import { applyContinuityMutation } from '@/lib/continuity-graph';
-import { sanitizeWorldKnowledgeMutation, applyWorldKnowledgeMutation, wkEdgeKey, makeWkIdAllocator, resolveWkConceptIds } from '@/lib/world-knowledge-graph';
+import { sanitizeSystemMutation, applySystemMutation, systemEdgeKey, makeSystemIdAllocator, resolveSystemConceptIds } from '@/lib/system-graph';
 import { callGenerate, callGenerateStream, SYSTEM_PROMPT } from './api';
 import { MAX_TOKENS_LARGE, GENERATE_MODEL } from '@/lib/constants';
 import { parseJson } from './json';
@@ -51,7 +51,7 @@ export type ExpansionEntityFilter = {
   threads: boolean;
   artifacts: boolean;
   relationships: boolean;
-  worldKnowledge: boolean;
+  systemMutations: boolean;
   ownershipMutations: boolean;
   tieMutations: boolean;
   continuityMutations: boolean;
@@ -60,7 +60,7 @@ export type ExpansionEntityFilter = {
 
 export const DEFAULT_EXPANSION_FILTER: ExpansionEntityFilter = {
   characters: true, locations: true, threads: true,
-  artifacts: true, relationships: true, worldKnowledge: true,
+  artifacts: true, relationships: true, systemMutations: true,
   ownershipMutations: true, tieMutations: true,
   continuityMutations: true, relationshipMutations: true,
 };
@@ -70,7 +70,7 @@ export type WorldExpansion = {
   locations: Location[];
   threads: Thread[];
   relationships: RelationshipEdge[];
-  worldKnowledgeMutations?: WorldKnowledgeMutation;
+  systemMutations?: SystemMutation;
   artifacts?: Artifact[];
   ownershipMutations?: OwnershipMutation[];
   tieMutations?: TieMutation[];
@@ -474,7 +474,7 @@ ${(() => {
   const f = entityFilter ?? DEFAULT_EXPANSION_FILTER;
   const disabled = Object.entries(f).filter(([, v]) => !v).map(([k]) => k);
   if (disabled.length === 0) return '';
-  const labels: Record<string, string> = { characters: 'characters', locations: 'locations', threads: 'threads', artifacts: 'artifacts', relationships: 'relationships', worldKnowledge: 'world knowledge mutations', ownershipMutations: 'ownership mutations (artifact transfers)', tieMutations: 'tie mutations (character-location bonds)', continuityMutations: 'continuity mutations (changes to existing entities)', relationshipMutations: 'relationship mutations (valence shifts on existing relationships)' };
+  const labels: Record<string, string> = { characters: 'characters', locations: 'locations', threads: 'threads', artifacts: 'artifacts', relationships: 'relationships', systemMutations: 'system mutations', ownershipMutations: 'ownership mutations (artifact transfers)', tieMutations: 'tie mutations (character-location bonds)', continuityMutations: 'continuity mutations (changes to existing entities)', relationshipMutations: 'relationship mutations (valence shifts on existing relationships)' };
   return `ENTITY FILTER — DO NOT create the following types (return empty arrays for them):\n${disabled.map(k => `- NO ${labels[k]}`).join('\n')}\n`;
 })()}
 ${size === 'exact' ? `This is an EXACT expansion — create ONLY what the directive explicitly describes. Do not add extra characters, locations, threads, or artifacts beyond what is specified. No embellishments, no "while we're at it" additions. If the directive says "add a blacksmith named Torin", create exactly that character and nothing else. Every entity in your response must trace directly to something stated in the directive.` : `This is ${EXPANSION_SIZE_CONFIG[size].label} (${EXPANSION_SIZE_CONFIG[size].total} total new entities). Generate:
@@ -543,9 +543,9 @@ Return JSON with this exact structure:
       "imagePrompt": "1-2 sentence LITERAL visual description — concrete physical details only, no metaphors or figurative language"
     }
   ],
-  "worldKnowledgeMutations": {
-    "addedNodes": [{"id": "WK-GEN-001", "concept": "foundational world concept", "type": "principle|system|concept|tension|event|structure|environment|convention|constraint"}],
-    "addedEdges": [{"from": "WK-GEN-001", "to": "existing-WK-ID", "relation": "relationship"}]
+  "systemMutations": {
+    "addedNodes": [{"id": "SYS-GEN-001", "concept": "15-25 words, PRESENT tense: a general rule or structural fact about how the world works — no specific characters or events", "type": "principle|system|concept|tension|event|structure|environment|convention|constraint"}],
+    "addedEdges": [{"from": "SYS-GEN-001", "to": "existing-SYS-ID", "relation": "enables|governs|opposes|extends|created_by|constrains|exist_within"}]
   },
   "ownershipMutations": [{"artifactId": "A-XX", "fromId": "C-XX or L-XX", "toId": "C-YY or L-YY"}],
   "tieMutations": [{"locationId": "L-XX", "characterId": "C-XX", "action": "add|remove"}],
@@ -590,12 +590,12 @@ THREAD CONVERGENCE (critical for long-form narrative):
 - Empty dependents [] is acceptable for truly independent new threads, but at least one thread per expansion MUST bridge existing threads.
 
 WORLD KNOWLEDGE MUTATIONS:
-worldKnowledgeMutations define the FOUNDATIONAL abstractions this expansion establishes — the rules, systems, concepts, and tensions that the new characters, locations, and threads operate within. These are intentional world-building, not incidental discovery.
+systemMutations define the FOUNDATIONAL abstractions this expansion establishes — the rules, systems, concepts, and tensions that the new characters, locations, and threads operate within. These are intentional world-building, not incidental discovery.
 - Use "principle" for fundamental truths, "system" for mechanisms/institutions, "concept" for abstract ideas, "tension" for contradictions, "event" for world-level occurrences, "structure" for organizations/factions, "environment" for geography/climate, "convention" for customs/norms, "constraint" for scarcities/limitations.
-- Node IDs should be WK-GEN-001, WK-GEN-002, etc. (they will be re-mapped to real IDs).
-- Edges can reference both new WK-GEN-* IDs and existing world knowledge IDs already in the narrative.
+- Node IDs should be SYS-GEN-001, SYS-GEN-002, etc. (they will be re-mapped to real IDs).
+- Edges can reference both new SYS-GEN-* IDs and existing world knowledge IDs already in the narrative.
 - Generate ${size === 'small' ? '4-6' : size === 'medium' ? '8-12' : size === 'exact' ? 'as many as the directive calls for' : '15-25'} world knowledge nodes with a comparable number of edges. Each must be a genuine structural rule or system that the new entities operate within. EDGES ARE CRITICAL — an isolated node contributes 1 to system, but an edge connecting it to existing WK adds √1 more AND wires the expansion into the existing graph.
-- At least HALF of your edges should cross the new/existing boundary — use existing WK IDs from the narrative context, not just WK-GEN-* → WK-GEN-*. This is how expansions deepen the foundation instead of floating free.
+- At least HALF of your edges should cross the new/existing boundary — use existing WK IDs from the narrative context, not just SYS-GEN-* → SYS-GEN-*. This is how expansions deepen the foundation instead of floating free.
 - Focus on the structural WHY behind the expansion — what abstract rules, power structures, or tensions make these new entities meaningful?`;
 
   const reasoningBudget = REASONING_BUDGETS[narrative.storySettings?.reasoningLevel ?? 'low'] || undefined;
@@ -619,25 +619,25 @@ worldKnowledgeMutations define the FOUNDATIONAL abstractions this expansion esta
     return { ...rest, participants: rest.participants ?? anchors ?? [], dependents, status: THREAD_ACTIVE_STATUSES[0] };
   });
 
-  // Process worldKnowledgeMutations: concept-based resolution collapses
+  // Process systemMutations: concept-based resolution collapses
   // re-mentioned concepts to their existing id, then sanitize filters self-
   // loops, orphans, and edges that duplicate ones already in the graph.
-  let worldKnowledgeMutations: WorldKnowledgeMutation | undefined;
-  const rawWKM = parsed.worldKnowledgeMutations;
+  let systemMutations: SystemMutation | undefined;
+  const rawWKM = parsed.systemMutations;
   if (rawWKM && Array.isArray(rawWKM.addedNodes) && rawWKM.addedNodes.length > 0) {
-    const existingWkNodes = narrative.worldKnowledge?.nodes ?? {};
+    const existingWkNodes = narrative.systemGraph?.nodes ?? {};
 
     // Normalize raw nodes so they satisfy the resolver's input shape —
     // every node must have an id placeholder, a concept, and a type.
     const rawNormalized = rawWKM.addedNodes.map(
       (node: { id: string; concept: string; type: string }, i: number) => ({
-        id: node.id || `WK-GEN-${i}`,
+        id: node.id || `SYS-GEN-${i}`,
         concept: node.concept,
-        type: (node.type || 'concept') as WorldKnowledgeNodeType,
+        type: (node.type || 'concept') as SystemNodeType,
       }),
     );
-    const allocateFreshWkId = makeWkIdAllocator(Object.keys(existingWkNodes));
-    const resolved = resolveWkConceptIds(rawNormalized, existingWkNodes, allocateFreshWkId);
+    const allocateFreshWkId = makeSystemIdAllocator(Object.keys(existingWkNodes));
+    const resolved = resolveSystemConceptIds(rawNormalized, existingWkNodes, allocateFreshWkId);
 
     const validWKIds = new Set<string>([
       ...Object.keys(existingWkNodes),
@@ -652,10 +652,10 @@ worldKnowledgeMutations define the FOUNDATIONAL abstractions this expansion esta
     );
 
     const seenEdgeKeys = new Set<string>();
-    for (const e of narrative.worldKnowledge?.edges ?? []) seenEdgeKeys.add(wkEdgeKey(e));
+    for (const e of narrative.systemGraph?.edges ?? []) seenEdgeKeys.add(systemEdgeKey(e));
 
-    worldKnowledgeMutations = { addedNodes: resolved.newNodes, addedEdges: remappedEdges };
-    sanitizeWorldKnowledgeMutation(worldKnowledgeMutations, validWKIds, seenEdgeKeys);
+    systemMutations = { addedNodes: resolved.newNodes, addedEdges: remappedEdges };
+    sanitizeSystemMutation(systemMutations, validWKIds, seenEdgeKeys);
   }
 
   // Apply entity filter — strip types the user disabled. Freshly-created
@@ -682,7 +682,7 @@ worldKnowledgeMutations define the FOUNDATIONAL abstractions this expansion esta
     locations: f.locations ? normalizedLocations : [],
     threads: f.threads ? threads : [],
     relationships: f.relationships ? (parsed.relationships ?? []) : [],
-    worldKnowledgeMutations: f.worldKnowledge ? worldKnowledgeMutations : undefined,
+    systemMutations: f.systemMutations ? systemMutations : undefined,
     artifacts: f.artifacts ? normalizedArtifacts : [],
     ownershipMutations: f.ownershipMutations ? (parsed.ownershipMutations ?? []) : [],
     tieMutations: f.tieMutations ? (parsed.tieMutations ?? []) : [],
@@ -700,7 +700,7 @@ worldKnowledgeMutations define the FOUNDATIONAL abstractions this expansion esta
       threadsAdded: result.threads.length,
       relationshipsAdded: result.relationships.length,
       artifactsAdded: result.artifacts?.length ?? 0,
-      worldKnowledgeNodes: result.worldKnowledgeMutations?.addedNodes.length ?? 0,
+      systemNodeCount: result.systemMutations?.addedNodes.length ?? 0,
     },
   });
 
@@ -755,7 +755,7 @@ Return JSON with this exact structure:
   "artifacts": [
     {"id": "A-01", "name": "string", "significance": "key|notable|minor", "threadIds": [], "parentId": "character or location ID, or null for world-owned", "continuity": {"nodes": [{"id": "AK-01", "type": "trait|state|history|capability|belief|relation|secret|goal|weakness", "content": "what it is, what it does, its history, its powers, its limitations"}]}, "imagePrompt": "1-2 sentence LITERAL visual description — concrete physical details only, no metaphors or figurative language"}
   ],${worldOnly ? `
-  "worldKnowledge": {"addedNodes": [{"id": "WK-01", "concept": "name of a world concept, rule, system, or structure", "type": "principle|system|concept|tension|event|structure|environment|convention|constraint"}], "addedEdges": [{"from": "WK-01", "to": "WK-02", "relation": "typed relationship: enables, requires, governs, opposes, created_by, extends, etc."}]},` : `
+  "systemMutations": {"addedNodes": [{"id": "SYS-01", "concept": "15-25 words, PRESENT tense: a general rule or structural fact about how the world works — no specific characters or events", "type": "principle|system|concept|tension|event|structure|environment|convention|constraint"}], "addedEdges": [{"from": "SYS-01", "to": "SYS-02", "relation": "enables|governs|opposes|extends|created_by|constrains|exist_within"}]},` : `
   "scenes": [
     {
       "id": "S-001",
@@ -768,7 +768,7 @@ Return JSON with this exact structure:
       "threadMutations": [{"threadId": "T-01", "from": "latent|seeded|active|critical|resolved|subverted|abandoned", "to": "latent|seeded|active|critical|resolved|subverted|abandoned", "addedNodes": [{"id": "TK-GEN-001", "content": "thread-specific: what happened to THIS thread in THIS scene (NOT a scene summary)", "type": "pulse|transition|setup|escalation|payoff|twist|callback|resistance|stall"}]}],
       "continuityMutations": [{"entityId": "C-XX", "addedNodes": [{"id": "K-GEN-001", "content": "complete sentence: what they experienced or became", "type": "trait|state|history|capability|belief|relation|secret|goal|weakness"}]}],
       "relationshipMutations": [],
-      "worldKnowledgeMutations": {"addedNodes": [{"id": "WK-GEN-001", "concept": "name of a world concept, rule, system, or structure", "type": "principle|system|concept|tension|event|structure|environment|convention|constraint"}], "addedEdges": [{"from": "WK-GEN-001", "to": "WK-GEN-002", "relation": "typed relationship: enables, requires, governs, opposes, created_by, extends, etc."}]},
+      "systemMutations": {"addedNodes": [{"id": "SYS-GEN-001", "concept": "15-25 words, PRESENT tense: a general rule or structural fact about how the world works — no specific characters or events", "type": "principle|system|concept|tension|event|structure|environment|convention|constraint"}], "addedEdges": [{"from": "SYS-GEN-001", "to": "SYS-GEN-002", "relation": "enables|governs|opposes|extends|created_by|constrains|exist_within"}]},
       "summary": "REQUIRED: Rich prose sentences using character NAMES and location NAMES (never raw IDs). Include specifics: actions, consequences, dialogue snippets. Include any context that shapes how the scene is written (time span, technique, tone). No sentences ending in emotions or realizations."
     }
   ],
@@ -799,8 +799,8 @@ PILOT EPISODE — establish a tight, focused world. These are minimums; exceed w
 - AT LEAST 4 threads — 1+ short-term, 1+ medium-term, 2+ long-term. Threads force entities into action. At least 2 must share participants.
 - AT LEAST 8 relationships (at least 1 hostile)
 - AT LEAST 1 artifact when the premise involves tools or objects of power
-- AT LEAST 12 world knowledge nodes with 8 edges — the systems, principles, tensions, and structures the world runs on. This is the foundational system graph every future scene draws from; a thin root means thin scenes forever. Include micro-rules (specific mechanics), mid-rules (institutional/economic), and macro-rules (cosmological/thematic).${worldOnly ? '' : `
-- AT LEAST 8 scenes in 1 arc, AVERAGING ~14 continuity nodes and ~5 world knowledge nodes per scene (these are the grading reference means). Some scenes quiet, some dense — but the MEAN across the arc must hit the reference or the whole pilot grades in the 60s. A typical scene touches 3-5 entities with 10-16 continuity nodes and reveals 3-5 world knowledge concepts; climactic scenes push to 18-25+ continuity and 6-10 knowledge.`}
+- AT LEAST 12 system nodes with 8 edges — the systems, principles, tensions, and structures the world runs on. This is the foundational system graph every future scene draws from; a thin root means thin scenes forever. Each node MUST be 15-25 words describing a general rule or structural fact (how the world works). Include micro-rules (specific mechanics), mid-rules (institutional/economic), and macro-rules (cosmological/thematic). SHORT NAMES ARE FAILURES — "Aperture Grading" is wrong; "The sect grades disciples by aperture quality, with A-grade apertures receiving priority resource allocation and mentorship" is correct.${worldOnly ? '' : `
+- AT LEAST 8 scenes in 1 arc, AVERAGING ~14 continuity nodes and ~5 system nodes per scene (these are the grading reference means). Some scenes quiet, some dense — but the MEAN across the arc must hit the reference or the whole pilot grades in the 60s. A typical scene touches 3-5 entities with 10-16 continuity nodes and reveals 3-5 system concepts; climactic scenes push to 18-25+ continuity and 6-10 system.`}
 
 ENTITY DEFINITIONS:
 - Characters are conscious beings with agency — people, named animals, sentient AI (AGI). Non-sentient AI systems are artifacts.
@@ -937,39 +937,39 @@ The goal is to make the world feel like a coherent machine where systems interlo
   // Sanitize and re-ID world knowledge mutations, then build cumulative graph
   const sceneList = Object.values(scenes);
 
-  // Collect all WK mutations — from scenes normally, or from top-level worldKnowledge in worldOnly mode
-  const allWKMutations: WorldKnowledgeMutation[] = [];
-  if (worldOnly && parsed.worldKnowledge) {
-    allWKMutations.push({
-      addedNodes: parsed.worldKnowledge.addedNodes ?? [],
-      addedEdges: parsed.worldKnowledge.addedEdges ?? [],
+  // Collect all system mutations — from scenes normally, or from top-level systemMutations in worldOnly mode
+  const allSystemMutations: SystemMutation[] = [];
+  if (worldOnly && parsed.systemMutations) {
+    allSystemMutations.push({
+      addedNodes: parsed.systemMutations.addedNodes ?? [],
+      addedEdges: parsed.systemMutations.addedEdges ?? [],
     });
   }
   for (const scene of sceneList) {
-    if (!scene.worldKnowledgeMutations) {
-      scene.worldKnowledgeMutations = { addedNodes: [], addedEdges: [] };
+    if (!scene.systemMutations) {
+      scene.systemMutations = { addedNodes: [], addedEdges: [] };
       continue;
     }
-    scene.worldKnowledgeMutations.addedNodes = scene.worldKnowledgeMutations.addedNodes ?? [];
-    scene.worldKnowledgeMutations.addedEdges = scene.worldKnowledgeMutations.addedEdges ?? [];
-    allWKMutations.push(scene.worldKnowledgeMutations);
+    scene.systemMutations.addedNodes = scene.systemMutations.addedNodes ?? [];
+    scene.systemMutations.addedEdges = scene.systemMutations.addedEdges ?? [];
+    allSystemMutations.push(scene.systemMutations);
   }
 
-  const worldKnowledgeGraph: { nodes: Record<string, WorldKnowledgeNode>; edges: WorldKnowledgeEdge[] } = {
+  const systemGraph: { nodes: Record<string, SystemNode>; edges: SystemEdge[] } = {
     nodes: {},
     edges: [],
   };
-  const allocateFreshWkId = makeWkIdAllocator([]);
+  const allocateFreshWkId = makeSystemIdAllocator([]);
   const validWKIds = new Set<string>();
   const seenWkEdgeKeys = new Set<string>();
 
-  for (const mutation of allWKMutations) {
+  for (const mutation of allSystemMutations) {
     // Concept-based resolution: re-mentioned concepts from earlier mutations
     // in this generation pass collapse to the same id, so the LLM emitting
     // "mana-binding" across scene S-001 and S-005 produces one node, not two.
-    const resolved = resolveWkConceptIds(
+    const resolved = resolveSystemConceptIds(
       mutation.addedNodes,
-      worldKnowledgeGraph.nodes,
+      systemGraph.nodes,
       allocateFreshWkId,
     );
     mutation.addedNodes = resolved.newNodes;
@@ -983,13 +983,13 @@ The goal is to make the world feel like a coherent machine where systems interlo
       to: resolved.idMap[edge.to] ?? edge.to,
       relation: edge.relation,
     }));
-    sanitizeWorldKnowledgeMutation(mutation, validWKIds, seenWkEdgeKeys);
+    sanitizeSystemMutation(mutation, validWKIds, seenWkEdgeKeys);
 
     // Accumulate into the cumulative graph through the shared applier.
-    applyWorldKnowledgeMutation(worldKnowledgeGraph, mutation);
+    applySystemMutation(systemGraph, mutation);
   }
-  const worldKnowledgeNodes = worldKnowledgeGraph.nodes;
-  const worldKnowledgeEdges = worldKnowledgeGraph.edges;
+  const systemNodes = systemGraph.nodes;
+  const systemEdges = systemGraph.edges;
 
   // Generate embeddings for scene summaries
   if (sceneList.length > 0) {
@@ -1076,7 +1076,7 @@ The goal is to make the world feel like a coherent machine where systems interlo
       threadsCreated: Object.keys(threads).length,
       scenesCreated: Object.keys(scenes).length,
       arcsCreated: Object.keys(arcs).length,
-      worldKnowledgeNodes: Object.keys(worldKnowledgeNodes).length,
+      systemNodeCount: Object.keys(systemNodes).length,
     },
   });
 
@@ -1098,7 +1098,7 @@ The goal is to make the world feel like a coherent machine where systems interlo
     worldBuilds: {},
     branches,
     relationships: parsed.relationships ?? [],
-    worldKnowledge: { nodes: worldKnowledgeNodes, edges: worldKnowledgeEdges },
+    systemGraph: { nodes: systemNodes, edges: systemEdges },
     worldSummary: parsed.worldSummary ?? premise,
     imageStyle: typeof parsed.imageStyle === 'string' ? parsed.imageStyle : undefined,
     rules: Array.isArray(parsed.rules) ? parsed.rules.filter((r: unknown) => typeof r === 'string') : rules,

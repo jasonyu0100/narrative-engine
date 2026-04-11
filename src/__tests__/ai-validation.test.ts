@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { validateBeatPlan, validateBeatProseMap, validateExtractionResult, validateWorldKnowledge, retryWithValidation } from '@/lib/ai/validation';
+import { validateBeatPlan, validateBeatProseMap, validateExtractionResult, validateSystemMutation, retryWithValidation } from '@/lib/ai/validation';
 import type { BeatPlan } from '@/types/narrative';
 
 describe('ai-validation', () => {
@@ -391,7 +391,7 @@ describe('ai-validation', () => {
     });
   });
 
-  describe('validateWorldKnowledge', () => {
+  describe('validateSystemMutation', () => {
     it('validates world knowledge with nodes and edges', () => {
       const validKnowledge = {
         nodes: [
@@ -403,14 +403,14 @@ describe('ai-validation', () => {
         ],
       };
 
-      const result = validateWorldKnowledge(validKnowledge);
+      const result = validateSystemMutation(validKnowledge);
 
       expect(result.valid).toBe(true);
       expect(result.errors).toHaveLength(0);
     });
 
     it('accepts world knowledge with only nodes', () => {
-      const result = validateWorldKnowledge({
+      const result = validateSystemMutation({
         nodes: [
           { id: 'N-1', content: 'Magic', type: 'system' },
         ],
@@ -422,24 +422,24 @@ describe('ai-validation', () => {
     });
 
     it('rejects non-object input', () => {
-      const result = validateWorldKnowledge(null);
+      const result = validateSystemMutation(null);
 
       expect(result.valid).toBe(false);
-      expect(result.errors).toContain('World knowledge result is not an object');
+      expect(result.errors).toContain('System mutation result is not an object');
     });
 
     it('rejects completely empty world knowledge', () => {
-      const result = validateWorldKnowledge({
+      const result = validateSystemMutation({
         nodes: [],
         edges: [],
       });
 
       expect(result.valid).toBe(false);
-      expect(result.errors).toContain('No world knowledge extracted - both nodes and edges are empty');
+      expect(result.errors).toContain('No system data extracted - both nodes and edges are empty');
     });
 
     it('rejects invalid node structure', () => {
-      const result = validateWorldKnowledge({
+      const result = validateSystemMutation({
         nodes: [
           { id: 'N-1', content: 'Valid', type: 'system' },
           { id: 'N-2', content: 'Missing type' }, // missing type
@@ -452,7 +452,7 @@ describe('ai-validation', () => {
     });
 
     it('rejects invalid edge structure', () => {
-      const result = validateWorldKnowledge({
+      const result = validateSystemMutation({
         nodes: [{ id: 'N-1', content: 'Node', type: 'system' }],
         edges: [
           { source: 'N-1', target: 'N-2', type: 'contains' },

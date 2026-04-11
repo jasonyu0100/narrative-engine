@@ -32,7 +32,7 @@ function createMinimalNarrative(): NarrativeState {
       },
     },
     relationships: [],
-    worldKnowledge: { nodes: {}, edges: [] },
+    systemGraph: { nodes: {}, edges: [] },
     worldSummary: '',
     rules: [],
     createdAt: Date.now(),
@@ -342,9 +342,9 @@ describe('buildVirtualState', () => {
     const rootNarrative = createMinimalNarrative();
 
     const scene = createScene('S-001', {
-      worldKnowledgeMutations: {
-        addedNodes: [{ id: 'WK-01', concept: 'Magic system', type: 'system' }],
-        addedEdges: [{ from: 'WK-01', to: 'WK-02', relation: 'enables' }],
+      systemMutations: {
+        addedNodes: [{ id: 'SYS-01', concept: 'Magic system', type: 'system' }],
+        addedEdges: [{ from: 'SYS-01', to: 'WK-02', relation: 'enables' }],
       },
     });
     const arc = createArc('ARC-01', ['S-001']);
@@ -357,8 +357,8 @@ describe('buildVirtualState', () => {
       'main'
     );
 
-    expect(result.narrative.worldKnowledge.nodes['WK-01']).toBeDefined();
-    expect(result.narrative.worldKnowledge.edges.some((e) => e.from === 'WK-01')).toBe(true);
+    expect(result.narrative.systemGraph.nodes['SYS-01']).toBeDefined();
+    expect(result.narrative.systemGraph.edges.some((e) => e.from === 'SYS-01')).toBe(true);
   });
 
   it('chains multiple ancestor nodes', () => {
@@ -452,9 +452,9 @@ describe('scoreArc', () => {
       ],
       continuityMutations: Array(5).fill({ entityId: 'C-01', addedNodes: [{ id: 'K-01', content: 'x', type: 'history' }] }),
       events: ['event1', 'event2', 'event3'],
-      worldKnowledgeMutations: {
-        addedNodes: [{ id: 'WK-01', concept: 'x', type: 'system' }],
-        addedEdges: [{ from: 'WK-01', to: 'WK-02', relation: 'x' }],
+      systemMutations: {
+        addedNodes: [{ id: 'SYS-01', concept: 'x', type: 'system' }],
+        addedEdges: [{ from: 'SYS-01', to: 'WK-02', relation: 'x' }],
       },
     });
 
@@ -535,7 +535,7 @@ describe('extractOrderedScenes', () => {
         locations: [],
         threads: [],
         relationships: [],
-        worldKnowledgeMutations: { addedNodes: [], addedEdges: [] },
+        systemMutations: { addedNodes: [], addedEdges: [] },
         artifacts: [],
       },
     };

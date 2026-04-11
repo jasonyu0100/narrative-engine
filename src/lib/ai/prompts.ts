@@ -85,82 +85,52 @@ SCAN BEFORE RETURNING:
 // ── Mutation Guidelines ──────────────────────────────────────────────────────
 
 export const PROMPT_MUTATIONS = `
-MUTATIONS — these feed force formulas. Every mutation must EARN its place. Low-value mutations flatten the graph and destroy analytical signal.
+MUTATIONS — direct inputs to force formulas. Every mutation must be EARNED by prose.
 
-FORCE FORMULAS — your mutations are the direct inputs:
-- DRIVE = activeArcs^1.3 × stageWeight. Weights: pulse=0.25, latent→seeded=0.5, seeded→active=1.0, active→critical=2.0, critical→resolved/subverted=4.0. Abandoned earns 0.
-- WORLD = ΔN_c + √ΔE_c — continuity nodes added to entity inner worlds, edges linking them causally.
-- SYSTEM = ΔN + √ΔE — world knowledge nodes (principles, systems, concepts), edges connecting them.
+FORCE FORMULAS:
+- DRIVE = activeArcs^1.3 × stageWeight (pulse=0.25, latent→seeded=0.5, seeded→active=1.0, active→critical=2.0, critical→resolved=4.0)
+- WORLD = ΔN_c + √ΔE_c (continuity nodes + edges linking them)
+- SYSTEM = ΔN + √ΔE (world knowledge nodes + connecting edges)
 
-threadMutations — TWO SEPARATE AXES. Do not confuse them:
+ALL NODE CONTENT: 15-25 words, PRESENT TENSE. Specific and concrete.
 
-  (A) STATUS AXIS — the "from" and "to" fields are thread lifecycle PHASES.
-      Valid statuses: latent | seeded | active | critical | resolved | subverted | abandoned
-      NOTHING ELSE is allowed in "from" or "to". "pulse" is NOT a status — it is a log-node type (see axis B).
-      Emitting "from": "pulse" or "to": "pulse" is a critical error.
+DENSITY TARGETS (reference means hit 21/25 grade):
+  Breather:   0 transitions, 3-6 continuity, 0-2 system, 2-3 events
+  Typical:    0-1 transitions, 12-16 continuity, 3-5 system + 2-3 edges, 3-4 events
+  Climactic:  1-2 transitions, 18-25+ continuity, 5-8 system + 3-5 edges, 4-6 events
+  Lore dump:  modest continuity (5-10), heavy system (6-12 + dense edges)
+Variance is signal — similar counts across scenes = noise. Peaks and valleys required.
 
-      latent: the thread exists as a concept but has no narrative weight yet. A name dropped, a rumour mentioned.
-      seeded: setup is planted — the reader can feel something brewing. A promise made, a weapon found, a secret shared.
-      active: the thread is actively shaping scenes. Characters make decisions because of it, events are driven by it.
-      critical: peak tension — the thread demands resolution. Delay feels artificial, the audience expects payoff.
-      resolved: the thread has concluded. The question is answered, the tension released, the promise fulfilled.
-      subverted: fate defied — the thread resolves contrary to expectations. The promise was broken, the prophecy was wrong.
-      abandoned: the thread is moved to the done pile without earning drive. A clean way to drop threads that aren't working — they can be picked back up later as latent if the story needs them. Earns 0 drive.
+threadMutations — TWO SEPARATE AXES:
+  STATUS (from/to): latent | seeded | active | critical | resolved | subverted | abandoned
+    "pulse" is NOT a status — never use in from/to fields.
+    Transitions move ONE step. Status-holds (from===to) are common; log with "pulse" type.
+    0-1 real transitions per scene. Touch 2-3 threads (mostly status-holds).
 
-  (B) LOG NODE TYPE AXIS — the "type" field on each entry in "addedNodes" describes WHAT HAPPENED to the thread this scene.
-      Valid log types: pulse | transition | setup | escalation | payoff | twist | callback | resistance | stall
-      This is a completely different vocabulary from status. A log entry with type "pulse" lives INSIDE a threadMutation whose from/to are both real statuses (e.g. "active" → "active").
+  LOG TYPE (addedNodes.type): pulse | transition | setup | escalation | payoff | twist | callback | resistance | stall
+    Thread's perspective: "Harry causes the glass to vanish, revealing latent magical abilities."
 
-RULES:
-- Transitions (status change) move ONE step at a time along the status axis. NEVER skip phases.
-- A status-hold (from === to, e.g. active → active) is a healthy, common pattern — it means the thread received bandwidth this scene without advancing its phase. Log it with a "pulse" node type. Aim for 1-2 status-holds per scene.
-- Real status transitions are RARE — 0-1 per scene. Only when the prose shows a clear, irreversible shift in phase.
-- Touch 2-3 threads per scene on average (mostly status-holds) with at most one real transition.
-- THREAD LOG: each threadMutation MUST include 1-2 log entries (addedNodes) recording what happened to THIS thread specifically — NOT a scene summary. "Harry rejects Malfoy's friendship offer" (thread-specific) NOT "Harry meets Draco on the train" (scene summary). Log type vocabulary: pulse (passive touch where status held), transition (log entry marking a status change), setup (planting), escalation (pressure rises), payoff (delivered), twist (subverted expectation), callback (echo), resistance (pushback), stall (momentum lost).
+continuityMutations — Entity's perspective on what is now known. PRESENT TENSE facts.
+  Characters: traits, beliefs, capabilities, states, secrets, goals, weaknesses, relations.
+  Locations: history, rules, dangers, atmosphere. Artifacts: capabilities, limitations, provenance.
+  GOOD: "Harry Potter has a lightning-bolt scar, a visible mark of surviving Voldemort's killing curse."
+  BAD: "Harry discovered he was a wizard" (event → belongs in thread log)
+  2-4 nodes per entity typical. POV can earn 4-6 in turning points. Node ORDER matters (auto-chains).
+  Scan whole cast: "what did this scene DO to each person and place?"
 
-continuityMutations — what we LEARN about an entity that wasn't known before. Applies to characters, locations, and artifacts.
-- Characters: new behaviour, belief, capability, or inner state revealed.
-- Locations: new history, rules, dangers, or properties revealed. A revisited location can earn continuity if the scene shows something new about it.
-- Artifacts: new capabilities, limitations, or properties demonstrated through usage.
-- QUALITY BAR: each node must describe something NOT KNOWN before this scene. Not restating established facts.
-  BAD: "Alice is curious" (observation, not new). BAD: "The White Rabbit has pink eyes" (already established).
-  GOOD: "Alice abandons caution entirely, chasing the Rabbit without considering how to return" (new behaviour).
-  GOOD: "The forest conceals an ancient boundary ward that repels outsiders" (new location property).
-- DENSITY FLOOR: a typical scene touches 3-5 entities and lays down 10-16 continuity nodes (reference W ≈ 14). Do NOT treat this as a ceiling. Climax/turning-point scenes should push 18-25+ nodes. Quiet scenes can drop to 3-6 but should never be empty if anyone was visibly changed.
-- 2-4 nodes per entity is the normal range; a POV character in a turning-point scene can legitimately earn 4-6. Side participants get 1-3. Background cameos get 0. An entity that appears and is NOT changed earns zero nodes — do not pad.
-- The POV character alone is not enough. Every scene has multiple living entities — the antagonist shifts too, the location accumulates history, the artifact in play gains a new limitation. Scan the whole cast before returning and ask "what did this scene DO to each person and place?"
-- Node ORDER matters: list nodes in the causal/temporal sequence they occur. Adjacent nodes in the array get linked automatically as the entity's chain for this scene — no explicit edges needed.
-- Types: trait, state, history, capability, belief, relation, secret, goal, weakness.
+systemMutations — How the WORLD WORKS. General rules, no specific characters/events.
+  GOOD: "Magic near an underage wizard is attributed to that wizard by the Ministry regardless of caster."
+  BAD: "Harry used magic" (specific → thread log)
+  REUSE existing IDs for established concepts. Aim ≥1 edge per 2 nodes.
+  Types: principle, system, concept, tension, event, structure, environment, convention, constraint.
+  Edges: enables, governs, opposes, extends, created_by, constrains, exist_within.
 
-relationshipMutations — only when a relationship SHIFTS, not just exists.
-- valenceDelta: ±0.1 (subtle), ±0.2-0.3 (meaningful), ±0.4-0.5 (dramatic).
-- Most scenes: 0-1 relationship mutations. Two characters talking ≠ relationship shift.
-
-worldKnowledgeMutations — REVEALED world rules, not character observations.
-- Each concept must be a genuine world SYSTEM or PRINCIPLE the prose establishes.
-  BAD: "Wonderland Logic" (vague). BAD: "Alice's Adventures" (not a world rule).
-  GOOD: "Anthropomorphic Animals" (genuine world feature). GOOD: "Size-Altering Substances" (actionable world system).
-- DENSITY FLOOR: a typical scene reveals 3-5 concepts + 2-4 connecting edges (reference S ≈ 5). REUSE existing WK node IDs when reinforcing an established concept — only NEW concepts count toward density. Exposition, lore drops, and world-building scenes should push to 6-10 concepts with rich edge structures. Quiet interpersonal scenes can drop to 0-2, but any scene where the prose actually teaches the reader a rule MUST log it.
-- Edges are high-leverage: an edge contributes √ΔE to system and connects new concepts into the existing graph. Prefer emitting a new concept WITH an edge linking it to an existing WK node over a dangling concept. Aim for ≥1 edge per 2 nodes.
-- Think at multiple levels: micro-rules (a specific spell's limitation), mid-rules (how a faction's economy works), macro-rules (a cosmological law). Most scenes touch at least one level. Don't only harvest the biggest abstractions — the mid-level mechanics are where most scenes deposit system.
-- Types: principle, system, concept, tension, event, structure, environment, convention, constraint.
-- Edges: enables, governs, opposes, extends, created_by, constrains, exist_within.
-
-events — short descriptive tags (2-4 words). 2-4 per scene. Each tag names a discrete narrative beat.
-artifactUsages — when an artifact delivers utility. Every artifact referenced for what it DOES (not just mentioned by name) is a usage. Invoking, applying, demonstrating, or leveraging an artifact's capabilities all count. characterId null for unattributed.
-  usage: describe WHAT the artifact did — both literal uses (swung the sword, drove the car, fuelled the engine) and meta uses (cited the framework, applied the algorithm, invoked the theorem to prove a claim). The description should capture the specific utility delivered, not just "used".
-  When an artifact is used, also generate a continuityMutation for it if the usage reveals new properties, limitations, or capabilities.
-ownershipMutations — artifacts changing hands. Only when narratively meaningful.
-tieMutations — significant bond changes. NOT temporary visits.
-characterMovements — only characters whose location CHANGES. Vivid transitions.
-
-VARIANCE IS SIGNAL — targets cluster around the reference means (drive ≈ 3, world ≈ 14, system ≈ 5) with peaks and valleys around them. Continuity edges auto-chain from node order; only world knowledge edges are emitted manually.
-- A quiet breather scene: 0 thread transitions, 3-6 continuity nodes across 2-3 entities, 0-2 knowledge concepts, 2-3 events. Below-mean on all three forces.
-- A typical progressive scene: 0-1 thread transitions (rest pulses), 12-16 continuity nodes across 3-5 entities, 3-5 world knowledge concepts with 2-3 edges, 3-4 events. On-reference.
-- A climactic or revelation scene: 1-2 thread transitions, 18-25+ continuity nodes across 4-6 entities, 5-8 world knowledge concepts with 3-5 edges, 4-6 events. Above-reference.
-- A lore/exposition scene: modest world, high system — 5-10 continuity nodes but 6-12 knowledge concepts with dense edges.
-- If every scene has similar mutation counts, you are extracting noise. The graph should have peaks and valleys.
-- If scene AVERAGES over an arc fall well below reference (avg world < 12, avg system < 4), the arc is under-dense and will grade poorly. Fix by adding nodes that are GENUINELY earned by the prose — never by inventing detail the prose doesn't support.
+relationshipMutations — Only when relationship SHIFTS. valenceDelta: ±0.1 subtle, ±0.2-0.3 meaningful, ±0.4-0.5 dramatic.
+events — 2-4 word tags, 2-4 per scene.
+artifactUsages — When artifact delivers utility (not just mentioned). Include continuityMutation if usage reveals new properties.
+ownershipMutations — Artifacts changing hands. Only when meaningful.
+tieMutations — Significant bond changes, NOT temporary visits.
+characterMovements — Only location CHANGES. Vivid transitions.
 `;
 
 // ── Artifact Usage ──────────────────────────────────────────────────────────
@@ -249,10 +219,10 @@ Example: "Michael Corleone sits across from Sollozzo and McCluskey at the small 
 // These are the single source of truth for mutation schemas used across
 // generation, analysis, reconstruction, and world expansion prompts.
 
-export const SCHEMA_THREAD_MUTATIONS = `"threadMutations": [{"threadId": "T-XX", "from": "latent|seeded|active|critical|resolved|subverted|abandoned", "to": "latent|seeded|active|critical|resolved|subverted|abandoned", "addedNodes": [{"id": "TK-XX", "content": "thread-specific: what happened to THIS thread in THIS scene (not a scene summary)", "type": "pulse|transition|setup|escalation|payoff|twist|callback|resistance|stall"}]}]`;
-export const SCHEMA_CONTINUITY_MUTATIONS = `"continuityMutations": [{"entityId": "C-XX", "addedNodes": [{"id": "K-XX", "content": "complete sentence: what the entity experienced or became", "type": "trait|state|history|capability|belief|relation|secret|goal|weakness"}]}]`;
+export const SCHEMA_THREAD_MUTATIONS = `"threadMutations": [{"threadId": "T-XX", "from": "latent|seeded|active|critical|resolved|subverted|abandoned", "to": "latent|seeded|active|critical|resolved|subverted|abandoned", "addedNodes": [{"id": "TK-XX", "content": "15-25 words, PRESENT tense: what just changed for this thread", "type": "pulse|transition|setup|escalation|payoff|twist|callback|resistance|stall"}]}]`;
+export const SCHEMA_CONTINUITY_MUTATIONS = `"continuityMutations": [{"entityId": "C-XX", "addedNodes": [{"id": "K-XX", "content": "15-25 words, PRESENT tense: a stable fact about the entity — their unique perspective on reality, identity, or condition", "type": "trait|state|history|capability|belief|relation|secret|goal|weakness"}]}]`;
 export const SCHEMA_RELATIONSHIP_MUTATIONS = `"relationshipMutations": [{"from": "C-XX", "to": "C-YY", "type": "description", "valenceDelta": 0.1}]`;
-export const SCHEMA_WORLD_KNOWLEDGE_MUTATIONS = `"worldKnowledgeMutations": {"addedNodes": [{"id": "WK-XX", "concept": "well-named world concept", "type": "principle|system|concept|tension|event|structure|environment|convention|constraint"}], "addedEdges": [{"from": "WK-XX", "to": "WK-YY", "relation": "enables|governs|opposes|extends|created_by|constrains|exist_within"}]}`;
+export const SCHEMA_SYSTEM_MUTATIONS = `"systemMutations": {"addedNodes": [{"id": "SYS-XX", "concept": "15-25 words, PRESENT tense: a general rule or structural fact — how the world works, no specific characters or events", "type": "principle|system|concept|tension|event|structure|environment|convention|constraint"}], "addedEdges": [{"from": "SYS-XX", "to": "SYS-YY", "relation": "enables|governs|opposes|extends|created_by|constrains|exist_within"}]}`;
 export const SCHEMA_ARTIFACT_USAGES = `"artifactUsages": [{"artifactId": "A-XX", "characterId": "C-XX or null for unattributed usage", "usage": "what the artifact did — how it delivered utility"}]`;
 export const SCHEMA_OWNERSHIP_MUTATIONS = `"ownershipMutations": [{"artifactId": "A-XX", "fromId": "C-XX or L-XX", "toId": "C-YY or L-YY"}]`;
 export const SCHEMA_TIE_MUTATIONS = `"tieMutations": [{"locationId": "L-XX", "characterId": "C-XX", "action": "add|remove"}]`;
@@ -260,21 +230,21 @@ export const SCHEMA_CHARACTER_MOVEMENTS = `"characterMovements": {"C-XX": {"loca
 export const SCHEMA_EVENTS = `"events": ["descriptive_2-4_word_tags"]`;
 
 /** Analysis scene mutations — name-based (pre-ID resolution) */
-export const SCHEMA_ANALYSIS_THREAD_MUTATIONS = `"threadMutations": [{"threadDescription": "exact thread description", "from": "latent|seeded|active|critical|resolved|subverted|abandoned", "to": "latent|seeded|active|critical|resolved|subverted|abandoned", "addedNodes": [{"content": "thread-specific: what happened to THIS thread in this scene", "type": "pulse|transition|setup|escalation|payoff|twist|callback|resistance|stall"}]}]`;
-export const SCHEMA_ANALYSIS_CONTINUITY_MUTATIONS = `"continuityMutations": [{"entityName": "Character, Location, or Artifact name", "addedNodes": [{"content": "complete sentence: what the entity experienced or became", "type": "trait|state|history|capability|belief|relation|secret|goal|weakness"}]}]`;
+export const SCHEMA_ANALYSIS_THREAD_MUTATIONS = `"threadMutations": [{"threadDescription": "exact thread description", "from": "latent|seeded|active|critical|resolved|subverted|abandoned", "to": "latent|seeded|active|critical|resolved|subverted|abandoned", "addedNodes": [{"content": "15-25 words, PRESENT tense: what just changed for this thread", "type": "pulse|transition|setup|escalation|payoff|twist|callback|resistance|stall"}]}]`;
+export const SCHEMA_ANALYSIS_CONTINUITY_MUTATIONS = `"continuityMutations": [{"entityName": "Character, Location, or Artifact name", "addedNodes": [{"content": "15-25 words, PRESENT tense: a stable fact about the entity — their unique perspective on reality, identity, or condition", "type": "trait|state|history|capability|belief|relation|secret|goal|weakness"}]}]`;
 export const SCHEMA_ANALYSIS_RELATIONSHIP_MUTATIONS = `"relationshipMutations": [{"from": "Name", "to": "Name", "type": "description", "valenceDelta": 0.1}]`;
 export const SCHEMA_ANALYSIS_ARTIFACT_USAGES = `"artifactUsages": [{"artifactName": "Name", "characterName": "who or null for unattributed", "usage": "what the artifact did — how it delivered utility"}]`;
 export const SCHEMA_ANALYSIS_OWNERSHIP_MUTATIONS = `"ownershipMutations": [{"artifactName": "Name", "fromName": "prev owner", "toName": "new owner"}]`;
 export const SCHEMA_ANALYSIS_TIE_MUTATIONS = `"tieMutations": [{"locationName": "Name", "characterName": "Name", "action": "add|remove"}]`;
 export const SCHEMA_ANALYSIS_CHARACTER_MOVEMENTS = `"characterMovements": [{"characterName": "Name", "locationName": "destination", "transition": "vivid description"}]`;
-export const SCHEMA_ANALYSIS_WORLD_KNOWLEDGE = `"worldKnowledgeMutations": {"addedNodes": [{"concept": "well-named world concept", "type": "principle|system|concept|tension|event|structure|environment|convention|constraint"}], "addedEdges": [{"fromConcept": "name", "toConcept": "name", "relation": "enables|governs|opposes|extends|created_by|constrains|exist_within"}]}`;
+export const SCHEMA_ANALYSIS_SYSTEM_MUTATIONS = `"systemMutations": {"addedNodes": [{"concept": "15-25 words, PRESENT tense: a general rule or structural fact — how the world works, no specific characters or events", "type": "principle|system|concept|tension|event|structure|environment|convention|constraint"}], "addedEdges": [{"fromConcept": "name", "toConcept": "name", "relation": "enables|governs|opposes|extends|created_by|constrains|exist_within"}]}`;
 
 /** Full scene mutations block — all mutation schemas composed together */
 export const SCHEMA_SCENE_MUTATIONS = [
   SCHEMA_THREAD_MUTATIONS,
   SCHEMA_CONTINUITY_MUTATIONS,
   SCHEMA_RELATIONSHIP_MUTATIONS,
-  SCHEMA_WORLD_KNOWLEDGE_MUTATIONS,
+  SCHEMA_SYSTEM_MUTATIONS,
   SCHEMA_ARTIFACT_USAGES,
   SCHEMA_OWNERSHIP_MUTATIONS,
   SCHEMA_TIE_MUTATIONS,

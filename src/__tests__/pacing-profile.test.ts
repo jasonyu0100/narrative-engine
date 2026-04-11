@@ -62,7 +62,7 @@ function createNarrative(scenes: Scene[] = []): NarrativeState {
       },
     },
     relationships: [],
-    worldKnowledge: { nodes: {}, edges: [] },
+    systemGraph: { nodes: {}, edges: [] },
     worldSummary: '',
     rules: [],
     createdAt: Date.now(),
@@ -236,7 +236,7 @@ describe('detectCurrentMode', () => {
         ],
         continuityMutations: Array(10).fill({ entityId: 'C-01', addedNodes: [{ id: 'K-01', content: 'x', type: 'history' }] }),
         events: Array(10).fill('event'),
-        worldKnowledgeMutations: {
+        systemMutations: {
           addedNodes: Array(5).fill({ id: 'K-01', concept: 'x', type: 'system' }),
           addedEdges: Array(5).fill({ from: 'K-01', to: 'K-02', relation: 'x' }),
         },

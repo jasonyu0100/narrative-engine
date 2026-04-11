@@ -134,7 +134,7 @@ Density measures the **richness of the world relative to story length** — how 
 
 **Formula:**
 ```
-Density = (characters + locations + threads + worldKnowledgeNodes) / scenes
+Density = (characters + locations + threads + systemNodes) / scenes
 ```
 
 | Density Class | Density Range | Description | Examples |

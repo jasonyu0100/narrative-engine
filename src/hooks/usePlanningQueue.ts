@@ -126,7 +126,7 @@ export function usePlanningQueue() {
             locations: expansion.locations,
             threads: expansion.threads,
             relationships: expansion.relationships,
-            worldKnowledgeMutations: expansion.worldKnowledgeMutations,
+            systemMutations: expansion.systemMutations,
             artifacts: expansion.artifacts,
             branchId: bid,
             ownershipMutations: expansion.ownershipMutations,

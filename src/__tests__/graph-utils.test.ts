@@ -568,7 +568,7 @@ describe('buildOverviewGraphData', () => {
           locations: [],
           threads: [],
           relationships: [],
-          worldKnowledgeMutations: { addedNodes: [], addedEdges: [] },
+          systemMutations: { addedNodes: [], addedEdges: [] },
           artifacts: [],
         },
       },

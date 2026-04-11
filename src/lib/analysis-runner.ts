@@ -181,7 +181,7 @@ class AnalysisRunner {
             scene.ownershipMutations = s.ownershipMutations;
             scene.tieMutations = s.tieMutations;
             scene.characterMovements = s.characterMovements;
-            scene.worldKnowledgeMutations = s.worldKnowledgeMutations;
+            scene.systemMutations = s.systemMutations;
 
             // Populate chunk-level entities
             const r = results[idx]!;

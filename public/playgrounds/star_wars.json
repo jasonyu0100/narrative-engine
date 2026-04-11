@@ -178,7 +178,7 @@
           "valenceDelta": -0.3
         }
       ],
-      "worldKnowledgeMutations": {
+      "systemMutations": {
         "addedNodes": [
           {
             "id": "WK-SW-02",
@@ -235,7 +235,7 @@
         }
       ],
       "relationshipMutations": [],
-      "worldKnowledgeMutations": {
+      "systemMutations": {
         "addedNodes": [
           {
             "id": "WK-SW-09",
@@ -292,7 +292,7 @@
         }
       ],
       "relationshipMutations": [],
-      "worldKnowledgeMutations": {
+      "systemMutations": {
         "addedNodes": [
           {
             "id": "WK-SW-11",
@@ -355,7 +355,7 @@
         }
       ],
       "relationshipMutations": [],
-      "worldKnowledgeMutations": {
+      "systemMutations": {
         "addedNodes": [
           {
             "id": "WK-SW-13",
@@ -424,7 +424,7 @@
         }
       ],
       "relationshipMutations": [],
-      "worldKnowledgeMutations": {
+      "systemMutations": {
         "addedNodes": [
           {
             "id": "WK-SW-15",
@@ -511,7 +511,7 @@
           "valenceDelta": 0.1
         }
       ],
-      "worldKnowledgeMutations": {
+      "systemMutations": {
         "addedNodes": [
           {
             "id": "WK-SW-17",
@@ -588,7 +588,7 @@
           "valenceDelta": 0.2
         }
       ],
-      "worldKnowledgeMutations": {
+      "systemMutations": {
         "addedNodes": [
           {
             "id": "WK-SW-19",
@@ -675,7 +675,7 @@
           "valenceDelta": 0.1
         }
       ],
-      "worldKnowledgeMutations": {
+      "systemMutations": {
         "addedNodes": [
           {
             "id": "WK-SW-20",
@@ -727,7 +727,7 @@
         }
       ],
       "relationshipMutations": [],
-      "worldKnowledgeMutations": {
+      "systemMutations": {
         "addedNodes": [
           {
             "id": "WK-SW-21",
@@ -811,7 +811,7 @@
           "valenceDelta": 0.2
         }
       ],
-      "worldKnowledgeMutations": {
+      "systemMutations": {
         "addedNodes": [
           {
             "id": "WK-SW-22",
@@ -910,7 +910,7 @@
           "valenceDelta": 0.1
         }
       ],
-      "worldKnowledgeMutations": {
+      "systemMutations": {
         "addedNodes": [
           {
             "id": "WK-SW-24",
@@ -1009,7 +1009,7 @@
           "valenceDelta": 0.2
         }
       ],
-      "worldKnowledgeMutations": {
+      "systemMutations": {
         "addedNodes": [
           {
             "id": "WK-SW-30",
@@ -1085,7 +1085,7 @@
           "valenceDelta": 0.1
         }
       ],
-      "worldKnowledgeMutations": {
+      "systemMutations": {
         "addedNodes": [
           {
             "id": "WK-SW-31",
@@ -1172,7 +1172,7 @@
           "valenceDelta": 0.3
         }
       ],
-      "worldKnowledgeMutations": {
+      "systemMutations": {
         "addedNodes": [
           {
             "id": "WK-SW-32",
@@ -2228,7 +2228,7 @@
             "valence": 0.9
           }
         ],
-        "worldKnowledge": {
+        "systemGraph": {
           "addedNodes": [
             {
               "id": "WK-SW-WB-01",
@@ -2401,7 +2401,7 @@
     }
   },
   "relationships": [],
-  "worldKnowledge": {
+  "systemGraph": {
     "nodes": {},
     "edges": []
   },

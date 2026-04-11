@@ -69,7 +69,7 @@ function createMinimalNarrative(): NarrativeState {
       },
     },
     relationships: [],
-    worldKnowledge: { nodes: {}, edges: [] },
+    systemGraph: { nodes: {}, edges: [] },
     worldSummary: '',
     rules: [],
     createdAt: Date.now(),
@@ -903,7 +903,7 @@ describe('computeWorldMetrics', () => {
             threads: [],
             artifacts: [],
             relationships: [],
-            worldKnowledgeMutations: { addedNodes: [], addedEdges: [] },
+            systemMutations: { addedNodes: [], addedEdges: [] },
           },
         },
       };

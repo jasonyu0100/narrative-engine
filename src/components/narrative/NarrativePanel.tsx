@@ -67,10 +67,10 @@ export default function NarrativePanel() {
               {m.artifacts!.map((a) => narrative.artifacts?.[a.id]?.name ?? a.name).join(', ')}
             </div>
           )}
-          {(m.worldKnowledgeMutations?.addedNodes?.length ?? 0) > 0 && (
+          {(m.systemMutations?.addedNodes?.length ?? 0) > 0 && (
             <div className="text-xs text-text-secondary">
               <span className="text-text-dim uppercase text-[10px] tracking-wider mr-2">World Knowledge</span>
-              {m.worldKnowledgeMutations.addedNodes.map((n) => n.concept).join(', ')}
+              {m.systemMutations.addedNodes.map((n) => n.concept).join(', ')}
             </div>
           )}
         </div>

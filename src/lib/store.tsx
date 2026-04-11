@@ -1,10 +1,10 @@
 'use client';
 
 import React, { createContext, useContext, useReducer, useEffect, useRef, useMemo, type ReactNode } from 'react';
-import type { AppState, InspectorContext, NarrativeState, NarrativeEntry, WizardStep, WizardData, Scene, Arc, Branch, Character, Location, Thread, RelationshipEdge, GraphViewMode, AutoConfig, AutoRunLog, WorldBuild, WorldKnowledgeGraph, WorldKnowledgeNode, WorldKnowledgeEdge, WorldKnowledgeMutation, ApiLogEntry, SystemLogEntry, StorySettings, AnalysisJob, ChatThread, ChatMessage, Note, PlanningQueue, PlanningPhase, Artifact, StructureReview, ProseEvaluation, PlanEvaluation, WorldSystem, ProseProfile, BeatProfilePreset, MechanismProfilePreset, BeatPlan, BeatProseMap, ProseScore, SearchQuery, OwnershipMutation, TieMutation, ContinuityMutation, RelationshipMutation } from '@/types/narrative';
+import type { AppState, InspectorContext, NarrativeState, NarrativeEntry, WizardStep, WizardData, Scene, Arc, Branch, Character, Location, Thread, RelationshipEdge, GraphViewMode, AutoConfig, AutoRunLog, WorldBuild, SystemGraph, SystemNode, SystemEdge, SystemMutation, ApiLogEntry, SystemLogEntry, StorySettings, AnalysisJob, ChatThread, ChatMessage, Note, PlanningQueue, PlanningPhase, Artifact, StructureReview, ProseEvaluation, PlanEvaluation, WorldSystem, ProseProfile, BeatProfilePreset, MechanismProfilePreset, BeatPlan, BeatProseMap, ProseScore, SearchQuery, OwnershipMutation, TieMutation, ContinuityMutation, RelationshipMutation } from '@/types/narrative';
 import { applyContinuityMutation } from '@/lib/continuity-graph';
 import { applyThreadMutation } from '@/lib/thread-log';
-import { sanitizeWorldKnowledgeMutation, applyWorldKnowledgeMutation } from '@/lib/world-knowledge-graph';
+import { sanitizeSystemMutation, applySystemMutation } from '@/lib/system-graph';
 import { resolveEntrySequence, nextId, computeForceSnapshots, computeSwingMagnitudes, computeDeliveryCurve, classifyNarrativeShape, classifyArchetype, classifyScale, classifyWorldDensity, gradeForces, computeRawForceTotals, FORCE_REFERENCE_MEANS } from '@/lib/narrative-utils';
 import { initMatrixPresets } from '@/lib/pacing-profile';
 import { initBeatProfilePresets } from '@/lib/beat-profiles';
@@ -22,23 +22,23 @@ function computeDerivedEntities(
   worldBuilds: Record<string, WorldBuild>,
   scenes: Record<string, Scene>,
   resolvedKeys: string[],
-): { characters: Record<string, Character>; locations: Record<string, Location>; threads: Record<string, Thread>; artifacts: Record<string, Artifact>; relationships: RelationshipEdge[]; worldKnowledge: WorldKnowledgeGraph } {
+): { characters: Record<string, Character>; locations: Record<string, Location>; threads: Record<string, Thread>; artifacts: Record<string, Artifact>; relationships: RelationshipEdge[]; systemGraph: SystemGraph } {
   const characters: Record<string, Character> = {};
   const locations: Record<string, Location> = {};
   const threads: Record<string, Thread> = {};
   const artifacts: Record<string, Artifact> = {};
   let relationships: RelationshipEdge[] = [];
-  const wkNodes: Record<string, WorldKnowledgeNode> = {};
-  const wkEdges: WorldKnowledgeEdge[] = [];
+  const wkNodes: Record<string, SystemNode> = {};
+  const wkEdges: SystemEdge[] = [];
 
   // Graph derivation uses the shared sanitize→apply pipeline so that
   // self-loops, orphans, bad fields, and cross-mutation duplicates are all
   // filtered consistently with the generation and analysis pipelines.
   const seenWkEdgeKeys = new Set<string>();
-  const applyWkMutation = (wkm: WorldKnowledgeMutation) => {
+  const applyWkMutation = (wkm: SystemMutation) => {
     if (!wkm) return;
     // Clone so we don't mutate the entry's stored mutation in place during derivation.
-    const clone: WorldKnowledgeMutation = {
+    const clone: SystemMutation = {
       addedNodes: [...(wkm.addedNodes ?? [])],
       addedEdges: [...(wkm.addedEdges ?? [])],
     };
@@ -46,8 +46,8 @@ function computeDerivedEntities(
     // plus anything this mutation is about to contribute.
     const validIds = new Set<string>(Object.keys(wkNodes));
     for (const n of clone.addedNodes) if (n?.id) validIds.add(n.id);
-    sanitizeWorldKnowledgeMutation(clone, validIds, seenWkEdgeKeys);
-    applyWorldKnowledgeMutation({ nodes: wkNodes, edges: wkEdges }, clone);
+    sanitizeSystemMutation(clone, validIds, seenWkEdgeKeys);
+    applySystemMutation({ nodes: wkNodes, edges: wkEdges }, clone);
   };
 
   for (const key of resolvedKeys) {
@@ -82,7 +82,7 @@ function computeDerivedEntities(
         }
       }
       // Collect world knowledge
-      applyWkMutation(wb.expansionManifest.worldKnowledgeMutations ?? { addedNodes: [], addedEdges: [] });
+      applyWkMutation(wb.expansionManifest.systemMutations ?? { addedNodes: [], addedEdges: [] });
       // Apply expansion mutations on existing entities
       for (const km of wb.expansionManifest.continuityMutations ?? []) {
         const char = characters[km.entityId];
@@ -155,8 +155,8 @@ function computeDerivedEntities(
         }
       }
       // Apply world knowledge mutations from scene
-      if (scene.worldKnowledgeMutations) {
-        applyWkMutation(scene.worldKnowledgeMutations);
+      if (scene.systemMutations) {
+        applyWkMutation(scene.systemMutations);
       }
       // Apply ownership mutations from scene
       for (const om of scene.ownershipMutations ?? []) {
@@ -204,12 +204,12 @@ function computeDerivedEntities(
   // Strip orphan edges — edges referencing node IDs that were never defined as actual nodes
   const validWkEdges = wkEdges.filter((e) => wkNodes[e.from] && wkNodes[e.to]);
 
-  return { characters, locations, threads, artifacts, relationships, worldKnowledge: { nodes: wkNodes, edges: validWkEdges } };
+  return { characters, locations, threads, artifacts, relationships, systemGraph: { nodes: wkNodes, edges: validWkEdges } };
 }
 
 export function withDerivedEntities(n: NarrativeState, resolvedKeys: string[]): NarrativeState {
   const derived = computeDerivedEntities(n.worldBuilds, n.scenes, resolvedKeys);
-  return { ...n, characters: derived.characters, locations: derived.locations, threads: derived.threads, artifacts: derived.artifacts, relationships: derived.relationships, worldKnowledge: derived.worldKnowledge };
+  return { ...n, characters: derived.characters, locations: derived.locations, threads: derived.threads, artifacts: derived.artifacts, relationships: derived.relationships, systemGraph: derived.systemGraph };
 }
 
 
@@ -245,7 +245,7 @@ export function narrativeToEntry(n: NarrativeState): NarrativeEntry {
     Object.keys(n.characters).length,
     Object.keys(n.locations).length,
     Object.keys(n.threads).length,
-    Object.keys(n.worldKnowledge?.nodes ?? {}).length,
+    Object.keys(n.systemGraph?.nodes ?? {}).length,
     entityContinuityNodes,
     entityContinuityEdges,
   );
@@ -398,7 +398,7 @@ export type Action =
   | { type: 'TOGGLE_SEARCH_FOCUS' }
   | { type: 'SWITCH_BRANCH'; branchId: string }
   // Scene mutations
-  | { type: 'UPDATE_SCENE'; sceneId: string; updates: Partial<Pick<Scene, 'summary' | 'events' | 'locationId' | 'participantIds' | 'povId' | 'threadMutations' | 'continuityMutations' | 'relationshipMutations' | 'worldKnowledgeMutations' | 'characterMovements' | 'arcId' | 'proseEmbedding' | 'summaryEmbedding' | 'planEmbeddingCentroid'>> & { prose?: string; plan?: BeatPlan; beatProseMap?: BeatProseMap; proseScore?: ProseScore }; versionType?: 'generate' | 'rewrite' | 'edit'; sourcePlanVersion?: string }
+  | { type: 'UPDATE_SCENE'; sceneId: string; updates: Partial<Pick<Scene, 'summary' | 'events' | 'locationId' | 'participantIds' | 'povId' | 'threadMutations' | 'continuityMutations' | 'relationshipMutations' | 'systemMutations' | 'characterMovements' | 'arcId' | 'proseEmbedding' | 'summaryEmbedding' | 'planEmbeddingCentroid'>> & { prose?: string; plan?: BeatPlan; beatProseMap?: BeatProseMap; proseScore?: ProseScore }; versionType?: 'generate' | 'rewrite' | 'edit'; sourcePlanVersion?: string }
   | { type: 'DELETE_SCENE'; sceneId: string; branchId: string }
   // Branch management
   | { type: 'CREATE_BRANCH'; branch: Branch }
@@ -412,7 +412,7 @@ export type Action =
   // Bulk AI-generated content
   | { type: 'BULK_ADD_SCENES'; scenes: Scene[]; arc: Arc; branchId: string }
   | { type: 'RECONSTRUCT_BRANCH'; branchId: string; scenes: Scene[]; arcs: Record<string, Arc> }
-  | { type: 'EXPAND_WORLD'; worldBuildId: string; characters: Character[]; locations: Location[]; threads: Thread[]; relationships: RelationshipEdge[]; branchId: string; worldKnowledgeMutations?: WorldKnowledgeMutation; artifacts?: Artifact[]; ownershipMutations?: OwnershipMutation[]; tieMutations?: TieMutation[]; continuityMutations?: ContinuityMutation[]; relationshipMutations?: RelationshipMutation[] }
+  | { type: 'EXPAND_WORLD'; worldBuildId: string; characters: Character[]; locations: Location[]; threads: Thread[]; relationships: RelationshipEdge[]; branchId: string; systemMutations?: SystemMutation; artifacts?: Artifact[]; ownershipMutations?: OwnershipMutation[]; tieMutations?: TieMutation[]; continuityMutations?: ContinuityMutation[]; relationshipMutations?: RelationshipMutation[] }
   // Auto mode
   | { type: 'SET_AUTO_CONFIG'; config: AutoConfig }
   | { type: 'START_AUTO_RUN' }
@@ -564,7 +564,7 @@ function reducer(state: AppState, action: Action): AppState {
         if (n.relationships.length > 0) parts.push(`${n.relationships.length} relationship${n.relationships.length > 1 ? 's' : ''}`);
 
         const allArtifacts = Object.values(n.artifacts ?? {});
-        const wkNodeCount = Object.keys(n.worldKnowledge?.nodes ?? {}).length;
+        const wkNodeCount = Object.keys(n.systemGraph?.nodes ?? {}).length;
         if (allArtifacts.length > 0) parts.push(`${allArtifacts.length} artifact${allArtifacts.length > 1 ? 's' : ''}`);
         if (wkNodeCount > 0) parts.push(`${wkNodeCount} knowledge node${wkNodeCount > 1 ? 's' : ''}`);
         const worldBuild: WorldBuild = {
@@ -576,9 +576,9 @@ function reducer(state: AppState, action: Action): AppState {
             locations: allLocs,
             threads: allThreads,
             relationships: n.relationships,
-            worldKnowledgeMutations: {
-              addedNodes: Object.values(n.worldKnowledge?.nodes ?? {}).map((node) => ({ id: node.id, concept: node.concept, type: node.type })),
-              addedEdges: (n.worldKnowledge?.edges ?? []).map((edge) => ({ from: edge.from, to: edge.to, relation: edge.relation })),
+            systemMutations: {
+              addedNodes: Object.values(n.systemGraph?.nodes ?? {}).map((node) => ({ id: node.id, concept: node.concept, type: node.type })),
+              addedEdges: (n.systemGraph?.edges ?? []).map((edge) => ({ from: edge.from, to: edge.to, relation: edge.relation })),
             },
             artifacts: allArtifacts.length > 0 ? allArtifacts : undefined,
           },
@@ -1146,32 +1146,32 @@ function reducer(state: AppState, action: Action): AppState {
       const locNames = action.locations.map((l) => l.name);
       const threadDescs = action.threads.map((t) => t.description);
       const parts: string[] = [];
-      const wkNodeCount = action.worldKnowledgeMutations?.addedNodes?.length ?? 0;
-      const wkEdgeCount = action.worldKnowledgeMutations?.addedEdges?.length ?? 0;
+      const wkNodeCount = action.systemMutations?.addedNodes?.length ?? 0;
+      const wkEdgeCount = action.systemMutations?.addedEdges?.length ?? 0;
       if (charNames.length > 0) parts.push(`${charNames.length} character${charNames.length > 1 ? 's' : ''} (${charNames.join(', ')})`);
       if (locNames.length > 0) parts.push(`${locNames.length} location${locNames.length > 1 ? 's' : ''} (${locNames.join(', ')})`);
       if (threadDescs.length > 0) parts.push(`${threadDescs.length} thread${threadDescs.length > 1 ? 's' : ''}`);
       const artifactNames = (action.artifacts ?? []).map((a) => a.name);
       if (action.relationships.length > 0) parts.push(`${action.relationships.length} relationship${action.relationships.length > 1 ? 's' : ''}`);
       if (artifactNames.length > 0) parts.push(`${artifactNames.length} artifact${artifactNames.length > 1 ? 's' : ''} (${artifactNames.join(', ')})`);
-      if (wkNodeCount > 0) parts.push(`${wkNodeCount} knowledge node${wkNodeCount > 1 ? 's' : ''} (${action.worldKnowledgeMutations!.addedNodes.map((n) => n.concept).join(', ')})`);
+      if (wkNodeCount > 0) parts.push(`${wkNodeCount} knowledge node${wkNodeCount > 1 ? 's' : ''} (${action.systemMutations!.addedNodes.map((n) => n.concept).join(', ')})`);
       if (wkEdgeCount > 0) parts.push(`${wkEdgeCount} knowledge edge${wkEdgeCount > 1 ? 's' : ''}`);
       const worldBuildSummary = parts.length > 0 ? `World expanded: added ${parts.join(', ')}` : 'World expansion (no new elements)';
 
-      // Build manifest worldKnowledge: explicit mutations + auto-generated nodes for threads/locations
-      const autoNodes: WorldKnowledgeMutation['addedNodes'] = [];
+      // Build manifest systemGraph: explicit mutations + auto-generated nodes for threads/locations
+      const autoNodes: SystemMutation['addedNodes'] = [];
       let autoCounter = 0;
       for (const t of action.threads) {
-        const covered = (action.worldKnowledgeMutations?.addedNodes ?? []).some((nd) => nd.concept === t.description);
+        const covered = (action.systemMutations?.addedNodes ?? []).some((nd) => nd.concept === t.description);
         if (!covered) autoNodes.push({ id: `${worldBuildId}-T${++autoCounter}`, concept: t.description, type: 'concept' as const });
       }
       for (const l of action.locations) {
-        const covered = (action.worldKnowledgeMutations?.addedNodes ?? []).some((nd) => nd.concept === l.name);
+        const covered = (action.systemMutations?.addedNodes ?? []).some((nd) => nd.concept === l.name);
         if (!covered) autoNodes.push({ id: `${worldBuildId}-L${++autoCounter}`, concept: l.name, type: 'concept' as const });
       }
-      const manifestWK: WorldKnowledgeMutation = {
-        addedNodes: [...(action.worldKnowledgeMutations?.addedNodes ?? []), ...autoNodes],
-        addedEdges: action.worldKnowledgeMutations?.addedEdges ?? [],
+      const manifestWK: SystemMutation = {
+        addedNodes: [...(action.systemMutations?.addedNodes ?? []), ...autoNodes],
+        addedEdges: action.systemMutations?.addedEdges ?? [],
       };
 
       const worldBuild: WorldBuild = {
@@ -1183,7 +1183,7 @@ function reducer(state: AppState, action: Action): AppState {
           locations: action.locations,
           threads: action.threads.map((t) => ({ ...t, openedAt: worldBuildId })),
           relationships: action.relationships,
-          worldKnowledgeMutations: manifestWK,
+          systemMutations: manifestWK,
           artifacts: action.artifacts ?? [],
           ownershipMutations: action.ownershipMutations,
           tieMutations: action.tieMutations,

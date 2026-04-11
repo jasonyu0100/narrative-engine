@@ -10,13 +10,13 @@
 import type {
   NarrativeState, AnalysisChunkResult, AnalysisJob,
   Character, Location, Thread, Arc, Scene, RelationshipEdge, Artifact,
-  WorldBuild, Branch, ProseProfile, SceneVersionPointers, WorldKnowledgeNodeType, ContinuityNodeType,
+  WorldBuild, Branch, ProseProfile, SceneVersionPointers, SystemNodeType, ContinuityNodeType,
   BeatPlan,
 } from '@/types/narrative';
 import { THREAD_ACTIVE_STATUSES, THREAD_TERMINAL_STATUSES, THREAD_STATUS_LABELS, THREAD_LOG_NODE_TYPES, DEFAULT_STORY_SETTINGS } from '@/types/narrative';
 import type { ThreadLogNodeType } from '@/types/narrative';
 import { ANALYSIS_TARGET_SECTIONS_PER_CHUNK, ANALYSIS_TARGET_CHUNK_WORDS, ANALYSIS_MODEL, MAX_TOKENS_DEFAULT, ANALYSIS_TEMPERATURE, WORDS_PER_SCENE, SCENES_PER_ARC } from '@/lib/constants';
-import { validateExtractionResult, validateWorldKnowledge } from '@/lib/ai/validation';
+import { validateExtractionResult, validateSystemMutation } from '@/lib/ai/validation';
 import { logWarning, logInfo } from '@/lib/system-logger';
 
 // ── Scene-level Splitting ────────────────────────────────────────────────────
@@ -113,7 +113,7 @@ export type SceneStructureResult = {
   ownershipMutations: NonNullable<AnalysisChunkResult['scenes'][0]['ownershipMutations']>;
   tieMutations: NonNullable<AnalysisChunkResult['scenes'][0]['tieMutations']>;
   characterMovements: NonNullable<AnalysisChunkResult['scenes'][0]['characterMovements']>;
-  worldKnowledgeMutations?: AnalysisChunkResult['scenes'][0]['worldKnowledgeMutations'];
+  systemMutations?: AnalysisChunkResult['scenes'][0]['systemMutations'];
 };
 
 /**
@@ -158,7 +158,7 @@ Return JSON:
   "ownershipMutations": [{"artifactName": "Name", "fromName": "prev", "toName": "new"}],
   "tieMutations": [{"locationName": "Name", "characterName": "Name", "action": "add|remove"}],
   "characterMovements": [{"characterName": "Name", "locationName": "destination", "transition": "how"}],
-  "worldKnowledgeMutations": {"addedNodes": [{"concept": "name", "type": "principle|system|concept|tension|event|structure|environment|convention|constraint"}], "addedEdges": [{"fromConcept": "name", "toConcept": "name", "relation": "type"}]}
+  "systemMutations": {"addedNodes": [{"concept": "name", "type": "principle|system|concept|tension|event|structure|environment|convention|constraint"}], "addedEdges": [{"fromConcept": "name", "toConcept": "name", "relation": "type"}]}
 }`;
 
   const fieldGuide = `
@@ -194,7 +194,7 @@ continuityMutations — what we LEARN about an entity that wasn't known before. 
 relationshipMutations — only when a relationship SHIFTS, not just exists.
 - valenceDelta: ±0.1 subtle, ±0.2-0.3 meaningful, ±0.4-0.5 dramatic. Most scenes: 0-1.
 
-worldKnowledgeMutations — REVEALED world rules, not character observations.
+systemMutations — REVEALED world rules, not character observations.
 - Each concept: a genuine world SYSTEM or PRINCIPLE.
   BAD: "Wonderland Logic" (vague). GOOD: "Anthropomorphic Animals" (real world feature).
 - MAX 1-2 concepts per scene. Most scenes: 0-1. Only exposition/world-building: 3+.
@@ -253,7 +253,7 @@ VARIANCE IS SIGNAL:
     ownershipMutations: parsed.ownershipMutations ?? [],
     tieMutations: parsed.tieMutations ?? [],
     characterMovements: parsed.characterMovements ?? [],
-    worldKnowledgeMutations: parsed.worldKnowledgeMutations,
+    systemMutations: parsed.systemMutations,
   };
 }
 
@@ -433,7 +433,7 @@ export async function reconcileResults(
     for (const l of r.locations ?? []) allLocNames.add(l.name);
     for (const a of r.artifacts ?? []) allArtifactNames.add(a.name);
     for (const s of r.scenes ?? []) {
-      for (const n of s.worldKnowledgeMutations?.addedNodes ?? []) allWKConcepts.add(n.concept);
+      for (const n of s.systemMutations?.addedNodes ?? []) allWKConcepts.add(n.concept);
     }
   }
 
@@ -463,7 +463,7 @@ Return JSON:
   "threadMerges": { "variant": "canonical" },
   "locationMerges": { "variant": "canonical" },
   "artifactMerges": { "variant": "canonical" },
-  "worldKnowledgeMerges": { "variant": "canonical" }
+  "systemMerges": { "variant": "canonical" }
 }
 
 ═══ CHARACTER MERGING ═══
@@ -509,7 +509,7 @@ Empty object {} if no merges needed for a category.`;
     threadMerges: Record<string, string>;
     locationMerges: Record<string, string>;
     artifactMerges?: Record<string, string>;
-    worldKnowledgeMerges?: Record<string, string>;
+    systemMerges?: Record<string, string>;
   };
   try {
     merges = JSON.parse(json);
@@ -525,7 +525,7 @@ Empty object {} if no merges needed for a category.`;
   const threadMap = merges.threadMerges ?? {};
   const locMap = merges.locationMerges ?? {};
   const artMap = merges.artifactMerges ?? {};
-  const wkMap = merges.worldKnowledgeMerges ?? {};
+  const wkMap = merges.systemMerges ?? {};
 
   const resolveChar = (name: string) => charMap[name] ?? name;
   const resolveThread = (desc: string) => threadMap[desc] ?? desc;
@@ -634,12 +634,12 @@ Empty object {} if no merges needed for a category.`;
         characterName: resolveEntity(cm.characterName),
         locationName: resolveEntity(cm.locationName),
       })),
-      worldKnowledgeMutations: s.worldKnowledgeMutations ? {
-        addedNodes: (s.worldKnowledgeMutations.addedNodes ?? []).map((n) => ({
+      systemMutations: s.systemMutations ? {
+        addedNodes: (s.systemMutations.addedNodes ?? []).map((n) => ({
           ...n,
           concept: resolveWK(n.concept),
         })),
-        addedEdges: (s.worldKnowledgeMutations.addedEdges ?? []).map((e) => ({
+        addedEdges: (s.systemMutations.addedEdges ?? []).map((e) => ({
           ...e,
           fromConcept: resolveWK(e.fromConcept),
           toConcept: resolveWK(e.toConcept),
@@ -864,7 +864,7 @@ function buildMetaContext(
   const concepts = new Set<string>();
   for (const r of results) {
     for (const sc of r.scenes) {
-      for (const n of sc.worldKnowledgeMutations?.addedNodes ?? []) {
+      for (const n of sc.systemMutations?.addedNodes ?? []) {
         if (n.concept) concepts.add(`${n.concept} (${n.type})`);
       }
     }
@@ -1176,8 +1176,8 @@ export async function assembleNarrative(
             action: mm.action as 'add' | 'remove',
           })).filter((mm) => mm.characterId && (mm.action === 'add' || mm.action === 'remove'));
         })() || undefined,
-        worldKnowledgeMutations: (() => {
-          const wkm = s.worldKnowledgeMutations;
+        systemMutations: (() => {
+          const wkm = s.systemMutations;
           if (!wkm) return undefined;
           // Only add nodes not already seen in prior scenes
           const addedNodes = (wkm.addedNodes ?? [])
@@ -1188,7 +1188,7 @@ export async function assembleNarrative(
               return {
                 id,
                 concept: n.concept,
-                type: (['principle', 'system', 'concept', 'tension', 'event', 'structure', 'environment', 'convention', 'constraint'].includes(n.type) ? n.type : 'concept') as WorldKnowledgeNodeType,
+                type: (['principle', 'system', 'concept', 'tension', 'event', 'structure', 'environment', 'convention', 'constraint'].includes(n.type) ? n.type : 'concept') as SystemNodeType,
               };
             });
           const addedEdges = (wkm.addedEdges ?? [])
@@ -1400,7 +1400,7 @@ export async function assembleNarrative(
         locations: newLocIds.map((id) => locations[id]).filter(Boolean),
         threads: newThreadIds.map((id) => threads[id]).filter(Boolean),
         relationships: [],
-        worldKnowledgeMutations: { addedNodes: [], addedEdges: [] },
+        systemMutations: { addedNodes: [], addedEdges: [] },
         artifacts: newArtifactIds.map((id) => artifactEntities[id]).filter(Boolean),
       },
     };
@@ -1568,7 +1568,7 @@ Return JSON:
     worldBuilds,
     branches,
     relationships,
-    worldKnowledge: { nodes: {}, edges: [] }, // derived — recomputed by withDerivedEntities on load
+    systemGraph: { nodes: {}, edges: [] }, // derived — recomputed by withDerivedEntities on load
     worldSummary,
     rules,
     worldSystems,

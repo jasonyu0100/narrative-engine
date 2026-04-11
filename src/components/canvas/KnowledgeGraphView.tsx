@@ -3,8 +3,8 @@
 import { useRef, useEffect, useCallback, useMemo, useState } from 'react';
 import * as d3 from 'd3';
 import { useStore } from '@/lib/store';
-import { buildCumulativeWorldKnowledge } from '@/lib/narrative-utils';
-import type { NarrativeState, WorldKnowledgeNode } from '@/types/narrative';
+import { buildCumulativeSystemGraph } from '@/lib/narrative-utils';
+import type { NarrativeState, SystemNode } from '@/types/narrative';
 import EvalBar from '@/components/timeline/EvalBar';
 import { computeGroups, WK_TYPE_COLORS, type WKNode, type WKLink } from './graph-utils';
 
@@ -82,19 +82,19 @@ export default function KnowledgeGraphView({ narrative, resolvedKeys, currentInd
       const key = resolvedKeys[currentIndex];
       const scene = narrative.scenes[key];
       const wb = narrative.worldBuilds[key];
-      const wkm = scene?.worldKnowledgeMutations ?? wb?.expansionManifest.worldKnowledgeMutations;
+      const wkm = scene?.systemMutations ?? wb?.expansionManifest.systemMutations;
       if (!wkm) return { nodes: {}, edges: [] };
-      const nodes: Record<string, WorldKnowledgeNode> = {};
+      const nodes: Record<string, SystemNode> = {};
       for (const n of wkm.addedNodes ?? []) {
         nodes[n.id] = { id: n.id, concept: n.concept, type: n.type };
       }
       for (const e of wkm.addedEdges ?? []) {
-        if (!nodes[e.from] && narrative.worldKnowledge.nodes[e.from]) nodes[e.from] = narrative.worldKnowledge.nodes[e.from];
-        if (!nodes[e.to] && narrative.worldKnowledge.nodes[e.to]) nodes[e.to] = narrative.worldKnowledge.nodes[e.to];
+        if (!nodes[e.from] && narrative.systemGraph.nodes[e.from]) nodes[e.from] = narrative.systemGraph.nodes[e.from];
+        if (!nodes[e.to] && narrative.systemGraph.nodes[e.to]) nodes[e.to] = narrative.systemGraph.nodes[e.to];
       }
       return { nodes, edges: wkm.addedEdges ?? [] };
     }
-    return buildCumulativeWorldKnowledge(narrative.scenes, resolvedKeys, currentIndex, narrative.worldBuilds);
+    return buildCumulativeSystemGraph(narrative.scenes, resolvedKeys, currentIndex, narrative.worldBuilds);
   }, [narrative, resolvedKeys, currentIndex, mode]);
 
   // Scene-added node IDs for highlight in nexus mode
@@ -104,7 +104,7 @@ export default function KnowledgeGraphView({ narrative, resolvedKeys, currentInd
       const key = resolvedKeys[currentIndex];
       const scene = narrative.scenes[key];
       const wb = narrative.worldBuilds[key];
-      const wkm = scene?.worldKnowledgeMutations ?? wb?.expansionManifest.worldKnowledgeMutations;
+      const wkm = scene?.systemMutations ?? wb?.expansionManifest.systemMutations;
       for (const n of wkm?.addedNodes ?? []) ids.add(n.id);
     }
     return ids;

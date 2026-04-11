@@ -196,7 +196,7 @@ describe('searchNarrative', () => {
         },
       },
       relationships: [],
-      worldKnowledge: { nodes: {}, edges: [] },
+      systemGraph: { nodes: {}, edges: [] },
       createdAt: Date.now(),
       updatedAt: Date.now(),
     };

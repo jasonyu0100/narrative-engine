@@ -413,7 +413,7 @@ export function computeSlidesData(
       Object.keys(narrative.characters).length,
       Object.keys(narrative.locations).length,
       Object.keys(narrative.threads).length,
-      Object.keys(narrative.worldKnowledge?.nodes ?? {}).length,
+      Object.keys(narrative.systemGraph?.nodes ?? {}).length,
     ),
     arcGrades,
     beatSampler,

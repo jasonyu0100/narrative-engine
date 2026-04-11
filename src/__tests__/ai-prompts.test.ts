@@ -38,7 +38,7 @@ function createMinimalNarrative(overrides: Partial<NarrativeState> = {}): Narrat
       },
     },
     relationships: [],
-    worldKnowledge: { nodes: {}, edges: [] },
+    systemGraph: { nodes: {}, edges: [] },
     worldSummary: '',
     rules: [],
     createdAt: Date.now(),
@@ -130,7 +130,7 @@ describe('Static Prompt Constants', () => {
 
     it('describes continuityMutations', () => {
       expect(PROMPT_MUTATIONS).toContain('continuityMutations');
-      expect(PROMPT_MUTATIONS).toContain('what we LEARN about an entity');
+      expect(PROMPT_MUTATIONS).toContain('perspective on what is now known');
     });
 
     it('describes relationshipMutations', () => {
@@ -138,8 +138,8 @@ describe('Static Prompt Constants', () => {
       expect(PROMPT_MUTATIONS).toContain('valenceDelta');
     });
 
-    it('describes worldKnowledgeMutations', () => {
-      expect(PROMPT_MUTATIONS).toContain('worldKnowledgeMutations');
+    it('describes systemMutations', () => {
+      expect(PROMPT_MUTATIONS).toContain('systemMutations');
       expect(PROMPT_MUTATIONS).toContain('principle');
       expect(PROMPT_MUTATIONS).toContain('system');
     });

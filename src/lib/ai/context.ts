@@ -1,6 +1,6 @@
 import type { NarrativeState, Scene, StorySettings, WorldSystem, RelationshipEdge, ContinuityEdge } from '@/types/narrative';
 import { resolveEntry, THREAD_ACTIVE_STATUSES, THREAD_TERMINAL_STATUSES, THREAD_STATUS_LABELS, DEFAULT_STORY_SETTINGS } from '@/types/narrative';
-import { computeForceSnapshots, computeSwingMagnitudes, detectCubeCorner, movingAverage, FORCE_WINDOW_SIZE, computeDeliveryCurve, classifyCurrentPosition, buildCumulativeWorldKnowledge, rankWorldKnowledgeNodes } from '@/lib/narrative-utils';
+import { computeForceSnapshots, computeSwingMagnitudes, detectCubeCorner, movingAverage, FORCE_WINDOW_SIZE, computeDeliveryCurve, classifyCurrentPosition, buildCumulativeSystemGraph, rankSystemNodes } from '@/lib/narrative-utils';
 import { SCENE_CONTEXT_RECENT_CONTINUITY, WORDS_PER_SCENE, BEATS_PER_SCENE } from '@/lib/constants';
 import { getIntroducedIds } from '@/lib/scene-filter';
 
@@ -445,24 +445,24 @@ export function narrativeContext(
     : '';
 
   // ── World Knowledge Graph (scoped to time horizon) ─────────────────
-  const horizonWorldKnowledge = buildCumulativeWorldKnowledge(
+  const horizonSystemGraph = buildCumulativeSystemGraph(
     n.scenes, keysUpToCurrent, keysUpToCurrent.length - 1, n.worldBuilds,
   );
-  const rankedWorldNodes = rankWorldKnowledgeNodes(horizonWorldKnowledge);
-  let worldKnowledgeBlock = '';
-  if (rankedWorldNodes.length > 0) {
+  const rankedSystemNodes = rankSystemNodes(horizonSystemGraph);
+  let systemGraphBlock = '';
+  if (rankedSystemNodes.length > 0) {
     // Build adjacency map for each node → connected concepts
     const adjacency = new Map<string, string[]>();
-    for (const e of horizonWorldKnowledge.edges) {
-      const fromConcept = horizonWorldKnowledge.nodes[e.from]?.concept;
-      const toConcept = horizonWorldKnowledge.nodes[e.to]?.concept;
+    for (const e of horizonSystemGraph.edges) {
+      const fromConcept = horizonSystemGraph.nodes[e.from]?.concept;
+      const toConcept = horizonSystemGraph.nodes[e.to]?.concept;
       if (!fromConcept || !toConcept) continue;
       adjacency.set(e.from, [...(adjacency.get(e.from) ?? []), toConcept]);
       adjacency.set(e.to, [...(adjacency.get(e.to) ?? []), fromConcept]);
     }
 
     // Show each node with its type and relationships
-    const nodeLines = rankedWorldNodes.map(({ node }) => {
+    const nodeLines = rankedSystemNodes.map(({ node }) => {
       const connections = adjacency.get(node.id);
       const connStr = connections && connections.length > 0
         ? ` ↔ ${connections.join(', ')}`
@@ -470,14 +470,14 @@ export function narrativeContext(
       return `  [${node.type}] ${node.concept}${connStr}`;
     });
 
-    const totalNodes = Object.keys(horizonWorldKnowledge.nodes).length;
-    const totalEdges = horizonWorldKnowledge.edges.length;
-    worldKnowledgeBlock = `
-<world-knowledge nodes="${totalNodes}" edges="${totalEdges}" hint="Established rules, systems, concepts, tensions. Reference existing nodes when relevant. New nodes need edges showing how they relate.">
+    const totalNodes = Object.keys(horizonSystemGraph.nodes).length;
+    const totalEdges = horizonSystemGraph.edges.length;
+    systemGraphBlock = `
+<system-graph nodes="${totalNodes}" edges="${totalEdges}" hint="Established rules, systems, concepts, tensions. Reference existing nodes when relevant. New nodes need edges showing how they relate.">
 
 ${nodeLines.join('\n')}
-<node-ids>${rankedWorldNodes.map(({ node }) => `${node.id}: ${node.concept}`).join(', ')}</node-ids>
-</world-knowledge>
+<node-ids>${rankedSystemNodes.map(({ node }) => `${node.id}: ${node.concept}`).join(', ')}</node-ids>
+</system-graph>
 `;
   }
 
@@ -528,7 +528,7 @@ ${sceneHistory}
 <force-trajectory hint="D=Drive (thread fate) W=World (entity transformation) S=System (world deepening). Vary density between scenes.">
 ${forceTrajectory || '(no scenes yet)'}
 ${currentStateBlock}</force-trajectory>
-${worldKnowledgeBlock}${buildDramaticIronyBlock(n, keysUpToCurrent)}
+${systemGraphBlock}${buildDramaticIronyBlock(n, keysUpToCurrent)}
 <valid-ids hint="You MUST use ONLY these exact IDs — do NOT invent new ones.">
   <characters>${charIdList}</characters>
   <locations>${locIdList}</locations>
@@ -658,18 +658,18 @@ export function sceneContext(
   });
 
   const wkmBlock = (() => {
-    const wkm = scene.worldKnowledgeMutations;
+    const wkm = scene.systemMutations;
     if (!wkm || ((wkm.addedNodes?.length ?? 0) === 0 && (wkm.addedEdges?.length ?? 0) === 0)) return '';
     const lines: string[] = [];
     for (const node of wkm.addedNodes ?? []) {
       lines.push(`  <node type="${node.type}">${node.concept}</node>`);
     }
     for (const edge of wkm.addedEdges ?? []) {
-      const fromLabel = narrative.worldKnowledge.nodes[edge.from]?.concept ?? edge.from;
-      const toLabel = narrative.worldKnowledge.nodes[edge.to]?.concept ?? edge.to;
+      const fromLabel = narrative.systemGraph.nodes[edge.from]?.concept ?? edge.from;
+      const toLabel = narrative.systemGraph.nodes[edge.to]?.concept ?? edge.to;
       lines.push(`  <edge>${fromLabel} → ${edge.relation} → ${toLabel}</edge>`);
     }
-    return `\n<world-knowledge-reveals>\n${lines.join('\n')}\n</world-knowledge-reveals>`;
+    return `\n<system-graph-reveals>\n${lines.join('\n')}\n</world-knowledge-reveals>`;
   })();
 
   // ── World rules & systems (compact) ──────────────────────────────
@@ -1006,8 +1006,8 @@ ${eventLines.join('\n')}
   // ═══════════════════════════════════════════════════════════════════════════
   // WORLD KNOWLEDGE (reveals + connections + established references)
   // ═══════════════════════════════════════════════════════════════════════════
-  if (scene.worldKnowledgeMutations) {
-    const wkm = scene.worldKnowledgeMutations;
+  if (scene.systemMutations) {
+    const wkm = scene.systemMutations;
     const newNodeIds = new Set((wkm.addedNodes ?? []).map((n) => n.id));
     const worldLines: string[] = [];
 
@@ -1021,8 +1021,8 @@ ${eventLines.join('\n')}
     // New connections
     for (const edge of wkm.addedEdges ?? []) {
       if (!edge.from || !edge.to) continue;
-      const fromNode = narrative.worldKnowledge?.nodes[edge.from] ?? wkm.addedNodes?.find((n) => n.id === edge.from);
-      const toNode = narrative.worldKnowledge?.nodes[edge.to] ?? wkm.addedNodes?.find((n) => n.id === edge.to);
+      const fromNode = narrative.systemGraph?.nodes[edge.from] ?? wkm.addedNodes?.find((n) => n.id === edge.from);
+      const toNode = narrative.systemGraph?.nodes[edge.to] ?? wkm.addedNodes?.find((n) => n.id === edge.to);
       if (fromNode?.concept && toNode?.concept) {
         const fromShort = fromNode.concept.includes(' — ') ? fromNode.concept.split(' — ')[0] : fromNode.concept;
         const toShort = toNode.concept.includes(' — ') ? toNode.concept.split(' — ')[0] : toNode.concept;
@@ -1034,12 +1034,12 @@ ${eventLines.join('\n')}
     const referencedExistingIds = new Set<string>();
     for (const edge of wkm.addedEdges ?? []) {
       if (!edge.from || !edge.to) continue;
-      if (!newNodeIds.has(edge.from) && narrative.worldKnowledge?.nodes[edge.from]) referencedExistingIds.add(edge.from);
-      if (!newNodeIds.has(edge.to) && narrative.worldKnowledge?.nodes[edge.to]) referencedExistingIds.add(edge.to);
+      if (!newNodeIds.has(edge.from) && narrative.systemGraph?.nodes[edge.from]) referencedExistingIds.add(edge.from);
+      if (!newNodeIds.has(edge.to) && narrative.systemGraph?.nodes[edge.to]) referencedExistingIds.add(edge.to);
     }
     if (referencedExistingIds.size > 0) {
       const established = [...referencedExistingIds].map((id) => {
-        const node = narrative.worldKnowledge.nodes[id];
+        const node = narrative.systemGraph.nodes[id];
         return node?.concept ? (node.concept.includes(' — ') ? node.concept.split(' — ')[0] : node.concept) : id;
       });
       worldLines.push(`  <established hint="Can be referenced freely">${established.join(', ')}</established>`);
@@ -1312,8 +1312,8 @@ export function worldContext(
   });
 
   // Cumulative world knowledge graph up to this point
-  const wk = buildCumulativeWorldKnowledge(n.scenes, keysUpToCurrent, keysUpToCurrent.length - 1, n.worldBuilds);
-  const rankedNodes = rankWorldKnowledgeNodes(wk);
+  const wk = buildCumulativeSystemGraph(n.scenes, keysUpToCurrent, keysUpToCurrent.length - 1, n.worldBuilds);
+  const rankedNodes = rankSystemNodes(wk);
   let wkBlock = '';
   if (rankedNodes.length > 0) {
     const adjacency = new Map<string, string[]>();
@@ -1328,7 +1328,7 @@ export function worldContext(
       const conns = adjacency.get(node.id);
       return `  [${node.type}] ${node.concept}${conns?.length ? ` ↔ ${conns.join(', ')}` : ''}`;
     });
-    wkBlock = `\n<world-knowledge nodes="${rankedNodes.length}" edges="${wk.edges.length}">\n${nodeLines.join('\n')}\n</world-knowledge>\n`;
+    wkBlock = `\n<system-graph nodes="${rankedNodes.length}" edges="${wk.edges.length}">\n${nodeLines.join('\n')}\n</system-graph>\n`;
   }
 
   const rulesBlock = n.rules?.length

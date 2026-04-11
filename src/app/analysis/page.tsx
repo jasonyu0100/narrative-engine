@@ -165,7 +165,7 @@ function JobDetail({ job }: { job: AnalysisJob }) {
         else { map.set(key, { label: a.name, type: 'artifact', count: 1, firstSeen: sceneIdx, significance: a.significance }); }
       }
       for (const s of result.scenes ?? []) {
-        for (const n of s.worldKnowledgeMutations?.addedNodes ?? []) {
+        for (const n of s.systemMutations?.addedNodes ?? []) {
           const shortConcept = n.concept.includes(' — ') ? n.concept.split(' — ')[0] : n.concept;
           const key = `knowledge-${shortConcept}`;
           const existing = map.get(key);
@@ -272,7 +272,7 @@ function JobDetail({ job }: { job: AnalysisJob }) {
   const locCount = new Set(completed.flatMap((r) => r.locations.map((l) => l.name))).size;
   const sceneCount = completed.reduce((sum, r) => sum + (r.scenes?.length ?? 0), 0);
   const threadCount = new Set(completed.flatMap((r) => r.threads.map((t) => t.description))).size;
-  const knowledgeCount = new Set(completed.flatMap((r) => (r.scenes ?? []).flatMap((s) => (s.worldKnowledgeMutations?.addedNodes ?? []).map((n) => n.concept)))).size;
+  const knowledgeCount = new Set(completed.flatMap((r) => (r.scenes ?? []).flatMap((s) => (s.systemMutations?.addedNodes ?? []).map((n) => n.concept)))).size;
   const artifactCount = new Set(completed.flatMap((r) => (r.artifacts ?? []).map((a) => a.name))).size;
 
   // Current scene stream text for viewing
@@ -921,8 +921,8 @@ function JobDetail({ job }: { job: AnalysisJob }) {
       {selectedScene !== null && !isPlanExtracting && (() => {
         const result = liveJob.results[selectedScene] as AnalysisChunkResult | null;
         if (!result) return null;
-        const wkNodes = (result.scenes ?? []).flatMap((s) => s.worldKnowledgeMutations?.addedNodes ?? []);
-        const wkEdges = (result.scenes ?? []).flatMap((s) => s.worldKnowledgeMutations?.addedEdges ?? []);
+        const wkNodes = (result.scenes ?? []).flatMap((s) => s.systemMutations?.addedNodes ?? []);
+        const wkEdges = (result.scenes ?? []).flatMap((s) => s.systemMutations?.addedEdges ?? []);
         const wkTypeColors: Record<string, string> = { principle: 'text-amber-400', system: 'text-sky-400', concept: 'text-violet-400', tension: 'text-rose-400', event: 'text-orange-400', structure: 'text-teal-400', environment: 'text-emerald-400', convention: 'text-indigo-400', constraint: 'text-red-400' };
         return (
           <div className="shrink-0 border-t border-white/8 flex flex-col" style={{ height: `${scenePanelHeight}vh` }}>

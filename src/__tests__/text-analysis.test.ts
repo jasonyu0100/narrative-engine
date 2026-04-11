@@ -46,7 +46,7 @@ vi.mock('@/lib/system-logger', () => ({
 // Mock validation
 vi.mock('@/lib/ai/validation', () => ({
   validateExtractionResult: vi.fn(() => []),
-  validateWorldKnowledge: vi.fn(() => []),
+  validateSystemMutation: vi.fn(() => []),
 }));
 
 import { splitCorpusIntoScenes, extractSceneStructure, groupScenesIntoArcs, reconcileResults, analyzeThreading, assembleNarrative } from '@/lib/text-analysis';
@@ -163,7 +163,7 @@ function createRichAnalysisResult(index: number): AnalysisChunkResult {
         ownershipMutations: [],
         tieMutations: [{ locationName: 'Castle', characterName: 'Alice', action: 'add' as const }],
         characterMovements: [{ characterName: 'Bob', locationName: 'Forest', transition: 'walked into the forest' }],
-        worldKnowledgeMutations: {
+        systemMutations: {
           addedNodes: [{ concept: 'Ancient Magic', type: 'system' }, { concept: 'Royal Bloodline', type: 'concept' }],
           addedEdges: [{ fromConcept: 'Ancient Magic', toConcept: 'Royal Bloodline', relation: 'enables' }],
         },
@@ -312,7 +312,7 @@ describe('extractSceneStructure', () => {
       ownershipMutations: [],
       tieMutations: [],
       characterMovements: [{ characterName: 'Alice', locationName: 'Wonderland', transition: 'fell through' }],
-      worldKnowledgeMutations: { addedNodes: [{ concept: 'Size-Altering', type: 'system' }] },
+      systemMutations: { addedNodes: [{ concept: 'Size-Altering', type: 'system' }] },
     };
 
     vi.mocked(fetch).mockResolvedValueOnce({
@@ -338,7 +338,7 @@ describe('extractSceneStructure', () => {
     expect(result.relationshipMutations).toHaveLength(1);
     expect(result.artifactUsages).toHaveLength(1);
     expect(result.characterMovements).toHaveLength(1);
-    expect(result.worldKnowledgeMutations?.addedNodes).toHaveLength(1);
+    expect(result.systemMutations?.addedNodes).toHaveLength(1);
   });
 
   it('defaults missing fields to empty arrays/strings', async () => {
@@ -495,7 +495,7 @@ describe('reconcileResults', () => {
       threadMerges: {},
       locationMerges: {},
       artifactMerges: {},
-      worldKnowledgeMerges: {},
+      systemMerges: {},
     }));
   });
 
@@ -521,7 +521,7 @@ describe('reconcileResults', () => {
           threadMerges: {},
           locationMerges: {},
           artifactMerges: {},
-          worldKnowledgeMerges: {},
+          systemMerges: {},
         }),
       }),
     } as Response);
@@ -546,7 +546,7 @@ describe('reconcileResults', () => {
           threadMerges: { "Harry's distrust of Snape": "Harry and Snape's antagonism" },
           locationMerges: {},
           artifactMerges: {},
-          worldKnowledgeMerges: {},
+          systemMerges: {},
         }),
       }),
     } as Response);
@@ -576,7 +576,7 @@ describe('reconcileResults', () => {
           threadMerges: {},
           locationMerges: { 'The Forest': 'Dark Forest' },
           artifactMerges: {},
-          worldKnowledgeMerges: {},
+          systemMerges: {},
         }),
       }),
     } as Response);
@@ -603,7 +603,7 @@ describe('reconcileResults', () => {
           threadMerges: {},
           locationMerges: {},
           artifactMerges: { 'the Elder Wand': 'Elder Wand' },
-          worldKnowledgeMerges: {},
+          systemMerges: {},
         }),
       }),
     } as Response);
@@ -631,7 +631,7 @@ describe('reconcileResults', () => {
           threadMerges: {},
           locationMerges: {},
           artifactMerges: {},
-          worldKnowledgeMerges: { 'Magical System': 'Magic System' },
+          systemMerges: { 'Magical System': 'Magic System' },
         }),
       }),
     } as Response);
@@ -640,7 +640,7 @@ describe('reconcileResults', () => {
       ...createMockAnalysisResult(0),
       scenes: [{
         ...createMockAnalysisResult(0).scenes[0],
-        worldKnowledgeMutations: {
+        systemMutations: {
           addedNodes: [{ concept: 'Magical System', type: 'system' }],
           addedEdges: [{ fromConcept: 'Magical System', toConcept: 'Energy', relation: 'enables' }],
         },
@@ -648,8 +648,8 @@ describe('reconcileResults', () => {
     }];
 
     const reconciled = await reconcileResults(results);
-    expect(reconciled[0].scenes[0].worldKnowledgeMutations!.addedNodes[0].concept).toBe('Magic System');
-    expect(reconciled[0].scenes[0].worldKnowledgeMutations!.addedEdges[0].fromConcept).toBe('Magic System');
+    expect(reconciled[0].scenes[0].systemMutations!.addedNodes[0].concept).toBe('Magic System');
+    expect(reconciled[0].scenes[0].systemMutations!.addedEdges[0].fromConcept).toBe('Magic System');
   });
 
   it('stitches thread continuity across chunks', async () => {
@@ -1149,16 +1149,16 @@ describe('assembleNarrative', () => {
     const narrative = await assembleNarrative('Rich Test', results, {});
 
     const scene = Object.values(narrative.scenes)[0];
-    expect(scene.worldKnowledgeMutations).toBeDefined();
-    expect(scene.worldKnowledgeMutations!.addedNodes.length).toBeGreaterThan(0);
+    expect(scene.systemMutations).toBeDefined();
+    expect(scene.systemMutations!.addedNodes.length).toBeGreaterThan(0);
 
     // Nodes should have WK- prefixed IDs
-    for (const node of scene.worldKnowledgeMutations!.addedNodes) {
+    for (const node of scene.systemMutations!.addedNodes) {
       expect(node.id).toMatch(/^WK-/);
     }
 
     // Edges should reference valid WK IDs
-    for (const edge of scene.worldKnowledgeMutations!.addedEdges) {
+    for (const edge of scene.systemMutations!.addedEdges) {
       expect(edge.from).toMatch(/^WK-/);
       expect(edge.to).toMatch(/^WK-/);
     }

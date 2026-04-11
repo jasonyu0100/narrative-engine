@@ -393,7 +393,7 @@ function ScalesTab() {
           </h3>
         </div>
         <div className="text-[9px] text-text-dim mb-3 font-mono bg-bg-elevated/30 px-2 py-1.5 rounded border border-border/20">
-          Density = (characters + locations + threads + worldKnowledgeNodes) / scenes
+          Density = (characters + locations + threads + systemNodes) / scenes
         </div>
         <div className="space-y-2">
           {DENSITIES.map((density, idx) => (

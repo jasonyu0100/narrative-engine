@@ -22,10 +22,10 @@ import {
   computeWindowedForces,
   gradeForce,
   gradeForces,
-  rankWorldKnowledgeNodes,
-  buildCumulativeWorldKnowledge,
+  rankSystemNodes,
+  buildCumulativeSystemGraph,
 } from '@/lib/narrative-utils';
-import type { Branch, Scene, NarrativeState, ForceSnapshot, WorldKnowledgeGraph } from '@/types/narrative';
+import type { Branch, Scene, NarrativeState, ForceSnapshot, SystemGraph } from '@/types/narrative';
 
 // ── Test Fixtures ────────────────────────────────────────────────────────────
 
@@ -70,7 +70,7 @@ function createNarrative(overrides: Partial<NarrativeState> = {}): NarrativeStat
     },
     artifacts: {},
     relationships: [],
-    worldKnowledge: { nodes: {}, edges: [] },
+    systemGraph: { nodes: {}, edges: [] },
     worldSummary: '',
     rules: [],
     createdAt: Date.now(),
@@ -566,14 +566,14 @@ describe('gradeForces', () => {
 
 // ── World Knowledge Graph ────────────────────────────────────────────────────
 
-describe('rankWorldKnowledgeNodes', () => {
+describe('rankSystemNodes', () => {
   it('returns empty array for empty graph', () => {
-    const graph: WorldKnowledgeGraph = { nodes: {}, edges: [] };
-    expect(rankWorldKnowledgeNodes(graph)).toEqual([]);
+    const graph: SystemGraph = { nodes: {}, edges: [] };
+    expect(rankSystemNodes(graph)).toEqual([]);
   });
 
   it('ranks nodes by degree centrality', () => {
-    const graph: WorldKnowledgeGraph = {
+    const graph: SystemGraph = {
       nodes: {
         'K-01': { id: 'K-01', concept: 'Magic', type: 'system' },
         'K-02': { id: 'K-02', concept: 'Wands', type: 'system' },
@@ -586,31 +586,31 @@ describe('rankWorldKnowledgeNodes', () => {
       ],
     };
 
-    const ranked = rankWorldKnowledgeNodes(graph);
+    const ranked = rankSystemNodes(graph);
     expect(ranked[0].node.id).toBe('K-01'); // degree 2
   });
 });
 
-describe('buildCumulativeWorldKnowledge', () => {
+describe('buildCumulativeSystemGraph', () => {
   it('accumulates mutations from scenes', () => {
     const scenes: Record<string, Scene> = {
       'S-001': createScene({
         id: 'S-001',
-        worldKnowledgeMutations: {
+        systemMutations: {
           addedNodes: [{ id: 'K-01', concept: 'Magic', type: 'system' }],
           addedEdges: [],
         },
       }),
       'S-002': createScene({
         id: 'S-002',
-        worldKnowledgeMutations: {
+        systemMutations: {
           addedNodes: [{ id: 'K-02', concept: 'Wands', type: 'system' }],
           addedEdges: [{ from: 'K-01', to: 'K-02', relation: 'enables' }],
         },
       }),
     };
 
-    const graph = buildCumulativeWorldKnowledge(scenes, ['S-001', 'S-002'], 1);
+    const graph = buildCumulativeSystemGraph(scenes, ['S-001', 'S-002'], 1);
     expect(Object.keys(graph.nodes)).toHaveLength(2);
     expect(graph.edges).toHaveLength(1);
   });

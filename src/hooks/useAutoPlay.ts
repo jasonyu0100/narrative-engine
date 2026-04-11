@@ -93,7 +93,7 @@ export function useAutoPlay() {
               worldBuildId: nextId('WB', Object.keys(activeNarrative.worldBuilds), 3),
               characters: expansion.characters, locations: expansion.locations,
               threads: expansion.threads, relationships: expansion.relationships,
-              worldKnowledgeMutations: expansion.worldKnowledgeMutations, artifacts: expansion.artifacts,
+              systemMutations: expansion.systemMutations, artifacts: expansion.artifacts,
               branchId: activeBranchId,
               ownershipMutations: expansion.ownershipMutations, tieMutations: expansion.tieMutations,
               continuityMutations: expansion.continuityMutations, relationshipMutations: expansion.relationshipMutations,

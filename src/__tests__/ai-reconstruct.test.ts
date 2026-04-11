@@ -92,7 +92,7 @@ function createMinimalNarrative(): NarrativeState {
       },
     },
     worldBuilds: {},
-    worldKnowledge: { nodes: {}, edges: [] },
+    systemGraph: { nodes: {}, edges: [] },
     relationships: [],
     artifacts: {},
     rules: [],
@@ -395,7 +395,7 @@ describe('reconstructBranch', () => {
         threads: [],
         artifacts: [],
         relationships: [],
-        worldKnowledgeMutations: { addedNodes: [], addedEdges: [] },
+        systemMutations: { addedNodes: [], addedEdges: [] },
       },
     };
     narrative.worldBuilds['WB-01'] = worldBuild;

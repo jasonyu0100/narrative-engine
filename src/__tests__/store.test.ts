@@ -36,7 +36,7 @@ describe('store reducer', () => {
       continuityMutations: [],
       relationshipMutations: [],
       characterMovements: {},
-      worldKnowledgeMutations: { addedNodes: [], addedEdges: [] },
+      systemMutations: { addedNodes: [], addedEdges: [] },
       proseVersions: [],
       planVersions: [],
     };
@@ -59,7 +59,7 @@ describe('store reducer', () => {
         'BR-01': testBranch,
       },
       relationships: [],
-      worldKnowledge: { nodes: {}, edges: [] },
+      systemGraph: { nodes: {}, edges: [] },
       worldSummary: '',
       rules: [],
       createdAt: Date.now(),

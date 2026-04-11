@@ -145,7 +145,7 @@
       ],
       "continuityMutations": [],
       "relationshipMutations": [],
-      "worldKnowledgeMutations": {
+      "systemMutations": {
         "addedNodes": [
           {
             "id": "WK-HP-01",
@@ -224,7 +224,7 @@
         }
       ],
       "relationshipMutations": [],
-      "worldKnowledgeMutations": {
+      "systemMutations": {
         "addedNodes": [
           {
             "id": "WK-HP-04",
@@ -306,7 +306,7 @@
           "valenceDelta": 0.3
         }
       ],
-      "worldKnowledgeMutations": {
+      "systemMutations": {
         "addedNodes": [
           {
             "id": "WK-HP-07",
@@ -394,7 +394,7 @@
           "valenceDelta": 0.1
         }
       ],
-      "worldKnowledgeMutations": {
+      "systemMutations": {
         "addedNodes": [
           {
             "id": "WK-HP-08",
@@ -473,7 +473,7 @@
           "valenceDelta": -0.3
         }
       ],
-      "worldKnowledgeMutations": {
+      "systemMutations": {
         "addedNodes": [
           {
             "id": "WK-HP-11",
@@ -520,7 +520,7 @@
       "threadMutations": [],
       "continuityMutations": [],
       "relationshipMutations": [],
-      "worldKnowledgeMutations": {
+      "systemMutations": {
         "addedNodes": [
           {
             "id": "WK-HP-13",
@@ -558,7 +558,7 @@
       "threadMutations": [],
       "continuityMutations": [],
       "relationshipMutations": [],
-      "worldKnowledgeMutations": {
+      "systemMutations": {
         "addedNodes": [
           {
             "id": "WK-HP-14",
@@ -630,7 +630,7 @@
           "valenceDelta": -0.2
         }
       ],
-      "worldKnowledgeMutations": {
+      "systemMutations": {
         "addedNodes": [
           {
             "id": "WK-HP-16",
@@ -699,7 +699,7 @@
       "threadMutations": [],
       "continuityMutations": [],
       "relationshipMutations": [],
-      "worldKnowledgeMutations": {
+      "systemMutations": {
         "addedNodes": [
           {
             "id": "WK-HP-18",
@@ -797,7 +797,7 @@
           "valenceDelta": 0.1
         }
       ],
-      "worldKnowledgeMutations": {
+      "systemMutations": {
         "addedNodes": [
           {
             "id": "WK-HP-20",
@@ -866,7 +866,7 @@
         }
       ],
       "relationshipMutations": [],
-      "worldKnowledgeMutations": {
+      "systemMutations": {
         "addedNodes": [
           {
             "id": "WK-HP-22",
@@ -918,7 +918,7 @@
       "threadMutations": [],
       "continuityMutations": [],
       "relationshipMutations": [],
-      "worldKnowledgeMutations": {
+      "systemMutations": {
         "addedNodes": [
           {
             "id": "WK-HP-23",
@@ -1003,7 +1003,7 @@
           "valenceDelta": 0.3
         }
       ],
-      "worldKnowledgeMutations": {
+      "systemMutations": {
         "addedNodes": [
           {
             "id": "WK-HP-24",
@@ -1091,7 +1091,7 @@
           "valenceDelta": 0.3
         }
       ],
-      "worldKnowledgeMutations": {
+      "systemMutations": {
         "addedNodes": [
           {
             "id": "WK-HP-26",
@@ -1168,7 +1168,7 @@
           "valenceDelta": 0.3
         }
       ],
-      "worldKnowledgeMutations": {
+      "systemMutations": {
         "addedNodes": [
           {
             "id": "WK-HP-28",
@@ -1242,7 +1242,7 @@
           "valenceDelta": 0.3
         }
       ],
-      "worldKnowledgeMutations": {
+      "systemMutations": {
         "addedNodes": [
           {
             "id": "WK-HP-29",
@@ -1329,7 +1329,7 @@
           "valenceDelta": 0.1
         }
       ],
-      "worldKnowledgeMutations": {
+      "systemMutations": {
         "addedNodes": [
           {
             "id": "WK-HP-30",
@@ -1406,7 +1406,7 @@
           "valenceDelta": 0.3
         }
       ],
-      "worldKnowledgeMutations": {
+      "systemMutations": {
         "addedNodes": [
           {
             "id": "WK-HP-31",
@@ -2284,7 +2284,7 @@
             "valence": -0.5
           }
         ],
-        "worldKnowledge": {
+        "systemGraph": {
           "addedNodes": [
             {
               "id": "WK-HP-WB-01",
@@ -2449,7 +2449,7 @@
     }
   },
   "relationships": [],
-  "worldKnowledge": {
+  "systemGraph": {
     "nodes": {},
     "edges": []
   },

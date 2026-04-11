@@ -150,7 +150,7 @@ function createMinimalNarrative(): NarrativeState {
       },
     },
     worldBuilds: {},
-    worldKnowledge: { nodes: {}, edges: [] },
+    systemGraph: { nodes: {}, edges: [] },
     artifacts: {},
     relationships: [],
     rules: [],

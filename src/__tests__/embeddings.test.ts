@@ -86,7 +86,7 @@ const mockNarrative: NarrativeState = {
     },
   },
   relationships: [],
-  worldKnowledge: { nodes: {}, edges: [] },
+  systemGraph: { nodes: {}, edges: [] },
   createdAt: Date.now(),
   updatedAt: Date.now(),
 };
@@ -102,7 +102,7 @@ const mockScene: Scene = {
   threadMutations: [{ threadId: 'thread1', from: 'active', to: 'active', addedNodes: [] }],
   continuityMutations: [],
   relationshipMutations: [],
-  worldKnowledgeMutations: { addedNodes: [], addedEdges: [] },
+  systemMutations: { addedNodes: [], addedEdges: [] },
   ownershipMutations: [],
   arcId: 'arc1',
 };

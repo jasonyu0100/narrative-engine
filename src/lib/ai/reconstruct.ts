@@ -31,11 +31,11 @@ export type ReconstructionCallbacks = {
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
-/** Normalize worldKnowledgeMutations with safe defaults for addedNodes/addedEdges */
-function normalizeWorldKnowledgeMutations(
-  parsed: Scene['worldKnowledgeMutations'] | undefined,
-  fallback: Scene['worldKnowledgeMutations'] | undefined,
-): NonNullable<Scene['worldKnowledgeMutations']> {
+/** Normalize systemMutations with safe defaults for addedNodes/addedEdges */
+function normalizeSystemMutations(
+  parsed: Scene['systemMutations'] | undefined,
+  fallback: Scene['systemMutations'] | undefined,
+): NonNullable<Scene['systemMutations']> {
   const source = parsed ?? fallback;
   return {
     addedNodes: source?.addedNodes ?? [],
@@ -584,7 +584,7 @@ ${JSON.stringify({
   threadMutations: scene.threadMutations,
   continuityMutations: scene.continuityMutations,
   relationshipMutations: scene.relationshipMutations,
-  worldKnowledgeMutations: scene.worldKnowledgeMutations,
+  systemMutations: scene.systemMutations,
   summary: scene.summary,
 }, null, 2)}
 
@@ -608,7 +608,7 @@ Return JSON:
   "threadMutations": [{"threadId": "T-XX", "from": "latent|seeded|active|critical|resolved|subverted|abandoned", "to": "latent|seeded|active|critical|resolved|subverted|abandoned", "addedNodes": [{"id": "TK-NEW-001", "content": "thread-specific: what happened to THIS thread in THIS scene (NOT a scene summary)", "type": "pulse|transition|setup|escalation|payoff|twist|callback|resistance|stall"}]}],
   "continuityMutations": [{"entityId": "C-XX", "addedNodes": [{"id": "K-NEW-001", "content": "complete sentence: what they experienced or became", "type": "trait|state|history|capability|belief|relation|secret|goal|weakness"}]}],
   "relationshipMutations": [{"from": "C-XX", "to": "C-YY", "type": "description", "valenceDelta": 0.1}],
-  "worldKnowledgeMutations": {"addedNodes": [], "addedEdges": []},
+  "systemMutations": {"addedNodes": [], "addedEdges": []},
   "tieMutations": [{"locationId": "L-XX", "characterId": "C-XX", "action": "add|remove"}],
   "summary": "Rich prose sentences using character NAMES and location NAMES (never raw IDs). Include specifics and context that shapes prose. No emotions/realizations as endings."
 }`;
@@ -627,7 +627,7 @@ Return JSON:
     threadMutations: parsed.threadMutations ?? scene.threadMutations,
     continuityMutations: parsed.continuityMutations ?? scene.continuityMutations,
     relationshipMutations: parsed.relationshipMutations ?? scene.relationshipMutations,
-    worldKnowledgeMutations: normalizeWorldKnowledgeMutations(parsed.worldKnowledgeMutations, scene.worldKnowledgeMutations),
+    systemMutations: normalizeSystemMutations(parsed.systemMutations, scene.systemMutations),
     tieMutations: parsed.tieMutations ?? scene.tieMutations,
     summary: parsed.summary ?? scene.summary,
     audioUrl: undefined,
@@ -711,7 +711,7 @@ Return JSON:
   "threadMutations": [{"threadId": "T-XX", "from": "latent|seeded|active|critical|resolved|subverted|abandoned", "to": "latent|seeded|active|critical|resolved|subverted|abandoned", "addedNodes": [{"id": "TK-NEW-001", "content": "thread-specific: what happened to THIS thread in THIS scene (NOT a scene summary)", "type": "pulse|transition|setup|escalation|payoff|twist|callback|resistance|stall"}]}],
   "continuityMutations": [{"entityId": "C-XX", "addedNodes": [{"id": "K-NEW-001", "content": "complete sentence: what they experienced or became", "type": "trait|state|history|capability|belief|relation|secret|goal|weakness"}]}],
   "relationshipMutations": [{"from": "C-XX", "to": "C-YY", "type": "description", "valenceDelta": 0.1}],
-  "worldKnowledgeMutations": {"addedNodes": [], "addedEdges": []},
+  "systemMutations": {"addedNodes": [], "addedEdges": []},
   "summary": "Rich prose sentences using character NAMES (never IDs) combining the strongest elements from all merged scenes."
 }`;
 
@@ -728,7 +728,7 @@ Return JSON:
     threadMutations: parsed.threadMutations ?? targetScene.threadMutations,
     continuityMutations: parsed.continuityMutations ?? targetScene.continuityMutations,
     relationshipMutations: parsed.relationshipMutations ?? targetScene.relationshipMutations,
-    worldKnowledgeMutations: normalizeWorldKnowledgeMutations(parsed.worldKnowledgeMutations, targetScene.worldKnowledgeMutations),
+    systemMutations: normalizeSystemMutations(parsed.systemMutations, targetScene.systemMutations),
     summary: parsed.summary ?? targetScene.summary,
     audioUrl: undefined,
   };
@@ -774,7 +774,7 @@ Return JSON:
   "threadMutations": [{"threadId": "T-XX", "from": "latent|seeded|active|critical|resolved|subverted|abandoned", "to": "latent|seeded|active|critical|resolved|subverted|abandoned", "addedNodes": [{"id": "TK-NEW-001", "content": "thread-specific: what happened to THIS thread in THIS scene (NOT a scene summary)", "type": "pulse|transition|setup|escalation|payoff|twist|callback|resistance|stall"}]}],
   "continuityMutations": [{"entityId": "C-XX", "addedNodes": [{"id": "K-NEW-001", "content": "complete sentence: what they experienced or became", "type": "trait|state|history|capability|belief|relation|secret|goal|weakness"}]}],
   "relationshipMutations": [{"from": "C-XX", "to": "C-YY", "type": "description", "valenceDelta": 0.1}],
-  "worldKnowledgeMutations": {"addedNodes": [], "addedEdges": []},
+  "systemMutations": {"addedNodes": [], "addedEdges": []},
   "tieMutations": [{"locationId": "L-XX", "characterId": "C-XX", "action": "add|remove"}],
   "summary": "Rich prose sentences using character NAMES and location NAMES (never raw IDs). Include specifics and context that shapes prose. No emotions/realizations as endings."
 }`;
@@ -794,7 +794,7 @@ Return JSON:
     threadMutations: parsed.threadMutations ?? [],
     continuityMutations: parsed.continuityMutations ?? [],
     relationshipMutations: parsed.relationshipMutations ?? [],
-    worldKnowledgeMutations: normalizeWorldKnowledgeMutations(parsed.worldKnowledgeMutations, undefined),
+    systemMutations: normalizeSystemMutations(parsed.systemMutations, undefined),
     summary: parsed.summary ?? brief,
   };
 }

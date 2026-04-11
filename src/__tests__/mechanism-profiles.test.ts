@@ -38,7 +38,7 @@ function createMinimalNarrative(overrides?: Partial<NarrativeState>): NarrativeS
     },
     artifacts: {},
     relationships: [],
-    worldKnowledge: { nodes: {}, edges: [] },
+    systemGraph: { nodes: {}, edges: [] },
     worldSummary: '',
     rules: [],
     createdAt: Date.now(),

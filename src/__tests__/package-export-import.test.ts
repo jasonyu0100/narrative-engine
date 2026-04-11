@@ -40,7 +40,7 @@ function createTestNarrative(): NarrativeState {
       },
     },
     relationships: [],
-    worldKnowledge: { nodes: {}, edges: [] },
+    systemGraph: { nodes: {}, edges: [] },
     worldSummary: 'Test world',
     rules: [],
     createdAt: Date.now(),

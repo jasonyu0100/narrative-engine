@@ -1,4 +1,4 @@
-import type { NarrativeState, Scene, Arc, WorldBuild, StorySettings, Beat, BeatPlan, BeatProse, BeatProseMap, Proposition, ThreadLogNodeType, WorldKnowledgeNode } from '@/types/narrative';
+import type { NarrativeState, Scene, Arc, WorldBuild, StorySettings, Beat, BeatPlan, BeatProse, BeatProseMap, Proposition, ThreadLogNodeType, SystemNode } from '@/types/narrative';
 import { applyThreadMutation } from '@/lib/thread-log';
 import { DEFAULT_STORY_SETTINGS, REASONING_BUDGETS, BEAT_FN_LIST, BEAT_MECHANISM_LIST, NARRATIVE_CUBE, THREAD_ACTIVE_STATUSES, THREAD_TERMINAL_STATUSES } from '@/types/narrative';
 import { nextId, nextIds } from '@/lib/narrative-utils';
@@ -13,7 +13,7 @@ import { FORMAT_INSTRUCTIONS } from './prose';
 import { logWarning, logError, logInfo } from '@/lib/system-logger';
 import { retryWithValidation, validateBeatPlan, validateBeatProseMap } from './validation';
 import { applyContinuityMutation } from '@/lib/continuity-graph';
-import { sanitizeWorldKnowledgeMutation, applyWorldKnowledgeMutation, wkEdgeKey, makeWkIdAllocator, resolveWkConceptIds } from '@/lib/world-knowledge-graph';
+import { sanitizeSystemMutation, applySystemMutation, systemEdgeKey, makeSystemIdAllocator, resolveSystemConceptIds } from '@/lib/system-graph';
 
 /**
  * Split text into sentences, handling edge cases like abbreviations, decimals, and ellipsis.
@@ -263,7 +263,7 @@ Return JSON with this exact structure. IMPORTANT: Fill out "arcOutline" FIRST �
       "threadMutations": [{"threadId": "T-XX", "from": "latent|seeded|active|critical|resolved|subverted|abandoned", "to": "latent|seeded|active|critical|resolved|subverted|abandoned", "addedNodes": [{"id": "TK-GEN-001", "content": "thread-specific: what happened to THIS thread in THIS scene (NOT a scene summary)", "type": "pulse|transition|setup|escalation|payoff|twist|callback|resistance|stall"}]}],
       "continuityMutations": [{"entityId": "C-XX", "addedNodes": [{"id": "K-GEN-001", "content": "complete sentence: what they experienced or became", "type": "trait|state|history|capability|belief|relation|secret|goal|weakness"}]}],
       "relationshipMutations": [{"from": "C-XX", "to": "C-YY", "type": "description", "valenceDelta": 0.1}],
-      "worldKnowledgeMutations": {"addedNodes": [{"id": "WK-GEN-001", "concept": "world concept name", "type": "principle|system|concept|tension|event|structure|environment|convention|constraint"}], "addedEdges": [{"from": "WK-GEN-001", "to": "WK-XX", "relation": "enables|requires|governs|opposes|extends|etc."}]},
+      "systemMutations": {"addedNodes": [{"id": "SYS-GEN-001", "concept": "15-25 words, PRESENT tense: a general rule or structural fact about how the world works — no specific characters or events", "type": "principle|system|concept|tension|event|structure|environment|convention|constraint"}], "addedEdges": [{"from": "SYS-GEN-001", "to": "SYS-XX", "relation": "enables|governs|opposes|extends|created_by|constrains|exist_within"}]},
       "ownershipMutations": [{"artifactId": "A-XX", "fromId": "C-XX or L-XX", "toId": "C-YY or L-YY"}],
       "tieMutations": [{"locationId": "L-XX", "characterId": "C-XX", "action": "add|remove"}],
       "summary": "REQUIRED: Rich prose sentences using character NAMES and location NAMES — never raw IDs (no C-01, T-XX, L-03, WK-GEN, A-01 etc). Write as if for a reader: 'Fang Yuan acquires the Liquor worm' not 'C-01 acquires A-05'. Include specifics: what object, what words, what breaks. NO thin generic summaries. NO sentences ending in emotions/realizations."
@@ -275,7 +275,7 @@ Rules:
 - Use ONLY existing character IDs and location IDs from the narrative context above
 - Scene IDs must be unique: S-GEN-001, S-GEN-002, etc.
 - Knowledge node IDs must be unique: K-GEN-001, K-GEN-002, etc.
-- World knowledge node IDs for NEW concepts must be unique: WK-GEN-001, WK-GEN-002, etc. Reused nodes should keep their original ID.
+- World knowledge node IDs for NEW concepts must be unique: SYS-GEN-001, SYS-GEN-002, etc. Reused nodes should keep their original ID.
 
 DENSITY BAR (grading reference means — your arc averages must hit these or it grades in the 60s):
   Drive P ≈ 3 per scene · World W ≈ 14 per scene · System S ≈ 5 per scene
@@ -370,48 +370,48 @@ ${buildCompletedBeatsPrompt(narrative, resolvedKeys, currentIndex)}`;
   // collapses re-mentioned concepts (existing-graph or earlier-in-batch) to
   // their canonical id so that re-asserting "mana-binding" across scenes
   // does not repeatedly count as a new node and inflate System scores.
-  const existingWkNodes = narrative.worldKnowledge?.nodes ?? {};
+  const existingWkNodes = narrative.systemGraph?.nodes ?? {};
   // Cumulative node map: starts as the existing graph and grows with each
   // scene's genuinely-new nodes, so the next scene's resolve sees earlier
   // scenes' contributions as already-known.
-  const cumulativeWkNodes: Record<string, WorldKnowledgeNode> = { ...existingWkNodes };
-  const allocateFreshWkId = makeWkIdAllocator(Object.keys(cumulativeWkNodes));
+  const cumulativeWkNodes: Record<string, SystemNode> = { ...existingWkNodes };
+  const allocateFreshWkId = makeSystemIdAllocator(Object.keys(cumulativeWkNodes));
   // Cumulative id remap across all scenes — one entry per LLM-emitted placeholder id.
   const wkIdMap: Record<string, string> = {};
   const validWKIds = new Set<string>(Object.keys(cumulativeWkNodes));
   // Seed seen-edges from the narrative's existing graph so we don't re-add
   // edges that already exist upstream.
   const seenWkEdgeKeys = new Set<string>();
-  for (const e of narrative.worldKnowledge?.edges ?? []) seenWkEdgeKeys.add(wkEdgeKey(e));
+  for (const e of narrative.systemGraph?.edges ?? []) seenWkEdgeKeys.add(systemEdgeKey(e));
 
   for (const scene of scenes) {
-    if (!scene.worldKnowledgeMutations) {
-      scene.worldKnowledgeMutations = { addedNodes: [], addedEdges: [] };
+    if (!scene.systemMutations) {
+      scene.systemMutations = { addedNodes: [], addedEdges: [] };
     }
-    scene.worldKnowledgeMutations.addedNodes = scene.worldKnowledgeMutations.addedNodes ?? [];
-    scene.worldKnowledgeMutations.addedEdges = scene.worldKnowledgeMutations.addedEdges ?? [];
+    scene.systemMutations.addedNodes = scene.systemMutations.addedNodes ?? [];
+    scene.systemMutations.addedEdges = scene.systemMutations.addedEdges ?? [];
     // Resolve concepts: existing wins, then within-scene dupes collapse,
-    // then genuinely new concepts get fresh WK-XX ids.
-    const resolved = resolveWkConceptIds(
-      scene.worldKnowledgeMutations.addedNodes,
+    // then genuinely new concepts get fresh SYS-XX ids.
+    const resolved = resolveSystemConceptIds(
+      scene.systemMutations.addedNodes,
       cumulativeWkNodes,
       allocateFreshWkId,
     );
     Object.assign(wkIdMap, resolved.idMap);
-    scene.worldKnowledgeMutations.addedNodes = resolved.newNodes;
+    scene.systemMutations.addedNodes = resolved.newNodes;
     for (const n of resolved.newNodes) {
       cumulativeWkNodes[n.id] = n;
       validWKIds.add(n.id);
     }
     // Remap edge references using the cumulative map (LLM GEN ids, prior-
     // scene real ids, and existing graph ids all pass through correctly).
-    scene.worldKnowledgeMutations.addedEdges = scene.worldKnowledgeMutations.addedEdges.map((edge) => ({
+    scene.systemMutations.addedEdges = scene.systemMutations.addedEdges.map((edge) => ({
       from: wkIdMap[edge.from] ?? edge.from,
       to: wkIdMap[edge.to] ?? edge.to,
       relation: edge.relation,
     }));
     // Centralised sanitization: self-loops, orphans, cross-scene dupes, bad fields
-    sanitizeWorldKnowledgeMutation(scene.worldKnowledgeMutations, validWKIds, seenWkEdgeKeys);
+    sanitizeSystemMutation(scene.systemMutations, validWKIds, seenWkEdgeKeys);
   }
 
   const newSceneIds = scenes.map((s) => s.id);
@@ -1712,12 +1712,12 @@ function sanitizeScenes(scenes: Scene[], narrative: NarrativeState, label: strin
   const validLocIds = new Set(Object.keys(narrative.locations));
   const validThreadIds = new Set(Object.keys(narrative.threads));
   // Pre-compute the union of WK node ids across the whole batch so that a
-  // scene-2 edge referencing a scene-1 WK-GEN-* id is not treated as orphaned.
+  // scene-2 edge referencing a scene-1 SYS-GEN-* id is not treated as orphaned.
   // The later concept-resolution pass in generateScenes / generateArcStepwise
-  // remaps those GEN ids to real WK-XX ids using a cumulative map.
-  const batchWkNodeIds = new Set<string>(Object.keys(narrative.worldKnowledge?.nodes ?? {}));
+  // remaps those GEN ids to real SYS-XX ids using a cumulative map.
+  const batchWkNodeIds = new Set<string>(Object.keys(narrative.systemGraph?.nodes ?? {}));
   for (const s of scenes) {
-    for (const n of s.worldKnowledgeMutations?.addedNodes ?? []) {
+    for (const n of s.systemMutations?.addedNodes ?? []) {
       if (n?.id) batchWkNodeIds.add(n.id);
     }
   }
@@ -1850,10 +1850,10 @@ function sanitizeScenes(scenes: Scene[], narrative: NarrativeState, label: strin
       }
       scene.characterMovements = Object.keys(sanitized).length > 0 ? sanitized : undefined;
     }
-    // Sanitize worldKnowledgeMutations — ensure arrays exist, nodes have concept+type,
+    // Sanitize systemMutations — ensure arrays exist, nodes have concept+type,
     // edges have valid refs, no self-loops, no intra-scene duplicates.
-    if (scene.worldKnowledgeMutations) {
-      const wkm = scene.worldKnowledgeMutations;
+    if (scene.systemMutations) {
+      const wkm = scene.systemMutations;
       const beforeNodes = (wkm.addedNodes ?? []).length;
       const beforeEdges = (wkm.addedEdges ?? []).length;
       // Ensure each node carries an id (LLM may omit when emitting arrays) so
@@ -1861,22 +1861,22 @@ function sanitizeScenes(scenes: Scene[], narrative: NarrativeState, label: strin
       // still GEN-* placeholders — downstream remapping assigns real ones.
       wkm.addedNodes = (wkm.addedNodes ?? []).map((n, idx) => ({
         ...n,
-        id: n.id || `WK-GEN-${idx}`,
+        id: n.id || `SYS-GEN-${idx}`,
       }));
       for (const n of wkm.addedNodes) {
         if (n?.id) batchWkNodeIds.add(n.id);
       }
       // Valid targets for edges: any WK-GEN id anywhere in the batch plus
       // existing graph ids — edges can legitimately cross scene boundaries.
-      sanitizeWorldKnowledgeMutation(wkm, batchWkNodeIds, new Set<string>());
+      sanitizeSystemMutation(wkm, batchWkNodeIds, new Set<string>());
       if (wkm.addedNodes.length < beforeNodes) {
-        stripped.push(`worldKnowledge nodes (${beforeNodes - wkm.addedNodes.length}) missing concept/type in scene ${scene.id}`);
+        stripped.push(`system nodes (${beforeNodes - wkm.addedNodes.length}) missing concept/type in scene ${scene.id}`);
       }
       if (wkm.addedEdges.length < beforeEdges) {
-        stripped.push(`worldKnowledge edges (${beforeEdges - wkm.addedEdges.length}) invalid/self-loop/dup in scene ${scene.id}`);
+        stripped.push(`system edges (${beforeEdges - wkm.addedEdges.length}) invalid/self-loop/dup in scene ${scene.id}`);
       }
     } else {
-      scene.worldKnowledgeMutations = { addedNodes: [], addedEdges: [] };
+      scene.systemMutations = { addedNodes: [], addedEdges: [] };
     }
     // Ensure continuityMutations have required fields. Node ORDER defines
     // the chain — no explicit edges are stored on mutations.
@@ -1899,12 +1899,12 @@ function sanitizeScenes(scenes: Scene[], narrative: NarrativeState, label: strin
   }
 }
 
-/** Apply scene mutations to a narrative state (relationships, knowledge, threads, world knowledge). */
+/** Apply scene mutations to a narrative state (relationships, knowledge, threads, system graph). */
 function applySceneMutations(n: NarrativeState, scenes: Scene[]): NarrativeState {
   let relationships = [...n.relationships];
   const characters = { ...n.characters };
   const threads = { ...n.threads };
-  const worldKnowledge = { nodes: { ...n.worldKnowledge?.nodes }, edges: [...(n.worldKnowledge?.edges ?? [])] };
+  const systemGraph = { nodes: { ...n.systemGraph?.nodes }, edges: [...(n.systemGraph?.edges ?? [])] };
 
   for (const scene of scenes) {
     for (const rm of scene.relationshipMutations) {
@@ -1931,11 +1931,11 @@ function applySceneMutations(n: NarrativeState, scenes: Scene[]): NarrativeState
         threadLog: applyThreadMutation(thread.threadLog, tm),
       };
     }
-    if (scene.worldKnowledgeMutations) {
-      applyWorldKnowledgeMutation(worldKnowledge, scene.worldKnowledgeMutations);
+    if (scene.systemMutations) {
+      applySystemMutation(systemGraph, scene.systemMutations);
     }
   }
-  return { ...n, relationships, characters, threads, worldKnowledge };
+  return { ...n, relationships, characters, threads, systemGraph };
 }
 
 // ── Stepwise Arc Generation ──────────────────────────────────────────────────
@@ -2071,7 +2071,7 @@ Return JSON:
   "threadMutations": [{"threadId": "T-XX", "from": "latent|seeded|active|critical|resolved|subverted|abandoned", "to": "latent|seeded|active|critical|resolved|subverted|abandoned", "addedNodes": [{"id": "TK-GEN-001", "content": "thread-specific: what happened to THIS thread in THIS scene", "type": "pulse|transition|setup|escalation|payoff|twist|callback|resistance|stall"}]}],
   "continuityMutations": [{"entityId": "C-XX", "addedNodes": [{"id": "K-GEN-001", "content": "complete sentence: what they experienced or became", "type": "trait|state|history|capability|belief|relation|secret|goal|weakness"}]}],
   "relationshipMutations": [{"from": "C-XX", "to": "C-YY", "type": "desc", "valenceDelta": 0.1}],
-  "worldKnowledgeMutations": {"addedNodes": [], "addedEdges": []},
+  "systemMutations": {"addedNodes": [], "addedEdges": []},
   "ownershipMutations": [],
   "tieMutations": [{"locationId": "L-XX", "characterId": "C-XX", "action": "add|remove"}],
   "summary": "Rich prose sentences using character NAMES and location NAMES — never raw IDs. Include specifics and any context that shapes prose (time span, technique, tone). NO thin generic summaries."
@@ -2220,13 +2220,13 @@ export async function generateArcStepwise(
     // Fix world knowledge IDs — concept-based resolution against the live
     // graph so re-mentioned concepts from prior scenes in this arc collapse
     // to the existing id and don't inflate System scores.
-    const wkm = scene.worldKnowledgeMutations;
+    const wkm = scene.systemMutations;
     if (wkm) {
       wkm.addedNodes = wkm.addedNodes ?? [];
       wkm.addedEdges = wkm.addedEdges ?? [];
-      const liveWkNodes = liveNarrative.worldKnowledge?.nodes ?? {};
-      const allocateFreshWkId = makeWkIdAllocator(Object.keys(liveWkNodes));
-      const resolved = resolveWkConceptIds(wkm.addedNodes, liveWkNodes, allocateFreshWkId);
+      const liveWkNodes = liveNarrative.systemGraph?.nodes ?? {};
+      const allocateFreshWkId = makeSystemIdAllocator(Object.keys(liveWkNodes));
+      const resolved = resolveSystemConceptIds(wkm.addedNodes, liveWkNodes, allocateFreshWkId);
       wkm.addedNodes = resolved.newNodes;
       const validWKIds = new Set<string>([
         ...Object.keys(liveWkNodes),
@@ -2240,10 +2240,10 @@ export async function generateArcStepwise(
       // Seed the stepwise seen-set from the live graph so we don't re-add
       // edges accumulated from prior scenes in this arc or before it.
       const stepwiseSeenEdgeKeys = new Set<string>();
-      for (const e of liveNarrative.worldKnowledge?.edges ?? []) {
-        stepwiseSeenEdgeKeys.add(wkEdgeKey(e));
+      for (const e of liveNarrative.systemGraph?.edges ?? []) {
+        stepwiseSeenEdgeKeys.add(systemEdgeKey(e));
       }
-      sanitizeWorldKnowledgeMutation(wkm, validWKIds, stepwiseSeenEdgeKeys);
+      sanitizeSystemMutation(wkm, validWKIds, stepwiseSeenEdgeKeys);
     }
 
     allScenes.push(scene);

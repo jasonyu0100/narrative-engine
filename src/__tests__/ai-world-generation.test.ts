@@ -107,7 +107,7 @@ function createMinimalNarrative(): NarrativeState {
       },
     },
     relationships: [],
-    worldKnowledge: { nodes: {}, edges: [] },
+    systemGraph: { nodes: {}, edges: [] },
     worldSummary: '',
     rules: [],
     createdAt: Date.now(),
@@ -123,7 +123,7 @@ beforeEach(() => {
 
 // ── expandWorld: world knowledge mutation handling ──────────────────────────
 
-describe('expandWorld — worldKnowledgeMutations', () => {
+describe('expandWorld — systemMutations', () => {
   const baseExpansion = {
     characters: [],
     locations: [],
@@ -139,46 +139,46 @@ describe('expandWorld — worldKnowledgeMutations', () => {
   it('assigns fresh WK ids to new concepts', async () => {
     vi.mocked(callGenerate).mockResolvedValue(JSON.stringify({
       ...baseExpansion,
-      worldKnowledgeMutations: {
+      systemMutations: {
         addedNodes: [
-          { id: 'WK-GEN-1', concept: 'Mana Binding', type: 'system' },
-          { id: 'WK-GEN-2', concept: 'Leylines', type: 'concept' },
+          { id: 'SYS-GEN-1', concept: 'Mana Binding', type: 'system' },
+          { id: 'SYS-GEN-2', concept: 'Leylines', type: 'concept' },
         ],
-        addedEdges: [{ from: 'WK-GEN-2', to: 'WK-GEN-1', relation: 'enables' }],
+        addedEdges: [{ from: 'SYS-GEN-2', to: 'SYS-GEN-1', relation: 'enables' }],
       },
     }));
 
     const narrative = createMinimalNarrative();
     const result = await expandWorld(narrative, [], 0, 'Expand the magic system');
 
-    const wkm = result.worldKnowledgeMutations!;
+    const wkm = result.systemMutations!;
     expect(wkm.addedNodes).toHaveLength(2);
-    expect(wkm.addedNodes.map((n) => n.id)).toEqual(['WK-01', 'WK-02']);
+    expect(wkm.addedNodes.map((n) => n.id)).toEqual(['SYS-01', 'SYS-02']);
     expect(wkm.addedEdges).toHaveLength(1);
-    expect(wkm.addedEdges[0]).toEqual({ from: 'WK-02', to: 'WK-01', relation: 'enables' });
+    expect(wkm.addedEdges[0]).toEqual({ from: 'SYS-02', to: 'SYS-01', relation: 'enables' });
   });
 
-  it('collapses re-mentioned concepts to existing WK ids', async () => {
+  it('collapses re-mentioned concepts to existing SYS ids', async () => {
     vi.mocked(callGenerate).mockResolvedValue(JSON.stringify({
       ...baseExpansion,
-      worldKnowledgeMutations: {
+      systemMutations: {
         addedNodes: [
-          { id: 'WK-GEN-1', concept: 'Mana Binding', type: 'principle' },
-          { id: 'WK-GEN-2', concept: 'Blood Runes', type: 'concept' },
+          { id: 'SYS-GEN-1', concept: 'Mana Binding', type: 'principle' },
+          { id: 'SYS-GEN-2', concept: 'Blood Runes', type: 'concept' },
         ],
-        addedEdges: [{ from: 'WK-GEN-2', to: 'WK-GEN-1', relation: 'requires' }],
+        addedEdges: [{ from: 'SYS-GEN-2', to: 'SYS-GEN-1', relation: 'requires' }],
       },
     }));
 
     const narrative = createMinimalNarrative();
     // Pre-existing concept.
-    narrative.worldKnowledge = {
+    narrative.systemGraph = {
       nodes: { 'WK-42': { id: 'WK-42', concept: 'Mana Binding', type: 'system' } },
       edges: [],
     };
     const result = await expandWorld(narrative, [], 0, 'Expand');
 
-    const wkm = result.worldKnowledgeMutations!;
+    const wkm = result.systemMutations!;
     // Only Blood Runes is genuinely new; Mana Binding collapses to WK-42.
     expect(wkm.addedNodes).toHaveLength(1);
     expect(wkm.addedNodes[0].concept).toBe('Blood Runes');
@@ -193,14 +193,14 @@ describe('expandWorld — worldKnowledgeMutations', () => {
   it('filters self-loops', async () => {
     vi.mocked(callGenerate).mockResolvedValue(JSON.stringify({
       ...baseExpansion,
-      worldKnowledgeMutations: {
+      systemMutations: {
         addedNodes: [
-          { id: 'WK-GEN-1', concept: 'Mana', type: 'concept' },
-          { id: 'WK-GEN-2', concept: 'Runes', type: 'concept' },
+          { id: 'SYS-GEN-1', concept: 'Mana', type: 'concept' },
+          { id: 'SYS-GEN-2', concept: 'Runes', type: 'concept' },
         ],
         addedEdges: [
-          { from: 'WK-GEN-1', to: 'WK-GEN-1', relation: 'enables' },
-          { from: 'WK-GEN-1', to: 'WK-GEN-2', relation: 'enables' },
+          { from: 'SYS-GEN-1', to: 'SYS-GEN-1', relation: 'enables' },
+          { from: 'SYS-GEN-1', to: 'SYS-GEN-2', relation: 'enables' },
         ],
       },
     }));
@@ -208,7 +208,7 @@ describe('expandWorld — worldKnowledgeMutations', () => {
     const narrative = createMinimalNarrative();
     const result = await expandWorld(narrative, [], 0, 'Expand');
 
-    const edges = result.worldKnowledgeMutations!.addedEdges;
+    const edges = result.systemMutations!.addedEdges;
     expect(edges).toHaveLength(1);
     expect(edges[0].from).not.toBe(edges[0].to);
   });
@@ -216,15 +216,15 @@ describe('expandWorld — worldKnowledgeMutations', () => {
   it('drops edges that duplicate ones already in the existing graph', async () => {
     vi.mocked(callGenerate).mockResolvedValue(JSON.stringify({
       ...baseExpansion,
-      worldKnowledgeMutations: {
-        addedNodes: [{ id: 'WK-GEN-1', concept: 'Mana Binding', type: 'system' }],
+      systemMutations: {
+        addedNodes: [{ id: 'SYS-GEN-1', concept: 'Mana Binding', type: 'system' }],
         // Tries to re-add an edge that already exists.
-        addedEdges: [{ from: 'WK-GEN-1', to: 'WK-99', relation: 'enables' }],
+        addedEdges: [{ from: 'SYS-GEN-1', to: 'WK-99', relation: 'enables' }],
       },
     }));
 
     const narrative = createMinimalNarrative();
-    narrative.worldKnowledge = {
+    narrative.systemGraph = {
       nodes: {
         'WK-99': { id: 'WK-99', concept: 'Pre-existing', type: 'concept' },
       },
@@ -232,8 +232,8 @@ describe('expandWorld — worldKnowledgeMutations', () => {
     };
     const result = await expandWorld(narrative, [], 0, 'Expand');
 
-    expect(result.worldKnowledgeMutations!.addedNodes).toHaveLength(1);
-    expect(result.worldKnowledgeMutations!.addedEdges).toHaveLength(1);
+    expect(result.systemMutations!.addedNodes).toHaveLength(1);
+    expect(result.systemMutations!.addedEdges).toHaveLength(1);
   });
 });
 
@@ -249,7 +249,7 @@ describe('expandWorld — entity continuity', () => {
     tieMutations: [],
     continuityMutations: [],
     relationshipMutations: [],
-    worldKnowledgeMutations: { addedNodes: [], addedEdges: [] },
+    systemMutations: { addedNodes: [], addedEdges: [] },
   };
 
   it('normalizes LLM array-shaped character continuity into a Record', async () => {
@@ -398,7 +398,7 @@ describe('expandWorld — entity continuity', () => {
 
 // ── generateNarrative: initial world generation ─────────────────────────────
 
-describe('generateNarrative — worldKnowledge + initial continuity', () => {
+describe('generateNarrative — systemGraph + initial continuity', () => {
   function baseWorld() {
     return {
       worldSummary: 'A test world',
@@ -415,7 +415,7 @@ describe('generateNarrative — worldKnowledge + initial continuity', () => {
     };
   }
 
-  it('collapses concepts re-mentioned across initial scenes to one WK node', async () => {
+  it('collapses concepts re-mentioned across initial scenes to one SYS node', async () => {
     vi.mocked(callGenerate).mockResolvedValue(JSON.stringify({
       ...baseWorld(),
       characters: [
@@ -432,8 +432,8 @@ describe('generateNarrative — worldKnowledge + initial continuity', () => {
           id: 'S-001', arcId: 'ARC-01', locationId: 'L-01', povId: 'C-01',
           participantIds: ['C-01'], events: [],
           threadMutations: [], continuityMutations: [], relationshipMutations: [],
-          worldKnowledgeMutations: {
-            addedNodes: [{ id: 'WK-GEN-1', concept: 'Mana Binding', type: 'system' }],
+          systemMutations: {
+            addedNodes: [{ id: 'SYS-GEN-1', concept: 'Mana Binding', type: 'system' }],
             addedEdges: [],
           },
           summary: 'Alice learns of mana binding.',
@@ -442,8 +442,8 @@ describe('generateNarrative — worldKnowledge + initial continuity', () => {
           id: 'S-002', arcId: 'ARC-01', locationId: 'L-01', povId: 'C-01',
           participantIds: ['C-01'], events: [],
           threadMutations: [], continuityMutations: [], relationshipMutations: [],
-          worldKnowledgeMutations: {
-            addedNodes: [{ id: 'WK-GEN-2', concept: 'mana binding', type: 'principle' }],
+          systemMutations: {
+            addedNodes: [{ id: 'SYS-GEN-2', concept: 'mana binding', type: 'principle' }],
             addedEdges: [],
           },
           summary: 'Alice practises mana binding.',
@@ -457,15 +457,15 @@ describe('generateNarrative — worldKnowledge + initial continuity', () => {
     const result = await generateNarrative('Test', 'A story about magic');
 
     // The re-mentioned concept does not earn a second WK node.
-    expect(Object.keys(result.worldKnowledge!.nodes)).toHaveLength(1);
-    const [wk] = Object.values(result.worldKnowledge!.nodes);
+    expect(Object.keys(result.systemGraph!.nodes)).toHaveLength(1);
+    const [wk] = Object.values(result.systemGraph!.nodes);
     expect(wk.concept).toBe('Mana Binding');
 
     // Scene 1 owns the node, scene 2 does not.
     const s1 = result.scenes['S-001'];
     const s2 = result.scenes['S-002'];
-    expect(s1.worldKnowledgeMutations!.addedNodes).toHaveLength(1);
-    expect(s2.worldKnowledgeMutations!.addedNodes).toHaveLength(0);
+    expect(s1.systemMutations!.addedNodes).toHaveLength(1);
+    expect(s2.systemMutations!.addedNodes).toHaveLength(0);
   });
 
   it('normalizes and chains initial character continuity', async () => {
@@ -530,14 +530,14 @@ describe('generateNarrative — worldKnowledge + initial continuity', () => {
           id: 'S-001', arcId: 'ARC-01', locationId: 'L-01', povId: 'C-01',
           participantIds: ['C-01'], events: [],
           threadMutations: [], continuityMutations: [], relationshipMutations: [],
-          worldKnowledgeMutations: {
+          systemMutations: {
             addedNodes: [
-              { id: 'WK-GEN-1', concept: 'Mana', type: 'concept' },
-              { id: 'WK-GEN-2', concept: 'Runes', type: 'concept' },
+              { id: 'SYS-GEN-1', concept: 'Mana', type: 'concept' },
+              { id: 'SYS-GEN-2', concept: 'Runes', type: 'concept' },
             ],
             addedEdges: [
-              { from: 'WK-GEN-1', to: 'WK-GEN-1', relation: 'enables' }, // self-loop
-              { from: 'WK-GEN-1', to: 'WK-GEN-2', relation: 'enables' },
+              { from: 'SYS-GEN-1', to: 'SYS-GEN-1', relation: 'enables' }, // self-loop
+              { from: 'SYS-GEN-1', to: 'SYS-GEN-2', relation: 'enables' },
             ],
           },
           summary: 'Mana flows through runes.',
@@ -550,11 +550,11 @@ describe('generateNarrative — worldKnowledge + initial continuity', () => {
 
     const result = await generateNarrative('Test', 'A story');
 
-    expect(result.worldKnowledge!.edges).toHaveLength(1);
-    expect(result.worldKnowledge!.edges[0].from).not.toBe(result.worldKnowledge!.edges[0].to);
+    expect(result.systemGraph!.edges).toHaveLength(1);
+    expect(result.systemGraph!.edges[0].from).not.toBe(result.systemGraph!.edges[0].to);
   });
 
-  it('worldOnly mode processes top-level worldKnowledge block with concept dedup', async () => {
+  it('worldOnly mode processes top-level systemMutations block with concept dedup', async () => {
     vi.mocked(callGenerate).mockResolvedValue(JSON.stringify({
       ...baseWorld(),
       characters: [
@@ -566,11 +566,11 @@ describe('generateNarrative — worldKnowledge + initial continuity', () => {
       threads: [
         { id: 'T-01', participants: [{ id: 'C-01', type: 'character' }], description: 'Quest', status: 'latent', openedAt: 'S-001', dependents: [] },
       ],
-      worldKnowledge: {
+      systemMutations: {
         addedNodes: [
-          { id: 'WK-GEN-1', concept: 'Mana Binding', type: 'system' },
-          { id: 'WK-GEN-2', concept: 'mana binding', type: 'principle' }, // duplicate
-          { id: 'WK-GEN-3', concept: 'Leylines', type: 'concept' },
+          { id: 'SYS-GEN-1', concept: 'Mana Binding', type: 'system' },
+          { id: 'SYS-GEN-2', concept: 'mana binding', type: 'principle' }, // duplicate
+          { id: 'SYS-GEN-3', concept: 'Leylines', type: 'concept' },
         ],
         addedEdges: [],
       },
@@ -579,7 +579,7 @@ describe('generateNarrative — worldKnowledge + initial continuity', () => {
     const result = await generateNarrative('Test', 'A plan', [], [], undefined, undefined, undefined, true);
 
     // Within-batch dupe collapses — only 2 unique concepts.
-    expect(Object.keys(result.worldKnowledge!.nodes)).toHaveLength(2);
+    expect(Object.keys(result.systemGraph!.nodes)).toHaveLength(2);
   });
 });
 

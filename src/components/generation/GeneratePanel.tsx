@@ -228,7 +228,7 @@ export function GeneratePanel({ onClose }: { onClose: () => void }) {
       dispatch({
         type: 'EXPAND_WORLD', worldBuildId: nextId('WB', Object.keys(narrative.worldBuilds), 3),
         characters: expansion.characters, locations: expansion.locations, threads: expansion.threads,
-        relationships: expansion.relationships, worldKnowledgeMutations: expansion.worldKnowledgeMutations,
+        relationships: expansion.relationships, systemMutations: expansion.systemMutations,
         artifacts: expansion.artifacts, branchId: state.activeBranchId!,
         ownershipMutations: expansion.ownershipMutations, tieMutations: expansion.tieMutations,
         continuityMutations: expansion.continuityMutations, relationshipMutations: expansion.relationshipMutations,
@@ -610,7 +610,7 @@ export function GeneratePanel({ onClose }: { onClose: () => void }) {
                           { key: 'threads' as const, label: 'Threads' },
                           { key: 'artifacts' as const, label: 'Artifacts' },
                           { key: 'relationships' as const, label: 'Relationships' },
-                          { key: 'worldKnowledge' as const, label: 'World Knowledge' },
+                          { key: 'systemMutations' as const, label: 'System' },
                           { key: 'ownershipMutations' as const, label: 'Ownership' },
                           { key: 'tieMutations' as const, label: 'Ties' },
                           { key: 'continuityMutations' as const, label: 'Continuity' },

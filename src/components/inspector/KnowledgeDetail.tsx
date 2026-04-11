@@ -2,15 +2,15 @@
 
 import { useMemo, useCallback } from 'react';
 import { useStore } from '@/lib/store';
-import { buildCumulativeWorldKnowledge } from '@/lib/narrative-utils';
-import type { WorldKnowledgeNodeType } from '@/types/narrative';
+import { buildCumulativeSystemGraph } from '@/lib/narrative-utils';
+import type { SystemNodeType } from '@/types/narrative';
 import { CollapsibleSection } from './CollapsibleSection';
 
 type Props = {
   nodeId: string;
 };
 
-const TYPE_COLORS: Record<WorldKnowledgeNodeType, string> = {
+const TYPE_COLORS: Record<SystemNodeType, string> = {
   principle: 'bg-amber-400',
   system: 'bg-sky-400',
   concept: 'bg-violet-400',
@@ -22,7 +22,7 @@ const TYPE_COLORS: Record<WorldKnowledgeNodeType, string> = {
   constraint: 'bg-red-400',
 };
 
-const TYPE_TEXT: Record<WorldKnowledgeNodeType, string> = {
+const TYPE_TEXT: Record<SystemNodeType, string> = {
   principle: 'text-amber-400',
   system: 'text-sky-400',
   concept: 'text-violet-400',
@@ -40,7 +40,7 @@ export default function KnowledgeDetail({ nodeId }: Props) {
   if (!narrative) return null;
 
   const graph = useMemo(() => {
-    return buildCumulativeWorldKnowledge(
+    return buildCumulativeSystemGraph(
       narrative.scenes,
       state.resolvedEntryKeys,
       state.currentSceneIndex,
@@ -82,7 +82,7 @@ export default function KnowledgeDetail({ nodeId }: Props) {
       const key = state.resolvedEntryKeys[i];
       const scene = narrative.scenes[key];
       const wb = narrative.worldBuilds?.[key];
-      const wkm = scene?.worldKnowledgeMutations ?? wb?.expansionManifest.worldKnowledgeMutations;
+      const wkm = scene?.systemMutations ?? wb?.expansionManifest.systemMutations;
       if (!wkm) continue;
       const ids = new Set<string>();
       for (const n of wkm.addedNodes ?? []) ids.add(n.id);
@@ -126,7 +126,7 @@ export default function KnowledgeDetail({ nodeId }: Props) {
       const key = state.resolvedEntryKeys[i];
       const scene = narrative.scenes[key];
       const wb = narrative.worldBuilds?.[key];
-      const wkm = scene?.worldKnowledgeMutations ?? wb?.expansionManifest.worldKnowledgeMutations;
+      const wkm = scene?.systemMutations ?? wb?.expansionManifest.systemMutations;
       if (!wkm) continue;
       const added = wkm.addedNodes ?? [];
       if (added.some((n) => n.id === nodeId)) {

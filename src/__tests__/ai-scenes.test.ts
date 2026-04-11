@@ -168,7 +168,7 @@ function createMinimalNarrative(): NarrativeState {
       },
     },
     relationships: [],
-    worldKnowledge: { nodes: {}, edges: [] },
+    systemGraph: { nodes: {}, edges: [] },
     worldSummary: 'A fantasy world',
     rules: [],
     createdAt: Date.now(),
@@ -422,7 +422,7 @@ describe('generateScenes', () => {
 
   // ── World knowledge mutation handling ──────────────────────────────────────
 
-  describe('worldKnowledgeMutations', () => {
+  describe('systemMutations', () => {
     it('assigns sequential WK IDs to new concepts', async () => {
       const mockResponse = JSON.stringify({
         arcName: 'Arc',
@@ -431,12 +431,12 @@ describe('generateScenes', () => {
             id: 'S-GEN-001', arcId: 'ARC-01', locationId: 'L-01', povId: 'C-01',
             participantIds: ['C-01'], events: [], threadMutations: [],
             continuityMutations: [], relationshipMutations: [],
-            worldKnowledgeMutations: {
+            systemMutations: {
               addedNodes: [
-                { id: 'WK-GEN-1', concept: 'Mana Binding', type: 'system' },
-                { id: 'WK-GEN-2', concept: 'Leylines', type: 'concept' },
+                { id: 'SYS-GEN-1', concept: 'Mana Binding', type: 'system' },
+                { id: 'SYS-GEN-2', concept: 'Leylines', type: 'concept' },
               ],
-              addedEdges: [{ from: 'WK-GEN-2', to: 'WK-GEN-1', relation: 'enables' }],
+              addedEdges: [{ from: 'SYS-GEN-2', to: 'SYS-GEN-1', relation: 'enables' }],
             },
             summary: 'S',
           },
@@ -447,13 +447,13 @@ describe('generateScenes', () => {
       const narrative = createMinimalNarrative();
       const result = await generateScenes(narrative, [], 0, 1, 'Test');
 
-      const wkm = result.scenes[0].worldKnowledgeMutations!;
+      const wkm = result.scenes[0].systemMutations!;
       expect(wkm.addedNodes).toHaveLength(2);
-      expect(wkm.addedNodes[0].id).toBe('WK-01');
-      expect(wkm.addedNodes[1].id).toBe('WK-02');
-      // Edge endpoints were remapped from WK-GEN-* to real ids
+      expect(wkm.addedNodes[0].id).toBe('SYS-01');
+      expect(wkm.addedNodes[1].id).toBe('SYS-02');
+      // Edge endpoints were remapped from SYS-GEN-* to real ids
       expect(wkm.addedEdges).toHaveLength(1);
-      expect(wkm.addedEdges[0]).toEqual({ from: 'WK-02', to: 'WK-01', relation: 'enables' });
+      expect(wkm.addedEdges[0]).toEqual({ from: 'SYS-02', to: 'SYS-01', relation: 'enables' });
     });
 
     it('collapses re-asserted concepts to existing WK ids (no System inflation)', async () => {
@@ -464,9 +464,9 @@ describe('generateScenes', () => {
             id: 'S-GEN-001', arcId: 'ARC-01', locationId: 'L-01', povId: 'C-01',
             participantIds: ['C-01'], events: [], threadMutations: [],
             continuityMutations: [], relationshipMutations: [],
-            worldKnowledgeMutations: {
+            systemMutations: {
               addedNodes: [
-                { id: 'WK-GEN-1', concept: 'Mana Binding', type: 'principle' },
+                { id: 'SYS-GEN-1', concept: 'Mana Binding', type: 'principle' },
               ],
               addedEdges: [],
             },
@@ -478,14 +478,14 @@ describe('generateScenes', () => {
 
       const narrative = createMinimalNarrative();
       // Pre-seed the graph with a matching concept under a different id.
-      narrative.worldKnowledge = {
+      narrative.systemGraph = {
         nodes: { 'WK-07': { id: 'WK-07', concept: 'Mana Binding', type: 'system' } },
         edges: [],
       };
       const result = await generateScenes(narrative, [], 0, 1, 'Test');
 
       // The re-asserted concept does not earn a new node.
-      expect(result.scenes[0].worldKnowledgeMutations!.addedNodes).toHaveLength(0);
+      expect(result.scenes[0].systemMutations!.addedNodes).toHaveLength(0);
     });
 
     it('collapses within-batch duplicate concepts across scenes', async () => {
@@ -496,8 +496,8 @@ describe('generateScenes', () => {
             id: 'S-GEN-001', arcId: 'ARC-01', locationId: 'L-01', povId: 'C-01',
             participantIds: ['C-01'], events: [], threadMutations: [],
             continuityMutations: [], relationshipMutations: [],
-            worldKnowledgeMutations: {
-              addedNodes: [{ id: 'WK-GEN-1', concept: 'Mana Binding', type: 'system' }],
+            systemMutations: {
+              addedNodes: [{ id: 'SYS-GEN-1', concept: 'Mana Binding', type: 'system' }],
               addedEdges: [],
             },
             summary: 'S1',
@@ -506,8 +506,8 @@ describe('generateScenes', () => {
             id: 'S-GEN-002', arcId: 'ARC-01', locationId: 'L-01', povId: 'C-01',
             participantIds: ['C-01'], events: [], threadMutations: [],
             continuityMutations: [], relationshipMutations: [],
-            worldKnowledgeMutations: {
-              addedNodes: [{ id: 'WK-GEN-2', concept: 'mana binding', type: 'principle' }],
+            systemMutations: {
+              addedNodes: [{ id: 'SYS-GEN-2', concept: 'mana binding', type: 'principle' }],
               addedEdges: [],
             },
             summary: 'S2',
@@ -520,9 +520,9 @@ describe('generateScenes', () => {
       const result = await generateScenes(narrative, [], 0, 2, 'Test');
 
       // Scene 1 adds the node; scene 2 does not (re-mention).
-      expect(result.scenes[0].worldKnowledgeMutations!.addedNodes).toHaveLength(1);
-      expect(result.scenes[0].worldKnowledgeMutations!.addedNodes[0].id).toBe('WK-01');
-      expect(result.scenes[1].worldKnowledgeMutations!.addedNodes).toHaveLength(0);
+      expect(result.scenes[0].systemMutations!.addedNodes).toHaveLength(1);
+      expect(result.scenes[0].systemMutations!.addedNodes[0].id).toBe('SYS-01');
+      expect(result.scenes[1].systemMutations!.addedNodes).toHaveLength(0);
     });
 
     it('remaps edges in a later scene to reference nodes added by an earlier scene', async () => {
@@ -533,8 +533,8 @@ describe('generateScenes', () => {
             id: 'S-GEN-001', arcId: 'ARC-01', locationId: 'L-01', povId: 'C-01',
             participantIds: ['C-01'], events: [], threadMutations: [],
             continuityMutations: [], relationshipMutations: [],
-            worldKnowledgeMutations: {
-              addedNodes: [{ id: 'WK-GEN-1', concept: 'Mana Binding', type: 'system' }],
+            systemMutations: {
+              addedNodes: [{ id: 'SYS-GEN-1', concept: 'Mana Binding', type: 'system' }],
               addedEdges: [],
             },
             summary: 'S1',
@@ -543,10 +543,10 @@ describe('generateScenes', () => {
             id: 'S-GEN-002', arcId: 'ARC-01', locationId: 'L-01', povId: 'C-01',
             participantIds: ['C-01'], events: [], threadMutations: [],
             continuityMutations: [], relationshipMutations: [],
-            worldKnowledgeMutations: {
-              addedNodes: [{ id: 'WK-GEN-2', concept: 'Leylines', type: 'concept' }],
+            systemMutations: {
+              addedNodes: [{ id: 'SYS-GEN-2', concept: 'Leylines', type: 'concept' }],
               // Refers to the prior-scene concept by its GEN id.
-              addedEdges: [{ from: 'WK-GEN-2', to: 'WK-GEN-1', relation: 'draws_from' }],
+              addedEdges: [{ from: 'SYS-GEN-2', to: 'SYS-GEN-1', relation: 'draws_from' }],
             },
             summary: 'S2',
           },
@@ -557,10 +557,10 @@ describe('generateScenes', () => {
       const narrative = createMinimalNarrative();
       const result = await generateScenes(narrative, [], 0, 2, 'Test');
 
-      expect(result.scenes[1].worldKnowledgeMutations!.addedEdges).toHaveLength(1);
-      // WK-GEN-1 from scene 1 was resolved to WK-01; scene 2's edge points to it.
-      expect(result.scenes[1].worldKnowledgeMutations!.addedEdges[0]).toEqual({
-        from: 'WK-02', to: 'WK-01', relation: 'draws_from',
+      expect(result.scenes[1].systemMutations!.addedEdges).toHaveLength(1);
+      // SYS-GEN-1 from scene 1 was resolved to SYS-01; scene 2's edge points to it.
+      expect(result.scenes[1].systemMutations!.addedEdges[0]).toEqual({
+        from: 'SYS-02', to: 'SYS-01', relation: 'draws_from',
       });
     });
 
@@ -572,14 +572,14 @@ describe('generateScenes', () => {
             id: 'S-GEN-001', arcId: 'ARC-01', locationId: 'L-01', povId: 'C-01',
             participantIds: ['C-01'], events: [], threadMutations: [],
             continuityMutations: [], relationshipMutations: [],
-            worldKnowledgeMutations: {
+            systemMutations: {
               addedNodes: [
-                { id: 'WK-GEN-1', concept: 'Mana', type: 'concept' },
-                { id: 'WK-GEN-2', concept: 'Runes', type: 'concept' },
+                { id: 'SYS-GEN-1', concept: 'Mana', type: 'concept' },
+                { id: 'SYS-GEN-2', concept: 'Runes', type: 'concept' },
               ],
               addedEdges: [
-                { from: 'WK-GEN-1', to: 'WK-GEN-1', relation: 'enables' }, // self-loop
-                { from: 'WK-GEN-1', to: 'WK-GEN-2', relation: 'enables' }, // valid
+                { from: 'SYS-GEN-1', to: 'SYS-GEN-1', relation: 'enables' }, // self-loop
+                { from: 'SYS-GEN-1', to: 'SYS-GEN-2', relation: 'enables' }, // valid
               ],
             },
             summary: 'S',
@@ -591,7 +591,7 @@ describe('generateScenes', () => {
       const narrative = createMinimalNarrative();
       const result = await generateScenes(narrative, [], 0, 1, 'Test');
 
-      const edges = result.scenes[0].worldKnowledgeMutations!.addedEdges;
+      const edges = result.scenes[0].systemMutations!.addedEdges;
       expect(edges).toHaveLength(1);
       expect(edges[0].from).not.toBe(edges[0].to);
     });
@@ -604,12 +604,12 @@ describe('generateScenes', () => {
             id: 'S-GEN-001', arcId: 'ARC-01', locationId: 'L-01', povId: 'C-01',
             participantIds: ['C-01'], events: [], threadMutations: [],
             continuityMutations: [], relationshipMutations: [],
-            worldKnowledgeMutations: {
+            systemMutations: {
               addedNodes: [
-                { id: 'WK-GEN-1', concept: 'Mana', type: 'concept' },
-                { id: 'WK-GEN-2', concept: 'Runes', type: 'concept' },
+                { id: 'SYS-GEN-1', concept: 'Mana', type: 'concept' },
+                { id: 'SYS-GEN-2', concept: 'Runes', type: 'concept' },
               ],
-              addedEdges: [{ from: 'WK-GEN-1', to: 'WK-GEN-2', relation: 'enables' }],
+              addedEdges: [{ from: 'SYS-GEN-1', to: 'SYS-GEN-2', relation: 'enables' }],
             },
             summary: 'S1',
           },
@@ -617,10 +617,10 @@ describe('generateScenes', () => {
             id: 'S-GEN-002', arcId: 'ARC-01', locationId: 'L-01', povId: 'C-01',
             participantIds: ['C-01'], events: [], threadMutations: [],
             continuityMutations: [], relationshipMutations: [],
-            worldKnowledgeMutations: {
+            systemMutations: {
               addedNodes: [],
               // Both concepts collapse to existing WK ids; the edge is a dup of S1.
-              addedEdges: [{ from: 'WK-GEN-1', to: 'WK-GEN-2', relation: 'enables' }],
+              addedEdges: [{ from: 'SYS-GEN-1', to: 'SYS-GEN-2', relation: 'enables' }],
             },
             summary: 'S2',
           },
@@ -632,8 +632,8 @@ describe('generateScenes', () => {
       const result = await generateScenes(narrative, [], 0, 2, 'Test');
 
       // First scene keeps its edge; second scene's duplicate is dropped.
-      expect(result.scenes[0].worldKnowledgeMutations!.addedEdges).toHaveLength(1);
-      expect(result.scenes[1].worldKnowledgeMutations!.addedEdges).toHaveLength(0);
+      expect(result.scenes[0].systemMutations!.addedEdges).toHaveLength(1);
+      expect(result.scenes[1].systemMutations!.addedEdges).toHaveLength(0);
     });
 
     it('drops orphan edges referencing unknown WK ids', async () => {
@@ -644,10 +644,10 @@ describe('generateScenes', () => {
             id: 'S-GEN-001', arcId: 'ARC-01', locationId: 'L-01', povId: 'C-01',
             participantIds: ['C-01'], events: [], threadMutations: [],
             continuityMutations: [], relationshipMutations: [],
-            worldKnowledgeMutations: {
-              addedNodes: [{ id: 'WK-GEN-1', concept: 'Mana', type: 'concept' }],
+            systemMutations: {
+              addedNodes: [{ id: 'SYS-GEN-1', concept: 'Mana', type: 'concept' }],
               // WK-99 doesn't exist anywhere.
-              addedEdges: [{ from: 'WK-GEN-1', to: 'WK-99', relation: 'enables' }],
+              addedEdges: [{ from: 'SYS-GEN-1', to: 'WK-99', relation: 'enables' }],
             },
             summary: 'S',
           },
@@ -658,7 +658,7 @@ describe('generateScenes', () => {
       const narrative = createMinimalNarrative();
       const result = await generateScenes(narrative, [], 0, 1, 'Test');
 
-      expect(result.scenes[0].worldKnowledgeMutations!.addedEdges).toHaveLength(0);
+      expect(result.scenes[0].systemMutations!.addedEdges).toHaveLength(0);
     });
   });
 });
@@ -1360,7 +1360,7 @@ describe('generateArcStepwise — thread log TK ID remap', () => {
         ],
       }],
       continuityMutations: [], relationshipMutations: [],
-      worldKnowledgeMutations: { addedNodes: [], addedEdges: [] },
+      systemMutations: { addedNodes: [], addedEdges: [] },
       summary: `Stepwise scene for ${threadId}`,
     });
   }

@@ -39,7 +39,7 @@ function createMinimalNarrative(overrides: Partial<NarrativeState> = {}): Narrat
       },
     },
     relationships: [],
-    worldKnowledge: { nodes: {}, edges: [] },
+    systemGraph: { nodes: {}, edges: [] },
     worldSummary: 'A test world',
     rules: [],
     createdAt: Date.now(),
@@ -111,7 +111,7 @@ function createWorldBuild(id: string, summary: string): WorldBuild {
       threads: [],
       artifacts: [],
       relationships: [],
-      worldKnowledgeMutations: { addedNodes: [], addedEdges: [] },
+      systemMutations: { addedNodes: [], addedEdges: [] },
     },
   };
 }
@@ -262,7 +262,7 @@ describe('getStateAtIndex', () => {
             threads: [],
             artifacts: [{ id: 'art-1', name: 'Artifact', significance: 'minor' as const, continuity: { nodes: {}, edges: [] }, parentId: 'c1', threadIds: [] }],
             relationships: [],
-            worldKnowledgeMutations: { addedNodes: [], addedEdges: [] },
+            systemMutations: { addedNodes: [], addedEdges: [] },
           },
         },
       },

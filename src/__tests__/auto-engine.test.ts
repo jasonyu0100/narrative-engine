@@ -99,7 +99,7 @@ function createMinimalNarrative(): NarrativeState {
       },
     },
     relationships: [],
-    worldKnowledge: { nodes: {}, edges: [] },
+    systemGraph: { nodes: {}, edges: [] },
     worldSummary: '',
     rules: [],
     createdAt: Date.now(),
@@ -854,7 +854,7 @@ describe('buildOutlineDirective', () => {
           threads: [{ id: 'T-unused', description: 'Unused thread', participants: [], status: 'latent', openedAt: 's1', dependents: [], threadLog: { nodes: {}, edges: [] } }],
           artifacts: [],
           relationships: [],
-          worldKnowledgeMutations: { addedNodes: [], addedEdges: [] },
+          systemMutations: { addedNodes: [], addedEdges: [] },
         },
       },
     };
@@ -883,7 +883,7 @@ describe('buildOutlineDirective', () => {
           threads: [],
           artifacts: [],
           relationships: [],
-          worldKnowledgeMutations: { addedNodes: [], addedEdges: [] },
+          systemMutations: { addedNodes: [], addedEdges: [] },
         },
       },
     };

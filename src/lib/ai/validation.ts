@@ -257,13 +257,13 @@ export function validateExtractionResult(data: any): ValidationResult {
 }
 
 /**
- * Validates world knowledge extraction results
+ * Validates system mutation extraction results
  */
-export function validateWorldKnowledge(data: any): ValidationResult {
+export function validateSystemMutation(data: any): ValidationResult {
   const errors: string[] = [];
 
   if (!data || typeof data !== 'object') {
-    return { valid: false, errors: ['World knowledge result is not an object'] };
+    return { valid: false, errors: ['System mutation result is not an object'] };
   }
 
   // Should have at least nodes or edges
@@ -273,7 +273,7 @@ export function validateWorldKnowledge(data: any): ValidationResult {
   if (!hasNodes && !hasEdges) {
     return {
       valid: false,
-      errors: ['No world knowledge extracted - both nodes and edges are empty'],
+      errors: ['No system data extracted - both nodes and edges are empty'],
     };
   }
 

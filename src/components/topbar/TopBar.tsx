@@ -159,7 +159,7 @@ function exportBranch(narrative: NarrativeState, branchId: string) {
     worldBuilds,
     branches,
     relationships,
-    worldKnowledge: narrative.worldKnowledge,
+    systemGraph: narrative.systemGraph,
     worldSummary: narrative.worldSummary,
     rules: narrative.rules,
     worldSystems: narrative.worldSystems,
@@ -630,7 +630,7 @@ export default function TopBar() {
       worldBuilds,
       branches,
       relationships,
-      worldKnowledge: narrative.worldKnowledge,
+      systemGraph: narrative.systemGraph,
       worldSummary: narrative.worldSummary,
       rules: narrative.rules,
       worldSystems: narrative.worldSystems,
@@ -755,7 +755,7 @@ export default function TopBar() {
     const charCount = Object.keys(narrative.characters).length;
     const locCount = Object.keys(narrative.locations).length;
     const threadCount = Object.keys(narrative.threads).length;
-    const wkNodeCount = Object.keys(narrative.worldKnowledge?.nodes ?? {}).length;
+    const wkNodeCount = Object.keys(narrative.systemGraph?.nodes ?? {}).length;
     const density = classifyWorldDensity(n, charCount, locCount, threadCount, wkNodeCount);
 
     return {

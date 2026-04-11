@@ -14,7 +14,7 @@ function applySceneMutations(n: NarrativeState, scenes: Scene[]): NarrativeState
   const locations = { ...n.locations };
   const artifacts = { ...n.artifacts };
   const threads = { ...n.threads };
-  const worldKnowledge = { nodes: { ...n.worldKnowledge?.nodes }, edges: [...(n.worldKnowledge?.edges ?? [])] };
+  const systemGraph = { nodes: { ...n.systemGraph?.nodes }, edges: [...(n.systemGraph?.edges ?? [])] };
 
   for (const scene of scenes) {
     for (const rm of scene.relationshipMutations) {
@@ -42,22 +42,22 @@ function applySceneMutations(n: NarrativeState, scenes: Scene[]): NarrativeState
       const thread = threads[tm.threadId];
       if (thread) threads[tm.threadId] = { ...thread, status: tm.to };
     }
-    const wkm = scene.worldKnowledgeMutations;
+    const wkm = scene.systemMutations;
     if (wkm) {
       for (const node of wkm.addedNodes ?? []) {
-        if (!worldKnowledge.nodes[node.id]) {
-          worldKnowledge.nodes[node.id] = { id: node.id, concept: node.concept, type: node.type };
+        if (!systemGraph.nodes[node.id]) {
+          systemGraph.nodes[node.id] = { id: node.id, concept: node.concept, type: node.type };
         }
       }
       for (const edge of wkm.addedEdges ?? []) {
-        if (!worldKnowledge.edges.some((e: { from: string; to: string; relation: string }) => e.from === edge.from && e.to === edge.to && e.relation === edge.relation)) {
-          worldKnowledge.edges.push({ from: edge.from, to: edge.to, relation: edge.relation });
+        if (!systemGraph.edges.some((e: { from: string; to: string; relation: string }) => e.from === edge.from && e.to === edge.to && e.relation === edge.relation)) {
+          systemGraph.edges.push({ from: edge.from, to: edge.to, relation: edge.relation });
         }
       }
     }
   }
 
-  return { ...n, relationships, characters, locations, artifacts, threads, worldKnowledge };
+  return { ...n, relationships, characters, locations, artifacts, threads, systemGraph };
 }
 
 // ── Virtual State Construction ───────────────────────────────────────────────
