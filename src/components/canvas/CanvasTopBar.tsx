@@ -660,30 +660,32 @@ export function CanvasTopBar() {
         {/* Main canvas mode selector */}
         <div className="flex items-center rounded-md overflow-hidden border border-white/10">
           {[
-            { mode: 'graph' as CanvasMode, Icon: IconNetwork, label: 'Graph' },
-            { mode: 'plan' as CanvasMode, Icon: IconNotepad, label: 'Plan' },
-            { mode: 'prose' as CanvasMode, Icon: IconDocument, label: 'Prose' },
-            { mode: 'audio' as CanvasMode, Icon: IconWaveform, label: 'Audio' },
-            { mode: 'search' as CanvasMode, Icon: IconSearch, label: 'Search' },
-          ].map(({ mode, Icon, label }, idx) => {
-            const isActive = canvasMode === mode;
-            return (
-              <div key={mode} className="flex items-center">
-                {idx > 0 && <div className="w-px h-4 bg-white/10" />}
-                <button
-                  className={`flex items-center gap-1 px-2 py-1 text-[10px] font-medium transition-colors ${
-                    isActive
-                      ? 'bg-white/10 text-text-primary'
-                      : 'text-text-dim/60 hover:text-text-secondary hover:bg-white/5'
-                  }`}
-                  onClick={() => switchMode(mode)}
-                >
-                  <Icon size={12} />
-                  {label}
-                </button>
-              </div>
-            );
-          })}
+            { mode: 'graph' as CanvasMode, Icon: IconNetwork, label: 'Graph', sceneOnly: false },
+            { mode: 'plan' as CanvasMode, Icon: IconNotepad, label: 'Plan', sceneOnly: true },
+            { mode: 'prose' as CanvasMode, Icon: IconDocument, label: 'Prose', sceneOnly: true },
+            { mode: 'audio' as CanvasMode, Icon: IconWaveform, label: 'Audio', sceneOnly: true },
+            { mode: 'search' as CanvasMode, Icon: IconSearch, label: 'Search', sceneOnly: false },
+          ]
+            .filter(({ sceneOnly }) => !sceneOnly || currentScene)
+            .map(({ mode, Icon, label }, idx) => {
+              const isActive = canvasMode === mode;
+              return (
+                <div key={mode} className="flex items-center">
+                  {idx > 0 && <div className="w-px h-4 bg-white/10" />}
+                  <button
+                    className={`flex items-center gap-1 px-2 py-1 text-[10px] font-medium transition-colors ${
+                      isActive
+                        ? 'bg-white/10 text-text-primary'
+                        : 'text-text-dim/60 hover:text-text-secondary hover:bg-white/5'
+                    }`}
+                    onClick={() => switchMode(mode)}
+                  >
+                    <Icon size={12} />
+                    {label}
+                  </button>
+                </div>
+              );
+            })}
         </div>
       </div>
 
