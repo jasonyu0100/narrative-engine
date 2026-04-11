@@ -4,7 +4,7 @@ import { nextId, nextIds } from '@/lib/narrative-utils';
 import { callGenerate, callGenerateStream, SYSTEM_PROMPT } from './api';
 import { WRITING_MODEL, GENERATE_MODEL, MAX_TOKENS_LARGE, MAX_TOKENS_DEFAULT, MAX_TOKENS_SMALL, WORDS_PER_BEAT, ANALYSIS_TEMPERATURE } from '@/lib/constants';
 import { parseJson } from './json';
-import { narrativeContext, sceneContext, sceneScale } from './context';
+import { narrativeContext, sceneContext, sceneScale, buildProseProfileXml } from './context';
 import { PROMPT_STRUCTURAL_RULES, PROMPT_MUTATIONS, PROMPT_ARTIFACTS, PROMPT_LOCATIONS, PROMPT_POV, PROMPT_CONTINUITY, PROMPT_SUMMARY_REQUIREMENT, PROMPT_BEAT_TAXONOMY, promptThreadLifecycle, buildThreadHealthPrompt, buildCompletedBeatsPrompt, buildForceStandardsPrompt } from './prompts';
 import { samplePacingSequence, buildSequencePrompt, detectCurrentMode, MATRIX_PRESETS, DEFAULT_TRANSITION_MATRIX, type PacingSequence } from '@/lib/pacing-profile';
 import { resolveProfile, resolveSampler, sampleBeatSequence } from '@/lib/beat-profiles';
@@ -553,21 +553,8 @@ export async function generateScenePlan(
 ${sampledBeats.map((b, i) => `  ${i + 1}. ${b.fn}:${b.mechanism}`).join('\n')}\n`;
   }
 
-  // Render profile fields directly for the plan — no hardcoded value interpretation
-  const planProfileLines: string[] = [];
-  if (profile.register)       planProfileLines.push(`Register: ${profile.register}`);
-  if (profile.stance)         planProfileLines.push(`Stance: ${profile.stance}`);
-  if (profile.tense)          planProfileLines.push(`Tense: ${profile.tense}`);
-  if (profile.sentenceRhythm) planProfileLines.push(`Sentence rhythm: ${profile.sentenceRhythm}`);
-  if (profile.interiority)    planProfileLines.push(`Interiority: ${profile.interiority}`);
-  if (profile.dialogueWeight) planProfileLines.push(`Dialogue weight: ${profile.dialogueWeight}`);
-  if (profile.devices?.length) planProfileLines.push(`Devices: ${profile.devices.join(', ')}`);
-  if (profile.rules?.length)   planProfileLines.push(`Rules:\n${profile.rules.map((r) => `    • ${r}`).join('\n')}`);
-  if (profile.antiPatterns?.length) planProfileLines.push(`Anti-patterns:\n${profile.antiPatterns.map((a) => `    ✗ ${a}`).join('\n')}`);
-
-  const profileBlock = `\nPROSE PROFILE (use these settings when choosing mechanisms and structuring beats):
-${planProfileLines.map((l) => `  ${l}`).join('\n')}
-  Beat density: ~${sampler.beatsPerKWord} beats/kword → target ${targetBeats} beats for this scene${beatSequenceHint}\n`;
+  // Build prose profile XML block
+  const profileBlock = `\n${buildProseProfileXml(profile, { beatDensity: sampler.beatsPerKWord, targetBeats })}${beatSequenceHint}\n`;
 
   const systemPrompt = `You are a scene architect. Given a scene's structural data (summary, mutations, events), produce a structured beat plan — a JSON blueprint that a prose writer can follow.
 
@@ -1461,26 +1448,9 @@ export async function generateSceneProse(
   // Use resolveProfile to respect beatProfilePreset selection (same as generateScenePlan)
   const proseProfile = resolveProfile(narrative);
 
-  // Render profile fields directly — no hardcoded interpretation of specific values
-  const profileLines: string[] = [];
-  if (proseProfile?.register)       profileLines.push(`Register: ${proseProfile.register}`);
-  if (proseProfile?.stance)         profileLines.push(`Stance: ${proseProfile.stance}`);
-  if (proseProfile?.tense)          profileLines.push(`Tense: ${proseProfile.tense}`);
-  if (proseProfile?.sentenceRhythm) profileLines.push(`Sentence rhythm: ${proseProfile.sentenceRhythm}`);
-  if (proseProfile?.interiority)    profileLines.push(`Interiority: ${proseProfile.interiority}`);
-  if (proseProfile?.dialogueWeight) profileLines.push(`Dialogue weight: ${proseProfile.dialogueWeight}`);
-  if (proseProfile?.devices?.length) profileLines.push(`Devices: ${proseProfile.devices.join(', ')}`);
-
-  const profileSection = profileLines.length > 0
-    ? `\n\nPROSE PROFILE — every sentence must conform to these settings. Non-compliance is a failure:\n${profileLines.map((l) => `- ${l}`).join('\n')}${
-        proseProfile?.rules?.length
-          ? `\n- Rules:\n${proseProfile.rules.map((r) => `  • ${r}`).join('\n')}`
-          : ''
-      }${
-        proseProfile?.antiPatterns?.length
-          ? `\n- ANTI-PATTERNS (these are specific failures for this voice — avoid them):\n${proseProfile.antiPatterns.map((a) => `  ✗ ${a}`).join('\n')}`
-          : ''
-      }`
+  // Build prose profile XML block
+  const profileSection = proseProfile
+    ? `\n\n${buildProseProfileXml(proseProfile)}`
     : '';
 
   const hasVoiceOverride = !!narrative.storySettings?.proseVoice?.trim();

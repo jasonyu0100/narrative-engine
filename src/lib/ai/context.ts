@@ -1,8 +1,43 @@
-import type { NarrativeState, Scene, StorySettings, WorldSystem, RelationshipEdge, ContinuityEdge, ArchetypeKey } from '@/types/narrative';
+import type { NarrativeState, Scene, StorySettings, WorldSystem, RelationshipEdge, ContinuityEdge, ArchetypeKey, ProseProfile } from '@/types/narrative';
 import { resolveEntry, THREAD_ACTIVE_STATUSES, THREAD_TERMINAL_STATUSES, THREAD_STATUS_LABELS, DEFAULT_STORY_SETTINGS } from '@/types/narrative';
 import { computeForceSnapshots, computeSwingMagnitudes, detectCubeCorner, movingAverage, FORCE_WINDOW_SIZE, computeDeliveryCurve, classifyCurrentPosition, buildCumulativeSystemGraph, rankSystemNodes, ARCHETYPE_FORCE_TARGETS } from '@/lib/narrative-utils';
 import { WORDS_PER_SCENE, BEATS_PER_SCENE, ENTITY_LOG_CONTEXT_LIMIT } from '@/lib/constants';
 import { getIntroducedIds } from '@/lib/scene-filter';
+
+// ── Prose Profile XML Builder ─────────────────────────────────────────────────
+
+/**
+ * Build prose profile as XML block for LLM context.
+ * Centralizes prose profile rendering for consistent formatting across prompts.
+ */
+export function buildProseProfileXml(profile: ProseProfile, options?: { beatDensity?: number; targetBeats?: number }): string {
+  const lines: string[] = [];
+
+  if (profile.register) lines.push(`  <register>${profile.register}</register>`);
+  if (profile.stance) lines.push(`  <stance>${profile.stance}</stance>`);
+  if (profile.tense) lines.push(`  <tense>${profile.tense}</tense>`);
+  if (profile.sentenceRhythm) lines.push(`  <sentence-rhythm>${profile.sentenceRhythm}</sentence-rhythm>`);
+  if (profile.interiority) lines.push(`  <interiority>${profile.interiority}</interiority>`);
+  if (profile.dialogueWeight) lines.push(`  <dialogue-weight>${profile.dialogueWeight}</dialogue-weight>`);
+  if (profile.devices?.length) {
+    lines.push(`  <devices>${profile.devices.join(', ')}</devices>`);
+  }
+  if (profile.rules?.length) {
+    lines.push(`  <rules hint="Show-don't-tell constraints — apply to ALL prose">`);
+    for (const r of profile.rules) lines.push(`    <rule>${r}</rule>`);
+    lines.push(`  </rules>`);
+  }
+  if (profile.antiPatterns?.length) {
+    lines.push(`  <anti-patterns hint="Specific prose failures to avoid">`);
+    for (const a of profile.antiPatterns) lines.push(`    <avoid>${a}</avoid>`);
+    lines.push(`  </anti-patterns>`);
+  }
+  if (options?.beatDensity != null && options?.targetBeats != null) {
+    lines.push(`  <beat-density>~${options.beatDensity} beats/kword → target ${options.targetBeats} beats</beat-density>`);
+  }
+
+  return `<prose-profile hint="Voice and style for prose generation">\n${lines.join('\n')}\n</prose-profile>`;
+}
 
 /**
  * Replay mutations up to a given timeline index to get the state at that point.
@@ -609,6 +644,29 @@ export function sceneContext(
     return `  <location id="${location.id}" name="${location.name}"${parent}${tiesAttr}>${knBlock}\n  </location>`;
   })();
 
+  // ── Artifacts referenced in this scene (usages + transfers) ─────────────────
+  const sceneArtifactIds = new Set<string>();
+  for (const au of scene.artifactUsages ?? []) sceneArtifactIds.add(au.artifactId);
+  for (const om of scene.ownershipMutations ?? []) sceneArtifactIds.add(om.artifactId);
+
+  const artifactBlocks = [...sceneArtifactIds].map((artId) => {
+    const artifact = narrative.artifacts?.[artId];
+    if (!artifact) return null;
+    // Get owner name
+    const owner = artifact.parentId
+      ? (narrative.characters[artifact.parentId]?.name ?? narrative.locations[artifact.parentId]?.name ?? artifact.parentId)
+      : 'world';
+    // Filter continuity nodes to timeline
+    const allNodes = Object.values(artifact.continuity.nodes);
+    const scopedNodes = timelineState
+      ? allNodes.filter((kn) => timelineState.liveNodeIds.has(kn.id))
+      : allNodes;
+    const recentNodes = scopedNodes.slice(-ENTITY_LOG_CONTEXT_LIMIT);
+    const knLines = recentNodes.map((kn) => `    <knowledge type="${kn.type}">${kn.content}</knowledge>`);
+    const knBlock = knLines.length > 0 ? `\n${knLines.join('\n')}` : '';
+    return `  <artifact id="${artifact.id}" name="${artifact.name}" significance="${artifact.significance}" owner="${owner}">${knBlock}\n  </artifact>`;
+  }).filter(Boolean);
+
   // ── Relationships between participants (scoped to timeline when available) ─────────────────────────────
   const baseRelationships = timelineState?.relationships ?? narrative.relationships;
   const relevantRelationships = baseRelationships.filter(
@@ -714,6 +772,7 @@ ${characterBlocks.join('\n')}
 <location>
 ${locationBlock}
 </location>
+${artifactBlocks.length > 0 ? `\n<artifacts>\n${artifactBlocks.join('\n')}\n</artifacts>` : ''}
 ${relationshipStateLines.length > 0 ? `\n<relationships>\n${relationshipStateLines.join('\n')}\n</relationships>` : ''}
 ${threadBlocks.length > 0 ? `\n<threads>\n${threadBlocks.join('\n')}\n</threads>` : ''}
 

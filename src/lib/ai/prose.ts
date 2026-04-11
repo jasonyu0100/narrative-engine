@@ -3,7 +3,7 @@ import { REASONING_BUDGETS } from '@/types/narrative';
 import { callGenerate, callGenerateStream } from './api';
 import { WRITING_MODEL, ANALYSIS_MODEL, MAX_TOKENS_DEFAULT } from '@/lib/constants';
 import { parseJson } from './json';
-import { sceneContext } from './context';
+import { sceneContext, buildProseProfileXml } from './context';
 import { resolveProfile } from '@/lib/beat-profiles';
 import { logInfo, logError } from '@/lib/system-logger';
 
@@ -157,28 +157,10 @@ export async function rewriteSceneProse(
   const proseFormat = narrative.storySettings?.proseFormat ?? 'prose';
   const formatInstructions = FORMAT_INSTRUCTIONS[proseFormat];
 
-  // Build prose profile section (same pattern as generateSceneProse)
-  // Use resolveProfile to respect beatProfilePreset selection
+  // Build prose profile XML block
   const proseProfile = resolveProfile(narrative);
-  const profileLines: string[] = [];
-  if (proseProfile?.register)       profileLines.push(`Register: ${proseProfile.register}`);
-  if (proseProfile?.stance)         profileLines.push(`Stance: ${proseProfile.stance}`);
-  if (proseProfile?.tense)          profileLines.push(`Tense: ${proseProfile.tense}`);
-  if (proseProfile?.sentenceRhythm) profileLines.push(`Sentence rhythm: ${proseProfile.sentenceRhythm}`);
-  if (proseProfile?.interiority)    profileLines.push(`Interiority: ${proseProfile.interiority}`);
-  if (proseProfile?.dialogueWeight) profileLines.push(`Dialogue weight: ${proseProfile.dialogueWeight}`);
-  if (proseProfile?.devices?.length) profileLines.push(`Devices: ${proseProfile.devices.join(', ')}`);
-
-  const profileSection = profileLines.length > 0
-    ? `\n\nPROSE PROFILE — every sentence must conform to these settings. Non-compliance is a failure:\n${profileLines.map((l) => `- ${l}`).join('\n')}${
-        proseProfile?.rules?.length
-          ? `\n- Rules:\n${proseProfile.rules.map((r) => `  • ${r}`).join('\n')}`
-          : ''
-      }${
-        proseProfile?.antiPatterns?.length
-          ? `\n- ANTI-PATTERNS (these are specific failures for this voice — avoid them):\n${proseProfile.antiPatterns.map((a) => `  ✗ ${a}`).join('\n')}`
-          : ''
-      }`
+  const profileSection = proseProfile
+    ? `\n\n${buildProseProfileXml(proseProfile)}`
     : '';
 
   const systemPrompt = `${formatInstructions.systemRole} Your task is to REWRITE based on the provided analysis.${onToken ? '' : ' You return ONLY valid JSON — no markdown, no commentary.'}

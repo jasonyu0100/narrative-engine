@@ -145,6 +145,38 @@ function IngestSkeleton() {
   );
 }
 
+// ── Template for external LLM extraction ──────────────────────────────────────
+
+const PROSE_PROFILE_TEMPLATE = `Analyze the prose sample below and fill in this JSON template:
+
+{
+  "register": "[FILL: tonal register — e.g. 'literary', 'conversational', 'clinical detached observer', 'lyrical', 'terse hardboiled']",
+  "stance": "[FILL: narrator distance — e.g. 'close third', 'omniscient', 'deep first', 'distant third']",
+  "tense": "[FILL: grammatical tense — e.g. 'past', 'present', 'mixed']",
+  "sentenceRhythm": "[FILL: structural cadence — e.g. 'varied with short punches', 'long flowing periods', 'staccato', 'balanced']",
+  "interiority": "[FILL: depth into character thoughts — e.g. 'deep immersion', 'surface observations', 'occasional glimpses', 'none']",
+  "dialogueWeight": "[FILL: proportion of dialogue — e.g. 'dialogue-heavy', 'balanced', 'narration-dominant', 'sparse']",
+  "devices": [
+    "[FILL: rhetorical/narrative devices — e.g. 'repetition for emphasis', 'sentence fragments', 'free indirect discourse', 'unreliable narrator']"
+  ],
+  "rules": [
+    "[FILL: show-don't-tell constraints — e.g. 'Never name emotions directly', 'Use concrete sensory detail over abstract description', 'Avoid adverbs']"
+  ],
+  "antiPatterns": [
+    "[FILL: specific prose failures to avoid — e.g. 'Purple prose', 'Excessive adjectives', 'Telling reader how to feel']"
+  ]
+}
+
+PROSE SAMPLE:
+---
+[PASTE YOUR PROSE SAMPLE HERE]
+---
+
+Instructions:
+1. Replace each [FILL: ...] with an appropriate value based on the prose sample
+2. For arrays (devices, rules, antiPatterns), add 2-5 relevant items
+3. Return ONLY the filled JSON — no explanation needed`;
+
 // ── Component ─────────────────────────────────────────────────────────────────
 
 export default function ProseProfilePanel({ onClose }: Props) {
@@ -163,6 +195,7 @@ export default function ProseProfilePanel({ onClose }: Props) {
   const [ingestText, setIngestText] = useState('');
   const [ingesting, setIngesting] = useState(false);
   const [deriving, setDeriving] = useState(false);
+  const [copied, setCopied] = useState(false);
 
   useEffect(() => { setDraft(toDraft(current ?? {})); }, [narrative?.id]); // eslint-disable-line
 
@@ -400,9 +433,21 @@ export default function ProseProfilePanel({ onClose }: Props) {
           {/* ── Import tab ── */}
           {tab === 'import' && (
           <div className="flex-1 overflow-y-auto p-5 flex flex-col">
-            <p className="text-[11px] text-text-dim leading-relaxed mb-4">
-              Paste a prose sample, style guide, editorial notes, or author analysis. A profile will be extracted and loaded into the editor for review before saving.
-            </p>
+            <div className="flex items-start justify-between gap-4 mb-4">
+              <p className="text-[11px] text-text-dim leading-relaxed">
+                Paste a prose sample, style guide, editorial notes, or author analysis. A profile will be extracted and loaded into the editor for review before saving.
+              </p>
+              <button
+                onClick={() => {
+                  navigator.clipboard.writeText(PROSE_PROFILE_TEMPLATE);
+                  setCopied(true);
+                  setTimeout(() => setCopied(false), 2000);
+                }}
+                className="shrink-0 text-[10px] px-3 py-1.5 rounded-lg border border-white/10 text-text-dim hover:text-text-secondary hover:border-white/20 transition-all"
+              >
+                {copied ? 'Copied!' : 'Copy Template'}
+              </button>
+            </div>
             {ingesting ? (
               <IngestSkeleton />
             ) : (
