@@ -749,9 +749,8 @@ export default function PaperPage() {
               mutations. <B>Fate</B> measures accumulated investment toward
               resolution — not just whether threads resolve, but whether the
               entities involved have been developed enough to earn that
-              resolution.
-              <B>World</B> measures transformation of entities. <B>System</B>
-              measures the deepening of rules and structures. Together they
+              resolution. <B>World</B> measures transformation of entities.{" "}
+              <B>System</B> measures the deepening of rules and structures. Together they
               capture what readers perceive intuitively: a scene
               &ldquo;feels&rdquo; climactic, a chapter &ldquo;drags&rdquo;, a
               proof &ldquo;builds&rdquo; — now computable.
