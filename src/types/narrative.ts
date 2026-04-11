@@ -988,7 +988,12 @@ export const REASONING_BUDGETS: Record<ReasoningLevel, number> = {
 /** Output format for prose generation */
 export type ProseFormat = "prose" | "screenplay";
 
+/** Target archetype for force standards — what balance of forces the story aims for */
+export type ArchetypeKey = "opus" | "series" | "atlas" | "chronicle" | "classic" | "show" | "paper";
+
 export type StorySettings = {
+  /** Target archetype — influences force standards for generation. Empty = opus (balanced). */
+  targetArchetype: ArchetypeKey | "";
   /** How POV is distributed across the story */
   povMode: POVMode;
   /** Character IDs designated as POV characters (empty = use all anchors) */
@@ -1038,6 +1043,7 @@ export type StorySettings = {
 export const BRANCH_TIME_HORIZON_OPTIONS = [25, 50, 100, 200] as const;
 
 export const DEFAULT_STORY_SETTINGS: StorySettings = {
+  targetArchetype: "",
   povMode: "free",
   povCharacterIds: [],
   storyDirection: "",
@@ -1054,8 +1060,8 @@ export const DEFAULT_STORY_SETTINGS: StorySettings = {
   reasoningLevel: "low",
   beatProfilePreset: "",
   mechanismProfilePreset: "",
-  usePacingChain: true,
-  useBeatChain: true,
+  usePacingChain: false,
+  useBeatChain: false,
   audioVoice: "onyx",
   audioModel: "tts-1",
   proseFormat: "prose",

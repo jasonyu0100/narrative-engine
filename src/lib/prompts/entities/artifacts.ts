@@ -10,6 +10,12 @@ OWNERSHIP TIERS:
   Location-owned — bound to place (forge, library, courtroom). Must be present to use.
   World-owned (parentId: null) — universally accessible (internet, natural law, market)
 
+OWNERSHIP TRANSFER: When an artifact changes hands, you MUST generate an ownershipMutation.
+  {"artifactId": "A-XX", "fromId": "previous owner ID", "toId": "new owner ID"}
+  Triggers: gift, purchase, theft, discovery, inheritance, seizure, trade.
+  If a character ACQUIRES an artifact in the scene, there MUST be an ownershipMutation.
+  No acquisition in summary/events without the corresponding ownershipMutation.
+
 USAGE: When artifact delivers utility (not just mentioned), generate artifactUsage.
   Generate continuityMutations for BOTH artifact AND user.
 

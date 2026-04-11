@@ -6,7 +6,7 @@
  */
 
 // ── Core Prompts ────────────────────────────────────────────────────────────
-export { PROMPT_FORCE_STANDARDS } from './core/forces';
+export { PROMPT_FORCE_STANDARDS, buildForceStandardsPrompt } from './core/forces';
 export { PROMPT_STRUCTURAL_RULES } from './core/structural-rules';
 export { PROMPT_MUTATIONS } from './core/mutations';
 export { PROMPT_BEAT_TAXONOMY } from './core/beat-taxonomy';

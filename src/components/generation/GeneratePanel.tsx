@@ -97,7 +97,7 @@ export function GeneratePanel({ onClose }: { onClose: () => void }) {
   const [newArc, setNewArc] = useState(true);
   const [arcName, setArcName] = useState("");
   const [direction, setDirection] = useState("");
-  const [count, setCount] = useState(5);
+  const [count, setCount] = useState(4);
   const [worldBuildFocusId, setWorldBuildFocusId] = useState<string | null>(
     null,
   );
@@ -331,7 +331,7 @@ export function GeneratePanel({ onClose }: { onClose: () => void }) {
     }
   }
 
-  const showPreview = !!previewSequence && mode === "continuation" && !loading;
+  const showPreview = !!previewSequence && mode === "continuation" && !loading && narrative.storySettings?.usePacingChain;
 
   return (
     <Modal onClose={loading ? () => {} : onClose} size="xl" maxHeight="90vh">
@@ -717,14 +717,16 @@ export function GeneratePanel({ onClose }: { onClose: () => void }) {
                   >
                     Generate
                   </button>
-                  <button
-                    onClick={handleSample}
-                    disabled={!newArc && !currentArc}
-                    className="py-2.5 px-4 rounded-lg border border-white/8 hover:bg-white/6 text-text-dim hover:text-text-primary transition disabled:opacity-30 flex items-center justify-center gap-2 text-[12px]"
-                  >
-                    <IconDice size={16} />
-                    Roll Route
-                  </button>
+                  {narrative.storySettings?.usePacingChain && (
+                    <button
+                      onClick={handleSample}
+                      disabled={!newArc && !currentArc}
+                      className="py-2.5 px-4 rounded-lg border border-white/8 hover:bg-white/6 text-text-dim hover:text-text-primary transition disabled:opacity-30 flex items-center justify-center gap-2 text-[12px]"
+                    >
+                      <IconDice size={16} />
+                      Roll Route
+                    </button>
+                  )}
                 </div>
               </>
             ) : (
@@ -915,7 +917,7 @@ export function GeneratePanel({ onClose }: { onClose: () => void }) {
             {error && (
               <div className="bg-fate/10 border border-fate/30 rounded-lg px-3 py-2">
                 <p className="text-sm text-fate font-medium">Failed</p>
-                <p className="text-xs text-drive/80 mt-1">{error}</p>
+                <p className="text-xs text-fate/80 mt-1">{error}</p>
               </div>
             )}
           </div>

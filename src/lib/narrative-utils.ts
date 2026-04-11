@@ -1233,7 +1233,7 @@ export interface NarrativeArchetype {
   dominant: ('fate' | 'world' | 'system')[];
 }
 
-const ARCHETYPES = {
+export const ARCHETYPES = {
   opus:        { key: 'opus',        name: 'Opus',        description: 'All three forces in concert — fates land, characters transform, and the world deepens together', dominant: ['fate', 'world', 'system'] as const },
   series:      { key: 'series',      name: 'Series',      description: 'Consequential events that permanently reshape characters — fates land and lives change', dominant: ['fate', 'world'] as const },
   atlas:       { key: 'atlas',       name: 'Atlas',       description: 'Resolutions that map the world — each fate reveals how things work', dominant: ['fate', 'system'] as const },
@@ -1462,6 +1462,56 @@ const avg = (arr: number[]) => arr.length > 0 ? arr.reduce((s, v) => s + v, 0) /
  *  Originally calibrated from literary works (HP, Gatsby, Crime & Punishment, Coiling Dragon).
  *  Reference means: fate 1.5, world 12, system 3. */
 export const FORCE_REFERENCE_MEANS = { fate: 1.5, world: 12, system: 3 } as const;
+
+/** Per-scene density targets by archetype — what the LLM should aim for during generation.
+ *  "High" forces use the opus-level reference; "low" forces use relaxed targets.
+ *  These are generation hints, not grading references (grading remains universal).
+ *
+ *  Archetype force profiles:
+ *  - opus: all high (balanced masterwork)
+ *  - series: fate+world high (consequential character drama)
+ *  - atlas: fate+system high (resolutions through world-building)
+ *  - chronicle: world+system high (transformative exploration)
+ *  - classic: fate high (plot-driven payoffs)
+ *  - show: world high (character-driven transformation)
+ *  - paper: system high (idea-dense world-building)
+ */
+import type { ArchetypeKey } from "@/types/narrative";
+
+const HIGH_FATE = 1.5;
+const LOW_FATE = 0.5;
+const HIGH_WORLD = 12;
+const LOW_WORLD = 6;
+const HIGH_SYSTEM = 3;
+const LOW_SYSTEM = 1;
+
+export type ArchetypeForceProfile = {
+  fate: number;
+  world: number;
+  system: number;
+  description: string;
+  /** If true, force targets are strictly enforced. If false, they're guidance only. */
+  enforced: boolean;
+};
+
+export const ARCHETYPE_FORCE_TARGETS: Record<ArchetypeKey, ArchetypeForceProfile> = {
+  opus:      { fate: HIGH_FATE, world: HIGH_WORLD, system: HIGH_SYSTEM, enforced: true,  description: "All three forces in concert — fate lands, characters transform, world deepens" },
+  series:    { fate: HIGH_FATE, world: HIGH_WORLD, system: LOW_SYSTEM,  enforced: false, description: "Consequential events that reshape characters — plot meets character drama" },
+  atlas:     { fate: HIGH_FATE, world: LOW_WORLD,  system: HIGH_SYSTEM, enforced: false, description: "Resolutions through world-building — each fate reveals how things work" },
+  chronicle: { fate: LOW_FATE,  world: HIGH_WORLD, system: HIGH_SYSTEM, enforced: false, description: "Transformative exploration — characters grow within a deepening world" },
+  classic:   { fate: HIGH_FATE, world: LOW_WORLD,  system: LOW_SYSTEM,  enforced: false, description: "Plot-driven — threads pay off decisively, less focus on transformation or lore" },
+  show:      { fate: LOW_FATE,  world: HIGH_WORLD, system: LOW_SYSTEM,  enforced: false, description: "Character-driven — people transform, journeys are the heart of the story" },
+  paper:     { fate: LOW_FATE,  world: LOW_WORLD,  system: HIGH_SYSTEM, enforced: false, description: "Idea-dense — the depth and structure of the world itself is the draw" },
+};
+
+/** Get per-scene force profile for a given archetype (or opus if empty/invalid) */
+export function getArchetypeForceTargets(archetype: ArchetypeKey | "" | undefined): ArchetypeForceProfile {
+  if (!archetype || !(archetype in ARCHETYPE_FORCE_TARGETS)) {
+    return ARCHETYPE_FORCE_TARGETS.opus;
+  }
+  return ARCHETYPE_FORCE_TARGETS[archetype];
+}
+
 
 /** Grade a mean-normalized force value 8→25: g(x̃) = 25 − 17·e^{−kx̃}, k = ln(17/4).
  *  Single exponential — floor 8, reference 21 (dominance threshold), cap 25.

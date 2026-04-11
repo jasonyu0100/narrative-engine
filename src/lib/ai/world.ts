@@ -9,7 +9,7 @@ import { callGenerate, callGenerateStream, SYSTEM_PROMPT } from './api';
 import { MAX_TOKENS_LARGE, GENERATE_MODEL } from '@/lib/constants';
 import { parseJson } from './json';
 import { narrativeContext } from './context';
-import { PROMPT_FORCE_STANDARDS, PROMPT_STRUCTURAL_RULES, PROMPT_MUTATIONS, PROMPT_POV, PROMPT_CONTINUITY, PROMPT_SUMMARY_REQUIREMENT, PROMPT_ENTITY_INTEGRATION } from './prompts';
+import { PROMPT_STRUCTURAL_RULES, PROMPT_MUTATIONS, PROMPT_POV, PROMPT_CONTINUITY, PROMPT_SUMMARY_REQUIREMENT, PROMPT_ENTITY_INTEGRATION, buildForceStandardsPrompt } from './prompts';
 import { buildSequencePrompt, buildIntroductionSequence } from '@/lib/pacing-profile';
 import { logInfo } from '@/lib/system-logger';
 
@@ -870,7 +870,7 @@ ${worldOnly ? '' : `Every anchor must appear in at least 3 scenes. Use at least 
 ${buildSequencePrompt(buildIntroductionSequence())}
 
 ${PROMPT_POV}
-${PROMPT_FORCE_STANDARDS}
+${buildForceStandardsPrompt('')}
 ${PROMPT_STRUCTURAL_RULES}
 ${PROMPT_MUTATIONS}
 ${PROMPT_CONTINUITY}

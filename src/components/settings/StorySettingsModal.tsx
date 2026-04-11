@@ -5,19 +5,22 @@ import { apiHeaders } from '@/lib/api-headers';
 import { useFeatureAccess } from '@/hooks/useFeatureAccess';
 import { useStore } from '@/lib/store';
 import { Modal, ModalHeader, ModalBody, ModalFooter } from '@/components/Modal';
-import type { StorySettings, POVMode, WorldFocusMode, ReasoningLevel, NarrativeState, ProseFormat } from '@/types/narrative';
+import type { StorySettings, POVMode, WorldFocusMode, ReasoningLevel, NarrativeState, ProseFormat, ArchetypeKey } from '@/types/narrative';
 import { DEFAULT_STORY_SETTINGS, BRANCH_TIME_HORIZON_OPTIONS, REASONING_BUDGETS } from '@/types/narrative';
 import { NARRATIVE_CUBE } from '@/types/narrative';
 import type { CubeCornerKey } from '@/types/narrative';
-import { MATRIX_PRESETS, computeMatrixFromNarrative, type TransitionMatrix } from '@/lib/pacing-profile';
+import { ARCHETYPE_FORCE_TARGETS, ARCHETYPES } from '@/lib/narrative-utils';
+import { MATRIX_PRESETS, STORYTELLER_PRESET, computeMatrixFromNarrative, type TransitionMatrix } from '@/lib/pacing-profile';
 import { DEFAULT_BEAT_SAMPLER, BEAT_PROFILE_PRESETS, computeSamplerFromResolvedScenes } from '@/lib/beat-profiles';
 import { MECHANISM_PROFILE_PRESETS, computeMechanismDist, DEFAULT_MECHANISM_DIST } from '@/lib/mechanism-profiles';
 import { IconChevronDown } from '@/components/icons';
+import { ArchetypeIcon } from '@/components/ArchetypeIcon';
 
-type Tab = 'direction' | 'style' | 'pov' | 'audio' | 'other';
+type Tab = 'direction' | 'archetype' | 'style' | 'pov' | 'audio' | 'other';
 
 const TABS: { label: string; value: Tab }[] = [
   { label: 'Direction', value: 'direction' },
+  { label: 'Archetype', value: 'archetype' },
   { label: 'Style', value: 'style' },
   { label: 'POV', value: 'pov' },
   { label: 'Audio', value: 'audio' },
@@ -317,6 +320,76 @@ export function StorySettingsModal({ onClose }: { onClose: () => void }) {
             </>
           )}
 
+          {tab === 'archetype' && (
+            <>
+              <div>
+                <label className="text-[10px] text-text-dim uppercase tracking-wider block mb-2">
+                  Target Archetype
+                </label>
+                <div className="grid grid-cols-2 gap-1.5">
+                  {/* No archetype option */}
+                  <button
+                    onClick={() => update({ targetArchetype: '' })}
+                    className={`text-left px-3 py-2.5 rounded-lg border transition-colors ${
+                      !settings.targetArchetype
+                        ? 'border-blue-500/50 bg-blue-500/10'
+                        : 'border-white/5 bg-white/2 hover:bg-white/5'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2">
+                      <ArchetypeIcon archetypeKey="emerging" size={16} color="#6b7280" />
+                      <span className="text-[11px] font-semibold text-text-primary">None</span>
+                    </div>
+                    <p className="text-[9px] text-text-dim mt-1.5 leading-snug">Freeform — no force enforcement</p>
+                  </button>
+                  {/* Archetype options */}
+                  {(Object.keys(ARCHETYPE_FORCE_TARGETS) as ArchetypeKey[]).map((key) => {
+                    const profile = ARCHETYPE_FORCE_TARGETS[key];
+                    const archetype = ARCHETYPES[key];
+                    const isSelected = settings.targetArchetype === key;
+                    const FORCE_COLORS: Record<string, string> = {
+                      fate: '#EF4444',
+                      world: '#22C55E',
+                      system: '#3B82F6',
+                    };
+                    return (
+                      <button
+                        key={key}
+                        onClick={() => update({ targetArchetype: key })}
+                        className={`text-left px-3 py-2.5 rounded-lg border transition-colors ${
+                          isSelected
+                            ? 'border-blue-500/50 bg-blue-500/10'
+                            : 'border-white/5 bg-white/2 hover:bg-white/5'
+                        }`}
+                      >
+                        <div className="flex items-center gap-2">
+                          <ArchetypeIcon archetypeKey={key} size={16} />
+                          <span className="text-[11px] font-semibold text-text-primary">{archetype.name}</span>
+                          {/* Dominant force dots only */}
+                          <div className="flex items-center gap-0.5 ml-auto">
+                            {archetype.dominant.map((force) => (
+                              <div
+                                key={force}
+                                className="w-2 h-2 rounded-full"
+                                style={{ backgroundColor: FORCE_COLORS[force] }}
+                                title={force.charAt(0).toUpperCase() + force.slice(1)}
+                              />
+                            ))}
+                          </div>
+                        </div>
+                        <p className="text-[9px] text-text-dim mt-1.5 leading-snug line-clamp-2">{profile.description}</p>
+                      </button>
+                    );
+                  })}
+                </div>
+                <p className="text-[9px] text-text-dim/50 mt-2">
+                  <strong>Archetype</strong> is the primary control for force enforcement. Dominant forces (filled circles) must hit their targets.<br/>
+                  <strong>None:</strong> Freeform — no force standards enforced. The LLM chooses what works best for each scene.
+                </p>
+              </div>
+            </>
+          )}
+
           {tab === 'style' && (() => {
             const CORNERS: CubeCornerKey[] = ['HHH', 'HHL', 'HLH', 'HLL', 'LHH', 'LHL', 'LLH', 'LLL'];
             const COLORS: Record<CubeCornerKey, string> = {
@@ -338,7 +411,7 @@ export function StorySettingsModal({ onClose }: { onClose: () => void }) {
             const selfPreset = { key: 'self', name: 'This Story', description: 'Derived from the current branch.' };
 
             const allPacingPresets = [
-              MATRIX_PRESETS[0],
+              MATRIX_PRESETS[0] ?? STORYTELLER_PRESET,
               ...(selfPacingHasData ? [{ ...selfPreset, matrix: selfPacingMatrix! }] : []),
               ...MATRIX_PRESETS.slice(1),
             ];
@@ -375,7 +448,7 @@ export function StorySettingsModal({ onClose }: { onClose: () => void }) {
               <>
                 {/* ── PACING CHAIN (Cube Corners) ── */}
                 <div className="mb-6">
-                  <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center justify-between mb-2">
                     <label className="text-[10px] text-text-dim uppercase tracking-wider">Pacing Chain</label>
                     <button
                       type="button"
@@ -387,6 +460,11 @@ export function StorySettingsModal({ onClose }: { onClose: () => void }) {
                       <span className={`absolute top-0.5 w-3 h-3 rounded-full bg-white transition-all ${settings.usePacingChain ? 'left-3.5' : 'left-0.5'}`} />
                     </button>
                   </div>
+                  <p className="text-[9px] text-text-dim/50 mb-3">
+                    {settings.usePacingChain
+                      ? 'Markov sampling guides scene-by-scene rhythm and variance. Adds nuance to generation.'
+                      : 'Off — LLM chooses pacing freely. Enable for structured rhythm control.'}
+                  </p>
 
                   {settings.usePacingChain && (
                     <>
@@ -542,59 +620,61 @@ export function StorySettingsModal({ onClose }: { onClose: () => void }) {
                   )}
                 </div>
 
-                {/* ── MECHANISM PROFILE ── */}
-                <div>
-                  <label className="text-[10px] text-text-dim uppercase tracking-wider block mb-3">Mechanism Profile</label>
+                {/* ── MECHANISM PROFILE (only when Beat Chain is on) ── */}
+                {settings.useBeatChain && (
+                  <div>
+                    <label className="text-[10px] text-text-dim uppercase tracking-wider block mb-3">Mechanism Profile</label>
 
-                  <div className="flex gap-2 overflow-x-auto pb-2 -mx-1 px-1 mb-3">
-                    {allMechanismPresets.map((preset) => {
-                      const isSelected = (settings.mechanismProfilePreset || 'storyteller') === preset.key;
+                    <div className="flex gap-2 overflow-x-auto pb-2 -mx-1 px-1 mb-3">
+                      {allMechanismPresets.map((preset) => {
+                        const isSelected = (settings.mechanismProfilePreset || 'storyteller') === preset.key;
+                        return (
+                          <button
+                            key={preset.key || '_default'}
+                            onClick={() => update({ mechanismProfilePreset: preset.key })}
+                            className={`shrink-0 w-32 rounded-xl text-left transition-all border p-2.5 flex flex-col gap-1 ${
+                              isSelected ? 'border-pink-500/40 bg-pink-500/8 ring-1 ring-pink-500/20' : 'border-white/6 hover:border-white/15 hover:bg-white/3'
+                            }`}
+                          >
+                            <span className={`text-[11px] font-semibold leading-tight ${isSelected ? 'text-text-primary' : 'text-text-secondary'}`}>{preset.name}</span>
+                            <p className="text-[8px] text-text-dim leading-snug flex-1">{preset.description}</p>
+                            {isSelected && <span className="text-[7px] text-pink-400 uppercase tracking-wider font-medium">Active</span>}
+                          </button>
+                        );
+                      })}
+                    </div>
+
+                    {/* Mechanism distribution visualization */}
+                    {(() => {
+                      const presetKey = settings.mechanismProfilePreset || 'storyteller';
+                      const activeMechDist = presetKey === 'self'
+                        ? (selfMechDist ?? DEFAULT_MECHANISM_DIST)
+                        : (MECHANISM_PROFILE_PRESETS.find((p) => p.key === presetKey)?.distribution ?? DEFAULT_MECHANISM_DIST);
+
+                      const MECH_COLORS: Record<string, string> = {
+                        dialogue: '#3b82f6', thought: '#a855f7', action: '#22c55e', environment: '#06b6d4',
+                        narration: '#f59e0b', memory: '#ec4899', document: '#84cc16', comic: '#ef4444',
+                      };
+
                       return (
-                        <button
-                          key={preset.key || '_default'}
-                          onClick={() => update({ mechanismProfilePreset: preset.key })}
-                          className={`shrink-0 w-32 rounded-xl text-left transition-all border p-2.5 flex flex-col gap-1 ${
-                            isSelected ? 'border-pink-500/40 bg-pink-500/8 ring-1 ring-pink-500/20' : 'border-white/6 hover:border-white/15 hover:bg-white/3'
-                          }`}
-                        >
-                          <span className={`text-[11px] font-semibold leading-tight ${isSelected ? 'text-text-primary' : 'text-text-secondary'}`}>{preset.name}</span>
-                          <p className="text-[8px] text-text-dim leading-snug flex-1">{preset.description}</p>
-                          {isSelected && <span className="text-[7px] text-pink-400 uppercase tracking-wider font-medium">Active</span>}
-                        </button>
-                      );
-                    })}
-                  </div>
-
-                  {/* Mechanism distribution visualization */}
-                  {(() => {
-                    const presetKey = settings.mechanismProfilePreset || 'storyteller';
-                    const activeMechDist = presetKey === 'self'
-                      ? (selfMechDist ?? DEFAULT_MECHANISM_DIST)
-                      : (MECHANISM_PROFILE_PRESETS.find((p) => p.key === presetKey)?.distribution ?? DEFAULT_MECHANISM_DIST);
-
-                    const MECH_COLORS: Record<string, string> = {
-                      dialogue: '#3b82f6', thought: '#a855f7', action: '#22c55e', environment: '#06b6d4',
-                      narration: '#f59e0b', memory: '#ec4899', document: '#84cc16', comic: '#ef4444',
-                    };
-
-                    return (
-                      <div className="space-y-1">
-                        {Object.entries(activeMechDist)
-                          .filter(([, v]) => v && v > 0)
-                          .sort(([, a], [, b]) => (b ?? 0) - (a ?? 0))
-                          .map(([mech, pct]) => (
-                            <div key={mech} className="flex items-center gap-2">
-                              <span className="text-[9px] font-mono w-16 shrink-0" style={{ color: MECH_COLORS[mech] || '#888' }}>{mech}</span>
-                              <div className="flex-1 h-2 bg-white/5 rounded-full overflow-hidden">
-                                <div className="h-full rounded-full" style={{ width: `${(pct ?? 0) * 100}%`, backgroundColor: MECH_COLORS[mech] || '#888', opacity: 0.7 }} />
+                        <div className="space-y-1">
+                          {Object.entries(activeMechDist)
+                            .filter(([, v]) => v && v > 0)
+                            .sort(([, a], [, b]) => (b ?? 0) - (a ?? 0))
+                            .map(([mech, pct]) => (
+                              <div key={mech} className="flex items-center gap-2">
+                                <span className="text-[9px] font-mono w-16 shrink-0" style={{ color: MECH_COLORS[mech] || '#888' }}>{mech}</span>
+                                <div className="flex-1 h-2 bg-white/5 rounded-full overflow-hidden">
+                                  <div className="h-full rounded-full" style={{ width: `${(pct ?? 0) * 100}%`, backgroundColor: MECH_COLORS[mech] || '#888', opacity: 0.7 }} />
+                                </div>
+                                <span className="text-[9px] text-text-dim font-mono w-8 text-right">{Math.round((pct ?? 0) * 100)}%</span>
                               </div>
-                              <span className="text-[9px] text-text-dim font-mono w-8 text-right">{Math.round((pct ?? 0) * 100)}%</span>
-                            </div>
-                          ))}
-                      </div>
-                    );
-                  })()}
-                </div>
+                            ))}
+                        </div>
+                      );
+                    })()}
+                  </div>
+                )}
               </>
             );
           })()}

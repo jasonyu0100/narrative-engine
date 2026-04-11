@@ -5,7 +5,7 @@ import { callGenerate, callGenerateStream, SYSTEM_PROMPT } from './api';
 import { WRITING_MODEL, GENERATE_MODEL, MAX_TOKENS_LARGE, MAX_TOKENS_DEFAULT, MAX_TOKENS_SMALL, WORDS_PER_BEAT, ANALYSIS_TEMPERATURE } from '@/lib/constants';
 import { parseJson } from './json';
 import { narrativeContext, sceneContext, sceneScale } from './context';
-import { PROMPT_FORCE_STANDARDS, PROMPT_STRUCTURAL_RULES, PROMPT_MUTATIONS, PROMPT_ARTIFACTS, PROMPT_LOCATIONS, PROMPT_POV, PROMPT_CONTINUITY, PROMPT_SUMMARY_REQUIREMENT, PROMPT_BEAT_TAXONOMY, promptThreadLifecycle, buildThreadHealthPrompt, buildCompletedBeatsPrompt } from './prompts';
+import { PROMPT_STRUCTURAL_RULES, PROMPT_MUTATIONS, PROMPT_ARTIFACTS, PROMPT_LOCATIONS, PROMPT_POV, PROMPT_CONTINUITY, PROMPT_SUMMARY_REQUIREMENT, PROMPT_BEAT_TAXONOMY, promptThreadLifecycle, buildThreadHealthPrompt, buildCompletedBeatsPrompt, buildForceStandardsPrompt } from './prompts';
 import { samplePacingSequence, buildSequencePrompt, detectCurrentMode, MATRIX_PRESETS, DEFAULT_TRANSITION_MATRIX, type PacingSequence } from '@/lib/pacing-profile';
 import { resolveProfile, resolveSampler, sampleBeatSequence } from '@/lib/beat-profiles';
 import { FORMAT_INSTRUCTIONS } from './prose';
@@ -284,7 +284,7 @@ DENSITY BAR (grading reference means — your arc averages must hit these or it 
   REUSE existing WK node IDs when reinforcing — only NEW concepts count as density.
 ${PROMPT_STRUCTURAL_RULES}
 ${PROMPT_SUMMARY_REQUIREMENT}
-${PROMPT_FORCE_STANDARDS}
+${buildForceStandardsPrompt(storySettings.targetArchetype)}
 ${PROMPT_MUTATIONS}
 ${PROMPT_LOCATIONS}
 ${Object.keys(narrative.artifacts ?? {}).length > 0 ? PROMPT_ARTIFACTS : ''}
@@ -684,8 +684,12 @@ Location: ${narrative.locations[scene.locationId]?.name ?? scene.locationId}
 POV: ${narrative.characters[scene.povId]?.name ?? scene.povId}
 Participants: ${scene.participantIds.map(id => narrative.characters[id]?.name ?? id).join(', ')}`;
 
+  // Thread health and spent beats for understanding what needs attention
+  const threadHealth = buildThreadHealthPrompt(narrative, resolvedKeys, contextIndex);
+  const spentBeats = buildCompletedBeatsPrompt(narrative, resolvedKeys, contextIndex);
+
   const prompt = `${profileBlock}NARRATIVE CONTEXT:\n${fullContext}
-${adjacentBlock ? `${adjacentBlock}\n\n` : ''}
+${threadHealth ? `\n${threadHealth}\n` : ''}${spentBeats ? `\n${spentBeats}\n` : ''}${adjacentBlock ? `${adjacentBlock}\n\n` : ''}
 ${sceneDesc}
 
 Generate a structured beat plan for the scene at the branch head.

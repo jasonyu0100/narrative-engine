@@ -225,7 +225,7 @@ const STORYTELLER_MATRIX: TransitionMatrix = (() => {
   return m;
 })();
 
-const STORYTELLER_PRESET: MatrixPreset = {
+export const STORYTELLER_PRESET: MatrixPreset = {
   key: "storyteller",
   name: "Storyteller",
   description:
