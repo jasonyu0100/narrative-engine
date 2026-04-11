@@ -599,92 +599,87 @@ export function CanvasTopBar() {
       {/* Spacer */}
       <div className="flex-1" />
 
-      {/* Right — Graph toggles + Mode toggle */}
+      {/* Right — Mode toggles */}
       <div className="flex items-center gap-2">
-        {canvasMode === 'graph' && (
+        {/* Graph sub-controls: scope + domain */}
+        {canvasMode === 'graph' && scopePair && (
           <>
             {/* Scope toggle */}
-            {scopePair && (
-              <div className="flex items-center gap-0.5 rounded bg-white/4 p-0.5">
-                <button
-                  className={`text-[10px] px-2 py-1 rounded font-medium transition-all ${
-                    isLocal
-                      ? 'bg-white/15 text-text-primary shadow-sm'
-                      : 'text-text-dim hover:text-text-secondary hover:bg-white/5'
-                  }`}
-                  onClick={() => dispatch({ type: 'SET_GRAPH_VIEW_MODE', mode: scopePair.local })}
-                  title="Show current scene view"
-                >
-                  Local
-                </button>
-                <button
-                  className={`text-[10px] px-2 py-1 rounded font-medium transition-all ${
-                    !isLocal
-                      ? 'bg-white/15 text-text-primary shadow-sm'
-                      : 'text-text-dim hover:text-text-secondary hover:bg-white/5'
-                  }`}
-                  onClick={() => dispatch({ type: 'SET_GRAPH_VIEW_MODE', mode: scopePair.global })}
-                  title="Show full narrative view"
-                >
-                  Global
-                </button>
-              </div>
-            )}
+            <div className="flex items-center rounded-md overflow-hidden border border-white/10">
+              <button
+                className={`px-2 py-1 text-[10px] font-medium transition-colors ${
+                  isLocal
+                    ? 'bg-white/10 text-text-primary'
+                    : 'text-text-dim/60 hover:text-text-secondary hover:bg-white/5'
+                }`}
+                onClick={() => dispatch({ type: 'SET_GRAPH_VIEW_MODE', mode: scopePair.local })}
+              >
+                Scene
+              </button>
+              <div className="w-px h-4 bg-white/10" />
+              <button
+                className={`px-2 py-1 text-[10px] font-medium transition-colors ${
+                  !isLocal
+                    ? 'bg-white/10 text-text-primary'
+                    : 'text-text-dim/60 hover:text-text-secondary hover:bg-white/5'
+                }`}
+                onClick={() => dispatch({ type: 'SET_GRAPH_VIEW_MODE', mode: scopePair.global })}
+              >
+                Full
+              </button>
+            </div>
 
-            {/* Graph domain tabs */}
-            <div className="flex items-center gap-0.5 rounded bg-white/4 p-0.5">
-              {GRAPH_DOMAINS.map(({ label, local, global: globalMode, Icon, description }) => {
+            {/* Domain tabs */}
+            <div className="flex items-center rounded-md overflow-hidden border border-white/10">
+              {GRAPH_DOMAINS.map(({ label, local, global: globalMode, Icon }, idx) => {
                 const isActive = graphViewMode === local || graphViewMode === globalMode;
                 return (
-                  <button
-                    key={label}
-                    className={`flex items-center gap-1 text-[10px] px-2 py-1 rounded font-medium transition-all ${
-                      isActive
-                        ? 'bg-white/15 text-text-primary shadow-sm'
-                        : 'text-text-dim hover:text-text-secondary hover:bg-white/5'
-                    }`}
-                    onClick={() => dispatch({
-                      type: 'SET_GRAPH_VIEW_MODE',
-                      mode: isActive ? (graphViewMode === local ? globalMode : local) : local,
-                    })}
-                    title={description}
-                  >
-                    <Icon size={12} />
-                    <span>{label}</span>
-                  </button>
+                  <div key={label} className="flex items-center">
+                    {idx > 0 && <div className="w-px h-4 bg-white/10" />}
+                    <button
+                      className={`flex items-center gap-1 px-2 py-1 text-[10px] font-medium transition-colors ${
+                        isActive
+                          ? 'bg-white/10 text-text-primary'
+                          : 'text-text-dim/60 hover:text-text-secondary hover:bg-white/5'
+                      }`}
+                      onClick={() => dispatch({
+                        type: 'SET_GRAPH_VIEW_MODE',
+                        mode: isLocal ? local : globalMode,
+                      })}
+                    >
+                      <Icon size={12} />
+                      {label}
+                    </button>
+                  </div>
                 );
               })}
             </div>
           </>
         )}
 
-        <div className="flex items-center rounded bg-white/4 border border-white/10 overflow-hidden">
+        {/* Main canvas mode selector */}
+        <div className="flex items-center rounded-md overflow-hidden border border-white/10">
           {[
-            { mode: 'graph' as CanvasMode, Icon: IconNetwork, label: 'Graph', description: 'Interactive knowledge graph' },
-            { mode: 'plan' as CanvasMode, Icon: IconNotepad, label: 'Plan', description: 'Beat-by-beat scene plan' },
-            { mode: 'prose' as CanvasMode, Icon: IconDocument, label: 'Prose', description: 'Written scene prose' },
-            { mode: 'audio' as CanvasMode, Icon: IconWaveform, label: 'Audio', description: 'Scene audio narration' },
-            { mode: 'search' as CanvasMode, Icon: IconSearch, label: 'Search', description: 'AI-powered semantic search' },
-          ].map(({ mode, Icon, label, description }, idx) => {
+            { mode: 'graph' as CanvasMode, Icon: IconNetwork, label: 'Graph' },
+            { mode: 'plan' as CanvasMode, Icon: IconNotepad, label: 'Plan' },
+            { mode: 'prose' as CanvasMode, Icon: IconDocument, label: 'Prose' },
+            { mode: 'audio' as CanvasMode, Icon: IconWaveform, label: 'Audio' },
+            { mode: 'search' as CanvasMode, Icon: IconSearch, label: 'Search' },
+          ].map(({ mode, Icon, label }, idx) => {
             const isActive = canvasMode === mode;
-            const color = mode === 'plan' ? (isActive ? 'text-sky-400 bg-sky-500/20 border-sky-500/30' : '')
-              : mode === 'prose' ? (isActive ? 'text-emerald-400 bg-emerald-500/20 border-emerald-500/30' : '')
-              : mode === 'audio' ? (isActive ? 'text-violet-400 bg-violet-500/20 border-violet-500/30' : '')
-              : mode === 'search' ? (isActive ? 'text-amber-400 bg-amber-500/20 border-amber-500/30' : '')
-              : (isActive ? 'text-text-primary bg-white/15' : '');
-
             return (
               <div key={mode} className="flex items-center">
-                {idx > 0 && <div className="w-px h-3 bg-white/10" />}
+                {idx > 0 && <div className="w-px h-4 bg-white/10" />}
                 <button
-                  className={`flex items-center gap-1 text-[10px] px-2.5 py-1 font-medium transition-all ${
-                    isActive ? `${color} shadow-sm` : 'text-text-dim hover:text-text-secondary hover:bg-white/5'
+                  className={`flex items-center gap-1 px-2 py-1 text-[10px] font-medium transition-colors ${
+                    isActive
+                      ? 'bg-white/10 text-text-primary'
+                      : 'text-text-dim/60 hover:text-text-secondary hover:bg-white/5'
                   }`}
                   onClick={() => switchMode(mode)}
-                  title={description}
                 >
                   <Icon size={12} />
-                  <span>{label}</span>
+                  {label}
                 </button>
               </div>
             );
