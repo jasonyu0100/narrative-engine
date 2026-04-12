@@ -98,14 +98,14 @@ function createThread(
 // ── Static Prompt Constants ──────────────────────────────────────────────────
 describe("Static Prompt Constants", () => {
   describe("PROMPT_FORCE_STANDARDS", () => {
-    it("contains fate guidance", () => {
-      expect(PROMPT_FORCE_STANDARDS).toMatch(/FATE[\s\S]+Guidance:/);
+    it("contains fate target", () => {
+      expect(PROMPT_FORCE_STANDARDS).toMatch(/FATE[\s\S]+Target:/);
     });
-    it("contains world guidance", () => {
-      expect(PROMPT_FORCE_STANDARDS).toMatch(/WORLD[\s\S]+Guidance:/);
+    it("contains world target", () => {
+      expect(PROMPT_FORCE_STANDARDS).toMatch(/WORLD[\s\S]+Target:/);
     });
-    it("contains system guidance", () => {
-      expect(PROMPT_FORCE_STANDARDS).toMatch(/SYSTEM[\s\S]+Guidance:/);
+    it("contains system target", () => {
+      expect(PROMPT_FORCE_STANDARDS).toMatch(/SYSTEM[\s\S]+Target:/);
     });
     it("mentions balance archetypes", () => {
       expect(PROMPT_FORCE_STANDARDS).toContain("BALANCE");
@@ -303,31 +303,25 @@ describe("Static Prompt Constants", () => {
 });
 // ── buildForceStandardsPrompt ───────────────────────────────────────────────
 describe("buildForceStandardsPrompt", () => {
-  it("returns freeform mode when no archetype provided", () => {
-    const result = buildForceStandardsPrompt("");
-    expect(result).toContain("FREEFORM");
-    expect(result).toContain("no archetype");
+  it("returns the standard force prompt", () => {
+    const result = buildForceStandardsPrompt();
+    expect(result).toBe(PROMPT_FORCE_STANDARDS);
   });
-  it("returns enforcement mode when archetype provided", () => {
-    const result = buildForceStandardsPrompt("classic");
-    expect(result).toContain("ENFORCEMENT");
-    expect(result).toContain("Classic");
-  });
-  it("always includes three force definitions", () => {
-    const result = buildForceStandardsPrompt("opus");
+  it("includes three force definitions", () => {
+    const result = buildForceStandardsPrompt();
     expect(result).toContain("FATE");
     expect(result).toContain("WORLD");
     expect(result).toContain("SYSTEM");
   });
   it("includes scale guidance", () => {
-    const result = buildForceStandardsPrompt("");
+    const result = buildForceStandardsPrompt();
     expect(result).toContain("SCALE");
     expect(result).toContain("Beat");
     expect(result).toContain("Scene");
     expect(result).toContain("Arc");
   });
   it("includes density guidance", () => {
-    const result = buildForceStandardsPrompt("");
+    const result = buildForceStandardsPrompt();
     expect(result).toContain("DENSITY");
   });
 });

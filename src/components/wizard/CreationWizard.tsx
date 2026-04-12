@@ -7,10 +7,7 @@ import type {
   CharacterSketch,
   LocationSketch,
   ThreadSketch,
-  ArchetypeKey,
 } from "@/types/narrative";
-import { ARCHETYPE_FORCE_TARGETS, ARCHETYPES } from "@/lib/narrative-utils";
-import { ArchetypeIcon } from "@/components/ArchetypeIcon";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 
@@ -162,7 +159,6 @@ export function CreationWizard() {
         buildEnhancedPremise(),
         (reasoning) => setStreamText((prev) => prev + reasoning),
         wd.worldOnly ?? false,
-        wd.targetArchetype ?? "",
       );
       dispatch({ type: "ADD_NARRATIVE", narrative });
       router.push(`/series/${narrative.id}`);
@@ -274,62 +270,6 @@ export function CreationWizard() {
                 Add characters, locations, threads, rules, or systems — or skip
                 and let the AI fill in everything.
               </p>
-            </div>
-
-            {/* Archetype Selection */}
-            <div>
-              <label className="text-[10px] uppercase tracking-[0.15em] text-text-dim font-mono mb-1.5 block">
-                Archetype
-              </label>
-              <div className="flex gap-1.5 overflow-x-auto pb-1 -mx-1 px-1">
-                {/* None / Freeform option */}
-                <button
-                  type="button"
-                  onClick={() => update({ targetArchetype: "" })}
-                  className={`shrink-0 flex flex-col items-center gap-1 p-2 w-14 rounded-lg border transition text-[9px] ${
-                    !wd.targetArchetype
-                      ? "border-white/30 bg-white/5 text-text-primary"
-                      : "border-border hover:border-white/20 text-text-dim hover:text-text-secondary"
-                  }`}
-                  title="Freeform — no force enforcement"
-                >
-                  <ArchetypeIcon archetypeKey="emerging" size={16} />
-                  <span>None</span>
-                </button>
-                {/* Archetype options */}
-                {(Object.keys(ARCHETYPE_FORCE_TARGETS) as ArchetypeKey[]).map((key) => {
-                  const arch = ARCHETYPES[key];
-                  const profile = ARCHETYPE_FORCE_TARGETS[key];
-                  const isSelected = wd.targetArchetype === key;
-                  return (
-                    <button
-                      key={key}
-                      type="button"
-                      onClick={() => update({ targetArchetype: key })}
-                      className={`shrink-0 flex flex-col items-center gap-1 p-2 w-14 rounded-lg border transition text-[9px] ${
-                        isSelected
-                          ? "border-white/30 bg-white/5 text-text-primary"
-                          : "border-border hover:border-white/20 text-text-dim hover:text-text-secondary"
-                      }`}
-                      title={profile.description}
-                    >
-                      <ArchetypeIcon archetypeKey={key} size={16} />
-                      <span>{arch.name}</span>
-                      <div className="flex gap-0.5">
-                        {(arch.dominant as readonly string[]).includes("fate") && (
-                          <span className="w-1.5 h-1.5 rounded-full bg-amber-400" title="Fate" />
-                        )}
-                        {(arch.dominant as readonly string[]).includes("world") && (
-                          <span className="w-1.5 h-1.5 rounded-full bg-rose-400" title="World" />
-                        )}
-                        {(arch.dominant as readonly string[]).includes("system") && (
-                          <span className="w-1.5 h-1.5 rounded-full bg-sky-400" title="System" />
-                        )}
-                      </div>
-                    </button>
-                  );
-                })}
-              </div>
             </div>
 
             {/* Character Sketches */}

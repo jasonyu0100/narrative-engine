@@ -5,22 +5,19 @@ import { apiHeaders } from '@/lib/api-headers';
 import { useFeatureAccess } from '@/hooks/useFeatureAccess';
 import { useStore } from '@/lib/store';
 import { Modal, ModalHeader, ModalBody, ModalFooter } from '@/components/Modal';
-import type { StorySettings, POVMode, WorldFocusMode, ReasoningLevel, NarrativeState, ProseFormat, ArchetypeKey } from '@/types/narrative';
+import type { StorySettings, POVMode, WorldFocusMode, ReasoningLevel, NarrativeState, ProseFormat } from '@/types/narrative';
 import { DEFAULT_STORY_SETTINGS, BRANCH_TIME_HORIZON_OPTIONS, REASONING_BUDGETS } from '@/types/narrative';
 import { NARRATIVE_CUBE } from '@/types/narrative';
 import type { CubeCornerKey } from '@/types/narrative';
-import { ARCHETYPE_FORCE_TARGETS, ARCHETYPES } from '@/lib/narrative-utils';
 import { MATRIX_PRESETS, STORYTELLER_PRESET, computeMatrixFromNarrative, type TransitionMatrix } from '@/lib/pacing-profile';
 import { DEFAULT_BEAT_SAMPLER, BEAT_PROFILE_PRESETS, computeSamplerFromResolvedScenes } from '@/lib/beat-profiles';
 import { MECHANISM_PROFILE_PRESETS, computeMechanismDist, DEFAULT_MECHANISM_DIST } from '@/lib/mechanism-profiles';
 import { IconChevronDown } from '@/components/icons';
-import { ArchetypeIcon } from '@/components/ArchetypeIcon';
 
-type Tab = 'direction' | 'archetype' | 'style' | 'pov' | 'audio' | 'other';
+type Tab = 'direction' | 'style' | 'pov' | 'audio' | 'other';
 
 const TABS: { label: string; value: Tab }[] = [
   { label: 'Direction', value: 'direction' },
-  { label: 'Archetype', value: 'archetype' },
   { label: 'Style', value: 'style' },
   { label: 'POV', value: 'pov' },
   { label: 'Audio', value: 'audio' },
@@ -315,76 +312,6 @@ export function StorySettingsModal({ onClose }: { onClose: () => void }) {
                 />
                 <p className="text-[9px] text-text-dim/50 mt-1">
                   Editorial principles — scope discipline, reveal pacing, tonal rules. These override default generation instincts.
-                </p>
-              </div>
-            </>
-          )}
-
-          {tab === 'archetype' && (
-            <>
-              <div>
-                <label className="text-[10px] text-text-dim uppercase tracking-wider block mb-2">
-                  Target Archetype
-                </label>
-                <div className="grid grid-cols-2 gap-1.5">
-                  {/* No archetype option */}
-                  <button
-                    onClick={() => update({ targetArchetype: '' })}
-                    className={`text-left px-3 py-2.5 rounded-lg border transition-colors ${
-                      !settings.targetArchetype
-                        ? 'border-blue-500/50 bg-blue-500/10'
-                        : 'border-white/5 bg-white/2 hover:bg-white/5'
-                    }`}
-                  >
-                    <div className="flex items-center gap-2">
-                      <ArchetypeIcon archetypeKey="emerging" size={16} color="#6b7280" />
-                      <span className="text-[11px] font-semibold text-text-primary">None</span>
-                    </div>
-                    <p className="text-[9px] text-text-dim mt-1.5 leading-snug">Freeform — no force enforcement</p>
-                  </button>
-                  {/* Archetype options */}
-                  {(Object.keys(ARCHETYPE_FORCE_TARGETS) as ArchetypeKey[]).map((key) => {
-                    const profile = ARCHETYPE_FORCE_TARGETS[key];
-                    const archetype = ARCHETYPES[key];
-                    const isSelected = settings.targetArchetype === key;
-                    const FORCE_COLORS: Record<string, string> = {
-                      fate: '#EF4444',
-                      world: '#22C55E',
-                      system: '#3B82F6',
-                    };
-                    return (
-                      <button
-                        key={key}
-                        onClick={() => update({ targetArchetype: key })}
-                        className={`text-left px-3 py-2.5 rounded-lg border transition-colors ${
-                          isSelected
-                            ? 'border-blue-500/50 bg-blue-500/10'
-                            : 'border-white/5 bg-white/2 hover:bg-white/5'
-                        }`}
-                      >
-                        <div className="flex items-center gap-2">
-                          <ArchetypeIcon archetypeKey={key} size={16} />
-                          <span className="text-[11px] font-semibold text-text-primary">{archetype.name}</span>
-                          {/* Dominant force dots only */}
-                          <div className="flex items-center gap-0.5 ml-auto">
-                            {archetype.dominant.map((force) => (
-                              <div
-                                key={force}
-                                className="w-2 h-2 rounded-full"
-                                style={{ backgroundColor: FORCE_COLORS[force] }}
-                                title={force.charAt(0).toUpperCase() + force.slice(1)}
-                              />
-                            ))}
-                          </div>
-                        </div>
-                        <p className="text-[9px] text-text-dim mt-1.5 leading-snug line-clamp-2">{profile.description}</p>
-                      </button>
-                    );
-                  })}
-                </div>
-                <p className="text-[9px] text-text-dim/50 mt-2">
-                  <strong>Archetype</strong> is the primary control for force enforcement. Dominant forces (filled circles) must hit their targets.<br/>
-                  <strong>None:</strong> Freeform — no force standards enforced. The LLM chooses what works best for each scene.
                 </p>
               </div>
             </>

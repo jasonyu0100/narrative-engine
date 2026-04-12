@@ -978,8 +978,6 @@ export type ProseFormat = "prose" | "screenplay";
 export type ArchetypeKey = "opus" | "series" | "atlas" | "chronicle" | "classic" | "stage" | "paper";
 
 export type StorySettings = {
-  /** Target archetype — influences force standards for generation. Empty = opus (balanced). */
-  targetArchetype: ArchetypeKey | "";
   /** How POV is distributed across the story */
   povMode: POVMode;
   /** Character IDs designated as POV characters (empty = use all anchors) */
@@ -1029,7 +1027,6 @@ export type StorySettings = {
 export const BRANCH_TIME_HORIZON_OPTIONS = [25, 50, 100, 200] as const;
 
 export const DEFAULT_STORY_SETTINGS: StorySettings = {
-  targetArchetype: "",
   povMode: "free",
   povCharacterIds: [],
   storyDirection: "",
@@ -1445,8 +1442,6 @@ export type WizardData = {
   proseProfile?: ProseProfile;
   /** When true: generate world entities only — no introduction arc or scenes. Premise is treated as the full world plan document. */
   worldOnly?: boolean;
-  /** Target archetype for the series — guides initial world generation and sets default story settings. */
-  targetArchetype?: ArchetypeKey | "";
 };
 
 export type GraphViewMode =

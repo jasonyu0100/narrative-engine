@@ -1,6 +1,6 @@
-import type { NarrativeState, Scene, StorySettings, RelationshipEdge, ContinuityEdge, ArchetypeKey, ProseProfile, SystemGraph } from '@/types/narrative';
+import type { NarrativeState, Scene, StorySettings, RelationshipEdge, ContinuityEdge, ProseProfile, SystemGraph } from '@/types/narrative';
 import { resolveEntry, THREAD_ACTIVE_STATUSES, THREAD_TERMINAL_STATUSES, THREAD_STATUS_LABELS, DEFAULT_STORY_SETTINGS } from '@/types/narrative';
-import { computeForceSnapshots, computeSwingMagnitudes, detectCubeCorner, movingAverage, FORCE_WINDOW_SIZE, computeDeliveryCurve, classifyCurrentPosition, buildCumulativeSystemGraph, rankSystemNodes, ARCHETYPE_FORCE_TARGETS } from '@/lib/narrative-utils';
+import { computeForceSnapshots, computeSwingMagnitudes, detectCubeCorner, movingAverage, FORCE_WINDOW_SIZE, computeDeliveryCurve, classifyCurrentPosition, buildCumulativeSystemGraph, rankSystemNodes } from '@/lib/narrative-utils';
 import { WORDS_PER_SCENE, BEATS_PER_SCENE, ENTITY_LOG_CONTEXT_LIMIT } from '@/lib/constants';
 import { getIntroducedIds } from '@/lib/scene-filter';
 
@@ -237,22 +237,6 @@ function buildWorldKnowledgeBlock(graph: SystemGraph): string {
 export function buildStorySettingsBlock(n: NarrativeState): string {
   const s: StorySettings = { ...DEFAULT_STORY_SETTINGS, ...n.storySettings };
   const lines: string[] = [];
-
-  // Target archetype — influences which force standards are enforced
-  // No archetype = all guidance. With archetype = dominant forces enforced.
-  if (s.targetArchetype && s.targetArchetype in ARCHETYPE_FORCE_TARGETS) {
-    const profile = ARCHETYPE_FORCE_TARGETS[s.targetArchetype as ArchetypeKey];
-    const label = s.targetArchetype.charAt(0).toUpperCase() + s.targetArchetype.slice(1);
-    const dominant = profile.enforced ? ['fate', 'world', 'system'] :
-      s.targetArchetype === 'classic' ? ['fate'] :
-      s.targetArchetype === 'stage' ? ['world'] :
-      s.targetArchetype === 'paper' ? ['system'] :
-      s.targetArchetype === 'series' ? ['fate', 'world'] :
-      s.targetArchetype === 'atlas' ? ['fate', 'system'] :
-      s.targetArchetype === 'chronicle' ? ['world', 'system'] : [];
-    const dominantLabel = dominant.length > 0 ? dominant.map(f => f.toUpperCase()).join(', ') : 'none';
-    lines.push(`TARGET ARCHETYPE: ${label} — ${profile.description}\n  Dominant forces (${dominantLabel}) are ENFORCED when cube positions call for them. Other forces are guidance only.`);
-  }
 
   // POV mode
   const povLabels: Record<string, string> = {

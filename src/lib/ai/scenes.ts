@@ -5,7 +5,7 @@ import { callGenerate, callGenerateStream, SYSTEM_PROMPT } from './api';
 import { WRITING_MODEL, GENERATE_MODEL, MAX_TOKENS_LARGE, MAX_TOKENS_DEFAULT, MAX_TOKENS_SMALL, WORDS_PER_BEAT, ANALYSIS_TEMPERATURE } from '@/lib/constants';
 import { parseJson } from './json';
 import { narrativeContext, sceneContext, sceneScale, buildProseProfile } from './context';
-import { PROMPT_STRUCTURAL_RULES, PROMPT_MUTATIONS, PROMPT_ARTIFACTS, PROMPT_LOCATIONS, PROMPT_POV, PROMPT_CONTINUITY, PROMPT_SUMMARY_REQUIREMENT, PROMPT_BEAT_TAXONOMY, promptThreadLifecycle, buildThreadHealthPrompt, buildCompletedBeatsPrompt, buildForceStandardsPrompt } from './prompts';
+import { PROMPT_STRUCTURAL_RULES, PROMPT_MUTATIONS, PROMPT_ARTIFACTS, PROMPT_LOCATIONS, PROMPT_POV, PROMPT_CONTINUITY, PROMPT_SUMMARY_REQUIREMENT, PROMPT_BEAT_TAXONOMY, promptThreadLifecycle, buildThreadHealthPrompt, buildCompletedBeatsPrompt, PROMPT_FORCE_STANDARDS } from './prompts';
 import { samplePacingSequence, buildSequencePrompt, detectCurrentMode, MATRIX_PRESETS, DEFAULT_TRANSITION_MATRIX, type PacingSequence } from '@/lib/pacing-profile';
 import { resolveProfile, resolveSampler, sampleBeatSequence } from '@/lib/beat-profiles';
 import { FORMAT_INSTRUCTIONS } from './prose';
@@ -284,7 +284,7 @@ DENSITY BAR (grading reference means — your arc averages must hit these or it 
   REUSE existing WK node IDs when reinforcing — only NEW concepts count as density.
 ${PROMPT_STRUCTURAL_RULES}
 ${PROMPT_SUMMARY_REQUIREMENT}
-${buildForceStandardsPrompt(storySettings.targetArchetype)}
+${PROMPT_FORCE_STANDARDS}
 ${PROMPT_MUTATIONS}
 ${PROMPT_LOCATIONS}
 ${Object.keys(narrative.artifacts ?? {}).length > 0 ? PROMPT_ARTIFACTS : ''}

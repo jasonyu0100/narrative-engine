@@ -1,4 +1,4 @@
-import type { NarrativeState, Scene, Character, Location, Thread, RelationshipEdge, SystemNode, SystemMutation, SystemNodeType, Artifact, OwnershipMutation, TieMutation, ContinuityMutation, RelationshipMutation, ArchetypeKey, WorldBuild } from '@/types/narrative';
+import type { NarrativeState, Scene, Character, Location, Thread, RelationshipEdge, SystemNode, SystemMutation, SystemNodeType, Artifact, OwnershipMutation, TieMutation, ContinuityMutation, RelationshipMutation, WorldBuild } from '@/types/narrative';
 import { THREAD_ACTIVE_STATUSES, THREAD_TERMINAL_STATUSES, resolveEntry, isScene, REASONING_BUDGETS, DEFAULT_STORY_SETTINGS } from '@/types/narrative';
 import { nextId, nextIds } from '@/lib/narrative-utils';
 import type { ThreadLogNodeType } from '@/types/narrative';
@@ -9,7 +9,7 @@ import { callGenerate, callGenerateStream, SYSTEM_PROMPT } from './api';
 import { MAX_TOKENS_LARGE, GENERATE_MODEL } from '@/lib/constants';
 import { parseJson } from './json';
 import { narrativeContext } from './context';
-import { PROMPT_STRUCTURAL_RULES, PROMPT_MUTATIONS, PROMPT_POV, PROMPT_CONTINUITY, PROMPT_SUMMARY_REQUIREMENT, PROMPT_ENTITY_INTEGRATION, buildForceStandardsPrompt } from './prompts';
+import { PROMPT_STRUCTURAL_RULES, PROMPT_MUTATIONS, PROMPT_POV, PROMPT_CONTINUITY, PROMPT_SUMMARY_REQUIREMENT, PROMPT_ENTITY_INTEGRATION, PROMPT_FORCE_STANDARDS } from './prompts';
 import { logInfo } from '@/lib/system-logger';
 
 /**
@@ -713,8 +713,6 @@ export async function generateNarrative(
   /** When true: generate world entities only — no introduction arc or scenes.
    *  The premise is treated as a full story plan / world bible to seed from. */
   worldOnly = false,
-  /** Target archetype for the series — sets default story settings. */
-  targetArchetype?: ArchetypeKey | "",
 ): Promise<NarrativeState> {
   logInfo('Starting narrative generation', {
     source: 'manual-generation',
@@ -861,7 +859,7 @@ ARTIFACTS & TOOLS:
 ${worldOnly ? '' : `Every anchor must appear in at least 3 scenes. Use at least 6 different locations across the 8 scenes.
 
 ${PROMPT_POV}
-${buildForceStandardsPrompt(targetArchetype)}
+${PROMPT_FORCE_STANDARDS}
 ${PROMPT_STRUCTURAL_RULES}
 ${PROMPT_MUTATIONS}
 ${PROMPT_CONTINUITY}
@@ -1126,7 +1124,6 @@ ${PROMPT_SUMMARY_REQUIREMENT}`}
     storySettings: {
       ...DEFAULT_STORY_SETTINGS,
       ...(typeof parsed.planGuidance === 'string' && parsed.planGuidance.trim() ? { planGuidance: parsed.planGuidance.trim() } : {}),
-      ...(targetArchetype ? { targetArchetype } : {}),
     },
     patterns: Array.isArray(parsed.patterns) ? parsed.patterns.filter((p: unknown) => typeof p === 'string') : [],
     antiPatterns: Array.isArray(parsed.antiPatterns) ? parsed.antiPatterns.filter((p: unknown) => typeof p === 'string') : [],
