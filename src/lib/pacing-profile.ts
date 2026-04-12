@@ -625,7 +625,7 @@ export function buildSingleStepPrompt(
   const targets = `P:${step.forces.fate[0]}-${step.forces.fate[1]} W:${step.forces.world[0]}-${step.forces.world[1]} S:${step.forces.system[0]}-${step.forces.system[1]}`;
   return `PACING — Scene ${sceneIndex + 1}/${totalScenes}: ${NARRATIVE_CUBE[step.mode].name} [P:${p} W:${c} S:${k}]
 ${MODE_GUIDANCE[step.mode]}
-Targets: ${targets}. Reference means across the arc: P≈3, W≈14, S≈5. Mutations ARE forces — match counts to targets, never hug the mean.`;
+Targets: ${targets}. Reference means: P≈1.5, W≈12, S≈3. Mutations ARE forces — match counts to targets, never hug the mean.`;
 }
 
 /**
@@ -644,7 +644,7 @@ export function buildSequencePrompt(sequence: PacingSequence): string {
     "  P = Σ thread transitions (pulse=0.25) | W = ΔN_c + √ΔE_c (entity continuity) | S = ΔN + √ΔE (world knowledge)",
   );
   lines.push(
-    "  Reference means (target averages across the arc): P≈3, W≈14, S≈5. Scenes should breathe above/below these — not hug them.",
+    "  Reference means: P≈1.5, W≈12, S≈3. Scenes should breathe above/below these — not hug the mean.",
   );
   lines.push("");
 
