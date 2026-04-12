@@ -296,6 +296,14 @@ ENTITY EXTRACTION — entities carry ONLY identity (name, role, significance). A
 
 - threads: narrative tensions. development: what specifically happened.
 
+DISTINCTNESS — every entity must be genuinely distinct from all others:
+- Two threads are distinct if resolving one does NOT automatically resolve the other
+- Two characters are distinct if they are different people (not name variants)
+- Two locations are distinct if they are different physical spaces (not name variants)
+- Two artifacts are distinct if they are different objects (not name variants)
+- Two system concepts are distinct if they describe different rules/facts (not rephrasing)
+If entities overlap, pick ONE canonical form. Do not extract duplicates.
+
 events — 2-4 word tags. 2-4 per scene. Each names a discrete beat.
 artifactUsages — when an artifact delivers utility. Every artifact referenced for what it DOES (not just mentioned by name) is a usage. Every usage MUST have a character who used it.
   usage: describe WHAT the artifact did — the specific utility delivered (searched for X, generated Y, computed Z).
