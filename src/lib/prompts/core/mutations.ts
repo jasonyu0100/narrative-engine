@@ -18,7 +18,9 @@ DENSITY TARGETS (21/25 at reference — fate 1.5, world 12, system 3):
   Lore dump: modest continuity (6-10), heavy system (5-10)
 Variance required — peaks and valleys, not flatline.
 
-threadMutations — Threads are QUESTIONS that shape fate. Frame as: "Will X?" "Can Y?" "What is Z?"
+threadMutations — Threads are COMPELLING QUESTIONS that shape fate.
+  A compelling question has STAKES, UNCERTAINTY, and INVESTMENT.
+  BAD: "Will Bob succeed?" GOOD: "Can Marcus protect his daughter from the cult that killed his wife?"
   Thread logs track incremental ANSWERS to these questions over time.
   TWO AXES:
   STATUS (from/to): latent | seeded | active | escalating | critical | resolved | subverted | abandoned

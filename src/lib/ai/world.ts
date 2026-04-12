@@ -794,7 +794,7 @@ PILOT EPISODE — establish a tight, focused world. These are minimums; exceed w
 - AT LEAST 8 scenes in 1 arc, AVERAGING ~12 continuity nodes and ~3 system nodes per scene (these are the grading reference means). Some scenes quiet, some dense — but the MEAN across the arc must hit the reference or the whole pilot grades in the 60s. A typical scene touches 3-5 entities with 10-14 continuity nodes and reveals 2-4 system concepts; climactic scenes push to 16-20+ continuity and 5-8 system.`}
 
 SEEDING FATE — a great world is pregnant with story. Every entity you create should carry the seeds of future conflict:
-- Threads are fate's mechanism — each thread is a question the story MUST eventually answer, a promise it MUST keep
+- Threads are fate's mechanism — each thread is a COMPELLING question (stakes + uncertainty + investment) the story MUST eventually answer
 - Characters carry secrets that WILL come out, goals that WILL collide, relationships that WILL be tested
 - Locations hold histories that WILL matter, resources that WILL be contested, rules that WILL constrain
 - Artifacts have costs that WILL be paid, powers that WILL corrupt, origins that WILL be revealed
@@ -808,7 +808,7 @@ ENTITY DEFINITIONS:
 - Characters are conscious beings with agency — people, named animals, sentient AI (AGI). Non-sentient AI systems are artifacts.
 - Locations are spatial areas or regions — physical places you can be IN.
 - Artifacts are anything that delivers utility — active tools, not passive concepts. Concepts belong in world knowledge.
-- Threads are QUESTIONS that shape fate — frame as "Will X?" "Can Y?" "What is Z?" Thread logs track incremental answers.
+- Threads are COMPELLING QUESTIONS that shape fate. A compelling question has stakes, uncertainty, and investment. BAD: "Will X succeed?" GOOD: "Can Marcus protect his daughter from the cult?" Thread logs track incremental answers.
 
 CHARACTER DEPTH BY ROLE — minimums; go deeper for complex characters. These initial continuity nodes become the first readings the grader sees, and anchor entities will be revisited for continuity mutations across every scene, so seed them richly. List each entity's nodes in the causal/temporal order they became true — adjacent nodes auto-chain into the entity's inner graph, no manual edges needed:
 - Anchors: 6-8 continuity nodes each — defining trait, goal, belief, weakness, secret, capability, relation, history.

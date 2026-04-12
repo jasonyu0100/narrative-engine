@@ -16,9 +16,12 @@ import { ENTITY_LOG_CONTEXT_LIMIT } from '@/lib/constants';
  */
 export function promptThreadLifecycle(): string {
   return `
-THREADS ARE QUESTIONS — each thread is an unanswered question that actively shapes fate.
-Frame threads as questions: "Will X succeed?" "Can Y be trusted?" "What happened to Z?"
-Thread logs track incremental answers to these questions over time.
+THREADS ARE COMPELLING QUESTIONS — each thread is an unanswered question that actively shapes fate.
+A compelling question has STAKES (what's at risk), UNCERTAINTY (outcome not obvious), and INVESTMENT (we care about the answer).
+  BAD: "Will Bob go to the store?" (no stakes, no investment)
+  GOOD: "Can Marcus protect his daughter from the cult that killed his wife?" (stakes, uncertainty, investment)
+  GOOD: "Will Elena's secret destroy her marriage before she can confess?" (ticking clock, moral weight)
+Frame threads as questions. Thread logs track incremental answers over time.
 
 THREAD LIFECYCLE: latent → seeded → active → escalating → critical → resolved/subverted
 ${THREAD_LIFECYCLE_DOC}

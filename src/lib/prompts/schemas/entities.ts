@@ -54,13 +54,16 @@ export const SCHEMA_ARTIFACT_CREATION = `{
 }`;
 
 // ── Thread Schemas ──────────────────────────────────────────────────────────
-// Threads are QUESTIONS that shape fate. Frame as: "Will X?" "Can Y?" "What is Z?"
+// Threads are COMPELLING QUESTIONS that shape fate. A compelling question has:
+// - STAKES: what's at risk if the question is answered one way vs another
+// - UNCERTAINTY: the outcome is not obvious, multiple answers are plausible
+// - INVESTMENT: we care about the answer because of character attachment or thematic weight
 // Thread logs track incremental answers to these questions over time.
 
 export const SCHEMA_THREAD_CREATION = `{
   "id": "T-XX",
   "participants": [{"id": "C-XX or L-XX or A-XX", "type": "character|location|artifact"}],
-  "description": "Frame as a QUESTION the story must answer: 'Will X succeed?' 'Can Y be trusted?' 'What is the truth behind Z?' — 15-30 words, concrete and specific",
+  "description": "A COMPELLING QUESTION with stakes, uncertainty, and investment. BAD: 'Will Bob succeed?' GOOD: 'Can Marcus protect his daughter from the cult that killed his wife?' — 15-30 words",
   "status": "latent|seeded|active|escalating|critical",
   "openedAt": "S-001 or 'new'",
   "dependents": ["T-YY — existing thread IDs this thread connects to, accelerates, or converges with"]
@@ -78,6 +81,6 @@ export const SCHEMA_ANALYSIS_LOCATION = `{"name": "Location Name", "prominence":
 
 export const SCHEMA_ANALYSIS_ARTIFACT = `{"name": "Artifact Name", "significance": "key|notable|minor", "imagePrompt": "1-2 sentence LITERAL visual description", "ownerName": "owner or null"}`;
 
-export const SCHEMA_ANALYSIS_THREAD = `{"description": "Frame as a QUESTION: 'Will X?' 'Can Y?' 'What is Z?' — 15-30 words", "participantNames": ["names"], "statusAtStart": "latent|seeded|active|escalating|critical|resolved|subverted|abandoned", "statusAtEnd": "latent|seeded|active|escalating|critical|resolved|subverted|abandoned", "development": "15-30 words: how this question was advanced or answered in this scene"}`;
+export const SCHEMA_ANALYSIS_THREAD = `{"description": "A COMPELLING QUESTION with stakes, uncertainty, investment — 15-30 words", "participantNames": ["names"], "statusAtStart": "latent|seeded|active|escalating|critical|resolved|subverted|abandoned", "statusAtEnd": "latent|seeded|active|escalating|critical|resolved|subverted|abandoned", "development": "15-25 words: how this question was advanced or answered in this scene"}`;
 
 export const SCHEMA_ANALYSIS_RELATIONSHIP = `{"from": "Name", "to": "Name", "type": "15-25 words describing the relationship", "valence": -1.0 to 1.0}`;
