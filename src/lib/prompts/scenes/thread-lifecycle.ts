@@ -18,21 +18,30 @@ export function promptThreadLifecycle(): string {
   return `
 THREADS ARE COMPELLING QUESTIONS — each thread is an unanswered question that actively shapes fate.
 A compelling question has STAKES (what's at risk), UNCERTAINTY (outcome not obvious), and INVESTMENT (we care about the answer).
-  BAD: "Will Bob go to the store?" (no stakes, no investment)
-  GOOD: "Can Marcus protect his daughter from the cult that killed his wife?" (stakes, uncertainty, investment)
-  GOOD: "Will Elena's secret destroy her marriage before she can confess?" (ticking clock, moral weight)
+The register of the question adapts to the work:
+  - Narrative (fiction, memoir): dramatic questions about consequence, identity, choice.
+  - Argument (paper, essay, criticism): claims whose truth, scope, or priority is in contention.
+  - Inquiry (investigation, reportage, exploration): questions about what happened, how it works, what follows.
+  Weak (any register): "Will [Name] go to the store?" — too plain to carry an arc unless the form deliberately rewards such flatness (picaresque, satirical, ironic open-inquiry).
+  Strong (narrative): "Can Ayesha clear her grandfather's name before the tribunal ends?" (stakes, uncertainty, investment)
+  Strong (narrative, lyric register): "What does the river remember of the flood, and does the narrator want to know?"
+  Strong (argument): "Does the proposed mechanism explain the anomalies the prior model cannot?" (falsifiable, non-obvious)
+  Strong (argument, criticism): "Can poststructuralist close reading account for silence as resistance in this corpus?" (disputed, high investment)
+  Strong (inquiry): "What role did diaspora networks play in the movement before digital coordination?" (open, evidence-driven)
 Frame threads as questions. Thread logs track incremental answers over time.
 
 THREAD LIFECYCLE: latent → seeded → active → escalating → critical → resolved/subverted
 ${THREAD_LIFECYCLE_DOC}
 Terminal: ${THREAD_TERMINAL_STATUSES.map((s) => `"${s}"`).join(', ')}.
 
-STAGES:
-  latent (whisper) → the question is hinted at but not yet posed
-  seeded (promise planted) → the question is clearly posed to the reader
-  active (pulling toward resolution) → the story is actively pursuing the answer
-  escalating (COMMITTED) → the question has become unavoidable, must be answered
-  critical (demands resolution now) → answer is imminent
+STAGES (single lifecycle, reframe per register):
+  latent (whisper / hint / gap)        → the question is implicit, unposed
+  seeded (posed / claim stated / question raised) → the reader/auditor now holds the question
+  active (pursued / evidenced / developed) → the work is actively working the question
+  escalating (COMMITTED / dominant / contested) → it has become unavoidable; it must be settled
+  critical (demands resolution now / decisive evidence at hand) → the settling is imminent
+Terminal forms scale too: resolved = conclusively answered / thesis affirmed / finding confirmed;
+subverted = reversed / thesis overturned / finding contradicted / superseded by newer evidence.
 
 COMMITMENT: Below escalating = can abandon. At escalating+ = must resolve.
   Prune stale threads (5+ scenes silent, below escalating). Keep 3-6 committed; 10+ = noise.

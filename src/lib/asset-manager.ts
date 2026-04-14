@@ -14,6 +14,7 @@
 
 import { openDB, DBSchema, IDBPDatabase } from 'idb';
 import { nanoid } from 'nanoid';
+import { logError } from '@/lib/system-logger';
 
 // ── IndexedDB Schema ──────────────────────────────────────────────────────────
 
@@ -465,6 +466,9 @@ export const assetManager = new AssetManager();
 // Auto-initialize on import (browser environment only)
 if (typeof window !== 'undefined') {
   assetManager.init().catch((err) => {
-    console.error('Failed to initialize AssetManager:', err);
+    logError('Failed to initialize AssetManager', err, {
+      source: 'asset',
+      operation: 'init',
+    });
   });
 }

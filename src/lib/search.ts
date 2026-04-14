@@ -23,7 +23,7 @@ export async function searchNarrative(
   query: string,
 ): Promise<SearchQuery> {
   logInfo('Starting semantic search', {
-    source: 'other',
+    source: 'search',
     operation: 'search',
     details: { narrativeId: narrative.id, query: query.substring(0, 100), entryCount: resolvedKeys.length },
   });
@@ -240,7 +240,7 @@ export async function searchNarrative(
   }
 
   logInfo('Completed semantic search', {
-    source: 'other',
+    source: 'search',
     operation: 'search-complete',
     details: {
       narrativeId: narrative.id,

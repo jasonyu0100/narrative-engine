@@ -16,6 +16,7 @@
  */
 
 import { resolveEmbeddingsBatch } from './embeddings';
+import { logInfo } from '@/lib/system-logger';
 import { resolveEntry, isScene } from '@/types/narrative';
 import type {
   NarrativeState,
@@ -180,7 +181,11 @@ export async function classifyPropositions(
 
   const batchMap = await resolveEmbeddingsBatch(embRefs);
   const t1 = performance.now();
-  console.log(`[PropClassify] Resolved ${n} embeddings in ${(t1 - t0).toFixed(0)}ms`);
+  logInfo(`Resolved proposition embeddings`, {
+    source: 'embedding',
+    operation: 'proposition-classify-resolve',
+    details: { count: n, durationMs: Math.round(t1 - t0) },
+  });
 
   // 3. Build flat array and compute similarity matrix via TensorFlow.js
   const flat = new Float32Array(n * DIMS);
@@ -215,7 +220,11 @@ export async function classifyPropositions(
   }
 
   const t2 = performance.now();
-  console.log(`[PropClassify] tf.matMul similarity matrix (${n}×${n}) in ${(t2 - t1).toFixed(0)}ms`);
+  logInfo(`Computed proposition similarity matrix`, {
+    source: 'embedding',
+    operation: 'proposition-classify-matmul',
+    details: { size: n, durationMs: Math.round(t2 - t1) },
+  });
 
   // 4. Extract top-k backward/forward from similarity matrix
   const sceneOrders = new Int32Array(entries.map(e => e.sceneOrder));
@@ -313,7 +322,11 @@ export async function classifyPropositions(
   }
 
   const t3 = performance.now();
-  console.log(`[PropClassify] Top-k extraction in ${(t3 - t2).toFixed(0)}ms`);
+  logInfo(`Extracted proposition top-k connections`, {
+    source: 'embedding',
+    operation: 'proposition-classify-topk',
+    details: { count: n, durationMs: Math.round(t3 - t2) },
+  });
 
   // 5. Absolute threshold — benchmarked across fiction + academic works
   const thB = STRENGTH_THRESHOLD;
@@ -364,7 +377,16 @@ export async function classifyPropositions(
   }
 
   const t4 = performance.now();
-  console.log(`[PropClassify] ${n} propositions across ${totalScenes} scenes (reach threshold: ${reachThreshold}) in ${(t4 - t0).toFixed(0)}ms`);
+  logInfo(`Classified propositions`, {
+    source: 'embedding',
+    operation: 'proposition-classify-complete',
+    details: {
+      propositions: n,
+      scenes: totalScenes,
+      reachThreshold,
+      totalMs: Math.round(t4 - t0),
+    },
+  });
 
   return {
     classifications,

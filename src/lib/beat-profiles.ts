@@ -13,6 +13,7 @@
 import type { BeatFn, BeatMechanism, BeatTransitionMatrix, ProseProfile, BeatSampler, NarrativeState, Scene, BeatProfilePreset, FnMechanismDistribution, Branch } from '@/types/narrative';
 import { BEAT_DENSITY_MIN, BEAT_DENSITY_MAX, BEAT_DENSITY_DEFAULT } from '@/lib/constants';
 import { resolvePlanForBranch, resolveProseForBranch } from '@/lib/narrative-utils';
+import { logInfo } from '@/lib/system-logger';
 export type { BeatProfilePreset };
 
 // ── Default Sampler ─────────────────────────────────────────────────────────
@@ -317,6 +318,17 @@ export function sampleBeatSequence(
     }
     current = next;
   }
+
+  logInfo(`Sampled beat sequence`, {
+    source: 'beat-sampling',
+    operation: 'sample-sequence',
+    details: {
+      length,
+      startFn,
+      functions: sequence.map((b) => b.fn).join(' → '),
+      mechanisms: sequence.map((b) => b.mechanism).join(','),
+    },
+  });
 
   return sequence;
 }

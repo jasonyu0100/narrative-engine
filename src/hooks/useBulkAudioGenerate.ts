@@ -95,7 +95,7 @@ export function useBulkAudioGenerate() {
         dispatch({ type: 'SET_SCENE_AUDIO', sceneId, audioUrl: audioId });
       } catch (err) {
         logError('Failed to generate audio for scene', err, {
-          source: 'other',
+          source: 'audio-generation',
           operation: 'bulk-audio-generate',
           details: { sceneId, sceneNumber: completed + 1, totalScenes: total }
         });

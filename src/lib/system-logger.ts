@@ -33,6 +33,20 @@ export type LogContext = {
     | "direction-generation"
     | "prose-generation"
     | "plan-generation"
+    | "pacing-sampling"
+    | "beat-sampling"
+    | "pressure-analysis"
+    | "force-compute"
+    | "reconstruction"
+    | "review"
+    | "embedding"
+    | "search"
+    | "persistence"
+    | "asset"
+    | "image-generation"
+    | "audio-generation"
+    | "ingest"
+    | "api"
     | "other";
   /** Current operation when error occurred */
   operation?: string;

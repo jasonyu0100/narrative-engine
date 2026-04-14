@@ -5,6 +5,7 @@ import { narrativeContext, getStateAtIndex } from "./context";
 import { parseJson } from "./json";
 import { buildCumulativeSystemGraph } from "@/lib/narrative-utils";
 import { applyDerivedForceModes } from "@/lib/auto-engine";
+import { logError } from "@/lib/system-logger";
 
 // ── Plan Node Scaling ─────────────────────────────────────────────────────────
 // Coordination plans scale node counts based on arc budget to ensure proper
@@ -633,7 +634,11 @@ Return ONLY the JSON object.`;
       summary: typeof data.summary === "string" ? data.summary.slice(0, 500) : `Reasoning graph for ${arcName}`,
     };
   } catch (err) {
-    console.error("Failed to parse reasoning graph:", err);
+    logError("Failed to parse reasoning graph", err, {
+      source: "world-expansion",
+      operation: "reasoning-graph-parse",
+      details: { arcName, sceneCount },
+    });
     // Return minimal fallback
     return {
       nodes: [
@@ -999,7 +1004,11 @@ Return ONLY the JSON object.`;
       summary: typeof data.summary === "string" ? data.summary.slice(0, 500) : "Reasoning graph for world expansion",
     };
   } catch (err) {
-    console.error("Failed to parse expansion reasoning graph:", err);
+    logError("Failed to parse expansion reasoning graph", err, {
+      source: "world-expansion",
+      operation: "expansion-reasoning-graph-parse",
+      details: { directivePreview: directive ? directive.slice(0, 80) : null },
+    });
     // Return minimal fallback
     return {
       nodes: [
@@ -1724,7 +1733,10 @@ Return ONLY the JSON object.`;
     // trust the LLM to label this correctly — it falls out of what was planned.
     return applyDerivedForceModes(plan);
   } catch (err) {
-    console.error("Failed to parse coordination plan:", err);
+    logError("Failed to parse coordination plan", err, {
+      source: "world-expansion",
+      operation: "coordination-plan-parse",
+    });
     // Return minimal fallback
     return {
       id: `plan-${Date.now()}`,

@@ -31,10 +31,15 @@ vi.mock("@/lib/ai/prompts", () => ({
   PROMPT_WORLD: "Mock continuity",
   PROMPT_SUMMARY_REQUIREMENT: "Mock summary requirement",
   PROMPT_BEAT_TAXONOMY: "Mock beat taxonomy",
+  PROMPT_PROPOSITION_TRANSMISSION: "Mock proposition transmission",
   promptThreadLifecycle: vi.fn().mockReturnValue("Mock thread lifecycle"),
   buildThreadHealthPrompt: vi.fn().mockReturnValue("Mock thread health"),
   buildCompletedBeatsPrompt: vi.fn().mockReturnValue("Mock completed beats"),
   buildForceStandardsPrompt: vi.fn().mockReturnValue("Mock force standards prompt"),
+  buildScenePlanSystemPrompt: vi.fn().mockReturnValue("Mock scene plan system prompt"),
+  buildBeatAnalystSystemPrompt: vi.fn().mockReturnValue("Mock beat analyst system prompt"),
+  buildScenePlanEditSystemPrompt: vi.fn().mockReturnValue("Mock scene plan edit system prompt"),
+  buildSceneProseSystemPrompt: vi.fn().mockReturnValue("Mock scene prose system prompt"),
 }));
 // Mock markov functions
 vi.mock("@/lib/markov", () => ({
@@ -1206,6 +1211,7 @@ describe("generateSceneProse", () => {
   it("includes prose guidance when provided", async () => {
     const mockProse = "Test output";
     vi.mocked(callGenerate).mockResolvedValue(mockProse);
+    const { buildSceneProseSystemPrompt } = await import("@/lib/ai/prompts");
     const narrative = createMinimalNarrative();
     const scene = createScene("S-001");
     await generateSceneProse(
@@ -1215,9 +1221,11 @@ describe("generateSceneProse", () => {
       undefined,
       "Write with dark humor",
     );
-    const callArgs = vi.mocked(callGenerate).mock.calls[0];
-    expect(callArgs[1]).toContain("SCENE DIRECTION");
-    expect(callArgs[1]).toContain("dark humor");
+    // Builder receives the guidance as `direction` — the system prompt itself
+    // is now centralised in prompts/scenes/prose.ts and tested there.
+    expect(buildSceneProseSystemPrompt).toHaveBeenCalledWith(
+      expect.objectContaining({ direction: "Write with dark humor" }),
+    );
   });
   it("includes prose profile when available", async () => {
     const mockProse = "Test output";

@@ -1,6 +1,6 @@
 import type { NarrativeState, NarrativeViewState, AnalysisJob, ApiLogEntry, SystemLogEntry, SearchQuery } from '@/types/narrative';
 import { idbGet, idbPut, idbDelete, idbGetAll, NARRATIVES_STORE, META_STORE, API_LOGS_STORE } from '@/lib/idb';
-import { logInfo, logError } from '@/lib/system-logger';
+import { logInfo, logError, logWarning } from '@/lib/system-logger';
 
 const ACTIVE_KEY = 'activeNarrativeId';
 const ACTIVE_BRANCH_KEY = 'activeBranchId';
@@ -74,6 +74,10 @@ export async function loadNarratives(): Promise<NarrativeState[]> {
     const all = await idbGetAll<NarrativeState>(NARRATIVES_STORE);
     return all.map(migrateNarrative);
   } catch (err) {
+    logError('Failed to load narratives', err, {
+      source: 'persistence',
+      operation: 'load-narratives',
+    });
     throw new Error(`Failed to load narratives: ${err instanceof Error ? err.message : String(err)}`);
   }
 }
@@ -82,6 +86,16 @@ export async function saveNarrative(narrative: NarrativeState): Promise<void> {
   try {
     await idbPut(NARRATIVES_STORE, narrative.id, narrative);
   } catch (err) {
+    const isQuota = err instanceof DOMException && (err.name === 'QuotaExceededError' || err.code === 22);
+    logError(`Failed to save narrative "${narrative.id}"`, err, {
+      source: 'persistence',
+      operation: 'save-narrative',
+      details: {
+        narrativeId: narrative.id,
+        sceneCount: Object.keys(narrative.scenes ?? {}).length,
+        quotaExceeded: isQuota,
+      },
+    });
     throw new Error(`Failed to save narrative "${narrative.id}": ${err instanceof Error ? err.message : String(err)}`);
   }
 }
@@ -89,8 +103,17 @@ export async function saveNarrative(narrative: NarrativeState): Promise<void> {
 export async function deleteNarrative(id: string): Promise<void> {
   try {
     await idbDelete(NARRATIVES_STORE, id);
+    logInfo(`Deleted narrative ${id}`, {
+      source: 'persistence',
+      operation: 'delete-narrative',
+      details: { narrativeId: id },
+    });
   } catch (err) {
-    // Errors logged at caller level
+    logError(`Failed to delete narrative ${id}`, err, {
+      source: 'persistence',
+      operation: 'delete-narrative',
+      details: { narrativeId: id },
+    });
   }
 }
 
@@ -99,6 +122,11 @@ export async function loadNarrative(id: string): Promise<NarrativeState | null> 
     const n = await idbGet<NarrativeState>(NARRATIVES_STORE, id);
     return n ? migrateNarrative(n) : null;
   } catch (err) {
+    logError(`Failed to load narrative ${id}`, err, {
+      source: 'persistence',
+      operation: 'load-narrative',
+      details: { narrativeId: id },
+    });
     return null;
   }
 }
@@ -193,7 +221,11 @@ export async function saveApiLogs(narrativeId: string, logs: ApiLogEntry[]): Pro
   try {
     await idbPut(API_LOGS_STORE, narrativeId, logs);
   } catch (err) {
-    // Errors logged at caller level
+    logWarning(`Failed to save API logs for narrative ${narrativeId}`, err, {
+      source: 'persistence',
+      operation: 'save-api-logs',
+      details: { narrativeId, logCount: logs.length },
+    });
   }
 }
 
@@ -263,7 +295,11 @@ export async function saveSystemLogs(narrativeId: string, logs: SystemLogEntry[]
   try {
     await idbPut(API_LOGS_STORE, systemLogsKey(narrativeId), logs);
   } catch (err) {
-    // Errors logged at caller level
+    logWarning(`Failed to save system logs for narrative ${narrativeId}`, err, {
+      source: 'persistence',
+      operation: 'save-system-logs',
+      details: { narrativeId, logCount: logs.length },
+    });
   }
 }
 
@@ -331,7 +367,7 @@ export async function migrateFromLocalStorage(): Promise<void> {
     }
 
     logInfo(`Migrating ${parsed.length} narrative(s) from localStorage to IndexedDB`, {
-      source: 'other',
+      source: 'persistence',
       operation: 'migrate-storage',
       details: { narrativeCount: parsed.length }
     });
@@ -349,7 +385,7 @@ export async function migrateFromLocalStorage(): Promise<void> {
 
     localStorage.removeItem(LS_STORAGE_KEY);
     logInfo('Migration complete — localStorage cleared', {
-      source: 'other',
+      source: 'persistence',
       operation: 'migrate-storage',
       details: { narrativeCount: parsed.length }
     });

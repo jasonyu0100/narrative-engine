@@ -32,6 +32,17 @@ export function useAutoPlay() {
     const headIndex = resolvedEntryKeys.length - 1;
     const branch = activeNarrative.branches[activeBranchId];
 
+    logInfo(`Auto-play cycle ${autoRunState.currentCycle + 1} starting`, {
+      source: 'auto-play',
+      operation: 'cycle-start',
+      details: {
+        cycle: autoRunState.currentCycle + 1,
+        resolvedEntries: resolvedEntryKeys.length,
+        hasCoordinationPlan: !!branch?.coordinationPlan,
+        branchId: activeBranchId,
+      },
+    });
+
     // ── Coordination Plan Mode ────────────────────────────────────────────────
     // When a coordination plan exists, use plan-based generation
     const coordPlan = branch?.coordinationPlan;

@@ -1158,7 +1158,7 @@ export const REASONING_BUDGETS: Record<ReasoningLevel, number> = {
 };
 
 /** Output format for prose generation */
-export type ProseFormat = "prose" | "screenplay";
+export type ProseFormat = "prose" | "screenplay" | "simulation" | "meta";
 
 /** Target archetype for force standards — what balance of forces the story aims for */
 export type ArchetypeKey = "opus" | "series" | "atlas" | "chronicle" | "classic" | "stage" | "paper";
@@ -1369,6 +1369,20 @@ export type SystemLogEntry = {
     | "direction-generation"
     | "prose-generation"
     | "plan-generation"
+    | "pacing-sampling"
+    | "beat-sampling"
+    | "pressure-analysis"
+    | "force-compute"
+    | "reconstruction"
+    | "review"
+    | "embedding"
+    | "search"
+    | "persistence"
+    | "asset"
+    | "image-generation"
+    | "audio-generation"
+    | "ingest"
+    | "api"
     | "other";
   /** Current operation */
   operation?: string;

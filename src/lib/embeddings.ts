@@ -33,9 +33,14 @@ export async function generateEmbeddings(
   const data = await response.json();
 
   logInfo('Generated embeddings', {
-    source: 'other',
+    source: 'embedding',
     operation: 'generate',
-    details: { count: texts.length, model: data.model, usage: data.usage },
+    details: {
+      count: texts.length,
+      model: data.model,
+      totalTokens: data.usage?.total_tokens ?? null,
+      narrativeId: narrativeId ?? null,
+    },
   });
 
   return data.embeddings;
@@ -55,6 +60,13 @@ export async function generateEmbeddingsBatch(
 ): Promise<number[][]> {
   const results: number[][] = [];
   let completed = 0;
+  const startedAt = Date.now();
+
+  logInfo('Starting embedding batch', {
+    source: 'embedding',
+    operation: 'batch-generate',
+    details: { total: texts.length, batchSize: EMBEDDING_BATCH_SIZE, narrativeId: narrativeId ?? null },
+  });
 
   for (let i = 0; i < texts.length; i += EMBEDDING_BATCH_SIZE) {
     const batch = texts.slice(i, i + EMBEDDING_BATCH_SIZE);
@@ -65,13 +77,23 @@ export async function generateEmbeddingsBatch(
       onProgress?.(completed, texts.length);
     } catch (error) {
       logError('Failed to generate embedding batch', error, {
-        source: 'other',
+        source: 'embedding',
         operation: 'batch-generate',
-        details: { batchStart: i, batchSize: batch.length, total: texts.length },
+        details: { batchStart: i, batchSize: batch.length, total: texts.length, narrativeId: narrativeId ?? null },
       });
       throw error;
     }
   }
+
+  logInfo('Embedding batch complete', {
+    source: 'embedding',
+    operation: 'batch-generate',
+    details: {
+      total: texts.length,
+      durationMs: Date.now() - startedAt,
+      narrativeId: narrativeId ?? null,
+    },
+  });
 
   return results;
 }

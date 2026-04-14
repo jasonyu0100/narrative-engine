@@ -40,6 +40,18 @@ import {
   THREAD_LOG_NODE_TYPES,
   THREAD_TERMINAL_STATUSES,
 } from "@/types/narrative";
+import {
+  SCENE_STRUCTURE_SYSTEM,
+  buildSceneStructurePrompt,
+  ARC_GROUPING_SYSTEM,
+  buildArcGroupingPrompt,
+  RECONCILE_ENTITIES_SYSTEM,
+  buildReconcileEntitiesPrompt,
+  RECONCILE_SEMANTIC_SYSTEM,
+  buildReconcileSemanticPrompt,
+  THREADING_SYSTEM,
+  buildThreadingPrompt,
+} from "@/lib/prompts/analysis";
 
 // ── Scene-level Splitting ────────────────────────────────────────────────────
 
@@ -177,169 +189,8 @@ export async function extractSceneStructure(
   plan: BeatPlan | null,
   onToken?: (token: string, accumulated: string) => void,
 ): Promise<SceneStructureResult> {
-  const beatSection = plan
-    ? `\n\nBEAT PLAN (${plan.beats.length} beats — use as a guide for where events happen):\n${plan.beats.map((b, i) => `Beat ${i + 1} [${b.fn}/${b.mechanism}]: ${b.what}`).join("\n")}`
-    : "";
-
-  const prompt = `Extract narrative structure from this scene's prose.
-
-SCENE PROSE:
-${prose}${beatSection}
-
-FORCE FORMULAS — your extractions are the direct inputs:
-- FATE = Σ √arcs × stageWeight × (1 + log(1 + investment)) (thread commitment toward resolution). Ref: ~1.5/scene.
-- WORLD = ΔN_c + √ΔE_c (entity transformation — what we learn about characters, locations, artifacts). Ref: ~12/scene.
-- SYSTEM = ΔN + √ΔE (world deepening — rules, structures, concepts). Ref: ~3/scene.
-
-Return JSON:
-{
-  "povName": "POV character name",
-  "locationName": "Where this scene takes place",
-  "participantNames": ["All characters present"],
-  "events": ["short_event_tags"],
-  "summary": "3-5 sentence narrative summary using character and location NAMES",
-  "characters": [{"name": "Full Name", "role": "anchor|recurring|transient", "firstAppearance": false, "imagePrompt": "1-2 sentence LITERAL physical description: concrete traits like hair colour, build, clothing style. No metaphors or figurative language."}],
-  "locations": [{"name": "Location Name", "prominence": "domain|place|margin", "parentName": "Parent or null", "description": "Brief description", "imagePrompt": "1-2 sentence LITERAL visual description: architecture, landscape, lighting, weather. Concrete physical details only, no metaphors.", "tiedCharacterNames": ["characters tied here"]}],
-  "artifacts": [{"name": "Artifact Name", "significance": "key|notable|minor", "imagePrompt": "1-2 sentence LITERAL visual description — concrete physical details only, no metaphors or figurative language", "ownerName": "owner or null"}],
-  "threads": [{"description": "A COMPELLING QUESTION with stakes, uncertainty, investment — 15-30 words. BAD: 'Will X succeed?' GOOD: 'Can Marcus protect his daughter from the cult that killed his wife?'", "participantNames": ["names"], "statusAtStart": "latent|seeded|active|escalating|critical|resolved|subverted|abandoned", "statusAtEnd": "latent|seeded|active|escalating|critical|resolved|subverted|abandoned", "development": "15-25 words: how this question was advanced or answered in this scene"}],
-  "relationships": [{"from": "Name", "to": "Name", "type": "description", "valence": 0.0}],
-  "threadDeltas": [{"threadDescription": "exact thread description", "from": "latent|seeded|active|escalating|critical|resolved|subverted|abandoned", "to": "latent|seeded|active|escalating|critical|resolved|subverted|abandoned", "addedNodes": [{"content": "15-25 words: how this question was advanced or answered in this scene", "type": "pulse|transition|setup|escalation|payoff|twist|callback|resistance|stall"}]}],
-  "worldDeltas": [{"entityName": "Name", "addedNodes": [{"content": "15-25 words, PRESENT tense: a stable fact about the entity — their unique perspective on reality, identity, or condition", "type": "trait|state|history|capability|belief|relation|secret|goal|weakness"}]}],
-  "relationshipDeltas": [{"from": "Name", "to": "Name", "type": "description", "valenceDelta": 0.1}],
-  "artifactUsages": [{"artifactName": "Name", "characterName": "who or null", "usage": "what the artifact did"}],
-  "ownershipDeltas": [{"artifactName": "Name", "fromName": "prev", "toName": "new"}],
-  "tieDeltas": [{"locationName": "Name", "characterName": "Name", "action": "add|remove"}],
-  "characterMovements": [{"characterName": "Name", "locationName": "destination", "transition": "15-25 words describing how they traveled — the journey, transport, or spatial transition"}],
-  "systemDeltas": {"addedNodes": [{"concept": "15-25 words, PRESENT tense: a general rule or structural fact — how the world works, no specific characters or events", "type": "principle|system|concept|tension|event|structure|environment|convention|constraint"}], "addedEdges": [{"fromConcept": "name", "toConcept": "name", "relation": "enables|governs|opposes|extends|created_by|constrains|exist_within"}]}
-}`;
-
-  const fieldGuide = `
-EXTRACTION STANDARDS — every delta must EARN its place. Low-value deltas flatten the force graph. Each scene records structural deltas that feed the force formulas.
-
-DETECTING FATE — Threads are COMPELLING QUESTIONS that shape fate.
-- A compelling question has STAKES (what's at risk), UNCERTAINTY (outcome not obvious), INVESTMENT (we care).
-- BAD: "Will Bob succeed?" (generic, no stakes). GOOD: "Can Marcus protect his daughter from the cult?" (specific, stakes, investment)
-- Fate is the intangible bigger picture. Threads are questions; fate is where the answers lead.
-- Read prose for MOMENTS THAT MATTER — when does this scene advance the larger story?
-- A thread delta records your detection: "this moment moves the story closer to answering the question."
-- Thread logs track incremental ANSWERS to these questions over time.
-- Fate is what pulls world and system toward meaning. Without it, nothing resolves.
-
-threadDeltas — lifecycle: latent→seeded→active→escalating→critical→resolved/subverted.
-- Escalating = POINT OF NO RETURN. Once detected, the story has promised resolution.
-- Abandoned = cleanup. Threads below escalating that go nowhere should be abandoned, not left hanging.
-- ONE step at a time. NEVER skip phases.
-- Most scenes: 1-2 PULSES (same→same). Real transitions are RARE: 0-1 per scene.
-- Only record a transition when the prose shows a clear, irreversible shift in tension.
-- Touching 2-3 threads per scene (mostly pulses) with at most one transition is typical.
-- THREAD LOG: each threadDelta MUST include 1-3 log entries (15-25 words each) recording how the question was advanced or answered.
-  Log types: pulse (question maintained), transition (question urgency advanced), setup (groundwork laid for answer), escalation (stakes raised), payoff (question answered), twist (expectations subverted), callback (reference to earlier thread event), resistance (opposition to answer), stall (question stagnated).
-  DENSITY STANDARDS (per thread touch):
-    Pulse: 1 log node — what aspect of the thread was maintained or reinforced.
-    Transition: 2-3 log nodes — what caused the shift, what changed, and what it means going forward.
-    Critical/resolution scenes: 2-3 nodes — the payoff, its consequences, and any callbacks to earlier setup.
-  Each log node describes a SPECIFIC observation about thread progression, not a restatement of the scene summary.
-
-worldDeltas — what we LEARN about an entity that wasn't known before. Applies to characters, locations, and artifacts.
-- Characters: new behaviour, belief, capability, or inner state revealed. Not restating what's already known.
-- Locations: new history, rules, dangers, or properties revealed. A location revisited can still earn continuity if the scene reveals something new about it.
-- Artifacts: new capabilities, limitations, or properties demonstrated through usage.
-- Short-lived artifacts (tables, figures, equations, embedded letters/notes/documents): the worldDelta captures the CONTENTS revealed — the data shown, the claim plotted, the text quoted. This is the artifact's entire knowledge graph; it will rarely be extended by later scenes.
-- QUALITY BAR: each node must describe something NOT KNOWN before this scene.
-  BAD: "Alice is curious" (observation). BAD: "The White Rabbit has pink eyes" (already established).
-  GOOD: "Alice abandons caution entirely, chasing the Rabbit without considering how to return" (new behaviour).
-  GOOD: "The forest conceals an ancient boundary ward that repels outsiders" (new location property).
-  GOOD: "The wand backfires when used against its maker" (new artifact limitation).
-  GOOD: "Table 2 reports a 2.3 BLEU drop on EN-DE when positional encoding is removed" (short-lived artifact contents).
-- MAX 2-3 nodes per entity per scene. Most scenes: POV character + one other entity.
-- Entities that appear without revealing anything new: ZERO nodes.
-- addedEdges: connect causally linked changes with "follows", "causes", "contradicts", "enables".
-- Types: trait, state, history, capability, belief, relation, secret, goal, weakness.
-
-relationshipDeltas — only when a relationship SHIFTS, not just exists.
-- valenceDelta: ±0.1 subtle, ±0.2-0.3 meaningful, ±0.4-0.5 dramatic. Most scenes: 0-1.
-
-systemDeltas — REVEALED world rules, not character observations. 15-25 words, PRESENT TENSE.
-  FICTION: ✓ "Wizards cannot Apparate within Hogwarts grounds due to ancient protective enchantments."
-  FICTION: ✓ "The One Ring corrupts its bearer over time, amplifying their desire for power."
-  FICTION: ✗ "Magic" (too vague) — describe HOW it works
-  NON-FICTION: ✓ "Self-attention computes weighted sums where each position attends to all positions in the sequence."
-  NON-FICTION: ✓ "Transformers eliminate recurrence entirely, relying solely on attention mechanisms for sequence modeling."
-  NON-FICTION: ✗ "Transformer architecture" (too short) — describe what it DOES
-- MAX 1-2 concepts per scene. Most scenes: 0-1. Only exposition/world-building: 3+.
-- Types: principle, system, concept, tension, event, structure, environment, convention, constraint.
-- Edges: enables, governs, opposes, extends, created_by, constrains, exist_within.
-
-ENTITY EXTRACTION — entities carry ONLY identity (name, role, significance). ALL world/lore MUST be emitted as scenes[].worldDeltas on the scene where it is revealed.
-
-- characters: conscious beings with AGENCY IN THE SCENE. The test: does this person ACT, SPEAK, DECIDE, or THINK within the scene? If they are only NAMED (cited, referenced, listed, footnoted) without acting, they are NOT a character — skip entirely.
-  FICTION: ✓ Harry Potter, Gandalf, Elizabeth Bennet — people with agency
-  FICTION: ✓ Hedwig, Shadowfax — named animals with personality
-  NON-FICTION: ✓ Einstein proposed relativity after observing X — acting in the narrative
-  NON-FICTION: ✓ "the lead researcher configured the experiment" — someone performing an action
-  NON-FICTION: ✗ "Vaswani et al., 2017", "Brown et al., 2020", "(Misra and Maaten, 2020)" — CITATION REFERENCES. Names appear once as a pointer to prior work, with no agency in the current text. Skip.
-  NON-FICTION: ✗ Bibliography entries (full author-title-venue tuples at the end of a paper). Skip entirely — these are a REFERENCE LIST, not a cast.
-  NON-FICTION: ✗ "Bordes et al., 2015", "Silver et al., 2021" — inline citations, even when repeated, if the author is only referenced (not depicted acting).
-  NON-FICTION: ✗ "The scientific community", "reviewers", "prior work by X and Y" — collectives or one-line name-drops, not characters.
-  EDGE CASE — the single test: take the scene, delete the character. Does the scene still read the same? If yes, they are a reference/citation, not a character. Do not extract them, and do not invent a transient character for one-line name-drops.
-  anchor: 3-5 worldDeltas on first appearance. recurring: 2-4. transient: 1-2.
-
-- locations: PHYSICAL spatial areas you can STAND IN.
-  FICTION: ✓ Hogwarts, the Shire, Pemberley — places you can walk into
-  FICTION: ✗ "The wizarding world", "Middle-earth politics" — abstract domains (system knowledge)
-  NON-FICTION: ✓ Google's data center, Stanford lab, the conference room — physical places
-  NON-FICTION: ✗ "The field of machine learning", "academia", "NeurIPS" — abstract domains (system knowledge)
-  Nest via parentName. tiedCharacterNames: characters who BELONG (residents, members).
-  domain: 3-5 worldDeltas. place: 2-4. margin: 1-2.
-
-- artifacts: things with UTILITY or ECONOMIC VALUE — objects that are USED, WIELDED, POSSESSED, CONSUMED, or DEPLOYED. The defining test: does this artifact deliver a specific utility to someone in the scene? If no utility → not an artifact.
-  FICTION: ✓ A wand, the One Ring, a ship, a letter — objects wielded or possessed
-  FICTION: ✓ A diary entry, a newspaper clipping, a map, a prophecy scroll — in-text DOCUMENTS that deliver information the reader/characters consume (short-lived: significance=minor/notable)
-  FICTION: ✗ "Magic", "swordsmanship", "prophecy-as-concept" — concepts (system knowledge)
-  NON-FICTION: ✓ GPT-4, TensorFlow, WMT dataset, P100 GPU — specific software/hardware/datasets actually USED in the work
-  NON-FICTION: ✓ Figure 3, Table 2, Equation 4, Algorithm 1 — in-text artefacts whose utility is delivering specific data/claims/procedures. Name them explicitly with their content ("Figure 3: Mode-1 perception-action episode", "Table 2: ablation results").
-  NON-FICTION: ✗ "Transformer architecture", "attention mechanism", "BLEU score" — techniques/metrics (system knowledge)
-  NON-FICTION: ✗ "JEPA", "H-JEPA", "GAN", "VAE", "VQ-VAE", "Transformers", "Boltzmann Machine", "Siamese Network", "Dyna architecture", "Memory Network system", "SimCLR", "MoCo", "BYOL", "BERT" — these are METHOD CLASSES / ARCHITECTURES / CONCEPTS, not artifacts. They belong in systemDeltas. An artifact would be a specific trained model, binary, checkpoint, or dataset someone uses.
-  NON-FICTION: ✗ "Brown et al., 2020", "Silver et al., 2021", "Vaswani et al., 2017", "(Misra and Maaten, 2020)" — CITATION REFERENCES to prior work. Not artifacts. Not characters. They are pointers into the bibliography; if the cited work introduces a concept being discussed, that concept belongs in systemDeltas.
-  NON-FICTION: ✗ Bibliography entries (full author-title-venue tuples at the end of a paper). Skip entirely — they carry no scene-level narrative utility.
-  NON-FICTION: ✗ The work being analysed itself (e.g., "A Path Towards Autonomous Machine Intelligence"). The paper is the text, not an artifact within it.
-  NON-FICTION: ✗ Groups or collections of people ("the authors", "reviewers", "prior work by X and Y"). Not artifacts.
-  ownerName: character/location/null. For figures/tables/equations the owner is the author (or null). Documents have an owner (sender, writer).
-  significance: key (load-bearing throughout) / notable (referenced across multiple scenes) / minor (short-lived — appears once, including most tables/figures/embedded documents).
-  key: 2-4 worldDeltas. notable: 1-3. minor: 1.
-  SHORT-LIVED ARTIFACTS (tables, figures, equations, algorithm listings, embedded letters/diaries/notes/maps): the artifact's utility IS its content. worldDeltas MUST capture the CONTENTS — what the table shows, what the figure depicts, what the equation computes, what the letter says. One dense node is usually enough. Do NOT promote the contents to systemDeltas unless the text itself generalises them into a rule.
-    GOOD (Table 2): "Ablation removes positional encoding and BLEU drops 2.3 points on EN-DE, showing positional signal is load-bearing."
-    GOOD (Figure 4): "Plots attention weights across layers: lower layers attend locally, upper layers attend globally across 200-token windows."
-    GOOD (Equation 1): "Defines total cost C(s) as the sum of intrinsic cost IC(s) and trainable cost TC(s)."
-    GOOD (letter): "Contains Dumbledore's instructions to leave Harry with the Dursleys and a warning that Voldemort may return."
-    BAD: "Table 2 shows results" (no contents). BAD: "A letter from Dumbledore" (no contents).
-  DEDUPLICATION: If the same figure/table/equation is referenced in multiple scenes, it is ONE artifact. Do not emit "Figure 10" and "Figure 10: A few standard architectures and their capacity for collapse" as separate artifacts — pick the fullest labelled form.
-
-- threads: narrative tensions. development: what specifically happened.
-
-DISTINCTNESS — every entity must be genuinely distinct from all others:
-- Two threads are distinct if resolving one does NOT automatically resolve the other
-- Two characters are distinct if they are different people (not name variants)
-- Two locations are distinct if they are different physical spaces (not name variants)
-- Two artifacts are distinct if they are different objects (not name variants)
-- Two system concepts are distinct if they describe different rules/facts (not rephrasing)
-If entities overlap, pick ONE canonical form. Do not extract duplicates.
-
-events — 2-4 word tags. 2-4 per scene. Each names a discrete beat.
-artifactUsages — when an artifact delivers utility. Every artifact referenced for what it DOES (not just mentioned by name) is a usage. Every usage MUST have a character who used it.
-  usage: describe WHAT the artifact did — the specific utility delivered (searched for X, generated Y, computed Z).
-ownershipDeltas — only when artifacts change hands.
-tieDeltas — significant bond changes. NOT temporary visits.
-characterMovements — only physical relocation. Vivid transitions.
-
-VARIANCE IS SIGNAL:
-- Quiet scene: 0 transitions, 1 continuity node, 0 system, 2 events = CORRECT.
-- Climactic scene: 2 transitions, 5 nodes, 3 concepts, 5 events = CORRECT.
-- If every scene has similar counts, you are extracting noise. The graph needs peaks and valleys.`;
-
-  const fullPrompt = prompt + "\n" + fieldGuide;
-  const system = `You are a narrative structure extractor. Given a scene's exact prose and its beat plan, extract all entities, deltas, and structural data accurately. Dense prose deserves rich extraction; sparse prose deserves minimal extraction. Return only valid JSON.`;
-  const raw = await callAnalysis(fullPrompt, system, onToken);
+  const fullPrompt = buildSceneStructurePrompt(prose, plan);
+  const raw = await callAnalysis(fullPrompt, SCENE_STRUCTURE_SYSTEM, onToken);
   const json = extractJSON(raw);
   const parsed = JSON.parse(json) as SceneStructureResult;
 
@@ -384,20 +235,8 @@ export async function groupScenesIntoArcs(
     });
   }
 
-  const prompt = `Name each arc based on its scene summaries. An arc is a narrative unit of ~4 scenes.
-
-${groups.map((g, i) => `ARC ${i + 1} (scenes ${g.sceneIndices[0] + 1}-${g.sceneIndices[g.sceneIndices.length - 1] + 1}):\n${g.summaries.map((s, j) => `  Scene ${g.sceneIndices[j] + 1}: ${s}`).join("\n")}`).join("\n\n")}
-
-Return JSON array of arc names (one per arc, in order):
-["Arc 1 Name", "Arc 2 Name", ...]
-
-Rules:
-- Each name should capture the arc's thematic thrust in 2-5 words
-- Names should be evocative and specific, not generic ("The Betrayal at Dawn" not "Events")`;
-
-  const system =
-    "You are a narrative analyst. Name story arcs based on scene summaries. Return only a JSON array of strings.";
-  const raw = await callAnalysis(prompt, system, onToken);
+  const prompt = buildArcGroupingPrompt(groups);
+  const raw = await callAnalysis(prompt, ARC_GROUPING_SYSTEM, onToken);
   const json = extractJSON(raw);
   const names = JSON.parse(json) as string[];
 
@@ -607,70 +446,8 @@ async function reconcileEntities(
     return { characterMerges: {}, locationMerges: {}, artifactMerges: {} };
   }
 
-  const prompt = `Reconcile named entities extracted independently from different scenes of the same story. The same person, place, or object often appears under different surface forms (title, first name, nickname, full name). Your job: collapse every variant of the same entity onto its fullest canonical form.
-
-CHARACTERS (${allCharNames.size}):
-${[...allCharNames].map((n, i) => `${i + 1}. "${n}"`).join("\n")}
-
-LOCATIONS (${allLocNames.size}):
-${[...allLocNames].map((n, i) => `${i + 1}. "${n}"`).join("\n")}
-
-ARTIFACTS (${allArtifactNames.size}):
-${[...allArtifactNames].map((n, i) => `${i + 1}. "${n}"`).join("\n")}
-
-For each category, map every variant to its canonical form. Only include entries where variant ≠ canonical.
-
-Return JSON:
-{
-  "characterMerges": { "variant": "canonical" },
-  "locationMerges": { "variant": "canonical" },
-  "artifactMerges": { "variant": "canonical" }
-}
-
-═══ PRINCIPLE ═══
-Entities are unique referents — a character, place, or object exists once in the story world. If two surface forms clearly denote the same referent, they MUST be merged. Prefer the fullest, most identifying canonical form.
-
-═══ CHARACTER MERGING ═══
-MERGE aggressively when it is the same person:
-  ✓ "Harry" / "Harry Potter" → "Harry Potter" (pick fullest)
-  ✓ "Professor McGonagall" / "Minerva McGonagall" / "McGonagall" → "Professor Minerva McGonagall"
-  ✓ "Mr. Dursley" / "Vernon Dursley" / "Uncle Vernon" → "Vernon Dursley"
-  ✓ "Hagrid" / "Rubeus Hagrid" → "Rubeus Hagrid"
-  ✓ "Dumbledore" / "Albus Dumbledore" / "Professor Dumbledore" → "Albus Dumbledore"
-
-Canonical choice: pick the form that is most uniquely identifying. Full name > title + last name > first name alone. If a title is part of how the character is known (Professor, Lord), prefer including it.
-
-DO NOT MERGE: Different people who share a surname or title.
-  ✗ "Mr. Dursley" + "Dudley Dursley" — different people, same family
-  ✗ "Professor Snape" + "Professor McGonagall" — different professors
-  ✗ "Fred Weasley" + "George Weasley" — twins, different people
-
-═══ LOCATION MERGING ═══
-MERGE aggressively when it is the same place:
-  ✓ "The Great Hall" / "Great Hall" / "Hogwarts Great Hall" → "Great Hall"
-  ✓ "Platform Nine and Three-Quarters" / "Platform 9¾" → "Platform 9¾"
-  ✓ "Diagon Alley" / "the Alley" (if context makes it unambiguous)
-
-DO NOT MERGE: Distinct places even if adjacent or nested.
-  ✗ "The Great Hall" + "The Entrance Hall" — different rooms in Hogwarts
-  ✗ "Diagon Alley" + "Knockturn Alley" — different streets
-  ✗ "Hogwarts" + "Hogsmeade" — different locations
-
-═══ ARTIFACT MERGING ═══
-MERGE aggressively when it is the same object:
-  ✓ "the Elder Wand" / "Elder Wand" / "Dumbledore's wand" → "the Elder Wand"
-  ✓ "Marauder's Map" / "The Marauder's Map" → "the Marauder's Map"
-  ✓ "the Sorcerer's Stone" / "the Philosopher's Stone" (if clearly the same object)
-
-DO NOT MERGE: Different instances of the same type.
-  ✗ "Harry's wand" + "Voldemort's wand" — different wands
-  ✗ "The Invisibility Cloak" + "The Elder Wand" — different Hallows
-
-Empty object {} if no merges needed for a category.`;
-
-  const system = `You resolve surface-form variants of named entities (characters, locations, artifacts) to their canonical full forms. Entities are unique referents: when two variants clearly denote the same person/place/object, you MUST merge them. Prefer the fullest identifying name. Return only valid JSON.`;
-
-  const raw = await callAnalysis(prompt, system, onToken);
+  const prompt = buildReconcileEntitiesPrompt(allCharNames, allLocNames, allArtifactNames);
+  const raw = await callAnalysis(prompt, RECONCILE_ENTITIES_SYSTEM, onToken);
   const parsed = parseMergeJSON<Partial<EntityMerges>>(raw);
   return {
     characterMerges: parsed.characterMerges ?? {},
@@ -695,62 +472,8 @@ async function reconcileSemantic(
     return { threadMerges: {}, systemMerges: {} };
   }
 
-  const prompt = `Reconcile narrative THREADS and SYSTEM KNOWLEDGE concepts extracted independently from different scenes of the same story. Unlike named entities, these are propositions — full sentences that encode nuance. Your job: preserve distinct nuances. Only merge when two items are genuine restatements of the same proposition.
-
-THREADS (${allThreadDescs.size}):
-${[...allThreadDescs].map((d, i) => `${i + 1}. "${d}"`).join("\n")}
-
-SYSTEM KNOWLEDGE (${allWKConcepts.size}):
-${[...allWKConcepts].map((c, i) => `${i + 1}. "${c}"`).join("\n")}
-
-For each category, map every variant to its canonical form. Only include entries where variant ≠ canonical.
-
-Return JSON:
-{
-  "threadMerges": { "variant": "canonical" },
-  "systemMerges": { "variant": "canonical" }
-}
-
-═══ GUIDING PRINCIPLE ═══
-DEFAULT IS TO KEEP SEPARATE. Threads and knowledge concepts are deliberately fine-grained. A typical story has dozens of distinct threads and system concepts — squashing them loses narrative texture. Only merge when you would be embarrassed to present both items in a final analysis because they say the exact same thing.
-
-Test for merging: if I resolved the canonical form, would every variant also be resolved as a natural consequence? If there's any distinguishing element (different participants, different stakes, different scope, different mechanism), the answer is NO — keep separate.
-
-═══ THREAD MERGING ═══
-MERGE only when two descriptions are the same narrative tension restated:
-  ✓ "Who is trying to steal the Stone?" + "The mystery of who wants the Sorcerer's Stone" — identical question, different wording
-  ✓ "Snape's antagonism toward Harry" + "Snape's hostility toward Harry" — same relational tension
-  ✓ "Will Harry survive Voldemort?" + "Harry's survival against Voldemort" — same question
-
-KEEP SEPARATE — any of these distinctions is enough:
-  ✗ Different participants: "Harry's conflict with Snape" vs "Harry's conflict with Malfoy"
-  ✗ Different scope: "Harry's fear of Voldemort" vs "The wizarding world's fear of Voldemort"
-  ✗ Different stakes: "Harry learns he is a wizard" vs "Harry adjusts to Hogwarts life"
-  ✗ Different antagonists: "Harry vs Voldemort" vs "Harry vs the Dursleys"
-  ✗ Different phases of related arcs: "Discovering the Stone is hidden" vs "Reaching the Stone"
-  ✗ Seemingly-related mysteries that are actually distinct: "Who opened the Chamber?" vs "Who is the Heir of Slytherin?"
-  ✗ A thread from two characters' perspectives where each has their own arc: "Snape's loyalty to Dumbledore" vs "Dumbledore's trust in Snape" — linked but they are distinct internal arcs
-
-═══ SYSTEM KNOWLEDGE MERGING ═══
-MERGE only when two concepts state the same rule or fact in different words:
-  ✓ "Magic requires a wand to channel" + "Wands are required to cast spells" — same rule
-  ✓ "The house point system rewards behavior" + "Houses earn and lose points based on student conduct" — same mechanism
-
-KEEP SEPARATE — any of these is a distinction:
-  ✗ Different mechanisms in the same domain: "Unforgivable Curses are illegal" vs "Dark magic is dangerous" — one is a legal rule, the other is a physical principle
-  ✗ Related but distinct facts: "Hogwarts has four houses" vs "The Sorting Hat assigns students" — both about the house system, but different claims
-  ✗ Parent and child concepts: "Magic exists" vs "Spells require incantations" — the second is more specific
-  ✗ Different types in the same family: "World models enable planning" vs "World models enable reasoning" — these share a subject but make distinct claims
-  ✗ Claims about the same subject with different predicates: "AI systems require large datasets" vs "AI systems are unreliable without supervision" — same topic, different propositions
-
-═══ WHEN IN DOUBT — DO NOT MERGE ═══
-Losing a distinction is worse than keeping a duplicate. The downstream pipeline can still work with slight redundancy, but it cannot recover lost nuance. If you are even slightly unsure, leave both items intact.
-
-Empty object {} if no merges needed for a category.`;
-
-  const system = `You reconcile narrative threads and system knowledge concepts. These are propositions, not proper names — apparent duplicates frequently encode real nuance. Your default stance is to PRESERVE. Only merge two items when one is clearly a restatement of the other with the same participants, scope, stakes, and claim. When in doubt, keep separate. Return only valid JSON.`;
-
-  const raw = await callAnalysis(prompt, system, onToken);
+  const prompt = buildReconcileSemanticPrompt(allThreadDescs, allWKConcepts);
+  const raw = await callAnalysis(prompt, RECONCILE_SEMANTIC_SYSTEM, onToken);
   const parsed = parseMergeJSON<Partial<SemanticMerges>>(raw);
   return {
     threadMerges: parsed.threadMerges ?? {},
@@ -1032,33 +755,8 @@ export async function analyzeThreading(
 ): Promise<Record<string, string[]>> {
   if (canonicalThreads.length < 2) return {};
 
-  const prompt = `You are analyzing narrative threads to identify causal dependencies.
-
-CANONICAL THREADS (post-merge, deduplicated):
-${canonicalThreads.map((d, i) => `${i + 1}. "${d}"`).join("\n")}
-
-Identify which threads CAUSALLY DEPEND on other threads. A depends on B means:
-- A's resolution is affected by B's trajectory
-- B must progress or resolve for A to advance
-- They converge at critical story moments
-
-Return JSON:
-{
-  "threadDependencies": {
-    "exact thread description": ["exact dependent thread 1", "exact dependent thread 2"]
-  }
-}
-
-RULES:
-- Use EXACT thread descriptions from the list above — copy-paste precisely
-- A thread can depend on multiple others; dependencies can be mutual
-- NOT dependencies: threads that are merely thematic, or share characters without causal interaction
-- Focus on structural narrative connections, not surface-level similarities
-- If no dependencies exist, return { "threadDependencies": {} }`;
-
-  const system = `You are a narrative structure analyst. Identify causal dependencies between story threads. Return only valid JSON.`;
-
-  const raw = await callAnalysis(prompt, system, onToken);
+  const prompt = buildThreadingPrompt(canonicalThreads);
+  const raw = await callAnalysis(prompt, THREADING_SYSTEM, onToken);
   const json = extractJSON(raw);
 
   try {

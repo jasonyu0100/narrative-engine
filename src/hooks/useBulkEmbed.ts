@@ -105,7 +105,7 @@ export function useBulkEmbed() {
       }
 
       logInfo('Completed bulk embedding', {
-        source: 'other',
+        source: 'embedding',
         operation: 'bulk-embed-complete',
         details: { narrativeId: narrative.id, modeCount: modes.length },
       });
@@ -113,7 +113,7 @@ export function useBulkEmbed() {
       const errorMsg = err instanceof Error ? err.message : 'Unknown error';
       setError(errorMsg);
       logError('Failed to generate bulk embeddings', err, {
-        source: 'other',
+        source: 'embedding',
         operation: 'bulk-embed',
         details: { narrativeId: narrative.id, modeCount: modes.length },
       });

@@ -2,50 +2,34 @@ import { callGenerate, SYSTEM_PROMPT } from './api';
 import { GENERATE_MODEL } from '@/lib/constants';
 import { parseJson } from './json';
 import type { NarrativeState, ProseProfile } from '@/types/narrative';
+import { buildIngestProseProfilePrompt, buildDeriveProseProfilePrompt } from '@/lib/prompts';
+import { logError, logInfo } from '@/lib/system-logger';
 
 /**
  * Parse pasted text (prose sample, style guide, author analysis) into a ProseProfile.
  * Extracts voice, stance, devices, and rules from the text.
+ * Prompt body lives in src/lib/prompts/ingest — see buildIngestProseProfilePrompt.
  */
 export async function ingestProseProfile(text: string, existing?: Partial<ProseProfile>): Promise<ProseProfile> {
-  const existingBlock = existing
-    ? `EXISTING PROFILE (use as context — override fields where the text clearly suggests different values):\n${JSON.stringify(existing, null, 2)}\n`
-    : '';
+  const existingBlock = existing ? JSON.stringify(existing, null, 2) : undefined;
+  const prompt = buildIngestProseProfilePrompt(text, existingBlock);
 
-  const prompt = `Analyze the following text and extract a prose profile — the voice, style, and craft choices that define how this writing sounds. The text may be a prose sample, style guide, author analysis, editorial notes, or any description of writing style.
+  logInfo('Ingesting prose profile from sample', {
+    source: 'ingest',
+    operation: 'ingest-prose-profile',
+    details: { sampleLength: text.length, hasExisting: !!existing },
+  });
 
-For each field, extract the most accurate single value:
-
-- register: Tonal register of the narration. Examples: conversational, literary, raw, lyrical, journalistic, formal, sardonic, mythic
-- stance: Narrator's distance from the character. Examples: close_third, distant_third, first_person, omniscient, second_person, close_first
-- tense: Grammatical tense. Examples: past, present, future
-- sentenceRhythm: Structural cadence of prose. Examples: terse, flowing, staccato, varied, periodic, cumulative
-- interiority: How deep the narrator goes into character thought. Examples: surface, moderate, deep, stream_of_consciousness
-- dialogueWeight: Proportion of prose given to dialogue. Examples: heavy, moderate, sparse, minimal, none
-- devices: Rhetorical and narrative devices the author uses. Examples: free_indirect_discourse, dramatic_irony, unreliable_narrator, extended_metaphor, ironic_understatement, comic_escalation, epistolary_fragments, stream_of_consciousness, second_person_address, pathetic_fallacy
-- rules: 3-6 SPECIFIC prose rules as imperatives — concrete enough to apply sentence-by-sentence. Derive from what this author DOES. BAD: "Write well" or "Be descriptive". GOOD: "Show emotion through physical reaction, never name it" / "No figurative language — just plain statements of fact" / "Terse does not mean monotone — vary between clipped fragments and occasional longer compound sentences" / "Exposition delivered only through discovery and dialogue"
-- antiPatterns: 3-5 SPECIFIC prose failures to avoid — concrete patterns that would break this voice. Derive from what the author does NOT do. BAD: "Don't be boring". GOOD: "NEVER use 'This was a [Name]' to introduce a mechanic — show what it does" / "No strategic summaries in internal monologue ('He calculated that...') — show through action" / "Do not follow a reveal with a sentence restating its significance" / "Do not write narrator summaries of what the character already achieved on-page"
-
-${existingBlock}
-TEXT TO ANALYZE:
-${text}
-
-Return JSON:
-{
-  "register": "...",
-  "stance": "...",
-  "tense": "...",
-  "sentenceRhythm": "...",
-  "interiority": "...",
-  "dialogueWeight": "...",
-  "devices": ["...", "..."],
-  "rules": ["...", "..."],
-  "antiPatterns": ["...", "..."]
-}
-
-Extract 2-6 devices, 3-6 rules, and 3-5 anti-patterns depending on how much the text reveals. Rules and anti-patterns must be SPECIFIC and ACTIONABLE — each should describe a concrete sentence-level pattern to follow or avoid. Only extract what is clearly stated or strongly implied — don't invent. Use snake_case for multi-word values (e.g., "close_third", not "close third").`;
-
-  const raw = await callGenerate(prompt, SYSTEM_PROMPT, undefined, 'ingestProseProfile', GENERATE_MODEL);
+  let raw: string;
+  try {
+    raw = await callGenerate(prompt, SYSTEM_PROMPT, undefined, 'ingestProseProfile', GENERATE_MODEL);
+  } catch (err) {
+    logError('ingestProseProfile call failed', err, {
+      source: 'ingest',
+      operation: 'ingest-prose-profile',
+    });
+    throw err;
+  }
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const parsed = parseJson(raw, 'ingestProseProfile') as any;
 
@@ -113,42 +97,29 @@ export async function deriveProseProfile(narrative: NarrativeState): Promise<Pro
   }
 
   const context = lines.join('\n');
+  const prompt = buildDeriveProseProfilePrompt(context);
 
-  const prompt = `You are a literary analyst. Given the following story context — its characters, world, narrative threads, and prose samples — derive the ideal prose profile that best fits this story's voice, tone, and genre.
+  logInfo('Deriving prose profile from narrative', {
+    source: 'ingest',
+    operation: 'derive-prose-profile',
+    details: {
+      characters: chars.length,
+      threads: threads.length,
+      scenes: scenes.length,
+      proseExcerpts: withProse.length,
+    },
+  });
 
-${context}
-
-Analyze the story's genre, tone, subject matter, and existing prose (if any) to determine the best-fitting prose profile. Consider:
-- What register suits the story's world and characters?
-- What narrative stance and tense fit the genre?
-- What sentence rhythm matches the story's pacing?
-- How deep should interiority go given the POV and character complexity?
-- What rhetorical devices would serve this story?
-- What craft rules should guide prose generation? (SPECIFIC imperatives, not generic advice)
-- What specific prose failures would break this voice? (concrete anti-patterns)
-
-QUALITY BAR for rules and anti-patterns:
-- BAD rule: "Write well" / "Be descriptive" / "Show don't tell"
-- GOOD rule: "Show emotion through physical reaction, never name it" / "No figurative language — just plain statements of fact" / "Terse does not mean monotone — vary between clipped fragments and occasional longer compound sentences"
-- BAD anti-pattern: "Don't be boring" / "Avoid bad prose"
-- GOOD anti-pattern: "NEVER use 'This was a [Name]' to introduce a mechanic — show what it does" / "No strategic summaries in internal monologue ('He calculated that...') — show through action" / "Do not follow a reveal with a sentence restating its significance"
-
-Return JSON:
-{
-  "register": "...",
-  "stance": "...",
-  "tense": "...",
-  "sentenceRhythm": "...",
-  "interiority": "...",
-  "dialogueWeight": "...",
-  "devices": ["...", "..."],
-  "rules": ["...", "..."],
-  "antiPatterns": ["...", "..."]
-}
-
-Extract 2-6 devices, 3-6 rules, and 3-5 anti-patterns. Every rule and anti-pattern must describe a concrete sentence-level pattern. Use snake_case for multi-word values (e.g., "close_third").`;
-
-  const raw = await callGenerate(prompt, SYSTEM_PROMPT, undefined, 'deriveProseProfile', GENERATE_MODEL);
+  let raw: string;
+  try {
+    raw = await callGenerate(prompt, SYSTEM_PROMPT, undefined, 'deriveProseProfile', GENERATE_MODEL);
+  } catch (err) {
+    logError('deriveProseProfile call failed', err, {
+      source: 'ingest',
+      operation: 'derive-prose-profile',
+    });
+    throw err;
+  }
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const parsed = parseJson(raw, 'deriveProseProfile') as any;
 

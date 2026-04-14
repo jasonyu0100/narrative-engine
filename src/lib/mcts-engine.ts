@@ -92,7 +92,18 @@ export function selectNode(
     childCount + (inFlightCounts.get(id) ?? 0) < maxSlots(id, config, tree);
 
   // Root: if it has available slots, expand here
-  if (slotsAvailable('root', tree.rootChildIds.length)) return 'root';
+  if (slotsAvailable('root', tree.rootChildIds.length)) {
+    logInfo(`MCTS selection: root has open slot`, {
+      source: 'mcts',
+      operation: 'select-node',
+      details: {
+        searchMode: config.searchMode,
+        rootChildren: tree.rootChildIds.length,
+        rootSlots: maxSlots('root', config, tree),
+      },
+    });
+    return 'root';
+  }
   if (tree.rootChildIds.length === 0) return null;
 
   // Walk down via UCB1
@@ -108,12 +119,31 @@ export function selectNode(
     if (score > bestUcb) { bestUcb = score; currentId = id; }
   }
 
+  const walkTrace: { id: string; ucb: number; visits: number; score: number }[] = [];
+
   while (currentId) {
     const node = tree.nodes[currentId];
     if (!node) return null;
 
+    walkTrace.push({
+      id: currentId,
+      ucb: bestUcb === Infinity ? -1 : Number(bestUcb.toFixed(4)),
+      visits: node.visitCount,
+      score: node.visitCount > 0 ? Number((node.totalScore / node.visitCount).toFixed(4)) : 0,
+    });
+
     // If this node can take more children, expand here
     if (slotsAvailable(currentId, node.childIds.length)) {
+      logInfo(`MCTS selection: expanding node`, {
+        source: 'mcts',
+        operation: 'select-node',
+        details: {
+          searchMode: config.searchMode,
+          targetNode: currentId,
+          depth: walkTrace.length,
+          walk: walkTrace.map((w) => `${w.id}(v${w.visits},s${w.score})`).join(' → '),
+        },
+      });
       return currentId;
     }
 
@@ -129,11 +159,20 @@ export function selectNode(
       const score = ucb1(child, childVisits, C);
       if (score > nextUcb) { nextUcb = score; nextId = childId; }
     }
+    bestUcb = nextUcb;
     currentId = nextId;
   }
 
   // Fallback: find any expandable node
-  return findExpandableNode(tree, config, inFlightCounts);
+  const fallback = findExpandableNode(tree, config, inFlightCounts);
+  if (fallback) {
+    logInfo(`MCTS selection: fallback expandable`, {
+      source: 'mcts',
+      operation: 'select-node',
+      details: { searchMode: config.searchMode, fallbackNode: fallback },
+    });
+  }
+  return fallback;
 }
 
 /** Fallback: find any node that still has available child slots */

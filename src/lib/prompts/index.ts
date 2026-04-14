@@ -25,6 +25,12 @@ export {
   buildThreadHealthPrompt,
   buildCompletedBeatsPrompt,
 } from './scenes/thread-lifecycle';
+export { buildScenePlanSystemPrompt } from './scenes/plan';
+export { buildBeatAnalystSystemPrompt } from './scenes/analyze';
+export { buildScenePlanEditSystemPrompt } from './scenes/edit';
+export { PROMPT_PROPOSITION_TRANSMISSION } from './scenes/proposition-transmission';
+export { buildSceneProseSystemPrompt } from './scenes/prose';
+export type { SceneProseSystemPromptArgs } from './scenes/prose';
 
 // ── Schemas ─────────────────────────────────────────────────────────────────
 export {
@@ -73,14 +79,41 @@ export {
   buildIngestRulesPrompt,
   buildIngestSystemsPrompt,
   buildIngestProseProfilePrompt,
+  buildDeriveProseProfilePrompt,
 } from './ingest';
 
 // ── Premise Prompts ─────────────────────────────────────────────────────────
 export {
   PREMISE_SYSTEM,
+  PREMISE_SUGGEST_PROMPT,
   PHASE_GUIDANCE,
   SCHEMA_PREMISE_QUESTION,
 } from './premise';
 
 // ── Prose Prompts ───────────────────────────────────────────────────────────
 export { FORMAT_INSTRUCTIONS } from './prose/format-instructions';
+
+// ── Review Prompts ──────────────────────────────────────────────────────────
+export {
+  buildBranchReviewPrompt,
+  buildProseReviewPrompt,
+  buildPlanReviewPrompt,
+} from './review';
+
+// ── Report Prompts ──────────────────────────────────────────────────────────
+export { REPORT_SYSTEM, REPORT_ANALYSIS_PROMPT, REPORT_SECTIONS } from './report';
+export type { ReportSectionKey } from './report';
+
+// ── Analysis Prompts ────────────────────────────────────────────────────────
+export {
+  SCENE_STRUCTURE_SYSTEM,
+  buildSceneStructurePrompt,
+  ARC_GROUPING_SYSTEM,
+  buildArcGroupingPrompt,
+  RECONCILE_ENTITIES_SYSTEM,
+  buildReconcileEntitiesPrompt,
+  RECONCILE_SEMANTIC_SYSTEM,
+  buildReconcileSemanticPrompt,
+  THREADING_SYSTEM,
+  buildThreadingPrompt,
+} from './analysis';

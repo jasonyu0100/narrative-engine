@@ -216,18 +216,18 @@ function analyzeBalance(
   if (avg.fate === max) {
     return {
       dominant: "fate",
-      recommendation: "Heavy on thread progression. Slow down — develop character inner worlds and ground the story in world details.",
+      recommendation: "Thread progression is leading. Balance by deepening entity inner worlds (character interiority in narrative; institutional, source, or authorial depth in non-fiction) and grounding the work in world detail.",
     };
   }
   if (avg.world === max) {
     return {
       dominant: "world",
-      recommendation: "Heavy on character development. Advance threads — create consequences and move toward resolution.",
+      recommendation: "Entity development is leading. Balance by advancing threads — in dramatic registers, create consequences and press toward resolution; in argument or inquiry, advance the claim or answer the opened question.",
     };
   }
   return {
     dominant: "system",
-    recommendation: "Heavy on world-building. Ground it in character and story — use the rules to drive conflict, not just exposition.",
+    recommendation: "World / systemic exposition is leading. Balance by anchoring rules and mechanisms in entity action or narrative stakes; let evidence do structural work rather than sit as exposition.",
   };
 }
 
@@ -242,13 +242,16 @@ const PHASE_RANGES: Record<StoryPhase, [number, number]> = {
   resolution: [0.9, 1.0],
 };
 
+// Phase guidance is register-aware. The phase structure is preserved, but the
+// guidance language covers fiction, memoir, essay, and research registers so the
+// engine doesn't hard-code Western dramatic assumptions.
 const PHASE_GUIDANCE: Record<StoryPhase, string> = {
-  setup: "Establish characters, world, and initial threads. Plant seeds — do not harvest them. Focus on world-building and character introduction.",
-  rising: "Complications emerge. Threads should advance from seeded to active. Alternate tension with quieter character moments.",
-  midpoint: "A significant shift — revelation, betrayal, or escalation. One thread should reach escalating or critical status.",
-  escalation: "Building toward climax. Multiple threads should be escalating. Increase pressure but maintain breathing room.",
-  climax: "Peak intensity. Resolve critical threads. Character inner worlds should pay off. Maximum convergence of all forces.",
-  resolution: "Wind down. Resolve remaining threads. Focus on aftermath and character growth. Lower intensity.",
+  setup: "Establish entities, world, and initial threads. Plant seeds — do not harvest them. Focus on world-building and entity introduction. In argument/inquiry work: introduce the terrain, stakes, and opening questions; defer the thesis.",
+  rising: "Complications emerge. Threads should advance from seeded to active. Alternate tension with quieter entity-focused beats. In argument/inquiry: evidence accumulates, counterpositions surface, the question sharpens.",
+  midpoint: "A significant shift — revelation, reversal, or escalation. At least one thread should reach escalating or critical status. In argument/inquiry: the decisive pivot — a finding that reorients the frame, or a counterargument that cannot be dismissed.",
+  escalation: "Building toward convergence. Multiple threads should be escalating. Increase pressure but maintain breathing room. In argument/inquiry: claims consolidate, evidence concentrates, alternative explanations get eliminated.",
+  climax: "Peak convergence. Resolve critical threads. Entity inner worlds should pay off. In argument/inquiry: the thesis is fully articulated and evidenced; the strongest counterposition is answered; findings lock in.",
+  resolution: "Wind down. Resolve remaining threads. Focus on aftermath and entity growth. In argument/inquiry: implications, limits, and open questions — what this changes, what it doesn't, what comes next.",
 };
 
 export function getStoryPhase(progress: number): StoryPhase {
@@ -449,14 +452,14 @@ function buildDirective(
     sections.push(`TOO FEW ACTIVE THREADS (${pressure.threads.activeCount}) — seed or activate new threads.`);
   }
 
-  // 3. Character development
-  sections.push("\n## Character Inner Worlds");
+  // 3. Entity development (characters in fiction; authors/sources/institutions in non-fiction)
+  sections.push("\n## Entity Inner Worlds");
   if (pressure.entities.shallow.length > 0) {
     const shallowList = pressure.entities.shallow
       .slice(0, 3)
       .map((c) => `- ${c.name}`)
       .join("\n");
-    sections.push(`UNDERDEVELOPED CHARACTERS — need continuity depth (beliefs, traits, history, goals):\n${shallowList}`);
+    sections.push(`UNDERDEVELOPED ENTITIES — need continuity depth (beliefs, traits, history, goals, capabilities):\n${shallowList}`);
   }
   if (pressure.entities.neglected.length > 0) {
     const neglectedList = pressure.entities.neglected
@@ -466,13 +469,13 @@ function buildDirective(
     sections.push(`NEGLECTED ANCHORS — haven't appeared recently:\n${neglectedList}`);
   }
   if (pressure.entities.recentGrowth < 2) {
-    sections.push("LOW CHARACTER DEVELOPMENT — recent scenes lack world deltas. Deepen character inner worlds.");
+    sections.push("LOW ENTITY DEVELOPMENT — recent scenes lack world deltas. Deepen entity inner worlds.");
   }
 
   // 4. System knowledge
   sections.push("\n## System Knowledge Pressure");
   if (pressure.knowledge.isStagnant) {
-    sections.push("WORLD-BUILDING STAGNANT — introduce new rules, systems, or concepts. Expand what we know about how this world works.");
+    sections.push("WORLD-BUILDING STAGNANT — introduce new rules, systems, or concepts. Expand what we know about how this world works (in non-fiction: deepen the explanatory framework or introduce new evidence).");
   }
 
   // 5. Balance recommendation
@@ -496,20 +499,46 @@ function buildDirective(
 // ── Arc Length Selection ─────────────────────────────────────────────────────
 
 export function pickArcLength(config: AutoConfig, pressure: NarrativePressure): number {
+  let reason: string;
+  let length: number;
+
   // Primed threads ready for resolution → shorter, focused arcs
   if (pressure.threads.primed.length >= 2) {
-    return config.minArcLength;
+    reason = "primed-threads-ready";
+    length = config.minArcLength;
   }
   // Too many active threads → medium arcs to manage complexity
-  if (pressure.threads.needsResolution) {
-    return Math.ceil((config.minArcLength + config.maxArcLength) / 2);
+  else if (pressure.threads.needsResolution) {
+    reason = "needs-resolution";
+    length = Math.ceil((config.minArcLength + config.maxArcLength) / 2);
   }
   // Character development needed → longer arcs for breathing room
-  if (pressure.entities.shallow.length > 0 || pressure.entities.recentGrowth < 2) {
-    return config.maxArcLength;
+  else if (pressure.entities.shallow.length > 0 || pressure.entities.recentGrowth < 2) {
+    reason = "entity-development";
+    length = config.maxArcLength;
   }
   // Default to medium
-  return Math.ceil((config.minArcLength + config.maxArcLength) / 2);
+  else {
+    reason = "default-medium";
+    length = Math.ceil((config.minArcLength + config.maxArcLength) / 2);
+  }
+
+  logInfo(`Arc length chosen`, {
+    source: "auto-play",
+    operation: "pick-arc-length",
+    details: {
+      reason,
+      length,
+      minArcLength: config.minArcLength,
+      maxArcLength: config.maxArcLength,
+      primedThreads: pressure.threads.primed.length,
+      needsResolution: pressure.threads.needsResolution,
+      shallowEntities: pressure.entities.shallow.length,
+      recentGrowth: pressure.entities.recentGrowth,
+    },
+  });
+
+  return length;
 }
 
 // ── Legacy exports for compatibility ─────────────────────────────────────────

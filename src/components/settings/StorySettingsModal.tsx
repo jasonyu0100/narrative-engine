@@ -130,8 +130,10 @@ function AdvancedSection({ settings, update, narrative, resolvedEntryKeys }: {
             </label>
             <div className="space-y-1.5">
               {([
-                { value: 'prose' as ProseFormat, label: 'Prose', desc: 'Standard literary fiction — narrative voice, internal thoughts, sensory detail' },
-                { value: 'screenplay' as ProseFormat, label: 'Screenplay', desc: 'Industry-standard format — sluglines, action blocks, centered dialogue' },
+                { value: 'prose' as ProseFormat, label: 'Prose', desc: 'Standard narrative prose — register follows the work (fiction, memoir, essay, reportage, research).' },
+                { value: 'screenplay' as ProseFormat, label: 'Screenplay', desc: 'Industry-standard format — sluglines, action blocks, centred dialogue.' },
+                { value: 'simulation' as ProseFormat, label: 'Simulation', desc: 'Fluid prose + bracketed in-world system logs (threads, rules, deltas). Game-style HUD surfacing the WORLD\'S own meta-system.' },
+                { value: 'meta' as ProseFormat, label: 'Meta (InkTide)', desc: 'Fluid prose + bracketed engine-telemetry logs (thread IDs, lifecycle transitions, force values, proposition classifications). Debug/analysis overlay surfacing INKTIDE\'S own bookkeeping.' },
               ]).map((opt) => (
                 <button
                   key={opt.value}

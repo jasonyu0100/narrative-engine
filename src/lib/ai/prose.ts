@@ -5,34 +5,11 @@ import { WRITING_MODEL, ANALYSIS_MODEL, MAX_TOKENS_DEFAULT } from '@/lib/constan
 import { parseJson } from './json';
 import { sceneContext, buildProseProfile } from './context';
 import { resolveProfile } from '@/lib/beat-profiles';
-import { logInfo, logError } from '@/lib/system-logger';
+import { logInfo } from '@/lib/system-logger';
+import { FORMAT_INSTRUCTIONS } from '@/lib/prompts';
 
-// ── Format-Specific Instructions ─────────────────────────────────────────────
-
-export const FORMAT_INSTRUCTIONS: Record<ProseFormat, { systemRole: string; formatRules: string }> = {
-  prose: {
-    systemRole: 'You are a literary prose writer crafting a single scene for a novel.',
-    formatRules: `Output format:
-- Output ONLY prose. No scene titles, chapter headers, separators (---), or meta-commentary.
-- Use straight quotes (" and '), never smart/curly quotes or typographic substitutions.
-- Third-person limited POV, locked to the POV character's senses and interiority.
-- Prose should feel novelistic — dramatise through action, dialogue, and sensory texture.`,
-  },
-  screenplay: {
-    systemRole: 'You are a professional screenwriter writing in industry-standard screenplay format.',
-    formatRules: `Screenplay format:
-- Scene headings (sluglines): INT./EXT. LOCATION - DAY/NIGHT (all caps)
-- Action lines: Present tense, third person, visual only. Describe what the camera SEES and HEARS.
-- Character names: ALL CAPS centered before dialogue
-- Dialogue: Centered under character name
-- Parentheticals: Sparingly, in (lowercase), for delivery notes only
-- No internal monologue unless marked (V.O.) for voiceover
-- Action paragraphs: 3-4 lines max. White space matters.
-- Sound cues in caps when dramatically important: A GUNSHOT. The SCREECH of tires.
-- Interruptions shown with -- at the end of the cut-off line
-- Use straight quotes (" and '), never smart/curly quotes.`,
-  },
-};
+// Re-export from centralised prompt repository so existing importers keep working.
+export { FORMAT_INSTRUCTIONS };
 
 
 
@@ -206,27 +183,22 @@ ${onToken ? 'Write the full rewritten prose directly — no JSON, no markdown, n
 
   // Generate changelog in a separate cheap call — diffing old vs new
   let changelog = '';
-  try {
-    const changelogRaw = await callGenerate(
-      `ANALYSIS ADDRESSED:\n${analysis.slice(0, 500)}\n\nSummarize the key changes in 3-5 bullet points. Each bullet: one sentence, plain description, no quotes. Focus on structural changes.\n\nReturn JSON with changelog as a SINGLE STRING with bullet points separated by newlines:\n{"changelog": "• Change one\\n• Change two\\n• Change three"}`,
-      'You are a literary editor. Return ONLY valid JSON with changelog as a string.',
-      800,
-      'rewriteChangelog',
-      ANALYSIS_MODEL,
-      reasoningBudget,
-    );
-    const changelogParsed = parseJson(changelogRaw, 'rewriteChangelog') as { changelog: unknown };
-    const raw = changelogParsed.changelog;
-    // Normalize to string — LLM may return string or array
-    if (typeof raw === 'string') {
-      changelog = raw;
-    } else if (Array.isArray(raw)) {
-      changelog = raw.map((item: unknown) => typeof item === 'string' ? `• ${item}` : '').filter(Boolean).join('\n');
-    } else {
-      changelog = String(raw ?? '');
-    }
-  } catch {
-    // Changelog generation is non-critical — don't fail the rewrite
+  const changelogRaw = await callGenerate(
+    `ANALYSIS ADDRESSED:\n${analysis.slice(0, 500)}\n\nSummarize the key changes in 3-5 bullet points. Each bullet: one sentence, plain description, no quotes. Focus on structural changes.\n\nReturn JSON with changelog as a SINGLE STRING with bullet points separated by newlines:\n{"changelog": "• Change one\\n• Change two\\n• Change three"}`,
+    'You are a literary editor. Return ONLY valid JSON with changelog as a string.',
+    800,
+    'rewriteChangelog',
+    ANALYSIS_MODEL,
+    reasoningBudget,
+  );
+  const changelogParsed = parseJson(changelogRaw, 'rewriteChangelog') as { changelog: unknown };
+  const rawChangelog = changelogParsed.changelog;
+  if (typeof rawChangelog === 'string') {
+    changelog = rawChangelog;
+  } else if (Array.isArray(rawChangelog)) {
+    changelog = rawChangelog.map((item: unknown) => typeof item === 'string' ? `• ${item}` : '').filter(Boolean).join('\n');
+  } else {
+    changelog = String(rawChangelog ?? '');
   }
 
   logInfo('Completed prose rewrite', {
@@ -245,17 +217,8 @@ ${onToken ? 'Write the full rewritten prose directly — no JSON, no markdown, n
 
   let proseEmbedding: number[] | undefined;
   if (prose && prose.length > 0) {
-    try {
-      const embeddings = await generateEmbeddings([prose], narrative.id);
-      proseEmbedding = embeddings[0];
-    } catch (error) {
-      // Log error but don't fail prose rewrite if embedding fails
-      logError('Failed to generate prose embedding', error, {
-        source: 'prose-generation',
-        operation: 'embed-rewritten-prose',
-        details: { narrativeId: narrative.id, sceneId: scene.id },
-      });
-    }
+    const embeddings = await generateEmbeddings([prose], narrative.id);
+    proseEmbedding = embeddings[0];
   }
 
   return { prose, changelog, proseEmbedding };

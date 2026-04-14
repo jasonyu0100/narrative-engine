@@ -63,7 +63,7 @@ export const SCHEMA_ARTIFACT_CREATION = `{
 export const SCHEMA_THREAD_CREATION = `{
   "id": "T-XX",
   "participants": [{"id": "C-XX or L-XX or A-XX", "type": "character|location|artifact"}],
-  "description": "A COMPELLING QUESTION with stakes, uncertainty, and investment. BAD: 'Will Bob succeed?' GOOD: 'Can Marcus protect his daughter from the cult that killed his wife?' — 15-30 words",
+  "description": "A persistent narrative preoccupation. In dramatic registers it is usually a question with stakes, uncertainty, and investment; in lyric or meditative registers it may be a recurring attention; in argument or inquiry it is an open claim or question. Weak (any register): 'Will [Name] succeed?' — too plain to carry a full arc unless the form is picaresque, ironic, or deliberately flat. Strong (narrative): 'Can Ayesha clear her grandfather's name before the tribunal ends?' Strong (argument): 'Does the proposed mechanism explain anomalies the prior model cannot?' Strong (inquiry): 'What role did diaspora networks play in the movement before digital coordination?' — 15-30 words",
   "status": "latent|seeded|active|escalating|critical",
   "openedAt": "S-001 or 'new'",
   "dependents": ["T-YY — existing thread IDs this thread connects to, accelerates, or converges with"]

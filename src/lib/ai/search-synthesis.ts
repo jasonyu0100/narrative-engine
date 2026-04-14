@@ -110,7 +110,7 @@ export async function synthesizeSearchResults(
   const detailCount = beatCount + propCount;
 
   logInfo('Starting search synthesis', {
-    source: 'other',
+    source: 'search',
     operation: 'synthesize-search',
     details: {
       query: query.substring(0, 100),
@@ -217,7 +217,7 @@ Write your response as plain text with inline citations.`;
     const overview = accumulatedText.trim();
 
     logInfo('Search synthesis completed', {
-      source: 'other',
+      source: 'search',
       operation: 'synthesize-search-complete',
       details: {
         query: query.substring(0, 100),
@@ -233,7 +233,7 @@ Write your response as plain text with inline citations.`;
 
   } catch (error) {
     logError('Search synthesis failed', error, {
-      source: 'other',
+      source: 'search',
       operation: 'synthesize-search-error',
       details: { query: query.substring(0, 100) },
     });

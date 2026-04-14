@@ -8,6 +8,7 @@
 
 import JSZip from 'jszip';
 import { assetManager } from './asset-manager';
+import { logWarning } from '@/lib/system-logger';
 import type { NarrativeState } from '@/types/narrative';
 import type { PackageManifest } from './package-export';
 // ── Import Options ────────────────────────────────────────────────────────────
@@ -190,7 +191,11 @@ export async function importFromPackage(
             onProgress?.(`Importing embeddings: ${i}/${files.length}`, percent);
           }
         } catch (error) {
-          console.warn(`Failed to import embedding ${embId}:`, error);
+          logWarning(`Failed to import embedding ${embId}`, error, {
+            source: 'asset',
+            operation: 'package-import-embedding',
+            details: { embId },
+          });
         }
       }
 
@@ -223,7 +228,11 @@ export async function importFromPackage(
             onProgress?.(`Importing audio: ${i}/${files.length}`, percent);
           }
         } catch (error) {
-          console.warn(`Failed to import audio ${audioId}:`, error);
+          logWarning(`Failed to import audio ${audioId}`, error, {
+            source: 'asset',
+            operation: 'package-import-audio',
+            details: { audioId },
+          });
         }
       }
 
@@ -256,7 +265,11 @@ export async function importFromPackage(
             onProgress?.(`Importing images: ${i}/${files.length}`, percent);
           }
         } catch (error) {
-          console.warn(`Failed to import image ${imgId}:`, error);
+          logWarning(`Failed to import image ${imgId}`, error, {
+            source: 'asset',
+            operation: 'package-import-image',
+            details: { imgId },
+          });
         }
       }
 
@@ -570,7 +583,11 @@ export async function importFromDirectory(
           const vector = Array.from(float32Array);
           await assetManager.storeEmbedding(vector, 'text-embedding-3-small', embId);
         } catch (error) {
-          console.warn(`Failed to import embedding ${embId}:`, error);
+          logWarning(`Failed to import embedding ${embId}`, error, {
+            source: 'asset',
+            operation: 'package-import-embedding',
+            details: { embId },
+          });
         }
 
         if (i % 100 === 0) {
@@ -601,7 +618,11 @@ export async function importFromDirectory(
           const blob = new Blob([await file.arrayBuffer()], { type: file.type });
           await assetManager.storeAudio(blob, blob.type, audioId);
         } catch (error) {
-          console.warn(`Failed to import audio ${audioId}:`, error);
+          logWarning(`Failed to import audio ${audioId}`, error, {
+            source: 'asset',
+            operation: 'package-import-audio',
+            details: { audioId },
+          });
         }
 
         if (i % 10 === 0) {
@@ -632,7 +653,11 @@ export async function importFromDirectory(
           const blob = new Blob([await file.arrayBuffer()], { type: file.type });
           await assetManager.storeImage(blob, blob.type, imgId);
         } catch (error) {
-          console.warn(`Failed to import image ${imgId}:`, error);
+          logWarning(`Failed to import image ${imgId}`, error, {
+            source: 'asset',
+            operation: 'package-import-image',
+            details: { imgId },
+          });
         }
 
         if (i % 10 === 0) {

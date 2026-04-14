@@ -901,7 +901,7 @@ ENTITY DEFINITIONS:
 - Characters are conscious beings with agency — people, named animals, sentient AI (AGI). Non-sentient AI systems are artifacts.
 - Locations are spatial areas or regions — physical places you can be IN.
 - Artifacts are anything that delivers utility — active tools, not passive concepts. Concepts belong in system knowledge.
-- Threads are COMPELLING QUESTIONS that shape fate. A compelling question has stakes, uncertainty, and investment. BAD: "Will X succeed?" GOOD: "Can Marcus protect his daughter from the cult?" Thread logs track incremental answers.
+- Threads are COMPELLING QUESTIONS that shape fate. A compelling question has stakes, uncertainty, and investment. Match the narrative's register. BAD: "Will X succeed?" GOOD (narrative): "Can Ayesha clear her grandfather's name before the tribunal ends?" GOOD (argument): "Does the proposed mechanism explain the anomalies the prior model cannot?" GOOD (inquiry): "What role did diaspora networks play in the movement before digital coordination?" Thread logs track incremental answers.
 
 CHARACTER DEPTH BY ROLE — minimums; go deeper for complex characters. These initial world nodes become the first readings the grader sees, and anchor entities will be revisited for world deltas across every scene, so seed them richly. List each entity's nodes in the causal/temporal order they became true — adjacent nodes auto-chain into the entity's inner graph, no manual edges needed:
 - Anchors: 6-8 world nodes each — defining trait, goal, belief, weakness, secret, capability, relation, history.
@@ -916,22 +916,31 @@ The premise may include user-provided characters, locations, threads, rules, and
 NAMING — CRITICAL:
 The premise may contain placeholder or generic names (e.g. "The Reincarnator", "The Elder Council", "Shadow Realm"). Replace ALL placeholder names with original, specific names. Naming is the single biggest quality signal.
 
-Name like a human novelist, not a fantasy name generator:
-- FIRST: detect the cultural origin implied by the premise — eastern, western, Middle Eastern, African, South Asian, multicultural, secondary world with specific influences, etc. This determines your entire naming palette.
-- Source character names from real census records, historical obscurities, regional naming traditions, or deliberate etymological construction rooted in SPECIFIC cultures matching the world's origin. A world inspired by Song Dynasty China should have names sourced from Chinese historical records. A world inspired by Ottoman history from Turkish/Arabic/Persian roots. A Slavic-inspired world from Slavic roots. Never default to generic pan-Celtic/Greek.
+Name like a writer with cultural specificity, not a fantasy name generator:
+- FIRST: detect the cultural origin implied by the premise. Never default to Anglo/Celtic/Greek. Palettes include (non-exhaustive):
+    • East Asian — Han Chinese (classical / modern), Japanese (kun/on readings), Korean, Vietnamese, Mongolian
+    • South Asian — Sanskrit, Tamil/Dravidian, Bengali, Punjabi, Sinhala, Pashto
+    • Middle Eastern / West Asian — Arabic, Persian/Farsi, Turkish, Hebrew, Aramaic, Kurdish
+    • African — Yoruba, Igbo, Akan, Amharic, Swahili, Zulu, Wolof, Hausa, Malagasy, Tamazight
+    • Indigenous — Nahuatl, Quechua, Navajo, Cree, Māori, Hawaiian, Sami (use respectfully, avoid sacred/taboo names)
+    • Slavic, Baltic, Nordic, Celtic, Greek, Latin — treat these as one palette among many, not the default
+    • Latin American, Caribbean, Lusophone African, Filipino, Indonesian, Malay — use for regions inspired by colonial/post-colonial or maritime cultures
+    • Diasporic & multicultural — names that mark hybridity (e.g. Chinese-Peruvian, Lebanese-Brazilian, British-Nigerian) where the premise calls for it
+- Source names from real census records, historical obscurities, regional naming traditions, or deliberate etymological construction rooted in SPECIFIC cultures matching the world's origin. A world inspired by Song Dynasty China should have names sourced from Chinese historical records. A world inspired by Ottoman history from Turkish/Arabic/Persian roots. A West African-inspired world from Yoruba, Akan, or Wolof roots. A Sanskrit-inflected world from Vedic or Tamil sources.
 - For multicultural worlds: each faction, region, or cultural group gets its own distinct naming palette reflecting its origin. Names should signal which part of the world a character comes from.
 - Pick a consistent cultural palette for each faction or region and stay within it. Internal consistency is more important than variety.
-- Prefer rough, blunt, asymmetric names. Names with hard consonant clusters, unexpected syllable stress, or occupational origins feel human. Smooth melodic names with open vowels feel generated.
-- Surnames from occupations, geography, or patronymics — never compound noun+noun fantasy construction.
-- Location names: derive from terrain, founders, or linguistic corruption of older words. They should sound like they've been mispronounced for centuries.
-- Thread/system names: concrete and specific. "The Tithe of Ash" not "The Power System". "The Lazar Compact" not "The Ancient Alliance".
-- Test: if a name could appear in 10 different fantasy novels interchangeably, it's too generic. If it could only belong to THIS world, it's right.
+- Prefer rough, blunt, asymmetric names where the source tradition allows it. Names with hard consonant clusters, unexpected syllable stress, tonal marks, or occupational origins feel lived-in. Smooth melodic names with open vowels feel generated — unless the palette is genuinely melodic (e.g. Hawaiian, Japanese), in which case lean into the tradition's own texture.
+- Surnames from occupations, geography, patronymics/matronymics, or clan names — never compound noun+noun fantasy construction.
+- Location names: derive from terrain, founders, or linguistic corruption of older words. They should sound like they've been mispronounced for centuries within their own language family.
+- Thread/system names: concrete and specific. "The Tithe of Ash" not "The Power System". "The Lazar Compact" not "The Ancient Alliance". Match the cultural palette — a Mughal-inspired system might be "The Mansabdari Ledger", a West African one "The Ọba's Covenant".
+- Test: if a name could appear in 10 different Anglo-fantasy novels interchangeably, it's too generic. If it could only belong to THIS world and this culture, it's right.
+- Respect: when drawing from Indigenous or living religious traditions, avoid names with explicit sacred/taboo status. Use the tradition's everyday register, not its ceremonial one, unless the premise explicitly calls for the latter and handles it with weight.
 
 LOCATION HIERARCHY & AGENCY:
 - Build spatial nesting: Region → Settlement → District → Specific Place
 - A city with 5 sub-locations feels more real than 5 unconnected cities
 - Include contrasting environments: if the story starts safe, the world needs a dangerous frontier
-- A location is BOTH a place AND its people. The Shire is rolling hills AND hobbits. A city is infrastructure AND culture AND collective will. A kingdom is territory AND governance AND identity. Locations think, feel, and act through their inhabitants.
+- A location is BOTH a place AND its people. A delta village is its floodplain AND its fishers AND its song cycles. A city is infrastructure AND culture AND collective will. A kingdom is territory AND governance AND identity. A monastery is cells AND its order. A research institute is buildings AND its reviewers. Locations think, feel, and act through their inhabitants.
 - Prominence: "domain" locations are centers of power with deep inner worlds, "place" locations are recurring settings, "margin" locations are transitional.
 - Domain locations: 4-6 world nodes (history, traits, capabilities, weaknesses, goals, beliefs). They impose rules on characters and have collective agency — a kingdom demands fealty, a city mourns its dead, an organization pursues its agenda.
 - Place locations: 2-3 world nodes (history, state, trait).
@@ -1108,17 +1117,13 @@ ${PROMPT_SUMMARY_REQUIREMENT}`}
 
   // Generate embeddings for scene summaries
   if (sceneList.length > 0) {
-    try {
-      const { generateEmbeddingsBatch } = await import('@/lib/embeddings');
-      const { assetManager } = await import('@/lib/asset-manager');
-      const summaries = sceneList.map(s => s.summary);
-      const embeddings = await generateEmbeddingsBatch(summaries, id);
-      for (let i = 0; i < sceneList.length; i++) {
-        const embeddingId = await assetManager.storeEmbedding(embeddings[i], 'text-embedding-3-small');
-        sceneList[i].summaryEmbedding = embeddingId;
-      }
-    } catch {
-      // Don't fail world generation if embedding fails
+    const { generateEmbeddingsBatch } = await import('@/lib/embeddings');
+    const { assetManager } = await import('@/lib/asset-manager');
+    const summaries = sceneList.map(s => s.summary);
+    const embeddings = await generateEmbeddingsBatch(summaries, id);
+    for (let i = 0; i < sceneList.length; i++) {
+      const embeddingId = await assetManager.storeEmbedding(embeddings[i], 'text-embedding-3-small');
+      sceneList[i].summaryEmbedding = embeddingId;
     }
   }
 
@@ -1405,25 +1410,16 @@ Return JSON:
         reasoningBudget,
       );
 
-  try {
-    const parsed = parseJson(raw, 'detectPatterns') as {
-      detectedGenre?: unknown;
-      detectedSubgenre?: unknown;
-      patterns?: unknown;
-      antiPatterns?: unknown;
-    };
-    return {
-      detectedGenre: typeof parsed.detectedGenre === 'string' ? parsed.detectedGenre : 'Unknown',
-      detectedSubgenre: typeof parsed.detectedSubgenre === 'string' ? parsed.detectedSubgenre : 'Unknown',
-      patterns: Array.isArray(parsed.patterns) ? parsed.patterns.filter((p: unknown) => typeof p === 'string') : [],
-      antiPatterns: Array.isArray(parsed.antiPatterns) ? parsed.antiPatterns.filter((p: unknown) => typeof p === 'string') : [],
-    };
-  } catch {
-    return {
-      detectedGenre: 'Unknown',
-      detectedSubgenre: 'Unknown',
-      patterns: [],
-      antiPatterns: [],
-    };
-  }
+  const parsed = parseJson(raw, 'detectPatterns') as {
+    detectedGenre?: unknown;
+    detectedSubgenre?: unknown;
+    patterns?: unknown;
+    antiPatterns?: unknown;
+  };
+  return {
+    detectedGenre: typeof parsed.detectedGenre === 'string' ? parsed.detectedGenre : 'Unknown',
+    detectedSubgenre: typeof parsed.detectedSubgenre === 'string' ? parsed.detectedSubgenre : 'Unknown',
+    patterns: Array.isArray(parsed.patterns) ? parsed.patterns.filter((p: unknown) => typeof p === 'string') : [],
+    antiPatterns: Array.isArray(parsed.antiPatterns) ? parsed.antiPatterns.filter((p: unknown) => typeof p === 'string') : [],
+  };
 }

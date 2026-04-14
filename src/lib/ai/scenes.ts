@@ -5,10 +5,10 @@ import { callGenerate, callGenerateStream, SYSTEM_PROMPT } from './api';
 import { WRITING_MODEL, GENERATE_MODEL, MAX_TOKENS_LARGE, MAX_TOKENS_DEFAULT, MAX_TOKENS_SMALL, WORDS_PER_BEAT, ANALYSIS_TEMPERATURE } from '@/lib/constants';
 import { parseJson } from './json';
 import { narrativeContext, sceneContext, sceneScale, buildProseProfile } from './context';
-import { PROMPT_STRUCTURAL_RULES, PROMPT_DELTAS, PROMPT_ARTIFACTS, PROMPT_LOCATIONS, PROMPT_POV, PROMPT_WORLD, PROMPT_SUMMARY_REQUIREMENT, PROMPT_BEAT_TAXONOMY, promptThreadLifecycle, buildThreadHealthPrompt, buildCompletedBeatsPrompt, PROMPT_FORCE_STANDARDS } from './prompts';
+import { PROMPT_STRUCTURAL_RULES, PROMPT_DELTAS, PROMPT_ARTIFACTS, PROMPT_LOCATIONS, PROMPT_POV, PROMPT_WORLD, PROMPT_SUMMARY_REQUIREMENT, promptThreadLifecycle, buildThreadHealthPrompt, buildCompletedBeatsPrompt, PROMPT_FORCE_STANDARDS, buildScenePlanSystemPrompt, buildBeatAnalystSystemPrompt, buildScenePlanEditSystemPrompt, buildSceneProseSystemPrompt } from './prompts';
 import { samplePacingSequence, buildSequencePrompt, detectCurrentMode, MATRIX_PRESETS, DEFAULT_TRANSITION_MATRIX, type PacingSequence } from '@/lib/pacing-profile';
 import { resolveProfile, resolveSampler, sampleBeatSequence } from '@/lib/beat-profiles';
-import { FORMAT_INSTRUCTIONS } from './prose';
+import { FORMAT_INSTRUCTIONS } from '@/lib/prompts';
 import { logWarning, logError, logInfo } from '@/lib/system-logger';
 import type { ReasoningGraph } from './reasoning-graph';
 import { buildSequentialPath } from './reasoning-graph';
@@ -674,35 +674,26 @@ ${buildCompletedBeatsPrompt(narrative, resolvedKeys, currentIndex)}`;
   const { assetManager } = await import('@/lib/asset-manager');
 
   if (scenes.length > 0) {
-    try {
-      // Batch 1: Embed scene summaries
-      const sceneSummaries = scenes.map(s => s.summary);
-      const summaryEmbeddings = await generateEmbeddingsBatch(sceneSummaries, narrative.id);
+    // Batch 1: Embed scene summaries
+    const sceneSummaries = scenes.map(s => s.summary);
+    const summaryEmbeddings = await generateEmbeddingsBatch(sceneSummaries, narrative.id);
 
-      // Store embeddings in AssetManager and use references
-      for (let i = 0; i < scenes.length; i++) {
-        const scene = scenes[i];
-        const embeddingId = await assetManager.storeEmbedding(summaryEmbeddings[i], 'text-embedding-3-small');
-        scene.summaryEmbedding = embeddingId;
+    // Store embeddings in AssetManager and use references
+    for (let i = 0; i < scenes.length; i++) {
+      const scene = scenes[i];
+      const embeddingId = await assetManager.storeEmbedding(summaryEmbeddings[i], 'text-embedding-3-small');
+      scene.summaryEmbedding = embeddingId;
 
-        // If scene has plan (in version array), compute plan centroid from beat centroids
-        const latestPlan = scene.planVersions?.[scene.planVersions.length - 1]?.plan;
-        if (latestPlan) {
-          const resolvedCentroids = (await Promise.all(
-            latestPlan.beats.map(b => resolveEmbedding(b.embeddingCentroid))
-          )).filter((e): e is number[] => e !== null);
-          if (resolvedCentroids.length > 0) {
-            scene.planEmbeddingCentroid = await assetManager.storeEmbedding(computeCentroid(resolvedCentroids), 'text-embedding-3-small');
-          }
+      // If scene has plan (in version array), compute plan centroid from beat centroids
+      const latestPlan = scene.planVersions?.[scene.planVersions.length - 1]?.plan;
+      if (latestPlan) {
+        const resolvedCentroids = (await Promise.all(
+          latestPlan.beats.map(b => resolveEmbedding(b.embeddingCentroid))
+        )).filter((e): e is number[] => e !== null);
+        if (resolvedCentroids.length > 0) {
+          scene.planEmbeddingCentroid = await assetManager.storeEmbedding(computeCentroid(resolvedCentroids), 'text-embedding-3-small');
         }
       }
-    } catch (error) {
-      // Log error but don't fail scene generation if embedding fails
-      logError('Failed to generate embeddings for scenes', error, {
-        source: 'manual-generation',
-        operation: 'embed-summaries',
-        details: { narrativeId: narrative.id, arcId, sceneCount: scenes.length },
-      });
     }
   }
 
@@ -766,114 +757,11 @@ ${sampledBeats.map((b, i) => `  ${i + 1}. ${b.fn}:${b.mechanism}`).join('\n')}\n
   // Build prose profile block
   const profileBlock = `\n${buildProseProfile(profile, { beatDensity: sampler.beatsPerKWord, targetBeats })}${beatSequenceHint}\n`;
 
-  const systemPrompt = `You are a scene architect. Given a scene's structural data (summary, deltas, events), produce a structured beat plan — a JSON blueprint that a prose writer can follow.
-
-The scene context includes a PROSE PROFILE with rules and anti-patterns. Propositions MUST conform to the profile's style. If the profile forbids figurative language, propositions must be plain factual statements. If the profile allows poetic language, propositions can be evocative. Read the profile rules carefully.
-
-Return ONLY valid JSON matching this schema:
-{
-  "beats": [
-    {
-      "fn": "${BEAT_FN_LIST.join('|')}",
-      "mechanism": "${BEAT_MECHANISM_LIST.join('|')}",
-      "what": "STRUCTURAL SUMMARY: what happens, not how it reads",
-      "propositions": [
-        {"content": "atomic claim", "type": "state|claim|definition|formula|evidence|rule|comparison|example"}
-      ]
-    }
-  ],
-  "propositions": [{"content": "atomic claim", "type": "state"}]
-}
-
-${PROMPT_BEAT_TAXONOMY}
-
-RULES:
-- Open with 1-3 breathe beats to ground the scene physically.
-- Produce AT LEAST ${targetBeats} beats. This is the minimum bar — you are free to add more beats if the scene's content warrants it. Do not produce fewer than ${targetBeats}.
-- Every structural delta (thread, world, relationship, system knowledge) must map to at least one beat.
-- Thread transitions need a concrete trigger in the 'what' field.
-- Knowledge gains need a discovery mechanism (overheard, read, deduced, confessed).
-- Relationship shifts need a catalytic moment.
-- Be specific: "She asks about the missing shipment; he deflects" not "A tense exchange."
-- STRUCTURAL SUMMARIES ONLY: The 'what' field describes WHAT HAPPENS, not how it reads as prose.
-  • DO: "Guard confronts him about the forged papers" — structural event
-  • DON'T: "He muttered, 'The academy won't hold me long'" — pre-written prose
-  • DO: "Elders debate whether to proceed with the ceremony" — action summary
-  • DON'T: "Her voice cut through the murmur of the crowd" — literary description
-  Strip adjectives, adverbs, and literary embellishments. State the event, not its texture. The prose writer adds texture.
-- MECHANISM CHOICE is binding: The mechanism determines HOW the prose writer MUST write each beat:
-  • dialogue: Characters MUST speak in quotes. Choose for conversations, confrontations, verbal reveals.
-  • thought: Internal monologue MUST appear. Choose for reasoning, planning, emotional processing, self-talk.
-  • action: Physical movement MUST be described. Choose for fights, gestures, physical tasks.
-  • environment: Setting details MUST ground the moment. Choose for scene establishment, atmosphere, ambient sounds.
-  • narration: Authorial voice MUST comment. Choose for time compression, exposition, thematic statements.
-  The prose writer cannot deviate — dialogue beats WILL contain quoted speech, thought beats WILL contain internal monologue.
-  CRITICAL: If the beat describes overhearing sounds or ambient noise, use environment. If the beat describes the POV character's private reasoning, use thought. Only use dialogue when characters are actually speaking to be heard.
-
-PROPOSITIONS:
-
-Propositions are KEY FACTS established by this beat.
-
-DENSITY GUIDELINES (per beat, ~100 words) — FOLLOW THESE STRICTLY:
-- Light fiction (atmospheric, whimsical, children's lit): 1-2 propositions MAX
-- Standard fiction (dialogue, action): 2-4 propositions
-- Dense fiction (world-building, magic systems): 4-6 propositions
-- Technical/academic prose: 8-15 propositions MAX (exhaustive but capped at 15)
-
-FICTION EXTRACTION (Alice in Wonderland, Harry Potter, etc.):
-Extract ONLY core narrative facts:
-- Concrete events that happen ("Alice falls down the rabbit hole")
-- Physical states ("The White Rabbit wears a waistcoat")
-- Character beliefs/goals ("Alice wants to follow the rabbit")
-- World rules ("The Cheshire Cat can disappear")
-
-DO NOT extract from fiction:
-- How something is described ("The rabbit hole was dark and deep" → NO)
-- Atmospheric details ("mist clung to the village" → NO)
-- Literary devices, metaphors, descriptions
-- The texture of the prose itself
-
-TECHNICAL/ACADEMIC PROSE EXTRACTION:
-The goal is EXHAUSTIVE extraction, capped at 15 propositions per beat. Capture:
-- EVERY formula, equation, or mathematical expression (exactly as written)
-- EVERY numerical value, statistic, score, or parameter
-- EVERY definition of a term or concept
-- EVERY comparison or contrast made
-- EVERY piece of evidence or cited example
-- EVERY named entity, method, or system mentioned
-- EVERY cause-effect relationship stated
-- EVERY constraint, rule, or requirement
-- EVERY claim about what something does, is, or means
-
-If a beat has more than 15 atomic facts, prioritize the most important ones.
-
-DO NOT summarize multiple claims into one. Each atomic fact gets its own proposition.
-
-Include "type" — any descriptive label. Common types:
-- Fiction: state, belief, relationship, event, rule, secret, motivation
-- Non-fiction: claim, definition, formula, evidence, parameter, mechanism, comparison, method, constraint, example
-
-FICTION:
-• {"content": "Alice falls down a rabbit hole", "type": "event"}
-• {"content": "The White Rabbit wears a waistcoat", "type": "state"}
-• {"content": "The Cheshire Cat can disappear", "type": "rule"}
-
-NON-FICTION (exhaustive example):
-• {"content": "F = activeArcs^α × stageWeight", "type": "formula"}
-• {"content": "F represents Fate — the force of threads pulling world and system toward resolution", "type": "definition"}
-• {"content": "W = ΔN_c + √ΔE_c — entity transformation (what we learn about characters, locations, artifacts)", "type": "definition"}
-• {"content": "S = ΔN + √ΔE — world deepening (rules, structures, concepts)", "type": "definition"}
-• {"content": "Thread lifecycle: latent→seeded→active→escalating→critical→resolved/subverted. Escalating = point of no return. Abandoned earns 0.", "type": "definition"}
-• {"content": "Published works score 85-95", "type": "evidence"}
-
-INVALID: craft goals, pacing instructions, meta-commentary.
-
-- PROPOSITIONS (scene-level): claims spanning the whole scene.
-- Return ONLY valid JSON.`
-  + (() => {
-    const parts = [narrative.storySettings?.planGuidance?.trim(), guidance?.trim()].filter(Boolean);
-    return parts.length > 0 ? `\n\nPLAN GUIDANCE:\n${parts.join('\n')}` : '';
-  })();
+  const systemPrompt = buildScenePlanSystemPrompt(targetBeats)
+    + (() => {
+      const parts = [narrative.storySettings?.planGuidance?.trim(), guidance?.trim()].filter(Boolean);
+      return parts.length > 0 ? `\n\nPLAN GUIDANCE:\n${parts.join('\n')}` : '';
+    })();
 
   const sceneDesc = `SCENE AT BRANCH HEAD:
 Summary: ${scene.summary}
@@ -927,32 +815,23 @@ REMINDER: All propositions (per-beat and scene-level) MUST conform to the PROSE 
 
   // Embed all propositions in batch
   if (allPropositions.length > 0) {
-    try {
-      const embeddedProps = await embedPropositions(allPropositions, narrative.id);
+    const embeddedProps = await embedPropositions(allPropositions, narrative.id);
 
-      // Map embeddings back to plan
-      let embeddedIndex = 0;
-      for (const beat of result.beats) {
-        for (let i = 0; i < beat.propositions.length; i++) {
-          beat.propositions[i] = embeddedProps[embeddedIndex++];
-        }
-
-        // Compute beat centroid from proposition embeddings and store as asset
-        const beatEmbeddings = (await Promise.all(
-          beat.propositions.map(p => resolveEmbedding(p.embedding))
-        )).filter((e): e is number[] => e !== null);
-        if (beatEmbeddings.length > 0) {
-          const centroid = computeCentroid(beatEmbeddings);
-          beat.embeddingCentroid = await assetManager.storeEmbedding(centroid, 'text-embedding-3-small');
-        }
+    // Map embeddings back to plan
+    let embeddedIndex = 0;
+    for (const beat of result.beats) {
+      for (let i = 0; i < beat.propositions.length; i++) {
+        beat.propositions[i] = embeddedProps[embeddedIndex++];
       }
-    } catch (error) {
-      // Log error but don't fail plan generation if embedding fails
-      logError('Failed to generate embeddings for plan', error, {
-        source: 'plan-generation',
-        operation: 'embed-propositions',
-        details: { narrativeId: narrative.id, sceneId: scene.id },
-      });
+
+      // Compute beat centroid from proposition embeddings and store as asset
+      const beatEmbeddings = (await Promise.all(
+        beat.propositions.map(p => resolveEmbedding(p.embedding))
+      )).filter((e): e is number[] => e !== null);
+      if (beatEmbeddings.length > 0) {
+        const centroid = computeCentroid(beatEmbeddings);
+        beat.embeddingCentroid = await assetManager.storeEmbedding(centroid, 'text-embedding-3-small');
+      }
     }
   }
 
@@ -1175,121 +1054,7 @@ async function reverseEngineerScenePlanOnce(
   const chunks = splitIntoWordChunks(cleanedProse);
   const chunksJson = JSON.stringify(chunks.map((c: string, i: number) => ({ index: i, text: c })));
 
-  const systemPrompt = `You are a beat analyst. You receive a JSON array of pre-split prose chunks. Annotate EACH chunk with its beat function, mechanism, and propositions. The input and output arrays MUST be the same length — one beat per chunk, matched by index.
-
-Return ONLY valid JSON matching this schema:
-{
-  "beats": [
-    {
-      "index": 0,
-      "fn": "${BEAT_FN_LIST.join('|')}",
-      "mechanism": "${BEAT_MECHANISM_LIST.join('|')}",
-      "what": "STRUCTURAL SUMMARY: what happens, not how it reads",
-      "propositions": [
-        {"content": "atomic claim", "type": "state|claim|definition|formula|evidence|rule|comparison|example"}
-      ]
-    }
-  ]
-}
-
-CRITICAL RULES:
-- Return EXACTLY ${chunks.length} beats — one per input chunk, matched by index 0 through ${chunks.length - 1}.
-- Do NOT merge adjacent chunks into one beat. Do NOT skip any chunk. Every chunk gets its own beat.
-- Every beat MUST have all three required fields: fn, mechanism, what.
-
-${PROMPT_BEAT_TAXONOMY}
-
-RULES:
-- One beat per chunk. Annotate what the chunk does structurally.
-- STRUCTURAL SUMMARIES ONLY: The 'what' field describes WHAT HAPPENS, not how it reads as prose.
-  • DO: "Guard confronts him about the forged papers" — structural event
-  • DON'T: "He muttered, 'The academy won't hold me long'" — pre-written prose
-  • DO: "Elders debate whether to proceed with the ceremony" — action summary
-  • DON'T: "Her voice cut through the murmur of the crowd" — literary description
-  Strip adjectives, adverbs, and literary embellishments. State the event, not its texture.
-- MECHANISM CHOICE must match how the prose was actually written:
-  • dialogue: Prose contains quoted speech — characters speaking to be heard.
-  • thought: Prose contains internal monologue — POV character's private reasoning.
-  • action: Prose describes physical movement, gesture, body in space.
-  • environment: Prose describes setting, weather, sounds, sensory context.
-  • narration: Prose has authorial voice, time compression, exposition.
-  CRITICAL: If the prose shows overhearing sounds or ambient noise, use environment. If the prose shows the POV character's private reasoning, use thought. Only use dialogue when characters are actually speaking to be heard.
-
-PROPOSITIONS:
-
-Propositions are KEY FACTS established by this beat.
-
-DENSITY GUIDELINES (per beat, ~100 words) — FOLLOW THESE STRICTLY:
-- Light fiction (atmospheric, whimsical, children's lit): 1-2 propositions MAX
-- Standard fiction (dialogue, action): 2-4 propositions
-- Dense fiction (world-building, magic systems): 4-6 propositions
-- Technical/academic prose: 8-15 propositions MAX (exhaustive but capped at 15)
-
-FICTION EXTRACTION (Alice in Wonderland, Harry Potter, etc.):
-Extract ONLY core narrative facts:
-- Concrete events that happen ("Alice falls down the rabbit hole")
-- Physical states ("The White Rabbit wears a waistcoat")
-- Character beliefs/goals ("Alice wants to follow the rabbit")
-- World rules ("The Cheshire Cat can disappear")
-
-DO NOT extract from fiction:
-- How something is described ("The rabbit hole was dark and deep" → NO)
-- Atmospheric details ("mist clung to the village" → NO)
-- Literary devices, metaphors, descriptions
-- The texture of the prose itself
-
-TECHNICAL/ACADEMIC PROSE EXTRACTION:
-The goal is EXHAUSTIVE extraction, capped at 15 propositions per beat. Capture:
-- EVERY formula, equation, or mathematical expression (exactly as written)
-- EVERY numerical value, statistic, score, or parameter
-- EVERY definition of a term or concept
-- EVERY comparison or contrast made
-- EVERY piece of evidence or cited example
-- EVERY named entity, method, or system mentioned
-- EVERY cause-effect relationship stated
-- EVERY constraint, rule, or requirement
-- EVERY claim about what something does, is, or means
-
-If a beat has more than 15 atomic facts, prioritize the most important ones.
-
-If the prose says "Published works score 85–95, while unguided AI output achieves 65–78", you need:
-• {"content": "Published works score 85-95", "type": "evidence"}
-• {"content": "Unguided AI output scores 65-78", "type": "evidence"}
-• {"content": "There is a score gap between published works and AI output", "type": "claim"}
-
-If the prose mentions "three fundamental forces (Fate, World, System)", you need:
-• {"content": "There are three fundamental forces", "type": "claim"}
-• {"content": "The three forces are Fate, World, and System", "type": "definition"}
-
-DO NOT summarize multiple claims into one. Each atomic fact gets its own proposition.
-
-Include "type" — any descriptive label. Common types:
-- Fiction: state, belief, relationship, event, rule, secret, motivation
-- Non-fiction: claim, definition, formula, evidence, parameter, mechanism, comparison, method, constraint, example
-
-FICTION:
-• {"content": "Alice falls down a rabbit hole", "type": "event"}
-• {"content": "The White Rabbit wears a waistcoat", "type": "state"}
-• {"content": "The Cheshire Cat can disappear", "type": "rule"}
-
-NON-FICTION (exhaustive example from a technical paper):
-• {"content": "F = activeArcs^α × stageWeight", "type": "formula"}
-• {"content": "F represents Fate — the force of threads pulling world and system toward resolution", "type": "definition"}
-• {"content": "W = ΔN_c + √ΔE_c — entity transformation (what we learn about characters, locations, artifacts)", "type": "definition"}
-• {"content": "S = ΔN + √ΔE — world deepening (rules, structures, concepts)", "type": "definition"}
-• {"content": "Thread lifecycle: latent→seeded→active→escalating→critical→resolved/subverted. Escalating = point of no return. Abandoned earns 0.", "type": "definition"}
-• {"content": "Sustained threads earn superlinearly: 5 arcs at critical→resolved earns ~34 vs 4 for single-arc", "type": "example"}
-• {"content": "Published works score 85-95", "type": "evidence"}
-• {"content": "C = √ΔM + √ΔE + √ΔR", "type": "formula"}
-• {"content": "ΔM counts world deltas", "type": "definition"}
-• {"content": "ΔE counts events", "type": "definition"}
-• {"content": "ΔR = Σ|Δv|² sums squared valence shifts (L2)", "type": "formula"}
-• {"content": "Square roots give diminishing returns", "type": "mechanism"}
-• {"content": "Diminishing returns prevent any single axis from dominating", "type": "claim"}
-
-INVALID: craft goals, pacing instructions, meta-commentary.
-
-- Return ONLY valid JSON.`;
+  const systemPrompt = buildBeatAnalystSystemPrompt(chunks.length);
 
   const prompt = `SCENE SUMMARY: ${summary}
 
@@ -1440,27 +1205,7 @@ export async function rewriteScenePlan(
   ).join('\n');
 
 
-  const systemPrompt = `You are a dramaturg making TARGETED REVISIONS to a scene plan for "${narrative.title}". This is NOT a regeneration — preserve the existing structure and only modify what the feedback specifically addresses.
-
-Return ONLY valid JSON: { "beats": [{ "fn": "...", "mechanism": "...", "what": "...", "propositions": [{"content": "...", "type": "..."}] }] }
-
-Beat functions: ${BEAT_FN_LIST.join(', ')}
-Mechanisms: ${BEAT_MECHANISM_LIST.join(', ')}
-
-REWRITE RULES — STRUCTURE PRESERVATION:
-1. KEEP the same number of beats unless feedback explicitly requests adding/removing beats
-2. KEEP unchanged beats EXACTLY as they are (same fn, mechanism, what, propositions)
-3. ONLY MODIFY beats that the feedback specifically targets
-4. Preserve the overall scene arc and flow
-
-PROPOSITIONS — KEY FACTS established by each beat:
-Propositions are atomic claims that capture what the reader learns. When you modify a beat's 'what' field, update its propositions to match.
-
-Density per beat: 2-4 propositions for standard fiction
-Types: state, belief, relationship, event, rule, secret, motivation, claim, discovery
-
-Extract ONLY: concrete events, physical states, character beliefs/goals/discoveries, world rules, relationship shifts
-DO NOT include: atmospheric texture, literary devices, how things are described`;
+  const systemPrompt = buildScenePlanEditSystemPrompt(narrative.title);
 
   const sceneDesc = `Scene at branch head: ${scene.summary}`;
 
@@ -1668,17 +1413,13 @@ export async function generateSceneProse(
   const formatInstructions = FORMAT_INSTRUCTIONS[proseFormat];
 
   // System prompt is minimal — style constraints moved to user prompt for stronger compliance
-  const systemPrompt = `${formatInstructions.systemRole} You are crafting a single scene for "${narrative.title}".
-
-Tone: ${narrative.worldSummary.slice(0, 200)}.
-${hasVoiceOverride
-    ? `\nAUTHOR VOICE (this is the PRIMARY creative direction — all craft defaults below are subordinate to this voice):
-${narrative.storySettings!.proseVoice!.trim()}
-`
-    : ''}
-${formatInstructions.formatRules}${
-    guidance?.trim() ? `\n\nSCENE DIRECTION:\n${guidance.trim()}` : ''
-  }`;
+  const systemPrompt = buildSceneProseSystemPrompt({
+    formatInstructions,
+    narrativeTitle: narrative.title,
+    worldSummary: narrative.worldSummary,
+    proseVoiceOverride: hasVoiceOverride ? narrative.storySettings!.proseVoice! : undefined,
+    direction: guidance,
+  });
 
   const sceneBlock = sceneContext(narrative, scene, resolvedKeys, contextIndex);
 
@@ -1747,52 +1488,48 @@ MECHANISMS define delivery mode:
 - document → embedded text (letter, sign, excerpt) shown literally
 - comic → humor, irony, absurdity, undercut expectations
 
-PROPOSITIONS are story world facts — transmit them through prose craft, NEVER copy verbatim:
-- Proposition: "Mist covers the village" → Transmit via sensory detail (dampness on skin, visibility reduced), action (houses emerge from whiteness), or environment description — but NEVER write "Mist covers the village"
-- Proposition: "Fang Yuan has 500 years of future knowledge" → Transmit via thought (he remembers events not yet happened), action (he navigates with impossible certainty), or dialogue (he predicts with unnatural precision) — but NEVER write "Fang Yuan has 500 years of future knowledge"
-- Proposition: "No one is watching the path" → Transmit via observation (empty path stretches ahead, no movement in periphery), environment (silence, absence of voices), or action (he relaxes his guard) — but NEVER write "No one is watching the path"
-The reader must come to believe these facts are true. HOW you transmit them is craft.
+PROPOSITIONS are facts the scene must establish. The mode of transmission is dictated by the declared register:
+- In dramatic-realist registers, prefer demonstration over verbatim assertion. Proposition: "Mist covers the village" → transmit via sensory detail (dampness on skin, visibility reduced), action (houses emerge from whiteness), or environment description — not as a flat declaration.
+- In lyric, mythic, fabulist, aphoristic, omniscient, or essayistic registers, direct statement is legitimate and sometimes primary. "Mist covered the village, and the village stopped speaking of its dead." is a valid transmission in those registers.
+- In declarative / expository registers (essay, research, memoir at distance), propositions can be stated, attributed, and grounded — "The research shows X" is the point, not a failure.
+- The reader comes to hold the fact as true. How that holding is earned is register-dependent.
 
-RHYTHM & VOICE (critical — prose must breathe):
-- Vary sentence length: short for impact, long for flow, fragments for urgency
-- Use the register and stance from PROSE PROFILE above — if it says "terse", be terse; if it says "lyrical", be lyrical
-- Avoid repetitive subject-verb-object patterns — front-load clauses, use appositives, embed dependent clauses
-- Never write like technical documentation or a wikipedia article — this is fiction, not exposition
+RHYTHM & VOICE — the prose profile is law; the defaults below apply only when the profile is silent:
+- Where the profile specifies a rhythm (terse, flowing, periodic, cumulative, incantatory, monotonic-by-design, fragmented, staccato), obey the profile. Hemingway and Saramago have opposite rhythms and both are correct.
+- Default (profile silent): vary sentence length — short for impact, long for flow, fragments for urgency; avoid inertial subject-verb-object patterns; front-load clauses, use appositives, embed dependent clauses.
+- Match the register declared in the prose profile. In dramatic registers, avoid writing like technical documentation. In essayistic, scholarly, or reportorial registers, exposition IS the register — it is a failure only when it displaces a declared dramatic register.
 
-SHOW, DON'T TELL (non-negotiable):
-- NO info-dumping: never explain systems, concepts, or backstory in prose paragraphs
-- NO explicit emotion naming: show fear through trembling hands, not "He felt fear"
-- NO thematic statements: demonstrate themes through events, don't declare them
-- System knowledge reveals must emerge through demonstration, dialogue discovery, or consequence — never narrator explanation
+SHOW, DON'T TELL — default for dramatic registers, adjustable by profile:
+- In dramatic registers: prefer demonstration over explanation. Show fear through trembling hands, not "He felt fear". Demonstrate themes through events rather than declaring them. Reveal system knowledge through demonstration, dialogue discovery, or consequence rather than narrator exposition.
+- In essayistic, mythic, oracular, auto-theoretical, omniscient, memoiristic, or oral-epic registers: narrator commentary, named emotion, direct thematic statement, and expository paragraphs are legitimate primary tools. Borges tells. Tolstoy's essay-chapters tell. Sebald tells. Rushdie's openings address the reader. When the profile declares such a register, "showing" is still earned through particulars (specific image, specific claim, specific citation), but the prohibition against direct statement is lifted.
+- Universal across registers: vagueness is the real failure. "She felt something shift" is weak in every register; "She named the thing that shifted" is strong in reflective registers; "Her hands would not stop" is strong in dramatic registers. The test is specificity, not the verb.
 
-THREE PILLARS — the prose must honour all three:
-1. WORLD: POV character perceives only what their senses and existing knowledge allow. New world deltas discovered through specific mechanisms, never referenced before revelation.
-2. THREADS: Every thread shift lands at a dramatic moment through action, not narration.
-3. SYSTEM: New system concepts feel EARNED — demonstrated through consequence, dialogue, or action. Never explain after showing. Established knowledge can be referenced. New knowledge cannot be pre-explained.
+THREE CONTINUITY CONSTRAINTS — the prose honours all three. The *mode* of honouring them is dictated by the declared register, not by a single craft doctrine:
+1. WORLD: the POV perceives only what its senses and existing knowledge allow. New world deltas arrive through specific moments in the scene; they are not referenced before they have been established. (In dramatic registers this is "discovery through action"; in essayistic or omniscient registers it is "the narrator introduces it here for the first time, with evidence".)
+2. THREADS: each thread shift lands at a specific moment in the scene. In dramatic registers that moment is usually dramatised through action; in reflective, essayistic, or lyric registers it may be named, stated, or imaged — whatever the profile calls for.
+3. SYSTEM: new system concepts arrive with grounding — a demonstration, a citation, a consequence, a worked example, or a framing that earns them. What counts as "earning" is register-dependent.
 
-You must satisfy every logical requirement and achieve every proposition — but achieve them through craft, implication, and demonstration. Write at least ~${sceneScale(scene).estWords} words. If the scene demands more, write more.
+Satisfy every logical requirement and achieve every proposition in whatever mode the profile declares. Write at least ~${sceneScale(scene).estWords} words. If the scene needs more, write more.
 
-PROSE PROFILE COMPLIANCE IS MANDATORY: Every sentence must conform to the voice, register, devices, and rules specified above. If profile forbids figurative language, use ZERO figures of speech. If profile demands specific devices, use them. The profile defines your authorial voice — match it exactly.`
-    : `RHYTHM & VOICE (critical — prose must breathe):
-- Vary sentence length: short for impact, long for flow, fragments for urgency
-- Use the register and stance from PROSE PROFILE above — match the authorial voice exactly
-- Avoid repetitive patterns — front-load clauses, use appositives, vary structure
-- This is fiction, not exposition — never write like documentation
+PROSE PROFILE COMPLIANCE: every sentence conforms to the voice, register, devices, and rules declared above. If the profile forbids figurative language, use zero figures of speech. If it requires specific devices, use them. The profile is the authorial voice — match it.`
+    : `RHYTHM & VOICE — the prose profile is law; the defaults below apply only when the profile is silent:
+- Where the profile specifies a rhythm, obey the profile. Register and stance from PROSE PROFILE above take precedence over the defaults here.
+- Default (profile silent): vary sentence length, front-load clauses, use appositives, vary structure.
+- Match the register declared in the prose profile. In dramatic registers, avoid documentation-tone. In essayistic or scholarly registers, exposition IS the register.
 
-SHOW, DON'T TELL (non-negotiable):
-- NO info-dumping or system explanations in prose paragraphs
-- NO explicit emotion naming — show through body language, action, dialogue subtext
-- NO thematic statements — demonstrate through events and contrasts
-- System knowledge reveals through demonstration, discovery, consequence — never narrator explanation
+SHOW, DON'T TELL — default for dramatic registers, adjustable by profile:
+- In dramatic registers: prefer demonstration over explanation — show through body language, action, dialogue subtext; demonstrate themes through events.
+- In essayistic, mythic, oracular, omniscient, memoiristic, auto-theoretical, or oral-epic registers: narrator commentary, named emotion, direct thematic statement, and expository paragraphs are legitimate primary tools when the profile declares such a register.
+- Universal across registers: vagueness is the real failure. Specificity — a named image, a named claim, a named source — is strong in every register.
 
-THREE PILLARS — the prose must honour all three:
-1. WORLD: POV character perceives only what senses and existing knowledge allow. New world deltas discovered through specific moments, never referenced before revelation.
-2. THREADS: Every thread shift lands at a dramatic moment through action, not narration.
-3. SYSTEM: New system concepts feel EARNED — demonstrated through consequence, dialogue, or action. Never explain after showing. Established knowledge can be referenced. New knowledge cannot be pre-explained.
+THREE CONTINUITY CONSTRAINTS — the prose honours all three. The mode of honouring them is dictated by the declared register:
+1. WORLD: the POV perceives only what its senses and existing knowledge allow. New world deltas arrive through specific moments in the scene; they are not referenced before they have been established.
+2. THREADS: each thread shift lands at a specific moment in the scene. In dramatic registers the shift is usually dramatised; in reflective, essayistic, or lyric registers it may be named, stated, or imaged.
+3. SYSTEM: new system concepts arrive with grounding appropriate to the register — demonstration, citation, consequence, worked example, or named framing.
 
-Every thread shift, world change, relationship delta, and system knowledge reveal must be dramatised through action and scene. Foreshadow through imagery, subtext, environmental details — never telegraph. Write at least ~${sceneScale(scene).estWords} words, more if the scene demands it.
+Render every thread shift, world change, relationship delta, and system reveal in the mode the profile declares. Foreshadow through imagery, subtext, or explicit framing as the profile prefers. Write at least ~${sceneScale(scene).estWords} words, more if the scene needs it.
 
-PROSE PROFILE COMPLIANCE IS MANDATORY: Every sentence must conform to the voice, register, devices, and rules specified above. Match the profile exactly — if it forbids figures of speech, use ZERO. If it demands specific devices, use them.`;
+PROSE PROFILE COMPLIANCE: every sentence conforms to the declared voice, register, devices, and rules. If the profile forbids figures of speech, use zero. If it requires specific devices, use them.`;
 
   const prompt = `${profileSection ? `${profileSection}\n\n` : ''}${adjacentProseBlock ? `${adjacentProseBlock}\n\n` : ''}${planBlock}${sceneBlock}
 
@@ -1864,17 +1601,8 @@ ${instruction}`;
 
   let proseEmbedding: number[] | undefined;
   if (result.prose && result.prose.length > 0) {
-    try {
-      const embeddings = await generateEmbeddings([result.prose], narrative.id);
-      proseEmbedding = embeddings[0];
-    } catch (error) {
-      // Log error but don't fail prose generation if embedding fails
-      logError('Failed to generate prose embedding', error, {
-        source: 'prose-generation',
-        operation: 'embed-prose',
-        details: { narrativeId: narrative.id, sceneId: scene.id },
-      });
-    }
+    const embeddings = await generateEmbeddings([result.prose], narrative.id);
+    proseEmbedding = embeddings[0];
   }
 
   return { ...result, proseEmbedding };

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { resolveKey } from '@/lib/resolve-api-key';
+import { logError, logInfo } from '@/lib/system-logger';
 
 const OPENAI_TTS_URL = 'https://api.openai.com/v1/audio/speech';
 const CHUNK_SIZE = 4000; // leave headroom under 4096
@@ -53,11 +54,17 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'OpenAI API key required' }, { status: 401 });
   }
 
+  const startedAt = Date.now();
   try {
     const body = await req.json() as { voice?: string; model?: string; text: string };
     const voice = body.voice || 'nova';
     const model = body.model || 'tts-1';
     const chunks = chunkText(body.text);
+    logInfo('Audio generation request received', {
+      source: 'audio-generation',
+      operation: 'request',
+      details: { voice, model, chunkCount: chunks.length, totalChars: body.text.length },
+    });
 
     // Synthesise all chunks in parallel
     const buffers = await Promise.all(
@@ -73,6 +80,11 @@ export async function POST(req: NextRequest) {
       offset += buf.byteLength;
     }
 
+    logInfo('Audio generated successfully', {
+      source: 'audio-generation',
+      operation: 'success',
+      details: { chunkCount: chunks.length, totalBytes, durationMs: Date.now() - startedAt },
+    });
     return new NextResponse(combined, {
       headers: {
         'Content-Type': 'audio/mpeg',
@@ -80,7 +92,11 @@ export async function POST(req: NextRequest) {
       },
     });
   } catch (err) {
-    console.error('[generate-audio]', err);
+    logError('Audio generation failed', err, {
+      source: 'audio-generation',
+      operation: 'request',
+      details: { durationMs: Date.now() - startedAt },
+    });
     const message = err instanceof Error ? err.message : String(err);
     return NextResponse.json({ error: message }, { status: 500 });
   }

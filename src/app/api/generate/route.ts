@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { resolveKey } from '@/lib/resolve-api-key';
 import { DEFAULT_MODEL, MAX_TOKENS_DEFAULT, DEFAULT_TEMPERATURE } from '@/lib/constants';
+import { logError } from '@/lib/system-logger';
 
 const OPENROUTER_URL = 'https://openrouter.ai/api/v1/chat/completions';
 
@@ -47,6 +48,11 @@ export async function POST(req: NextRequest) {
 
     if (!response.ok) {
       const errorText = await response.text();
+      logError('OpenRouter request failed', errorText, {
+        source: 'api',
+        operation: 'openrouter-call',
+        details: { status: response.status, model: model || DEFAULT_MODEL, stream: !!stream },
+      });
       return NextResponse.json({ error: `OpenRouter error: ${errorText}` }, { status: response.status });
     }
 
@@ -141,6 +147,10 @@ export async function POST(req: NextRequest) {
     } : null;
     return NextResponse.json({ content, ...(reasoning ? { reasoning } : {}), ...(reasoningTokens != null ? { reasoningTokens } : {}), ...(usage ? { usage } : {}) });
   } catch (err) {
+    logError('OpenRouter handler crashed', err, {
+      source: 'api',
+      operation: 'generate-handler',
+    });
     return NextResponse.json({ error: String(err) }, { status: 500 });
   }
 }

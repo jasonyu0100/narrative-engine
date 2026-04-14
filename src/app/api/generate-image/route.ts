@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { resolveKey } from '@/lib/resolve-api-key';
 import { DEFAULT_MODEL } from '@/lib/constants';
+import { logError, logInfo, logWarning } from '@/lib/system-logger';
 
 const OPENROUTER_URL = 'https://openrouter.ai/api/v1/chat/completions';
 const REPLICATE_URL = 'https://api.replicate.com/v1/models/bytedance/seedream-4.5/predictions';
@@ -88,12 +89,25 @@ export async function POST(req: NextRequest) {
   if (!replicateToken) return NextResponse.json({ error: 'Replicate API token required' }, { status: 401 });
   if (!openrouterKey) return NextResponse.json({ error: 'OpenRouter API key required' }, { status: 401 });
 
+  const startedAt = Date.now();
   try {
     const body = await req.json() as ImageRequest;
+    logInfo(`Image generation request received`, {
+      source: 'image-generation',
+      operation: 'request',
+      details: { type: body.type, hasCustomStyle: !!body.imageStyle },
+    });
 
     // Step 1: Get or craft the visual prompt
     const visualPrompt = await describeVisually(openrouterKey, body);
-    if (!visualPrompt) return NextResponse.json({ error: 'Failed to generate visual description' }, { status: 500 });
+    if (!visualPrompt) {
+      logWarning('Failed to generate visual description', 'empty visual prompt', {
+        source: 'image-generation',
+        operation: 'describe-visually',
+        details: { type: body.type },
+      });
+      return NextResponse.json({ error: 'Failed to generate visual description' }, { status: 500 });
+    }
 
     // Build prompt: style → subject → composition → safety (consistent across all types)
     // Style ALWAYS leads — even with custom imagePrompt — to ensure visual consistency
@@ -122,6 +136,11 @@ export async function POST(req: NextRequest) {
 
     if (!response.ok) {
       const errorText = await response.text();
+      logError('Replicate prediction request failed', errorText, {
+        source: 'image-generation',
+        operation: 'replicate-create',
+        details: { status: response.status, type: body.type },
+      });
       return NextResponse.json({ error: `Replicate error: ${errorText}` }, { status: response.status });
     }
 
@@ -136,6 +155,11 @@ export async function POST(req: NextRequest) {
     while (attempts < maxAttempts) {
       if (completedPrediction.status === 'succeeded') break;
       if (completedPrediction.status === 'failed' || completedPrediction.status === 'canceled') {
+        logError(`Replicate prediction ${completedPrediction.status}`, completedPrediction.error || 'Unknown error', {
+          source: 'image-generation',
+          operation: 'replicate-poll',
+          details: { status: completedPrediction.status, attempts, type: body.type },
+        });
         return NextResponse.json({
           error: `Image generation ${completedPrediction.status}: ${completedPrediction.error || 'Unknown error'}`
         }, { status: 500 });
@@ -150,6 +174,11 @@ export async function POST(req: NextRequest) {
       });
 
       if (!pollRes.ok) {
+        logError('Failed to poll Replicate prediction status', `HTTP ${pollRes.status}`, {
+          source: 'image-generation',
+          operation: 'replicate-poll',
+          details: { attempts, type: body.type },
+        });
         return NextResponse.json({ error: 'Failed to poll prediction status' }, { status: 500 });
       }
 
@@ -157,20 +186,38 @@ export async function POST(req: NextRequest) {
     }
 
     if (completedPrediction.status !== 'succeeded') {
+      logWarning('Image generation timed out', `status=${completedPrediction.status} after ${attempts} attempts`, {
+        source: 'image-generation',
+        operation: 'replicate-poll',
+        details: { attempts, maxAttempts, type: body.type },
+      });
       return NextResponse.json({ error: 'Image generation timed out' }, { status: 500 });
     }
 
     const replicateUrl = Array.isArray(completedPrediction.output) ? completedPrediction.output[0] : completedPrediction.output;
 
     if (!replicateUrl) {
-      console.error('[generate-image] Empty output from Replicate:', completedPrediction);
+      logError('Empty output from Replicate', JSON.stringify(completedPrediction).slice(0, 500), {
+        source: 'image-generation',
+        operation: 'replicate-result',
+        details: { type: body.type },
+      });
       return NextResponse.json({ error: 'No image URL in completed prediction' }, { status: 500 });
     }
 
+    logInfo(`Image generated successfully`, {
+      source: 'image-generation',
+      operation: 'success',
+      details: { type: body.type, durationMs: Date.now() - startedAt, attempts },
+    });
     // Return the Replicate URL directly - client will download and store in IndexedDB
     return NextResponse.json({ imageUrl: replicateUrl, visualPrompt });
   } catch (err) {
-    console.error('[generate-image] Error:', err);
+    logError('Image generation failed', err, {
+      source: 'image-generation',
+      operation: 'request',
+      details: { durationMs: Date.now() - startedAt },
+    });
     return NextResponse.json({ error: String(err) }, { status: 500 });
   }
 }

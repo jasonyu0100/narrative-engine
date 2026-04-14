@@ -85,7 +85,7 @@ export function openDB(): Promise<IDBDatabase> {
     req.onsuccess = () => resolve(req.result);
     req.onerror = () => {
       logError('Failed to open IndexedDB', req.error, {
-        source: 'other',
+        source: 'persistence',
         operation: 'open-indexeddb',
         details: { dbName: DB_NAME, dbVersion: DB_VERSION }
       });

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { resolveKey } from '@/lib/resolve-api-key';
+import { logError, logInfo } from '@/lib/system-logger';
 
 const OPENAI_EMBEDDINGS_URL = 'https://api.openai.com/v1/embeddings';
 const EMBEDDING_MODEL = 'text-embedding-3-small';
@@ -15,6 +16,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'texts array required' }, { status: 400 });
   }
 
+  const startedAt = Date.now();
   const response = await fetch(OPENAI_EMBEDDINGS_URL, {
     method: 'POST',
     headers: {
@@ -26,6 +28,11 @@ export async function POST(req: NextRequest) {
 
   if (!response.ok) {
     const errorText = await response.text();
+    logError('OpenAI embeddings request failed', errorText, {
+      source: 'embedding',
+      operation: 'openai-embed',
+      details: { status: response.status, count: texts.length },
+    });
     return NextResponse.json(
       { error: `OpenAI error: ${errorText}` },
       { status: response.status }
@@ -34,6 +41,17 @@ export async function POST(req: NextRequest) {
 
   const data = await response.json();
   const embeddings = data.data.map((item: { embedding: number[] }) => item.embedding);
+
+  logInfo('Embeddings generated', {
+    source: 'embedding',
+    operation: 'openai-embed',
+    details: {
+      count: embeddings.length,
+      model: EMBEDDING_MODEL,
+      totalTokens: data.usage?.total_tokens ?? null,
+      durationMs: Date.now() - startedAt,
+    },
+  });
 
   return NextResponse.json({
     embeddings,

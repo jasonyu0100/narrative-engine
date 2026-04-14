@@ -4,8 +4,8 @@
 
 export const PROMPT_WORLD = `
 WORLD CONSISTENCY:
-- NEVER teleport characters. Use characterMovements. Prefer revisiting established locations.
-- Injuries, exhaustion, consequences persist scene to scene.
+- Character movement should be legible to the reader. Record it in characterMovements; prefer revisiting established locations. Non-literal translocation (dream-logic, ceremonial, stage-play-derived, or fabulist forms) is valid when the declared form supports it; literal teleportation in a realist register is a continuity break.
+- Injuries, exhaustion, and consequences persist scene to scene.
 - Characters cannot act on information they haven't learned.
 - Signal time gaps: "Three days later", "By morning".
 `;

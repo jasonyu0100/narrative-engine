@@ -7,6 +7,7 @@
  */
 
 import { computeForceSnapshots, detectCubeCorner } from "@/lib/narrative-utils";
+import { logInfo } from "@/lib/system-logger";
 import type { CubeCornerKey, NarrativeState, Scene } from "@/types/narrative";
 import { NARRATIVE_CUBE, resolveEntry } from "@/types/narrative";
 
@@ -145,7 +146,7 @@ const STORYTELLER_MATRIX: TransitionMatrix = (() => {
     LLH: 0.1,
     LLL: 0.3,
   };
-  // From Climax — threads resolved, characters need to breathe
+  // From Climax / Payoff — threads resolved (or thesis fully evidenced); entities need to breathe before the next move
   m.HHL = {
     HHH: 0.05,
     HHL: 0.05,
@@ -156,7 +157,7 @@ const STORYTELLER_MATRIX: TransitionMatrix = (() => {
     LLH: 0.1,
     LLL: 0.25,
   };
-  // From Revelation — truth unlocked, characters must grapple with it
+  // From Revelation — truth unlocked (new finding / new understanding); entities must grapple with the implications
   m.HLH = {
     HHH: 0.05,
     HHL: 0.2,
@@ -167,7 +168,7 @@ const STORYTELLER_MATRIX: TransitionMatrix = (() => {
     LLH: 0.05,
     LLL: 0.1,
   };
-  // From Closure — loose ends tied, new chapter begins
+  // From Closure — loose ends tied; a new movement or arc begins
   m.HLL = {
     HHH: 0,
     HHL: 0.05,
@@ -530,6 +531,16 @@ export function samplePacingSequence(
   }));
 
   const pacingDescription = buildPacingDescription(steps);
+
+  logInfo(`Sampled pacing sequence`, {
+    source: "pacing-sampling",
+    operation: "sample-sequence",
+    details: {
+      startMode,
+      length,
+      sequence: modes.join(" → "),
+    },
+  });
 
   return { steps, pacingDescription };
 }

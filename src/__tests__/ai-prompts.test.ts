@@ -1,551 +1,287 @@
+/**
+ * Critical prompt invariants.
+ *
+ * This file intentionally does NOT freeze prompt wording. Prompt language is
+ * under active refinement (taste, register, cultural breadth). Phrase-level
+ * assertions produce churn without protecting anything load-bearing.
+ *
+ * What IS load-bearing — and therefore guarded here:
+ *   1. Thread-lifecycle vocabulary contract. The LLM emits JSON with
+ *      status values; if the prompt stops enumerating the full set, or
+ *      stops explicitly distinguishing "pulse" (log type) from statuses,
+ *      downstream validation will silently break.
+ *   2. Beat taxonomy count invariant. Generated beat plans are validated
+ *      against BEAT_FN_LIST and BEAT_MECHANISM_LIST. The prompt must
+ *      advertise the SAME set and COUNT, or the LLM will produce plans
+ *      that fail validation.
+ *   3. Delta schema contract. The prompt names every delta type the
+ *      reducer expects. Drift here = LLM output the code can't consume.
+ *
+ * Broader wording/taste guards live in core-language.test.ts (canonical
+ * vocabulary, forbidden fiction-default drift).
+ */
+
 import {
-  buildCompletedBeatsPrompt,
-  buildForceStandardsPrompt,
-  buildThreadHealthPrompt,
-  PROMPT_ARTIFACTS,
   PROMPT_BEAT_TAXONOMY,
-  PROMPT_WORLD,
-  PROMPT_ENTITY_INTEGRATION,
-  PROMPT_FORCE_STANDARDS,
-  PROMPT_LOCATIONS,
   PROMPT_DELTAS,
-  PROMPT_POV,
-  PROMPT_STRUCTURAL_RULES,
-  PROMPT_SUMMARY_REQUIREMENT,
   promptThreadLifecycle,
+  buildBranchReviewPrompt,
+  buildProseReviewPrompt,
+  buildPlanReviewPrompt,
+  REPORT_ANALYSIS_PROMPT,
+  REPORT_SECTIONS,
+  buildReconcileEntitiesPrompt,
+  buildReconcileSemanticPrompt,
+  buildThreadingPrompt,
+  buildSceneStructurePrompt,
+  buildScenePlanSystemPrompt,
+  buildBeatAnalystSystemPrompt,
 } from "@/lib/ai/prompts";
-import type { NarrativeState, Scene, Thread } from "@/types/narrative";
+import {
+  BEAT_FN_LIST,
+  BEAT_MECHANISM_LIST,
+  THREAD_ACTIVE_STATUSES,
+  THREAD_TERMINAL_STATUSES,
+  THREAD_LOG_NODE_TYPES,
+} from "@/types/narrative";
 import { describe, expect, it } from "vitest";
-// ── Test Fixtures ────────────────────────────────────────────────────────────
-function createMinimalNarrative(
-  overrides: Partial<NarrativeState> = {},
-): NarrativeState {
-  return {
-    id: "test-narrative",
-    title: "Test Story",
+
+// Verdict enums — kept in sync with SceneVerdict / ProseVerdict / PlanVerdict
+// in src/types/narrative.ts. If the types there change, update here and the
+// test will catch any prompt that hasn't been updated to match.
+const SCENE_VERDICTS = ["ok", "edit", "merge", "cut", "insert", "move"] as const;
+const PROSE_VERDICTS = ["ok", "edit"] as const;
+const PLAN_VERDICTS = ["ok", "edit"] as const;
+
+describe("Thread lifecycle vocabulary contract", () => {
+  // Every status the code recognises must appear in the delta prompt,
+  // otherwise the LLM can't be expected to emit it correctly.
+  const ALL_STATUSES = [
+    ...THREAD_ACTIVE_STATUSES,
+    ...THREAD_TERMINAL_STATUSES,
+    "abandoned",
+  ];
+
+  it("PROMPT_DELTAS advertises every status the reducer accepts", () => {
+    for (const status of ALL_STATUSES) {
+      expect(PROMPT_DELTAS).toContain(status);
+    }
+  });
+
+  it("PROMPT_DELTAS explicitly forbids the pulse-as-status confusion", () => {
+    // "pulse" is a log node type, not a status. The prompt must say so
+    // because the two sit side-by-side in the schema and LLMs confuse them.
+    expect(PROMPT_DELTAS).toMatch(/pulse.{0,10}NOT.{0,10}status/i);
+  });
+
+  it("promptThreadLifecycle exposes the full active lifecycle", () => {
+    const doc = promptThreadLifecycle();
+    for (const status of THREAD_ACTIVE_STATUSES) {
+      expect(doc).toContain(status);
+    }
+  });
+});
+
+describe("Beat taxonomy count invariant", () => {
+  // The LLM plan validator accepts exactly BEAT_FN_LIST and
+  // BEAT_MECHANISM_LIST. If the prompt advertises a different set, plans
+  // fail validation — silent churn. Cross-check against the type system.
+
+  it("PROMPT_BEAT_TAXONOMY lists every beat function the validator accepts", () => {
+    for (const fn of BEAT_FN_LIST) {
+      expect(PROMPT_BEAT_TAXONOMY).toContain(fn);
+    }
+  });
+
+  it("PROMPT_BEAT_TAXONOMY lists every mechanism the validator accepts", () => {
+    for (const mech of BEAT_MECHANISM_LIST) {
+      expect(PROMPT_BEAT_TAXONOMY).toContain(mech);
+    }
+  });
+
+  it("advertised counts match the type system", () => {
+    // If BEAT_FN_LIST grows from 10 to 11, either update the prompt header
+    // or update this test — but not silently.
+    expect(PROMPT_BEAT_TAXONOMY).toContain(`FUNCTIONS (${BEAT_FN_LIST.length})`);
+    expect(PROMPT_BEAT_TAXONOMY).toContain(`MECHANISMS (${BEAT_MECHANISM_LIST.length})`);
+  });
+});
+
+describe("Delta schema contract", () => {
+  // The prompt must name every delta field the scene reducer consumes.
+  const DELTA_FIELDS = [
+    "threadDeltas",
+    "worldDeltas",
+    "systemDeltas",
+    "relationshipDeltas",
+    "events",
+    "artifactUsages",
+    "ownershipDeltas",
+    "characterMovements",
+  ];
+
+  for (const field of DELTA_FIELDS) {
+    it(`PROMPT_DELTAS advertises ${field}`, () => {
+      expect(PROMPT_DELTAS).toContain(field);
+    });
+  }
+});
+
+describe("Review verdict contract", () => {
+  // Review prompts must advertise every verdict the reducer handles. If the
+  // prompt drops a verdict, the LLM stops emitting it and downstream scene
+  // edits silently never fire — no error, just missing edits.
+
+  const branchPrompt = buildBranchReviewPrompt({
+    title: "Test",
     description: "Test",
-    characters: {},
-    locations: {},
-    threads: {},
-    artifacts: {},
-    scenes: {},
-    arcs: {},
-    worldBuilds: {},
-    branches: {
-      main: {
-        id: "main",
-        name: "Main",
-        parentBranchId: null,
-        forkEntryId: null,
-        entryIds: [],
-        createdAt: Date.now(),
-      },
-    },
-    relationships: [],
-    systemGraph: { nodes: {}, edges: [] },
-    worldSummary: "",
-    createdAt: Date.now(),
-    updatedAt: Date.now(),
-    ...overrides,
-  };
-}
-function createScene(
-  id: string,
-  threadDeltas: Array<{
-    threadId: string;
-    from: string;
-    to: string;
-    addedNodes?: [];
-    addedEdges?: [];
-  }>,
-  overrides: Partial<Scene> = {},
-): Scene {
-  return {
-    kind: "scene",
-    id,
-    arcId: "arc-1",
-    povId: "c1",
-    locationId: "loc1",
-    participantIds: ["c1"],
-    summary: `Scene ${id} summary`,
-    events: ["event_1"],
-    threadDeltas: threadDeltas.map((tm) => ({
-      threadId: tm.threadId,
-      from: tm.from,
-      to: tm.to,
-      addedNodes: [],
-    })),
-    worldDeltas: [],
-    relationshipDeltas: [],
-    ...overrides,
-  };
-}
-function createThread(
-  id: string,
-  description: string,
-  status: string = "latent",
-): Thread {
-  return {
-    id,
-    description,
-    status,
-    participants: [],
-    dependents: [],
-    openedAt: "s1",
-    threadLog: { nodes: {}, edges: [] },
-  };
-}
-// ── Static Prompt Constants ──────────────────────────────────────────────────
-describe("Static Prompt Constants", () => {
-  describe("PROMPT_FORCE_STANDARDS", () => {
-    it("contains fate target", () => {
-      expect(PROMPT_FORCE_STANDARDS).toMatch(/FATE[\s\S]+Target:/);
-    });
-    it("contains world target", () => {
-      expect(PROMPT_FORCE_STANDARDS).toMatch(/WORLD[\s\S]+Target:/);
-    });
-    it("contains system target", () => {
-      expect(PROMPT_FORCE_STANDARDS).toMatch(/SYSTEM[\s\S]+Target:/);
-    });
-    it("mentions balance archetypes", () => {
-      expect(PROMPT_FORCE_STANDARDS).toContain("BALANCE");
-    });
+    threadBlock: "",
+    sceneBlock: "",
+    sceneCount: 0,
+    guidanceBlock: "",
   });
-  describe("PROMPT_STRUCTURAL_RULES", () => {
-    it("contains anti-repetition rules", () => {
-      expect(PROMPT_STRUCTURAL_RULES).toContain("ANTI-REPETITION");
-      expect(PROMPT_STRUCTURAL_RULES).toContain("NO EVENT TWICE");
-      expect(PROMPT_STRUCTURAL_RULES).toContain("NO STRUCTURE REPEAT");
-      expect(PROMPT_STRUCTURAL_RULES).toContain("EVERY SCENE CHANGES STATE");
-    });
-    it("contains thread collision rules", () => {
-      expect(PROMPT_STRUCTURAL_RULES).toContain("THREAD COLLISION");
-      expect(PROMPT_STRUCTURAL_RULES).toContain("2+ threads simultaneously");
-      expect(PROMPT_STRUCTURAL_RULES).toContain("COST");
-    });
-    it("contains character discipline rules", () => {
-      expect(PROMPT_STRUCTURAL_RULES).toContain("CHARACTER DISCIPLINE");
-      expect(PROMPT_STRUCTURAL_RULES).toContain(
-        "3+ scenes MUST show visible change",
-      );
-      expect(PROMPT_STRUCTURAL_RULES).toContain("plan per arc must go wrong");
-    });
-    it("contains pacing density rules", () => {
-      expect(PROMPT_STRUCTURAL_RULES).toContain("PACING DENSITY");
-      expect(PROMPT_STRUCTURAL_RULES).toContain("Battle");
-      expect(PROMPT_STRUCTURAL_RULES).toContain("Quiet");
-    });
-    it("contains scan instruction", () => {
-      expect(PROMPT_STRUCTURAL_RULES).toContain("SCAN");
-    });
+  const prosePrompt = buildProseReviewPrompt({
+    title: "Test",
+    sceneBlocks: "",
+    sceneCount: 0,
+    guidanceBlock: "",
+    profileBlock: "",
   });
-  describe("PROMPT_DELTAS", () => {
-    it("describes threadDeltas with status lifecycle", () => {
-      expect(PROMPT_DELTAS).toContain("threadDeltas");
-      // Status axis explicitly enumerates the lifecycle vocabulary so the
-      // LLM can't slot in "pulse" (a log node type) as a status.
-      expect(PROMPT_DELTAS).toContain(
-        "latent | seeded | active | escalating | critical | resolved | subverted | abandoned",
-      );
-      // And the prompt must explicitly forbid the pulse-as-status confusion.
-      expect(PROMPT_DELTAS).toContain('"pulse" is NOT a status');
-    });
-    it("describes thread log types", () => {
-      expect(PROMPT_DELTAS).toContain("LOG TYPE");
-      expect(PROMPT_DELTAS).toContain("pulse");
-      expect(PROMPT_DELTAS).toContain("transition");
-      expect(PROMPT_DELTAS).toContain("payoff");
-    });
-    it("describes commitment concept", () => {
-      expect(PROMPT_DELTAS).toContain("COMMITMENT");
-      expect(PROMPT_DELTAS).toContain("escalating");
-    });
-    it("describes worldDeltas", () => {
-      expect(PROMPT_DELTAS).toContain("worldDeltas");
-      expect(PROMPT_DELTAS).toContain("PRESENT TENSE facts");
-    });
-    it("describes relationshipDeltas with valence scale", () => {
-      expect(PROMPT_DELTAS).toContain("relationshipDeltas");
-      expect(PROMPT_DELTAS).toContain("valenceDelta");
-      expect(PROMPT_DELTAS).toContain("±0.1");
-      expect(PROMPT_DELTAS).toContain("±0.3");
-      expect(PROMPT_DELTAS).toContain("±0.5");
-    });
-    it("describes systemDeltas with node types", () => {
-      expect(PROMPT_DELTAS).toContain("systemDeltas");
-      expect(PROMPT_DELTAS).toContain("principle");
-      expect(PROMPT_DELTAS).toContain("concept");
-      expect(PROMPT_DELTAS).toContain("tension");
-      expect(PROMPT_DELTAS).toContain("constraint");
-    });
-    it("includes density targets", () => {
-      expect(PROMPT_DELTAS).toContain("DENSITY TARGETS");
-      expect(PROMPT_DELTAS).toContain("Breather");
-      expect(PROMPT_DELTAS).toContain("Typical");
-      expect(PROMPT_DELTAS).toContain("Climactic");
-    });
-    it("includes force formulas", () => {
-      expect(PROMPT_DELTAS).toContain("FORMULAS");
-    });
+  const planPrompt = buildPlanReviewPrompt({
+    title: "Test",
+    threadBlock: "",
+    charBlock: "",
+    sceneBlocks: "",
+    sceneCount: 0,
+    guidanceBlock: "",
   });
-  describe("PROMPT_ARTIFACTS", () => {
-    it("describes artifact usage and ownership", () => {
-      expect(PROMPT_ARTIFACTS).toContain("ARTIFACTS");
-      expect(PROMPT_ARTIFACTS).toContain("OWNERSHIP");
-      expect(PROMPT_ARTIFACTS).toContain("character");
-      expect(PROMPT_ARTIFACTS).toContain("location");
-      expect(PROMPT_ARTIFACTS).toContain("world-owned");
+
+  for (const verdict of SCENE_VERDICTS) {
+    it(`branch review prompt advertises "${verdict}" verdict`, () => {
+      expect(branchPrompt).toContain(`"${verdict}"`);
     });
+  }
+
+  for (const verdict of PROSE_VERDICTS) {
+    it(`prose review prompt advertises "${verdict}" verdict`, () => {
+      expect(prosePrompt).toContain(`"${verdict}"`);
+    });
+  }
+
+  for (const verdict of PLAN_VERDICTS) {
+    it(`plan review prompt advertises "${verdict}" verdict`, () => {
+      expect(planPrompt).toContain(`"${verdict}"`);
+    });
+  }
+});
+
+describe("Reconciliation output-key contract", () => {
+  // Reconcile prompts emit a fixed set of top-level JSON keys. The parser
+  // in src/lib/text-analysis.ts reads them by literal name with `?? {}`
+  // defaults, so a drifted key silently produces an empty merge map —
+  // deduplication silently stops working with no runtime error.
+
+  it("buildReconcileEntitiesPrompt advertises every merge-map key", () => {
+    const prompt = buildReconcileEntitiesPrompt(
+      new Set(["X"]),
+      new Set(["Y"]),
+      new Set(["Z"]),
+    );
+    for (const key of ["characterMerges", "locationMerges", "artifactMerges"]) {
+      expect(prompt).toContain(`"${key}"`);
+    }
   });
-  describe("PROMPT_POV", () => {
-    it("describes POV streaks", () => {
-      expect(PROMPT_POV).toContain("STREAKS");
-      expect(PROMPT_POV).toContain("2-4 consecutive scenes");
-    });
-    it("recommends anchor POV characters per arc", () => {
-      expect(PROMPT_POV).toContain("1-2 POV characters");
-    });
-    it("suggests single POV option", () => {
-      expect(PROMPT_POV).toContain("Single POV");
-    });
+
+  it("buildReconcileSemanticPrompt advertises every merge-map key", () => {
+    const prompt = buildReconcileSemanticPrompt(new Set(["X"]), new Set(["Y"]));
+    for (const key of ["threadMerges", "systemMerges"]) {
+      expect(prompt).toContain(`"${key}"`);
+    }
   });
-  describe("PROMPT_WORLD", () => {
-    it("includes teleportation warning", () => {
-      expect(PROMPT_WORLD).toContain("NEVER teleport");
-    });
-    it("includes character movements instruction", () => {
-      expect(PROMPT_WORLD).toContain("characterMovements");
-    });
-    it("includes consequence persistence", () => {
-      expect(PROMPT_WORLD).toContain("Injuries");
-      expect(PROMPT_WORLD).toContain("persist");
-    });
-    it("includes information asymmetry rule", () => {
-      expect(PROMPT_WORLD).toContain("cannot act on information");
-    });
-    it("includes time gap signaling", () => {
-      expect(PROMPT_WORLD).toContain("time gaps");
-    });
-  });
-  describe("PROMPT_SUMMARY_REQUIREMENT", () => {
-    it("includes banned verbs", () => {
-      expect(PROMPT_SUMMARY_REQUIREMENT).toContain("BANNED:");
-      expect(PROMPT_SUMMARY_REQUIREMENT).toContain("realizes");
-      expect(PROMPT_SUMMARY_REQUIREMENT).toContain("confirms");
-    });
-    it("includes summary requirements", () => {
-      expect(PROMPT_SUMMARY_REQUIREMENT).toContain("SUMMARY");
-      expect(PROMPT_SUMMARY_REQUIREMENT).toContain("CHARACTER NAMES");
-    });
-  });
-  describe("PROMPT_BEAT_TAXONOMY", () => {
-    it("defines all 10 beat functions", () => {
-      expect(PROMPT_BEAT_TAXONOMY).toContain("FUNCTIONS (10)");
-      expect(PROMPT_BEAT_TAXONOMY).toContain("breathe");
-      expect(PROMPT_BEAT_TAXONOMY).toContain("inform");
-      expect(PROMPT_BEAT_TAXONOMY).toContain("advance");
-      expect(PROMPT_BEAT_TAXONOMY).toContain("bond");
-      expect(PROMPT_BEAT_TAXONOMY).toContain("turn");
-      expect(PROMPT_BEAT_TAXONOMY).toContain("reveal");
-      expect(PROMPT_BEAT_TAXONOMY).toContain("shift");
-      expect(PROMPT_BEAT_TAXONOMY).toContain("expand");
-      expect(PROMPT_BEAT_TAXONOMY).toContain("foreshadow");
-      expect(PROMPT_BEAT_TAXONOMY).toContain("resolve");
-    });
-    it("defines all 8 mechanisms", () => {
-      expect(PROMPT_BEAT_TAXONOMY).toContain("MECHANISMS (8)");
-      expect(PROMPT_BEAT_TAXONOMY).toContain("dialogue");
-      expect(PROMPT_BEAT_TAXONOMY).toContain("thought");
-      expect(PROMPT_BEAT_TAXONOMY).toContain("action");
-      expect(PROMPT_BEAT_TAXONOMY).toContain("environment");
-      expect(PROMPT_BEAT_TAXONOMY).toContain("narration");
-      expect(PROMPT_BEAT_TAXONOMY).toContain("memory");
-      expect(PROMPT_BEAT_TAXONOMY).toContain("document");
-      expect(PROMPT_BEAT_TAXONOMY).toContain("comic");
-    });
-    it("includes edge case guidance", () => {
-      expect(PROMPT_BEAT_TAXONOMY).toContain("EDGE CASES");
-    });
-  });
-  describe("PROMPT_LOCATIONS", () => {
-    it("defines locations as physical places", () => {
-      expect(PROMPT_LOCATIONS).toContain("LOCATIONS");
-      expect(PROMPT_LOCATIONS).toContain("PHYSICAL places");
-    });
-    it("includes hierarchy guidance", () => {
-      expect(PROMPT_LOCATIONS).toContain("HIERARCHY");
-      expect(PROMPT_LOCATIONS).toContain("parentId");
-    });
-    it("includes character ties concept", () => {
-      expect(PROMPT_LOCATIONS).toContain("TIES");
-    });
-  });
-  describe("PROMPT_ENTITY_INTEGRATION", () => {
-    it("defines character integration rules", () => {
-      expect(PROMPT_ENTITY_INTEGRATION).toContain("Characters");
-      expect(PROMPT_ENTITY_INTEGRATION).toContain("relationship");
-    });
-    it("defines location nesting rules", () => {
-      expect(PROMPT_ENTITY_INTEGRATION).toContain("Locations");
-      expect(PROMPT_ENTITY_INTEGRATION).toContain("parentId");
-    });
-    it("defines artifact concreteness rules", () => {
-      expect(PROMPT_ENTITY_INTEGRATION).toContain("Artifacts");
-      expect(PROMPT_ENTITY_INTEGRATION).toContain("CONCRETE TOOLS");
-    });
-    it("defines thread participant rules", () => {
-      expect(PROMPT_ENTITY_INTEGRATION).toContain("Thread participants");
-    });
-    it("mentions cultural naming consistency", () => {
-      expect(PROMPT_ENTITY_INTEGRATION).toContain("cultural palette");
-    });
+
+  it("buildThreadingPrompt advertises threadDependencies key", () => {
+    const prompt = buildThreadingPrompt(["thread a"]);
+    expect(prompt).toContain('"threadDependencies"');
   });
 });
-// ── buildForceStandardsPrompt ───────────────────────────────────────────────
-describe("buildForceStandardsPrompt", () => {
-  it("returns the standard force prompt", () => {
-    const result = buildForceStandardsPrompt();
-    expect(result).toBe(PROMPT_FORCE_STANDARDS);
-  });
-  it("includes three force definitions", () => {
-    const result = buildForceStandardsPrompt();
-    expect(result).toContain("FATE");
-    expect(result).toContain("WORLD");
-    expect(result).toContain("SYSTEM");
-  });
-  it("includes scale guidance", () => {
-    const result = buildForceStandardsPrompt();
-    expect(result).toContain("SCALE");
-    expect(result).toContain("Beat");
-    expect(result).toContain("Scene");
-    expect(result).toContain("Arc");
-  });
-  it("includes density guidance", () => {
-    const result = buildForceStandardsPrompt();
-    expect(result).toContain("DENSITY");
+
+describe("Scene-structure extraction schema contract", () => {
+  // Scene extraction is the widest blast radius: the parser in
+  // src/lib/text-analysis.ts defaults every field to [] / "". A field
+  // renamed in the prompt but not the parser = silent empty pipeline.
+  const prompt = buildSceneStructurePrompt("Some prose.", null);
+
+  const SCHEMA_FIELDS = [
+    "povName",
+    "locationName",
+    "participantNames",
+    "events",
+    "summary",
+    "characters",
+    "locations",
+    "artifacts",
+    "threads",
+    "relationships",
+    "threadDeltas",
+    "worldDeltas",
+    "relationshipDeltas",
+    "artifactUsages",
+    "ownershipDeltas",
+    "tieDeltas",
+    "characterMovements",
+    "systemDeltas",
+  ];
+
+  for (const field of SCHEMA_FIELDS) {
+    it(`advertises ${field}`, () => {
+      expect(prompt).toContain(`"${field}"`);
+    });
+  }
+
+  it("advertises every thread-log node type", () => {
+    // THREAD_LOG_NODE_TYPES is consumed by the reducer, the report
+    // generator, and downstream analysis. A dropped member here silently
+    // disables that log type for extraction.
+    for (const type of THREAD_LOG_NODE_TYPES) {
+      expect(prompt).toContain(type);
+    }
   });
 });
-// ── promptThreadLifecycle ────────────────────────────────────────────────────
-describe("promptThreadLifecycle", () => {
-  it("returns a string with thread lifecycle information", () => {
-    const result = promptThreadLifecycle();
-    expect(typeof result).toBe("string");
-    expect(result.length).toBeGreaterThan(0);
-  });
-  it("includes lifecycle stages", () => {
-    const result = promptThreadLifecycle();
-    expect(result).toContain("latent");
-    expect(result).toContain("seeded");
-    expect(result).toContain("critical");
-  });
-  it("includes terminal statuses", () => {
-    const result = promptThreadLifecycle();
-    expect(result).toContain("resolved");
-    expect(result).toContain("subverted");
-  });
-  it("mentions commitment levels", () => {
-    const result = promptThreadLifecycle();
-    expect(result).toContain("COMMITMENT");
+
+describe("Scene-plan + beat-analyst schema contract", () => {
+  // Both prompts emit {beats: [{fn, mechanism, what, propositions: [{content}]}]}.
+  // fn/mechanism are already guarded via the beat-taxonomy cross-check. The
+  // field names themselves aren't — a rename silently zeros out the beat's
+  // `what` (empty prose brief) or `propositions` (no factual anchors).
+  const planPrompt = buildScenePlanSystemPrompt(3);
+  const analystPrompt = buildBeatAnalystSystemPrompt(3);
+
+  for (const field of ["beats", "fn", "mechanism", "what", "propositions", "content"]) {
+    it(`buildScenePlanSystemPrompt advertises ${field}`, () => {
+      expect(planPrompt).toContain(`"${field}"`);
+    });
+    it(`buildBeatAnalystSystemPrompt advertises ${field}`, () => {
+      expect(analystPrompt).toContain(`"${field}"`);
+    });
+  }
+
+  it("beat-analyst prompt enforces chunk↔beat length invariance", () => {
+    // The parser pairs output beats to input chunks by index. If the prompt
+    // stops saying the arrays must be equal length, outputs silently
+    // mis-align.
+    expect(analystPrompt).toMatch(/same length|one beat per chunk|EXACTLY 3 beats/i);
   });
 });
-// ── buildThreadHealthPrompt ──────────────────────────────────────────────────
-describe("buildThreadHealthPrompt", () => {
-  it("returns empty string when no threads exist", () => {
-    const n = createMinimalNarrative();
-    const result = buildThreadHealthPrompt(n, [], 0);
-    expect(result).toBe("");
-  });
-  it("includes bandwidth header", () => {
-    const n = createMinimalNarrative({
-      threads: { t1: createThread("t1", "Test thread", "active") },
+
+describe("Report section contract", () => {
+  // REPORT_ANALYSIS_PROMPT defines the JSON the LLM returns. REPORT_SECTIONS
+  // is the reducer's expectation. They must stay in sync — a missing key in
+  // the prompt returns an empty string for that section without any error.
+  const prompt = REPORT_ANALYSIS_PROMPT("<<test context>>");
+
+  for (const key of REPORT_SECTIONS) {
+    it(`REPORT_ANALYSIS_PROMPT names the "${key}" section`, () => {
+      expect(prompt).toContain(`"${key}"`);
     });
-    const result = buildThreadHealthPrompt(n, [], 0);
-    expect(result).toContain("THREAD BANDWIDTH");
-    expect(result).toContain("1 active");
-  });
-  it("reports thread description and status", () => {
-    const n = createMinimalNarrative({
-      threads: { t1: createThread("t1", "The mystery unfolds", "latent") },
-    });
-    const result = buildThreadHealthPrompt(n, [], 0);
-    expect(result).toContain("The mystery unfolds");
-    expect(result).toContain("latent");
-  });
-  it("reports activeArcs and bandwidth ratio", () => {
-    const n = createMinimalNarrative({
-      threads: { t1: createThread("t1", "Quest thread", "active") },
-      scenes: {
-        s1: createScene("s1", [
-          { threadId: "t1", from: "latent", to: "active" },
-        ]),
-      },
-    });
-    const result = buildThreadHealthPrompt(n, ["s1"], 0);
-    expect(result).toContain("activeArcs");
-  });
-  it("shows convergence links when present", () => {
-    const t1 = createThread("t1", "Main thread", "active");
-    t1.dependents = ["t2"];
-    const n = createMinimalNarrative({
-      threads: {
-        t1,
-        t2: createThread("t2", "Sub thread", "latent"),
-      },
-    });
-    const result = buildThreadHealthPrompt(n, [], 0);
-    expect(result).toContain("Converges");
-    expect(result).toContain("[t2]");
-  });
-  it("reports resolved thread count", () => {
-    const n = createMinimalNarrative({
-      threads: {
-        t1: createThread("t1", "Active thread", "active"),
-        t2: createThread("t2", "Resolved thread", "resolved"),
-      },
-    });
-    const result = buildThreadHealthPrompt(n, [], 0);
-    expect(result).toContain("1/2 resolved");
-  });
-  it("flags starved active threads", () => {
-    const n = createMinimalNarrative({
-      threads: { t1: createThread("t1", "Starved thread", "active") },
-      arcs: {
-        "ARC-01": {
-          id: "ARC-01",
-          name: "Arc 1",
-          sceneIds: [],
-          develops: [],
-          locationIds: [],
-          activeCharacterIds: [],
-          initialCharacterLocations: {},
-        },
-      },
-    });
-    const result = buildThreadHealthPrompt(n, [], 0);
-    expect(result).toContain("EMERGENCY");
-  });
-});
-// ── buildCompletedBeatsPrompt ────────────────────────────────────────────────
-describe("buildCompletedBeatsPrompt", () => {
-  it("returns empty string when no transitions have occurred", () => {
-    const n = createMinimalNarrative({
-      threads: { t1: createThread("t1", "Test", "latent") },
-      scenes: {
-        s1: createScene("s1", [
-          { threadId: "t1", from: "latent", to: "latent" },
-        ]), // pulse, not transition
-      },
-    });
-    const result = buildCompletedBeatsPrompt(n, ["s1"], 0);
-    expect(result).toBe("");
-  });
-  it("includes SPENT BEATS header", () => {
-    const n = createMinimalNarrative({
-      threads: { t1: createThread("t1", "Test thread", "active") },
-      scenes: {
-        s1: createScene("s1", [
-          { threadId: "t1", from: "latent", to: "active" },
-        ]),
-      },
-    });
-    const result = buildCompletedBeatsPrompt(n, ["s1"], 0);
-    expect(result).toContain("SPENT BEATS");
-    expect(result).toContain("CLOSED");
-  });
-  it("lists thread transition chain", () => {
-    const n = createMinimalNarrative({
-      threads: { t1: createThread("t1", "Quest thread", "active") },
-      scenes: {
-        s1: createScene("s1", [
-          { threadId: "t1", from: "latent", to: "active" },
-        ]),
-        s2: createScene("s2", [
-          { threadId: "t1", from: "active", to: "active" },
-        ]),
-      },
-    });
-    const result = buildCompletedBeatsPrompt(n, ["s1", "s2"], 1);
-    expect(result).toContain("Quest thread");
-    expect(result).toContain("latent → active");
-    expect(result).toContain("active");
-  });
-  it("includes scene summaries", () => {
-    const n = createMinimalNarrative({
-      threads: { t1: createThread("t1", "Test", "active") },
-      scenes: {
-        s1: createScene(
-          "s1",
-          [{ threadId: "t1", from: "latent", to: "active" }],
-          {
-            summary: "The hero discovers the secret passage",
-          },
-        ),
-      },
-    });
-    const result = buildCompletedBeatsPrompt(n, ["s1"], 0);
-    expect(result).toContain("secret passage");
-  });
-  it("includes scene events", () => {
-    const n = createMinimalNarrative({
-      threads: { t1: createThread("t1", "Test", "active") },
-      scenes: {
-        s1: createScene(
-          "s1",
-          [{ threadId: "t1", from: "latent", to: "active" }],
-          {
-            events: ["ambush_triggered", "ally_wounded"],
-          },
-        ),
-      },
-    });
-    const result = buildCompletedBeatsPrompt(n, ["s1"], 0);
-    expect(result).toContain("ambush_triggered");
-    expect(result).toContain("ally_wounded");
-  });
-  it("labels terminal threads appropriately", () => {
-    const n = createMinimalNarrative({
-      threads: { t1: createThread("t1", "Resolved thread", "resolved") },
-      scenes: {
-        s1: createScene("s1", [
-          { threadId: "t1", from: "critical", to: "resolved" },
-        ]),
-      },
-    });
-    const result = buildCompletedBeatsPrompt(n, ["s1"], 0);
-    expect(result).toContain("[RESOLVED]");
-  });
-  it("handles multiple threads", () => {
-    const n = createMinimalNarrative({
-      threads: {
-        t1: createThread("t1", "Thread one", "active"),
-        t2: createThread("t2", "Thread two", "active"),
-      },
-      scenes: {
-        s1: createScene("s1", [
-          { threadId: "t1", from: "latent", to: "active" },
-          { threadId: "t2", from: "latent", to: "active" },
-        ]),
-        s2: createScene("s2", [
-          { threadId: "t2", from: "active", to: "active" },
-        ]),
-      },
-    });
-    const result = buildCompletedBeatsPrompt(n, ["s1", "s2"], 1);
-    expect(result).toContain("Thread one");
-    expect(result).toContain("Thread two");
-  });
-  it("truncates long thread descriptions", () => {
-    const longDescription = "A".repeat(100);
-    const n = createMinimalNarrative({
-      threads: { t1: createThread("t1", longDescription, "active") },
-      scenes: {
-        s1: createScene("s1", [
-          { threadId: "t1", from: "latent", to: "active" },
-        ]),
-      },
-    });
-    const result = buildCompletedBeatsPrompt(n, ["s1"], 0);
-    expect(result).toContain("A".repeat(50)); // Truncated to 50 chars
-    expect(result).not.toContain("A".repeat(60));
-  });
+  }
 });
