@@ -29,10 +29,16 @@ const NODE_COLORS: Record<CoordinationNodeType, { fill: string; stroke: string; 
   reasoning: { fill: "#374151", stroke: "#6b7280", text: "#f3f4f6" },
   // Pattern — cyan/teal (positive reinforcement)
   pattern: { fill: "#115e59", stroke: "#14b8a6", text: "#ccfbf1" },
-  // Warning — amber/orange (anti-pattern risk)
-  warning: { fill: "#92400e", stroke: "#f59e0b", text: "#fef3c7" },
-  // Plot — gold/yellow (key plot points the story must pass through)
-  plot: { fill: "#854d0e", stroke: "#eab308", text: "#fef08a" },
+  // Warning — rose (adversarial agent)
+  warning: { fill: "#881337", stroke: "#f43f5e", text: "#ffe4e6" },
+  // Chaos — purple (creative agent; spawns new threads / characters / locations / artifacts)
+  chaos: { fill: "#581c87", stroke: "#a855f7", text: "#f3e8ff" },
+  // Peak — matches delivery-curve PEAK_COLOR (#FCD34D); arc commits here
+  peak: { fill: "#78350f", stroke: "#fcd34d", text: "#fef3c7" },
+  // Valley — matches delivery-curve VALLEY_COLOR (#93C5FD); arc pivots here
+  valley: { fill: "#1e3a8a", stroke: "#93c5fd", text: "#dbeafe" },
+  // Moment — slate (plan-level beat that isn't a peak or valley)
+  moment: { fill: "#334155", stroke: "#94a3b8", text: "#e2e8f0" },
 };
 
 const EDGE_COLORS: Record<ReasoningEdgeType, string> = {
@@ -493,8 +499,10 @@ export function CoordinationPlanModal({
   // Progress
   const progress = ((focusedIndex + 1) / sortedNodes.length) * 100;
 
-  // Arc-defining plot nodes for summary (plot nodes with arcIndex)
-  const arcNodes = plan.nodes.filter(n => n.type === "plot" && n.arcIndex !== undefined).sort((a, b) => (a.arcIndex ?? 0) - (b.arcIndex ?? 0));
+  // Arc-anchor nodes for summary — one peak or valley per arc carries arcIndex
+  const arcNodes = plan.nodes
+    .filter(n => (n.type === "peak" || n.type === "valley") && n.arcIndex !== undefined)
+    .sort((a, b) => (a.arcIndex ?? 0) - (b.arcIndex ?? 0));
 
   return (
     <div className="fixed inset-0 bg-black/95 z-60 flex flex-col">

@@ -1,8 +1,11 @@
 import {
+  applyDerivedForceModes,
   buildOutlineDirective,
   checkEndConditions,
   computeStoryProgress,
+  deriveArcForceMode,
   evaluateNarrativeState,
+  getArcNode,
   getStoryPhase,
   pickArcLength,
   type DirectiveContext,
@@ -12,6 +15,8 @@ import { AUTO_STOP_CYCLE_LENGTH } from "@/lib/constants";
 import type {
   AutoConfig,
   Character,
+  CoordinationNode,
+  CoordinationPlan,
   Location,
   NarrativeState,
   Scene,
@@ -787,5 +792,242 @@ describe("auto-engine edge cases", () => {
       0,
     );
     expect(progress).toBe(0.6); // max of 60% and 20%
+  });
+});
+
+// ── Coordination Plan — Arc Anchor & Force Mode Derivation ──────────────────
+describe("getArcNode", () => {
+  function mkNode(
+    overrides: Partial<CoordinationNode> & { id: string },
+  ): CoordinationNode {
+    return {
+      index: 0,
+      type: "reasoning",
+      label: "node",
+      ...overrides,
+    };
+  }
+  function mkPlan(nodes: CoordinationNode[]): CoordinationPlan {
+    return {
+      id: "plan-test",
+      nodes,
+      edges: [],
+      arcCount: Math.max(
+        1,
+        ...nodes.map((n) => n.arcIndex ?? 0),
+      ),
+      summary: "test",
+      arcPartitions: [],
+      currentArc: 0,
+      completedArcs: [],
+      createdAt: 0,
+    };
+  }
+
+  it("returns the peak anchor for an arc", () => {
+    const plan = mkPlan([
+      mkNode({ id: "PK1", type: "peak", arcIndex: 1, sceneCount: 5, arcSlot: 1 }),
+      mkNode({ id: "M1", type: "moment", arcSlot: 1 }),
+    ]);
+    expect(getArcNode(plan, 1)?.id).toBe("PK1");
+  });
+
+  it("returns the valley anchor when the arc pivots rather than commits", () => {
+    const plan = mkPlan([
+      mkNode({ id: "V1", type: "valley", arcIndex: 2, sceneCount: 4, arcSlot: 2 }),
+      mkNode({ id: "M1", type: "moment", arcSlot: 2 }),
+    ]);
+    expect(getArcNode(plan, 2)?.id).toBe("V1");
+  });
+
+  it("ignores moments as potential anchors", () => {
+    const plan = mkPlan([
+      mkNode({ id: "M1", type: "moment", arcIndex: 1, arcSlot: 1 }),
+    ]);
+    // Moments never anchor arcs even if arcIndex is erroneously set.
+    expect(getArcNode(plan, 1)).toBeUndefined();
+  });
+});
+
+describe("deriveArcForceMode", () => {
+  function mkNode(
+    overrides: Partial<CoordinationNode> & { id: string },
+  ): CoordinationNode {
+    return {
+      index: 0,
+      type: "reasoning",
+      label: "node",
+      ...overrides,
+    };
+  }
+  function mkPlan(nodes: CoordinationNode[]): CoordinationPlan {
+    return {
+      id: "plan-test",
+      nodes,
+      edges: [],
+      arcCount: Math.max(
+        1,
+        ...nodes.map((n) => n.arcIndex ?? 0),
+      ),
+      summary: "test",
+      arcPartitions: [],
+      currentArc: 0,
+      completedArcs: [],
+      createdAt: 0,
+    };
+  }
+
+  it("is fate-dominant when fate nodes and thread-bearing spine dominate", () => {
+    const plan = mkPlan([
+      mkNode({ id: "PK1", type: "peak", arcIndex: 1, threadId: "T1", arcSlot: 1 }),
+      mkNode({ id: "F1", type: "fate", threadId: "T1", arcSlot: 1 }),
+      mkNode({ id: "F2", type: "fate", threadId: "T2", arcSlot: 1 }),
+      mkNode({ id: "C1", type: "character", arcSlot: 1 }),
+    ]);
+    expect(deriveArcForceMode(plan, 1)).toBe("fate-dominant");
+  });
+
+  it("is world-dominant when character/location/artifact nodes dominate", () => {
+    const plan = mkPlan([
+      mkNode({ id: "PK1", type: "peak", arcIndex: 1, arcSlot: 1 }),
+      mkNode({ id: "C1", type: "character", arcSlot: 1 }),
+      mkNode({ id: "C2", type: "character", arcSlot: 1 }),
+      mkNode({ id: "L1", type: "location", arcSlot: 1 }),
+      mkNode({ id: "A1", type: "artifact", arcSlot: 1 }),
+    ]);
+    expect(deriveArcForceMode(plan, 1)).toBe("world-dominant");
+  });
+
+  it("is system-dominant when system nodes dominate", () => {
+    const plan = mkPlan([
+      mkNode({ id: "PK1", type: "peak", arcIndex: 1, arcSlot: 1 }),
+      mkNode({ id: "S1", type: "system", arcSlot: 1 }),
+      mkNode({ id: "S2", type: "system", arcSlot: 1 }),
+      mkNode({ id: "S3", type: "system", arcSlot: 1 }),
+    ]);
+    expect(deriveArcForceMode(plan, 1)).toBe("system-dominant");
+  });
+
+  it("is chaos-dominant when chaos nodes dominate (troll-arc style)", () => {
+    const plan = mkPlan([
+      mkNode({ id: "V1", type: "valley", arcIndex: 3, arcSlot: 3 }),
+      mkNode({ id: "CH1", type: "chaos", arcSlot: 3 }),
+      mkNode({ id: "CH2", type: "chaos", arcSlot: 3 }),
+      mkNode({ id: "C1", type: "character", arcSlot: 3 }),
+    ]);
+    expect(deriveArcForceMode(plan, 3)).toBe("chaos-dominant");
+  });
+
+  it("is balanced when no single category dominates", () => {
+    const plan = mkPlan([
+      mkNode({ id: "PK1", type: "peak", arcIndex: 1, arcSlot: 1 }),
+      mkNode({ id: "F1", type: "fate", threadId: "T1", arcSlot: 1 }),
+      mkNode({ id: "C1", type: "character", arcSlot: 1 }),
+      mkNode({ id: "S1", type: "system", arcSlot: 1 }),
+      mkNode({ id: "CH1", type: "chaos", arcSlot: 1 }),
+    ]);
+    expect(deriveArcForceMode(plan, 1)).toBe("balanced");
+  });
+
+  it("counts spine nodes with threadId as fate pressure", () => {
+    // Anchor peak + moments carrying thread progressions → fate pressure
+    const plan = mkPlan([
+      mkNode({ id: "PK1", type: "peak", arcIndex: 1, threadId: "T1", arcSlot: 1 }),
+      mkNode({ id: "M1", type: "moment", threadId: "T2", arcSlot: 1 }),
+      mkNode({ id: "M2", type: "moment", threadId: "T3", arcSlot: 1 }),
+      mkNode({ id: "C1", type: "character", arcSlot: 1 }),
+    ]);
+    expect(deriveArcForceMode(plan, 1)).toBe("fate-dominant");
+  });
+
+  it("ignores nodes from other arcs", () => {
+    const plan = mkPlan([
+      mkNode({ id: "PK1", type: "peak", arcIndex: 1, arcSlot: 1 }),
+      mkNode({ id: "CH1", type: "chaos", arcSlot: 1 }),
+      // Arc 2 has a bunch of fate — shouldn't affect arc 1
+      mkNode({ id: "PK2", type: "peak", arcIndex: 2, threadId: "T1", arcSlot: 2 }),
+      mkNode({ id: "F1", type: "fate", threadId: "T1", arcSlot: 2 }),
+      mkNode({ id: "F2", type: "fate", threadId: "T2", arcSlot: 2 }),
+    ]);
+    expect(deriveArcForceMode(plan, 1)).toBe("chaos-dominant");
+    expect(deriveArcForceMode(plan, 2)).toBe("fate-dominant");
+  });
+
+  it("returns balanced for an empty arc", () => {
+    const plan = mkPlan([
+      mkNode({ id: "PK1", type: "peak", arcIndex: 1, arcSlot: 1 }),
+      // arcIndex 2 referenced but no arc-2 nodes
+    ]);
+    expect(deriveArcForceMode(plan, 2)).toBe("balanced");
+  });
+});
+
+describe("applyDerivedForceModes", () => {
+  function mkNode(
+    overrides: Partial<CoordinationNode> & { id: string },
+  ): CoordinationNode {
+    return {
+      index: 0,
+      type: "reasoning",
+      label: "node",
+      ...overrides,
+    };
+  }
+  function mkPlan(nodes: CoordinationNode[]): CoordinationPlan {
+    return {
+      id: "plan-test",
+      nodes,
+      edges: [],
+      arcCount: Math.max(
+        1,
+        ...nodes.map((n) => n.arcIndex ?? 0),
+      ),
+      summary: "test",
+      arcPartitions: [],
+      currentArc: 0,
+      completedArcs: [],
+      createdAt: 0,
+    };
+  }
+
+  it("attaches forceMode to each arc anchor (peak or valley)", () => {
+    const plan = mkPlan([
+      mkNode({ id: "PK1", type: "peak", arcIndex: 1, threadId: "T1", arcSlot: 1 }),
+      mkNode({ id: "F1", type: "fate", threadId: "T1", arcSlot: 1 }),
+      mkNode({ id: "F2", type: "fate", threadId: "T2", arcSlot: 1 }),
+      mkNode({ id: "V2", type: "valley", arcIndex: 2, arcSlot: 2 }),
+      mkNode({ id: "CH1", type: "chaos", arcSlot: 2 }),
+      mkNode({ id: "CH2", type: "chaos", arcSlot: 2 }),
+    ]);
+    const withModes = applyDerivedForceModes(plan);
+    const pk1 = withModes.nodes.find((n) => n.id === "PK1");
+    const v2 = withModes.nodes.find((n) => n.id === "V2");
+    expect(pk1?.forceMode).toBe("fate-dominant");
+    expect(v2?.forceMode).toBe("chaos-dominant");
+  });
+
+  it("does not attach forceMode to moments or non-anchor nodes", () => {
+    const plan = mkPlan([
+      mkNode({ id: "PK1", type: "peak", arcIndex: 1, arcSlot: 1 }),
+      mkNode({ id: "M1", type: "moment", arcSlot: 1 }),
+      mkNode({ id: "C1", type: "character", arcSlot: 1 }),
+    ]);
+    const withModes = applyDerivedForceModes(plan);
+    const m1 = withModes.nodes.find((n) => n.id === "M1");
+    const c1 = withModes.nodes.find((n) => n.id === "C1");
+    expect(m1?.forceMode).toBeUndefined();
+    expect(c1?.forceMode).toBeUndefined();
+  });
+
+  it("is idempotent — re-applying yields the same result", () => {
+    const plan = mkPlan([
+      mkNode({ id: "PK1", type: "peak", arcIndex: 1, threadId: "T1", arcSlot: 1 }),
+      mkNode({ id: "F1", type: "fate", threadId: "T1", arcSlot: 1 }),
+    ]);
+    const first = applyDerivedForceModes(plan);
+    const second = applyDerivedForceModes(first);
+    expect(second.nodes.find((n) => n.id === "PK1")?.forceMode).toBe(
+      first.nodes.find((n) => n.id === "PK1")?.forceMode,
+    );
   });
 });

@@ -870,7 +870,16 @@ export type ReasoningGraphSnapshot = {
 export type ReasoningNodeSnapshot = {
   id: string;
   index: number;
-  type: "fate" | "character" | "location" | "artifact" | "system" | "reasoning" | "pattern" | "warning";
+  type:
+    | "fate"
+    | "character"
+    | "location"
+    | "artifact"
+    | "system"
+    | "reasoning"
+    | "pattern"
+    | "warning"
+    | "chaos";  // Creative agent — introduces new entities (characters/locations/artifacts/threads)
   label: string;
   detail?: string;
   entityId?: string;
@@ -885,11 +894,25 @@ export type ReasoningEdgeSnapshot = {
   label?: string;
 };
 
+/**
+ * Per-arc reasoning graph node types. Extends the base ontology with a
+ * `chaos` agent that explicitly authorises world expansion — introducing
+ * new characters, locations, artifacts, or threads to fuel the arc.
+ */
+
 // ── Coordination Plan ────────────────────────────────────────────────────────
 
 /**
  * Extended node types for multi-arc coordination plans.
- * Reuses all reasoning node types plus plan-specific types.
+ *
+ * Structural-spine nodes (peak/valley/moment) replace the old generic `plot`
+ * type. The spine convention:
+ *   • Exactly one peak OR valley anchors each arc (and carries arcIndex,
+ *     sceneCount, forceMode) — this is the arc's structural commitment point.
+ *   • Peaks are where forces converge and threads culminate.
+ *   • Valleys are turning points where tension is seeded and the arc pivots.
+ *   • Moments are everything else worth flagging at plan level (thread
+ *     progressions, setpieces, reveals) — subordinate to the arc's anchor.
  */
 export type CoordinationNodeType =
   | "fate"         // Thread's gravitational pull (inherited)
@@ -900,16 +923,35 @@ export type CoordinationNodeType =
   | "reasoning"    // Logical step (inherited)
   | "pattern"      // Cooperative agent (inherited)
   | "warning"      // Adversarial agent (inherited)
-  | "plot";        // Key plot point the story must pass through (thread progressions, arc definitions, resolutions)
+  | "chaos"        // Creative agent — spawns new characters/locations/artifacts/threads
+  | "peak"         // Structural peak — forces converge, thread culminates
+  | "valley"       // Structural valley — turning point, tension seeded
+  | "moment";      // Key beat worth flagging in the plan that isn't a peak or valley
 
-/** Thread status targets for plot nodes that track thread progression */
+/** Thread status targets for spine nodes (peak/valley/moment) tracking thread progression */
 export type ThreadStatusTarget = "seeded" | "active" | "escalating" | "critical" | "resolved" | "subverted" | "abandoned";
 
-/** Force mode for arc-defining plot nodes */
-export type ArcForceMode = "fate-dominant" | "world-dominant" | "system-dominant" | "balanced";
+/**
+ * Force mode for an arc, derived from the composition of its nodes.
+ *  - fate-dominant: thread pressure drives the arc (fate + peak/valley with threadId)
+ *  - world-dominant: entities drive the arc (character + location + artifact)
+ *  - system-dominant: world rules drive the arc (system nodes)
+ *  - chaos-dominant: outside forces drive the arc (chaos nodes spawn new entities)
+ *  - balanced: no single category dominates
+ */
+export type ArcForceMode =
+  | "fate-dominant"
+  | "world-dominant"
+  | "system-dominant"
+  | "chaos-dominant"
+  | "balanced";
 
 /**
  * Node in a coordination plan — extends reasoning nodes with plan-specific fields.
+ *
+ * Spine nodes (peak/valley/moment) may carry thread-progression metadata
+ * (threadId + targetStatus). The one peak or valley that anchors an arc also
+ * carries arcIndex, sceneCount, and forceMode.
  */
 export type CoordinationNode = {
   id: string;
@@ -919,15 +961,15 @@ export type CoordinationNode = {
   detail?: string;
   /** Reference to entity (character/location/artifact) */
   entityId?: string;
-  /** Reference to thread (for fate/plot nodes tracking thread progression) */
+  /** Reference to thread (for fate and spine nodes tracking thread progression) */
   threadId?: string;
-  /** Target thread status (for plot nodes tracking thread progression) */
+  /** Target thread status (for spine nodes tracking thread progression) */
   targetStatus?: ThreadStatusTarget;
-  /** Arc index 1-N (for plot nodes that define arc structure) */
+  /** Arc index 1-N (set only on the peak or valley that anchors an arc) */
   arcIndex?: number;
-  /** Suggested scene count (for plot nodes that define arc structure) */
+  /** Suggested scene count (set only on the arc-anchoring peak/valley) */
   sceneCount?: number;
-  /** Force mode constraint (for plot nodes that define arc structure) */
+  /** Force mode constraint (set only on the arc-anchoring peak/valley) */
   forceMode?: ArcForceMode;
   /**
    * Arc slot this node belongs to (1-indexed).

@@ -537,14 +537,17 @@ export function buildOutlineDirective(
 
 // ── Coordination Plan Support ─────────────────────────────────────────────────
 
-import type { BranchPlan, CoordinationNode, CoordinationPlan } from "@/types/narrative";
+import type { ArcForceMode, BranchPlan, CoordinationNode, CoordinationPlan } from "@/types/narrative";
 
 /**
- * Get the arc-defining plot node for a specific arc index from the plan.
- * Arc-defining plot nodes have type="plot" with arcIndex set.
+ * Get the arc-anchor node for a specific arc index from the plan.
+ * Exactly one peak OR valley per arc carries arcIndex and sceneCount.
+ * Moments never anchor arcs.
  */
 export function getArcNode(plan: CoordinationPlan, arcIndex: number): CoordinationNode | undefined {
-  return plan.nodes.find(n => n.type === "plot" && n.arcIndex === arcIndex);
+  return plan.nodes.find(
+    n => (n.type === "peak" || n.type === "valley") && n.arcIndex === arcIndex,
+  );
 }
 
 /**
@@ -553,6 +556,77 @@ export function getArcNode(plan: CoordinationPlan, arcIndex: number): Coordinati
 export function getVisibleNodesForArc(plan: CoordinationPlan, arcIndex: number): CoordinationNode[] {
   const visibleIds = new Set(plan.arcPartitions[arcIndex - 1] ?? []);
   return plan.nodes.filter(n => visibleIds.has(n.id));
+}
+
+/**
+ * Derive an arc's force mode from the composition of its own nodes
+ * (those with arcSlot === arcIndex). Four primary force categories:
+ *  - fate: fate nodes + spine nodes carrying a threadId
+ *  - world: character + location + artifact nodes
+ *  - system: system nodes
+ *  - chaos: chaos nodes (outside-force injections that spawn new entities)
+ *
+ * The dominant category wins. If no category makes up ≥40% of the
+ * counted nodes, or if the top two categories are within one node of
+ * each other, the arc is balanced.
+ */
+export function deriveArcForceMode(plan: CoordinationPlan, arcIndex: number): ArcForceMode {
+  const arcNodes = plan.nodes.filter(n => n.arcSlot === arcIndex);
+
+  let fate = 0;
+  let world = 0;
+  let system = 0;
+  let chaos = 0;
+
+  for (const n of arcNodes) {
+    if (n.type === "fate") {
+      fate++;
+    } else if (n.type === "character" || n.type === "location" || n.type === "artifact") {
+      world++;
+    } else if (n.type === "system") {
+      system++;
+    } else if (n.type === "chaos") {
+      chaos++;
+    } else if (n.type === "peak" || n.type === "valley" || n.type === "moment") {
+      // Spine nodes that carry a threadId count as fate pressure
+      if (n.threadId) fate++;
+    }
+  }
+
+  const total = fate + world + system + chaos;
+  if (total === 0) return "balanced";
+
+  const ranked: { mode: ArcForceMode; count: number }[] = (
+    [
+      { mode: "fate-dominant", count: fate },
+      { mode: "world-dominant", count: world },
+      { mode: "system-dominant", count: system },
+      { mode: "chaos-dominant", count: chaos },
+    ] as { mode: ArcForceMode; count: number }[]
+  ).sort((a, b) => b.count - a.count);
+
+  const top = ranked[0];
+  const runnerUp = ranked[1];
+  const dominanceThreshold = 0.4;
+
+  if (top.count / total < dominanceThreshold) return "balanced";
+  if (top.count - runnerUp.count <= 0) return "balanced";
+  return top.mode;
+}
+
+/**
+ * Compute forceMode for every arc in the plan and attach it to each
+ * arc's anchor node. Mutation returns a new nodes array — the original
+ * plan is untouched.
+ */
+export function applyDerivedForceModes(plan: CoordinationPlan): CoordinationPlan {
+  const newNodes = plan.nodes.map(n => {
+    const isAnchor =
+      (n.type === "peak" || n.type === "valley") && n.arcIndex !== undefined;
+    if (!isAnchor) return n;
+    return { ...n, forceMode: deriveArcForceMode(plan, n.arcIndex!) };
+  });
+  return { ...plan, nodes: newNodes };
 }
 
 /**
@@ -583,18 +657,21 @@ export function buildPlanDirective(
     }
   }
 
-  // Thread targets (plot nodes with threadId visible to this arc)
-  const threadTargets = visibleNodes.filter(
-    n => n.type === "plot" && n.threadId
-  );
+  // Thread targets — spine nodes (peak/valley/moment) carrying a threadId,
+  // grouped and labelled by their structural role.
+  const isSpineNode = (t: string) => t === "peak" || t === "valley" || t === "moment";
+  const threadTargets = visibleNodes.filter(n => isSpineNode(n.type) && n.threadId);
   if (threadTargets.length > 0) {
     sections.push("\n## Thread Targets");
     for (const node of threadTargets) {
       const thread = narrative.threads[node.threadId!];
       const threadDesc = thread?.description ?? node.threadId;
-      // Plot nodes with resolved/subverted are endpoints, others are progressions
       const isResolution = node.targetStatus === "resolved" || node.targetStatus === "subverted";
-      const targetType = isResolution ? "MUST REACH" : "PROGRESSION";
+      const targetType =
+        node.type === "peak" && isResolution ? "PEAK — MUST REACH"
+        : node.type === "peak" ? "PEAK"
+        : node.type === "valley" ? "VALLEY — PIVOT"
+        : "MOMENT";
       sections.push(`- [${node.targetStatus ?? "progress"}] ${threadDesc} — ${targetType}: ${node.label}`);
     }
   }

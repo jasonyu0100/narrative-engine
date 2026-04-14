@@ -4,10 +4,13 @@ import { callGenerate, callGenerateStream, SYSTEM_PROMPT } from "./api";
 import { narrativeContext, getStateAtIndex } from "./context";
 import { parseJson } from "./json";
 import { buildCumulativeSystemGraph } from "@/lib/narrative-utils";
+import { applyDerivedForceModes } from "@/lib/auto-engine";
 
 // ── Plan Node Scaling ─────────────────────────────────────────────────────────
 // Coordination plans scale node counts based on arc budget to ensure proper
-// reasoning depth. More arcs = more plot points and reasoning nodes.
+// reasoning depth. The structural spine is peaks + valleys + moments; every
+// arc has exactly one peak OR one valley as its anchor (carrying arcIndex,
+// sceneCount, forceMode), and moments are supporting beats.
 
 /**
  * Calculate expected node counts for a coordination plan based on arc budget.
@@ -15,7 +18,7 @@ import { buildCumulativeSystemGraph } from "@/lib/narrative-utils";
  * Emphasizes DEPTH (chains of reasoning) not just BREADTH (many disconnected nodes).
  */
 function getPlanNodeGuidance(arcTarget: number, threadCount: number): {
-  minPlotNodes: number;
+  minSpineNodes: number;
   minReasoningNodes: number;
   minPatterns: number;
   minWarnings: number;
@@ -23,12 +26,12 @@ function getPlanNodeGuidance(arcTarget: number, threadCount: number): {
   minSystemNodes: number;
   minChainDepth: number;
 } {
-  // Plot nodes: key story beats the narrative must pass through
-  // Scale with both arc count (structure) and thread count (resolution points)
-  const minPlotNodes = Math.max(arcTarget + threadCount, Math.floor(arcTarget * 1.5) + Math.floor(threadCount * 0.75));
+  // Spine nodes (peaks + valleys + moments): key story beats. Every arc
+  // contributes exactly one peak or valley anchor, plus moments for
+  // subordinate beats and thread progressions.
+  const minSpineNodes = Math.max(arcTarget + threadCount, Math.floor(arcTarget * 1.5) + Math.floor(threadCount * 0.75));
 
   // Reasoning nodes scale with plan complexity — emphasis on DEEP chains
-  // Formula: base + (arcs * threads factor) — want substantial reasoning
   const minReasoningNodes = Math.max(5, Math.floor(arcTarget * 1.5) + Math.floor(threadCount * 0.5));
 
   // Patterns and warnings scale moderately
@@ -39,11 +42,11 @@ function getPlanNodeGuidance(arcTarget: number, threadCount: number): {
   const minCharacterNodes = Math.max(2, Math.floor(threadCount * 0.5));
   const minSystemNodes = Math.max(2, Math.floor(arcTarget / 4));
 
-  // Chain depth — minimum reasoning steps between plot points
+  // Chain depth — minimum reasoning steps between spine nodes
   const minChainDepth = Math.max(3, Math.floor(arcTarget / 2));
 
   return {
-    minPlotNodes,
+    minSpineNodes,
     minReasoningNodes,
     minPatterns,
     minWarnings,
@@ -64,6 +67,7 @@ const VALID_NODE_TYPES = new Set([
   "reasoning",   // A step in the logical chain
   "pattern",     // Positive pattern to reinforce (cooperative)
   "warning",     // Anti-pattern risk to avoid (adversarial)
+  "chaos",       // Creative agent — spawns new characters/locations/artifacts/threads
 ]);
 const VALID_EDGE_TYPES = new Set(["enables", "constrains", "risks", "requires", "causes", "reveals", "develops", "resolves"]);
 
@@ -77,7 +81,8 @@ export type ReasoningNodeType =
   | "system"       // World rule or principle
   | "reasoning"    // A step in the logical chain
   | "pattern"      // Positive pattern to reinforce (cooperative)
-  | "warning";     // Anti-pattern risk to avoid (adversarial)
+  | "warning"      // Anti-pattern risk to avoid (adversarial)
+  | "chaos";       // Creative agent — authorises spawning new characters/locations/artifacts/threads
 
 export type ReasoningEdgeType =
   | "enables"      // A enables B
@@ -363,8 +368,9 @@ Return a JSON object:
 - **artifact**: An object. Use entityId to reference actual artifact. Label = its role in reasoning.
 - **system**: A world rule/principle/constraint. Label = the rule as it applies here.
 - **reasoning**: A logical step deriving what must happen. Label = the inference (3-8 words).
-- **pattern**: EXPANSION AGENT — inject novelty. Unexpected collisions, emergent properties, hidden implications, world expansion beyond current sandbox. Label = the creative opportunity.
+- **pattern**: EXPANSION AGENT — inject novelty. Unexpected collisions, emergent properties, hidden implications within the current sandbox. Label = the creative opportunity.
 - **warning**: SUBVERSION AGENT — challenge predictability. Predictable trajectories, missing costs, assumptions to challenge. Label = what must be disrupted.
+- **chaos**: OUTSIDE FORCE — an injection that is FOREIGN to the current world. Spawns entirely new entities (characters/locations/artifacts) or new fates (new threads) that didn't exist before. Chaos brings solutions or problems WITHOUT requiring setup — the mechanism for creativity when the existing world is too sparse to answer what fate demands. The scene generator honours chaos nodes by invoking world expansion. Label = what arrives and its role (e.g., "A troll bursts into the dungeon", "A dormant artefact wakes in the library", "A new rumour of a hidden order spreads"). DO NOT set entityId or threadId — the entity/thread does not yet exist. Chaos can inject new FATES (new threads) just as fate can demand resolution: fate and chaos work together — fate from within, chaos from without.
 
 ## EDGE TYPES
 
@@ -387,9 +393,10 @@ Return a JSON object:
 6. **Thread references**: fate nodes MUST use threadId to reference which thread exerts the pull
 7. **Dense connections**: Each reasoning node should connect to 2+ other nodes
 8. **Node count**: Target ${4 + sceneCount * 3}-${8 + sceneCount * 4} nodes. ${sceneCount <= 2 ? "Focused reasoning chains." : sceneCount <= 6 ? "Branching logic with multiple thread pressures." : "Complex causality with parallel fate lines."}
-9. **Pattern nodes**: 1-2 nodes with GENUINE creativity — unexpected collisions, emergent properties, world expansion
+9. **Pattern nodes**: 1-2 nodes with GENUINE creativity — unexpected collisions, emergent properties within the existing cast
 10. **Warning nodes**: Flag predictable trajectories and missing costs — what assumption needs challenging?
-11. **Non-deterministic**: Each reasoning path should contain at least one SURPRISE — something that doesn't follow obviously from context
+11. **Chaos nodes (0-2)**: Use sparingly, only when the arc genuinely benefits from something entirely new. Do NOT reference existing entityIds — chaos describes an entity that will be spawned. A chaos node signals the scene generator to invoke world expansion.
+12. **Non-deterministic**: Each reasoning path should contain at least one SURPRISE — something that doesn't follow obviously from context
 
 The graph should reveal the strategic logic: what threads demand, and how events must unfold to serve fate.
 
@@ -860,7 +867,9 @@ const VALID_COORDINATION_NODE_TYPES = new Set<CoordinationNodeType>([
   "reasoning",
   "pattern",
   "warning",
-  "plot",       // Key plot point the story must pass through (replaces terminal/waypoint/arc)
+  "peak",       // Structural peak — forces converge, thread culminates; arc anchors here
+  "valley",     // Structural valley — turning point, tension seeded; can anchor arcs
+  "moment",     // Key beat in the plan that isn't a peak or valley
 ]);
 
 /** Thread target with status and optional timing */
@@ -1093,18 +1102,25 @@ ARC TARGET: ${arcTarget} arcs (plan exactly this many arcs)
 
 ## TASK
 
-Build a COORDINATION PLAN using BACKWARD INDUCTION.
+Build a COORDINATION PLAN using BACKWARD INDUCTION, organised around the narrative's STRUCTURAL SPINE.
 
-1. Define PLOT POINTS — key story beats the narrative must pass through (thread resolutions, progressions, arc structures)
-2. Work BACKWARDS from endpoints to derive the plot points needed to reach them
-3. Determine OPTIMAL ARC COUNT — how many arcs needed to achieve goals (may be fewer than budget)
-4. Assign nodes to ARC SLOTS — which reasoning is relevant to which arc
-5. Create arc-defining plot points with DELIBERATE SIZING — determine how many scenes each arc needs (3-12 scenes)
-6. Set FORCE MODE for each arc to vary pacing
+The spine is the sequence of **peaks** (where forces converge, threads culminate, the story commits) and **valleys** (turning points where tension is seeded and the arc pivots into the next movement). Peaks and valleys are complementary: peaks are where the story lands, valleys are where it launches. Both are load-bearing — a story of only peaks is exhausting; a story of only valleys is all setup and no payoff.
 
-The plan orchestrates multiple arcs WITHOUT micromanaging. Each arc will get its own reasoning graph; this plan just sets trajectory.
+1. Identify the SPINE — one **peak** OR one **valley** per arc, whichever is the arc's structural anchor. That anchor carries arcIndex and sceneCount (3-12). Do NOT set forceMode — it is DERIVED from each arc's node composition after generation:
+   - **fate-dominant** — fate nodes + thread-bearing spine nodes dominate (the arc is driven by internal thread pressure)
+   - **world-dominant** — character/location/artifact nodes dominate (the arc is driven by existing entities)
+   - **system-dominant** — system nodes dominate (the arc is driven by world rules or mechanics)
+   - **chaos-dominant** — chaos nodes dominate (the arc is driven by outside forces — HP's troll arc, HP's Norbert arc)
+   - **balanced** — no single category dominates
+2. Add **moments** — any other beat worth calling out at plan level (thread escalations, setpieces, reveals) that isn't itself the arc's peak or valley.
+3. Work BACKWARDS from end-state peaks to derive the valleys and moments needed to earn them.
+4. Determine OPTIMAL ARC COUNT — may be fewer than budget if the spine is coherent sooner.
+5. Assign every node to an ARC SLOT.
+6. Seed **chaos** nodes where the plan genuinely needs new entities — a fresh character, location, artifact, or thread that doesn't yet exist. The scene generator will honour chaos nodes by invoking world expansion when their arc arrives.
 
-**EFFICIENCY PRINCIPLE**: If the end goals can be achieved coherently in fewer arcs than the budget, use fewer arcs. The backward induction must be coherent — don't pad with unnecessary arcs just to fill the budget.
+The plan orchestrates multiple arcs WITHOUT micromanaging. Each arc gets its own reasoning graph later; this plan sets trajectory through the peak/valley rhythm.
+
+**EFFICIENCY PRINCIPLE**: If the spine closes in fewer arcs than the budget, use fewer arcs. Don't pad to fill.
 
 ## CREATIVE MANDATE
 
@@ -1127,18 +1143,17 @@ The plan orchestrates multiple arcs WITHOUT micromanaging. Each arc will get its
 
 ## ARC SIZING GUIDE
 
-Each arc should be sized based on what it needs to accomplish:
+Each arc should be sized based on what its peak or valley anchor needs:
 
-- **3-4 scenes (short)**: Quick transitions, single-thread focus, aftermath/fallout, setup beats
-- **5-6 scenes (standard)**: Most arcs — one thread escalation with secondary development
-- **7-9 scenes (extended)**: Major confrontations, multiple thread convergence, climactic sequences
+- **3-4 scenes (short)**: Valley-anchored pivots, quick transitions, aftermath beats
+- **5-6 scenes (standard)**: Most arcs — a single peak or valley with supporting moments
+- **7-9 scenes (extended)**: Major peaks where multiple threads converge, climactic sequences
 - **10-12 scenes (epic)**: Act finales, massive setpieces, resolution of multiple threads
 
 Consider:
-- Arcs with more plot points to hit need more scenes
-- World-dominant arcs (breathing room) tend to be shorter
-- Fate-dominant arcs (thread resolution) need enough scenes for proper payoff
-- System-dominant arcs (worldbuilding) vary based on complexity to establish
+- Peak-anchored arcs (convergence, resolution) typically need more scenes to earn the peak
+- Valley-anchored arcs (pivot, seeding) tend to be shorter — they launch, they don't land
+- World-dominant arcs tend to be shorter; fate-dominant arcs need enough scenes for proper payoff
 - The total scene count across all arcs should feel appropriate for the story scope
 
 ## OUTPUT FORMAT
@@ -1146,7 +1161,7 @@ Consider:
 Return a JSON object with RICH, DIVERSE nodes. Example showing all node types working together:
 
 **CRITICAL FORMAT REQUIREMENTS**:
-- **IDs**: Use SHORT, SIMPLE alphanumeric IDs: P1, P2, R1, R2, C1, F1, L1, AR1, S1, WN1, etc. Do NOT use complex IDs like "P_ARC2_PROG_T03" or "THREAD_RESOLVE_01".
+- **IDs**: Use SHORT, SIMPLE alphanumeric IDs: PK1, V1, M1, R1, C1, F1, L1, AR1, S1, WN1, etc. Do NOT use complex IDs like "PEAK_ARC2_T03" or "THREAD_RESOLVE_01".
 - **Labels**: Must be PROPER ENGLISH descriptions (3-10 words). Describe what happens in natural language. NOT technical identifiers or codes.
 
 {
@@ -1154,14 +1169,21 @@ Return a JSON object with RICH, DIVERSE nodes. Example showing all node types wo
   "arcCount": <number of arcs>,
   "nodes": [
     // ═══════════════════════════════════════════════════════════════
-    // PLOT NODES: key story beats the narrative must pass through
+    // SPINE: peaks, valleys, and moments (one peak OR valley anchors each arc)
     // ═══════════════════════════════════════════════════════════════
-    // Thread resolution (endpoint)
-    {"id": "P1", "index": 0, "type": "plot", "label": "Fang Yuan secures the Spring Autumn Cicada", "detail": "What must be true at plan end — reference specific knowledge or relationship", "threadId": "thread-id", "targetStatus": "resolved", "arcSlot": 4},
-    // Thread progression (intermediate beat)
-    {"id": "P2", "index": 1, "type": "plot", "label": "Bai Ning Bing discovers the hidden inheritance", "detail": "WHY this intermediate state is necessary for the endpoint", "threadId": "thread-id", "targetStatus": "escalating", "arcSlot": 2},
-    // Arc structure (defines an arc's scope)
-    {"id": "P3", "index": 10, "type": "plot", "label": "The Glacier Confrontation", "detail": "WHY this arc needs N scenes — what must happen", "arcIndex": 1, "sceneCount": 5, "forceMode": "world-dominant", "arcSlot": 1},
+    // PEAK that anchors an arc — carries arcIndex and sceneCount ONLY.
+    // forceMode is DERIVED later from the arc's node mix. Don't set it.
+    // The peak is the arc's structural commitment: forces converge, a thread culminates.
+    {"id": "PK1", "index": 10, "type": "peak", "label": "The Glacier Confrontation", "detail": "WHY this arc needs N scenes — which forces converge and which thread culminates", "threadId": "thread-id", "targetStatus": "resolved", "arcIndex": 1, "sceneCount": 6, "arcSlot": 1},
+    // VALLEY that anchors an arc — also carries arc metadata. A valley arc pivots rather than resolves: tension is seeded, a boundary is crossed.
+    {"id": "V1", "index": 20, "type": "valley", "label": "Bai Ning Bing enters the inheritance", "detail": "WHY this pivot is necessary before the next peak — what new tension is seeded", "threadId": "thread-id", "targetStatus": "escalating", "arcIndex": 2, "sceneCount": 4, "arcSlot": 2},
+    // MOMENTS — plan-level beats that matter but aren't the arc's anchor.
+    // Thread escalation moment (not the arc's peak/valley, but worth flagging):
+    {"id": "M1", "index": 1, "type": "moment", "label": "Fang Yuan uncovers the clan's betrayal", "detail": "WHY this intermediate beat matters for the next peak", "threadId": "thread-id", "targetStatus": "escalating", "arcSlot": 1},
+    // Setpiece moment:
+    {"id": "M2", "index": 2, "type": "moment", "label": "Gu master's tomb first glimpsed", "detail": "Plants information or raises stakes for a later peak", "arcSlot": 1},
+    // CHAOS — spawns a NEW entity during the arc (don't set entityId or threadId; entity is created on scene expansion)
+    {"id": "CH1", "index": 17, "type": "chaos", "label": "A rival scholar arrives from a hidden order", "detail": "Introduces a new character who will challenge Fang Yuan's authority — spawned via world expansion", "arcSlot": 3},
 
     // ═══════════════════════════════════════════════════════════════
     // FATE NODES: thread pressure throughout the plan
@@ -1212,36 +1234,51 @@ Return a JSON object with RICH, DIVERSE nodes. Example showing all node types wo
     {"id": "WN2", "index": 18, "type": "warning", "label": "Protagonist winning too easily", "detail": "What assumption should be challenged? What cost hasn't been paid?"}
   ],
   "edges": [
-    // Dense connections showing causal flow
-    {"id": "e1", "from": "P1", "to": "R1", "type": "requires"},
-    {"id": "e2", "from": "R1", "to": "P2", "type": "requires"},
-    {"id": "e3", "from": "P2", "to": "R2", "type": "requires"},
-    {"id": "e4", "from": "R2", "to": "C1", "type": "requires"},
-    {"id": "e5", "from": "S1", "to": "R3", "type": "constrains"},
-    {"id": "e6", "from": "R3", "to": "C1", "type": "constrains"},
-    {"id": "e7", "from": "R4", "to": "L1", "type": "enables"},
-    {"id": "e8", "from": "F1", "to": "P3", "type": "constrains"},
-    {"id": "e9", "from": "AR1", "to": "R4", "type": "enables"},
-    {"id": "e10", "from": "C2", "to": "P2", "type": "causes"}
+    // Dense connections showing causal flow through the spine
+    {"id": "e1", "from": "PK1", "to": "R1", "type": "requires"},
+    {"id": "e2", "from": "R1", "to": "V1", "type": "requires"},
+    {"id": "e3", "from": "V1", "to": "M1", "type": "develops"},
+    {"id": "e4", "from": "M1", "to": "R2", "type": "requires"},
+    {"id": "e5", "from": "R2", "to": "C1", "type": "requires"},
+    {"id": "e6", "from": "S1", "to": "R3", "type": "constrains"},
+    {"id": "e7", "from": "R3", "to": "C1", "type": "constrains"},
+    {"id": "e8", "from": "R4", "to": "L1", "type": "enables"},
+    {"id": "e9", "from": "F1", "to": "PK1", "type": "constrains"},
+    {"id": "e10", "from": "AR1", "to": "R4", "type": "enables"},
+    {"id": "e11", "from": "C2", "to": "V1", "type": "causes"},
+    {"id": "e12", "from": "M2", "to": "PK1", "type": "develops"}
   ]
 }
 
 ## NODE TYPES (all must be grounded in SPECIFIC context from above)
 
 **FORMAT RULES (CRITICAL)**:
-- **IDs**: Short alphanumeric codes only: P1, P2, R1, R2, C1, F1, L1, AR1, S1, PT1, WN1, etc.
-  - GOOD: "P1", "R3", "C2", "PT1"
-  - BAD: "P_ARC2_PROG_T03", "THREAD_RESOLVE", "plot_resolution_1"
+- **IDs**: Short alphanumeric codes only: PK1, V1, M1, R1, C1, F1, L1, AR1, S1, PT1, WN1, etc.
+  - GOOD: "PK1", "V2", "M3", "R1", "C2", "PT1"
+  - BAD: "PEAK_ARC2_T03", "THREAD_RESOLVE", "peak_resolution_1"
 - **Labels**: Natural English phrases (3-10 words) describing WHAT happens.
   - GOOD: "Fang Yuan discovers the hidden tomb", "Alliance fractures over resource dispute"
-  - BAD: "Thread progression node", "P2_ESCALATE", "resolution mechanism"
+  - BAD: "Peak node", "PK2_ESCALATE", "resolution mechanism"
 
-**PLOT NODES** (plan skeleton — key story beats):
-- **plot**: A key plot point the story must pass through. Label: a concrete event in plain English (e.g., "The clan elder reveals the betrayal"). Can represent:
-  - **Thread resolution**: Has threadId, targetStatus (resolved/subverted). arcSlot = when it happens. Detail: HOW it resolves.
-  - **Thread progression**: Has threadId, targetStatus (escalating/critical/active). Detail: WHY this intermediate state is necessary.
-  - **Arc structure**: Has arcIndex, sceneCount (3-12), forceMode. arcSlot = arcIndex. Detail: WHY N scenes needed.
-  Use plot nodes for any concrete story beat that must happen — resolutions, escalations, major events, act breaks.
+**SPINE NODES** (structural skeleton — peaks, valleys, moments):
+- **peak**: A scene where forces converge and a thread culminates — the story commits. Label: the concrete event (e.g., "The clan elder reveals the betrayal").
+  - If this peak ANCHORS an arc: set arcIndex, sceneCount (3-12), and arcSlot = arcIndex. Detail: WHY N scenes and which forces converge.
+  - May also carry threadId + targetStatus (resolved/subverted/critical) for the thread that culminates here.
+- **valley**: A turning point where tension is seeded and the arc pivots — the story launches. Label: the pivot (e.g., "Bai Ning Bing crosses into the inheritance").
+  - If this valley ANCHORS an arc: set arcIndex, sceneCount, and arcSlot. Detail: WHAT tension is seeded and WHICH boundary is crossed.
+  - May carry threadId + targetStatus (typically escalating/active) for a thread the valley pivots.
+- **moment**: A plan-level beat that isn't the arc's peak or valley but is worth flagging — thread escalation, setpiece, reveal, setup planted for a later payoff. Has arcSlot, may carry threadId + targetStatus. DOES NOT carry arcIndex or sceneCount.
+
+**SPINE RULE (CRITICAL)**: Exactly ONE peak OR valley per arc carries the arc's arcIndex and sceneCount. Everything else worth mentioning at plan level is a moment. Do not mark two peaks for the same arc, and do not mark moments with arcIndex.
+
+**FORCE MODE (DERIVED, NOT SET)**: Do NOT write forceMode in any node. It is computed from each arc's node mix:
+- Fate + thread-bearing spine nodes dominant ⇒ **fate-dominant**
+- Character + location + artifact dominant ⇒ **world-dominant**
+- System dominant ⇒ **system-dominant**
+- **Chaos dominant ⇒ chaos-dominant** — outside forces drive the arc
+- No single category dominant ⇒ **balanced**
+
+Shape an arc's force character through its node composition: a fate-dominant arc needs more fate nodes; a chaos-dominant arc (e.g., the troll-in-the-dungeon) needs a chaos node as its prime mover plus supporting reasoning about how the cast responds.
 
 **FATE NODES** (thread pressure):
 - **fate**: Thread pressure on specific arcs. Has threadId, arcSlot. Label: what the thread demands in plain English (e.g., "Survival thread demands sanctuary").
@@ -1256,8 +1293,9 @@ Return a JSON object with RICH, DIVERSE nodes. Example showing all node types wo
 - **reasoning**: Logical step in backward induction. Has arcSlot. Label: the inference in plain English (e.g., "Resolution requires controlling the inheritance first"). Detail: explain WHY this follows.
 
 **CREATIVE AGENT NODES** (inject novelty and subvert expectations):
-- **pattern**: EXPANSION AGENT. Label: the opportunity in plain English (e.g., "Two rivals discover a common enemy").
-- **warning**: SUBVERSION AGENT. Label: the risk in plain English (e.g., "Victory is coming too easily—needs setback").
+- **pattern**: EXPANSION AGENT. Combine existing entities in unexpected ways. Label: the opportunity in plain English (e.g., "Two rivals discover a common enemy").
+- **warning**: SUBVERSION AGENT. Flag predictable paths and unpaid costs. Label: the risk (e.g., "Victory is coming too easily—needs setback").
+- **chaos**: OUTSIDE FORCE — an injection that is FOREIGN to the current world. The creativity mechanism when the existing world is too sparse for what fate demands. Chaos can spawn entirely NEW characters, locations, or artifacts, OR inject NEW FATES (new threads) that didn't exist before. Think of it as an external event that brings solutions or problems without setup — a troll bursting through the dungeon door, a stranger arriving with foreign knowledge, a dormant artefact waking unprompted. An arc can be CHAOS-DOMINANT when its core movement comes from outside the established world (e.g., Harry Potter's troll-in-the-dungeon arc is chaos-dominant; Norbert the dragon arc is chaos-dominant; the welcoming feast is world-dominant; the Quirrell climax is fate-dominant). Label: what arrives and its role (e.g., "A troll crashes into the dungeon during the feast", "A rival scholar arrives from a hidden order bearing a fragmentary clue"). DO NOT set entityId or threadId — the entity/thread does not yet exist; the scene generator will spawn it through world expansion. Chaos and fate are complementary: fate is the gravitational pull from within, chaos is the force from without. Chaos can seed new fate — a new thread that then develops into future peaks.
 
 ## EDGE TYPES
 
@@ -1270,29 +1308,32 @@ Return a JSON object with RICH, DIVERSE nodes. Example showing all node types wo
 
 ## REQUIREMENTS
 
-1. **Backward induction**: Start from endpoint plot points, work backwards to derive what must happen
+1. **Backward induction**: Start from the final peak and work backwards — which valleys seed it, which moments carry it, which earlier peak made it possible.
 2. **Arc count**: Plan exactly ${arcTarget} arcs
 3. **Arc slots**: Every node (except pattern/warning) needs arcSlot (1-N) indicating when it's relevant
 4. **CHRONOLOGICAL INDEXING**: Node indexes MUST be chronological by arc — Arc 1 nodes get indexes 0-N, Arc 2 nodes get N+1 to M, etc. Within each arc, order by causal flow.
 5. **Progressive revelation**: Nodes with arcSlot > currentArc are hidden from arc generation
-6. **One arc-defining plot node per arc**: Exactly N plot nodes with arcIndex 1 through N
-7. **Deliberate arc sizing**: Each arc-defining plot node MUST have sceneCount (3-12) with reasoning in detail
-8. **Force rhythm**: Vary forceMode — don't make all arcs fate-dominant
-9. **Thread trajectories**: Each thread needs plot points showing its progression toward resolution
-10. **Dense connections**: Plot points connect to reasoning, reasoning to more reasoning, all grounded in entities
-11. **Pacing balance**: Mix arc sizes — not all arcs should be the same length
-12. **DEEP CHAINS**: Between each endpoint and its earliest progression, there must be ${nodeGuidance.minChainDepth}+ reasoning nodes
-13. **GROUNDED REASONING**: Reference specific character knowledge, relationships, artifacts, or world rules in reasoning nodes
-14. **CHARACTER AGENCY**: Include character nodes that show WHO drives each major transition
-15. **SYSTEM CONSTRAINTS**: Include system nodes that show HOW world rules shape outcomes
+6. **One spine anchor per arc**: Exactly ${arcTarget} anchor nodes total. Each is a peak OR a valley (not both for the same arc) with arcIndex and sceneCount. Peak-anchor vs valley-anchor depends on whether the arc commits or pivots.
+7. **Deliberate arc sizing**: Each anchor MUST have sceneCount (3-12) with reasoning in detail explaining WHY that length.
+8. **Force rhythm via composition**: Shape each arc's force character through node mix — more fate nodes for a fate-dominant arc, more entities for a world-dominant arc, more system nodes for a system-dominant arc. Don't write forceMode; vary node composition.
+9. **Peak/valley rhythm**: A plan of all peaks is exhausting; a plan of all valleys is all setup. Aim for alternation — roughly ~60/40 mix, with the final arc typically peak-anchored.
+10. **Thread trajectories**: Each thread needs spine nodes (peaks for resolutions/culminations, valleys for pivots, moments for intermediate escalations) showing its progression.
+11. **Chaos sparingly**: 0-2 chaos nodes per plan. Use only when the plan genuinely benefits from a new entity that doesn't yet exist — a fresh character arriving, a hidden location surfacing, a dormant artifact waking, a new thread emerging. Chaos nodes have arcSlot but NO entityId/threadId.
+12. **Dense connections**: Anchors connect to reasoning, reasoning to more reasoning, all grounded in entities
+13. **Pacing balance**: Mix arc sizes — not all arcs should be the same length
+14. **DEEP CHAINS**: Between each peak and the valley/moments that seed it, there must be ${nodeGuidance.minChainDepth}+ reasoning nodes
+15. **GROUNDED REASONING**: Reference specific character knowledge, relationships, artifacts, or world rules in reasoning nodes
+16. **CHARACTER AGENCY**: Include character nodes that show WHO drives each major transition
+17. **SYSTEM CONSTRAINTS**: Include system nodes that show HOW world rules shape outcomes
 
 ## NODE COUNT TARGETS (MANDATORY MINIMUMS)
 
 For this ${arcTarget}-arc plan with ${activeThreadCount} active threads:
 
-**Plot nodes** (key story beats):
-- **Plot nodes**: At least ${nodeGuidance.minPlotNodes} total (thread progressions, resolutions, and arc structures)
-- **Arc-defining plot nodes**: Exactly ${arcTarget} (one per arc, each with arcIndex and sceneCount)
+**Spine nodes** (peaks + valleys + moments):
+- **Total spine nodes**: At least ${nodeGuidance.minSpineNodes} (one anchor per arc + thread progressions + supporting moments)
+- **Arc anchors**: Exactly ${arcTarget} total — a mix of peaks and valleys, each with arcIndex, sceneCount, and forceMode
+- **Moments**: Use freely for thread escalations, setpieces, reveals, and setups worth flagging at plan level (no arcIndex)
 
 **Reasoning backbone** (THE MOST IMPORTANT):
 - **Reasoning nodes**: At least ${nodeGuidance.minReasoningNodes} — DEEP causal chains, not shallow links
@@ -1327,36 +1368,37 @@ For this ${arcTarget}-arc plan with ${activeThreadCount} active threads:
 
 ## DEPTH + BREADTH REQUIREMENTS (CRITICAL)
 
-**Chain depth**: Endpoint plot point → ${nodeGuidance.minChainDepth}+ reasoning/entity nodes → earliest progression plot point
+**Chain depth**: Peak anchor → ${nodeGuidance.minChainDepth}+ reasoning/entity nodes → valley or earlier moment that seeds it
 
 **Balanced breadth**: Use ALL entity node types (character, location, artifact, system) — not just reasoning.
 
 **Rich reasoning means**:
-1. **Multi-step chains**: Plot (resolution) → Reasoning → Character → Reasoning → System → Reasoning → Plot (progression)
+1. **Multi-step chains**: Peak → Reasoning → Character → Reasoning → System → Reasoning → Valley (or Moment)
 2. **Entity nodes throughout**: Character/location/artifact/system nodes appear IN the chains, not as isolated leaves
 3. **Specific references**: Every entity node references SPECIFIC knowledge from the context above
 4. **Causal clarity**: Each step explains WHY, not just WHAT
 
 **BAD (shallow breadth-only)**:
 \`\`\`
-P1 → P2
-P3 → P4  (parallel disconnected threads, no reasoning)
+PK1 → PK2
+V1 → PK3  (parallel disconnected spine nodes, no reasoning in between)
 \`\`\`
 
 **BAD (depth without grounding)**:
 \`\`\`
-P1 → R1 → R2 → R3 → P2  (reasoning chain but no character/location/system nodes)
+PK1 → R1 → R2 → R3 → V1  (reasoning chain but no character/location/system nodes)
 \`\`\`
 
 **GOOD (deep + grounded + diverse)**:
 \`\`\`
-P1 ("Rock Aperture Gu feeding resolved" — threadId, targetStatus: resolved)
+PK1 ("Rock Aperture Gu feeding resolved" — peak anchor, threadId, targetStatus: resolved, arcIndex: 3)
   → R1 ("For resolution, Fang Yuan must secure resource X")
   → C1 ("Fang Yuan knows Bai Ning Bing has Y" — entityId: char-fy)
   → R2 ("This knowledge enables negotiation")
   → L1 ("Glacier's isolation constrains timing" — entityId: loc-glacier)
   → S1 ("Gu feeding rules require Z" — reference: Gu feeding system)
-  → P2 ("Thread escalates through confrontation" — threadId, targetStatus: escalating)
+  → V1 ("Alliance forms through reluctant compromise" — valley anchor, arcIndex: 2, targetStatus: escalating)
+  → M1 ("Bai Ning Bing overhears the betrayal plot" — moment, targetStatus: active)
 \`\`\`
 
 Return ONLY the JSON object.`;
@@ -1478,7 +1520,7 @@ Return ONLY the JSON object.`;
       arcPartitions.push([...new Set([...partition, ...globalAgentNodes])]);
     }
 
-    return {
+    const plan: CoordinationPlan = {
       id: `plan-${Date.now()}`,
       nodes: reindexedNodes,
       edges,
@@ -1489,6 +1531,9 @@ Return ONLY the JSON object.`;
       completedArcs: [],
       createdAt: Date.now(),
     };
+    // Derive forceMode for each arc anchor from node composition. We don't
+    // trust the LLM to label this correctly — it falls out of what was planned.
+    return applyDerivedForceModes(plan);
   } catch (err) {
     console.error("Failed to parse coordination plan:", err);
     // Return minimal fallback

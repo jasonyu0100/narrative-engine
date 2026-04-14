@@ -15,7 +15,8 @@ const NODE_COLORS: Record<ReasoningNodeType, { fill: string; stroke: string; tex
   system: { fill: "#1e3a8a", stroke: "#3b82f6", text: "#dbeafe" },
   reasoning: { fill: "#374151", stroke: "#6b7280", text: "#f3f4f6" },
   pattern: { fill: "#115e59", stroke: "#14b8a6", text: "#ccfbf1" },
-  warning: { fill: "#92400e", stroke: "#f59e0b", text: "#fef3c7" },
+  warning: { fill: "#881337", stroke: "#f43f5e", text: "#ffe4e6" },    // Rose — adversarial agent
+  chaos: { fill: "#581c87", stroke: "#a855f7", text: "#f3e8ff" },      // Purple — outside force, spawns new entities
 };
 
 const EDGE_COLORS: Record<ReasoningEdgeType, string> = {
@@ -38,6 +39,7 @@ const TYPE_DESCRIPTIONS: Record<ReasoningNodeType, string> = {
   reasoning: "A logical step in the causal chain",
   pattern: "Positive reinforcement — encouraging variety and fresh approaches",
   warning: "Negative reinforcement — preventing stagnation and repetition",
+  chaos: "Outside force — spawns a new character, location, artifact, or thread into the arc",
 };
 
 type Props = {

@@ -28,8 +28,10 @@ const NODE_COLORS: Record<ReasoningNodeType, { fill: string; stroke: string; tex
   reasoning: { fill: "#374151", stroke: "#6b7280", text: "#f3f4f6" },  // Grey
   // Pattern — cyan/teal (positive reinforcement)
   pattern: { fill: "#115e59", stroke: "#14b8a6", text: "#ccfbf1" },    // Teal
-  // Warning — amber/orange (anti-pattern risk)
-  warning: { fill: "#92400e", stroke: "#f59e0b", text: "#fef3c7" },    // Amber
+  // Warning — rose (anti-pattern risk)
+  warning: { fill: "#881337", stroke: "#f43f5e", text: "#ffe4e6" },    // Rose
+  // Chaos — purple (outside force; spawns new entities into the arc)
+  chaos: { fill: "#581c87", stroke: "#a855f7", text: "#f3e8ff" },      // Purple
 };
 
 const EDGE_COLORS: Record<ReasoningEdgeType, string> = {
