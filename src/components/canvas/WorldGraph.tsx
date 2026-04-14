@@ -4,7 +4,7 @@ import { useRef, useEffect, useCallback, useMemo, useState } from 'react';
 import * as d3 from 'd3';
 import { useStore } from '@/lib/store';
 import { getEffectivePovId } from '@/lib/narrative-utils';
-import { getRelationshipsAtScene } from '@/lib/scene-filter';
+import { getRelationshipsAtScene, getOwnershipAtScene, getTiesAtScene } from '@/lib/scene-filter';
 import type {
   Character,
   Location,
@@ -215,8 +215,14 @@ export default function WorldGraph() {
     const filteredArtifacts = showArtifacts ? sceneArtifacts : {};
     const filteredArtifactsAll = showArtifacts ? (narrative.artifacts ?? {}) : {};
 
+    // Scene-filtered ownership and ties for timeline-accurate graph connections
+    const currentSceneIndex = state.viewState.currentSceneIndex;
+    const sceneOwnership = getOwnershipAtScene(narrative, resolvedEntryKeys, currentSceneIndex);
+    const sceneTies = getTiesAtScene(narrative, resolvedEntryKeys, currentSceneIndex);
+
     if (graphViewMode === 'overview') {
       // Overview mode: all characters/locations/artifacts sized by usage across the timeline
+      // For overview, use ownership/ties at the current viewing position (not end of timeline)
       const result = buildOverviewGraphData(
         filteredCharacters,
         filteredLocations,
@@ -224,8 +230,10 @@ export default function WorldGraph() {
         narrative.scenes,
         narrative.worldBuilds,
         resolvedEntryKeys,
-        resolvedEntryKeys.length - 1,
+        currentSceneIndex,
         filteredArtifactsAll,
+        sceneOwnership,
+        sceneTies,
       );
       nodes = result.nodes;
       links = result.links;
@@ -281,6 +289,8 @@ export default function WorldGraph() {
           filteredRels,
           {},
           filteredArtifacts,
+          sceneOwnership,
+          sceneTies,
         );
         nodes = result.nodes;
         links = result.links;
@@ -363,6 +373,8 @@ export default function WorldGraph() {
           filteredRelationships,
           characterPositions,
           filteredArtifacts,
+          sceneOwnership,
+          sceneTies,
         );
         nodes = result.nodes;
         links = result.links;
@@ -528,17 +540,23 @@ export default function WorldGraph() {
       .join('line')
       .attr('class', 'graph-edge')
       .attr('stroke', (d) => {
-        if (d.linkKind === 'character-location') return 'rgba(59, 130, 246, 0.8)';
+        if (d.linkKind === 'character-location') return 'rgba(59, 130, 246, 0.8)';  // Blue - current position
+        if (d.linkKind === 'tie') return 'rgba(168, 85, 247, 0.8)';                 // Purple - permanent affiliation
+        if (d.linkKind === 'ownership') return 'rgba(251, 191, 36, 0.8)';           // Amber - artifact ownership
         if (d.linkKind === 'knowledge') return 'rgba(255, 255, 255, 0.35)';
         return 'rgba(255, 255, 255, 0.25)';
       })
       .attr('stroke-opacity', (d) => {
         if (d.linkKind === 'character-location') return 0.8;
+        if (d.linkKind === 'tie') return 0.7;
+        if (d.linkKind === 'ownership') return 0.8;
         if (d.linkKind === 'spatial') return 0.6;
         return 0.5;
       })
       .attr('stroke-width', (d) => {
         if (d.linkKind === 'character-location') return 2;
+        if (d.linkKind === 'tie') return 1.5;
+        if (d.linkKind === 'ownership') return 1.5;
         if (d.linkKind === 'knowledge') return 1;
         if (d.linkKind === 'spatial') return 1;
         return 1.5;
@@ -546,6 +564,8 @@ export default function WorldGraph() {
       .attr('stroke-dasharray', (d) => {
         if (d.linkKind === 'spatial') return '4 4';
         if (d.linkKind === 'character-location') return '2 3';
+        if (d.linkKind === 'tie') return '4 2';      // Different dash pattern for ties
+        if (d.linkKind === 'ownership') return null; // Solid line for ownership
         return null;
       });
 
@@ -629,10 +649,10 @@ export default function WorldGraph() {
       .append('circle')
       .attr('r', (d) => {
         if (scaleByUsage) return CHAR_MIN_R + (CHAR_MAX_R - CHAR_MIN_R) * normChar(d);
-        return ROLE_RADIUS[d.role ?? 'recurring'];
+        return ROLE_RADIUS[d.role as keyof typeof ROLE_RADIUS] ?? ROLE_RADIUS.recurring;
       })
       .attr('fill', (d) =>
-        showHeatmap ? heatColor(normChar(d)) : ROLE_FILL[d.role ?? 'recurring'],
+        showHeatmap ? heatColor(normChar(d)) : (ROLE_FILL[d.role as keyof typeof ROLE_FILL] ?? ROLE_FILL.recurring),
       );
 
     // Location rounded rects

@@ -563,7 +563,7 @@ export function narrativeContext(
     : timelineState.relationships;
 
   // Knowledge: keep original (non-delta) nodes + delta nodes from the time horizon
-  const introduced = getIntroducedIds(n.worldBuilds, resolvedKeys, currentIndex);
+  const introduced = getIntroducedIds(n.worldBuilds, n.scenes, resolvedKeys, currentIndex);
   const artifactEntries = Object.values(n.artifacts ?? {}).filter((a) => introduced.artifactIds.has(a.id));
   // Use timeline-scoped ownership (who owned each artifact at this point, not final state)
   const artifactsByOwner = new Map<string, typeof artifactEntries>();

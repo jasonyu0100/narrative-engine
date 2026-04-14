@@ -82,8 +82,8 @@ function createMinimalNarrative(): NarrativeState {
 }
 // ── getIntroducedIds ─────────────────────────────────────────────────────────
 describe('getIntroducedIds', () => {
-  it('returns empty sets for no world builds', () => {
-    const result = getIntroducedIds({}, ['S-001', 'S-002'], 1);
+  it('returns empty sets for no world builds or scenes', () => {
+    const result = getIntroducedIds({}, {}, ['S-001', 'S-002'], 1);
     expect(result.characterIds.size).toBe(0);
     expect(result.locationIds.size).toBe(0);
     expect(result.threadIds.size).toBe(0);
@@ -96,11 +96,11 @@ describe('getIntroducedIds', () => {
     };
     const resolvedKeys = ['WB-01', 'S-001', 'WB-02', 'S-002'];
     // At index 1 (after WB-01 and S-001)
-    const result1 = getIntroducedIds(worldBuilds, resolvedKeys, 1);
+    const result1 = getIntroducedIds(worldBuilds, {}, resolvedKeys, 1);
     expect(result1.characterIds.has('C-01')).toBe(true);
     expect(result1.characterIds.has('C-02')).toBe(false);
     // At index 3 (after WB-02)
-    const result2 = getIntroducedIds(worldBuilds, resolvedKeys, 3);
+    const result2 = getIntroducedIds(worldBuilds, {}, resolvedKeys, 3);
     expect(result2.characterIds.has('C-01')).toBe(true);
     expect(result2.characterIds.has('C-02')).toBe(true);
   });
@@ -108,7 +108,7 @@ describe('getIntroducedIds', () => {
     const worldBuilds: Record<string, WorldBuild> = {
       'WB-01': createWorldBuild('WB-01', [], [], [], [{ id: 'A-01' }, { id: 'A-02' }]),
     };
-    const result = getIntroducedIds(worldBuilds, ['WB-01'], 0);
+    const result = getIntroducedIds(worldBuilds, {}, ['WB-01'], 0);
     expect(result.artifactIds.has('A-01')).toBe(true);
     expect(result.artifactIds.has('A-02')).toBe(true);
   });
@@ -116,8 +116,30 @@ describe('getIntroducedIds', () => {
     const worldBuilds: Record<string, WorldBuild> = {
       'WB-01': createWorldBuild('WB-01', [{ id: 'C-01' }]),
     };
-    const result = getIntroducedIds(worldBuilds, [], 0);
+    const result = getIntroducedIds(worldBuilds, {}, [], 0);
     expect(result.characterIds.size).toBe(0);
+  });
+  it('collects IDs from scene-introduced entities', () => {
+    const scenes: Record<string, Scene> = {
+      'S-001': {
+        id: 'S-001',
+        summary: 'Test scene',
+        povId: 'C-01',
+        locationId: 'L-01',
+        participantIds: [],
+        events: [],
+        threadDeltas: [],
+        worldDeltas: [],
+        relationshipDeltas: [],
+        newCharacters: [{ id: 'C-NEW', name: 'New Character', role: 'transient', threadIds: [] }],
+        newLocations: [{ id: 'L-NEW', name: 'New Location', prominence: 'margin', threadIds: [], tiedCharacterIds: [] }],
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+      },
+    };
+    const result = getIntroducedIds({}, scenes, ['S-001'], 0);
+    expect(result.characterIds.has('C-NEW')).toBe(true);
+    expect(result.locationIds.has('L-NEW')).toBe(true);
   });
 });
 // ── getWorldNodesAtScene ────────────────────────────────────────────────

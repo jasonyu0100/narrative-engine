@@ -12,9 +12,10 @@ import type {
 
 // ── Introduced-entity tracking ──────────────────────────────────────────────
 
-/** Collect entity IDs introduced by world builds up to (and including) currentSceneIndex. */
+/** Collect entity IDs introduced by world builds and scenes up to (and including) currentSceneIndex. */
 export function getIntroducedIds(
   worldBuilds: Record<string, WorldBuild>,
+  scenes: Record<string, Scene>,
   resolvedEntryKeys: string[],
   currentSceneIndex: number,
 ): { characterIds: Set<string>; locationIds: Set<string>; threadIds: Set<string>; artifactIds: Set<string> } {
@@ -24,12 +25,25 @@ export function getIntroducedIds(
   const artifactIds = new Set<string>();
 
   for (let i = 0; i <= currentSceneIndex && i < resolvedEntryKeys.length; i++) {
-    const wb = worldBuilds[resolvedEntryKeys[i]];
-    if (!wb) continue;
-    for (const c of wb.expansionManifest.newCharacters) characterIds.add(c.id);
-    for (const l of wb.expansionManifest.newLocations) locationIds.add(l.id);
-    for (const t of wb.expansionManifest.newThreads) threadIds.add(t.id);
-    for (const a of wb.expansionManifest.newArtifacts ?? []) artifactIds.add(a.id);
+    const key = resolvedEntryKeys[i];
+
+    // Process world build entities
+    const wb = worldBuilds[key];
+    if (wb) {
+      for (const c of wb.expansionManifest.newCharacters) characterIds.add(c.id);
+      for (const l of wb.expansionManifest.newLocations) locationIds.add(l.id);
+      for (const t of wb.expansionManifest.newThreads) threadIds.add(t.id);
+      for (const a of wb.expansionManifest.newArtifacts ?? []) artifactIds.add(a.id);
+    }
+
+    // Process scene-introduced entities
+    const scene = scenes[key];
+    if (scene) {
+      for (const c of scene.newCharacters ?? []) characterIds.add(c.id);
+      for (const l of scene.newLocations ?? []) locationIds.add(l.id);
+      for (const t of scene.newThreads ?? []) threadIds.add(t.id);
+      for (const a of scene.newArtifacts ?? []) artifactIds.add(a.id);
+    }
   }
 
   return { characterIds, locationIds, threadIds, artifactIds };
@@ -124,6 +138,7 @@ export function getRelationshipsAtScene(
 ): RelationshipEdge[] {
   const { characterIds: introducedChars } = getIntroducedIds(
     narrative.worldBuilds,
+    narrative.scenes,
     resolvedEntryKeys,
     currentSceneIndex,
   );
@@ -187,6 +202,122 @@ export function getRelationshipsAtScene(
       if (fd === undefined) return rel;
       return { ...rel, valence: rel.valence - fd };
     });
+}
+
+// ── Ownership filtering ──────────────────────────────────────────────────────
+
+/**
+ * Compute artifact ownership at a given scene index.
+ * Replays ownershipDeltas from world builds and scenes up to currentSceneIndex.
+ * Returns a map of artifactId → parentId (owner ID or null for world-owned).
+ */
+export function getOwnershipAtScene(
+  narrative: NarrativeState,
+  resolvedEntryKeys: string[],
+  currentSceneIndex: number,
+): Map<string, string | null> {
+  const ownership = new Map<string, string | null>();
+
+  // Process world builds and scenes in timeline order up to currentSceneIndex
+  for (let i = 0; i <= currentSceneIndex && i < resolvedEntryKeys.length; i++) {
+    const key = resolvedEntryKeys[i];
+
+    // Check if it's a world build
+    const wb = narrative.worldBuilds[key];
+    if (wb) {
+      // Add initial artifacts from this world build
+      for (const art of wb.expansionManifest.newArtifacts ?? []) {
+        ownership.set(art.id, art.parentId ?? null);
+      }
+      // Apply ownership deltas from world build
+      for (const om of wb.expansionManifest.ownershipDeltas ?? []) {
+        ownership.set(om.artifactId, om.toId);
+      }
+    }
+
+    // Check if it's a scene
+    const scene = narrative.scenes[key];
+    if (scene) {
+      // Add artifacts introduced by this scene
+      for (const art of scene.newArtifacts ?? []) {
+        ownership.set(art.id, art.parentId ?? null);
+      }
+      // Apply ownership deltas from scene
+      for (const om of scene.ownershipDeltas ?? []) {
+        ownership.set(om.artifactId, om.toId);
+      }
+    }
+  }
+
+  return ownership;
+}
+
+// ── Tie filtering ────────────────────────────────────────────────────────────
+
+/**
+ * Compute character-location ties at a given scene index.
+ * Replays tieDeltas from world builds and scenes up to currentSceneIndex.
+ * Returns a map of locationId → Set of characterIds tied to that location.
+ */
+export function getTiesAtScene(
+  narrative: NarrativeState,
+  resolvedEntryKeys: string[],
+  currentSceneIndex: number,
+): Map<string, Set<string>> {
+  const ties = new Map<string, Set<string>>();
+
+  // Process world builds and scenes in timeline order up to currentSceneIndex
+  for (let i = 0; i <= currentSceneIndex && i < resolvedEntryKeys.length; i++) {
+    const key = resolvedEntryKeys[i];
+
+    // Check if it's a world build
+    const wb = narrative.worldBuilds[key];
+    if (wb) {
+      // Add initial locations with their tied characters
+      for (const loc of wb.expansionManifest.newLocations ?? []) {
+        const existing = ties.get(loc.id) ?? new Set<string>();
+        for (const charId of loc.tiedCharacterIds ?? []) {
+          existing.add(charId);
+        }
+        ties.set(loc.id, existing);
+      }
+      // Apply tie deltas from world build
+      for (const tm of wb.expansionManifest.tieDeltas ?? []) {
+        const existing = ties.get(tm.locationId) ?? new Set<string>();
+        if (tm.action === 'add') {
+          existing.add(tm.characterId);
+        } else {
+          existing.delete(tm.characterId);
+        }
+        ties.set(tm.locationId, existing);
+      }
+    }
+
+    // Check if it's a scene
+    const scene = narrative.scenes[key];
+    if (scene) {
+      // Add locations introduced by this scene with their tied characters
+      for (const loc of scene.newLocations ?? []) {
+        const existing = ties.get(loc.id) ?? new Set<string>();
+        for (const charId of loc.tiedCharacterIds ?? []) {
+          existing.add(charId);
+        }
+        ties.set(loc.id, existing);
+      }
+      // Apply tie deltas from scene
+      for (const tm of scene.tieDeltas ?? []) {
+        const existing = ties.get(tm.locationId) ?? new Set<string>();
+        if (tm.action === 'add') {
+          existing.add(tm.characterId);
+        } else {
+          existing.delete(tm.characterId);
+        }
+        ties.set(tm.locationId, existing);
+      }
+    }
+  }
+
+  return ties;
 }
 
 // ── Thread filtering ────────────────────────────────────────────────────────

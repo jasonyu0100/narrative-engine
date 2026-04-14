@@ -110,8 +110,9 @@ export interface GraphLink extends d3.SimulationLinkDatum<GraphNode> {
     | "relationship"
     | "spatial"
     | "knowledge"
-    | "character-location"
-    | "ownership";
+    | "character-location"  // Current position (from characterMovements)
+    | "tie"                 // Permanent affiliation (employee, resident, faction)
+    | "ownership";          // Artifact owned by character/location
   label?: string;
   valence?: number;
   /** For bidirectional pairs: labels for each direction (sourceId → label) */
@@ -304,6 +305,10 @@ export function buildGraphData(
   relationships: RelationshipEdge[],
   characterPositions: Record<string, string>,
   artifacts?: Record<string, Artifact>,
+  /** Scene-filtered ownership: artifactId → ownerId (use getOwnershipAtScene) */
+  ownership?: Map<string, string | null>,
+  /** Scene-filtered ties: locationId → Set of characterIds (use getTiesAtScene) */
+  ties?: Map<string, Set<string>>,
 ): { nodes: GraphNode[]; links: GraphLink[] } {
   const nodes: GraphNode[] = [];
   const links: GraphLink[] = [];
@@ -372,8 +377,10 @@ export function buildGraphData(
 
   // Artifact nodes + ownership edges (pre-filtered to used artifacts by caller)
   for (const art of Object.values(artifacts ?? {})) {
+    // Use scene-filtered ownership if available, else fall back to current parentId
+    const ownerId = ownership?.get(art.id) ?? art.parentId;
     const ownerInGraph =
-      art.parentId && (characters[art.parentId] || locations[art.parentId]);
+      ownerId && (characters[ownerId] || locations[ownerId]);
     nodes.push({
       id: art.id,
       kind: "artifact",
@@ -384,12 +391,28 @@ export function buildGraphData(
     });
     if (ownerInGraph) {
       links.push({
-        id: `ownership-${art.id}-${art.parentId}`,
+        id: `ownership-${art.id}-${ownerId}`,
         source: art.id,
-        target: art.parentId!,
+        target: ownerId!,
         linkKind: "ownership",
         label: "owned by",
       });
+    }
+  }
+
+  // Tie edges (character tied to location — employees, residents, faction members)
+  if (ties) {
+    for (const [locId, charIds] of ties) {
+      if (!locations[locId]) continue;
+      for (const charId of charIds) {
+        if (!characters[charId]) continue;
+        links.push({
+          id: `tie-${charId}-${locId}`,
+          source: charId,
+          target: locId,
+          linkKind: "tie",
+        });
+      }
     }
   }
 
@@ -407,6 +430,10 @@ export function buildOverviewGraphData(
   resolvedEntryKeys: string[],
   currentSceneIndex: number,
   artifacts?: Record<string, Artifact>,
+  /** Scene-filtered ownership: artifactId → ownerId (use getOwnershipAtScene) */
+  ownership?: Map<string, string | null>,
+  /** Scene-filtered ties: locationId → Set of characterIds (use getTiesAtScene) */
+  ties?: Map<string, Set<string>>,
 ): { nodes: GraphNode[]; links: GraphLink[] } {
   const nodes: GraphNode[] = [];
   const links: GraphLink[] = [];
@@ -510,9 +537,11 @@ export function buildOverviewGraphData(
   // used in any scene up to the current index.
   for (const art of Object.values(artifacts ?? {})) {
     if (!artUsage[art.id]) continue;
+    // Use scene-filtered ownership if available, else fall back to current parentId
+    const ownerId = ownership?.get(art.id) ?? art.parentId;
     const ownerInGraph =
-      art.parentId &&
-      (activeCharIds.has(art.parentId) || activeLocIds.has(art.parentId));
+      ownerId &&
+      (activeCharIds.has(ownerId) || activeLocIds.has(ownerId));
     nodes.push({
       id: art.id,
       kind: "artifact",
@@ -524,12 +553,28 @@ export function buildOverviewGraphData(
     });
     if (ownerInGraph) {
       links.push({
-        id: `ownership-${art.id}-${art.parentId}`,
+        id: `ownership-${art.id}-${ownerId}`,
         source: art.id,
-        target: art.parentId!,
+        target: ownerId!,
         linkKind: "ownership",
         label: "owned by",
       });
+    }
+  }
+
+  // Tie edges (character tied to location — employees, residents, faction members)
+  if (ties) {
+    for (const [locId, charIds] of ties) {
+      if (!activeLocIds.has(locId)) continue;
+      for (const charId of charIds) {
+        if (!activeCharIds.has(charId)) continue;
+        links.push({
+          id: `tie-${charId}-${locId}`,
+          source: charId,
+          target: locId,
+          linkKind: "tie",
+        });
+      }
     }
   }
 
