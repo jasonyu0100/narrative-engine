@@ -4,8 +4,6 @@ import {
   ANALYSIS_MAX_CORPUS_WORDS,
   ANALYSIS_MODEL,
   ANALYSIS_STAGGER_DELAY_MS,
-  ANALYSIS_TARGET_CHUNK_WORDS,
-  ANALYSIS_TARGET_SECTIONS_PER_CHUNK,
   ANALYSIS_TEMPERATURE,
   API_LOG_STALE_THRESHOLD_MS,
   API_STREAM_TIMEOUT_MS,
@@ -56,13 +54,6 @@ describe("Analysis & Extraction Constants", () => {
   it("ANALYSIS_STAGGER_DELAY_MS is reasonable (50-1000ms)", () => {
     expect(ANALYSIS_STAGGER_DELAY_MS).toBeGreaterThanOrEqual(50);
     expect(ANALYSIS_STAGGER_DELAY_MS).toBeLessThanOrEqual(1000);
-  });
-  it("ANALYSIS_TARGET_SECTIONS_PER_CHUNK is positive", () => {
-    expect(ANALYSIS_TARGET_SECTIONS_PER_CHUNK).toBeGreaterThan(0);
-  });
-  it("ANALYSIS_TARGET_CHUNK_WORDS is reasonable (1000-10000)", () => {
-    expect(ANALYSIS_TARGET_CHUNK_WORDS).toBeGreaterThanOrEqual(1000);
-    expect(ANALYSIS_TARGET_CHUNK_WORDS).toBeLessThanOrEqual(10000);
   });
   it("ANALYSIS_MAX_CORPUS_WORDS is a large positive number", () => {
     expect(ANALYSIS_MAX_CORPUS_WORDS).toBeGreaterThan(100000);

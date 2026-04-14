@@ -9,10 +9,7 @@ vi.mock('@/lib/ai/api', () => ({
 }));
 // Mock constants with smaller chunk sizes for faster tests
 vi.mock('@/lib/constants', () => ({
-  ANALYSIS_CHUNK_SIZE_SECTIONS: 10,
   ANALYSIS_MAX_CORPUS_WORDS: 50000,
-  ANALYSIS_TARGET_SECTIONS_PER_CHUNK: 10,
-  ANALYSIS_TARGET_CHUNK_WORDS: 500,
   WORDS_PER_SCENE: 1200,
   SCENES_PER_ARC: 4,
   ANALYSIS_MODEL: 'test-model',

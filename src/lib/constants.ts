@@ -12,12 +12,6 @@ export const ANALYSIS_CONCURRENCY = 20;
 export const ANALYSIS_STAGGER_DELAY_MS = 200;
 
 
-/** Target number of sections per analysis chunk (~1 section per beat) */
-export const ANALYSIS_TARGET_SECTIONS_PER_CHUNK = 12;
-
-/** Target word count per analysis chunk (~1 arc = 4 scenes × 1000 words) */
-export const ANALYSIS_TARGET_CHUNK_WORDS = 4000;
-
 /** Max corpus size (words) accepted for analysis */
 export const ANALYSIS_MAX_CORPUS_WORDS = 500_000;
 

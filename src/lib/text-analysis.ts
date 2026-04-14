@@ -272,11 +272,16 @@ systemDeltas — REVEALED world rules, not character observations. 15-25 words, 
 
 ENTITY EXTRACTION — entities carry ONLY identity (name, role, significance). ALL world/lore MUST be emitted as scenes[].worldDeltas on the scene where it is revealed.
 
-- characters: conscious beings with agency. Role: anchor/recurring/transient.
+- characters: conscious beings with AGENCY IN THE SCENE. The test: does this person ACT, SPEAK, DECIDE, or THINK within the scene? If they are only NAMED (cited, referenced, listed, footnoted) without acting, they are NOT a character — skip entirely.
   FICTION: ✓ Harry Potter, Gandalf, Elizabeth Bennet — people with agency
   FICTION: ✓ Hedwig, Shadowfax — named animals with personality
-  NON-FICTION: ✓ Einstein, Vaswani et al., the lead researcher — people who act
-  NON-FICTION: ✗ "The scientific community", "reviewers" — collectives, not characters
+  NON-FICTION: ✓ Einstein proposed relativity after observing X — acting in the narrative
+  NON-FICTION: ✓ "the lead researcher configured the experiment" — someone performing an action
+  NON-FICTION: ✗ "Vaswani et al., 2017", "Brown et al., 2020", "(Misra and Maaten, 2020)" — CITATION REFERENCES. Names appear once as a pointer to prior work, with no agency in the current text. Skip.
+  NON-FICTION: ✗ Bibliography entries (full author-title-venue tuples at the end of a paper). Skip entirely — these are a REFERENCE LIST, not a cast.
+  NON-FICTION: ✗ "Bordes et al., 2015", "Silver et al., 2021" — inline citations, even when repeated, if the author is only referenced (not depicted acting).
+  NON-FICTION: ✗ "The scientific community", "reviewers", "prior work by X and Y" — collectives or one-line name-drops, not characters.
+  EDGE CASE — the single test: take the scene, delete the character. Does the scene still read the same? If yes, they are a reference/citation, not a character. Do not extract them, and do not invent a transient character for one-line name-drops.
   anchor: 3-5 worldDeltas on first appearance. recurring: 2-4. transient: 1-2.
 
 - locations: PHYSICAL spatial areas you can STAND IN.
