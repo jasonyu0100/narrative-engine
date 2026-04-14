@@ -660,6 +660,66 @@ describe("buildOverviewGraphData", () => {
       "art-1": createArtifact("art-1", "char-1"),
     };
     const scenes: Record<string, Scene> = {
+      "scene-1": createScene("scene-1", {
+        participantIds: ["char-1"],
+        artifactUsages: [
+          { artifactId: "art-1", characterId: "char-1", usage: "wields" },
+        ],
+      }),
+    };
+    const { nodes, links } = buildOverviewGraphData(
+      characters,
+      {},
+      [],
+      scenes,
+      {},
+      ["scene-1"],
+      0,
+      artifacts,
+    );
+    const artNode = nodes.find((n) => n.id === "art-1");
+    expect(artNode).toBeDefined();
+    expect(artNode?.usageCount).toBe(1);
+    expect(links.find((l) => l.linkKind === "ownership")).toBeDefined();
+  });
+  it("renders artifact used in scene but skips ownership edge for inactive owners", () => {
+    const characters: Record<string, Character> = {
+      "char-1": createCharacter("char-1"),
+      "char-2": createCharacter("char-2"),
+    };
+    const artifacts: Record<string, Artifact> = {
+      "art-1": createArtifact("art-1", "char-2"),
+    };
+    const scenes: Record<string, Scene> = {
+      "scene-1": createScene("scene-1", {
+        participantIds: ["char-1"],
+        artifactUsages: [
+          { artifactId: "art-1", characterId: "char-1", usage: "picks up" },
+        ],
+      }),
+    };
+    const { nodes, links } = buildOverviewGraphData(
+      characters,
+      {},
+      [],
+      scenes,
+      {},
+      ["scene-1"],
+      0,
+      artifacts,
+    );
+    // Artifact appears via artifactUsages but no ownership edge since char-2 not active
+    expect(nodes.find((n) => n.id === "art-1")).toBeDefined();
+    expect(links.find((l) => l.id.includes("art-1"))).toBeUndefined();
+  });
+  it("excludes artifacts with no usage or introduction", () => {
+    const characters: Record<string, Character> = {
+      "char-1": createCharacter("char-1"),
+    };
+    const artifacts: Record<string, Artifact> = {
+      "art-1": createArtifact("art-1", "char-1"),
+    };
+    const scenes: Record<string, Scene> = {
       "scene-1": createScene("scene-1", { participantIds: ["char-1"] }),
     };
     const { nodes } = buildOverviewGraphData(
@@ -672,31 +732,151 @@ describe("buildOverviewGraphData", () => {
       0,
       artifacts,
     );
-    expect(nodes.find((n) => n.id === "art-1")).toBeDefined();
+    // No artifactUsages, no worldBuild manifest — artifact should not appear
+    expect(nodes.find((n) => n.id === "art-1")).toBeUndefined();
   });
-  it("renders artifacts passed by caller but skips ownership edge for inactive owners", () => {
+  it("accumulates artifact usages across the timeline up to current scene", () => {
     const characters: Record<string, Character> = {
       "char-1": createCharacter("char-1"),
-      "char-2": createCharacter("char-2"),
     };
     const artifacts: Record<string, Artifact> = {
-      "art-1": createArtifact("art-1", "char-2"),
+      "art-1": createArtifact("art-1", "char-1", { name: "Sword" }),
     };
     const scenes: Record<string, Scene> = {
-      "scene-1": createScene("scene-1", { participantIds: ["char-1"] }),
+      "scene-1": createScene("scene-1", {
+        participantIds: ["char-1"],
+        artifactUsages: [
+          { artifactId: "art-1", characterId: "char-1", usage: "draws" },
+        ],
+      }),
+      "scene-2": createScene("scene-2", { participantIds: ["char-1"] }),
+      "scene-3": createScene("scene-3", {
+        participantIds: ["char-1"],
+        artifactUsages: [
+          { artifactId: "art-1", characterId: "char-1", usage: "swings" },
+        ],
+      }),
     };
-    const { nodes, links } = buildOverviewGraphData(
+    // At scene 2 (index 2), artifact was used in scene-1 and scene-3 → count 2
+    const { nodes } = buildOverviewGraphData(
       characters,
       {},
       [],
       scenes,
       {},
-      ["scene-1"],
+      ["scene-1", "scene-2", "scene-3"],
+      2,
+      artifacts,
+    );
+    const artNode = nodes.find((n) => n.id === "art-1");
+    expect(artNode).toBeDefined();
+    expect(artNode?.usageCount).toBe(2);
+  });
+  it("keeps earlier-introduced artifacts visible in later scenes (Full World view)", () => {
+    const characters: Record<string, Character> = {
+      "char-1": createCharacter("char-1"),
+    };
+    const artifacts: Record<string, Artifact> = {
+      "art-1": createArtifact("art-1", "char-1", { name: "Heirloom" }),
+    };
+    const scenes: Record<string, Scene> = {
+      "scene-1": createScene("scene-1", {
+        participantIds: ["char-1"],
+        artifactUsages: [
+          {
+            artifactId: "art-1",
+            characterId: "char-1",
+            usage: "inherits",
+          },
+        ],
+      }),
+      "scene-2": createScene("scene-2", { participantIds: ["char-1"] }),
+    };
+    // Viewing at scene-2 — the artifact was introduced earlier and must remain visible
+    const { nodes } = buildOverviewGraphData(
+      characters,
+      {},
+      [],
+      scenes,
+      {},
+      ["scene-1", "scene-2"],
+      1,
+      artifacts,
+    );
+    expect(nodes.find((n) => n.id === "art-1")).toBeDefined();
+  });
+  it("excludes artifacts introduced only after current scene index", () => {
+    const characters: Record<string, Character> = {
+      "char-1": createCharacter("char-1"),
+    };
+    const artifacts: Record<string, Artifact> = {
+      "art-later": createArtifact("art-later", "char-1"),
+    };
+    const scenes: Record<string, Scene> = {
+      "scene-1": createScene("scene-1", { participantIds: ["char-1"] }),
+      "scene-2": createScene("scene-2", {
+        participantIds: ["char-1"],
+        artifactUsages: [
+          {
+            artifactId: "art-later",
+            characterId: "char-1",
+            usage: "finds",
+          },
+        ],
+      }),
+    };
+    const { nodes } = buildOverviewGraphData(
+      characters,
+      {},
+      [],
+      scenes,
+      {},
+      ["scene-1", "scene-2"],
       0,
       artifacts,
     );
-    // Artifact appears (pre-filtered by caller) but no ownership edge since char-2 not active
-    expect(nodes.find((n) => n.id === "art-1")).toBeDefined();
-    expect(links.find((l) => l.id.includes("art-1"))).toBeUndefined();
+    // Currently at scene-1; scene-2 hasn't happened yet
+    expect(nodes.find((n) => n.id === "art-later")).toBeUndefined();
+  });
+  it("counts artifacts introduced via worldBuild manifest", () => {
+    const artifacts: Record<string, Artifact> = {
+      "art-1": createArtifact("art-1", "loc-1", { name: "Relic" }),
+    };
+    const worldBuilds: Record<string, WorldBuild> = {
+      "wb-1": {
+        kind: "world_build",
+        id: "wb-1",
+        summary: "Expansion",
+        expansionManifest: {
+          newCharacters: [],
+          newLocations: [],
+          newThreads: [],
+          newArtifacts: [
+            {
+              id: "art-1",
+              parentId: "loc-1",
+              name: "Relic",
+              significance: "notable",
+              world: { nodes: {}, edges: [] },
+              threadIds: [],
+            },
+          ],
+          systemDeltas: { addedNodes: [], addedEdges: [] },
+        },
+      },
+    };
+    const { nodes } = buildOverviewGraphData(
+      {},
+      {},
+      [],
+      {},
+      worldBuilds,
+      ["wb-1"],
+      0,
+      artifacts,
+    );
+    const artNode = nodes.find((n) => n.id === "art-1");
+    expect(artNode).toBeDefined();
+    expect(artNode?.usageCount).toBe(1);
   });
 });

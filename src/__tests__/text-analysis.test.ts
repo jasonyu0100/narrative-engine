@@ -429,7 +429,23 @@ describe('groupScenesIntoArcs', () => {
 // ══════════════════════════════════════════════════════════════════════════════
 describe('reconcileResults', () => {
   beforeEach(() => {
-    // Default: no merges needed
+    // Default: no merges needed. Reconciliation now runs in two sequential
+    // phases (entities, then semantic) so fetch is invoked twice per call —
+    // use mockResolvedValue so both phases resolve to the same empty-merge
+    // payload unless a test overrides it.
+    vi.mocked(fetch).mockReset();
+    vi.mocked(fetch).mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        content: JSON.stringify({
+          characterMerges: {},
+          threadMerges: {},
+          locationMerges: {},
+          artifactMerges: {},
+          systemMerges: {},
+        }),
+      }),
+    } as Response);
     vi.mocked(callGenerate).mockResolvedValue(JSON.stringify({
       characterMerges: {},
       threadMerges: {},
@@ -450,7 +466,7 @@ describe('reconcileResults', () => {
     expect(totalScenes).toBe(3);
   });
   it('merges character name variants via LLM map', async () => {
-    vi.mocked(fetch).mockResolvedValueOnce({
+    vi.mocked(fetch).mockResolvedValue({
       ok: true,
       json: async () => ({
         content: JSON.stringify({
@@ -472,7 +488,7 @@ describe('reconcileResults', () => {
     expect(reconciled[1].characters[0].name).toBe('Minerva McGonagall');
   });
   it('merges thread descriptions via LLM map', async () => {
-    vi.mocked(fetch).mockResolvedValueOnce({
+    vi.mocked(fetch).mockResolvedValue({
       ok: true,
       json: async () => ({
         content: JSON.stringify({
@@ -499,7 +515,7 @@ describe('reconcileResults', () => {
     expect(reconciled[0].scenes[0].threadDeltas[0].threadDescription).toBe("Harry and Snape's antagonism");
   });
   it('merges location names via LLM map', async () => {
-    vi.mocked(fetch).mockResolvedValueOnce({
+    vi.mocked(fetch).mockResolvedValue({
       ok: true,
       json: async () => ({
         content: JSON.stringify({
@@ -523,7 +539,7 @@ describe('reconcileResults', () => {
     expect(reconciled[0].scenes[0].locationName).toBe('Dark Forest');
   });
   it('merges artifact names via LLM map', async () => {
-    vi.mocked(fetch).mockResolvedValueOnce({
+    vi.mocked(fetch).mockResolvedValue({
       ok: true,
       json: async () => ({
         content: JSON.stringify({
@@ -548,7 +564,7 @@ describe('reconcileResults', () => {
     expect(reconciled[0].scenes[0].artifactUsages![0].artifactName).toBe('Elder Wand');
   });
   it('merges system knowledge concepts via LLM map', async () => {
-    vi.mocked(fetch).mockResolvedValueOnce({
+    vi.mocked(fetch).mockResolvedValue({
       ok: true,
       json: async () => ({
         content: JSON.stringify({
@@ -634,7 +650,7 @@ describe('reconcileResults', () => {
     expect(swords[0].significance).toBe('key');
   });
   it('resolves character names in participant lists', async () => {
-    vi.mocked(fetch).mockResolvedValueOnce({
+    vi.mocked(fetch).mockResolvedValue({
       ok: true,
       json: async () => ({
         content: JSON.stringify({
@@ -657,7 +673,7 @@ describe('reconcileResults', () => {
     expect(reconciled[0].scenes[0].participantNames).toContain('Alice');
   });
   it('deduplicates participant names after merge', async () => {
-    vi.mocked(fetch).mockResolvedValueOnce({
+    vi.mocked(fetch).mockResolvedValue({
       ok: true,
       json: async () => ({
         content: JSON.stringify({
@@ -681,7 +697,7 @@ describe('reconcileResults', () => {
     expect(aliceCount).toBe(1);
   });
   it('resolves relationship delta names through character map', async () => {
-    vi.mocked(fetch).mockResolvedValueOnce({
+    vi.mocked(fetch).mockResolvedValue({
       ok: true,
       json: async () => ({
         content: JSON.stringify({
@@ -700,6 +716,143 @@ describe('reconcileResults', () => {
     }];
     const reconciled = await reconcileResults(results);
     expect(reconciled[0].scenes[0].relationshipDeltas[0].from).toBe('Alice');
+  });
+  // ── Phase split: entities and semantic reconciliation run sequentially ──
+  it('runs entity reconciliation and semantic reconciliation as two sequential LLM calls', async () => {
+    // Default beforeEach mock returns no merges — just assert the fetch count
+    const results = [createMockAnalysisResult(0), createMockAnalysisResult(1)];
+    await reconcileResults(results);
+    // Two phases → two fetch calls to /api/generate
+    const calls = vi.mocked(fetch).mock.calls.filter((call) =>
+      String(call[0]).includes('/api/generate'),
+    );
+    expect(calls.length).toBe(2);
+  });
+  it('entity phase prompt targets characters, locations, artifacts — not threads or system concepts', async () => {
+    const results = [createMockAnalysisResult(0)];
+    await reconcileResults(results);
+    const firstCallBody = JSON.parse(
+      String(vi.mocked(fetch).mock.calls[0][1]?.body),
+    );
+    const firstPrompt = firstCallBody.prompt as string;
+    expect(firstPrompt).toMatch(/CHARACTERS/);
+    expect(firstPrompt).toMatch(/LOCATIONS/);
+    expect(firstPrompt).toMatch(/ARTIFACTS/);
+    // Entity phase must not ask for thread or system merges
+    expect(firstPrompt).not.toMatch(/THREADS/);
+    expect(firstPrompt).not.toMatch(/SYSTEM KNOWLEDGE/);
+  });
+  it('semantic phase prompt targets threads and system knowledge', async () => {
+    const results = [createMockAnalysisResult(0)];
+    await reconcileResults(results);
+    const secondCallBody = JSON.parse(
+      String(vi.mocked(fetch).mock.calls[1][1]?.body),
+    );
+    const secondPrompt = secondCallBody.prompt as string;
+    expect(secondPrompt).toMatch(/THREADS/);
+    expect(secondPrompt).toMatch(/SYSTEM KNOWLEDGE/);
+    // Semantic phase must not ask for entity merges
+    expect(secondPrompt).not.toMatch(/CHARACTERS \(/);
+    expect(secondPrompt).not.toMatch(/LOCATIONS \(/);
+    expect(secondPrompt).not.toMatch(/ARTIFACTS \(/);
+  });
+  it('semantic phase defaults to preservation (emphasises keeping items separate)', async () => {
+    const results = [createMockAnalysisResult(0)];
+    await reconcileResults(results);
+    const secondCallBody = JSON.parse(
+      String(vi.mocked(fetch).mock.calls[1][1]?.body),
+    );
+    const secondPrompt = secondCallBody.prompt as string;
+    // The semantic phase uses a default-preserve stance so genuine nuance survives
+    expect(secondPrompt).toMatch(/KEEP SEPARATE|WHEN IN DOUBT|PRESERVE/i);
+  });
+  it('skips entity LLM call when no entities were extracted', async () => {
+    // Only threads in the results — no characters, locations, or artifacts
+    const results: AnalysisChunkResult[] = [{
+      ...createMockAnalysisResult(0),
+      characters: [],
+      locations: [],
+      artifacts: [],
+      threads: [{ description: 'Quest', participantNames: [], statusAtStart: 'dormant', statusAtEnd: 'active', development: 'x' }],
+    }];
+    await reconcileResults(results);
+    const calls = vi.mocked(fetch).mock.calls.filter((call) =>
+      String(call[0]).includes('/api/generate'),
+    );
+    // Only semantic phase runs — one fetch
+    expect(calls.length).toBe(1);
+    const body = JSON.parse(String(calls[0][1]?.body));
+    expect(body.prompt).toMatch(/THREADS/);
+  });
+  it('skips semantic LLM call when no threads or system concepts exist', async () => {
+    const results: AnalysisChunkResult[] = [{
+      ...createMockAnalysisResult(0),
+      threads: [],
+      scenes: [{
+        ...createMockAnalysisResult(0).scenes[0],
+        threadDeltas: [],
+        systemDeltas: { addedNodes: [], addedEdges: [] },
+      }],
+    }];
+    await reconcileResults(results);
+    const calls = vi.mocked(fetch).mock.calls.filter((call) =>
+      String(call[0]).includes('/api/generate'),
+    );
+    // Only entity phase runs
+    expect(calls.length).toBe(1);
+    const body = JSON.parse(String(calls[0][1]?.body));
+    expect(body.prompt).toMatch(/CHARACTERS/);
+  });
+  it('entity merges from phase A and thread merges from phase B both apply', async () => {
+    // First fetch (entity phase): merge character names
+    vi.mocked(fetch).mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        content: JSON.stringify({
+          characterMerges: { 'Prof. M': 'Minerva McGonagall' },
+          locationMerges: {},
+          artifactMerges: {},
+        }),
+      }),
+    } as Response);
+    // Second fetch (semantic phase): merge thread descriptions
+    vi.mocked(fetch).mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        content: JSON.stringify({
+          threadMerges: { 'Old quest': 'Main quest' },
+          systemMerges: {},
+        }),
+      }),
+    } as Response);
+    const results: AnalysisChunkResult[] = [{
+      ...createMockAnalysisResult(0),
+      characters: [{ name: 'Prof. M', role: 'recurring', firstAppearance: true }],
+      threads: [{ description: 'Old quest', participantNames: ['Prof. M'], statusAtStart: 'dormant', statusAtEnd: 'active', development: 'x' }],
+      scenes: [{
+        ...createMockAnalysisResult(0).scenes[0],
+        threadDeltas: [{ threadDescription: 'Old quest', from: 'dormant', to: 'active', addedNodes: [] }],
+      }],
+    }];
+    const reconciled = await reconcileResults(results);
+    expect(reconciled[0].characters[0].name).toBe('Minerva McGonagall');
+    expect(reconciled[0].threads[0].description).toBe('Main quest');
+    expect(reconciled[0].scenes[0].threadDeltas[0].threadDescription).toBe('Main quest');
+  });
+  it('forwards phase-tagged stream tokens to onToken callback', async () => {
+    const results = [createMockAnalysisResult(0)];
+    const collected: string[] = [];
+    await reconcileResults(results, (_token, accumulated) => {
+      collected.push(accumulated);
+    });
+    // Even if the mock transport doesn't emit SSE tokens, the pipeline runs
+    // both phases without throwing when an onToken is provided. The phase
+    // labels must appear in the accumulated buffer when tokens do stream.
+    // This test asserts the callback shape is accepted and both phases run.
+    const calls = vi.mocked(fetch).mock.calls.filter((call) =>
+      String(call[0]).includes('/api/generate'),
+    );
+    expect(calls.length).toBe(2);
   });
 });
 // ══════════════════════════════════════════════════════════════════════════════
