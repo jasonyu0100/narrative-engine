@@ -20,7 +20,7 @@ export default function ExamplePage() {
     (async () => {
       try {
         const r = await fetch(
-          `/works/Harry Potter and the Sorcerer's Stone.inktide`,
+          `/works/harry_potter_and_the_sorcerer_s_stone.inktide`,
         );
         if (!r.ok) throw new Error("Failed to load");
         const arrayBuffer = await r.arrayBuffer();
