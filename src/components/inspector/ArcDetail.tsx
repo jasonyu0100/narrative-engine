@@ -2,7 +2,7 @@
 
 import { useMemo } from 'react';
 import { useStore } from '@/lib/store';
-import { computeForceSnapshots, computeDeliveryCurve, classifyCurrentPosition } from '@/lib/narrative-utils';
+import { computeForceSnapshots, computeDeliveryCurve, classifyCurrentPosition, getEffectivePovId } from '@/lib/narrative-utils';
 import type { Scene } from '@/types/narrative';
 
 const POSITION_COLORS: Record<string, string> = {
@@ -190,7 +190,7 @@ export default function ArcDetail({ arcId }: Props) {
           {arcScenes.map((scene, i) => {
             const sceneIdx = state.resolvedEntryKeys.indexOf(scene.id);
             const loc = scene.kind === 'scene' ? narrative.locations[scene.locationId] : null;
-            const povId = scene.kind === 'scene' ? (scene.povId || scene.participantIds[0]) : null;
+            const povId = scene.kind === 'scene' ? getEffectivePovId(scene) : null;
             const pov = povId ? narrative.characters[povId] : null;
             return (
               <button

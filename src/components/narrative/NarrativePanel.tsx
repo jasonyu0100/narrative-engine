@@ -1,6 +1,7 @@
 "use client";
 
 import { IconEye, IconLocationPin } from "@/components/icons";
+import { getEffectivePovId } from "@/lib/narrative-utils";
 import { useStore } from "@/lib/store";
 import { resolveEntry, type Scene } from "@/types/narrative";
 
@@ -111,7 +112,7 @@ export default function NarrativePanel() {
   // Scene commit view — entry is narrowed to Scene after the world_build check
   const scene = entry as Scene;
   const location = narrative.locations[scene.locationId];
-  const effectivePovId = scene.povId || scene.participantIds[0];
+  const effectivePovId = getEffectivePovId(scene);
   const povCharacter = effectivePovId
     ? narrative.characters[effectivePovId]
     : null;
@@ -160,7 +161,7 @@ export default function NarrativePanel() {
                 onClick={() =>
                   dispatch({
                     type: "SET_INSPECTOR",
-                    context: { type: "character", characterId: effectivePovId },
+                    context: { type: "character", characterId: povCharacter.id },
                   })
                 }
                 className="flex items-center gap-1 text-[10px] text-text-secondary hover:text-text-primary transition-colors"

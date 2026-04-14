@@ -1718,12 +1718,21 @@ export function sanitizeScenes(scenes: Scene[], narrative: NarrativeState, label
           return false;
         }
         return true;
-      }).map((t) => ({
-        ...t,
-        status: 'latent' as const,
-        participants: t.participants ?? [],
-        threadLog: t.threadLog ?? { nodes: {}, edges: [] },
-      }));
+      }).map((t) => {
+        const validParticipants = (t.participants ?? []).filter((p) => {
+          if (p.type === 'character' && validCharIds.has(p.id)) return true;
+          if (p.type === 'location' && validLocIds.has(p.id)) return true;
+          if (p.type === 'artifact' && validArtifactIds.has(p.id)) return true;
+          stripped.push(`newThread "${t.id}" participant ${p.type} "${p.id}" in scene ${scene.id}`);
+          return false;
+        });
+        return {
+          ...t,
+          status: 'latent' as const,
+          participants: validParticipants,
+          threadLog: t.threadLog ?? { nodes: {}, edges: [] },
+        };
+      });
       for (const t of scene.newThreads) {
         validThreadIds.add(t.id);
       }
@@ -1809,7 +1818,11 @@ export function sanitizeScenes(scenes: Scene[], narrative: NarrativeState, label
       }
     }
     scene.worldDeltas = scene.worldDeltas.filter((km) => {
-      if (!km.entityId || allEntityIds.has(km.entityId)) return true;
+      if (!km.entityId) {
+        stripped.push(`worldDelta missing entityId in scene ${scene.id}`);
+        return false;
+      }
+      if (allEntityIds.has(km.entityId)) return true;
       stripped.push(`worldDelta entityId "${km.entityId}" in scene ${scene.id}`);
       return false;
     });
@@ -1823,7 +1836,12 @@ export function sanitizeScenes(scenes: Scene[], narrative: NarrativeState, label
       return false;
     });
     scene.ownershipDeltas = (scene.ownershipDeltas ?? []).filter((om) => {
-      const ok = validArtifactIds.has(om.artifactId) && allEntityIds.has(om.fromId) && allEntityIds.has(om.toId);
+      // fromId/toId can be null per schema (artifact introduced from nowhere
+      // or discarded to nowhere). Only validate non-null ids against the
+      // known entity set.
+      const fromOk = om.fromId === null || allEntityIds.has(om.fromId);
+      const toOk = om.toId === null || allEntityIds.has(om.toId);
+      const ok = validArtifactIds.has(om.artifactId) && fromOk && toOk;
       if (!ok) stripped.push(`ownershipDelta "${om.artifactId}" in scene ${scene.id}`);
       return ok;
     });

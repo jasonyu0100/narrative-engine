@@ -2,6 +2,29 @@ import type { Branch, NarrativeState, Scene, Thread, ThreadStatus, ForceSnapshot
 import { NARRATIVE_CUBE } from '@/types/narrative';
 import { FORCE_WINDOW_SIZE, PEAK_WINDOW_SCENES_DIVISOR, SHAPE_TROUGH_BAND_LO, SHAPE_TROUGH_BAND_HI, BEAT_DENSITY_MIN, BEAT_DENSITY_MAX } from '@/lib/constants';
 
+// ── Scene & entity helpers ──────────────────────────────────────────────────
+
+/** The POV character a scene effectively renders through — the declared povId
+ *  if valid, otherwise the first participant. Returns undefined only if the
+ *  scene has no participants either. */
+export function getEffectivePovId(scene: Scene): string | undefined {
+  return scene.povId || scene.participantIds[0];
+}
+
+/** Resolve a character/location/artifact id to its display name. Returns the
+ *  id itself only as a last-resort fallback — callers should treat that as a
+ *  data-integrity signal rather than expected behaviour. Null/undefined ids
+ *  resolve to "nowhere" (used by ownership deltas with no prior/next owner). */
+export function resolveEntityName(narrative: NarrativeState, id: string | null | undefined): string {
+  if (!id) return 'nowhere';
+  return (
+    narrative.characters[id]?.name ??
+    narrative.locations[id]?.name ??
+    narrative.artifacts[id]?.name ??
+    id
+  );
+}
+
 // ── Sequential ID generation ─────────────────────────────────────────────────
 
 /**

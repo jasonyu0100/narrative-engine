@@ -3,6 +3,7 @@
 import { useRef, useEffect, useCallback, useMemo, useState } from 'react';
 import * as d3 from 'd3';
 import { useStore } from '@/lib/store';
+import { getEffectivePovId } from '@/lib/narrative-utils';
 import { getRelationshipsAtScene } from '@/lib/scene-filter';
 import type {
   Character,
@@ -28,6 +29,7 @@ import {
   computeCharacterPositions,
   buildGraphData,
   buildOverviewGraphData,
+  getSceneArtifactIds,
   heatColor,
   ROLE_RADIUS,
   ROLE_FILL,
@@ -196,11 +198,8 @@ export default function WorldGraph() {
     const currentSceneForArtifacts = currentKey ? narrative.scenes[currentKey] : null;
     const currentWBForArtifacts = currentKey ? narrative.worldBuilds[currentKey] : null;
     if (currentSceneForArtifacts) {
-      for (const au of currentSceneForArtifacts.artifactUsages ?? []) sceneArtifactIds.add(au.artifactId);
-      for (const om of currentSceneForArtifacts.ownershipDeltas ?? []) sceneArtifactIds.add(om.artifactId);
-      for (const a of currentSceneForArtifacts.newArtifacts ?? []) sceneArtifactIds.add(a.id);
-      for (const wd of currentSceneForArtifacts.worldDeltas ?? []) {
-        if (narrative.artifacts?.[wd.entityId]) sceneArtifactIds.add(wd.entityId);
+      for (const id of getSceneArtifactIds(currentSceneForArtifacts, narrative.artifacts)) {
+        sceneArtifactIds.add(id);
       }
     }
     if (currentWBForArtifacts) {
@@ -308,7 +307,10 @@ export default function WorldGraph() {
           const charPositions = computeCharacterPositions(activeArc, narrative.scenes, state.viewState.currentSceneIndex, resolvedEntryKeys);
 
           const sceneLocId = currentScene.locationId;
-          const povLocId = charPositions[currentScene.povId] ?? sceneLocId;
+          const effectivePovId = getEffectivePovId(currentScene);
+          const povLocId = effectivePovId
+            ? (charPositions[effectivePovId] ?? sceneLocId)
+            : sceneLocId;
           const focusLocIds = new Set([sceneLocId, povLocId]);
           // Include parent locations for hierarchy context
           for (const locId of [...focusLocIds]) {
@@ -317,7 +319,8 @@ export default function WorldGraph() {
           }
 
           // Characters: scene participants + anyone positioned at either location
-          const focusCharIds = new Set([currentScene.povId, ...currentScene.participantIds]);
+          const focusCharIds = new Set(currentScene.participantIds);
+          if (effectivePovId) focusCharIds.add(effectivePovId);
           for (const [charId, locId] of Object.entries(charPositions)) {
             if (focusLocIds.has(locId)) focusCharIds.add(charId);
           }

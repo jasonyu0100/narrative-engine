@@ -4,7 +4,7 @@ import { useRef, useEffect, useCallback, useMemo, useState } from 'react';
 import * as d3 from 'd3';
 import type { NarrativeState, Scene } from '@/types/narrative';
 import { THREAD_TERMINAL_STATUSES, resolveEntry } from '@/types/narrative';
-import { computeThreadStatuses } from '@/lib/narrative-utils';
+import { computeThreadStatuses, resolveEntityName } from '@/lib/narrative-utils';
 import { computeGroups } from './graph-utils';
 import { IconChevronLeft, IconChevronRight, IconRefresh } from '@/components/icons';
 import EvalBar from '@/components/timeline/EvalBar';
@@ -141,9 +141,7 @@ export default function ThreadGraphView({
 
     const nodes: TNode[] = visibleThreads.map(t => {
       const status = statuses[t.id] ?? t.status;
-      const participantNames = t.participants.map(p =>
-        narrative.characters[p.id]?.name ?? narrative.locations[p.id]?.name ?? p.id
-      );
+      const participantNames = t.participants.map(p => resolveEntityName(narrative, p.id));
       return {
         id: t.id,
         description: t.description,

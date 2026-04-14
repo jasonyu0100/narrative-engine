@@ -1,6 +1,6 @@
 import type { NarrativeState, Scene, StorySettings, RelationshipEdge, WorldEdge, ProseProfile, SystemGraph } from '@/types/narrative';
 import { resolveEntry, THREAD_ACTIVE_STATUSES, THREAD_TERMINAL_STATUSES, THREAD_STATUS_LABELS, DEFAULT_STORY_SETTINGS } from '@/types/narrative';
-import { buildCumulativeSystemGraph, rankSystemNodes } from '@/lib/narrative-utils';
+import { buildCumulativeSystemGraph, rankSystemNodes, resolveEntityName } from '@/lib/narrative-utils';
 import { WORDS_PER_SCENE, BEATS_PER_SCENE, ENTITY_LOG_CONTEXT_LIMIT, NEAR_RECENCY_ZONE, MID_RECENCY_ZONE } from '@/lib/constants';
 import { getIntroducedIds } from '@/lib/scene-filter';
 
@@ -842,7 +842,7 @@ export function sceneContext(
     if (!artifact) return null;
     // Get owner name
     const owner = artifact.parentId
-      ? (narrative.characters[artifact.parentId]?.name ?? narrative.locations[artifact.parentId]?.name ?? artifact.parentId)
+      ? resolveEntityName(narrative, artifact.parentId)
       : 'world';
     // Filter continuity nodes to timeline
     const allNodes = Object.values(artifact.world.nodes);
@@ -893,7 +893,7 @@ export function sceneContext(
   });
 
   const worldDeltaLines = scene.worldDeltas.flatMap((km) => {
-    const entityName = narrative.characters[km.entityId]?.name ?? narrative.locations[km.entityId]?.name ?? narrative.artifacts[km.entityId]?.name ?? km.entityId;
+    const entityName = resolveEntityName(narrative, km.entityId);
     return (km.addedNodes ?? []).map(node => `  <change entity="${entityName}" type="${node.type}">${node.content}</change>`);
   });
 
@@ -920,9 +920,9 @@ export function sceneContext(
   });
 
   const ownershipDeltaLines = (scene.ownershipDeltas ?? []).map((om) => {
-    const artName = narrative.artifacts?.[om.artifactId]?.name ?? om.artifactId;
-    const fromName = narrative.characters[om.fromId]?.name ?? narrative.locations[om.fromId]?.name ?? om.fromId;
-    const toName = narrative.characters[om.toId]?.name ?? narrative.locations[om.toId]?.name ?? om.toId;
+    const artName = resolveEntityName(narrative, om.artifactId);
+    const fromName = resolveEntityName(narrative, om.fromId);
+    const toName = resolveEntityName(narrative, om.toId);
     return `  <transfer artifact="${artName}" from="${fromName}" to="${toName}" />`;
   });
 
@@ -1294,8 +1294,8 @@ ${movementLines.join('\n')}
   for (const om of scene.ownershipDeltas ?? []) {
     const art = artifacts[om.artifactId];
     if (!art) continue;
-    const fromName = narrative.characters[om.fromId]?.name ?? narrative.locations[om.fromId]?.name ?? om.fromId;
-    const toName = narrative.characters[om.toId]?.name ?? narrative.locations[om.toId]?.name ?? om.toId;
+    const fromName = resolveEntityName(narrative, om.fromId);
+    const toName = resolveEntityName(narrative, om.toId);
     artifactLines.push(`  <transfer artifact="${art.name}" from="${fromName}" to="${toName}">Dramatise: discovery, gift, theft, trade, or seizure.</transfer>`);
   }
 

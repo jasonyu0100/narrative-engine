@@ -1,7 +1,7 @@
 import type { SlidesData } from '@/lib/slides-data';
 import type { NarrativeState, Scene } from '@/types/narrative';
 import { NARRATIVE_CUBE, type CubeCornerKey, resolveEntry, isScene, REASONING_BUDGETS } from '@/types/narrative';
-import { detectCubeCorner } from '@/lib/narrative-utils';
+import { detectCubeCorner, resolveEntityName } from '@/lib/narrative-utils';
 import { callGenerate } from './api';
 import { parseJson } from './json';
 import { ANALYSIS_MODEL, MAX_TOKENS_SMALL, ANALYSIS_TEMPERATURE } from '@/lib/constants';
@@ -82,7 +82,7 @@ function buildStoryContext(narrative: NarrativeState, data: SlidesData, resolved
     });
 
     const contMuts = scene.worldDeltas.slice(0, 4).flatMap((cm) => {
-      const entityName = narrative.characters[cm.entityId]?.name ?? narrative.locations[cm.entityId]?.name ?? narrative.artifacts[cm.entityId]?.name ?? cm.entityId;
+      const entityName = resolveEntityName(narrative, cm.entityId);
       return (cm.addedNodes ?? []).map(node => `  ${entityName} +: ${node.content.slice(0, 60)}`);
     });
 
@@ -182,9 +182,7 @@ function buildStoryContext(narrative: NarrativeState, data: SlidesData, resolved
   // ── Artifact context ──
   const artBlock = data.topArtifacts.slice(0, 6).map((a) => {
     const art = a.artifact;
-    const owner = art.parentId
-      ? (narrative.characters[art.parentId]?.name ?? narrative.locations[art.parentId]?.name ?? 'unknown')
-      : 'world';
+    const owner = art.parentId ? resolveEntityName(narrative, art.parentId) : 'world';
     return `${art.name} (${a.usageCount} usages, ${art.significance}, owner: ${owner})`;
   }).join('\n  ');
 

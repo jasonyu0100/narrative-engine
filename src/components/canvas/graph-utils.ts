@@ -10,6 +10,74 @@ import type {
 } from "@/types/narrative";
 import * as d3 from "d3";
 
+// ── Scene entity collection ─────────────────────────────────────────────────
+
+/** Collect every artifact id touched by a scene — introduced, used, transferred,
+ *  or referenced via a worldDelta. Single source of truth for "which artifacts
+ *  belong to this scene". */
+export function getSceneArtifactIds(
+  scene: Scene,
+  artifacts?: Record<string, Artifact>,
+): Set<string> {
+  const ids = new Set<string>();
+  for (const a of scene.newArtifacts ?? []) ids.add(a.id);
+  for (const au of scene.artifactUsages ?? []) ids.add(au.artifactId);
+  for (const om of scene.ownershipDeltas ?? []) ids.add(om.artifactId);
+  if (artifacts) {
+    for (const wd of scene.worldDeltas ?? []) {
+      if (artifacts[wd.entityId]) ids.add(wd.entityId);
+    }
+  }
+  return ids;
+}
+
+/** Collect every character id touched by a scene — participant, POV, introduced,
+ *  or referenced via a delta. */
+export function getSceneCharacterIds(
+  scene: Scene,
+  characters?: Record<string, Character>,
+): Set<string> {
+  const ids = new Set<string>();
+  if (scene.povId) ids.add(scene.povId);
+  scene.participantIds.forEach((id) => ids.add(id));
+  for (const c of scene.newCharacters ?? []) ids.add(c.id);
+  for (const rd of scene.relationshipDeltas ?? []) {
+    ids.add(rd.from);
+    ids.add(rd.to);
+  }
+  for (const au of scene.artifactUsages ?? []) {
+    if (au.characterId) ids.add(au.characterId);
+  }
+  for (const td of scene.tieDeltas ?? []) ids.add(td.characterId);
+  Object.keys(scene.characterMovements ?? {}).forEach((id) => ids.add(id));
+  if (characters) {
+    for (const wd of scene.worldDeltas ?? []) {
+      if (characters[wd.entityId]) ids.add(wd.entityId);
+    }
+  }
+  return ids;
+}
+
+/** Collect every location id touched by a scene. */
+export function getSceneLocationIds(
+  scene: Scene,
+  locations?: Record<string, Location>,
+): Set<string> {
+  const ids = new Set<string>();
+  if (scene.locationId) ids.add(scene.locationId);
+  for (const l of scene.newLocations ?? []) ids.add(l.id);
+  for (const td of scene.tieDeltas ?? []) ids.add(td.locationId);
+  for (const mv of Object.values(scene.characterMovements ?? {})) {
+    if (mv.locationId) ids.add(mv.locationId);
+  }
+  if (locations) {
+    for (const wd of scene.worldDeltas ?? []) {
+      if (locations[wd.entityId]) ids.add(wd.entityId);
+    }
+  }
+  return ids;
+}
+
 // ── Graph node / link types ─────────────────────────────────────────────────
 
 export type NodeKind = "character" | "location" | "knowledge" | "artifact";
@@ -365,26 +433,14 @@ export function buildOverviewGraphData(
     } else {
       const scene = scenes[key];
       if (!scene) continue;
-      for (const pid of scene.participantIds) {
-        charUsage[pid] = (charUsage[pid] ?? 0) + 1;
+      for (const id of getSceneCharacterIds(scene, characters)) {
+        charUsage[id] = (charUsage[id] ?? 0) + 1;
       }
-      if (scene.locationId) {
-        locUsage[scene.locationId] = (locUsage[scene.locationId] ?? 0) + 1;
+      for (const id of getSceneLocationIds(scene, locations)) {
+        locUsage[id] = (locUsage[id] ?? 0) + 1;
       }
-      for (const au of scene.artifactUsages ?? []) {
-        artUsage[au.artifactId] = (artUsage[au.artifactId] ?? 0) + 1;
-      }
-      for (const om of scene.ownershipDeltas ?? []) {
-        artUsage[om.artifactId] = (artUsage[om.artifactId] ?? 0) + 1;
-      }
-      for (const c of scene.newCharacters ?? []) {
-        charUsage[c.id] = (charUsage[c.id] ?? 0) + 1;
-      }
-      for (const l of scene.newLocations ?? []) {
-        locUsage[l.id] = (locUsage[l.id] ?? 0) + 1;
-      }
-      for (const a of scene.newArtifacts ?? []) {
-        artUsage[a.id] = (artUsage[a.id] ?? 0) + 1;
+      for (const id of getSceneArtifactIds(scene, artifacts)) {
+        artUsage[id] = (artUsage[id] ?? 0) + 1;
       }
     }
   }

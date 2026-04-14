@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from 'react';
 import { useStore } from '@/lib/store';
+import { resolveEntityName } from '@/lib/narrative-utils';
 import { resolveEntry, isScene } from '@/types/narrative';
 import type { Scene } from '@/types/narrative';
 import { computeWorldMetrics, type WorldMetrics } from '@/lib/ai';
@@ -237,8 +238,7 @@ export function CastAnalytics({ onClose }: Props) {
         const isWorldOwned = !art.parentId;
         const ownerType: 'character' | 'location' | 'world' = isWorldOwned ? 'world'
           : narrative.characters[art.parentId!] ? 'character' : 'location';
-        const ownerName = isWorldOwned ? null
-          : (narrative.characters[art.parentId!]?.name ?? narrative.locations[art.parentId!]?.name ?? art.parentId);
+        const ownerName = isWorldOwned ? null : resolveEntityName(narrative, art.parentId);
         const userBreakdown = Array.from(s.users.entries())
           .map(([charId, count]) => ({ name: narrative.characters[charId]?.name ?? charId, count }))
           .sort((a, b) => b.count - a.count);

@@ -3,7 +3,7 @@ import { REASONING_BUDGETS, resolveEntry } from "@/types/narrative";
 import { callGenerate, callGenerateStream, SYSTEM_PROMPT } from "./api";
 import { narrativeContext, getStateAtIndex } from "./context";
 import { parseJson } from "./json";
-import { buildCumulativeSystemGraph } from "@/lib/narrative-utils";
+import { buildCumulativeSystemGraph, resolveEntityName } from "@/lib/narrative-utils";
 import { applyDerivedForceModes } from "@/lib/auto-engine";
 import { logError } from "@/lib/system-logger";
 
@@ -1227,9 +1227,7 @@ export async function generateCoordinationPlan(
     .slice(0, 6)
     .map(a => {
       const owner = timelineState.artifactOwnership[a.id] ?? a.parentId;
-      const ownerName = owner
-        ? (narrative.characters[owner]?.name ?? narrative.locations[owner]?.name ?? owner)
-        : "world";
+      const ownerName = owner ? resolveEntityName(narrative, owner) : "world";
       const capabilityNodes = Object.values(a.world.nodes)
         .filter(kn => timelineState.liveNodeIds.has(kn.id))
         .slice(-3);

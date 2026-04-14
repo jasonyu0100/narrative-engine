@@ -1,7 +1,7 @@
 "use client";
 
 import { useImageUrl } from "@/hooks/useAssetUrl";
-import { computeForceSnapshots, detectCubeCorner } from "@/lib/narrative-utils";
+import { computeForceSnapshots, detectCubeCorner, getEffectivePovId, resolveEntityName } from "@/lib/narrative-utils";
 import { useStore } from "@/lib/store";
 import { isScene, resolveEntry, type Scene } from "@/types/narrative";
 import { useMemo } from "react";
@@ -242,8 +242,7 @@ export default function SceneDetail({ sceneId }: Props) {
                   const char = narrative.characters[cm.entityId];
                   const loc = narrative.locations[cm.entityId];
                   const art = narrative.artifacts?.[cm.entityId];
-                  const name =
-                    char?.name ?? loc?.name ?? art?.name ?? cm.entityId;
+                  const name = resolveEntityName(narrative, cm.entityId);
                   const kind = char
                     ? "character"
                     : loc
@@ -335,14 +334,8 @@ export default function SceneDetail({ sceneId }: Props) {
               <div className="flex flex-col gap-0.5">
                 {m.ownershipDeltas!.map((om, i) => {
                   const art = narrative.artifacts?.[om.artifactId];
-                  const fromName =
-                    narrative.characters[om.fromId]?.name ??
-                    narrative.locations[om.fromId]?.name ??
-                    om.fromId;
-                  const toName =
-                    narrative.characters[om.toId]?.name ??
-                    narrative.locations[om.toId]?.name ??
-                    om.toId;
+                  const fromName = resolveEntityName(narrative, om.fromId);
+                  const toName = resolveEntityName(narrative, om.toId);
                   return (
                     <div
                       key={`${om.artifactId}-${i}`}
@@ -398,7 +391,7 @@ export default function SceneDetail({ sceneId }: Props) {
   // ── Scene Commit view ───────────────────────────────────────────────────
   const scene = entry as Scene;
   const location = narrative.locations[scene.locationId];
-  const effectivePovId = scene.povId || scene.participantIds[0];
+  const effectivePovId = getEffectivePovId(scene);
   const povCharacter = effectivePovId
     ? narrative.characters[effectivePovId]
     : null;
@@ -477,7 +470,7 @@ export default function SceneDetail({ sceneId }: Props) {
             onClick={() =>
               dispatch({
                 type: "SET_INSPECTOR",
-                context: { type: "character", characterId: effectivePovId },
+                context: { type: "character", characterId: povCharacter.id },
               })
             }
             className="flex items-center gap-1.5 text-left text-xs text-text-secondary transition-colors hover:text-text-primary"
@@ -871,11 +864,7 @@ export default function SceneDetail({ sceneId }: Props) {
             World Deltas
           </h3>
           {scene.worldDeltas.flatMap((km, kmIdx) => {
-            const entityName =
-              narrative.characters[km.entityId]?.name ??
-              narrative.locations[km.entityId]?.name ??
-              narrative.artifacts[km.entityId]?.name ??
-              km.entityId;
+            const entityName = resolveEntityName(narrative, km.entityId);
             const isChar = !!narrative.characters[km.entityId];
             return (km.addedNodes ?? []).map((node, nIdx) => (
               <div
@@ -974,16 +963,9 @@ export default function SceneDetail({ sceneId }: Props) {
             Artifact Transfers
           </h3>
           {scene.ownershipDeltas!.map((om, i) => {
-            const artName =
-              narrative.artifacts?.[om.artifactId]?.name ?? om.artifactId;
-            const fromName =
-              narrative.characters[om.fromId]?.name ??
-              narrative.locations[om.fromId]?.name ??
-              om.fromId;
-            const toName =
-              narrative.characters[om.toId]?.name ??
-              narrative.locations[om.toId]?.name ??
-              om.toId;
+            const artName = resolveEntityName(narrative, om.artifactId);
+            const fromName = resolveEntityName(narrative, om.fromId);
+            const toName = resolveEntityName(narrative, om.toId);
             return (
               <div
                 key={`om-${om.artifactId}-${i}`}

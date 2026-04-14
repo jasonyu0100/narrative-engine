@@ -2,39 +2,9 @@
 
 import { useState } from 'react';
 import { useStore } from '@/lib/store';
+import { resolveEntityName } from '@/lib/narrative-utils';
 import { getWorldNodesAtScene, getThreadIdsAtScene } from '@/lib/scene-filter';
-import { CollapsibleSection } from './CollapsibleSection';
-import { INSPECTOR_PAGE_SIZE } from '@/lib/constants';
-
-const PAGE_SIZE = INSPECTOR_PAGE_SIZE;
-
-function paginateRecent<T>(items: T[], page: number): { pageItems: T[]; totalPages: number; safePage: number } {
-  const totalPages = Math.max(1, Math.ceil(items.length / PAGE_SIZE));
-  const safePage = Math.min(page, totalPages - 1);
-  const startFromEnd = safePage * PAGE_SIZE;
-  const pageItems = items.slice(
-    Math.max(0, items.length - startFromEnd - PAGE_SIZE),
-    items.length - startFromEnd,
-  ).reverse();
-  return { pageItems, totalPages, safePage };
-}
-
-function Paginator({ page, totalPages, onPage }: { page: number; totalPages: number; onPage: (p: number) => void }) {
-  if (totalPages <= 1) return null;
-  return (
-    <div className="flex items-center justify-between mt-2">
-      <button type="button" disabled={page >= totalPages - 1} onClick={() => onPage(page + 1)}
-        className="text-[9px] text-text-dim hover:text-text-secondary disabled:opacity-20 transition-colors">
-        &lsaquo; Older
-      </button>
-      <span className="text-[9px] text-text-dim font-mono">{page + 1} / {totalPages}</span>
-      <button type="button" disabled={page <= 0} onClick={() => onPage(page - 1)}
-        className="text-[9px] text-text-dim hover:text-text-secondary disabled:opacity-20 transition-colors">
-        Newer &rsaquo;
-      </button>
-    </div>
-  );
-}
+import { CollapsibleSection, Paginator, paginateRecent } from './CollapsibleSection';
 
 type Props = {
   artifactId: string;
@@ -71,11 +41,7 @@ export default function ArtifactDetail({ artifactId }: Props) {
 
   const isWorldOwned = !artifact.parentId;
   const ownerId = artifact.parentId ?? '';
-  const ownerName = isWorldOwned ? 'World' : (
-    narrative.characters[ownerId]?.name
-    ?? narrative.locations[ownerId]?.name
-    ?? ownerId
-  );
+  const ownerName = isWorldOwned ? 'World' : resolveEntityName(narrative, ownerId);
   const ownerIsCharacter = !isWorldOwned && !!narrative.characters[ownerId];
 
   const sceneKeysUpToCurrent = state.resolvedEntryKeys.slice(0, state.viewState.currentSceneIndex + 1);
@@ -242,8 +208,8 @@ export default function ArtifactDetail({ artifactId }: Props) {
                     ))
                   )}
                   {ownershipDeltas.map((om, omIdx) => {
-                    const fromName = narrative.characters[om.fromId]?.name ?? narrative.locations[om.fromId]?.name ?? om.fromId;
-                    const toName = narrative.characters[om.toId]?.name ?? narrative.locations[om.toId]?.name ?? om.toId;
+                    const fromName = resolveEntityName(narrative, om.fromId);
+                    const toName = resolveEntityName(narrative, om.toId);
                     return (
                       <span key={`transfer-${omIdx}`} className="text-xs text-text-secondary">
                         {fromName} &rarr; {toName}
