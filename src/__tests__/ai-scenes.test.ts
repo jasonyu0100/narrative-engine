@@ -81,6 +81,7 @@ import {
   generateScenes,
   reverseEngineerScenePlan,
   rewriteScenePlan,
+  sanitizeScenes,
 } from "@/lib/ai/scenes";
 // ── Test Fixtures ────────────────────────────────────────────────────────────
 function createScene(
@@ -1622,5 +1623,166 @@ describe("generateScenes — thread log TK ID remap", () => {
     for (const id of allTkIds) {
       expect(id).toMatch(/^TK-\d+$/);
     }
+  });
+});
+
+// ── sanitizeScenes — newly-introduced entities visible to reference checks ──
+// Regression: the LLM frequently puts a newly-introduced character ID in
+// both `newCharacters` and `participantIds` of the same scene (the character
+// participates in the scene that introduces them). If sanitization validates
+// `participantIds` before registering `newCharacters`, the participant is
+// stripped as "invalid" and the character disappears from scene inspectors,
+// the world graph, and downstream logic. Entities registered in `new*`
+// fields MUST be treated as valid references within the same scene.
+describe("sanitizeScenes — introduced entities survive reference validation", () => {
+  it("keeps newCharacter's id in participantIds", () => {
+    const narrative = createMinimalNarrative();
+    const scene = createScene("S-1", {
+      participantIds: ["C-01", "C-GEN-001"],
+      povId: "C-01",
+      locationId: "L-01",
+      newCharacters: [
+        {
+          id: "C-GEN-001",
+          name: "Liu He",
+          role: "transient",
+          threadIds: [],
+          world: { nodes: {}, edges: [] },
+        },
+      ],
+    } as Partial<Scene>);
+    sanitizeScenes([scene], narrative, "test");
+    expect(scene.participantIds).toContain("C-GEN-001");
+    expect(scene.newCharacters?.[0]?.id).toBe("C-GEN-001");
+  });
+
+  it("keeps newLocation's id as the scene's locationId", () => {
+    const narrative = createMinimalNarrative();
+    const scene = createScene("S-1", {
+      participantIds: ["C-01"],
+      povId: "C-01",
+      locationId: "L-GEN-001",
+      newLocations: [
+        {
+          id: "L-GEN-001",
+          name: "Qing Mao Mountain's Edge",
+          parentId: null,
+          prominence: "place",
+          tiedCharacterIds: [],
+          threadIds: [],
+          world: { nodes: {}, edges: [] },
+        },
+      ],
+    } as Partial<Scene>);
+    sanitizeScenes([scene], narrative, "test");
+    expect(scene.locationId).toBe("L-GEN-001");
+  });
+
+  it("keeps newArtifact's id in artifactUsages", () => {
+    const narrative = createMinimalNarrative();
+    const scene = createScene("S-1", {
+      participantIds: ["C-01"],
+      povId: "C-01",
+      locationId: "L-01",
+      artifactUsages: [{ artifactId: "A-GEN-001", characterId: "C-01", usage: "inspects" }],
+      newArtifacts: [
+        {
+          id: "A-GEN-001",
+          name: "Spring Autumn Cicada",
+          significance: "key",
+          parentId: null,
+          threadIds: [],
+          world: { nodes: {}, edges: [] },
+        },
+      ],
+    } as unknown as Partial<Scene>);
+    sanitizeScenes([scene], narrative, "test");
+    expect(scene.artifactUsages?.[0]?.artifactId).toBe("A-GEN-001");
+  });
+
+  it("keeps newThread's id in threadDeltas", () => {
+    const narrative = createMinimalNarrative();
+    const scene = createScene("S-1", {
+      participantIds: ["C-01"],
+      povId: "C-01",
+      locationId: "L-01",
+      threadDeltas: [{ threadId: "T-GEN-001", from: "latent", to: "seeded", addedNodes: [] }],
+      newThreads: [
+        {
+          id: "T-GEN-001",
+          description: "A fresh tension emerges",
+          status: "latent",
+          participants: [],
+          dependents: [],
+          openedAt: "s1",
+          threadLog: { nodes: {}, edges: [] },
+        },
+      ],
+    } as unknown as Partial<Scene>);
+    sanitizeScenes([scene], narrative, "test");
+    expect(scene.threadDeltas.find((td) => td.threadId === "T-GEN-001")).toBeDefined();
+  });
+
+  it("keeps newCharacter's id as a worldDelta entityId", () => {
+    const narrative = createMinimalNarrative();
+    const scene = createScene("S-1", {
+      participantIds: ["C-01", "C-GEN-001"],
+      povId: "C-01",
+      locationId: "L-01",
+      worldDeltas: [
+        {
+          entityId: "C-GEN-001",
+          addedNodes: [{ id: "K-GEN-001", type: "trait", content: "calculating eyes" }],
+        },
+      ],
+      newCharacters: [
+        {
+          id: "C-GEN-001",
+          name: "Liu He",
+          role: "transient",
+          threadIds: [],
+          world: { nodes: {}, edges: [] },
+        },
+      ],
+    } as unknown as Partial<Scene>);
+    sanitizeScenes([scene], narrative, "test");
+    expect(scene.worldDeltas.find((wd) => wd.entityId === "C-GEN-001")).toBeDefined();
+  });
+
+  it("cross-scene: entity introduced in scene 1 is valid in scene 2", () => {
+    const narrative = createMinimalNarrative();
+    const scene1 = createScene("S-1", {
+      participantIds: ["C-01"],
+      povId: "C-01",
+      locationId: "L-01",
+      newCharacters: [
+        {
+          id: "C-GEN-001",
+          name: "Liu He",
+          role: "transient",
+          threadIds: [],
+          world: { nodes: {}, edges: [] },
+        },
+      ],
+    } as Partial<Scene>);
+    const scene2 = createScene("S-2", {
+      participantIds: ["C-01", "C-GEN-001"],
+      povId: "C-01",
+      locationId: "L-01",
+    } as Partial<Scene>);
+    sanitizeScenes([scene1, scene2], narrative, "test");
+    expect(scene2.participantIds).toContain("C-GEN-001");
+  });
+
+  it("still strips participantIds that reference genuinely unknown characters", () => {
+    const narrative = createMinimalNarrative();
+    const scene = createScene("S-1", {
+      participantIds: ["C-01", "C-DOES-NOT-EXIST"],
+      povId: "C-01",
+      locationId: "L-01",
+    } as Partial<Scene>);
+    sanitizeScenes([scene], narrative, "test");
+    expect(scene.participantIds).toContain("C-01");
+    expect(scene.participantIds).not.toContain("C-DOES-NOT-EXIST");
   });
 });

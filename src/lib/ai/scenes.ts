@@ -1883,7 +1883,7 @@ ${instruction}`;
 // ── Shared Helpers ───────────────────────────────────────────────────────────
 
 /** Sanitize hallucinated IDs in generated scenes — filter out invalid references instead of crashing. */
-function sanitizeScenes(scenes: Scene[], narrative: NarrativeState, label: string): void {
+export function sanitizeScenes(scenes: Scene[], narrative: NarrativeState, label: string): void {
   const validCharIds = new Set(Object.keys(narrative.characters));
   const validLocIds = new Set(Object.keys(narrative.locations));
   const validThreadIds = new Set(Object.keys(narrative.threads));
@@ -1901,6 +1901,107 @@ function sanitizeScenes(scenes: Scene[], narrative: NarrativeState, label: strin
   const allEntityIds = new Set([...validCharIds, ...validLocIds, ...validArtifactIds]);
   const stripped: string[] = [];
   const fallbackCharId = Object.keys(narrative.characters)[0];
+
+  // ── First pass: register introduced entities across every scene ──
+  // Must happen BEFORE reference validation so that participantIds /
+  // povId / worldDeltas / etc. referencing a freshly-introduced entity
+  // don't get stripped as "invalid".
+  for (const scene of scenes) {
+    if (Array.isArray(scene.newCharacters)) {
+      scene.newCharacters = scene.newCharacters.filter((c) => {
+        if (!c.id || !c.name || !c.role) {
+          stripped.push(`newCharacter missing required fields in scene ${scene.id}`);
+          return false;
+        }
+        if (validCharIds.has(c.id)) {
+          stripped.push(`newCharacter "${c.id}" collides with existing character in scene ${scene.id}`);
+          return false;
+        }
+        return true;
+      }).map((c) => ({
+        ...c,
+        threadIds: c.threadIds ?? [],
+        world: c.world ?? { nodes: {}, edges: [] },
+      }));
+      for (const c of scene.newCharacters) {
+        validCharIds.add(c.id);
+        allEntityIds.add(c.id);
+      }
+      if (scene.newCharacters.length === 0) delete scene.newCharacters;
+    }
+    if (Array.isArray(scene.newLocations)) {
+      scene.newLocations = scene.newLocations.filter((l) => {
+        if (!l.id || !l.name) {
+          stripped.push(`newLocation missing required fields in scene ${scene.id}`);
+          return false;
+        }
+        if (validLocIds.has(l.id)) {
+          stripped.push(`newLocation "${l.id}" collides with existing location in scene ${scene.id}`);
+          return false;
+        }
+        if (l.parentId && !validLocIds.has(l.parentId)) {
+          stripped.push(`newLocation "${l.id}" has invalid parentId "${l.parentId}" in scene ${scene.id}`);
+          l.parentId = null;
+        }
+        return true;
+      }).map((l) => ({
+        ...l,
+        tiedCharacterIds: l.tiedCharacterIds ?? [],
+        threadIds: l.threadIds ?? [],
+        world: l.world ?? { nodes: {}, edges: [] },
+      }));
+      for (const l of scene.newLocations) {
+        validLocIds.add(l.id);
+        allEntityIds.add(l.id);
+      }
+      if (scene.newLocations.length === 0) delete scene.newLocations;
+    }
+    if (Array.isArray(scene.newArtifacts)) {
+      scene.newArtifacts = scene.newArtifacts.filter((a) => {
+        if (!a.id || !a.name) {
+          stripped.push(`newArtifact missing required fields in scene ${scene.id}`);
+          return false;
+        }
+        if (validArtifactIds.has(a.id)) {
+          stripped.push(`newArtifact "${a.id}" collides with existing artifact in scene ${scene.id}`);
+          return false;
+        }
+        return true;
+      }).map((a) => ({
+        ...a,
+        significance: a.significance ?? 'minor',
+        threadIds: a.threadIds ?? [],
+        world: a.world ?? { nodes: {}, edges: [] },
+      }));
+      for (const a of scene.newArtifacts) {
+        validArtifactIds.add(a.id);
+        allEntityIds.add(a.id);
+      }
+      if (scene.newArtifacts.length === 0) delete scene.newArtifacts;
+    }
+    if (Array.isArray(scene.newThreads)) {
+      scene.newThreads = scene.newThreads.filter((t) => {
+        if (!t.id || !t.description) {
+          stripped.push(`newThread missing required fields in scene ${scene.id}`);
+          return false;
+        }
+        if (validThreadIds.has(t.id)) {
+          stripped.push(`newThread "${t.id}" collides with existing thread in scene ${scene.id}`);
+          return false;
+        }
+        return true;
+      }).map((t) => ({
+        ...t,
+        status: 'latent' as const,
+        participants: t.participants ?? [],
+        threadLog: t.threadLog ?? { nodes: {}, edges: [] },
+      }));
+      for (const t of scene.newThreads) {
+        validThreadIds.add(t.id);
+      }
+      if (scene.newThreads.length === 0) delete scene.newThreads;
+    }
+  }
 
   for (const scene of scenes) {
     if (!scene.locationId || !validLocIds.has(scene.locationId)) {
@@ -2031,104 +2132,9 @@ function sanitizeScenes(scenes: Scene[], narrative: NarrativeState, label: strin
       scene.characterMovements = Object.keys(sanitized).length > 0 ? sanitized : undefined;
     }
 
-    // Validate introduced entities — normalize world graphs, add to valid ID sets
-    // so that deltas within the same scene can reference them
-    if (Array.isArray(scene.newCharacters)) {
-      scene.newCharacters = scene.newCharacters.filter((c) => {
-        if (!c.id || !c.name || !c.role) {
-          stripped.push(`newCharacter missing required fields in scene ${scene.id}`);
-          return false;
-        }
-        if (validCharIds.has(c.id)) {
-          stripped.push(`newCharacter "${c.id}" collides with existing character in scene ${scene.id}`);
-          return false;
-        }
-        return true;
-      }).map((c) => ({
-        ...c,
-        threadIds: c.threadIds ?? [],
-        world: c.world ?? { nodes: {}, edges: [] },
-      }));
-      // Add to valid sets so deltas can reference them
-      for (const c of scene.newCharacters) {
-        validCharIds.add(c.id);
-        allEntityIds.add(c.id);
-      }
-      if (scene.newCharacters.length === 0) delete scene.newCharacters;
-    }
-    if (Array.isArray(scene.newLocations)) {
-      scene.newLocations = scene.newLocations.filter((l) => {
-        if (!l.id || !l.name) {
-          stripped.push(`newLocation missing required fields in scene ${scene.id}`);
-          return false;
-        }
-        if (validLocIds.has(l.id)) {
-          stripped.push(`newLocation "${l.id}" collides with existing location in scene ${scene.id}`);
-          return false;
-        }
-        // Parent validation: must be null or existing location (including newly introduced ones)
-        if (l.parentId && !validLocIds.has(l.parentId)) {
-          stripped.push(`newLocation "${l.id}" has invalid parentId "${l.parentId}" in scene ${scene.id}`);
-          l.parentId = null;
-        }
-        return true;
-      }).map((l) => ({
-        ...l,
-        tiedCharacterIds: l.tiedCharacterIds ?? [],
-        threadIds: l.threadIds ?? [],
-        world: l.world ?? { nodes: {}, edges: [] },
-      }));
-      for (const l of scene.newLocations) {
-        validLocIds.add(l.id);
-        allEntityIds.add(l.id);
-      }
-      if (scene.newLocations.length === 0) delete scene.newLocations;
-    }
-    if (Array.isArray(scene.newArtifacts)) {
-      scene.newArtifacts = scene.newArtifacts.filter((a) => {
-        if (!a.id || !a.name) {
-          stripped.push(`newArtifact missing required fields in scene ${scene.id}`);
-          return false;
-        }
-        if (validArtifactIds.has(a.id)) {
-          stripped.push(`newArtifact "${a.id}" collides with existing artifact in scene ${scene.id}`);
-          return false;
-        }
-        return true;
-      }).map((a) => ({
-        ...a,
-        significance: a.significance ?? 'minor',
-        threadIds: a.threadIds ?? [],
-        world: a.world ?? { nodes: {}, edges: [] },
-      }));
-      for (const a of scene.newArtifacts) {
-        validArtifactIds.add(a.id);
-        allEntityIds.add(a.id);
-      }
-      if (scene.newArtifacts.length === 0) delete scene.newArtifacts;
-    }
-    if (Array.isArray(scene.newThreads)) {
-      scene.newThreads = scene.newThreads.filter((t) => {
-        if (!t.id || !t.description) {
-          stripped.push(`newThread missing required fields in scene ${scene.id}`);
-          return false;
-        }
-        if (validThreadIds.has(t.id)) {
-          stripped.push(`newThread "${t.id}" collides with existing thread in scene ${scene.id}`);
-          return false;
-        }
-        return true;
-      }).map((t) => ({
-        ...t,
-        status: 'latent' as const, // Force latent for new threads
-        participants: t.participants ?? [],
-        threadLog: t.threadLog ?? { nodes: {}, edges: [] },
-      }));
-      for (const t of scene.newThreads) {
-        validThreadIds.add(t.id);
-      }
-      if (scene.newThreads.length === 0) delete scene.newThreads;
-    }
+    // (Introduced entities — newCharacters / newLocations / newArtifacts /
+    // newThreads — were registered in the first pass above so reference
+    // validation earlier in this loop could see them.)
 
     // Sanitize systemDeltas — ensure arrays exist, nodes have concept+type,
     // edges have valid refs, no self-loops, no intra-scene duplicates.
