@@ -1,14 +1,15 @@
 "use client";
 
 import { IconClose, IconPlus } from "@/components/icons";
-import { generateScenePlan, rewriteScenePlan } from "@/lib/ai";
-import { useResolvedPlan } from "@/hooks/useResolvedScene";
+import { generateScenePlan, rewriteScenePlan, reverseEngineerScenePlan } from "@/lib/ai";
+import { useResolvedPlan, useResolvedProse } from "@/hooks/useResolvedScene";
 import { useStore } from "@/lib/store";
 import type {
   Beat,
   BeatFn,
   BeatMechanism,
   BeatPlan,
+  BeatProseMap,
   NarrativeState,
   Scene,
   PlanCandidates,
@@ -55,8 +56,14 @@ export function ScenePlanView({
   const { getClassification, getConnections } = usePropositionClassification();
   const [expandedProp, setExpandedProp] = useState<string | null>(null);
 
-  // Resolve plan for current branch
+  // Resolve plan and prose for current branch
   const resolvedPlan = useResolvedPlan(scene);
+  const { prose: resolvedProse } = useResolvedProse(scene);
+
+  // When planExtractionSource === 'prose', plan generation reverse-engineers
+  // from existing prose instead of forward-generating from scene structure.
+  const planSource = narrative.storySettings?.planExtractionSource ?? 'structure';
+  const canReverseEngineer = planSource === 'prose' && !!resolvedProse?.trim();
 
   const [planCache, setPlanCache] = useState<{
     plan: BeatPlan | null;
@@ -155,21 +162,46 @@ export function ScenePlanView({
       setReasoning("");
       setMeta(null);
       try {
-        const plan = await generateScenePlan(
-          narrative,
-          scene,
-          resolvedKeys,
-          (token) => setReasoning((prev) => prev + token),
-          (m) => setMeta(m),
-          guidance || undefined,
-        );
+        // Two creation modes:
+        //   'structure' (default): forward-generate plan from scene structure
+        //                          (summary + deltas) via generateScenePlan.
+        //   'prose' + existing prose: reverse-engineer plan from the prose
+        //                             via reverseEngineerScenePlan. The
+        //                             accompanying beatProseMap is attached to
+        //                             the currently-pointed prose version (the
+        //                             reducer handles the attachment) so the
+        //                             UI can align beats to the existing prose.
+        // In 'prose' mode without prose yet, fall through to forward generation
+        // so the plan button still works — prose-first workflows just haven't
+        // reached the prose step yet, and forcing reverse on empty prose would
+        // block the user.
+        let plan: BeatPlan;
+        let beatProseMap: BeatProseMap | undefined;
+        if (canReverseEngineer) {
+          const result = await reverseEngineerScenePlan(
+            resolvedProse!,
+            scene.summary ?? '',
+            (_token, accumulated) => setReasoning(accumulated),
+          );
+          plan = result.plan;
+          beatProseMap = result.beatProseMap ?? undefined;
+        } else {
+          plan = await generateScenePlan(
+            narrative,
+            scene,
+            resolvedKeys,
+            (token) => setReasoning((prev) => prev + token),
+            (m) => setMeta(m),
+            guidance || undefined,
+          );
+        }
         setPlanCache({ plan, status: "ready" });
         setReasoning("");
         setMeta(null);
         dispatch({
           type: "UPDATE_SCENE",
           sceneId: scene.id,
-          updates: { plan },
+          updates: beatProseMap ? { plan, beatProseMap } : { plan },
           versionType: 'generate', // Fresh AI generation creates major version
         });
       } catch (err) {
@@ -179,7 +211,7 @@ export function ScenePlanView({
         setMeta(null);
       }
     },
-    [narrative, scene, resolvedKeys, dispatch],
+    [narrative, scene, resolvedKeys, dispatch, canReverseEngineer, resolvedProse],
   );
 
   const rewritePlan = useCallback(

@@ -172,9 +172,14 @@ function VersionSelector({
     );
   }
 
-  // Find the version object for current version
-  const currentVersionObj = versions.find(v => v.version === currentVersion);
+  // Find the version object for current version. Fall back to the latest
+  // version by timestamp if the pointer doesn't match (e.g. assembled narratives
+  // whose version objects carry a placeholder branchId, so the pointer never
+  // got populated on the real branch).
+  const currentVersionObj = versions.find(v => v.version === currentVersion)
+    ?? versions.slice().sort((a, b) => b.timestamp - a.timestamp)[0];
   const versionType = currentVersionObj?.versionType ?? 'generate';
+  const displayVersion = currentVersion ?? currentVersionObj?.version ?? '0';
 
   return (
     <div className="relative" ref={dropdownRef}>
@@ -187,7 +192,7 @@ function VersionSelector({
         <div className="flex items-center gap-1">
           <span className={`w-1 h-1 rounded-full ${VERSION_TYPE_BG_COLORS[versionType]}`} />
           <span className="text-text-primary font-medium">
-            V{currentVersion ?? '0'}
+            V{displayVersion}
           </span>
         </div>
         {pinnedVersion && (

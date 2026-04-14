@@ -1160,6 +1160,20 @@ export const REASONING_BUDGETS: Record<ReasoningLevel, number> = {
 /** Output format for prose generation */
 export type ProseFormat = "prose" | "screenplay" | "simulation" | "meta";
 
+/**
+ * How a scene's beat plan is created.
+ *
+ * - "structure": forward generation. Plan is produced from scene structure
+ *   (summary + deltas) via generateScenePlan; prose is then rendered from the
+ *   plan. Current default flow.
+ * - "prose": reverse engineering. Prose is rendered directly from scene
+ *   structure without a pre-existing plan; the plan is then reverse-engineered
+ *   from the generated prose via reverseEngineerScenePlan. Lets prose flow
+ *   without the plan as a cage; costs an extra LLM call, and the plan becomes
+ *   a record of what was written rather than a brief for what to write.
+ */
+export type PlanExtractionSource = "structure" | "prose";
+
 /** Target archetype for force standards — what balance of forces the story aims for */
 export type ArchetypeKey = "opus" | "series" | "atlas" | "chronicle" | "classic" | "stage" | "paper";
 
@@ -1210,6 +1224,13 @@ export type StorySettings = {
   audioModel: string;
   /** Output format for prose — standard fiction or screenplay format */
   proseFormat: ProseFormat;
+  /**
+   * How beat plans are created for scenes. "structure" (default) runs
+   * structure → plan → prose. "prose" runs structure → prose → plan
+   * reverse-engineered from prose. Applies to both manual generation and
+   * auto flows.
+   */
+  planExtractionSource: PlanExtractionSource;
 };
 
 export const BRANCH_TIME_HORIZON_OPTIONS = [25, 50, 100, 200] as const;
@@ -1237,6 +1258,7 @@ export const DEFAULT_STORY_SETTINGS: StorySettings = {
   audioVoice: "onyx",
   audioModel: "tts-1",
   proseFormat: "prose",
+  planExtractionSource: "structure",
 };
 
 // ── Auto Mode ───────────────────────────────────────────────────────────────

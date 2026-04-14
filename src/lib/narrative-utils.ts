@@ -126,10 +126,24 @@ export function resolveProseForBranch(
 
   // 2. Check parent, filtered by fork time
   if (branch.parentBranchId) {
-    return resolveProseAtTime(scene, branch.parentBranchId, branches, branch.createdAt);
+    const resolved = resolveProseAtTime(scene, branch.parentBranchId, branches, branch.createdAt);
+    if (resolved.prose !== undefined) return resolved;
   }
 
-  // 3. No prose yet
+  // 3. Defensive fallback: analysis-runner-assembled narratives may carry prose
+  // versions with a placeholder branchId ("main") that does not match any real
+  // branch. If we still have versions on the scene and every prior path failed
+  // to find one, fall back to the latest version by timestamp. Prevents a
+  // scene with real prose from rendering as "V0".
+  const allVersions = (scene.proseVersions ?? [])
+    .slice()
+    .sort((a, b) => b.timestamp - a.timestamp);
+  if (allVersions.length > 0) {
+    const v = allVersions[0];
+    return { prose: v.prose, beatProseMap: v.beatProseMap, proseScore: v.proseScore };
+  }
+
+  // 4. No prose yet
   return { prose: undefined, beatProseMap: undefined, proseScore: undefined };
 }
 
@@ -204,10 +218,20 @@ export function resolvePlanForBranch(
 
   // 2. Check parent, filtered by fork time
   if (branch.parentBranchId) {
-    return resolvePlanAtTime(scene, branch.parentBranchId, branches, branch.createdAt);
+    const resolved = resolvePlanAtTime(scene, branch.parentBranchId, branches, branch.createdAt);
+    if (resolved !== undefined) return resolved;
   }
 
-  // 3. No plan yet
+  // 3. Defensive fallback: same rationale as resolveProseForBranch — handle
+  // assembled narratives whose version objects carry a placeholder branchId.
+  const allVersions = (scene.planVersions ?? [])
+    .slice()
+    .sort((a, b) => b.timestamp - a.timestamp);
+  if (allVersions.length > 0) {
+    return allVersions[0].plan;
+  }
+
+  // 4. No plan yet
   return undefined;
 }
 

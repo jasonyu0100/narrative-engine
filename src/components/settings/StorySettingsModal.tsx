@@ -5,7 +5,7 @@ import { apiHeaders } from '@/lib/api-headers';
 import { useFeatureAccess } from '@/hooks/useFeatureAccess';
 import { useStore } from '@/lib/store';
 import { Modal, ModalHeader, ModalBody, ModalFooter } from '@/components/Modal';
-import type { StorySettings, POVMode, WorldFocusMode, ReasoningLevel, NarrativeState, ProseFormat } from '@/types/narrative';
+import type { StorySettings, POVMode, WorldFocusMode, ReasoningLevel, NarrativeState, ProseFormat, PlanExtractionSource } from '@/types/narrative';
 import { DEFAULT_STORY_SETTINGS, BRANCH_TIME_HORIZON_OPTIONS, REASONING_BUDGETS } from '@/types/narrative';
 import { NARRATIVE_CUBE } from '@/types/narrative';
 import type { CubeCornerKey } from '@/types/narrative';
@@ -140,6 +140,32 @@ function AdvancedSection({ settings, update, narrative, resolvedEntryKeys }: {
                   onClick={() => update({ proseFormat: opt.value })}
                   className={`w-full text-left px-3 py-2 rounded-lg border transition-colors ${
                     settings.proseFormat === opt.value
+                      ? 'border-blue-500/50 bg-blue-500/10'
+                      : 'border-white/5 bg-white/2 hover:bg-white/5'
+                  }`}
+                >
+                  <span className="text-[11px] font-semibold text-text-primary">{opt.label}</span>
+                  <span className="text-[10px] text-text-dim ml-2">{opt.desc}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Plan Extraction Source */}
+          <div>
+            <label className="text-[10px] text-text-dim uppercase tracking-wider block mb-2">
+              Plan Extraction Source
+            </label>
+            <div className="space-y-1.5">
+              {([
+                { value: 'structure' as PlanExtractionSource, label: 'From structure (default)', desc: 'Plan is generated from scene structure (summary + deltas) before prose. Prose then renders from the plan.' },
+                { value: 'prose' as PlanExtractionSource, label: 'From prose', desc: 'Prose is generated directly from structure without a plan; the plan is reverse-engineered from the resulting prose. Lets prose flow free; costs one extra LLM call per scene.' },
+              ]).map((opt) => (
+                <button
+                  key={opt.value}
+                  onClick={() => update({ planExtractionSource: opt.value })}
+                  className={`w-full text-left px-3 py-2 rounded-lg border transition-colors ${
+                    settings.planExtractionSource === opt.value
                       ? 'border-blue-500/50 bg-blue-500/10'
                       : 'border-white/5 bg-white/2 hover:bg-white/5'
                   }`}

@@ -2,7 +2,7 @@
 
 import { useRef, useCallback, useEffect, useState } from 'react';
 import { useStore } from '@/lib/store';
-import { generateScenePlan, generateSceneProse } from '@/lib/ai/scenes';
+import { generateScenePlan, generateSceneProse, reverseEngineerScenePlan } from '@/lib/ai/scenes';
 import { resolveEntry, isScene, type Scene } from '@/types/narrative';
 import { PLAN_CONCURRENCY, PROSE_CONCURRENCY } from '@/lib/constants';
 import { resolveProseForBranch, resolvePlanForBranch } from '@/lib/narrative-utils';
@@ -54,6 +54,11 @@ export function useBulkGenerate() {
     let completed = 0;
     let nextIndex = 0;
 
+    // Plan extraction source applies to both bulk queues. 'structure' =
+    // current forward flow (structure → plan → prose). 'prose' = reverse
+    // flow (structure → prose → plan reverse-engineered from prose).
+    const planSource = activeNarrative.storySettings?.planExtractionSource ?? 'structure';
+
     const processScene = async (sceneId: string): Promise<void> => {
       // Wait while paused
       while (pausedRef.current && !cancelledRef.current) {
@@ -69,33 +74,69 @@ export function useBulkGenerate() {
       const activeBranchId = stateRef.current.viewState.activeBranchId!;
       const resolvedPlan = resolvePlanForBranch(scene, activeBranchId, branches);
       const { prose: resolvedProse } = resolveProseForBranch(scene, activeBranchId, branches);
+
       if (mode === 'plan' && resolvedPlan) return;
       if (mode === 'prose' && resolvedProse) return;
-      if (mode === 'prose' && !resolvedPlan) return;
+
+      // Queue-specific gates depend on the extraction source:
+      //   'plan' + 'prose' source: reverse-engineering requires prose — skip scenes without it.
+      //   'plan' + 'structure' source: forward generation only needs scene structure; no extra gate.
+      //   'prose' + 'prose' source: prose can be generated without a plan; no extra gate.
+      //   'prose' + 'structure' source: current behaviour — prose requires a plan first.
+      if (mode === 'plan' && planSource === 'prose' && !resolvedProse) return;
+      if (mode === 'prose' && planSource === 'structure' && !resolvedPlan) return;
 
       updateRunState({
-        statusMessage: `${mode === 'plan' ? 'Planning' : 'Writing'} "${scene.summary.slice(0, 40)}..."`,
+        statusMessage: `${mode === 'plan' ? (planSource === 'prose' ? 'Reverse-engineering plan for' : 'Planning') : 'Writing'} "${scene.summary.slice(0, 40)}..."`,
         progress: { completed, total, currentSceneId: sceneId },
       });
 
       try {
         if (mode === 'plan') {
           window.dispatchEvent(new CustomEvent('bulk:plan-start', { detail: { sceneId } }));
-          const plan = await generateScenePlan(
-            activeNarrative, scene, resolvedEntryKeys,
-            (token) => window.dispatchEvent(new CustomEvent('bulk:plan-reasoning', { detail: { sceneId, token } })),
-          );
+          const plan = planSource === 'prose'
+            ? (await reverseEngineerScenePlan(
+                resolvedProse!,
+                scene.summary ?? '',
+                (_token, accumulated) => window.dispatchEvent(new CustomEvent('bulk:plan-reasoning', { detail: { sceneId, token: accumulated } })),
+              )).plan
+            : await generateScenePlan(
+                activeNarrative, scene, resolvedEntryKeys,
+                (token) => window.dispatchEvent(new CustomEvent('bulk:plan-reasoning', { detail: { sceneId, token } })),
+              );
           window.dispatchEvent(new CustomEvent('bulk:plan-complete', { detail: { sceneId } }));
           dispatch({ type: 'UPDATE_SCENE', sceneId, updates: { plan }, versionType: 'generate' });
         } else {
           window.dispatchEvent(new CustomEvent('bulk:prose-start', { detail: { sceneId } }));
+          // Prose mode + 'prose' source: generate prose without a plan so it flows free,
+          // then reverse-engineer the plan from the resulting prose.
+          const planForProse = planSource === 'prose' ? undefined : resolvedPlan;
           const { prose, beatProseMap } = await generateSceneProse(
             activeNarrative, scene, resolvedEntryKeys,
             (token) => window.dispatchEvent(new CustomEvent('bulk:prose-token', { detail: { sceneId, token } })),
-            undefined, resolvedPlan,
+            undefined, planForProse,
           );
           window.dispatchEvent(new CustomEvent('bulk:prose-complete', { detail: { sceneId } }));
           dispatch({ type: 'UPDATE_SCENE', sceneId, updates: { prose, beatProseMap }, versionType: 'generate' });
+
+          if (planSource === 'prose') {
+            try {
+              const { plan, beatProseMap: reBeatMap } = await reverseEngineerScenePlan(prose, scene.summary ?? '');
+              dispatch({
+                type: 'UPDATE_SCENE',
+                sceneId,
+                updates: { plan, beatProseMap: reBeatMap ?? beatProseMap },
+                versionType: 'generate',
+              });
+            } catch (err) {
+              // Best-effort: prose succeeded, plan extraction didn't. Log but don't fail the scene.
+              logError(`Failed to reverse-engineer plan for scene`, err, {
+                source: 'plan-generation',
+                operation: 'bulk-generate-reverse',
+                details: { sceneId, sceneNumber: completed + 1, totalScenes: total }
+              });
+            }
+          }
         }
       } catch (err) {
         logError(`Failed to generate ${mode} for scene`, err, {
@@ -144,23 +185,34 @@ export function useBulkGenerate() {
     const { activeNarrative, resolvedEntryKeys } = stateRef.current;
     if (!activeNarrative) return;
 
-    // Find all scenes that need generation
+    const planSource = activeNarrative.storySettings?.planExtractionSource ?? 'structure';
+
+    // Find all scenes that need generation. Queue membership depends on the
+    // plan extraction source — reverse-engineering requires prose to exist,
+    // while prose-first generation does not require a plan.
     const scenesToProcess: string[] = [];
     for (const key of resolvedEntryKeys) {
       const entry = resolveEntry(activeNarrative, key);
       if (!entry || !isScene(entry)) continue;
       const scene = entry as Scene;
 
-      // Use resolved versions to check what needs generation
       const branches = activeNarrative.branches;
       const activeBranchId = stateRef.current.viewState.activeBranchId!;
       const resolvedPlan = resolvePlanForBranch(scene, activeBranchId, branches);
       const { prose: resolvedProse } = resolveProseForBranch(scene, activeBranchId, branches);
 
       if (mode === 'plan' && !resolvedPlan) {
-        scenesToProcess.push(scene.id);
-      } else if (mode === 'prose' && resolvedPlan && !resolvedProse) {
-        scenesToProcess.push(scene.id);
+        // Structure source: any scene without a plan can be forward-generated.
+        // Prose source: only scenes that already have prose can be reverse-engineered.
+        if (planSource === 'structure' || resolvedProse) {
+          scenesToProcess.push(scene.id);
+        }
+      } else if (mode === 'prose' && !resolvedProse) {
+        // Structure source: prose generation requires a plan first.
+        // Prose source: prose can be generated directly from scene structure.
+        if (planSource === 'prose' || resolvedPlan) {
+          scenesToProcess.push(scene.id);
+        }
       }
     }
 
@@ -202,12 +254,14 @@ export function useBulkGenerate() {
     runStateRef.current = null;
   }, []);
 
-  // Count how many scenes need plan/prose (using resolved versions)
+  // Count how many scenes need plan/prose — mirrors the queue filters in start()
+  // so counts and what the button actually processes stay in sync.
   const counts = useCallback(() => {
     const { activeNarrative, resolvedEntryKeys, viewState } = stateRef.current;
     const { activeBranchId } = viewState;
     if (!activeNarrative || !activeBranchId) return { needsPlan: 0, needsProse: 0 };
 
+    const planSource = activeNarrative.storySettings?.planExtractionSource ?? 'structure';
     const branches = activeNarrative.branches;
     let needsPlan = 0;
     let needsProse = 0;
@@ -220,8 +274,8 @@ export function useBulkGenerate() {
       const resolvedPlan = resolvePlanForBranch(scene, activeBranchId, branches);
       const { prose: resolvedProse } = resolveProseForBranch(scene, activeBranchId, branches);
 
-      if (!resolvedPlan) needsPlan++;
-      if (resolvedPlan && !resolvedProse) needsProse++;
+      if (!resolvedPlan && (planSource === 'structure' || resolvedProse)) needsPlan++;
+      if (!resolvedProse && (planSource === 'prose' || resolvedPlan)) needsProse++;
     }
 
     return { needsPlan, needsProse };

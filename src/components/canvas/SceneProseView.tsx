@@ -1,6 +1,6 @@
 "use client";
 
-import { generateSceneProse, rewriteSceneProse } from "@/lib/ai";
+import { generateSceneProse, rewriteSceneProse, reverseEngineerScenePlan } from "@/lib/ai";
 import { sceneScale } from "@/lib/ai/context";
 import { useResolvedProse, useResolvedPlan } from "@/hooks/useResolvedScene";
 import { getResolvedPlanVersion } from "@/lib/narrative-utils";
@@ -177,6 +177,14 @@ export function SceneProseView({
     async (guidance?: string) => {
       setProseState({ text: "", status: "loading" });
       setIsEditing(false);
+
+      // In 'prose' mode (planExtractionSource), the pipeline runs
+      // structure → prose → plan (reverse-engineered). Pass no plan to the
+      // prose generator so prose flows freely, then derive the plan after.
+      // In 'structure' mode (default), pass the resolved plan as usual.
+      const planSource = narrative.storySettings?.planExtractionSource ?? 'structure';
+      const planForProse = planSource === 'prose' ? undefined : resolvedPlan;
+
       try {
         const result = await generateSceneProse(
           narrative,
@@ -189,7 +197,7 @@ export function SceneProseView({
             }));
           },
           guidance,
-          resolvedPlan, // Pass resolved plan for versioned scenes
+          planForProse,
         );
         setProseState({ text: result.prose, status: "ready" });
         dispatch({
@@ -202,6 +210,30 @@ export function SceneProseView({
           versionType: 'generate', // Fresh AI generation creates major version
           sourcePlanVersion: currentPlanVersion, // Track which plan was used
         });
+
+        // Prose-first mode: after prose generation completes, reverse-engineer
+        // the beat plan from the prose so downstream consumers (beat sampler,
+        // proposition classifier, report, review) have a plan to read. Best-
+        // effort — a failed reverse-engineer should not mark the prose as
+        // failed, since the prose itself succeeded.
+        if (planSource === 'prose') {
+          try {
+            const { plan, beatProseMap } = await reverseEngineerScenePlan(
+              result.prose,
+              scene.summary ?? '',
+            );
+            dispatch({
+              type: "UPDATE_SCENE",
+              sceneId: scene.id,
+              updates: { plan, beatProseMap: beatProseMap ?? undefined },
+              versionType: 'generate',
+            });
+          } catch (err) {
+            // Log but do not surface — prose is still usable without a plan,
+            // and the user can retry plan generation manually.
+            console.warn('[prose-first] plan reverse-engineering failed', err);
+          }
+        }
       } catch (err) {
         const message = err instanceof Error ? err.message : String(err);
         setProseState((prev) => ({ ...prev, status: "error", error: message }));

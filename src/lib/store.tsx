@@ -1315,6 +1315,38 @@ function reducer(state: AppState, action: Action): AppState {
           delete updates.proseScore;
         }
 
+        // Handle beatProseMap attachment without prose change. Reverse-engineering
+        // a plan from existing prose produces a new beat-prose alignment for the
+        // ALREADY-WRITTEN prose. We should not fabricate a new prose version
+        // (the text hasn't changed); instead, update the beatProseMap on the
+        // currently-pointed prose version in place.
+        if (
+          updates.beatProseMap !== undefined &&
+          updates.prose === undefined &&
+          (updatedScene.proseVersions ?? scene.proseVersions ?? []).length > 0
+        ) {
+          const versions = updatedScene.proseVersions ?? scene.proseVersions ?? [];
+          // Pick the target prose version: pointer first, then latest by timestamp.
+          const pointer = state.viewState.activeBranchId
+            ? n.branches[state.viewState.activeBranchId]?.versionPointers?.[scene.id]?.proseVersion
+            : undefined;
+          let targetIdx = pointer
+            ? versions.findIndex(v => v.version === pointer)
+            : -1;
+          if (targetIdx < 0) {
+            // Fallback: latest by timestamp.
+            let latestIdx = 0;
+            for (let i = 1; i < versions.length; i++) {
+              if (versions[i].timestamp > versions[latestIdx].timestamp) latestIdx = i;
+            }
+            targetIdx = latestIdx;
+          }
+          updatedScene.proseVersions = versions.map((v, i) =>
+            i === targetIdx ? { ...v, beatProseMap: updates.beatProseMap } : v,
+          );
+          delete updates.beatProseMap;
+        }
+
         // Handle plan versioning — append to version array instead of overwriting
         let newPlanVersion: string | undefined;
         if (updates.plan !== undefined && state.viewState.activeBranchId) {
