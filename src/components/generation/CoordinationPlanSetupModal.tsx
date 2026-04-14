@@ -273,6 +273,19 @@ export function CoordinationPlanSetupModal({ onClose, onPlanCreated }: Props) {
     }
   }
 
+  function handleRestartPlan() {
+    if (!state.viewState.activeBranchId) return;
+    dispatch({
+      type: "RESET_COORDINATION_PLAN",
+      branchId: state.viewState.activeBranchId,
+    });
+    // Mirror the rewound pointer in the local plan so the fullscreen
+    // modal re-renders with progress cleared.
+    setPlan((prev) =>
+      prev ? { ...prev, currentArc: 0, completedArcs: [] } : prev,
+    );
+  }
+
   return (
     <>
       <Modal onClose={loading ? () => {} : onClose} size="lg" maxHeight="85vh">
@@ -452,6 +465,7 @@ export function CoordinationPlanSetupModal({ onClose, onPlanCreated }: Props) {
           isLoading={loading}
           onRegenerate={handleGeneratePlan}
           onConfirm={handleConfirmPlan}
+          onRestart={handleRestartPlan}
           onClose={() => {
             setShowPlanModal(false);
             setPlan(null);

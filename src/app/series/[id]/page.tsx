@@ -10,7 +10,7 @@ import Sidebar from '@/components/sidebar/Sidebar';
 import SidePanel from '@/components/inspector/SidePanel';
 import WorldGraph from '@/components/canvas/WorldGraph';
 import FloatingPalette from '@/components/canvas/FloatingPalette';
-import { CanvasTopBar } from '@/components/canvas/CanvasTopBar';
+import { CanvasTopBar, GRAPH_MODES } from '@/components/canvas/CanvasTopBar';
 import { AudioPlayerProvider } from '@/hooks/useAudioPlayer';
 import TimelineStrip from '@/components/timeline/TimelineStrip';
 import ForceTimeline from '@/components/timeline/ForceTimeline';
@@ -238,8 +238,8 @@ export default function SeriesPage() {
                 isMctsActive={mcts.runState.status === 'running' || mcts.runState.status === 'paused'}
               />
             )}
-            {/* Coordination Plan Indicator */}
-            {state.viewState.activeBranchId && state.activeNarrative.branches[state.viewState.activeBranchId]?.coordinationPlan && (
+            {/* Coordination Plan Indicator — only in graph-style canvas modes */}
+            {GRAPH_MODES.has(state.graphViewMode) && state.viewState.activeBranchId && state.activeNarrative.branches[state.viewState.activeBranchId]?.coordinationPlan && (
               <div className="absolute bottom-16 left-1/2 -translate-x-1/2 z-10">
                 <CoordinationPlanIndicator
                   branchPlan={state.activeNarrative.branches[state.viewState.activeBranchId].coordinationPlan!}
@@ -313,6 +313,9 @@ export default function SeriesPage() {
           onClear={() => {
             dispatch({ type: 'CLEAR_COORDINATION_PLAN', branchId: state.viewState.activeBranchId! });
             setCoordinationPlanOpen(false);
+          }}
+          onRestart={() => {
+            dispatch({ type: 'RESET_COORDINATION_PLAN', branchId: state.viewState.activeBranchId! });
           }}
         />
       )}

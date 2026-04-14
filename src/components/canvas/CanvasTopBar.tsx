@@ -43,7 +43,7 @@ const SCOPE_PAIRS: Record<string, { local: GraphViewMode; global: GraphViewMode 
   threads:  { local: 'pulse',   global: 'threads'  },
 };
 
-const GRAPH_MODES = new Set<GraphViewMode>(['spatial', 'overview', 'spark', 'codex', 'pulse', 'threads']);
+export const GRAPH_MODES = new Set<GraphViewMode>(['spatial', 'overview', 'spark', 'codex', 'pulse', 'threads']);
 
 type CanvasMode = 'graph' | 'plan' | 'prose' | 'audio' | 'search' | 'reasoning';
 

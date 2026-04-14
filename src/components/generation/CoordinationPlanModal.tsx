@@ -88,6 +88,8 @@ type Props = {
   onConfirm: () => void;
   onClose: () => void;
   onClear?: () => void;
+  /** Rewind the plan pointer to arc 1 and clear completed arcs. */
+  onRestart?: () => void;
 };
 
 export function CoordinationPlanModal({
@@ -97,6 +99,7 @@ export function CoordinationPlanModal({
   onConfirm,
   onClose,
   onClear,
+  onRestart,
 }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const svgRef = useRef<SVGSVGElement>(null);
@@ -866,6 +869,16 @@ export function CoordinationPlanModal({
               >
                 <IconRefresh size={14} />
                 Regenerate
+              </button>
+            )}
+            {onRestart && (
+              <button
+                onClick={onRestart}
+                disabled={isLoading}
+                className="text-xs px-4 py-2 rounded-lg bg-white/4 text-text-secondary hover:bg-white/8 transition-colors disabled:opacity-50"
+                title="Rewind the plan pointer to arc 1 and clear completed arcs"
+              >
+                Restart Plan
               </button>
             )}
             {onClear && (

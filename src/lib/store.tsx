@@ -819,6 +819,7 @@ export type Action =
   | { type: "SET_COORDINATION_PLAN"; branchId: string; plan: BranchPlan | undefined }
   | { type: "CLEAR_COORDINATION_PLAN"; branchId: string }
   | { type: "ADVANCE_COORDINATION_PLAN"; branchId: string }
+  | { type: "RESET_COORDINATION_PLAN"; branchId: string }
   // Reasoning graph
   | { type: "SET_ARC_REASONING_GRAPH"; arcId: string; reasoningGraph: Arc["reasoningGraph"] };
 
@@ -2408,6 +2409,32 @@ function reducer(state: AppState, action: Action): AppState {
                   ...plan,
                   currentArc: isComplete ? plan.arcCount : nextArc,
                   completedArcs,
+                },
+              },
+            },
+          },
+        };
+      });
+
+    case "RESET_COORDINATION_PLAN":
+      // Rewind the plan pointer to arc 1 (fresh), clearing completed arcs.
+      // Keeps the plan structure intact — only progress is reset.
+      return updateNarrative(state, (n) => {
+        const branch = n.branches[action.branchId];
+        if (!branch?.coordinationPlan) return n;
+        const { plan } = branch.coordinationPlan;
+        return {
+          ...n,
+          branches: {
+            ...n.branches,
+            [action.branchId]: {
+              ...branch,
+              coordinationPlan: {
+                ...branch.coordinationPlan,
+                plan: {
+                  ...plan,
+                  currentArc: 0,
+                  completedArcs: [],
                 },
               },
             },
