@@ -287,21 +287,28 @@ ENTITY EXTRACTION — entities carry ONLY identity (name, role, significance). A
   Nest via parentName. tiedCharacterNames: characters who BELONG (residents, members).
   domain: 3-5 worldDeltas. place: 2-4. margin: 1-2.
 
-- artifacts: economic goods you can USE — NOT techniques or concepts.
-  FICTION: ✓ A wand, the One Ring, a ship, a letter — objects you wield or possess
-  FICTION: ✓ A diary entry, a newspaper clipping, a map, a prophecy scroll — in-text DOCUMENTS surfaced in the scene (short-lived: usually appear once, significance=minor/notable)
+- artifacts: things with UTILITY or ECONOMIC VALUE — objects that are USED, WIELDED, POSSESSED, CONSUMED, or DEPLOYED. The defining test: does this artifact deliver a specific utility to someone in the scene? If no utility → not an artifact.
+  FICTION: ✓ A wand, the One Ring, a ship, a letter — objects wielded or possessed
+  FICTION: ✓ A diary entry, a newspaper clipping, a map, a prophecy scroll — in-text DOCUMENTS that deliver information the reader/characters consume (short-lived: significance=minor/notable)
   FICTION: ✗ "Magic", "swordsmanship", "prophecy-as-concept" — concepts (system knowledge)
-  NON-FICTION: ✓ GPT-4, TensorFlow, WMT dataset, P100 GPU — software/hardware you USE
-  NON-FICTION: ✓ Figure 3, Table 2, Equation 4, Algorithm 1, Appendix B — in-text ARTEFACTS the author presents (short-lived: typically cited once, significance=minor/notable). Name them explicitly ("Figure 3: BLEU by length", "Table 2: ablation results").
+  NON-FICTION: ✓ GPT-4, TensorFlow, WMT dataset, P100 GPU — specific software/hardware/datasets actually USED in the work
+  NON-FICTION: ✓ Figure 3, Table 2, Equation 4, Algorithm 1 — in-text artefacts whose utility is delivering specific data/claims/procedures. Name them explicitly with their content ("Figure 3: Mode-1 perception-action episode", "Table 2: ablation results").
   NON-FICTION: ✗ "Transformer architecture", "attention mechanism", "BLEU score" — techniques/metrics (system knowledge)
-  ownerName: character/location/null (world-owned for ubiquitous tools; for figures/tables/documents the author or paper is the owner, or null).
+  NON-FICTION: ✗ "JEPA", "H-JEPA", "GAN", "VAE", "VQ-VAE", "Transformers", "Boltzmann Machine", "Siamese Network", "Dyna architecture", "Memory Network system", "SimCLR", "MoCo", "BYOL", "BERT" — these are METHOD CLASSES / ARCHITECTURES / CONCEPTS, not artifacts. They belong in systemDeltas. An artifact would be a specific trained model, binary, checkpoint, or dataset someone uses.
+  NON-FICTION: ✗ "Brown et al., 2020", "Silver et al., 2021", "Vaswani et al., 2017", "(Misra and Maaten, 2020)" — CITATION REFERENCES to prior work. Not artifacts. Not characters. They are pointers into the bibliography; if the cited work introduces a concept being discussed, that concept belongs in systemDeltas.
+  NON-FICTION: ✗ Bibliography entries (full author-title-venue tuples at the end of a paper). Skip entirely — they carry no scene-level narrative utility.
+  NON-FICTION: ✗ The work being analysed itself (e.g., "A Path Towards Autonomous Machine Intelligence"). The paper is the text, not an artifact within it.
+  NON-FICTION: ✗ Groups or collections of people ("the authors", "reviewers", "prior work by X and Y"). Not artifacts.
+  ownerName: character/location/null. For figures/tables/equations the owner is the author (or null). Documents have an owner (sender, writer).
   significance: key (load-bearing throughout) / notable (referenced across multiple scenes) / minor (short-lived — appears once, including most tables/figures/embedded documents).
   key: 2-4 worldDeltas. notable: 1-3. minor: 1.
-  SHORT-LIVED ARTIFACTS (tables, figures, equations, embedded letters/diaries/notes, charts, algorithm listings, maps): the artifact's worldDeltas MUST capture the CONTENTS — what the table shows, what the figure plots, what the letter says, what the equation computes. One dense node is usually enough. Do NOT promote the contents to systemDeltas unless the paper/text itself generalises them into a rule.
+  SHORT-LIVED ARTIFACTS (tables, figures, equations, algorithm listings, embedded letters/diaries/notes/maps): the artifact's utility IS its content. worldDeltas MUST capture the CONTENTS — what the table shows, what the figure depicts, what the equation computes, what the letter says. One dense node is usually enough. Do NOT promote the contents to systemDeltas unless the text itself generalises them into a rule.
     GOOD (Table 2): "Ablation removes positional encoding and BLEU drops 2.3 points on EN-DE, showing positional signal is load-bearing."
     GOOD (Figure 4): "Plots attention weights across layers: lower layers attend locally, upper layers attend globally across 200-token windows."
+    GOOD (Equation 1): "Defines total cost C(s) as the sum of intrinsic cost IC(s) and trainable cost TC(s)."
     GOOD (letter): "Contains Dumbledore's instructions to leave Harry with the Dursleys and a warning that Voldemort may return."
     BAD: "Table 2 shows results" (no contents). BAD: "A letter from Dumbledore" (no contents).
+  DEDUPLICATION: If the same figure/table/equation is referenced in multiple scenes, it is ONE artifact. Do not emit "Figure 10" and "Figure 10: A few standard architectures and their capacity for collapse" as separate artifacts — pick the fullest labelled form.
 
 - threads: narrative tensions. development: what specifically happened.
 
