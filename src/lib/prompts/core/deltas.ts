@@ -18,6 +18,10 @@ DENSITY TARGETS (21/25 at reference — fate 2.5, world 12, system 3):
   Theory / lore dump: modest world (6-10), heavy system (5-10)
 Variance required — peaks and valleys, not flatline.
 
+INITIALIZATION FLOOR — zero-node entities and zero-log threads are invalid:
+  - Every new character / location / artifact must have ≥1 node in its world.nodes at creation. Role/prominence/significance minimums (see below) are the target; 1 is the absolute floor.
+  - Every new thread must be opened by a scene threadDelta carrying ≥1 addedNode (type "setup") that records the seed moment. A thread whose opening scene has no log entry is broken — the question has been posed with no record of it being posed.
+
 threadDeltas — Threads are COMPELLING QUESTIONS. In fiction they shape fate; in non-fiction they shape the argument's or inquiry's trajectory. Either way: STAKES, UNCERTAINTY, INVESTMENT — in registers that call for them.
   BAD as a default: "Will Bob succeed?" / "Does the method work?" (too plain to carry a full arc)
   ACCEPTABLE when intentional: picaresque, satirical, ironic, or open-inquiry work may use a deliberately simple recurring question as its spine. The simplicity must be a choice, not a failure — the register must earn the flatness.
