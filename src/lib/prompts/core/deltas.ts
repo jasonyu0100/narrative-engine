@@ -40,6 +40,14 @@ worldDeltas — Entity's PRESENT TENSE facts. For characters: traits, beliefs, c
   BAD: "Harry discovered..." / "The authors realised..." (events — belong in thread log or events).
   2-4 nodes per entity. Node ORDER matters (auto-chains).
 
+  SIDE-CHARACTER EVOLUTION IS THE NAME OF THE GAME:
+  The world should feel alive around the protagonist — side characters making their own decisions, reacting to their own situations, evolving over arcs. Do NOT force a worldDelta on every participant; a character who was genuinely unchanged by the scene gets nothing. But when a secondary character was changed — suspected something, decided something, learned something, adjusted their plans — capture that shift, not as a reaction to the POV but as their OWN internal movement.
+  "Meng Song suspects Fang Yuan is hiding something" is agency; "Meng Song is impressed by Fang Yuan" is a reaction (and a thin one). The former shows the character thinking; the latter shows them orbiting the POV. When in doubt, lean toward the agentic framing.
+
+  OFF-SCREEN EVOLUTION — the world turns when the POV isn't looking:
+  worldDeltas can target characters NOT in participantIds when the scene's events reach them through realistic channels — news, rumours, observed public acts, intelligence networks, faction responses. A rival receiving word of a visible action, a mentor hearing of an outcome, a council adjusting plans in response to a power shift — these are valid off-screen deltas that make the world feel alive.
+  Use them when the plan implies a realistic ripple. Not every scene needs them; scenes that affect only the POV's private sphere don't warrant them. But across an arc, you should see side characters evolving independently — their own decisions accumulating over time, not waiting for the protagonist to act on them.
+
 systemDeltas — How the WORLD / DOMAIN WORKS. General rules, not specific entities. In fiction: magic, physics, social order. In non-fiction: theorems, mechanisms, models, constraints, established principles.
   GOOD (fiction): "Magic near underage wizards is attributed to them regardless of caster."
   GOOD (non-fiction): "Delivery is computed as the equal-weighted mean of z-score-normalised force values."

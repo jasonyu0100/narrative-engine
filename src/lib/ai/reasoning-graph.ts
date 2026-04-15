@@ -44,20 +44,15 @@ function getPlanNodeGuidance(
   // Spine nodes (peaks + valleys + moments). Every arc contributes one
   // anchor (peak or valley) PLUS supporting moments. Threads each need
   // multiple spine nodes to show progression (seeded → escalating → peak).
-  const minSpineNodes = s(
-    Math.max(
-      arcTarget * 2 + threadCount,          // 2 spine nodes per arc + 1 per thread
-      Math.floor(arcTarget * 2.5) + threadCount,
-    ),
-  );
+  // 2.5 × arcTarget + threadCount dominates the simpler 2 × arcTarget
+  // at every arc count; keep only the winner.
+  const minSpineNodes = s(Math.floor(arcTarget * 2.5) + threadCount);
 
-  // Reasoning backbone — branched, not chained. Each arc needs 3-4
-  // reasoning nodes, plus 2 per thread for causal cross-arc chains.
+  // Reasoning backbone — branched, not chained. Each arc needs 3 reasoning
+  // nodes, plus 2 per thread for causal cross-arc chains. Floor of 10 so
+  // tiny plans still carry a real reasoning backbone.
   const minReasoningNodes = s(
-    Math.max(
-      8,
-      Math.floor(arcTarget * 3) + Math.floor(threadCount * 1.5),
-    ),
+    Math.max(10, arcTarget * 3 + Math.floor(threadCount * 2)),
   );
 
   // Patterns and warnings — creative agents
@@ -68,11 +63,18 @@ function getPlanNodeGuidance(
   // (the preference block bumps this further in the prompt itself).
   const minChaos = s(Math.max(1, Math.floor(arcTarget / 4)));
 
-  // Entity grounding — MUST appear (plans without entities are abstract)
-  const minCharacterNodes = s(Math.max(3, Math.floor(threadCount * 0.75)));
-  const minLocationNodes = s(Math.max(2, Math.floor(arcTarget / 3)));
-  const minArtifactNodes = s(Math.max(1, Math.floor(arcTarget / 4)));
-  const minSystemNodes = s(Math.max(2, Math.floor(arcTarget / 2)));
+  // Entity grounding — MUST appear (plans without entities are abstract).
+  // Character count leans generous so secondary characters get their own
+  // causal reasoning, not just protagonist-adjacent appearances.
+  const minCharacterNodes = s(Math.max(4, threadCount));
+  // Locations scale with arc count — an 8-arc plan with 2 locations is a
+  // claustrophobic world. ceil(arcTarget/2) gives 3 for small plans and
+  // scales cleanly upward.
+  const minLocationNodes = s(Math.max(3, Math.ceil(arcTarget / 2)));
+  const minArtifactNodes = s(Math.max(1, Math.floor(arcTarget / 3)));
+  // Systems anchor the world's rules. Minimum of 3 so even short plans
+  // surface core mechanics; scales with arc count for longer stories.
+  const minSystemNodes = s(Math.max(3, Math.floor(arcTarget / 2)));
 
   // Chain depth — minimum reasoning steps between spine nodes (through
   // converging reasoning, not a single chain)
@@ -1180,7 +1182,7 @@ Return a JSON object:
 ## NODE TYPES
 
 - **fate**: Thread's gravitational pull on events. Use threadId to reference the thread. Fate can appear ANYWHERE in the reasoning chain — it influences characters, locations, systems, and other reasoning. Fate doesn't always pull in expected directions: it can demand twists, resistance, or subversion. Label = what the thread needs or how it exerts pressure.
-- **character**: An active agent. Use entityId to reference actual character. Label = their position/goal.
+- **character**: An active agent with their OWN goals — not just a reactive foil to the protagonist. Use entityId to reference actual character. Label = their position/goal. **Cast distribution matters**: a graph where every character node is the protagonist is a failure of agency. Include secondary characters as drivers — a rival plotting, an ally hedging, a mentor withholding — each with their own causal chain that interacts with the main arc rather than merely reacting to it. The arc's causal web should have at least 2–3 distinct characters acting as agents, not as scenery.
 - **location**: A setting. Use entityId to reference actual location. Label = what it enables/constrains.
 - **artifact**: An object. Use entityId to reference actual artifact. Label = its role in reasoning.
 - **system**: A world rule/principle/constraint. Label = the rule as it applies here.
@@ -1210,12 +1212,13 @@ Return a JSON object:
 6. **Entity references**: character/location/artifact nodes MUST use entityId with actual IDs
 7. **Thread references**: fate nodes MUST use threadId to reference which thread exerts the pull
 8. **Single entity node per entity**: If the same character or system matters in multiple places, create ONE node with multiple edges — don't duplicate.
-9. **Node count**: Target ${Math.round((6 + sceneCount * 4) * reasoningScale(options?.reasoningLevel))}-${Math.round((12 + sceneCount * 5) * reasoningScale(options?.reasoningLevel))} nodes across all types.
+9. **Node count**: Target ${Math.round((8 + sceneCount * 4.5) * reasoningScale(options?.reasoningLevel))}-${Math.round((14 + sceneCount * 5.5) * reasoningScale(options?.reasoningLevel))} nodes across all types. The nudged bands leave room for secondary characters to get their own reasoning chains, not just appear as participants.
 10. **Pattern nodes**: 1-2 nodes, each introducing a story shape the narrative has NOT used before. Scan prior arcs; name the new pattern; make sure the arc actually uses it.
 11. **Warning nodes**: 1-2 nodes, each naming a specific repetition risk drawn from prior arcs/scenes — "we have ended the last two arcs this way", "this dynamic between A and B has already happened N times". Vague warnings are worthless; the warning must cite what is actually repeating.
 12. **Chaos nodes (1-2 default, more under chaos preference)**: Inject at least one outside-force element — a new character arriving, a dormant artefact waking, a new fate appearing. Do NOT reference existing entityIds — chaos describes an entity that will be spawned. A chaos node signals the scene generator to invoke world expansion.
 13. **Non-deterministic**: Each reasoning path should contain at least one SURPRISE — something that doesn't follow obviously from context
 14. **Warning/pattern response (CRITICAL)**: Warnings and patterns are course-corrections, not ornaments. When a warning names a repetition, the rest of the graph MUST visibly route around it — a chaos node that breaks the pattern, a reasoning chain that subverts it, a fate node pulling a different direction, a character/entity node introducing an unused dynamic. When a pattern proposes a novel shape, the graph's actual nodes MUST use that shape — not merely mention it. Edges should connect warning/pattern nodes into the body of the graph so the course-correction is structural, not advisory. An orphaned warning or pattern (no outgoing edges, no downstream response) is dead weight — cut it or wire it in.
+15. **Cast distribution (CRITICAL — enforce agency across the cast)**: Character nodes must represent AT LEAST 2 distinct entityIds — no arc should have a character subgraph that is 100% the protagonist. If the arc reasonably touches 3+ named characters, at least 3 distinct entityIds should appear as character nodes, each with their OWN incoming/outgoing reasoning edges. A secondary character that only appears as a target of the protagonist's action (no outgoing edges) has no agency — give them an outgoing causal edge showing a decision they made, intelligence they gathered, or a response they initiated. Rival/ally/mentor characters with one-way edges are props, not agents.
 
 ## SHAPE OF A GOOD ARC GRAPH
 
@@ -1567,7 +1570,7 @@ Return a JSON object:
 ## NODE TYPES FOR EXPANSION
 
 - **fate**: Thread's gravitational pull demanding world expansion. Use threadId. Fate can appear ANYWHERE — it influences what entities get added and why. Label = what the thread needs from the world.
-- **character**: A new or existing character. Use entityId to reference existing character this connects to. Label = their role serving fate.
+- **character**: A new or existing character as an ACTIVE AGENT — not just a prop. Use entityId to reference existing character this connects to. Label = their role serving fate. When expansions introduce new characters, each should carry their own goal/agenda, not exist solely as a piece of the protagonist's puzzle.
 - **location**: A new or existing location. Use entityId. Label = what it enables for threads.
 - **artifact**: A new or existing artifact. Use entityId. Label = its role serving fate.
 - **system**: A world gap, rule, or opportunity. Label = the gap or rule being established.
@@ -2170,7 +2173,7 @@ Shape an arc's force character through its node composition: a fate-dominant arc
 - **fate**: Thread pressure on specific arcs. Has threadId, arcSlot. Label: what the thread demands in plain English (e.g., "Survival thread demands sanctuary").
 
 **ENTITY NODES** (grounding in specific system knowledge — USE ALL OF THESE):
-- **character**: WHO drives this transition. MUST have entityId. Label: character + their key action/knowledge (e.g., "Fang Yuan exploits his memory of the future").
+- **character**: WHO drives this transition. MUST have entityId. Label: character + their key action/knowledge (e.g., "Fang Yuan exploits his memory of the future"). **Distribute agency across the cast** — a plan where only the protagonist appears as a character driver is under-representing the world. Secondary characters (rivals, allies, factions' leaders) should appear as agents with their own agendas across multiple arcs, not just as obstacles for the protagonist to overcome.
 - **location**: WHERE things must happen. MUST have entityId. Label: location + what it enables (e.g., "The Glacier's isolation enables secret negotiation").
 - **artifact**: WHAT item shapes outcomes. MUST have entityId. Label: artifact + its role (e.g., "Spring Autumn Cicada enables time reversal").
 - **system**: HOW world rules constrain. Label: the rule stated plainly (e.g., "Gu worms require regular feeding to survive").
@@ -2209,7 +2212,7 @@ Shape an arc's force character through its node composition: a fate-dominant arc
 13. **Every entity, fully connected**: When a character, location, artifact, or system genuinely shapes the plan, show all the places it shapes. Capture the full role, not just one role.
 14. **Pacing balance**: Mix arc sizes — not all arcs should be the same length
 15. **GROUNDED REASONING**: Reference specific character knowledge, relationships, artifacts, or world rules in reasoning nodes
-16. **CHARACTER AGENCY**: Include character nodes that show WHO drives each major transition
+16. **CHARACTER AGENCY (distributed across the cast — enforce concretely)**: Distribute character driving across MULTIPLE entityIds. A plan where only the protagonist appears as a character node is a plan of scenery. Concrete rules: (a) character nodes must reference AT LEAST 3 distinct entityIds across the plan; (b) at least ONE arc must be driven primarily by a non-protagonist character (their character node has more outgoing causal edges than the protagonist's in that arc); (c) every named character node MUST have at least one OUTGOING edge — a character only acted upon has no agency and should either gain an outgoing edge showing their own decision, or be absorbed into a reasoning node. Rivals, allies, mentors, and faction leaders need independent goals and hidden agendas that appear in the reasoning chain, not just reactive stances.
 17. **SYSTEM CONSTRAINTS**: Include system nodes that show HOW world rules shape outcomes
 18. **Warning/pattern response (CRITICAL)**: Warnings and patterns are plan-level course-corrections. When a warning names a structural repetition across arcs ("three arcs in a row would resolve via external force", "rhythm is going flat — four consecutive fate-dominant arcs"), the spine anchors, arc sizing, and composition MUST change to break it — alternate peak/valley rhythms, vary arc lengths, shift force dominance, insert a chaos-anchored arc. When a pattern proposes a novel structural shape ("valley-anchored arc pivoting on a peripheral character", "two threads converge without either resolving"), at least one actual arc in the plan MUST adopt that shape. Wire warnings/patterns to the arcs they're correcting via edges. An orphaned warning/pattern with no structural consequence is dead weight.
 
@@ -2293,20 +2296,26 @@ Return ONLY the JSON object.`;
 
     const arcCount = typeof data.arcCount === "number" ? data.arcCount : arcTarget;
 
-    // Validate and sanitize nodes
+    // Validate and sanitize nodes. The JSON array position (original
+    // emission order) becomes generationOrder — the order the reasoner
+    // thought of each node. Captured BEFORE reindexing so the signature
+    // of backward thinking modes survives the causal reindex below.
     const nodes: CoordinationNode[] = (data.nodes ?? [])
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      .map((n: any, i: number) => ({ n, generationOrder: i }))
       .filter(
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        (n: any) =>
+        ({ n }: { n: any }) =>
           typeof n.id === "string" &&
           typeof n.index === "number" &&
           typeof n.type === "string" &&
           typeof n.label === "string",
       )
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      .map((n: any) => ({
+      .map(({ n, generationOrder }: { n: any; generationOrder: number }) => ({
         id: n.id.slice(0, 20),
         index: n.index, // Will be reindexed below
+        generationOrder,
         type: VALID_COORDINATION_NODE_TYPES.has(n.type) ? n.type : "reasoning",
         label: typeof n.label === "string" ? n.label.slice(0, 100) : "",
         detail: typeof n.detail === "string" ? n.detail.slice(0, 300) : undefined,

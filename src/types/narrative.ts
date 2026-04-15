@@ -958,7 +958,10 @@ export type ArcForceMode =
  */
 export type CoordinationNode = {
   id: string;
+  /** Presentation order — causal/chronological position used for display. */
   index: number;
+  /** Generation order — the order the reasoner thought of this node (JSON emission position). Differs from `index` in backward modes, which lets the UI surface the thinking pattern. */
+  generationOrder?: number;
   type: CoordinationNodeType;
   label: string;
   detail?: string;

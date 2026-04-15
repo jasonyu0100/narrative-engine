@@ -670,7 +670,14 @@ export function CoordinationPlanModal({
                       Arc {focusedNode.arcSlot}
                     </span>
                   )}
-                  <span className="text-[10px] text-text-dim ml-auto">Index {focusedNode.index}</span>
+                  <span className="text-[10px] text-text-dim ml-auto">
+                    Index {focusedNode.index}
+                    {typeof focusedNode.generationOrder === "number" && focusedNode.generationOrder !== focusedNode.index && (
+                      <span className="ml-1.5 text-text-dim/60" title="Order the reasoner thought of this node">
+                        · gen {focusedNode.generationOrder}
+                      </span>
+                    )}
+                  </span>
                 </div>
 
                 {/* Label */}

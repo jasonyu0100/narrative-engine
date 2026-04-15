@@ -348,7 +348,9 @@ DENSITY BAR (grading reference means — your arc averages must hit these or it 
   A typical scene: 3-5 entities touched, 10-14 world nodes (list in causal order — edges auto-chain), 2-4 system knowledge nodes + 1-3 edges, 2-4 thread pulses (0-1 transitions).
   A climax scene: push to 16-20+ world, 5-8 knowledge, 1-2 transitions.
   A quiet scene: 6-8 world, 0-1 knowledge, 0-1 pulses.
-  Every entity in participantIds that the scene VISIBLY CHANGES must have a worldDelta. Scan the participant list before returning — any visible participant with zero nodes is a scoring leak.
+  Every participant that was MEANINGFULLY CHANGED by the scene gets a worldDelta — not every participant present. A character who was there but unchanged deserves nothing; a character who was changed (decided, suspected, learned, committed, broke) must have that shift captured.
+  AGENCY MATTERS — when a secondary character does get a delta, make it their OWN movement, not a mirror of the POV. "Meng Song suspects Fang Yuan is hiding something" shows a character thinking; "Meng Song is impressed by Fang Yuan" shows them orbiting.
+  OFF-SCREEN CHARACTERS can also receive worldDeltas when events reach them through realistic channels — news, rumours, observed public acts, faction intelligence. Use deliberately, not reflexively. Across an arc the cast should evolve alongside the protagonist, not wait on them.
   REUSE existing WK node IDs when reinforcing — only NEW concepts count as density.
 ${PROMPT_STRUCTURAL_RULES}
 ${PROMPT_SUMMARY_REQUIREMENT}
