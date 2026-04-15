@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { useStore } from '@/lib/store';
 import { useImageUrl } from '@/hooks/useAssetUrl';
-import { getWorldNodesAtScene, getThreadIdsAtScene } from '@/lib/scene-filter';
+import { getWorldNodesAtScene, getThreadIdsAtScene, getOwnershipAtScene, getTiesAtScene } from '@/lib/scene-filter';
 import { CollapsibleSection, Paginator, paginateRecent } from './CollapsibleSection';
 
 type Props = {
@@ -167,9 +167,11 @@ export default function LocationDetail({ locationId }: Props) {
         );
       })()}
 
-      {/* Ties — characters with a significant bond to this location */}
-      {(location.tiedCharacterIds ?? []).length > 0 && (() => {
-        const tied = (location.tiedCharacterIds ?? []).map(id => narrative.characters[id]).filter(Boolean);
+      {/* Ties — characters with a significant bond to this location (at the current scene) */}
+      {(() => {
+        const sceneTies = getTiesAtScene(narrative, state.resolvedEntryKeys, state.viewState.currentSceneIndex);
+        const tiedIds = Array.from(sceneTies.get(locationId) ?? []);
+        const tied = tiedIds.map(id => narrative.characters[id]).filter(Boolean);
         if (tied.length === 0) return null;
         return (
           <CollapsibleSection title="Ties" count={tied.length} defaultOpen>
@@ -240,9 +242,15 @@ export default function LocationDetail({ locationId }: Props) {
         );
       })()}
 
-      {/* Artifacts at this location */}
+      {/* Artifacts at this location (at the current scene) */}
       {(() => {
-        const owned = Object.values(narrative.artifacts ?? {}).filter((a) => a.parentId === locationId);
+        const sceneOwnership = getOwnershipAtScene(narrative, state.resolvedEntryKeys, state.viewState.currentSceneIndex);
+        // Only artifacts already introduced by this scene. No fallback to
+        // final parentId — that leaks future state into the present.
+        const owned = Object.values(narrative.artifacts ?? {}).filter((a) => {
+          if (!sceneOwnership.has(a.id)) return false;
+          return sceneOwnership.get(a.id) === locationId;
+        });
         if (owned.length === 0) return null;
         return (
           <CollapsibleSection title="Artifacts" count={owned.length}>

@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { useStore } from '@/lib/store';
 import { resolveEntityName } from '@/lib/narrative-utils';
-import { getWorldNodesAtScene, getThreadIdsAtScene } from '@/lib/scene-filter';
+import { getWorldNodesAtScene, getThreadIdsAtScene, getOwnershipAtScene } from '@/lib/scene-filter';
 import { CollapsibleSection, Paginator, paginateRecent } from './CollapsibleSection';
 
 type Props = {
@@ -39,8 +39,14 @@ export default function ArtifactDetail({ artifactId }: Props) {
   const artifact = narrative.artifacts[artifactId];
   if (!artifact) return <p className="p-4 text-xs text-text-dim">Artifact not found.</p>;
 
-  const isWorldOwned = !artifact.parentId;
-  const ownerId = artifact.parentId ?? '';
+  // Resolve owner AT THE CURRENT SCENE via ownership delta history.
+  // If the artifact has no entry in sceneOwnership, it hasn't been introduced
+  // yet at this point in the timeline — don't leak future ownership in.
+  const sceneOwnership = getOwnershipAtScene(narrative, state.resolvedEntryKeys, state.viewState.currentSceneIndex);
+  const isIntroduced = sceneOwnership.has(artifactId);
+  const resolvedOwnerId = sceneOwnership.get(artifactId) ?? null;
+  const ownerId = resolvedOwnerId ?? '';
+  const isWorldOwned = isIntroduced && !ownerId;
   const ownerName = isWorldOwned ? 'World' : resolveEntityName(narrative, ownerId);
   const ownerIsCharacter = !isWorldOwned && !!narrative.characters[ownerId];
 
@@ -99,9 +105,11 @@ export default function ArtifactDetail({ artifactId }: Props) {
         <p className="text-[10px] text-text-dim italic leading-relaxed">{artifact.imagePrompt}</p>
       )}
 
-      {/* Current owner */}
+      {/* Current owner — reflects state at the currently-viewed scene */}
       <p className="text-xs text-text-secondary">
-        {isWorldOwned ? (
+        {!isIntroduced ? (
+          <span className="text-text-dim italic">not introduced yet at this scene</span>
+        ) : isWorldOwned ? (
           <span className="text-text-dim">world-owned</span>
         ) : (
           <>
@@ -111,8 +119,8 @@ export default function ArtifactDetail({ artifactId }: Props) {
               onClick={() => dispatch({
                 type: 'SET_INSPECTOR',
                 context: ownerIsCharacter
-                  ? { type: 'character', characterId: artifact.parentId! }
-                  : { type: 'location', locationId: artifact.parentId! },
+                  ? { type: 'character', characterId: ownerId }
+                  : { type: 'location', locationId: ownerId },
               })}
               className="text-text-primary hover:underline transition-colors"
             >

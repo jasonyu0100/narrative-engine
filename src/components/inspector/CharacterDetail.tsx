@@ -5,6 +5,8 @@ import {
   getWorldNodesAtScene,
   getRelationshipsAtScene,
   getThreadIdsAtScene,
+  getOwnershipAtScene,
+  getTiesAtScene,
 } from "@/lib/scene-filter";
 import { useStore } from "@/lib/store";
 import type { CharacterRole } from "@/types/narrative";
@@ -384,11 +386,17 @@ export default function CharacterDetail({ characterId }: Props) {
           );
         })()}
 
-      {/* Artifacts owned by this character */}
+      {/* Artifacts owned by this character (at the current scene) */}
       {(() => {
-        const owned = Object.values(narrative.artifacts ?? {}).filter(
-          (a) => a.parentId === characterId,
-        );
+        const sceneOwnership = getOwnershipAtScene(narrative, state.resolvedEntryKeys, state.viewState.currentSceneIndex);
+        // Only consider artifacts that have been introduced by this scene.
+        // An artifact with no entry in sceneOwnership doesn't yet exist at this
+        // point in the timeline — falling back to its final parentId would
+        // leak future ownership into earlier scenes.
+        const owned = Object.values(narrative.artifacts ?? {}).filter((a) => {
+          if (!sceneOwnership.has(a.id)) return false;
+          return sceneOwnership.get(a.id) === characterId;
+        });
         if (owned.length === 0) return null;
         return (
           <CollapsibleSection title="Artifacts" count={owned.length}>
@@ -417,10 +425,11 @@ export default function CharacterDetail({ characterId }: Props) {
         );
       })()}
 
-      {/* Ties — locations this character has a significant bond with */}
+      {/* Ties — locations this character has a significant bond with (at the current scene) */}
       {(() => {
+        const sceneTies = getTiesAtScene(narrative, state.resolvedEntryKeys, state.viewState.currentSceneIndex);
         const ties = Object.values(narrative.locations).filter((loc) =>
-          (loc.tiedCharacterIds ?? []).includes(characterId),
+          (sceneTies.get(loc.id) ?? new Set()).has(characterId),
         );
         if (ties.length === 0) return null;
         return (

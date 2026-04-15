@@ -377,8 +377,11 @@ export function buildGraphData(
 
   // Artifact nodes + ownership edges (pre-filtered to used artifacts by caller)
   for (const art of Object.values(artifacts ?? {})) {
-    // Use scene-filtered ownership if available, else fall back to current parentId
-    const ownerId = ownership?.get(art.id) ?? art.parentId;
+    // Scene-filtered ownership is authoritative when provided. An artifact
+    // missing from the map hasn't been introduced yet at this scene —
+    // skip it rather than falling back to the cumulative parentId.
+    if (ownership && !ownership.has(art.id)) continue;
+    const ownerId = ownership ? (ownership.get(art.id) ?? null) : art.parentId;
     const ownerInGraph =
       ownerId && (characters[ownerId] || locations[ownerId]);
     nodes.push({
@@ -537,8 +540,11 @@ export function buildOverviewGraphData(
   // used in any scene up to the current index.
   for (const art of Object.values(artifacts ?? {})) {
     if (!artUsage[art.id]) continue;
-    // Use scene-filtered ownership if available, else fall back to current parentId
-    const ownerId = ownership?.get(art.id) ?? art.parentId;
+    // Scene-filtered ownership is authoritative when provided. An artifact
+    // missing from the map hasn't been introduced yet at this scene —
+    // skip it rather than falling back to the cumulative parentId.
+    if (ownership && !ownership.has(art.id)) continue;
+    const ownerId = ownership ? (ownership.get(art.id) ?? null) : art.parentId;
     const ownerInGraph =
       ownerId &&
       (activeCharIds.has(ownerId) || activeLocIds.has(ownerId));
