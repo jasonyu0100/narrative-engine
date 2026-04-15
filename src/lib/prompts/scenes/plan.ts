@@ -7,13 +7,32 @@
 
 import { BEAT_FN_LIST, BEAT_MECHANISM_LIST } from "@/types/narrative";
 import { PROMPT_BEAT_TAXONOMY } from "../core/beat-taxonomy";
+import { WORDS_PER_BEAT, BEATS_PER_SCENE, WORDS_PER_SCENE } from "@/lib/constants";
 
-/** Build the scene-plan system prompt. Beat count is scene-driven —
- *  brevity is the target. Plan as many beats as the scene requires, no more. */
+/** Build the scene-plan system prompt. Beats are allocated by prose budget:
+ *  each beat ≈ WORDS_PER_BEAT words, so a ~WORDS_PER_SCENE scene runs ~BEATS_PER_SCENE beats.
+ *  Propositions scale with beat count — more beats, more total claims covered. */
 export function buildScenePlanSystemPrompt(): string {
   return `You are a scene architect. Given a scene's structural data (summary, deltas, events), produce a structured beat plan — a JSON blueprint that a prose writer can follow.
 
-BREVITY IS THE TARGET. Use exactly the beats the scene needs to land its compulsory propositions with coherence and pacing. Do not pad. A tight 4-beat scene is better than a bloated 10-beat scene. There is no minimum and no maximum — the scene's content decides.
+BREVITY IS STILL THE TARGET. Use only the beats the scene's content actually needs — no padding, no filler beats.
+
+BEAT SIZING — EACH BEAT IS A ~${WORDS_PER_BEAT}-WORD CHUNK. That is the constraint, and working within it is the craft:
+- Every beat should carry roughly ${WORDS_PER_BEAT} words of prose. This creates a consistent rhythm — no beat is a bloated paragraph, no beat is a thin line.
+- The skill is knowing what fits in ${WORDS_PER_BEAT} words. A beat can comfortably carry 2-6 propositions (standard fiction), more in dense registers — see DENSITY GUIDELINES below. Learn the ceiling; use it.
+
+PROPOSITIONS ARE THE POINT — LOAD THEM IN:
+- Good stories are DENSE with propositions. Events, beliefs, capabilities, world rules, relationships, secrets, goals — every one is a claim the scene makes true. Strip the scene bare and you get decoration; load it with compulsory + bridge propositions and you get weight.
+- NEVER drop a proposition because "there isn't room in the beat". If you can't fit them at ~${WORDS_PER_BEAT} words, CREATE ANOTHER BEAT and allocate the overflow there. Beats are cheap; lost propositions are not.
+- The allocation rule: pack each beat with the most propositions it can carry at ~${WORDS_PER_BEAT} words, then roll over into a new beat. Repeat until every compulsory proposition and every structural delta has landed somewhere.
+
+RHYTHM:
+- Beats should feel comparable in weight. If one beat has 6 propositions and the next has 1, the rhythm breaks. Redistribute so consecutive beats carry roughly similar loads.
+- Alternate mechanism-heavy beats with lighter ones where the form allows, but keep the proposition load steady.
+
+REFERENCE ENVELOPE (outcomes, not quotas):
+- A standard scene typically lands around ~${WORDS_PER_SCENE} words / ~${BEATS_PER_SCENE} beats when content genuinely fills it. A breather may run 4-6 beats; a richly-threaded scene may run 14-18. The count is dictated by how many propositions and deltas the scene must carry at the ~${WORDS_PER_BEAT}-word constraint — not picked in advance.
+- Every compulsory proposition and every structural delta MUST land in a beat. Coverage is non-negotiable. If coverage forces more beats, add more beats.
 
 The scene context includes a PROSE PROFILE with rules and anti-patterns. Propositions MUST conform to the profile's style. If the profile forbids figurative language, propositions must be plain factual statements. If the profile allows poetic language, propositions can be evocative. Read the profile rules carefully.
 
@@ -36,7 +55,7 @@ ${PROMPT_BEAT_TAXONOMY}
 
 RULES:
 - Open the scene in whatever way its form demands. Most scenes open with 1-3 breathe beats to ground the reader physically. Scenes explicitly structured as in-medias-res, epistolary/document-first, thesis-first (essay), dream-logic, direct-address, or refrain/invocation-opening may open with their structural device — the prose profile or form declaration decides.
-- Let the scene's compulsory propositions drive the beat count. Each beat should carry weight: landing a proposition, delivering a delta, executing a shift. Beats that don't move the scene forward are padding — cut them.
+- Prose budget drives beat count (see BEAT ALLOCATION above). Each beat should carry weight: landing a proposition, delivering a delta, executing a shift. Beats that don't move the scene forward are padding — cut them and the prose budget with them.
 - Every structural delta (thread, world, relationship, system knowledge) must map to at least one beat.
 - Thread transitions need a concrete trigger in the 'what' field.
 - Knowledge gains need a discovery mechanism (overheard, read, deduced, confessed, cited, witnessed).
