@@ -23,7 +23,7 @@ type SceneReadiness = {
 };
 
 async function generateImage(
-  type: 'character' | 'location' | 'scene',
+  type: 'character' | 'location' | 'artifact' | 'scene',
   payload: Record<string, unknown>,
   narrativeId: string,
 ): Promise<{ imageUrl: string }> {
@@ -251,11 +251,12 @@ export default function MediaDrive() {
       const ownerName = artifact.parentId
         ? (narrative.characters[artifact.parentId]?.name ?? narrative.locations[artifact.parentId]?.name ?? undefined)
         : undefined;
-      const { imageUrl } = await generateImage('character', {
+      const { imageUrl } = await generateImage('artifact', {
         name: artifact.name,
-        role: `artifact (${artifact.significance})`,
+        significance: artifact.significance,
+        ownerName,
         worldSummary: narrative.worldSummary,
-        continuityHints: [`Owner: ${ownerName ?? 'unknown'}`, ...hints.slice(0, 4)],
+        continuityHints: hints.slice(0, 5),
         imagePrompt: artifact.imagePrompt,
         imageStyle: narrative.imageStyle,
       }, narrative.id);

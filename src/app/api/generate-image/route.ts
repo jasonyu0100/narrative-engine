@@ -9,13 +9,14 @@ const REPLICATE_URL = 'https://api.replicate.com/v1/models/bytedance/seedream-4.
 type ImageRequest =
   | { type: 'character'; name: string; role: string; worldSummary: string; continuityHints: string[]; imagePrompt?: string; imageStyle?: string }
   | { type: 'location'; name: string; parentName?: string; worldSummary: string; continuityHints: string[]; imagePrompt?: string; imageStyle?: string }
+  | { type: 'artifact'; name: string; significance: string; ownerName?: string; worldSummary: string; continuityHints: string[]; imagePrompt?: string; imageStyle?: string }
   | { type: 'scene'; summary: string; locationName: string; characterDescriptions: { name: string; visualDescription: string }[]; worldSummary: string; imageStyle?: string };
 
-/** Composition guidance per image type */
 /** Composition guidance per image type */
 const COMPOSITION: Record<ImageRequest['type'], string> = {
   character: 'Single character portrait, head and shoulders, one subject only',
   location: 'Wide establishing shot, architectural or landscape composition',
+  artifact: 'Single object study, isolated subject centred in frame, clear silhouette, museum-lit presentation',
   scene: 'Coloured manga page layout with multiple panels divided by black gutters, sequential storytelling, each panel captures a different beat of the scene, dramatic angles, speed lines, vibrant colours, cel shading',
 };
 
@@ -23,6 +24,7 @@ const COMPOSITION: Record<ImageRequest['type'], string> = {
 const ASPECT_RATIO: Record<ImageRequest['type'], string> = {
   character: '3:4',
   location: '16:9',
+  artifact: '1:1',
   scene: '2:3',
 };
 
@@ -49,6 +51,9 @@ COMPOSITION: ${COMPOSITION[request.type]}`;
   } else if (request.type === 'location') {
     const parent = request.parentName ? ` (inside ${request.parentName})` : '';
     userPrompt = `Create an establishing shot prompt for the location "${request.name}"${parent} in this world: ${request.worldSummary}. Context clues: ${request.continuityHints.join('; ') || 'none'}.`;
+  } else if (request.type === 'artifact') {
+    const owner = request.ownerName ? ` (owned by ${request.ownerName})` : '';
+    userPrompt = `Create an object study prompt for the artifact "${request.name}" (${request.significance})${owner} in this world: ${request.worldSummary}. Context clues: ${request.continuityHints.join('; ') || 'none'}.`;
   } else {
     const charDescs = request.characterDescriptions
       .map((c) => `${c.name}: ${c.visualDescription}`)

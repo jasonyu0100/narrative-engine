@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { useStore } from '@/lib/store';
+import { useImageUrl } from '@/hooks/useAssetUrl';
 import { resolveEntityName } from '@/lib/narrative-utils';
 import { getWorldNodesAtScene, getThreadIdsAtScene, getOwnershipAtScene } from '@/lib/scene-filter';
 import { CollapsibleSection, Paginator, paginateRecent } from './CollapsibleSection';
@@ -38,6 +39,7 @@ export default function ArtifactDetail({ artifactId }: Props) {
   if (!narrative) return null;
 
   const artifact = narrative.artifacts[artifactId];
+  const imageUrl = useImageUrl(artifact?.imageUrl);
   if (!artifact) return <p className="p-4 text-xs text-text-dim">Artifact not found.</p>;
 
   // Resolve owner AT THE CURRENT SCENE via ownership delta history.
@@ -92,6 +94,15 @@ export default function ArtifactDetail({ artifactId }: Props) {
 
   return (
     <div className="flex flex-col gap-4">
+      {/* Object study */}
+      {imageUrl && (
+        <img
+          src={imageUrl}
+          alt={artifact.name}
+          className="w-full aspect-square object-cover rounded-lg border border-border"
+        />
+      )}
+
       {/* Name + ID */}
       <div className="flex flex-col gap-0.5">
         <h2 className="text-sm font-semibold text-text-primary">{artifact.name}</h2>
