@@ -87,9 +87,17 @@ export default function ImagePromptEditor({ kind, entityId, value }: Props) {
         onClick={handleSuggest}
         disabled={suggesting}
         title="Rewrite using entity continuity, world summary, and image style"
-        className="flex items-center gap-1 text-[10px] text-text-dim hover:text-text-primary transition-colors disabled:opacity-50"
+        className={`flex items-center gap-1 text-[10px] transition-colors disabled:opacity-80 ${
+          suggesting
+            ? 'text-text-secondary animate-pulse'
+            : 'text-text-dim hover:text-text-primary'
+        }`}
       >
-        {suggesting ? <IconSpinner size={10} /> : <IconSparkle size={10} />}
+        {suggesting ? (
+          <IconSpinner size={10} className="animate-spin" />
+        ) : (
+          <IconSparkle size={10} />
+        )}
         {suggesting ? 'Thinking…' : 'Suggest'}
       </button>
     </div>
