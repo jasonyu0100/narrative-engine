@@ -8,9 +8,12 @@
 import { BEAT_FN_LIST, BEAT_MECHANISM_LIST } from "@/types/narrative";
 import { PROMPT_BEAT_TAXONOMY } from "../core/beat-taxonomy";
 
-/** Build the scene-plan system prompt. Requires the minimum beat count. */
-export function buildScenePlanSystemPrompt(targetBeats: number): string {
+/** Build the scene-plan system prompt. Beat count is scene-driven —
+ *  brevity is the target. Plan as many beats as the scene requires, no more. */
+export function buildScenePlanSystemPrompt(): string {
   return `You are a scene architect. Given a scene's structural data (summary, deltas, events), produce a structured beat plan — a JSON blueprint that a prose writer can follow.
+
+BREVITY IS THE TARGET. Use exactly the beats the scene needs to land its compulsory propositions with coherence and pacing. Do not pad. A tight 4-beat scene is better than a bloated 10-beat scene. There is no minimum and no maximum — the scene's content decides.
 
 The scene context includes a PROSE PROFILE with rules and anti-patterns. Propositions MUST conform to the profile's style. If the profile forbids figurative language, propositions must be plain factual statements. If the profile allows poetic language, propositions can be evocative. Read the profile rules carefully.
 
@@ -33,7 +36,7 @@ ${PROMPT_BEAT_TAXONOMY}
 
 RULES:
 - Open the scene in whatever way its form demands. Most scenes open with 1-3 breathe beats to ground the reader physically. Scenes explicitly structured as in-medias-res, epistolary/document-first, thesis-first (essay), dream-logic, direct-address, or refrain/invocation-opening may open with their structural device — the prose profile or form declaration decides.
-- Produce AT LEAST ${targetBeats} beats. This is the minimum bar — you are free to add more beats if the scene's content warrants it. Do not produce fewer than ${targetBeats}.
+- Let the scene's compulsory propositions drive the beat count. Each beat should carry weight: landing a proposition, delivering a delta, executing a shift. Beats that don't move the scene forward are padding — cut them.
 - Every structural delta (thread, world, relationship, system knowledge) must map to at least one beat.
 - Thread transitions need a concrete trigger in the 'what' field.
 - Knowledge gains need a discovery mechanism (overheard, read, deduced, confessed, cited, witnessed).

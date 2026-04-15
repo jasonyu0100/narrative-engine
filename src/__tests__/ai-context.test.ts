@@ -324,7 +324,6 @@ describe('sceneScale', () => {
     const scene = createScene('s1');
     const scale = sceneScale(scene);
     expect(scale.estWords).toBe(1200);
-    expect(scale.targetBeats).toBe(12);
     expect(scale.planWords).toMatch(/^\d+-\d+$/);
     const [min, max] = scale.planWords.split('-').map(Number);
     expect(min).toBe(360);

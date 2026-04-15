@@ -253,7 +253,7 @@ describe("Scene-plan + beat-analyst schema contract", () => {
   // fn/mechanism are already guarded via the beat-taxonomy cross-check. The
   // field names themselves aren't — a rename silently zeros out the beat's
   // `what` (empty prose brief) or `propositions` (no factual anchors).
-  const planPrompt = buildScenePlanSystemPrompt(3);
+  const planPrompt = buildScenePlanSystemPrompt();
   const analystPrompt = buildBeatAnalystSystemPrompt(3);
 
   for (const field of ["beats", "fn", "mechanism", "what", "propositions", "content"]) {

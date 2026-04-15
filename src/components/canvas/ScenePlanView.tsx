@@ -80,8 +80,8 @@ export function ScenePlanView({
   );
   const [reasoning, setReasoning] = useState("");
   const [meta, setMeta] = useState<{
-    targetBeats: number;
     estWords: number;
+    compulsoryCount?: number;
   } | null>(null);
   const [showCandidates, setShowCandidates] = useState(false);
   const beatRefs = useRef<Map<number, HTMLDivElement>>(new Map());
@@ -446,10 +446,9 @@ export function ScenePlanView({
               <span className="text-[10px] text-text-dim">
                 Generating plan...
               </span>
-              {meta && (
+              {meta && typeof meta.compulsoryCount === 'number' && (
                 <span className="text-[10px] text-text-dim/40">
-                  {meta.targetBeats} beats &middot; ~
-                  {meta.estWords.toLocaleString()} words
+                  {meta.compulsoryCount} compulsory facts
                 </span>
               )}
             </div>

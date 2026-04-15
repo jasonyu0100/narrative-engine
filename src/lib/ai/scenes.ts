@@ -707,12 +707,120 @@ ${buildCompletedBeatsPrompt(narrative, resolvedKeys, currentIndex)}`;
   return { scenes, arc };
 }
 
+/**
+ * Phase 1 — fact extraction. Reads the scene's own structural data (summary,
+ * deltas, new entities, events) and returns the minimum set of compulsory
+ * propositions the scene must land. Scene-only context; no narrative history.
+ */
+async function extractCompulsoryPropositions(
+  narrative: NarrativeState,
+  scene: Scene,
+  onReasoning: ((token: string) => void) | undefined,
+  reasoningBudget: number | undefined,
+): Promise<Proposition[]> {
+  const systemPrompt = `You are a scene fact-extractor. Given a scene's structural data (summary, deltas, new entities, events), return the MINIMUM set of compulsory propositions the scene must land.
+
+A compulsory proposition is a fact the prose MUST establish for the scene to count as having happened. Facts, not atmosphere. Every delta is a fact: thread shifts, world changes, system reveals, relationship moves, ownership transfers, tie changes, artifact usages, and the scene's named events each map to one proposition.
+
+Exclude sensory texture, obvious background, anything the summary does not commit to.
+
+Return ONLY JSON: { "propositions": [{"content": "...", "type": "..."}, ...] }
+Be tight — fewer is better when fewer lands it.`;
+
+  const userPrompt = `${sceneContext(narrative, scene)}\n\nExtract the compulsory propositions from the scene above.`;
+
+  const raw = onReasoning
+    ? await callGenerateStream(userPrompt, systemPrompt, () => {}, MAX_TOKENS_SMALL, 'generateScenePlan.extractPropositions', GENERATE_MODEL, reasoningBudget, onReasoning)
+    : await callGenerate(userPrompt, systemPrompt, MAX_TOKENS_SMALL, 'generateScenePlan.extractPropositions', GENERATE_MODEL, reasoningBudget);
+
+  const parsed = parseJson(raw, 'generateScenePlan.extractPropositions') as { propositions?: unknown[] };
+  return parsePropositions(Array.isArray(parsed.propositions) ? parsed.propositions : []);
+}
+
+/**
+ * Phase 2 — plan construction. Enrich and order the compulsory propositions
+ * into a beat plan using the full narrative context. Emits varied mechanisms
+ * so the scene breathes — follows a Markov-sampled beat sequence when the
+ * narrative has one, otherwise composes freely.
+ */
+async function constructBeatPlan(
+  narrative: NarrativeState,
+  scene: Scene,
+  resolvedKeys: string[],
+  compulsoryPropositions: Proposition[],
+  guidance: string | undefined,
+  onReasoning: ((token: string) => void) | undefined,
+  reasoningBudget: number | undefined,
+): Promise<BeatPlan> {
+  const sceneIdx = resolvedKeys.indexOf(scene.id);
+  const contextIndex = sceneIdx >= 0 ? sceneIdx : resolvedKeys.length - 1;
+  const storySettings: StorySettings = { ...DEFAULT_STORY_SETTINGS, ...narrative.storySettings };
+
+  // Previous scene continuity — final few beats + ending beat type
+  const prevSceneKey = sceneIdx > 0 ? resolvedKeys[sceneIdx - 1] : null;
+  const prevScene = prevSceneKey ? narrative.scenes[prevSceneKey] : null;
+  const prevPlan = prevScene?.planVersions?.[prevScene.planVersions.length - 1]?.plan;
+  const adjacentBlock = prevPlan
+    ? `PREVIOUS SCENE ends with: ${prevPlan.beats.slice(-3).map((b) => `[${b.fn}:${b.mechanism}] ${b.what}`).join(', ')}`
+    : '';
+
+  // Optional Markov beat sequence — when the narrative has a sampler, use it
+  // as a rhythm hint. When it doesn't, let the LLM compose freely using the
+  // full beat-function + mechanism taxonomy (shipped in the system prompt).
+  const beatSequenceHint = (() => {
+    if (storySettings.useBeatChain === false) return '';
+    const sampler = resolveSampler(narrative);
+    if (!sampler) return '';
+    const suggested = Math.max(3, Math.min(compulsoryPropositions.length, 10));
+    const sampled = sampleBeatSequence(sampler, suggested, prevPlan?.beats?.at(-1)?.fn);
+    return `\nSUGGESTED BEAT RHYTHM (${suggested} beats — use as a pacing hint, deviate when the scene calls for it):\n${sampled.map((b, i) => `  ${i + 1}. ${b.fn}:${b.mechanism}`).join('\n')}\n`;
+  })();
+
+  const compulsoryBlock = compulsoryPropositions.length > 0
+    ? `\nCOMPULSORY PROPOSITIONS — the prose MUST transmit every one. Reorder and enrich for narrative effect. Use varied mechanisms (dialogue, thought, action, environment, narration, memory, document, comic) so the scene breathes — refer to the beat taxonomy for each function's role.\n\n${compulsoryPropositions
+      .map((p, i) => `${i + 1}. ${p.content}${p.type ? ` [${p.type}]` : ''}`)
+      .join('\n')}\n`
+    : '';
+
+  const profileBlock = `\n${buildProseProfile(resolveProfile(narrative))}${beatSequenceHint}\n`;
+  const systemPrompt = buildScenePlanSystemPrompt()
+    + (() => {
+      const parts = [narrative.storySettings?.planGuidance?.trim(), guidance?.trim()].filter(Boolean);
+      return parts.length > 0 ? `\n\nPLAN GUIDANCE:\n${parts.join('\n')}` : '';
+    })();
+
+  const prompt = `${profileBlock}NARRATIVE CONTEXT:\n${narrativeContext(narrative, resolvedKeys, contextIndex)}
+${buildThreadHealthPrompt(narrative, resolvedKeys, contextIndex) ? `\n${buildThreadHealthPrompt(narrative, resolvedKeys, contextIndex)}\n` : ''}${buildCompletedBeatsPrompt(narrative, resolvedKeys, contextIndex) ? `\n${buildCompletedBeatsPrompt(narrative, resolvedKeys, contextIndex)}\n` : ''}${adjacentBlock ? `${adjacentBlock}\n\n` : ''}
+SCENE:
+${sceneContext(narrative, scene)}
+${compulsoryBlock}
+Generate a beat plan that covers every compulsory proposition, reordered and enriched for effect. Add glue propositions only where continuity requires them. Choose beat function and mechanism per beat based on what that beat is doing — leverage the full taxonomy.`;
+
+  const raw = onReasoning
+    ? await callGenerateStream(prompt, systemPrompt, () => {}, MAX_TOKENS_SMALL, 'generateScenePlan', GENERATE_MODEL, reasoningBudget, onReasoning)
+    : await callGenerate(prompt, systemPrompt, MAX_TOKENS_SMALL, 'generateScenePlan', GENERATE_MODEL, reasoningBudget);
+
+  const parsed = parseJson(raw, 'generateScenePlan') as { beats?: unknown[] };
+  const beats = (parsed.beats ?? []).map((b: unknown) => {
+    const beat = b as Record<string, unknown>;
+    const rawProps = Array.isArray(beat.propositions) ? beat.propositions : [];
+    return {
+      fn: ((BEAT_FN_LIST as readonly string[]).includes(String(beat.fn)) ? beat.fn : 'advance') as BeatPlan['beats'][0]['fn'],
+      mechanism: ((BEAT_MECHANISM_LIST as readonly string[]).includes(String(beat.mechanism)) ? beat.mechanism : 'action') as BeatPlan['beats'][0]['mechanism'],
+      what: String(beat.what ?? ''),
+      propositions: parsePropositions(rawProps),
+      embeddingCentroid: undefined as string | undefined,
+    };
+  });
+  return { beats };
+}
+
 export async function generateScenePlan(
   narrative: NarrativeState,
   scene: Scene,
   resolvedKeys: string[],
   onReasoning?: (token: string) => void,
-  onMeta?: (meta: { targetBeats: number; estWords: number }) => void,
+  onMeta?: (meta: { estWords: number; compulsoryCount?: number }) => void,
   /** Per-scene direction that supplements storySettings.planGuidance */
   guidance?: string,
   /** Skip embedding generation — used by plan candidates where only the winner gets embedded */
@@ -729,84 +837,22 @@ export async function generateScenePlan(
     },
   });
 
-  const sceneIdx = resolvedKeys.indexOf(scene.id);
-  const contextIndex = sceneIdx >= 0 ? sceneIdx : resolvedKeys.length - 1;
-  const fullContext = narrativeContext(narrative, resolvedKeys, contextIndex);
-
-  // Previous scene's beat plan for flow continuity
-  const prevSceneKey = sceneIdx > 0 ? resolvedKeys[sceneIdx - 1] : null;
-  const prevScene = prevSceneKey ? narrative.scenes[prevSceneKey] : null;
-  const prevPlan = prevScene?.planVersions?.[prevScene.planVersions.length - 1]?.plan;
-
-  const adjacentBlock = prevPlan
-    ? `PREVIOUS SCENE ends with: ${prevPlan.beats.slice(-3).map((b) => `[${b.fn}:${b.mechanism}] ${b.what}`).join(', ')}`
-    : '';
-
-  // Prose profile context + optional Markov beat sequence
-  const profile = resolveProfile(narrative);
-  const sampler = resolveSampler(narrative);
-  const storySettings: StorySettings = { ...DEFAULT_STORY_SETTINGS, ...narrative.storySettings };
-  const scale = sceneScale(scene);
-  const targetBeats = scale.targetBeats;
-  const estWords = scale.estWords;
-  onMeta?.({ targetBeats, estWords });
-
-  // Sample a beat sequence from the Markov chain when enabled
-  // Continue from previous scene's ending beat, or default to 'breathe'
-  let beatSequenceHint = '';
-  if (storySettings.useBeatChain !== false) {
-    const prevEndingBeat = prevPlan?.beats?.at(-1)?.fn;
-    const sampledBeats = sampleBeatSequence(sampler, targetBeats, prevEndingBeat);
-    beatSequenceHint = `\nBEAT SEQUENCE (${targetBeats} beats — follow this fn and mechanism assignment exactly):
-${sampledBeats.map((b, i) => `  ${i + 1}. ${b.fn}:${b.mechanism}`).join('\n')}\n`;
-  }
-
-  // Build prose profile block
-  const profileBlock = `\n${buildProseProfile(profile, { beatDensity: sampler.beatsPerKWord, targetBeats })}${beatSequenceHint}\n`;
-
-  const systemPrompt = buildScenePlanSystemPrompt(targetBeats)
-    + (() => {
-      const parts = [narrative.storySettings?.planGuidance?.trim(), guidance?.trim()].filter(Boolean);
-      return parts.length > 0 ? `\n\nPLAN GUIDANCE:\n${parts.join('\n')}` : '';
-    })();
-
-  const sceneDesc = `SCENE AT BRANCH HEAD:
-Summary: ${scene.summary}
-Location: ${narrative.locations[scene.locationId]?.name ?? scene.locationId}
-POV: ${narrative.characters[scene.povId]?.name ?? scene.povId}
-Participants: ${scene.participantIds.map(id => narrative.characters[id]?.name ?? id).join(', ')}`;
-
-  // Thread health and spent beats for understanding what needs attention
-  const threadHealth = buildThreadHealthPrompt(narrative, resolvedKeys, contextIndex);
-  const spentBeats = buildCompletedBeatsPrompt(narrative, resolvedKeys, contextIndex);
-
-  const prompt = `${profileBlock}NARRATIVE CONTEXT:\n${fullContext}
-${threadHealth ? `\n${threadHealth}\n` : ''}${spentBeats ? `\n${spentBeats}\n` : ''}${adjacentBlock ? `${adjacentBlock}\n\n` : ''}
-${sceneDesc}
-
-Generate a structured beat plan for the scene at the branch head.
-
-REMINDER: All propositions (per-beat and scene-level) MUST conform to the PROSE PROFILE above. If the profile forbids figurative language, write plain factual propositions only.`;
-
   const reasoningBudget = REASONING_BUDGETS[narrative.storySettings?.reasoningLevel ?? 'low'] || undefined;
-  const raw = onReasoning
-    ? await callGenerateStream(prompt, systemPrompt, () => {}, MAX_TOKENS_SMALL, 'generateScenePlan', GENERATE_MODEL, reasoningBudget, onReasoning)
-    : await callGenerate(prompt, systemPrompt, MAX_TOKENS_SMALL, 'generateScenePlan', GENERATE_MODEL, reasoningBudget);
+  const { estWords } = sceneScale(scene);
 
-  const parsed = parseJson(raw, 'generateScenePlan') as { beats?: unknown[]; propositions?: unknown[] };
-  const beats = (parsed.beats ?? []).map((b: unknown) => {
-    const beat = b as Record<string, unknown>;
-    const rawProps = Array.isArray(beat.propositions) ? beat.propositions : [];
-    return {
-      fn: ((BEAT_FN_LIST as readonly string[]).includes(String(beat.fn)) ? beat.fn : 'advance') as BeatPlan['beats'][0]['fn'],
-      mechanism: ((BEAT_MECHANISM_LIST as readonly string[]).includes(String(beat.mechanism)) ? beat.mechanism : 'action') as BeatPlan['beats'][0]['mechanism'],
-      what: String(beat.what ?? ''),
-      propositions: parsePropositions(rawProps),
-      embeddingCentroid: undefined as string | undefined,
-    };
+  // ── Phase 1 — extract compulsory propositions from scene structure ──
+  const compulsoryPropositions = await extractCompulsoryPropositions(narrative, scene, onReasoning, reasoningBudget);
+  onMeta?.({ estWords, compulsoryCount: compulsoryPropositions.length });
+  logInfo('Compulsory propositions extracted', {
+    source: 'plan-generation',
+    operation: 'extract-propositions',
+    details: { sceneId: scene.id, count: compulsoryPropositions.length },
   });
 
-  const result: BeatPlan = { beats };
+  // ── Phase 2 — enrich and order into a full beat plan ────────────────
+  const result = await constructBeatPlan(
+    narrative, scene, resolvedKeys, compulsoryPropositions, guidance, onReasoning, reasoningBudget,
+  );
 
   // ── Generate embeddings for all propositions (skipped for candidates) ────
   if (skipEmbeddings) return result;
@@ -848,8 +894,8 @@ REMINDER: All propositions (per-beat and scene-level) MUST conform to the PROSE 
     details: {
       narrativeId: narrative.id,
       sceneId: scene.id,
-      beatsGenerated: beats.length,
-      totalPropositions: beats.reduce((sum, b) => sum + b.propositions.length, 0),
+      beatsGenerated: result.beats.length,
+      totalPropositions: result.beats.reduce((sum, b) => sum + b.propositions.length, 0),
     },
   });
 

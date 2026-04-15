@@ -579,9 +579,7 @@ export function SceneProseView({
               <div className="flex items-center gap-2 mb-6">
                 <div className="w-3 h-3 border-2 border-white/20 border-t-white/60 rounded-full animate-spin" />
                 <span className="text-[10px] text-text-dim">
-                  {text
-                    ? "Writing..."
-                    : `Generating prose... ~${sceneScale(scene).estWords.toLocaleString()} words`}
+                  {text ? "Writing..." : "Generating prose..."}
                 </span>
               </div>
               {text && (

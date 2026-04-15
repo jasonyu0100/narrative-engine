@@ -1,7 +1,7 @@
 import type { NarrativeState, Scene, StorySettings, RelationshipEdge, WorldEdge, ProseProfile, SystemGraph } from '@/types/narrative';
 import { resolveEntry, THREAD_ACTIVE_STATUSES, THREAD_TERMINAL_STATUSES, THREAD_STATUS_LABELS, DEFAULT_STORY_SETTINGS } from '@/types/narrative';
 import { buildCumulativeSystemGraph, rankSystemNodes, resolveEntityName } from '@/lib/narrative-utils';
-import { WORDS_PER_SCENE, BEATS_PER_SCENE, ENTITY_LOG_CONTEXT_LIMIT, NEAR_RECENCY_ZONE, MID_RECENCY_ZONE } from '@/lib/constants';
+import { WORDS_PER_SCENE, ENTITY_LOG_CONTEXT_LIMIT, NEAR_RECENCY_ZONE, MID_RECENCY_ZONE } from '@/lib/constants';
 import { getIntroducedIds } from '@/lib/scene-filter';
 
 // ── Prose Profile Builder ─────────────────────────────────────────────────────
@@ -9,7 +9,7 @@ import { getIntroducedIds } from '@/lib/scene-filter';
 /**
  * Build prose profile as plain text for LLM context.
  */
-export function buildProseProfile(profile: ProseProfile, options?: { beatDensity?: number; targetBeats?: number }): string {
+export function buildProseProfile(profile: ProseProfile, options?: { beatDensity?: number }): string {
   const parts: string[] = [];
 
   // Voice characteristics as a single line
@@ -31,8 +31,8 @@ export function buildProseProfile(profile: ProseProfile, options?: { beatDensity
   if (profile.antiPatterns?.length) {
     parts.push(`Avoid: ${profile.antiPatterns.join('; ')}`);
   }
-  if (options?.beatDensity != null && options?.targetBeats != null) {
-    parts.push(`Density: ~${options.beatDensity} beats/kword → target ${options.targetBeats} beats`);
+  if (options?.beatDensity != null) {
+    parts.push(`Density reference: ~${options.beatDensity} beats/kword (a soft signal — choose only as many beats as the scene needs)`);
   }
 
   return `PROSE PROFILE\n${parts.join('\n')}`;
@@ -789,107 +789,34 @@ ${systemGraphBlock}
 export function sceneContext(
   narrative: NarrativeState,
   scene: Scene,
-  resolvedKeys?: string[],
-  currentIndex?: number,
+  /* eslint-disable @typescript-eslint/no-unused-vars */
+  _resolvedKeys?: string[],
+  _currentIndex?: number,
+  /* eslint-enable @typescript-eslint/no-unused-vars */
 ): string {
+  // DELTAS + NEW ENTITIES ONLY. Scene context describes what THIS scene
+  // introduces or changes — not cumulative world state. Callers that need
+  // continuity context should combine this with narrativeContext, not
+  // duplicate state here.
   const location = narrative.locations[scene.locationId];
   const pov = narrative.characters[scene.povId];
-  const participants = scene.participantIds.map((pid) => narrative.characters[pid]).filter(Boolean);
   const arc = Object.values(narrative.arcs).find((a) => a.sceneIds.includes(scene.id));
-  const participantIdSet = new Set(scene.participantIds);
 
-  // Get timeline-scoped state when resolvedKeys and currentIndex are provided
-  const timelineState = resolvedKeys && currentIndex !== undefined
-    ? getStateAtIndex(narrative, resolvedKeys, currentIndex)
-    : null;
-
-  // ── Characters: knowledge scoped to timeline when available ──────────
-  const characterBlocks = participants.map((p) => {
-    // Filter to nodes that existed at this point in the timeline
-    const allNodes = Object.values(p.world.nodes);
-    const scopedNodes = timelineState
-      ? allNodes.filter((kn) => timelineState.liveNodeIds.has(kn.id))
-      : allNodes;
-    const recentNodes = scopedNodes.slice(-ENTITY_LOG_CONTEXT_LIMIT);
-    const knLines = recentNodes.map((kn) => `    <knowledge type="${kn.type}">${kn.content}</knowledge>`);
-    const knBlock = knLines.length > 0 ? `\n${knLines.join('\n')}` : '';
-    return `  <character id="${p.id}" name="${p.name}" role="${p.role}">${knBlock}\n  </character>`;
-  });
-
-  // ── Location: continuity scoped to timeline when available ────────────────────────────────────
-  const locationBlock = (() => {
-    if (!location) return '<location name="Unknown" />';
-    const allLocNodes = Object.values(location.world.nodes);
-    const scopedNodes = timelineState
-      ? allLocNodes.filter((kn) => timelineState.liveNodeIds.has(kn.id))
-      : allLocNodes;
-    const recentNodes = scopedNodes.slice(-ENTITY_LOG_CONTEXT_LIMIT);
-    const knLines = recentNodes.map((kn) => `    <knowledge type="${kn.type}">${kn.content}</knowledge>`);
-    const parent = location.parentId ? ` parent="${narrative.locations[location.parentId]?.name ?? location.parentId}"` : '';
-    const tiedNames = (location.tiedCharacterIds ?? []).map(id => narrative.characters[id]?.name).filter(Boolean);
-    const tiesAttr = tiedNames.length > 0 ? ` ties="${tiedNames.join(', ')}"` : '';
-    const knBlock = knLines.length > 0 ? `\n${knLines.join('\n')}` : '';
-    return `  <location id="${location.id}" name="${location.name}"${parent}${tiesAttr}>${knBlock}\n  </location>`;
-  })();
-
-  // ── Artifacts referenced in this scene (usages + transfers) ─────────────────
-  const sceneArtifactIds = new Set<string>();
-  for (const au of scene.artifactUsages ?? []) sceneArtifactIds.add(au.artifactId);
-  for (const om of scene.ownershipDeltas ?? []) sceneArtifactIds.add(om.artifactId);
-
-  const artifactBlocks = [...sceneArtifactIds].map((artId) => {
-    const artifact = narrative.artifacts?.[artId];
-    if (!artifact) return null;
-    // Get owner name
-    const owner = artifact.parentId
-      ? resolveEntityName(narrative, artifact.parentId)
-      : 'world';
-    // Filter continuity nodes to timeline
-    const allNodes = Object.values(artifact.world.nodes);
-    const scopedNodes = timelineState
-      ? allNodes.filter((kn) => timelineState.liveNodeIds.has(kn.id))
-      : allNodes;
-    const recentNodes = scopedNodes.slice(-ENTITY_LOG_CONTEXT_LIMIT);
-    const knLines = recentNodes.map((kn) => `    <knowledge type="${kn.type}">${kn.content}</knowledge>`);
-    const knBlock = knLines.length > 0 ? `\n${knLines.join('\n')}` : '';
-    return `  <artifact id="${artifact.id}" name="${artifact.name}" significance="${artifact.significance}" owner="${owner}">${knBlock}\n  </artifact>`;
-  }).filter(Boolean);
-
-  // ── Relationships between participants (scoped to timeline when available) ─────────────────────────────
-  const baseRelationships = timelineState?.relationships ?? narrative.relationships;
-  const relevantRelationships = baseRelationships.filter(
-    (r) => participantIdSet.has(r.from) && participantIdSet.has(r.to),
-  );
-  const relationshipStateLines = relevantRelationships.map((r) => {
-    const fromName = narrative.characters[r.from]?.name ?? r.from;
-    const toName = narrative.characters[r.to]?.name ?? r.to;
-    return `  <relationship from="${fromName}" to="${toName}" valence="${Math.round(r.valence * 100) / 100}">${r.type}</relationship>`;
-  });
-
-  // ── Threads involved in this scene (status scoped to timeline when available) ─────────────────────────────────
-  const threadIds = new Set(scene.threadDeltas.map((tm) => tm.threadId));
-  const threadBlocks = [...threadIds].map((tid) => {
-    const thread = narrative.threads[tid];
-    if (!thread) return `  <thread id="${tid}">unknown</thread>`;
-    const tParticipants = thread.participants.map((a) => {
-      if (a.type === 'character') return narrative.characters[a.id]?.name ?? a.id;
-      if (a.type === 'location') return narrative.locations[a.id]?.name ?? a.id;
-      return a.id;
-    });
-    const status = timelineState?.threadStatuses[tid] ?? thread.status;
-    // Include recent thread log entries (last 5) to show thread momentum
-    const logNodes = Object.values(thread.threadLog?.nodes ?? {});
-    const recentLogs = logNodes.slice(-ENTITY_LOG_CONTEXT_LIMIT);
-    const logBlock = recentLogs.length > 0
-      ? `\n    <log>${recentLogs.map((ln) => `[${ln.type}] ${ln.content}`).join(' | ')}</log>`
-      : '';
-    return `  <thread id="${tid}" status="${status}" participants="${tParticipants.join(', ')}">${thread.description}${logBlock}\n  </thread>`;
+  // ── Participant identifiers (no cumulative knowledge) ───────────────
+  const participantLines = scene.participantIds.map((pid) => {
+    const p = narrative.characters[pid];
+    if (!p) return `  <participant id="${pid}" />`;
+    return `  <participant id="${p.id}" name="${p.name}" role="${p.role}" />`;
   });
 
   // ── Scene deltas ───────────────────────────────────────────────────
   const threadDeltaLines = scene.threadDeltas.map((tm) => {
     const thread = narrative.threads[tm.threadId];
-    return `  <shift thread="${thread?.description ?? tm.threadId}" from="${tm.from}" to="${tm.to}" />`;
+    const addedLogs = (tm.addedNodes ?? [])
+      .map((n) => `[${n.type}] ${n.content}`)
+      .join(' | ');
+    const logAttr = addedLogs ? ` log="${addedLogs.replace(/"/g, '&quot;')}"` : '';
+    return `  <shift thread="${thread?.description ?? tm.threadId}" from="${tm.from}" to="${tm.to}"${logAttr} />`;
   });
 
   const worldDeltaLines = scene.worldDeltas.flatMap((km) => {
@@ -942,43 +869,75 @@ export function sceneContext(
     for (const edge of wkm.addedEdges ?? []) {
       lines.push(`<edge from="${edge.from}" to="${edge.to}" relation="${edge.relation}"/>`);
     }
-    return `\n<system-graph-reveals>\n${lines.join('\n')}\n</system-graph-reveals>`;
+    return `\n<system-reveals>\n${lines.join('\n')}\n</system-reveals>`;
   })();
 
-  // ── System knowledge from SystemGraph ──────────────────────────────
-  const systemKnowledgeBlock = buildSystemKnowledgeBlock(narrative.systemGraph);
+  // ── New entities introduced by this scene ──────────────────────────
+  const newCharacterLines = (scene.newCharacters ?? []).map((c) => {
+    const knLines = Object.values(c.world?.nodes ?? {})
+      .map((kn) => `    <knowledge type="${kn.type}">${kn.content}</knowledge>`);
+    const knBlock = knLines.length > 0 ? `\n${knLines.join('\n')}` : '';
+    return `  <character id="${c.id}" name="${c.name}" role="${c.role}">${knBlock}\n  </character>`;
+  });
 
-  return `<scene id="${scene.id}" arc="${arc?.name ?? 'standalone'}" pov="${pov?.name ?? 'Unknown'}" pov-role="${pov?.role ?? 'unknown'}">
+  const newLocationLines = (scene.newLocations ?? []).map((l) => {
+    const knLines = Object.values(l.world?.nodes ?? {})
+      .map((kn) => `    <knowledge type="${kn.type}">${kn.content}</knowledge>`);
+    const knBlock = knLines.length > 0 ? `\n${knLines.join('\n')}` : '';
+    const parent = l.parentId ? ` parent="${narrative.locations[l.parentId]?.name ?? l.parentId}"` : '';
+    return `  <location id="${l.id}" name="${l.name}" prominence="${l.prominence}"${parent}>${knBlock}\n  </location>`;
+  });
+
+  const newArtifactLines = (scene.newArtifacts ?? []).map((a) => {
+    const knLines = Object.values(a.world?.nodes ?? {})
+      .map((kn) => `    <knowledge type="${kn.type}">${kn.content}</knowledge>`);
+    const knBlock = knLines.length > 0 ? `\n${knLines.join('\n')}` : '';
+    const owner = a.parentId ? ` owner="${resolveEntityName(narrative, a.parentId)}"` : '';
+    return `  <artifact id="${a.id}" name="${a.name}" significance="${a.significance}"${owner}>${knBlock}\n  </artifact>`;
+  });
+
+  const newThreadLines = (scene.newThreads ?? []).map((t) => {
+    const parts = (t.participants ?? [])
+      .map((p) => {
+        if (p.type === 'character') return narrative.characters[p.id]?.name ?? p.id;
+        if (p.type === 'location') return narrative.locations[p.id]?.name ?? p.id;
+        return p.id;
+      })
+      .join(', ');
+    const partsAttr = parts ? ` participants="${parts}"` : '';
+    return `  <thread id="${t.id}" status="${t.status}"${partsAttr}>${t.description}</thread>`;
+  });
+
+  const newEntitiesBlock = [
+    newCharacterLines.length > 0 ? `<new-characters>\n${newCharacterLines.join('\n')}\n</new-characters>` : '',
+    newLocationLines.length > 0 ? `<new-locations>\n${newLocationLines.join('\n')}\n</new-locations>` : '',
+    newArtifactLines.length > 0 ? `<new-artifacts>\n${newArtifactLines.join('\n')}\n</new-artifacts>` : '',
+    newThreadLines.length > 0 ? `<new-threads>\n${newThreadLines.join('\n')}\n</new-threads>` : '',
+  ].filter(Boolean).join('\n');
+
+  return `<scene id="${scene.id}" arc="${arc?.name ?? 'standalone'}" pov="${pov?.name ?? 'Unknown'}" location="${location?.name ?? 'Unknown'}">
 <summary>${scene.summary}</summary>
-
-<characters>
-${characterBlocks.join('\n')}
-</characters>
-
-<location>
-${locationBlock}
-</location>
-${artifactBlocks.length > 0 ? `\n<artifacts>\n${artifactBlocks.join('\n')}\n</artifacts>` : ''}
-${relationshipStateLines.length > 0 ? `\n<relationships>\n${relationshipStateLines.join('\n')}\n</relationships>` : ''}
-${threadBlocks.length > 0 ? `\n<threads>\n${threadBlocks.join('\n')}\n</threads>` : ''}
+${participantLines.length > 0 ? `\n<participants>\n${participantLines.join('\n')}\n</participants>` : ''}
+${newEntitiesBlock ? `\n${newEntitiesBlock}` : ''}
 
 <events>
 ${scene.events.map((e) => `  <event>${e}</event>`).join('\n')}
 </events>
 ${threadDeltaLines.length > 0 ? `\n<thread-shifts>\n${threadDeltaLines.join('\n')}\n</thread-shifts>` : ''}
-${worldDeltaLines.length > 0 ? `\n<continuity-changes>\n${worldDeltaLines.join('\n')}\n</continuity-changes>` : ''}
+${worldDeltaLines.length > 0 ? `\n<world-changes>\n${worldDeltaLines.join('\n')}\n</world-changes>` : ''}
 ${relationshipDeltaLines.length > 0 ? `\n<relationship-shifts>\n${relationshipDeltaLines.join('\n')}\n</relationship-shifts>` : ''}${wkmBlock}
 ${movementLines.length > 0 ? `\n<movements>\n${movementLines.join('\n')}\n</movements>` : ''}
 ${artifactUsageLines.length > 0 ? `\n<artifact-usages>\n${artifactUsageLines.join('\n')}\n</artifact-usages>` : ''}
 ${ownershipDeltaLines.length > 0 ? `\n<artifact-transfers>\n${ownershipDeltaLines.join('\n')}\n</artifact-transfers>` : ''}
-${tieDeltaLines.length > 0 ? `\n<tie-changes>\n${tieDeltaLines.join('\n')}\n</tie-changes>` : ''}${systemKnowledgeBlock}
+${tieDeltaLines.length > 0 ? `\n<tie-changes>\n${tieDeltaLines.join('\n')}\n</tie-changes>` : ''}
 </scene>`;
 }
 
-/** Scene scale based on standard: ~10 beats × ~100 words/beat = ~1000 words.
- *  Generation is flexible — the LLM can vary beat count based on scene intensity. */
-export function sceneScale(scene: Scene): { estWords: number; targetBeats: number; planWords: string } {
-  return { estWords: WORDS_PER_SCENE, targetBeats: BEATS_PER_SCENE, planWords: `${Math.round(WORDS_PER_SCENE * 0.3)}-${Math.round(WORDS_PER_SCENE * 0.5)}` };
+/** Scene scale guidance. Brevity is the goal — the LLM chooses the beat
+ *  count that exactly matches the scene's needs, with no fixed target.
+ *  estWords remains as a soft reference for prose length only. */
+export function sceneScale(_scene: Scene): { estWords: number; planWords: string } {
+  return { estWords: WORDS_PER_SCENE, planWords: `${Math.round(WORDS_PER_SCENE * 0.3)}-${Math.round(WORDS_PER_SCENE * 0.5)}` };
 }
 
 /** Deterministically derive logical rules from the scene graph — no LLM needed.
