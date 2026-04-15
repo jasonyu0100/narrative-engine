@@ -12,6 +12,7 @@ import { useStore } from "@/lib/store";
 import type { CharacterRole } from "@/types/narrative";
 import React, { useState } from "react";
 import { CollapsibleSection, Paginator, paginateRecent } from "./CollapsibleSection";
+import ImagePromptEditor from "./ImagePromptEditor";
 
 type Props = {
   characterId: string;
@@ -160,12 +161,13 @@ export default function CharacterDetail({ characterId }: Props) {
         {character.role}
       </span>
 
-      {/* Image prompt */}
-      {character.imagePrompt && (
-        <p className="text-[10px] text-text-dim italic leading-relaxed">
-          {character.imagePrompt}
-        </p>
-      )}
+      {/* Image prompt — editable, with AI suggest from continuity */}
+      <ImagePromptEditor
+        kind="character"
+        entityId={characterId}
+        value={character.imagePrompt}
+      />
+
 
       {/* Recent — current scene deltas, open by default */}
       {hasRecentActivity &&

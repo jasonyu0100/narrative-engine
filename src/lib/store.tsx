@@ -789,6 +789,9 @@ export type Action =
   | { type: "SET_CHARACTER_IMAGE"; characterId: string; imageUrl: string }
   | { type: "SET_LOCATION_IMAGE"; locationId: string; imageUrl: string }
   | { type: "SET_ARTIFACT_IMAGE"; artifactId: string; imageUrl: string }
+  | { type: "SET_CHARACTER_IMAGE_PROMPT"; characterId: string; imagePrompt: string }
+  | { type: "SET_LOCATION_IMAGE_PROMPT"; locationId: string; imagePrompt: string }
+  | { type: "SET_ARTIFACT_IMAGE_PROMPT"; artifactId: string; imagePrompt: string }
   | { type: "SET_IMAGE_STYLE"; style: string }
   | { type: "SET_STORY_SETTINGS"; settings: StorySettings }
   | { type: "SET_PROSE_PROFILE"; profile: ProseProfile | undefined }
@@ -2261,6 +2264,112 @@ function reducer(state: AppState, action: Action): AppState {
                 ).map((a) =>
                   a.id === action.artifactId
                     ? { ...a, imageUrl: action.imageUrl }
+                    : a,
+                ),
+              },
+            },
+          },
+        };
+      });
+      if (!afterUpdate.activeNarrative) return afterUpdate;
+      const derived = withDerivedEntities(
+        afterUpdate.activeNarrative,
+        afterUpdate.resolvedEntryKeys,
+      );
+      return { ...afterUpdate, activeNarrative: derived };
+    }
+
+    case "SET_CHARACTER_IMAGE_PROMPT": {
+      const afterUpdate = updateNarrative(state, (n) => {
+        const worldBuildEntry = Object.values(n.worldBuilds).find((wb) =>
+          wb.expansionManifest.newCharacters.some(
+            (c) => c.id === action.characterId,
+          ),
+        );
+        if (!worldBuildEntry) return n;
+        return {
+          ...n,
+          worldBuilds: {
+            ...n.worldBuilds,
+            [worldBuildEntry.id]: {
+              ...worldBuildEntry,
+              expansionManifest: {
+                ...worldBuildEntry.expansionManifest,
+                newCharacters: worldBuildEntry.expansionManifest.newCharacters.map(
+                  (c) =>
+                    c.id === action.characterId
+                      ? { ...c, imagePrompt: action.imagePrompt }
+                      : c,
+                ),
+              },
+            },
+          },
+        };
+      });
+      if (!afterUpdate.activeNarrative) return afterUpdate;
+      const derived = withDerivedEntities(
+        afterUpdate.activeNarrative,
+        afterUpdate.resolvedEntryKeys,
+      );
+      return { ...afterUpdate, activeNarrative: derived };
+    }
+
+    case "SET_LOCATION_IMAGE_PROMPT": {
+      const afterUpdate = updateNarrative(state, (n) => {
+        const worldBuildEntry = Object.values(n.worldBuilds).find((wb) =>
+          wb.expansionManifest.newLocations.some(
+            (l) => l.id === action.locationId,
+          ),
+        );
+        if (!worldBuildEntry) return n;
+        return {
+          ...n,
+          worldBuilds: {
+            ...n.worldBuilds,
+            [worldBuildEntry.id]: {
+              ...worldBuildEntry,
+              expansionManifest: {
+                ...worldBuildEntry.expansionManifest,
+                newLocations: worldBuildEntry.expansionManifest.newLocations.map(
+                  (l) =>
+                    l.id === action.locationId
+                      ? { ...l, imagePrompt: action.imagePrompt }
+                      : l,
+                ),
+              },
+            },
+          },
+        };
+      });
+      if (!afterUpdate.activeNarrative) return afterUpdate;
+      const derived = withDerivedEntities(
+        afterUpdate.activeNarrative,
+        afterUpdate.resolvedEntryKeys,
+      );
+      return { ...afterUpdate, activeNarrative: derived };
+    }
+
+    case "SET_ARTIFACT_IMAGE_PROMPT": {
+      const afterUpdate = updateNarrative(state, (n) => {
+        const worldBuildEntry = Object.values(n.worldBuilds).find((wb) =>
+          (wb.expansionManifest.newArtifacts ?? []).some(
+            (a) => a.id === action.artifactId,
+          ),
+        );
+        if (!worldBuildEntry) return n;
+        return {
+          ...n,
+          worldBuilds: {
+            ...n.worldBuilds,
+            [worldBuildEntry.id]: {
+              ...worldBuildEntry,
+              expansionManifest: {
+                ...worldBuildEntry.expansionManifest,
+                newArtifacts: (
+                  worldBuildEntry.expansionManifest.newArtifacts ?? []
+                ).map((a) =>
+                  a.id === action.artifactId
+                    ? { ...a, imagePrompt: action.imagePrompt }
                     : a,
                 ),
               },

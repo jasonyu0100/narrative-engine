@@ -17,6 +17,10 @@ export { rewriteSceneProse } from './prose';
 // Premise
 export { suggestPremise } from './premise';
 
+// Image prompt
+export { suggestImagePrompt } from './image-prompt';
+export type { ImagePromptEntityKind } from './image-prompt';
+
 // Review
 export { reviewBranch, reviewProseQuality, reviewPlanQuality } from './review';
 

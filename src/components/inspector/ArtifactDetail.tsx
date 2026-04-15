@@ -5,6 +5,7 @@ import { useStore } from '@/lib/store';
 import { resolveEntityName } from '@/lib/narrative-utils';
 import { getWorldNodesAtScene, getThreadIdsAtScene, getOwnershipAtScene } from '@/lib/scene-filter';
 import { CollapsibleSection, Paginator, paginateRecent } from './CollapsibleSection';
+import ImagePromptEditor from './ImagePromptEditor';
 
 type Props = {
   artifactId: string;
@@ -100,10 +101,13 @@ export default function ArtifactDetail({ artifactId }: Props) {
         </span>
       </div>
 
-      {/* Image prompt */}
-      {artifact.imagePrompt && (
-        <p className="text-[10px] text-text-dim italic leading-relaxed">{artifact.imagePrompt}</p>
-      )}
+      {/* Image prompt — editable, with AI suggest from continuity */}
+      <ImagePromptEditor
+        kind="artifact"
+        entityId={artifactId}
+        value={artifact.imagePrompt}
+      />
+
 
       {/* Current owner — reflects state at the currently-viewed scene */}
       <p className="text-xs text-text-secondary">

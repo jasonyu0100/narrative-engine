@@ -5,6 +5,7 @@ import { useStore } from '@/lib/store';
 import { useImageUrl } from '@/hooks/useAssetUrl';
 import { getWorldNodesAtScene, getThreadIdsAtScene, getOwnershipAtScene, getTiesAtScene } from '@/lib/scene-filter';
 import { CollapsibleSection, Paginator, paginateRecent } from './CollapsibleSection';
+import ImagePromptEditor from './ImagePromptEditor';
 
 type Props = {
   locationId: string;
@@ -193,10 +194,13 @@ export default function LocationDetail({ locationId }: Props) {
         );
       })()}
 
-      {/* Image prompt */}
-      {location.imagePrompt && (
-        <p className="text-[10px] text-text-dim italic leading-relaxed">{location.imagePrompt}</p>
-      )}
+      {/* Image prompt — editable, with AI suggest from continuity */}
+      <ImagePromptEditor
+        kind="location"
+        entityId={locationId}
+        value={location.imagePrompt}
+      />
+
 
       {/* Continuity — paginated, most recent first */}
       {worldNodes.length > 0 && (() => {
