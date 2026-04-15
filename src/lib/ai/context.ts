@@ -1,7 +1,7 @@
 import type { NarrativeState, Scene, StorySettings, RelationshipEdge, WorldEdge, ProseProfile, SystemGraph } from '@/types/narrative';
 import { resolveEntry, THREAD_ACTIVE_STATUSES, THREAD_TERMINAL_STATUSES, THREAD_STATUS_LABELS, DEFAULT_STORY_SETTINGS } from '@/types/narrative';
 import { buildCumulativeSystemGraph, rankSystemNodes, resolveEntityName } from '@/lib/narrative-utils';
-import { WORDS_PER_SCENE, ENTITY_LOG_CONTEXT_LIMIT, NEAR_RECENCY_ZONE, MID_RECENCY_ZONE } from '@/lib/constants';
+import { ENTITY_LOG_CONTEXT_LIMIT, NEAR_RECENCY_ZONE, MID_RECENCY_ZONE } from '@/lib/constants';
 import { getIntroducedIds } from '@/lib/scene-filter';
 
 // ── Prose Profile Builder ─────────────────────────────────────────────────────
@@ -931,13 +931,6 @@ ${artifactUsageLines.length > 0 ? `\n<artifact-usages>\n${artifactUsageLines.joi
 ${ownershipDeltaLines.length > 0 ? `\n<artifact-transfers>\n${ownershipDeltaLines.join('\n')}\n</artifact-transfers>` : ''}
 ${tieDeltaLines.length > 0 ? `\n<tie-changes>\n${tieDeltaLines.join('\n')}\n</tie-changes>` : ''}
 </scene>`;
-}
-
-/** Scene scale guidance. Brevity is the goal — the LLM chooses the beat
- *  count that exactly matches the scene's needs, with no fixed target.
- *  estWords remains as a soft reference for prose length only. */
-export function sceneScale(_scene: Scene): { estWords: number; planWords: string } {
-  return { estWords: WORDS_PER_SCENE, planWords: `${Math.round(WORDS_PER_SCENE * 0.3)}-${Math.round(WORDS_PER_SCENE * 0.5)}` };
 }
 
 /** Deterministically derive logical rules from the scene graph — no LLM needed.

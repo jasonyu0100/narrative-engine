@@ -80,8 +80,7 @@ export function ScenePlanView({
   );
   const [reasoning, setReasoning] = useState("");
   const [meta, setMeta] = useState<{
-    estWords: number;
-    compulsoryCount?: number;
+    compulsoryCount: number;
   } | null>(null);
   const [showCandidates, setShowCandidates] = useState(false);
   const beatRefs = useRef<Map<number, HTMLDivElement>>(new Map());

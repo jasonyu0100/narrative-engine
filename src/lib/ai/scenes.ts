@@ -4,7 +4,7 @@ import { nextId, nextIds } from '@/lib/narrative-utils';
 import { callGenerate, callGenerateStream, SYSTEM_PROMPT } from './api';
 import { WRITING_MODEL, GENERATE_MODEL, MAX_TOKENS_LARGE, MAX_TOKENS_DEFAULT, MAX_TOKENS_SMALL, WORDS_PER_BEAT, ANALYSIS_TEMPERATURE } from '@/lib/constants';
 import { parseJson } from './json';
-import { narrativeContext, sceneContext, sceneScale, buildProseProfile } from './context';
+import { narrativeContext, sceneContext, buildProseProfile } from './context';
 import { PROMPT_STRUCTURAL_RULES, PROMPT_DELTAS, PROMPT_ARTIFACTS, PROMPT_LOCATIONS, PROMPT_POV, PROMPT_WORLD, PROMPT_SUMMARY_REQUIREMENT, promptThreadLifecycle, buildThreadHealthPrompt, buildCompletedBeatsPrompt, PROMPT_FORCE_STANDARDS, buildScenePlanSystemPrompt, buildBeatAnalystSystemPrompt, buildScenePlanEditSystemPrompt, buildSceneProseSystemPrompt } from './prompts';
 import { samplePacingSequence, buildSequencePrompt, detectCurrentMode, MATRIX_PRESETS, DEFAULT_TRANSITION_MATRIX, type PacingSequence } from '@/lib/pacing-profile';
 import { resolveProfile, resolveSampler, sampleBeatSequence } from '@/lib/beat-profiles';
@@ -718,16 +718,32 @@ async function extractCompulsoryPropositions(
   onReasoning: ((token: string) => void) | undefined,
   reasoningBudget: number | undefined,
 ): Promise<Proposition[]> {
-  const systemPrompt = `You are a scene fact-extractor. Given a scene's structural data (summary, deltas, new entities, events), return the MINIMUM set of compulsory propositions the scene must land.
+  const systemPrompt = `You are a scene fact-extractor. Read the scene's structural data (summary, deltas, new entities, events) and return the COMPLETE set of compulsory propositions the scene must land.
 
-A compulsory proposition is a fact the prose MUST establish for the scene to count as having happened. Facts, not atmosphere. Every delta is a fact: thread shifts, world changes, system reveals, relationship moves, ownership transfers, tie changes, artifact usages, and the scene's named events each map to one proposition.
+A compulsory proposition is a fact the prose MUST establish for the scene to count as having happened. Not atmosphere. Not craft flourish. The discrete, checkable claims a reader must come away believing.
 
-Exclude sensory texture, obvious background, anything the summary does not commit to.
+THOROUGHNESS — every structural element in the scene data maps to at least one proposition. Walk through the data and confirm you've covered:
+  - summary → any commitments the summary makes that aren't yet captured by deltas below
+  - each threadDelta → one proposition for the narrative fact that moved the thread (use the thread's description and addedNodes as anchors)
+  - each worldDelta → one proposition per addedNode, framed in present-tense state ("X now Y")
+  - systemDelta addedNodes → the world rule/principle surfaced
+  - relationshipDeltas → the concrete shift ("A now distrusts B")
+  - ownershipDeltas → the transfer fact
+  - tieDeltas → the tie established or severed
+  - artifactUsages → what the artifact did
+  - characterMovements → the arrival/departure fact
+  - events → any fact the event tag implies that isn't already captured
+  - new-characters / new-locations / new-artifacts / new-threads → that this entity now exists, plus one proposition per meaningful world-node they carry in
+Completeness matters more than minimalism. A missed delta becomes a continuity hole in later scenes.
+
+DO NOT deduplicate across delta types — each delta is its own commitment even if the surface wording overlaps.
+DO NOT include sensory texture, weather, or obvious background.
+DO NOT impose an ordering — emit propositions grouped by source for clarity; reordering for prose effect is the planner's job.
 
 Return ONLY JSON: { "propositions": [{"content": "...", "type": "..."}, ...] }
-Be tight — fewer is better when fewer lands it.`;
+Type is a free label (event, state, rule, relation, secret, goal, transfer, tie, movement, emergence…). Each proposition should be a single complete sentence stating one fact.`;
 
-  const userPrompt = `${sceneContext(narrative, scene)}\n\nExtract the compulsory propositions from the scene above.`;
+  const userPrompt = `${sceneContext(narrative, scene)}\n\nExtract every compulsory proposition from the scene above. Walk through every block of the XML; no structural element goes uncovered.`;
 
   const raw = onReasoning
     ? await callGenerateStream(userPrompt, systemPrompt, () => {}, MAX_TOKENS_SMALL, 'generateScenePlan.extractPropositions', GENERATE_MODEL, reasoningBudget, onReasoning)
@@ -777,7 +793,20 @@ async function constructBeatPlan(
   })();
 
   const compulsoryBlock = compulsoryPropositions.length > 0
-    ? `\nCOMPULSORY PROPOSITIONS — the prose MUST transmit every one. Reorder and enrich for narrative effect. Use varied mechanisms (dialogue, thought, action, environment, narration, memory, document, comic) so the scene breathes — refer to the beat taxonomy for each function's role.\n\n${compulsoryPropositions
+    ? `\nCOMPULSORY PROPOSITIONS — the prose MUST transmit every one of these facts. They are what the scene commits to.
+
+The list below is in EXTRACTION ORDER (grouped by structural source). Extraction order is NOT delivery order. Your job:
+
+  1. COVERAGE — every proposition lands in some beat. None dropped.
+  2. REORDER — sequence them for maximum narrative effect. Late reveals, early hooks, payoff after setup, interleaved lines of action. The order on the page is a craft decision; the extraction order is just a checklist.
+  3. GLUE — where the narrative context shows a gap (a relationship the reader hasn't seen recently, a rule about to be invoked, a memory that frames a moment), add a small number of glue propositions from the narrative context to bridge. Glue enriches; it does not replace.
+  4. GROUP — multiple propositions can share a beat when they deliver together (a single dialogue exchange can carry three thread moves). Don't force 1:1.
+
+DELIVERY — prose style follows the PROSE PROFILE above, not a rigid order. The profile decides whether propositions are demonstrated, stated, or imaged; the plan just says WHERE in the scene each lands and WHICH mechanism carries it.
+
+Compulsory propositions (extraction order, group by blank line for readability):
+
+${compulsoryPropositions
       .map((p, i) => `${i + 1}. ${p.content}${p.type ? ` [${p.type}]` : ''}`)
       .join('\n')}\n`
     : '';
@@ -794,7 +823,7 @@ ${buildThreadHealthPrompt(narrative, resolvedKeys, contextIndex) ? `\n${buildThr
 SCENE:
 ${sceneContext(narrative, scene)}
 ${compulsoryBlock}
-Generate a beat plan that covers every compulsory proposition, reordered and enriched for effect. Add glue propositions only where continuity requires them. Choose beat function and mechanism per beat based on what that beat is doing — leverage the full taxonomy.`;
+Generate a beat plan that GLUES the compulsory propositions into the narrative flow: reordered for effect, enriched with bridge propositions drawn from the narrative context where continuity calls for them, grouped into beats, and paced with varied mechanisms. Coverage is non-negotiable; the ORDERING and GROUPING are your craft decisions. Prose delivery will follow the prose profile — your job is the skeleton, not the voice.`;
 
   const raw = onReasoning
     ? await callGenerateStream(prompt, systemPrompt, () => {}, MAX_TOKENS_SMALL, 'generateScenePlan', GENERATE_MODEL, reasoningBudget, onReasoning)
@@ -820,7 +849,7 @@ export async function generateScenePlan(
   scene: Scene,
   resolvedKeys: string[],
   onReasoning?: (token: string) => void,
-  onMeta?: (meta: { estWords: number; compulsoryCount?: number }) => void,
+  onMeta?: (meta: { compulsoryCount: number }) => void,
   /** Per-scene direction that supplements storySettings.planGuidance */
   guidance?: string,
   /** Skip embedding generation — used by plan candidates where only the winner gets embedded */
@@ -838,11 +867,10 @@ export async function generateScenePlan(
   });
 
   const reasoningBudget = REASONING_BUDGETS[narrative.storySettings?.reasoningLevel ?? 'low'] || undefined;
-  const { estWords } = sceneScale(scene);
 
   // ── Phase 1 — extract compulsory propositions from scene structure ──
   const compulsoryPropositions = await extractCompulsoryPropositions(narrative, scene, onReasoning, reasoningBudget);
-  onMeta?.({ estWords, compulsoryCount: compulsoryPropositions.length });
+  onMeta?.({ compulsoryCount: compulsoryPropositions.length });
   logInfo('Compulsory propositions extracted', {
     source: 'plan-generation',
     operation: 'extract-propositions',
@@ -1579,7 +1607,7 @@ THREE CONTINUITY CONSTRAINTS — the prose honours all three. The *mode* of hono
 2. THREADS: each thread shift lands at a specific moment in the scene. In dramatic registers that moment is usually dramatised through action; in reflective, essayistic, or lyric registers it may be named, stated, or imaged — whatever the profile calls for.
 3. SYSTEM: new system concepts arrive with grounding — a demonstration, a citation, a consequence, a worked example, or a framing that earns them. What counts as "earning" is register-dependent.
 
-Satisfy every logical requirement and achieve every proposition in whatever mode the profile declares. Write at least ~${sceneScale(scene).estWords} words. If the scene needs more, write more.
+Satisfy every logical requirement and achieve every proposition in whatever mode the profile declares. Length is driven by the plan — give each beat the space it needs and no more; brevity is a virtue.
 
 PROSE PROFILE COMPLIANCE: every sentence conforms to the voice, register, devices, and rules declared above. If the profile forbids figurative language, use zero figures of speech. If it requires specific devices, use them. The profile is the authorial voice — match it.`
     : `RHYTHM & VOICE — the prose profile is law; the defaults below apply only when the profile is silent:
@@ -1597,7 +1625,7 @@ THREE CONTINUITY CONSTRAINTS — the prose honours all three. The mode of honour
 2. THREADS: each thread shift lands at a specific moment in the scene. In dramatic registers the shift is usually dramatised; in reflective, essayistic, or lyric registers it may be named, stated, or imaged.
 3. SYSTEM: new system concepts arrive with grounding appropriate to the register — demonstration, citation, consequence, worked example, or named framing.
 
-Render every thread shift, world change, relationship delta, and system reveal in the mode the profile declares. Foreshadow through imagery, subtext, or explicit framing as the profile prefers. Write at least ~${sceneScale(scene).estWords} words, more if the scene needs it.
+Render every thread shift, world change, relationship delta, and system reveal in the mode the profile declares. Foreshadow through imagery, subtext, or explicit framing as the profile prefers. Length is driven by the scene's needs — no fixed floor, no padding.
 
 PROSE PROFILE COMPLIANCE: every sentence conforms to the declared voice, register, devices, and rules. If the profile forbids figures of speech, use zero. If it requires specific devices, use them.`;
 

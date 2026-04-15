@@ -69,9 +69,10 @@ export function useBulkAudioGenerate() {
       // Resolve prose for current branch
       const { prose } = resolveProseForBranch(scene, activeBranchId, branches);
 
-      // Skip if no prose or already has audio
+      // Prose is a hard dependency — but existing audio is NOT a skip
+      // condition. Bulk audio always regenerates so the latest prose is
+      // reflected in speech.
       if (!prose) return;
-      if (scene.audioUrl) return;
 
       updateRunState({
         statusMessage: `Generating audio for "${scene.summary.slice(0, 40)}..."`,
@@ -143,16 +144,16 @@ export function useBulkAudioGenerate() {
 
     const branches = activeNarrative.branches;
 
-    // Find all scenes that need audio generation
+    // Find every scene bulk audio will regenerate — any scene with prose.
+    // Existing audio is overwritten so regeneration tracks the latest prose.
     const scenesToProcess: string[] = [];
     for (const key of resolvedEntryKeys) {
       const entry = resolveEntry(activeNarrative, key);
       if (!entry || !isScene(entry)) continue;
       const scene = entry as Scene;
 
-      // Has resolved prose but no audio
       const { prose } = resolveProseForBranch(scene, activeBranchId, branches);
-      if (prose && !scene.audioUrl) {
+      if (prose) {
         scenesToProcess.push(scene.id);
       }
     }
@@ -194,7 +195,8 @@ export function useBulkAudioGenerate() {
     runStateRef.current = null;
   }, []);
 
-  // Count how many scenes need audio
+  // Count how many scenes bulk audio will process — every scene with
+  // prose, since existing audio is regenerated to stay in sync.
   const count = useCallback(() => {
     const { activeNarrative, resolvedEntryKeys, viewState } = stateRef.current;
     const { activeBranchId } = viewState;
@@ -209,7 +211,7 @@ export function useBulkAudioGenerate() {
       const scene = entry as Scene;
 
       const { prose } = resolveProseForBranch(scene, activeBranchId, branches);
-      if (prose && !scene.audioUrl) needsAudio++;
+      if (prose) needsAudio++;
     }
 
     return needsAudio;

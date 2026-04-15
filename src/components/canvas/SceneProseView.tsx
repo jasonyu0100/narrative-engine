@@ -1,7 +1,6 @@
 "use client";
 
 import { generateSceneProse, rewriteSceneProse, reverseEngineerScenePlan } from "@/lib/ai";
-import { sceneScale } from "@/lib/ai/context";
 import { useResolvedProse, useResolvedPlan } from "@/hooks/useResolvedScene";
 import { getResolvedPlanVersion } from "@/lib/narrative-utils";
 import { useStore } from "@/lib/store";

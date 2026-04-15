@@ -69,20 +69,17 @@ export function useBulkGenerate() {
       const scene = activeNarrative.scenes[sceneId];
       if (!scene) return;
 
-      // Skip if already has content (using resolved versions)
+      // Bulk mode ALWAYS generates a new version — existing plan/prose is
+      // not a skip condition. The versioning system records each run as a
+      // new version so prior results remain recoverable.
       const branches = activeNarrative.branches;
       const activeBranchId = stateRef.current.viewState.activeBranchId!;
       const resolvedPlan = resolvePlanForBranch(scene, activeBranchId, branches);
       const { prose: resolvedProse } = resolveProseForBranch(scene, activeBranchId, branches);
 
-      if (mode === 'plan' && resolvedPlan) return;
-      if (mode === 'prose' && resolvedProse) return;
-
-      // Queue-specific gates depend on the extraction source:
-      //   'plan' + 'prose' source: reverse-engineering requires prose — skip scenes without it.
-      //   'plan' + 'structure' source: forward generation only needs scene structure; no extra gate.
-      //   'prose' + 'prose' source: prose can be generated without a plan; no extra gate.
-      //   'prose' + 'structure' source: current behaviour — prose requires a plan first.
+      // Dependency gates — these are structural, not "already exists" gates.
+      //   'plan' + 'prose' source: reverse-engineering requires prose to exist.
+      //   'prose' + 'structure' source: forward prose generation requires a plan.
       if (mode === 'plan' && planSource === 'prose' && !resolvedProse) return;
       if (mode === 'prose' && planSource === 'structure' && !resolvedPlan) return;
 
@@ -187,9 +184,9 @@ export function useBulkGenerate() {
 
     const planSource = activeNarrative.storySettings?.planExtractionSource ?? 'structure';
 
-    // Find all scenes that need generation. Queue membership depends on the
-    // plan extraction source — reverse-engineering requires prose to exist,
-    // while prose-first generation does not require a plan.
+    // Find every scene that bulk mode will regenerate. Queue membership is
+    // about dependencies, not "already exists" — bulk always writes new
+    // versions, leaving prior versions in history.
     const scenesToProcess: string[] = [];
     for (const key of resolvedEntryKeys) {
       const entry = resolveEntry(activeNarrative, key);
@@ -201,15 +198,15 @@ export function useBulkGenerate() {
       const resolvedPlan = resolvePlanForBranch(scene, activeBranchId, branches);
       const { prose: resolvedProse } = resolveProseForBranch(scene, activeBranchId, branches);
 
-      if (mode === 'plan' && !resolvedPlan) {
-        // Structure source: any scene without a plan can be forward-generated.
-        // Prose source: only scenes that already have prose can be reverse-engineered.
+      if (mode === 'plan') {
+        // Structure source: any scene can be forward-generated.
+        // Prose source: needs prose to reverse-engineer from.
         if (planSource === 'structure' || resolvedProse) {
           scenesToProcess.push(scene.id);
         }
-      } else if (mode === 'prose' && !resolvedProse) {
+      } else if (mode === 'prose') {
         // Structure source: prose generation requires a plan first.
-        // Prose source: prose can be generated directly from scene structure.
+        // Prose source: prose can be generated directly.
         if (planSource === 'prose' || resolvedPlan) {
           scenesToProcess.push(scene.id);
         }
@@ -254,8 +251,10 @@ export function useBulkGenerate() {
     runStateRef.current = null;
   }, []);
 
-  // Count how many scenes need plan/prose — mirrors the queue filters in start()
-  // so counts and what the button actually processes stay in sync.
+  // Count how many scenes bulk mode would process — mirrors the queue
+  // filters in start(). Bulk always writes a new version, so the count
+  // reflects scenes that satisfy the dependency gates, not scenes missing
+  // content.
   const counts = useCallback(() => {
     const { activeNarrative, resolvedEntryKeys, viewState } = stateRef.current;
     const { activeBranchId } = viewState;
@@ -274,8 +273,8 @@ export function useBulkGenerate() {
       const resolvedPlan = resolvePlanForBranch(scene, activeBranchId, branches);
       const { prose: resolvedProse } = resolveProseForBranch(scene, activeBranchId, branches);
 
-      if (!resolvedPlan && (planSource === 'structure' || resolvedProse)) needsPlan++;
-      if (!resolvedProse && (planSource === 'prose' || resolvedPlan)) needsProse++;
+      if (planSource === 'structure' || resolvedProse) needsPlan++;
+      if (planSource === 'prose' || resolvedPlan) needsProse++;
     }
 
     return { needsPlan, needsProse };
