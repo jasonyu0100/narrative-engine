@@ -265,11 +265,13 @@ export function ScenePlanView({
       generatePlan(detail?.guidance);
     }
     function onClear() {
+      const branchId = state.viewState.activeBranchId;
+      if (!branchId) return;
       setPlanCache({ plan: null, status: "idle" });
       dispatch({
-        type: "UPDATE_SCENE",
+        type: "CLEAR_SCENE_PLAN_VERSION",
         sceneId: scene.id,
-        updates: { plan: undefined },
+        branchId,
       });
     }
     function onRewrite(e: Event) {
@@ -284,7 +286,7 @@ export function ScenePlanView({
       window.removeEventListener("canvas:clear-plan", onClear);
       window.removeEventListener("canvas:rewrite-plan", onRewrite);
     };
-  }, [generatePlan, rewritePlan, scene.id, dispatch]);
+  }, [generatePlan, rewritePlan, scene.id, dispatch, state.viewState.activeBranchId]);
 
   const activePlan: BeatPlan | null =
     planCache.plan && Array.isArray(planCache.plan.beats)

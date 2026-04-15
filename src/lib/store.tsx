@@ -17,6 +17,8 @@ import {
   gradeForces,
   nextId,
   resolveEntrySequence,
+  resolvePlanForBranch,
+  resolveProseForBranch,
 } from "@/lib/narrative-utils";
 import { initMatrixPresets } from "@/lib/pacing-profile";
 import {
@@ -712,6 +714,8 @@ export type Action =
       versionType?: "generate" | "rewrite" | "edit";
       sourcePlanVersion?: string;
     }
+  | { type: "CLEAR_SCENE_PROSE_VERSION"; sceneId: string; branchId: string }
+  | { type: "CLEAR_SCENE_PLAN_VERSION"; sceneId: string; branchId: string }
   | { type: "DELETE_SCENE"; sceneId: string; branchId: string }
   // Branch management
   | { type: "CREATE_BRANCH"; branch: Branch }
@@ -1572,6 +1576,78 @@ function reducer(state: AppState, action: Action): AppState {
           },
         };
       });
+
+    case "CLEAR_SCENE_PROSE_VERSION":
+    case "CLEAR_SCENE_PLAN_VERSION": {
+      const isProse = action.type === "CLEAR_SCENE_PROSE_VERSION";
+      return updateNarrative(state, (n) => {
+        const scene = n.scenes[action.sceneId];
+        if (!scene) return n;
+        const branch = n.branches[action.branchId];
+        if (!branch) return n;
+
+        // Find the version currently resolved for this branch — either the
+        // pinned pointer or the natural resolution. That is the version the
+        // user sees and wants to clear.
+        const versions = isProse ? scene.proseVersions ?? [] : scene.planVersions ?? [];
+        const pointerVersion = isProse
+          ? branch.versionPointers?.[scene.id]?.proseVersion
+          : branch.versionPointers?.[scene.id]?.planVersion;
+        const resolvedVersion = (() => {
+          if (pointerVersion && versions.some(v => v.version === pointerVersion)) {
+            return pointerVersion;
+          }
+          if (isProse) {
+            const prose = resolveProseForBranch(scene, action.branchId, n.branches);
+            const match = prose.prose !== undefined
+              ? (scene.proseVersions ?? []).slice().sort((a, b) => b.timestamp - a.timestamp)
+                  .find(v => v.prose === prose.prose)
+              : undefined;
+            return match?.version;
+          } else {
+            const plan = resolvePlanForBranch(scene, action.branchId, n.branches);
+            const match = plan
+              ? (scene.planVersions ?? []).slice().sort((a, b) => b.timestamp - a.timestamp)
+                  .find(v => v.plan === plan)
+              : undefined;
+            return match?.version;
+          }
+        })();
+        if (!resolvedVersion) return n;
+
+        // Remove the resolved version from the scene's version array.
+        const updatedVersions = versions.filter(v => v.version !== resolvedVersion);
+        const updatedScene = isProse
+          ? { ...scene, proseVersions: updatedVersions as typeof scene.proseVersions }
+          : { ...scene, planVersions: updatedVersions as typeof scene.planVersions };
+
+        // Clear the pointer if it was pinned to the removed version.
+        const scenePointers = branch.versionPointers?.[scene.id];
+        let updatedBranches = n.branches;
+        if (scenePointers) {
+          const pointerKey = isProse ? "proseVersion" : "planVersion";
+          if (scenePointers[pointerKey] === resolvedVersion) {
+            const { [pointerKey]: _removed, ...restScenePointers } = scenePointers;
+            const restHasPointers = Object.keys(restScenePointers).length > 0;
+            const { [scene.id]: _removedScene, ...otherScenePointers } = branch.versionPointers ?? {};
+            const nextScenePointers = restHasPointers
+              ? { ...otherScenePointers, [scene.id]: restScenePointers }
+              : otherScenePointers;
+            const nextPointers = Object.keys(nextScenePointers).length > 0 ? nextScenePointers : undefined;
+            updatedBranches = {
+              ...n.branches,
+              [action.branchId]: { ...branch, versionPointers: nextPointers },
+            };
+          }
+        }
+
+        return {
+          ...n,
+          scenes: { ...n.scenes, [action.sceneId]: updatedScene },
+          branches: updatedBranches,
+        };
+      });
+    }
 
     case "SET_VERSION_POINTER":
       return updateNarrative(state, (n) => {

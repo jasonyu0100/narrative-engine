@@ -306,12 +306,14 @@ export function SceneProseView({
       generateProse(detail?.guidance);
     }
     function onClear() {
+      const branchId = state.viewState.activeBranchId;
+      if (!branchId) return;
       setProseState({ text: "", status: "idle" });
       setIsEditing(false);
       dispatch({
-        type: "UPDATE_SCENE",
+        type: "CLEAR_SCENE_PROSE_VERSION",
         sceneId: scene.id,
-        updates: { prose: undefined },
+        branchId,
       });
     }
     function onEdit() {
@@ -370,7 +372,7 @@ export function SceneProseView({
       window.removeEventListener("canvas:toggle-beat-plan", onToggleBeatPlan);
       window.removeEventListener("prose:scroll-to-beat", onScrollToBeat);
     };
-  }, [generateProse, rewriteProse, isEditing, saveEdit, scene.id, dispatch, setShowBeatPlan]);
+  }, [generateProse, rewriteProse, isEditing, saveEdit, scene.id, dispatch, setShowBeatPlan, state.viewState.activeBranchId]);
 
   // Click outside textarea to save and close editor
   const editorWrapRef = useRef<HTMLDivElement>(null);
