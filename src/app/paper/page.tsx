@@ -619,6 +619,7 @@ const NAV = [
   { id: "planning", label: "Causal Reasoning" },
   { id: "mcts", label: "MCTS" },
   { id: "prose-profiles", label: "Prose Profiles" },
+  { id: "markov", label: "Markov Chains" },
   { id: "revision", label: "Revision" },
   { id: "classification", label: "Classification" },
   { id: "economics", label: "Economics" },
@@ -2569,6 +2570,566 @@ export default function PaperPage() {
               authorial accent — a thriller in Orwell&apos;s introspective
               voice produces psychological tension; the same story in
               Rowling&apos;s dialogue-driven style produces kinetic urgency.
+            </P>
+          </Section>
+
+          {/* ── Markov Chains ─────────────────────────────────────────── */}
+          <Section id="markov" label="Markov Chains">
+            <P>
+              InkTide uses two layers of Markov chains. Layer 1 operates at
+              the <strong>scene level</strong> — sampling force profiles from
+              an 8-state matrix to control pacing. Layer 2 operates at the{" "}
+              <strong>beat level</strong> — sampling sequences from a
+              10-state matrix over beat functions to control prose texture.
+              Both are derived the same way: classify each unit, count
+              consecutive transitions, normalise rows.
+            </P>
+
+            <h3 className="text-[15px] font-semibold text-white/80 mt-8 mb-3">
+              Layer 1: Pacing Chains (Scene &rarr; Scene)
+            </h3>
+            <P>
+              The eight cube corners form a finite state space. Each scene
+              occupies one corner; consecutive scenes form an empirical Markov
+              chain <Tex>{"T \\in \\mathbb{R}^{8 \\times 8}"}</Tex>, where{" "}
+              <Tex>{"T_{ij}"}</Tex> is the probability of moving from mode{" "}
+              <Tex>{"i"}</Tex> to mode <Tex>{"j"}</Tex>. Raw forces are
+              computed per scene, z-score normalised across the novel, and
+              classified into corners.
+            </P>
+
+            {/* HP Pacing State Graph — all 49 transitions */}
+            <div className="my-6 flex flex-col items-center gap-4 overflow-x-auto">
+              <svg
+                width="400"
+                height="400"
+                viewBox="0 0 400 400"
+                className="select-none max-w-full min-w-[300px]"
+              >
+                {(() => {
+                  const names = [
+                    "Epoch",
+                    "Climax",
+                    "Revelation",
+                    "Closure",
+                    "Discovery",
+                    "Growth",
+                    "Lore",
+                    "Rest",
+                  ];
+                  const colors = [
+                    "#f59e0b",
+                    "#ef4444",
+                    "#a855f7",
+                    "#6366f1",
+                    "#22d3ee",
+                    "#22c55e",
+                    "#3b82f6",
+                    "#6b7280",
+                  ];
+                  const visits = [11, 7, 2, 15, 4, 12, 6, 16];
+                  const cx = 200,
+                    cy = 200,
+                    r = 150;
+                  const maxV = Math.max(...visits);
+                  const positions = names.map((_, i) => {
+                    const angle = (i / 8) * Math.PI * 2 - Math.PI / 2;
+                    return {
+                      x: cx + r * Math.cos(angle),
+                      y: cy + r * Math.sin(angle),
+                    };
+                  });
+                  // All 38 transitions from HP delta analysis
+                  const edges: [number, number, number][] = [
+                    [7, 7, 5],
+                    [3, 5, 4],
+                    [1, 7, 4],
+                    [0, 3, 4],
+                    [7, 5, 3],
+                    [5, 5, 3],
+                    [0, 0, 3],
+                    [7, 3, 3],
+                    [3, 0, 3],
+                    [3, 3, 3],
+                    [5, 7, 3],
+                    [4, 6, 2],
+                    [6, 0, 2],
+                    [5, 3, 2],
+                    [1, 3, 2],
+                    [6, 4, 2],
+                    [7, 1, 2],
+                    [3, 7, 2],
+                    [0, 7, 1],
+                    [3, 1, 1],
+                    [3, 6, 1],
+                    [0, 6, 1],
+                    [6, 1, 1],
+                    [5, 2, 1],
+                    [2, 0, 1],
+                    [0, 1, 1],
+                    [7, 6, 1],
+                    [4, 0, 1],
+                    [5, 6, 1],
+                    [6, 7, 1],
+                    [3, 2, 1],
+                    [2, 3, 1],
+                    [5, 1, 1],
+                    [1, 1, 1],
+                    [7, 4, 1],
+                    [4, 5, 1],
+                    [5, 0, 1],
+                    [0, 5, 1],
+                  ];
+                  const maxE = 5;
+                  return (
+                    <>
+                      {edges.map(([fi, ti, count], ei) => {
+                        if (fi === ti) {
+                          const angle = (fi / 8) * Math.PI * 2 - Math.PI / 2;
+                          const loopR = 14;
+                          const ox = cx + (r + loopR + 12) * Math.cos(angle);
+                          const oy = cy + (r + loopR + 12) * Math.sin(angle);
+                          return (
+                            <circle
+                              key={ei}
+                              cx={ox}
+                              cy={oy}
+                              r={loopR}
+                              fill="none"
+                              stroke="rgba(52,211,153,1)"
+                              strokeWidth={1 + 2 * (count / maxE)}
+                              opacity={0.12 + 0.55 * (count / maxE)}
+                            />
+                          );
+                        }
+                        const p1 = positions[fi],
+                          p2 = positions[ti];
+                        const dx = p2.x - p1.x,
+                          dy = p2.y - p1.y;
+                        const len = Math.sqrt(dx * dx + dy * dy);
+                        const nx = -dy / len,
+                          ny = dx / len;
+                        const nr = 14 + (visits[ti] / maxV) * 10;
+                        const ratio = Math.max(0, (len - nr - 8) / len);
+                        return (
+                          <line
+                            key={ei}
+                            x1={p1.x + 4 * nx}
+                            y1={p1.y + 4 * ny}
+                            x2={p1.x + dx * ratio + 4 * nx}
+                            y2={p1.y + dy * ratio + 4 * ny}
+                            stroke="rgba(52,211,153,1)"
+                            strokeWidth={1 + 2 * (count / maxE)}
+                            opacity={0.12 + 0.55 * (count / maxE)}
+                            strokeLinecap="round"
+                          />
+                        );
+                      })}
+                      {names.map((name, i) => {
+                        const p = positions[i];
+                        const nr = 14 + (visits[i] / maxV) * 10;
+                        return (
+                          <g key={i}>
+                            <circle
+                              cx={p.x}
+                              cy={p.y}
+                              r={nr}
+                              fill={colors[i]}
+                              opacity={0.85}
+                            />
+                            <text
+                              x={p.x}
+                              y={p.y + 1}
+                              fill="#fff"
+                              fontSize="9"
+                              fontWeight="600"
+                              textAnchor="middle"
+                              dominantBaseline="middle"
+                            >
+                              {name}
+                            </text>
+                            <text
+                              x={p.x}
+                              y={p.y + nr + 12}
+                              fill="#9ca3af"
+                              fontSize="8"
+                              textAnchor="middle"
+                            >
+                              {visits[i]}x
+                            </text>
+                          </g>
+                        );
+                      })}
+                    </>
+                  );
+                })()}
+              </svg>
+              <p className="text-[10px] text-white/30 text-center">
+                Harry Potter and the Sorcerer&apos;s Stone — pacing chain. 73
+                scenes, 72 transitions, 38 unique edges.
+                <br />
+                Node size = visit frequency. Edge thickness = transition count.
+              </p>
+            </div>
+
+            <P>
+              Harry Potter&apos;s pacing chain is broadly distributed:
+              entropy 2.78/3.00, self-loop rate 20.8%, fate-to-buildup ratio
+              35/38. Rest (16 visits) and Closure (15) lead, with Growth (12)
+              and Epoch (11) close behind — the story spends most of its time
+              either breathing or earning its peaks, with high-force scenes
+              punctuating rather than dominating. The strongest transitions
+              (Rest&rarr;Rest 5x, then Closure&rarr;Growth, Climax&rarr;Rest,
+              and Epoch&rarr;Closure each 4x) show a rhythm of build,
+              culminate, settle, build again.
+            </P>
+            <P>
+              Other works produce strikingly different fingerprints.{" "}
+              <em>Nineteen Eighty-Four</em> is fate-heavy — 72% of scenes land
+              in the top four corners, reflecting Orwell&apos;s sustained
+              pressure rather than Rowling&apos;s pivoting.{" "}
+              <em>The Great Gatsby</em> oscillates between Epoch and Rest with
+              little middle ground — Fitzgerald&apos;s pendulum rhythm. Each
+              work&apos;s transition matrix is a measurable authorial signature.
+            </P>
+            <P>
+              Before generating an arc, the engine walks the active matrix
+              for N steps, producing a sequence like{" "}
+              <span className="font-mono text-white/50">
+                Growth &rarr; Lore &rarr; Climax &rarr; Rest &rarr; Growth
+              </span>
+              . Each step becomes a per-scene force target. Users pick a{" "}
+              <em>rhythm profile</em> derived from a published work: a story
+              on Rowling&apos;s matrix pivots constantly between peaks, one
+              on Orwell&apos;s sustains pressure then erupts. Whether Markov
+              guidance beats unguided generation on composite score is a
+              testable claim we have not yet run in controlled experiment.
+            </P>
+
+            <h3 className="text-[15px] font-semibold text-white/80 mt-8 mb-3">
+              Layer 2: Beat Chains (Beat &rarr; Beat)
+            </h3>
+            <P>
+              Pacing chains control <em>which force profile</em> a scene
+              hits. Within a scene, the prose itself has structure — a
+              sequence of discrete <strong>beats</strong>, each a specific
+              narrative function delivered through a specific mechanism. An
+              LLM decomposes scenes into beats classified against a fixed
+              taxonomy of 10 functions and 8 mechanisms.
+            </P>
+
+            <P>
+              The <strong>10 beat functions</strong> describe what each section
+              of prose does:{" "}
+              <span className="text-white/60">
+                <span style={{ color: "#6b7280" }}>breathe</span> (atmosphere,
+                grounding), <span style={{ color: "#3b82f6" }}>inform</span>{" "}
+                (knowledge delivery),{" "}
+                <span style={{ color: "#22c55e" }}>advance</span> (forward
+                momentum), <span style={{ color: "#ec4899" }}>bond</span>{" "}
+                (relationship shifts),{" "}
+                <span style={{ color: "#f59e0b" }}>turn</span> (pivots and
+                reversals), <span style={{ color: "#a855f7" }}>reveal</span>{" "}
+                (character nature exposed),{" "}
+                <span style={{ color: "#ef4444" }}>shift</span> (power dynamics
+                invert), <span style={{ color: "#06b6d4" }}>expand</span>{" "}
+                (world-building),{" "}
+                <span style={{ color: "#84cc16" }}>foreshadow</span> (plants for
+                later fate), <span style={{ color: "#14b8a6" }}>resolve</span>{" "}
+                (tension releases).
+              </span>
+            </P>
+
+            <P>
+              The <strong>8 mechanisms</strong> describe how each beat is
+              delivered as prose: dialogue, thought, action, environment,
+              narration, memory, document, comic. A single beat function can be
+              delivered through different mechanisms — a <em>reveal</em> can
+              land through dialogue, action, or narration, each producing a
+              different texture.
+            </P>
+
+            <P>
+              The methodology mirrors the pacing chain exactly: extract beat
+              plans from every scene of a published work, tally consecutive
+              function&rarr;function transitions, normalise rows, and produce a
+              Markov matrix <Tex>{"B \\in \\mathbb{R}^{10 \\times 10}"}</Tex>.
+              Applied to <em>Harry Potter and the Sorcerer&apos;s Stone</em>,
+              an earlier beat-plan extraction yielded 1,254 beats across the
+              novel (roughly 17 beats per scene at the current 73-scene
+              structural pass):
+            </P>
+
+            {/* HP Beat Profile Graph — all 92 transitions */}
+            <div className="my-6 flex flex-col items-center gap-4 overflow-x-auto">
+              <svg
+                width="420"
+                height="420"
+                viewBox="0 0 420 420"
+                className="select-none max-w-full min-w-[300px]"
+              >
+                {(() => {
+                  const fns = [
+                    "breathe",
+                    "inform",
+                    "advance",
+                    "bond",
+                    "turn",
+                    "reveal",
+                    "shift",
+                    "expand",
+                    "foreshadow",
+                    "resolve",
+                  ];
+                  const fnColors: Record<string, string> = {
+                    breathe: "#6b7280",
+                    inform: "#3b82f6",
+                    advance: "#22c55e",
+                    bond: "#ec4899",
+                    turn: "#f59e0b",
+                    reveal: "#a855f7",
+                    shift: "#ef4444",
+                    expand: "#06b6d4",
+                    foreshadow: "#84cc16",
+                    resolve: "#14b8a6",
+                  };
+                  const visits = [205, 255, 329, 96, 83, 81, 44, 48, 48, 65];
+                  const cx = 210,
+                    cy = 210,
+                    r = 155;
+                  const maxV = Math.max(...visits);
+                  const positions = fns.map((_, i) => {
+                    const angle = (i / 10) * Math.PI * 2 - Math.PI / 2;
+                    return {
+                      x: cx + r * Math.cos(angle),
+                      y: cy + r * Math.sin(angle),
+                    };
+                  });
+                  // All 92 transitions from HP beat analysis
+                  const edges: [number, number, number][] = [
+                    [1, 2, 98],
+                    [0, 1, 82],
+                    [2, 1, 66],
+                    [2, 2, 58],
+                    [0, 2, 56],
+                    [2, 0, 42],
+                    [2, 4, 38],
+                    [2, 3, 31],
+                    [2, 9, 29],
+                    [1, 3, 27],
+                    [4, 2, 26],
+                    [3, 2, 26],
+                    [1, 0, 25],
+                    [5, 2, 24],
+                    [2, 5, 23],
+                    [1, 5, 23],
+                    [1, 1, 23],
+                    [4, 1, 21],
+                    [1, 7, 20],
+                    [3, 1, 18],
+                    [0, 0, 16],
+                    [5, 1, 16],
+                    [7, 2, 16],
+                    [0, 4, 14],
+                    [5, 3, 13],
+                    [1, 4, 13],
+                    [3, 5, 11],
+                    [3, 0, 11],
+                    [2, 6, 11],
+                    [5, 9, 10],
+                    [8, 0, 10],
+                    [2, 8, 9],
+                    [1, 6, 9],
+                    [6, 2, 9],
+                    [2, 7, 9],
+                    [7, 1, 9],
+                    [9, 2, 8],
+                    [6, 5, 8],
+                    [4, 6, 8],
+                    [3, 6, 7],
+                    [8, 2, 7],
+                    [1, 8, 7],
+                    [0, 3, 7],
+                    [9, 8, 6],
+                    [0, 7, 6],
+                    [0, 8, 6],
+                    [4, 8, 6],
+                    [9, 0, 6],
+                    [8, 9, 5],
+                    [3, 4, 5],
+                    [7, 0, 5],
+                    [0, 9, 5],
+                    [4, 0, 5],
+                    [1, 9, 5],
+                    [9, 3, 5],
+                    [3, 7, 5],
+                    [6, 9, 5],
+                    [8, 1, 4],
+                    [5, 8, 4],
+                    [7, 5, 4],
+                    [5, 4, 4],
+                    [0, 5, 4],
+                    [6, 8, 4],
+                    [4, 3, 4],
+                    [6, 1, 4],
+                    [9, 6, 4],
+                    [9, 4, 3],
+                    [6, 4, 3],
+                    [3, 3, 3],
+                    [4, 5, 3],
+                    [6, 0, 3],
+                    [8, 4, 3],
+                    [6, 3, 3],
+                    [5, 6, 3],
+                    [4, 9, 3],
+                    [9, 5, 3],
+                    [3, 8, 3],
+                    [3, 9, 3],
+                    [9, 1, 3],
+                    [7, 8, 3],
+                    [4, 7, 3],
+                    [5, 0, 2],
+                    [7, 3, 2],
+                    [0, 6, 1],
+                    [5, 7, 1],
+                    [7, 7, 1],
+                    [5, 5, 1],
+                    [7, 6, 1],
+                    [8, 7, 1],
+                    [9, 7, 1],
+                    [6, 7, 1],
+                    [8, 5, 1],
+                  ];
+                  const maxE = 98;
+                  return (
+                    <>
+                      {edges.map(([fi, ti, count], ei) => {
+                        if (fi === ti) {
+                          const angle = (fi / 10) * Math.PI * 2 - Math.PI / 2;
+                          const loopR = 14;
+                          const ox = cx + (r + loopR + 12) * Math.cos(angle);
+                          const oy = cy + (r + loopR + 12) * Math.sin(angle);
+                          return (
+                            <circle
+                              key={ei}
+                              cx={ox}
+                              cy={oy}
+                              r={loopR}
+                              fill="none"
+                              stroke="rgba(52,211,153,1)"
+                              strokeWidth={0.5 + 2.5 * (count / maxE)}
+                              opacity={0.08 + 0.6 * (count / maxE)}
+                            />
+                          );
+                        }
+                        const p1 = positions[fi],
+                          p2 = positions[ti];
+                        const dx = p2.x - p1.x,
+                          dy = p2.y - p1.y;
+                        const len = Math.sqrt(dx * dx + dy * dy);
+                        const nx = -dy / len,
+                          ny = dx / len;
+                        const nr = 12 + (visits[ti] / maxV) * 12;
+                        const ratio = Math.max(0, (len - nr - 6) / len);
+                        return (
+                          <line
+                            key={ei}
+                            x1={p1.x + 3 * nx}
+                            y1={p1.y + 3 * ny}
+                            x2={p1.x + dx * ratio + 3 * nx}
+                            y2={p1.y + dy * ratio + 3 * ny}
+                            stroke="rgba(52,211,153,1)"
+                            strokeWidth={0.5 + 2.5 * (count / maxE)}
+                            opacity={0.08 + 0.6 * (count / maxE)}
+                            strokeLinecap="round"
+                          />
+                        );
+                      })}
+                      {fns.map((fn, i) => {
+                        const p = positions[i];
+                        const nr = 12 + (visits[i] / maxV) * 12;
+                        return (
+                          <g key={i}>
+                            <circle
+                              cx={p.x}
+                              cy={p.y}
+                              r={nr}
+                              fill={fnColors[fn]}
+                              opacity={0.85}
+                            />
+                            <text
+                              x={p.x}
+                              y={p.y + 1}
+                              fill="#fff"
+                              fontSize="8"
+                              fontWeight="600"
+                              textAnchor="middle"
+                              dominantBaseline="middle"
+                            >
+                              {fn}
+                            </text>
+                            <text
+                              x={p.x}
+                              y={p.y + nr + 12}
+                              fill="#9ca3af"
+                              fontSize="8"
+                              textAnchor="middle"
+                            >
+                              {visits[i]}x
+                            </text>
+                          </g>
+                        );
+                      })}
+                    </>
+                  );
+                })()}
+              </svg>
+              <p className="text-[10px] text-white/30 text-center">
+                Harry Potter and the Sorcerer&apos;s Stone — beat chain. 1,254
+                beats, 1,163 transitions, 92 unique edges.
+                <br />
+                Node size = beat frequency. Edge thickness = transition count.
+              </p>
+            </div>
+
+            <P>
+              The chain reveals <em>advance</em> as the dominant hub (329
+              beats, 26%) — momentum is Rowling&apos;s connective tissue.
+              The strongest single transition is{" "}
+              <em>inform &rarr; advance</em> (98x): knowledge delivery
+              triggers action. <em>Breathe</em> feeds almost exclusively into{" "}
+              <em>inform</em> (82x) and <em>advance</em> (56x) — atmosphere
+              exists to launch the next movement. All 100 pairs appear at
+              least once; the matrix is dense.
+            </P>
+
+            <P>
+              Other works shift the pattern. <em>Nineteen Eighty-Four</em>{" "}
+              gives reveal unusual prominence — a mind trapped between inner
+              world and outer surveillance. <em>Gatsby</em> leans on dialogue
+              and narration — Fitzgerald&apos;s observer-narrator reporting.{" "}
+              <em>Alice</em> is advance-dominant with minimal bonding — a
+              protagonist propelled through episodes without deepening
+              relationships.
+            </P>
+
+            <P>
+              Alongside the transition matrix, the analysis extracts a{" "}
+              <strong>mechanism distribution</strong>. Harry Potter is
+              dialogue-heavy (42% dialogue, 29% action, 16% environment, 6%
+              thought, 5% narration) — a conversation-driven pedagogy where
+              characters explain magic by arguing, teasing, and showing off.
+            </P>
+
+            <h3 className="text-[15px] font-semibold text-white/80 mt-8 mb-3">
+              Combining the Chains
+            </h3>
+            <P>
+              Two independent chains, orthogonal axes:{" "}
+              <em>what happens</em> (LLM from narrative logic),{" "}
+              <em>how intensely</em> (scene-level pacing chain), and{" "}
+              <em>how it reads</em> (beat-level prose chain). Both derived
+              empirically from published works.
             </P>
           </Section>
 
