@@ -1607,7 +1607,13 @@ THREE CONTINUITY CONSTRAINTS — the prose honours all three. The *mode* of hono
 2. THREADS: each thread shift lands at a specific moment in the scene. In dramatic registers that moment is usually dramatised through action; in reflective, essayistic, or lyric registers it may be named, stated, or imaged — whatever the profile calls for.
 3. SYSTEM: new system concepts arrive with grounding — a demonstration, a citation, a consequence, a worked example, or a framing that earns them. What counts as "earning" is register-dependent.
 
-Satisfy every logical requirement and achieve every proposition in whatever mode the profile declares. Length is driven by the plan — give each beat the space it needs and no more; brevity is a virtue.
+BEAT SIZING — EACH BEAT IS A ~${WORDS_PER_BEAT}-WORD CHUNK OF PROSE. The plan was built on this convention: every beat is allocated roughly ${WORDS_PER_BEAT} words so beat weight stays consistent across the work.
+- Write each beat at approximately ${WORDS_PER_BEAT} words of prose. A light beat may land at ~${Math.round(WORDS_PER_BEAT * 0.7)}; a dense dialogue or action beat with many propositions may stretch to ~${Math.round(WORDS_PER_BEAT * 1.3)}. Treat this as the rhythm budget, not a hard cap.
+- The plan has already balanced proposition load across beats assuming this size. If a beat carries 4 propositions, it needs ~${WORDS_PER_BEAT} words to land all four with texture; compressing into 40 words will drop or flatten them. Expanding into 200 words will bloat the rhythm and push the scene long.
+- Consistency matters. A ~${Math.round(WORDS_PER_BEAT * 0.5)}-word beat followed by a ~${WORDS_PER_BEAT * 2}-word beat reads as broken rhythm. Keep consecutive beats comparable in length unless the plan's mechanism/function explicitly calls for contrast.
+- Brevity is still a virtue — do not pad to hit the target. If a beat can honestly deliver its propositions in fewer words, write fewer words. Just do not cut propositions to fit.
+
+Satisfy every logical requirement and achieve every proposition in whatever mode the profile declares.
 
 PROSE PROFILE COMPLIANCE: every sentence conforms to the voice, register, devices, and rules declared above. If the profile forbids figurative language, use zero figures of speech. If it requires specific devices, use them. The profile is the authorial voice — match it.`
     : `RHYTHM & VOICE — the prose profile is law; the defaults below apply only when the profile is silent:
@@ -1625,7 +1631,9 @@ THREE CONTINUITY CONSTRAINTS — the prose honours all three. The mode of honour
 2. THREADS: each thread shift lands at a specific moment in the scene. In dramatic registers the shift is usually dramatised; in reflective, essayistic, or lyric registers it may be named, stated, or imaged.
 3. SYSTEM: new system concepts arrive with grounding appropriate to the register — demonstration, citation, consequence, worked example, or named framing.
 
-Render every thread shift, world change, relationship delta, and system reveal in the mode the profile declares. Foreshadow through imagery, subtext, or explicit framing as the profile prefers. Length is driven by the scene's needs — no fixed floor, no padding.
+Render every thread shift, world change, relationship delta, and system reveal in the mode the profile declares. Foreshadow through imagery, subtext, or explicit framing as the profile prefers.
+
+BEAT SIZING — EVEN WITHOUT A PLAN, THINK IN ~${WORDS_PER_BEAT}-WORD BEATS. The scene should read as a sequence of beats of roughly consistent weight — one beat ≈ one paragraph or tight scene moment, ≈${WORDS_PER_BEAT} words. This keeps rhythm even and propositions evenly distributed. No fixed floor, no padding — but if you find a single beat running past ~${WORDS_PER_BEAT * 2} words, it is probably two beats.
 
 PROSE PROFILE COMPLIANCE: every sentence conforms to the declared voice, register, devices, and rules. If the profile forbids figures of speech, use zero. If it requires specific devices, use them.`;
 
