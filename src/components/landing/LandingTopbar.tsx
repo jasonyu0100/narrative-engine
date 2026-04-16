@@ -8,7 +8,6 @@ const NAV_ITEMS = [
   { href: '/paper', label: 'Paper', mobileOnly: false },
   { href: '/case-analysis', label: 'Case Analysis', mobileOnly: true },
   { href: '/dashboard', label: 'Dashboard', mobileOnly: true },
-  { href: '/discover', label: 'Discover', mobileOnly: true },
 ];
 
 export function LandingTopbar() {

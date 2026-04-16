@@ -65,16 +65,6 @@ export default function DashboardPage() {
               </svg>
               Create
             </button>
-            <button
-              onClick={() => router.push('/discover')}
-              className="flex items-center gap-2 text-xs text-white/50 hover:text-white/90 px-3 py-1.5 rounded-lg border border-white/8 hover:border-white/15 hover:bg-white/4 transition"
-            >
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <circle cx="11" cy="11" r="8" />
-                <path d="M21 21l-4.35-4.35" />
-              </svg>
-              Discover
-            </button>
           </div>
 
           {/* Analysis Input */}
