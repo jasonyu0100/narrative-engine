@@ -114,7 +114,7 @@ export default function ThreadLogGraphView({
       degreeMap.set(e.to, (degreeMap.get(e.to) ?? 0) + 1);
     }
     const maxDegree = Math.max(...rawNodes.map((n) => degreeMap.get(n.id) ?? 0), 1);
-    const nodeRadius = (d: TLNode) => 5 + (d.degree / maxDegree) * 20;
+    const nodeRadius = (d: TLNode) => 10 + (d.degree / maxDegree) * 28;
 
     const prevPos = new Map(nodesRef.current.map((n) => [n.id, { x: n.x, y: n.y }]));
     const simNodes: TLNode[] = rawNodes.map((n) => {

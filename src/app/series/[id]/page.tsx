@@ -230,7 +230,10 @@ export default function SeriesPage() {
               />
             )}
 
-            {GRAPH_MODES.has(state.graphViewMode) && (
+            {(GRAPH_MODES.has(state.graphViewMode) ||
+              state.graphViewMode === 'plan' ||
+              state.graphViewMode === 'prose' ||
+              state.graphViewMode === 'audio') && (
               <FloatingPalette
                 isBulkActive={!!(bulk.runState?.isRunning || bulk.runState?.isPaused)}
                 isBulkAudioActive={!!(bulkAudio.runState?.isRunning || bulkAudio.runState?.isPaused)}
