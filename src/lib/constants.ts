@@ -18,26 +18,27 @@ export const ANALYSIS_MAX_CORPUS_WORDS = 500_000;
 // ── AI Models ───────────────────────────────────────────────────────────────
 
 /** Default LLM model used across all API routes */
-export const DEFAULT_MODEL = "google/gemini-3-flash-preview";
+export const DEFAULT_MODEL = "google/gemini-2.5-flash";
 
 /** Model for plans and prose (creative writing tasks) */
 export const WRITING_MODEL = "google/gemini-3-flash-preview";
 
 /** Model for scoring, reconciliation, and text analysis */
-export const ANALYSIS_MODEL = "google/gemini-3-flash-preview";
+export const ANALYSIS_MODEL = "google/gemini-2.5-flash";
 
 /** Model for scene generation — MCTS, auto mode, manual */
-export const GENERATE_MODEL = "google/gemini-3-flash-preview";
+export const GENERATE_MODEL = "google/gemini-2.5-flash";
 
 // ── AI Pricing (per million tokens) ──────────────────────────────────────────
 
 export const MODEL_PRICING: Record<string, { input: number; output: number }> =
   {
+    "google/gemini-2.5-flash": { input: 0.3, output: 2.5 },
     "google/gemini-3-flash-preview": { input: 0.5, output: 3.0 },
   };
 
 /** Fallback pricing when model is unknown */
-export const DEFAULT_PRICING = { input: 0.5, output: 3.0 };
+export const DEFAULT_PRICING = { input: 0.3, output: 2.5 };
 
 // ── AI Temperature ───────────────────────────────────────────────────────────
 
