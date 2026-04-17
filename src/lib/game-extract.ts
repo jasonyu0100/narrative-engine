@@ -443,11 +443,22 @@ export function extractGameState(narrative: NarrativeState): GameState {
     const dB = profB.worldDepth;
     const depthRatio = Math.min(dA, dB) > 0 ? Math.max(dA, dB) / Math.min(dA, dB) : (Math.max(dA, dB) > 0 ? Infinity : 1);
 
-    // Find payoff matrix — match by player pair (order-independent)
+    // Find payoff matrix — match by player pair (order-independent).
+    // First try exact ID match. If that fails, try name-based match to handle
+    // phantom IDs where the LLM used a different ID for the same entity.
     const matrices = thread.payoffMatrices ?? [];
-    const matrix = matrices.find(
+    let matrix = matrices.find(
       (m) => (m.playerA === aId && m.playerB === bId) || (m.playerA === bId && m.playerB === aId),
     ) ?? null;
+    if (!matrix) {
+      const aName = nameOf(aId);
+      const bName = nameOf(bId);
+      matrix = matrices.find((m) => {
+        const mA = nameOf(m.playerA);
+        const mB = nameOf(m.playerB);
+        return (mA === aName && mB === bName) || (mA === bName && mB === aName);
+      }) ?? null;
+    }
 
     const properties = matrix ? computeGameProperties(matrix, aId) : null;
 
@@ -696,4 +707,166 @@ export function formatGameSummary(state: GameState): string {
   }
 
   return lines.join('\n');
+}
+
+// ── Dashboard computation ───────────────────────────────────────────────────
+
+export type PlayerGTO = {
+  id: string;
+  name: string;
+  totalMoves: number;
+  declaredMoves: number;
+  gtoMoves: number;
+  gtoRate: number;
+  coopRate: number;
+  initiated: number;
+  targeted: number;
+  initiativeRatio: number;
+  exploitations: number;
+  exploited: number;
+  netExploitation: number;
+  posture: string;
+  overallPosture: string;
+};
+
+export function computePlayerGTO(state: GameState): PlayerGTO[] {
+  const stats = new Map<string, PlayerGTO>();
+
+  const ensure = (id: string) => {
+    if (stats.has(id)) return stats.get(id)!;
+    const pos = state.playerPositions.find((p) => p.id === id);
+    const prof = state.threadGames.flatMap((g) => g.players).find((p) => p.id === id);
+    const s: PlayerGTO = {
+      id, name: pos?.name ?? id,
+      totalMoves: 0, declaredMoves: 0, gtoMoves: 0, gtoRate: 0, coopRate: 0,
+      initiated: 0, targeted: 0, initiativeRatio: 0,
+      exploitations: 0, exploited: 0, netExploitation: 0,
+      posture: prof?.posture ?? 'mixed',
+      overallPosture: pos?.overallPosture ?? 'balanced',
+    };
+    stats.set(id, s);
+    return s;
+  };
+
+  for (const g of state.threadGames) {
+    for (const m of g.moves) {
+      if (m.actorId) {
+        const s = ensure(m.actorId);
+        s.totalMoves++;
+        s.initiated++;
+        if (m.matrixCell) {
+          s.declaredMoves++;
+          if (m.matrixCell === 'dc') s.exploitations++;
+          if (m.matrixCell === 'cd') s.exploited++;
+          for (const pw of g.pairwiseGames) {
+            if (!pw.properties?.nashEquilibria.length) continue;
+            const ne = pw.properties.nashEquilibria[0];
+            const isA = m.actorId === pw.playerA;
+            const isB = m.actorId === pw.playerB;
+            if (!isA && !isB) continue;
+            const gtoAction = isA ? ne[0] : ne[1];
+            if (m.matrixCell[0] === gtoAction) s.gtoMoves++;
+            break;
+          }
+          if (m.matrixCell[0] === 'c') s.coopRate++;
+        }
+      }
+      if (m.targetId) ensure(m.targetId).targeted++;
+    }
+  }
+
+  const result: PlayerGTO[] = [];
+  for (const s of stats.values()) {
+    s.gtoRate = s.declaredMoves > 0 ? s.gtoMoves / s.declaredMoves : 0;
+    s.coopRate = s.declaredMoves > 0 ? s.coopRate / s.declaredMoves : 0;
+    s.initiativeRatio = s.targeted > 0 ? s.initiated / s.targeted : s.initiated > 0 ? Infinity : 0;
+    s.netExploitation = s.exploitations - s.exploited;
+    result.push(s);
+  }
+  result.sort((a, b) => b.totalMoves - a.totalMoves);
+  return result;
+}
+
+export type ThreatEntry = {
+  threadId: string;
+  question: string;
+  gameState: string;
+  trajectory: string;
+  heatScore: number;
+  players: string[];
+  moveBalance: ThreadGame['moveBalance'];
+};
+
+export function computeThreatMap(state: GameState): ThreatEntry[] {
+  return state.threadGames
+    .filter((g) => !g.isChallenge && g.gameState !== 'resolved')
+    .map((g) => ({
+      threadId: g.threadId,
+      question: g.question,
+      gameState: g.gameState,
+      trajectory: g.trajectory,
+      heatScore:
+        g.volatility * 0.4 +
+        (g.moveBalance.total > 0 ? g.moveBalance.competitive / g.moveBalance.total : 0) * 0.3 +
+        (g.gameState === 'endgame' ? 0.3 : g.gameState === 'committed' ? 0.15 : 0),
+      players: g.players.map((p) => p.name),
+      moveBalance: g.moveBalance,
+    }))
+    .sort((a, b) => b.heatScore - a.heatScore);
+}
+
+export type BetrayalMoment = {
+  threadId: string;
+  beforeContent: string;
+  afterContent: string;
+  betrayerName: string;
+};
+
+export function computeBetrayals(state: GameState): BetrayalMoment[] {
+  const betrayals: BetrayalMoment[] = [];
+  for (const g of state.threadGames) {
+    const cellMoves = g.moves.filter((m) => m.matrixCell);
+    for (let i = 1; i < cellMoves.length; i++) {
+      const prev = cellMoves[i - 1].matrixCell!;
+      const curr = cellMoves[i].matrixCell!;
+      if (prev === 'cc' && (curr === 'dc' || curr === 'cd')) {
+        const betrayerId = curr === 'dc' ? cellMoves[i].actorId : cellMoves[i].targetId;
+        const betrayerName = g.players.find((p) => p.id === betrayerId)?.name ?? betrayerId ?? '?';
+        betrayals.push({
+          threadId: g.threadId,
+          beforeContent: cellMoves[i - 1].content,
+          afterContent: cellMoves[i].content,
+          betrayerName,
+        });
+      }
+    }
+  }
+  return betrayals;
+}
+
+export type TrustPair = {
+  nameA: string;
+  nameB: string;
+  ccCount: number;
+  totalMoves: number;
+};
+
+export function computeTrustPairs(state: GameState): TrustPair[] {
+  const pairs = new Map<string, TrustPair>();
+  for (const g of state.threadGames) {
+    for (const m of g.moves) {
+      if (!m.actorId || !m.targetId || !m.matrixCell) continue;
+      const key = [m.actorId, m.targetId].sort().join('|');
+      if (!pairs.has(key)) {
+        const [a, b] = key.split('|');
+        const nameA = g.players.find((p) => p.id === a)?.name ?? a;
+        const nameB = g.players.find((p) => p.id === b)?.name ?? b;
+        pairs.set(key, { nameA, nameB, ccCount: 0, totalMoves: 0 });
+      }
+      const p = pairs.get(key)!;
+      p.totalMoves++;
+      if (m.matrixCell === 'cc') p.ccCount++;
+    }
+  }
+  return Array.from(pairs.values()).sort((a, b) => b.ccCount - a.ccCount);
 }
