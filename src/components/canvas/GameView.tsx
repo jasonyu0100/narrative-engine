@@ -129,7 +129,7 @@ export default function GameView({ narrative }: Props) {
             const active = activeGame?.threadId === g.threadId;
             const moves = g.moves.filter((m) => sceneMoveIds.has(m.nodeId));
             return (
-              <button key={g.threadId} onClick={() => { setSelectedGame(g.threadId); setOverridePair(null); setShowFullHistory(false); setActiveMoveIdx(0); }}
+              <button key={g.threadId} onClick={() => { setSelectedGame(g.threadId); setOverridePair(null); setShowFullHistory(false); setActiveMoveIdx(0); dispatch({ type: 'SET_INSPECTOR', context: { type: 'thread', threadId: g.threadId } }); }}
                 className={`w-full text-left px-3 py-2 border-b border-white/5 transition-colors ${active ? 'bg-white/8' : 'hover:bg-white/3'}`}
               >
                 <div className="text-[10px] text-text-secondary leading-snug line-clamp-2">{g.question}</div>
