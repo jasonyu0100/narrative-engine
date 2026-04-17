@@ -59,12 +59,6 @@ export default function GameView({ narrative }: Props) {
     return ids;
   }, [currentScene]);
 
-  const displayGames = useMemo(() => {
-    const all = fullState.threadGames.filter((g) => !g.isChallenge);
-    if (!sceneThreadIds) return all;
-    return all.filter((g) => sceneThreadIds.has(g.threadId));
-  }, [fullState, sceneThreadIds]);
-
   const nameOf = useMemo(() => {
     const cache = new Map<string, string>();
     return (id: string): string => {
@@ -84,6 +78,28 @@ export default function GameView({ narrative }: Props) {
       return name ?? id;
     };
   }, [narrative]);
+
+  // All entities for entity view — only real entities (exist in character/location/artifact maps)
+  const entities = useMemo(() => {
+    const seen = new Map<string, { id: string; name: string; games: number }>();
+    for (const g of fullState.threadGames) {
+      for (const p of g.players) {
+        if (!narrative.characters[p.id] && !narrative.locations[p.id] && !narrative.artifacts[p.id]) continue;
+        const e = seen.get(p.id);
+        if (e) e.games++;
+        else seen.set(p.id, { id: p.id, name: nameOf(p.id), games: 1 });
+      }
+    }
+    return Array.from(seen.values()).sort((a, b) => b.games - a.games);
+  }, [fullState, nameOf, narrative]);
+
+  // Games depend on view mode
+  const displayGames = useMemo(() => {
+    const all = fullState.threadGames.filter((g: ThreadGame) => !g.isChallenge);
+    if (viewMode === 'turn' && sceneThreadIds) return all.filter((g: ThreadGame) => sceneThreadIds.has(g.threadId));
+    if (viewMode === 'entity' && selectedEntity) return all.filter((g: ThreadGame) => g.players.some((p) => p.id === selectedEntity));
+    return all;
+  }, [fullState, viewMode, sceneThreadIds, selectedEntity]);
 
   const activeGame = selectedGame ? displayGames.find((g) => g.threadId === selectedGame) ?? displayGames[0] : displayGames[0];
 
@@ -108,8 +124,15 @@ export default function GameView({ narrative }: Props) {
     return fromMoves ?? activeGame.pairwiseGames[0] ?? null;
   }, [activeGame, turnMoves]);
 
-  // All moves or just this turn
-  const displayMoves = showFullHistory ? (activeGame?.moves ?? []) : turnMoves;
+  // Moves depend on view mode
+  const displayMoves = useMemo(() => {
+    if (!activeGame) return [];
+    if (viewMode === 'turn' && !showFullHistory) return turnMoves;
+    if (viewMode === 'entity' && selectedEntity && !showFullHistory) {
+      return activeGame.moves.filter((m: GameMove) => m.actorId === selectedEntity || m.targetId === selectedEntity);
+    }
+    return activeGame.moves; // thread mode or showFullHistory = everything
+  }, [activeGame, viewMode, showFullHistory, turnMoves, selectedEntity]);
 
   // Other matrices available (for subtle toggle)
   const otherMatrices = useMemo(() => {
@@ -124,16 +147,19 @@ export default function GameView({ narrative }: Props) {
   const activeGameId = activeGame?.threadId;
   useMemo(() => { setOverridePair(null); setShowFullHistory(false); setActiveMoveIdx(0); }, [activeGameId]);
 
-  // Dashboard data (computed lazily)
+  // Dashboard data (computed lazily) — filter out phantom IDs from rankings
   const dashboardData = useMemo(() => {
     if (viewMode !== 'dashboard') return null;
+    const gto = computePlayerGTO(fullState).filter((p) =>
+      narrative.characters[p.id] || narrative.locations[p.id] || narrative.artifacts[p.id]
+    );
     return {
-      playerGTO: computePlayerGTO(fullState),
+      playerGTO: gto,
       threats: computeThreatMap(fullState),
       betrayals: computeBetrayals(fullState),
       trustPairs: computeTrustPairs(fullState),
     };
-  }, [viewMode, fullState]);
+  }, [viewMode, fullState, narrative]);
 
   return (
     <div className="flex h-full w-full overflow-hidden">
@@ -150,31 +176,49 @@ export default function GameView({ narrative }: Props) {
         <div className="shrink-0 px-3 py-2 border-b border-border">
           <div className="text-[9px] uppercase tracking-[0.15em] text-text-dim/50 font-semibold">
             {viewMode === 'dashboard' ? 'Overview' :
-             viewMode === 'entity' && selectedEntity ? nameOf(selectedEntity) :
-             sceneThreadIds ? `Turn · ${currentScene?.id}` : 'All Games'}
+             viewMode === 'turn' && sceneThreadIds ? `Turn · ${currentScene?.id}` :
+             viewMode === 'entity' ? 'Select Entity' :
+             `${displayGames.length} threads`}
           </div>
         </div>
+
+        {/* Entity selector — shown in entity mode */}
+        {viewMode === 'entity' && (
+          <div className="shrink-0 border-b border-border max-h-36 overflow-y-auto">
+            {entities.map((e) => (
+              <button key={e.id} onClick={() => { setSelectedEntity(e.id); setSelectedGame(null); dispatch({ type: 'SET_INSPECTOR', context: narrative.characters[e.id] ? { type: 'character', characterId: e.id } : narrative.locations[e.id] ? { type: 'location', locationId: e.id } : { type: 'artifact', artifactId: e.id } }); }}
+                className={`w-full text-left px-3 py-1.5 text-[10px] transition-colors ${selectedEntity === e.id ? 'bg-white/8 text-text-primary' : 'text-text-dim/50 hover:bg-white/3'}`}
+              >{e.name} <span className="text-text-dim/25">({e.games})</span></button>
+            ))}
+          </div>
+        )}
+
+        {/* Game list */}
         <div className="flex-1 overflow-y-auto">
-          {displayGames.map((g) => {
+          {viewMode !== 'dashboard' && displayGames.map((g) => {
             const active = activeGame?.threadId === g.threadId;
-            const moves = g.moves.filter((m) => sceneMoveIds.has(m.nodeId));
+            const movesForDots = viewMode === 'turn' ? g.moves.filter((m: GameMove) => sceneMoveIds.has(m.nodeId)) : g.moves;
             return (
               <button key={g.threadId} onClick={() => { setSelectedGame(g.threadId); setOverridePair(null); setShowFullHistory(false); setActiveMoveIdx(0); dispatch({ type: 'SET_INSPECTOR', context: { type: 'thread', threadId: g.threadId } }); }}
                 className={`w-full text-left px-3 py-2 border-b border-white/5 transition-colors ${active ? 'bg-white/8' : 'hover:bg-white/3'}`}
               >
                 <div className="text-[10px] text-text-secondary leading-snug line-clamp-2">{g.question}</div>
-                {moves.length > 0 && (
+                {movesForDots.length > 0 && (
                   <div className="flex items-center gap-1 mt-1">
-                    {moves.map((m, i) => (
+                    {movesForDots.slice(-8).map((m: GameMove, i: number) => (
                       <span key={i} className={`w-1.5 h-1.5 rounded-full ${m.stance === 'cooperative' ? 'bg-emerald-400' : m.stance === 'competitive' ? 'bg-red-400' : 'bg-white/15'}`} />
                     ))}
-                    <span className="text-[8px] text-text-dim/30 ml-auto">{moves.length}</span>
+                    <span className="text-[8px] text-text-dim/30 ml-auto">{movesForDots.length}</span>
                   </div>
                 )}
               </button>
             );
           })}
-          {displayGames.length === 0 && <p className="text-[10px] text-text-dim/30 italic p-4 text-center">No games this turn</p>}
+          {viewMode !== 'dashboard' && displayGames.length === 0 && (
+            <p className="text-[10px] text-text-dim/30 italic p-4 text-center">
+              {viewMode === 'turn' ? 'No games this turn' : viewMode === 'entity' && !selectedEntity ? 'Select an entity above' : 'No games'}
+            </p>
+          )}
         </div>
       </div>
 
@@ -484,136 +528,131 @@ function DashboardPanel({ data, state, nameOf, dispatch }: {
   const totalComp = state.threadGames.reduce((n, g) => n + g.moveBalance.competitive, 0);
   const temperature = totalMoves > 0 ? totalComp / totalMoves : 0;
   const endgameCount = state.threadGames.filter((g) => g.gameState === 'endgame' || g.gameState === 'committed').length;
-  const avgGTO = data.playerGTO.length > 0
-    ? data.playerGTO.reduce((n, p) => n + p.gtoRate, 0) / data.playerGTO.filter((p) => p.declaredMoves > 0).length
+  const avgGTO = data.playerGTO.filter((p) => p.declaredMoves > 0).length > 0
+    ? data.playerGTO.filter((p) => p.declaredMoves > 0).reduce((n, p) => n + p.gtoRate, 0) / data.playerGTO.filter((p) => p.declaredMoves > 0).length
     : 0;
-  const hubShare = s.mostConnectedPlayer ? s.mostConnectedPlayer.gameCount / Math.max(s.totalGames, 1) : 0;
 
   return (
     <div className="flex-1 min-w-0 overflow-y-auto">
-      <div className="max-w-3xl mx-auto px-6 py-5 flex flex-col gap-5">
-        {/* Band 1: Headline metrics */}
-        <div className="grid grid-cols-6 gap-2">
-          <DashStat label="Temperature" value={`${(temperature * 100).toFixed(0)}%`} sub="competitive" color={temperature > 0.5 ? 'text-red-400' : 'text-emerald-400'} />
-          <DashStat label="Games" value={s.activeGames} sub={`of ${s.totalGames}`} />
-          <DashStat label="Cooperation" value={`${(s.globalCooperationRatio * 100).toFixed(0)}%`} sub="overall" />
-          <DashStat label="Nash Rate" value={`${(avgGTO * 100).toFixed(0)}%`} sub="compliance" />
-          <DashStat label="Hub Share" value={`${(hubShare * 100).toFixed(0)}%`} sub={s.mostConnectedPlayer?.name ?? ''} />
-          <DashStat label="Pressure" value={endgameCount} sub="endgame+committed" color={endgameCount > 3 ? 'text-red-400' : undefined} />
+      <div className="max-w-3xl mx-auto px-6 py-5 flex flex-col gap-6">
+        {/* Headline metrics */}
+        <div className="grid grid-cols-3 gap-3">
+          <DashStat label="Temperature" value={`${(temperature * 100).toFixed(0)}%`} sub={`${totalComp} competitive of ${totalMoves} moves`} color={temperature > 0.5 ? 'text-red-400' : temperature > 0.3 ? 'text-amber-400' : 'text-emerald-400'} />
+          <DashStat label="Nash Compliance" value={`${(avgGTO * 100).toFixed(0)}%`} sub="average across all players" color={avgGTO > 0.7 ? 'text-emerald-400' : avgGTO > 0.4 ? 'text-amber-400' : 'text-red-400'} />
+          <DashStat label="Pressure" value={`${endgameCount} / ${s.activeGames}`} sub="endgame+committed of active" color={endgameCount > 3 ? 'text-red-400' : undefined} />
         </div>
 
-        {/* Band 2: Power table */}
+        {/* Player rankings */}
         <div>
-          <div className="text-[8px] uppercase tracking-wider text-text-dim/40 font-semibold mb-1.5">Player Rankings</div>
-          <table className="w-full text-[9px]">
-            <thead>
-              <tr className="text-text-dim/40 border-b border-white/5">
-                <th className="text-left py-1 font-medium">Player</th>
-                <th className="text-left py-1 font-medium">Posture</th>
-                <th className="text-right py-1 font-medium">Games</th>
-                <th className="text-right py-1 font-medium">Nash%</th>
-                <th className="text-right py-1 font-medium">Coop%</th>
-                <th className="text-right py-1 font-medium">Init</th>
-                <th className="text-right py-1 font-medium">Net Expl</th>
-              </tr>
-            </thead>
-            <tbody>
-              {data.playerGTO.slice(0, 10).map((p) => (
-                <tr key={p.id} className="border-b border-white/3 hover:bg-white/3 transition-colors cursor-pointer"
-                  onClick={() => dispatch({ type: 'SET_INSPECTOR', context: { type: 'character', characterId: p.id } })}
-                >
-                  <td className="py-1.5 text-text-primary font-medium">{p.name}</td>
-                  <td className={`py-1.5 ${p.overallPosture === 'dominant' ? 'text-emerald-400' : p.overallPosture === 'embattled' ? 'text-amber-400' : p.overallPosture === 'pressured' ? 'text-red-400' : 'text-text-dim/50'}`}>{p.overallPosture}</td>
-                  <td className="py-1.5 text-right tabular-nums text-text-dim/60">{p.totalMoves}</td>
-                  <td className={`py-1.5 text-right tabular-nums ${p.gtoRate > 0.7 ? 'text-emerald-400' : p.gtoRate > 0.4 ? 'text-amber-400' : 'text-red-400/60'}`}>{p.declaredMoves > 0 ? `${(p.gtoRate * 100).toFixed(0)}` : '—'}</td>
-                  <td className="py-1.5 text-right tabular-nums text-text-dim/60">{p.declaredMoves > 0 ? `${(p.coopRate * 100).toFixed(0)}` : '—'}</td>
-                  <td className="py-1.5 text-right tabular-nums text-text-dim/60">{p.initiativeRatio === Infinity ? '∞' : p.initiativeRatio.toFixed(1)}</td>
-                  <td className={`py-1.5 text-right tabular-nums ${p.netExploitation > 0 ? 'text-emerald-400' : p.netExploitation < 0 ? 'text-red-400' : 'text-text-dim/40'}`}>{p.netExploitation > 0 ? '+' : ''}{p.netExploitation}</td>
+          <h3 className="text-[10px] uppercase tracking-[0.15em] text-text-dim/50 font-semibold mb-2">Player Rankings</h3>
+          <div className="rounded-lg border border-white/8 overflow-hidden">
+            <table className="w-full text-[11px]">
+              <thead>
+                <tr className="bg-white/3 text-text-dim/50 text-[9px] uppercase tracking-wider">
+                  <th className="text-left py-2 px-3 font-medium w-8">#</th>
+                  <th className="text-left py-2 px-3 font-medium">Player</th>
+                  <th className="text-right py-2 px-3 font-medium">Moves</th>
+                  <th className="text-right py-2 px-3 font-medium">Nash</th>
+                  <th className="text-right py-2 px-3 font-medium">Advance</th>
+                  <th className="text-right py-2 px-3 font-medium">Exploit</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {data.playerGTO.slice(0, 12).map((p, i) => {
+                  const nashPct = p.declaredMoves > 0 ? (p.gtoRate * 100).toFixed(0) : '—';
+                  const coopPct = p.declaredMoves > 0 ? (p.coopRate * 100).toFixed(0) : '—';
+                  return (
+                    <tr key={p.id}
+                      className="border-t border-white/5 hover:bg-white/3 transition-colors cursor-pointer"
+                      onClick={() => dispatch({ type: 'SET_INSPECTOR', context: { type: 'character', characterId: p.id } })}
+                    >
+                      <td className="py-2 px-3 text-text-dim/30 tabular-nums">{i + 1}</td>
+                      <td className="py-2 px-3">
+                        <div className="text-text-primary font-medium">{p.name}</div>
+                        <div className={`text-[9px] ${
+                          p.overallPosture === 'dominant' ? 'text-emerald-400/70' :
+                          p.overallPosture === 'embattled' ? 'text-amber-400/70' :
+                          p.overallPosture === 'pressured' ? 'text-red-400/70' :
+                          'text-text-dim/40'
+                        }`}>{p.overallPosture} · {p.posture}</div>
+                      </td>
+                      <td className="py-2 px-3 text-right tabular-nums text-text-secondary">{p.totalMoves}</td>
+                      <td className={`py-2 px-3 text-right tabular-nums font-medium ${
+                        nashPct === '—' ? 'text-text-dim/30' :
+                        Number(nashPct) > 70 ? 'text-emerald-400' :
+                        Number(nashPct) > 40 ? 'text-amber-400' :
+                        'text-red-400'
+                      }`}>{nashPct}{nashPct !== '—' ? '%' : ''}</td>
+                      <td className="py-2 px-3 text-right tabular-nums text-text-secondary">{coopPct}{coopPct !== '—' ? '%' : ''}</td>
+                      <td className={`py-2 px-3 text-right tabular-nums font-medium ${
+                        p.netExploitation > 0 ? 'text-emerald-400' :
+                        p.netExploitation < 0 ? 'text-red-400' :
+                        'text-text-dim/30'
+                      }`}>{p.netExploitation > 0 ? '+' : ''}{p.netExploitation}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
         </div>
 
-        {/* Band 3: Threat map + Cooperation */}
-        <div className="grid grid-cols-2 gap-4">
-          {/* Threat map */}
+        {/* Hottest games + Trust */}
+        <div className="grid grid-cols-2 gap-5">
           <div>
-            <div className="text-[8px] uppercase tracking-wider text-text-dim/40 font-semibold mb-1.5">Hottest Games</div>
-            <div className="flex flex-col gap-1">
-              {data.threats.slice(0, 6).map((t) => (
+            <h3 className="text-[10px] uppercase tracking-[0.15em] text-text-dim/50 font-semibold mb-2">Hottest Games</h3>
+            <div className="flex flex-col gap-1.5">
+              {data.threats.slice(0, 5).map((t) => (
                 <button key={t.threadId} onClick={() => dispatch({ type: 'SET_INSPECTOR', context: { type: 'thread', threadId: t.threadId } })}
-                  className="text-left p-2 rounded border border-white/5 hover:bg-white/3 transition-colors"
+                  className="text-left p-2.5 rounded-lg border border-white/5 hover:bg-white/3 transition-colors"
                 >
-                  <div className="flex items-center gap-1 mb-0.5">
-                    <span className={`text-[8px] font-semibold ${t.gameState === 'endgame' ? 'text-fate' : t.gameState === 'committed' ? 'text-orange-400' : 'text-text-dim/40'}`}>{t.gameState}</span>
-                    <span className={`text-[8px] ${t.trajectory === 'volatile' ? 'text-orange-400' : t.trajectory === 'contested' ? 'text-amber-400' : 'text-text-dim/30'}`}>{t.trajectory}</span>
-                    <span className="text-[7px] text-text-dim/25 ml-auto tabular-nums">{(t.heatScore * 100).toFixed(0)}°</span>
+                  <div className="flex items-center gap-1.5 mb-1">
+                    <span className={`text-[9px] font-semibold ${t.gameState === 'endgame' ? 'text-fate' : t.gameState === 'committed' ? 'text-orange-400' : 'text-text-dim/40'}`}>{t.gameState}</span>
+                    <span className={`text-[9px] ${t.trajectory === 'volatile' ? 'text-orange-400' : t.trajectory === 'contested' ? 'text-amber-400' : 'text-text-dim/30'}`}>{t.trajectory}</span>
+                    <div className="flex gap-px ml-auto">
+                      {Array.from({ length: Math.round(t.heatScore * 5) }).map((_, j) => (
+                        <span key={j} className="w-1.5 h-3 rounded-sm bg-red-400/60" />
+                      ))}
+                      {Array.from({ length: 5 - Math.round(t.heatScore * 5) }).map((_, j) => (
+                        <span key={j} className="w-1.5 h-3 rounded-sm bg-white/5" />
+                      ))}
+                    </div>
                   </div>
-                  <p className="text-[9px] text-text-secondary/70 leading-snug line-clamp-2">{t.question}</p>
+                  <p className="text-[10px] text-text-secondary leading-snug line-clamp-2">{t.question}</p>
                 </button>
               ))}
             </div>
           </div>
 
-          {/* Cooperation map */}
           <div>
-            <div className="text-[8px] uppercase tracking-wider text-text-dim/40 font-semibold mb-1.5">Trust & Coalitions</div>
-            {/* Trust pairs */}
+            <h3 className="text-[10px] uppercase tracking-[0.15em] text-text-dim/50 font-semibold mb-2">Trust & Betrayal</h3>
             {data.trustPairs.filter((t) => t.ccCount > 0).length > 0 && (
-              <div className="mb-3">
-                <div className="text-[8px] text-text-dim/30 mb-1">Most trusted pairs</div>
+              <div className="mb-4">
+                <div className="text-[9px] text-text-dim/40 mb-1.5">Strongest alliances</div>
                 {data.trustPairs.filter((t) => t.ccCount > 0).slice(0, 4).map((t, i) => (
-                  <div key={i} className="text-[9px] text-text-dim/60 py-0.5">
-                    {t.nameA} × {t.nameB}: <span className="text-emerald-400/60">{t.ccCount} cc</span> / {t.totalMoves}
+                  <div key={i} className="flex items-center justify-between py-1 text-[10px]">
+                    <span className="text-text-secondary">{t.nameA} × {t.nameB}</span>
+                    <div className="flex items-center gap-1.5">
+                      <div className="w-16 h-1.5 rounded-full bg-white/5 overflow-hidden">
+                        <div className="h-full bg-emerald-400/60 rounded-full" style={{ width: `${(t.ccCount / Math.max(t.totalMoves, 1)) * 100}%` }} />
+                      </div>
+                      <span className="text-[9px] text-text-dim/40 tabular-nums w-8 text-right">{t.ccCount}/{t.totalMoves}</span>
+                    </div>
                   </div>
                 ))}
               </div>
             )}
-            {/* Coalitions */}
-            {state.coalitions.length > 0 && (
-              <div className="mb-3">
-                <div className="text-[8px] text-text-dim/30 mb-1">Coalitions</div>
-                {state.coalitions.slice(0, 5).map((c, i) => (
-                  <div key={i} className="text-[9px] text-text-dim/60 py-0.5">
-                    {c.members.map((m) => m.name).join(' × ')}: {c.sharedGames.length} shared
-                    {c.hasInternalTension && <span className="text-red-400/50 ml-1">tension</span>}
-                  </div>
-                ))}
-              </div>
-            )}
-            {/* Betrayals */}
             {data.betrayals.length > 0 && (
               <div>
-                <div className="text-[8px] text-text-dim/30 mb-1">Betrayal moments</div>
+                <div className="text-[9px] text-text-dim/40 mb-1.5">Betrayal moments</div>
                 {data.betrayals.slice(0, 3).map((b, i) => (
-                  <div key={i} className="text-[9px] py-0.5">
-                    <span className="text-red-400/60">{b.betrayerName}</span>
-                    <span className="text-text-dim/30 ml-1">{b.afterContent.slice(0, 50)}</span>
+                  <div key={i} className="py-1.5 border-b border-white/5 last:border-0">
+                    <div className="text-[10px]"><span className="text-red-400 font-medium">{b.betrayerName}</span> <span className="text-text-dim/30">broke cooperation</span></div>
+                    <p className="text-[9px] text-text-dim/40 leading-snug mt-0.5">{b.afterContent.slice(0, 70)}</p>
                   </div>
                 ))}
               </div>
             )}
-          </div>
-        </div>
-
-        {/* Band 4: Recent move flow */}
-        <div>
-          <div className="text-[8px] uppercase tracking-wider text-text-dim/40 font-semibold mb-1.5">Recent Moves</div>
-          <div className="flex flex-col">
-            {state.threadGames.flatMap((g) => g.moves.map((m) => ({ ...m, threadQ: g.question, threadId: g.threadId }))).slice(-12).reverse().map((m, i) => (
-              <div key={`${m.nodeId}-${i}`} className="flex items-start gap-2 py-1 border-b border-white/3 last:border-0">
-                <span className={`w-2 h-2 rounded-full mt-1 shrink-0 ${m.stance === 'cooperative' ? 'bg-emerald-400' : m.stance === 'competitive' ? 'bg-red-400' : 'bg-white/15'}`} />
-                <div className="flex-1 min-w-0">
-                  <p className="text-[9px] text-text-secondary/70 leading-snug truncate">{m.content}</p>
-                  <div className="flex items-center gap-1 text-[8px] text-text-dim/30">
-                    {m.attributed && <span>{nameOf(m.actorId!)}</span>}
-                    {m.matrixCell && <span className="font-mono">{m.matrixCell}</span>}
-                    <span className="truncate ml-auto">{m.threadQ?.slice(0, 30)}</span>
-                  </div>
-                </div>
-              </div>
-            ))}
           </div>
         </div>
       </div>
@@ -623,10 +662,10 @@ function DashboardPanel({ data, state, nameOf, dispatch }: {
 
 function DashStat({ label, value, sub, color }: { label: string; value: string | number; sub?: string; color?: string }) {
   return (
-    <div className="rounded border border-white/5 bg-white/2 px-2 py-1.5">
-      <div className={`text-[15px] font-mono font-bold tabular-nums ${color ?? 'text-text-primary'}`}>{value}</div>
-      <div className="text-[7px] uppercase tracking-wider text-text-dim/35 mt-0.5">{label}</div>
-      {sub && <div className="text-[7px] text-text-dim/25">{sub}</div>}
+    <div className="rounded-lg border border-white/8 bg-white/3 px-3 py-2.5">
+      <div className={`text-[20px] font-mono font-bold tabular-nums ${color ?? 'text-text-primary'}`}>{value}</div>
+      <div className="text-[9px] uppercase tracking-wider text-text-dim/40 mt-1">{label}</div>
+      {sub && <div className="text-[8px] text-text-dim/25 mt-0.5">{sub}</div>}
     </div>
   );
 }
