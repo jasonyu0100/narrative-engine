@@ -46,8 +46,8 @@ const SCOPE_PAIRS: Record<string, { local: GraphViewMode; global: GraphViewMode 
 export const GRAPH_MODES = new Set<GraphViewMode>(['spatial', 'overview', 'spark', 'codex', 'pulse', 'threads']);
 
 type CanvasMode = 'graph' | 'plan' | 'prose' | 'audio' | 'search' | 'reasoning';
-type ScenePrimaryMode = 'plan' | 'prose' | 'audio';
-const SCENE_MODES: ScenePrimaryMode[] = ['plan', 'prose', 'audio'];
+type ScenePrimaryMode = 'reasoning' | 'plan' | 'prose' | 'audio';
+const SCENE_MODES: ScenePrimaryMode[] = ['reasoning', 'plan', 'prose', 'audio'];
 
 // Module-level state shared with SceneProseView
 let beatPlanLinkedModeGlobal = false;
@@ -744,28 +744,31 @@ export function CanvasTopBar() {
         {inSceneMode && currentScene && (
           <div className="flex items-center rounded-md overflow-hidden border border-white/10">
             {[
-              { mode: 'plan' as ScenePrimaryMode, Icon: IconNotepad, label: 'Plan' },
-              { mode: 'prose' as ScenePrimaryMode, Icon: IconDocument, label: 'Prose' },
-              { mode: 'audio' as ScenePrimaryMode, Icon: IconWaveform, label: 'Audio' },
-            ].map(({ mode, Icon, label }, idx) => {
-              const isActive = canvasMode === mode;
-              return (
-                <div key={mode} className="flex items-center">
-                  {idx > 0 && <div className="w-px h-4 bg-white/10" />}
-                  <button
-                    className={`flex items-center gap-1 px-2 py-1 text-[10px] font-medium transition-colors ${
-                      isActive
-                        ? 'bg-white/10 text-text-primary'
-                        : 'text-text-dim/60 hover:text-text-secondary hover:bg-white/5'
-                    }`}
-                    onClick={() => dispatch({ type: 'SET_GRAPH_VIEW_MODE', mode })}
-                  >
-                    <Icon size={12} />
-                    {label}
-                  </button>
-                </div>
-              );
-            })}
+              { mode: 'reasoning' as ScenePrimaryMode, Icon: IconReasoning, label: 'Reasoning', hidden: !currentArcData.hasReasoningGraph && !currentWorldBuildData.hasReasoningGraph },
+              { mode: 'plan' as ScenePrimaryMode, Icon: IconNotepad, label: 'Plan', hidden: false },
+              { mode: 'prose' as ScenePrimaryMode, Icon: IconDocument, label: 'Prose', hidden: false },
+              { mode: 'audio' as ScenePrimaryMode, Icon: IconWaveform, label: 'Audio', hidden: false },
+            ]
+              .filter(({ hidden }) => !hidden)
+              .map(({ mode, Icon, label }, idx) => {
+                const isActive = canvasMode === mode;
+                return (
+                  <div key={mode} className="flex items-center">
+                    {idx > 0 && <div className="w-px h-4 bg-white/10" />}
+                    <button
+                      className={`flex items-center gap-1 px-2 py-1 text-[10px] font-medium transition-colors ${
+                        isActive
+                          ? 'bg-white/10 text-text-primary'
+                          : 'text-text-dim/60 hover:text-text-secondary hover:bg-white/5'
+                      }`}
+                      onClick={() => dispatch({ type: 'SET_GRAPH_VIEW_MODE', mode })}
+                    >
+                      <Icon size={12} />
+                      {label}
+                    </button>
+                  </div>
+                );
+              })}
           </div>
         )}
 
@@ -774,13 +777,11 @@ export function CanvasTopBar() {
         <div className="flex items-center rounded-md overflow-hidden border border-white/10">
           {[
             { mode: 'graph' as CanvasMode, Icon: IconNetwork, label: 'Graph', condition: 'always' as const, activeWhen: canvasMode === 'graph' },
-            { mode: 'reasoning' as CanvasMode, Icon: IconReasoning, label: 'Reasoning', condition: 'hasReasoning' as const, activeWhen: canvasMode === 'reasoning' },
             { mode: 'scene' as const, Icon: IconNotepad, label: 'Scene', condition: 'sceneOnly' as const, activeWhen: inSceneMode },
             { mode: 'search' as CanvasMode, Icon: IconSearch, label: 'Search', condition: 'always' as const, activeWhen: canvasMode === 'search' },
           ]
             .filter(({ condition }) => {
               if (condition === 'sceneOnly' && !currentScene) return false;
-              if (condition === 'hasReasoning' && !currentArcData.hasReasoningGraph) return false;
               return true;
             })
             .map(({ mode, Icon, label, activeWhen }, idx) => {
