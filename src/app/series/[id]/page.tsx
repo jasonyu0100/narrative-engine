@@ -230,7 +230,7 @@ export default function SeriesPage() {
               />
             )}
 
-            {state.graphViewMode !== 'search' && (
+            {state.graphViewMode !== 'search' && state.graphViewMode !== 'game' && (
               <FloatingPalette
                 isBulkActive={!!(bulk.runState?.isRunning || bulk.runState?.isPaused)}
                 isBulkAudioActive={!!(bulkAudio.runState?.isRunning || bulkAudio.runState?.isPaused)}

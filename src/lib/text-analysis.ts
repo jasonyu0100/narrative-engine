@@ -31,6 +31,7 @@ import type {
   SceneVersionPointers,
   SystemNodeType,
   Thread,
+  ThreadLogNode,
   ThreadLogNodeType,
   WorldBuild,
 } from "@/types/narrative";
@@ -729,14 +730,32 @@ export async function reconcileResults(
       if (!sceneThreadStatus[desc]) sceneThreadStatus[desc] = status;
     }
 
-    // Fix scene-level threadDelta from/to values to chain correctly
+    // Fix scene-level threadDelta from/to values to chain correctly.
+    // Also enforce: no backward transitions (critical→escalating) and no
+    // skipped stages (seeded→escalating must pass through active).
+    const STAGE_ORDER: Record<string, number> = {
+      latent: 0, seeded: 1, active: 2, escalating: 3, critical: 4,
+      resolved: 5, subverted: 5, abandoned: -1,
+    };
     for (const scene of r.scenes) {
       for (const tm of scene.threadDeltas) {
         const currentStatus = sceneThreadStatus[tm.threadDescription];
         if (currentStatus && tm.from !== currentStatus) {
           tm.from = currentStatus;
         }
-        // Update running status for next scene/delta
+        // Validate: no backward transitions (except to abandoned)
+        const fromOrd = STAGE_ORDER[tm.from] ?? 0;
+        const toOrd = STAGE_ORDER[tm.to] ?? 0;
+        if (tm.to !== 'abandoned' && tm.to !== 'resolved' && tm.to !== 'subverted') {
+          if (toOrd < fromOrd) {
+            // Backward transition — clamp to current status (make it a pulse)
+            tm.to = tm.from;
+          } else if (toOrd > fromOrd + 1) {
+            // Skipped stages — advance only one step
+            const stages = ['latent', 'seeded', 'active', 'escalating', 'critical'];
+            tm.to = stages[fromOrd + 1] ?? tm.to;
+          }
+        }
         sceneThreadStatus[tm.threadDescription] = tm.to;
       }
     }
@@ -1198,13 +1217,39 @@ export async function assembleNarrative(
     // Threads
     for (const t of ch.threads ?? []) {
       const id = getThreadId(t.description);
-      const newAnchors = (t.participantNames ?? []).map((name) => {
-        if (charNameToId[name])
-          return { id: charNameToId[name], type: "character" as const };
-        if (locNameToId[name])
-          return { id: locNameToId[name], type: "location" as const };
-        return { id: getCharId(name), type: "character" as const };
+      const stakes: string[] = Array.isArray(t.participantStakes) ? t.participantStakes : [];
+      const newAnchors = (t.participantNames ?? []).map((name, idx) => {
+        const base: { id: string; type: "character" | "location" | "artifact"; stake?: string } = charNameToId[name]
+          ? { id: charNameToId[name], type: "character" as const }
+          : locNameToId[name]
+            ? { id: locNameToId[name], type: "location" as const }
+            : { id: getCharId(name), type: "character" as const };
+        const stake = typeof stakes[idx] === "string" && stakes[idx].trim() ? stakes[idx].trim() : undefined;
+        if (stake) base.stake = stake;
+        return base;
       });
+      // Resolve payoff matrices from name-based to ID-based
+      const resolvedMatrices: import("@/types/narrative").PayoffMatrix[] = [];
+      for (const pm of t.payoffMatrices ?? []) {
+        const aId = charNameToId[pm.playerAName] ?? locNameToId[pm.playerAName] ?? getCharId(pm.playerAName);
+        const bId = charNameToId[pm.playerBName] ?? locNameToId[pm.playerBName] ?? getCharId(pm.playerBName);
+        const clamp = (v: unknown): number => {
+          const n = typeof v === "number" ? Math.round(v) : 2;
+          return Math.max(0, Math.min(4, n));
+        };
+        const cell = (c: { outcome?: string; payoffA?: unknown; payoffB?: unknown }) => ({
+          outcome: typeof c?.outcome === "string" ? c.outcome : "",
+          payoffA: clamp(c?.payoffA),
+          payoffB: clamp(c?.payoffB),
+        });
+        if (pm.cc && pm.cd && pm.dc && pm.dd) {
+          resolvedMatrices.push({
+            playerA: aId, playerB: bId,
+            cc: cell(pm.cc), cd: cell(pm.cd), dc: cell(pm.dc), dd: cell(pm.dd),
+          });
+        }
+      }
+
       if (!threads[id]) {
         threads[id] = {
           id,
@@ -1213,6 +1258,7 @@ export async function assembleNarrative(
           status: t.statusAtEnd ?? "latent",
           openedAt: "",
           dependents: [],
+          ...(resolvedMatrices.length > 0 ? { payoffMatrices: resolvedMatrices } : {}),
           threadLog: { nodes: {}, edges: [] },
         };
         threadFirstChunk.set(id, chunkIdx);
@@ -1273,13 +1319,36 @@ export async function assembleNarrative(
             .filter(
               (e) => e && typeof e.content === "string" && e.content.trim(),
             )
-            .map((e) => ({
-              id: nextTkId(),
-              content: e.content,
-              type: (THREAD_LOG_NODE_TYPES.includes(e.type as ThreadLogNodeType)
-                ? e.type
-                : fallbackType) as ThreadLogNodeType,
-            }));
+            .map((e) => {
+              const node: ThreadLogNode = {
+                id: nextTkId(),
+                content: e.content,
+                type: (THREAD_LOG_NODE_TYPES.includes(e.type as ThreadLogNodeType)
+                  ? e.type
+                  : fallbackType) as ThreadLogNodeType,
+              };
+              // Resolve actor/target name to entity ID when present
+              const raw = e as Record<string, unknown>;
+              const actorName = typeof raw.actorName === "string" ? raw.actorName.trim() : "";
+              if (actorName) {
+                const resolved = getEntityId(actorName);
+                if (resolved) node.actorId = resolved;
+              }
+              const targetName = typeof raw.targetName === "string" ? raw.targetName.trim() : "";
+              if (targetName) {
+                const resolved = getEntityId(targetName);
+                if (resolved) node.targetId = resolved;
+              }
+              const stance = raw.stance;
+              if (stance === "cooperative" || stance === "competitive" || stance === "neutral") {
+                node.stance = stance;
+              }
+              const matrixCell = raw.matrixCell;
+              if (matrixCell === "cc" || matrixCell === "cd" || matrixCell === "dc" || matrixCell === "dd") {
+                node.matrixCell = matrixCell;
+              }
+              return node;
+            });
           // Synthesize a fallback log entry if the LLM omitted them — every
           // threadDelta must produce at least one log node, otherwise the
           // thread's history goes blank on a silent extraction miss.
@@ -1875,6 +1944,12 @@ Return JSON:
     ) {
       planGuidance = metaParsed.planGuidance.trim();
     }
+    if (typeof metaParsed.genre === "string" && metaParsed.genre.trim()) {
+      genre = metaParsed.genre.trim();
+    }
+    if (typeof metaParsed.subgenre === "string" && metaParsed.subgenre.trim()) {
+      subgenre = metaParsed.subgenre.trim();
+    }
     if (Array.isArray(metaParsed.patterns)) {
       patterns = metaParsed.patterns.filter((p: unknown) => typeof p === "string");
     }
@@ -1913,6 +1988,8 @@ Return JSON:
     storySettings: planGuidance
       ? { ...DEFAULT_STORY_SETTINGS, planGuidance }
       : undefined,
+    genre: genre || undefined,
+    subgenre: subgenre || undefined,
     patterns: patterns.length > 0 ? patterns : undefined,
     antiPatterns: antiPatterns.length > 0 ? antiPatterns : undefined,
     createdAt: Date.now() - 86400000,

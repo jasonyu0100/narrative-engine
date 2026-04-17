@@ -7,7 +7,7 @@ import type { GraphViewMode } from '@/types/narrative';
 import { getResolvedProseVersion, getResolvedPlanVersion, resolveProseForBranch, resolvePlanForBranch } from '@/lib/narrative-utils';
 import { VersionHistoryTree } from './VersionHistoryTree';
 import { RegenerateEmbeddingsModal } from '@/components/topbar/RegenerateEmbeddingsModal';
-import { IconGlobe, IconLightbulb, IconThread, IconNetwork, IconNotepad, IconDocument, IconWaveform, IconSearch, IconReasoning } from '@/components/icons';
+import { IconGlobe, IconLightbulb, IconThread, IconNetwork, IconNotepad, IconDocument, IconWaveform, IconSearch, IconReasoning, IconGame } from '@/components/icons';
 import { buildSequentialPath } from '@/lib/ai';
 
 const GRAPH_DOMAINS = [
@@ -45,7 +45,7 @@ const SCOPE_PAIRS: Record<string, { local: GraphViewMode; global: GraphViewMode 
 
 export const GRAPH_MODES = new Set<GraphViewMode>(['spatial', 'overview', 'spark', 'codex', 'pulse', 'threads']);
 
-type CanvasMode = 'graph' | 'plan' | 'prose' | 'audio' | 'search' | 'reasoning';
+type CanvasMode = 'graph' | 'plan' | 'prose' | 'audio' | 'search' | 'reasoning' | 'game';
 type ScenePrimaryMode = 'plan' | 'prose' | 'audio';
 const SCENE_MODES: ScenePrimaryMode[] = ['plan', 'prose', 'audio'];
 
@@ -239,6 +239,7 @@ function resolveCanvasMode(graphViewMode: GraphViewMode): CanvasMode {
   if (graphViewMode === 'audio') return 'audio';
   if (graphViewMode === 'search') return 'search';
   if (graphViewMode === 'reasoning') return 'reasoning';
+  if (graphViewMode === 'game') return 'game';
   return 'graph';
 }
 
@@ -776,6 +777,7 @@ export function CanvasTopBar() {
             { mode: 'graph' as CanvasMode, Icon: IconNetwork, label: 'Graph', condition: 'always' as const, activeWhen: canvasMode === 'graph' },
             { mode: 'reasoning' as CanvasMode, Icon: IconReasoning, label: 'Reasoning', condition: 'hasReasoning' as const, activeWhen: canvasMode === 'reasoning' },
             { mode: 'scene' as const, Icon: IconNotepad, label: 'Scene', condition: 'sceneOnly' as const, activeWhen: inSceneMode },
+            { mode: 'game' as CanvasMode, Icon: IconGame, label: 'Game', condition: 'always' as const, activeWhen: canvasMode === 'game' },
             { mode: 'search' as CanvasMode, Icon: IconSearch, label: 'Search', condition: 'always' as const, activeWhen: canvasMode === 'search' },
           ]
             .filter(({ condition }) => {

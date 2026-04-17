@@ -18,10 +18,17 @@ const statusClasses: Record<string, string> = {
   latent: "text-text-dim",
   seeded: "text-amber-400",
   active: "text-blue-400",
+  escalating: "text-orange-400",
   critical: "text-fate",
   resolved: "text-world",
   subverted: "text-violet-400",
   abandoned: "text-text-dim",
+};
+
+const stanceClasses: Record<string, string> = {
+  cooperative: "text-emerald-400",
+  competitive: "text-red-400",
+  neutral: "text-text-dim",
 };
 
 const threadLogDotColors: Record<string, string> = {
@@ -137,22 +144,50 @@ export default function ThreadDetail({ threadId }: Props) {
                     <span
                       className={`mt-1 h-2 w-2 shrink-0 rounded-full ${threadLogDotColors[node.type] ?? "bg-white/40"}`}
                     />
-                    <button
-                      type="button"
-                      onClick={() =>
-                        dispatch({
-                          type: "SET_INSPECTOR",
-                          context: {
-                            type: "threadLog",
-                            threadId,
-                            nodeId: node.id,
-                          },
-                        })
-                      }
-                      className="text-xs text-text-primary hover:text-white transition-colors text-left"
-                    >
-                      {node.content}
-                    </button>
+                    <div className="flex flex-col">
+                      <button
+                        type="button"
+                        onClick={() =>
+                          dispatch({
+                            type: "SET_INSPECTOR",
+                            context: {
+                              type: "threadLog",
+                              threadId,
+                              nodeId: node.id,
+                            },
+                          })
+                        }
+                        className="text-xs text-text-primary hover:text-white transition-colors text-left"
+                      >
+                        {node.content}
+                      </button>
+                      {(node.actorId || node.stance) && (
+                        <span className="text-[9px] text-text-dim/70 ml-0">
+                          {node.actorId && (
+                            <span>
+                              {narrative.characters[node.actorId]?.name ??
+                                narrative.locations[node.actorId]?.name ??
+                                narrative.artifacts[node.actorId]?.name ??
+                                node.actorId}
+                            </span>
+                          )}
+                          {node.actorId && node.targetId && <span> → </span>}
+                          {node.targetId && (
+                            <span>
+                              {narrative.characters[node.targetId]?.name ??
+                                narrative.locations[node.targetId]?.name ??
+                                narrative.artifacts[node.targetId]?.name ??
+                                node.targetId}
+                            </span>
+                          )}
+                          {node.stance && (
+                            <span className={`ml-1.5 ${stanceClasses[node.stance] ?? "text-text-dim"}`}>
+                              {node.stance}
+                            </span>
+                          )}
+                        </span>
+                      )}
+                    </div>
                   </li>
                 ))}
               </ul>
@@ -225,30 +260,42 @@ export default function ThreadDetail({ threadId }: Props) {
         );
       })()}
 
-      {/* Anchors */}
+      {/* Participants & Stakes */}
       <div className="flex flex-col gap-1">
         <h3 className="text-[10px] uppercase tracking-widest text-text-dim">
-          {anchors.length === 0 ? "General Thread" : "Anchors"}
+          {anchors.length === 0 ? "General Thread" : "Participants"}
         </h3>
-        {anchors.map((a, i) => (
-          <button
-            key={`${a.id}-${i}`}
-            type="button"
-            onClick={() =>
-              dispatch({
-                type: "SET_INSPECTOR",
-                context:
-                  a.type === "character"
-                    ? { type: "character", characterId: a.id }
-                    : { type: "location", locationId: a.id },
-              })
-            }
-            className="text-left text-xs text-text-secondary transition-colors hover:text-text-primary"
-          >
-            <span className="text-[10px] text-text-dim mr-1">{a.type}</span>
-            {a.name}
-          </button>
-        ))}
+        {anchors.map((a, i) => {
+          const participant = thread.participants[i];
+          return (
+            <button
+              key={`${a.id}-${i}`}
+              type="button"
+              onClick={() =>
+                dispatch({
+                  type: "SET_INSPECTOR",
+                  context:
+                    a.type === "character"
+                      ? { type: "character", characterId: a.id }
+                      : a.type === "location"
+                        ? { type: "location", locationId: a.id }
+                        : { type: "artifact", artifactId: a.id },
+                })
+              }
+              className="text-left text-xs text-text-secondary transition-colors hover:text-text-primary flex flex-col"
+            >
+              <span>
+                <span className="text-[10px] text-text-dim mr-1">{a.type}</span>
+                {a.name}
+              </span>
+              {participant?.stake && (
+                <span className="text-[9px] text-text-dim/80 italic ml-4">
+                  stake: {participant.stake}
+                </span>
+              )}
+            </button>
+          );
+        })}
       </div>
 
       {/* Connected Threads — bidirectional: what this thread converges with + what depends on it */}

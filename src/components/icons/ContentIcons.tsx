@@ -298,3 +298,17 @@ export function IconReasoning({ size, ...rest }: P) {
     </svg>
   );
 }
+
+export function IconGame({ size, ...rest }: P) {
+  return (
+    <svg {...defaults(size)} {...rest}>
+      {/* Game theory — two players with crossed strategies */}
+      <circle cx="7" cy="7" r="3" stroke="currentColor" strokeWidth="1.5" />
+      <circle cx="17" cy="17" r="3" stroke="currentColor" strokeWidth="1.5" />
+      <path d="M9.5 9.5L14.5 14.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+      <path d="M14.5 9.5L9.5 14.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" opacity="0.5" />
+      <path d="M7 10.5V17M10.5 17H7" stroke="currentColor" strokeWidth="1" strokeLinecap="round" opacity="0.4" />
+      <path d="M17 13.5V7M13.5 7H17" stroke="currentColor" strokeWidth="1" strokeLinecap="round" opacity="0.4" />
+    </svg>
+  );
+}

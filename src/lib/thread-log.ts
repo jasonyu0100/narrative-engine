@@ -24,7 +24,15 @@ export function applyThreadDelta(log: ThreadLog, delta: ThreadDelta): ThreadLog 
   for (const n of delta.addedNodes ?? []) {
     if (!n.id || !n.content) continue;
     if (!nodes[n.id]) {
-      nodes[n.id] = { id: n.id, type: n.type || 'pulse', content: n.content };
+      nodes[n.id] = {
+        id: n.id,
+        type: n.type || 'pulse',
+        content: n.content,
+        ...(n.actorId ? { actorId: n.actorId } : {}),
+        ...(n.targetId ? { targetId: n.targetId } : {}),
+        ...(n.stance ? { stance: n.stance } : {}),
+        ...(n.matrixCell ? { matrixCell: n.matrixCell } : {}),
+      };
       newNodeIds.push(n.id);
     }
   }

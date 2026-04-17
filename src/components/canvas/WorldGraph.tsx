@@ -21,6 +21,7 @@ import { SceneProseView } from './SceneProseView';
 import { SceneAudioView } from './SceneAudioView';
 import { SearchView } from './SearchView';
 import { ReasoningGraphView } from './ReasoningGraphView';
+import GameView from './GameView';
 import {
   type GraphNode,
   type GraphLink,
@@ -1125,6 +1126,8 @@ export default function WorldGraph() {
             hideControls hideLegend
           />
         )
+      ) : graphViewMode === 'game' ? (
+        <GameView narrative={narrative!} />
       ) : graphViewMode === 'search' ? (
         <SearchView />
       ) : graphViewMode === 'reasoning' ? (

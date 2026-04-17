@@ -829,28 +829,52 @@ export default function SceneDetail({ sceneId }: Props) {
             return (
               <div
                 key={`${tm.threadId}-${tmIdx}`}
-                className="flex items-center gap-1.5 text-xs"
+                className="flex flex-col gap-0.5"
               >
-                <button
-                  type="button"
-                  onClick={() =>
-                    dispatch({
-                      type: "SET_INSPECTOR",
-                      context: { type: "thread", threadId: tm.threadId },
-                    })
-                  }
-                  className="rounded bg-white/6 px-1.5 py-0.5 font-mono text-[10px] text-text-primary transition-colors hover:bg-white/12 shrink-0"
-                >
-                  {tm.threadId}
-                </button>
-                {thread && (
-                  <span className="text-text-dim text-[10px] truncate max-w-25">
-                    {thread.description}
+                <div className="flex items-center gap-1.5 text-xs">
+                  <button
+                    type="button"
+                    onClick={() =>
+                      dispatch({
+                        type: "SET_INSPECTOR",
+                        context: { type: "thread", threadId: tm.threadId },
+                      })
+                    }
+                    className="rounded bg-white/6 px-1.5 py-0.5 font-mono text-[10px] text-text-primary transition-colors hover:bg-white/12 shrink-0"
+                  >
+                    {tm.threadId}
+                  </button>
+                  {thread && (
+                    <span className="text-text-dim text-[10px] truncate max-w-25">
+                      {thread.description}
+                    </span>
+                  )}
+                  <span className="text-text-dim ml-auto shrink-0">
+                    {tm.from} &rarr; {tm.to}
                   </span>
+                </div>
+                {/* Log nodes with actor/target/stance */}
+                {tm.addedNodes?.length > 0 && (
+                  <div className="ml-4 flex flex-col gap-0.5">
+                    {tm.addedNodes.map((n, nIdx) => (
+                      <div key={`${n.id}-${nIdx}`} className="flex items-start gap-1.5">
+                        <span className="text-[9px] text-text-dim shrink-0 mt-px">{n.type}</span>
+                        <span className="text-[10px] text-text-secondary">{n.content}</span>
+                        {(n.actorId || n.stance) && (
+                          <span className="text-[9px] text-text-dim/60 shrink-0 ml-auto">
+                            {n.actorId && (narrative.characters[n.actorId]?.name ?? narrative.locations[n.actorId]?.name ?? n.actorId)}
+                            {n.targetId && ` → ${narrative.characters[n.targetId]?.name ?? narrative.locations[n.targetId]?.name ?? n.targetId}`}
+                            {n.stance && (
+                              <span className={`ml-1 ${n.stance === 'cooperative' ? 'text-emerald-400' : n.stance === 'competitive' ? 'text-red-400' : ''}`}>
+                                {n.stance}
+                              </span>
+                            )}
+                          </span>
+                        )}
+                      </div>
+                    ))}
+                  </div>
                 )}
-                <span className="text-text-dim ml-auto shrink-0">
-                  {tm.from} &rarr; {tm.to}
-                </span>
               </div>
             );
           })}

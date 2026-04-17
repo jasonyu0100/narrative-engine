@@ -18,19 +18,40 @@ export const THREAD_PRIMED_STATUSES = ["escalating", "critical"] as const;
 export const THREAD_RESET_STATUSES = ["abandoned"] as const;
 
 export const THREAD_STATUS_LABELS: Record<string, string> = {
-  latent: "introduced but not yet developed",
-  seeded: "setup established, tension planted",
-  active: "actively driving narrative",
-  escalating: "point of no return — must resolve",
-  critical: "at peak tension, demanding resolution",
-  resolved: "concluded or ran its course",
-  subverted: "fate defied — resolved contrary to expectations",
-  abandoned: "dropped and reset — available for repickup",
+  latent: "exists in the world but no character has acted on it yet",
+  seeded: "the question has been planted — reader holds it, no one is pursuing it",
+  active: "someone is actively working this question — resources and attention being spent",
+  escalating: "point of no return — too much invested to drop, must resolve",
+  critical: "resolution imminent — answer will be determined within 1-3 scenes",
+  resolved: "question answered — thread concluded",
+  subverted: "question answered contrary to expectations — fate defied",
+  abandoned: "dropped below escalating — available for repickup",
 };
 
 export type ThreadParticipant = {
   id: string;
   type: "character" | "location" | "artifact";
+  /** What this participant wants from this thread's resolution.
+   *  Short phrase capturing their preferred outcome. */
+  stake?: string;
+};
+
+/**
+ * A 2×2 payoff matrix between two participants in a thread.
+ * The atom of game-theoretic analysis. Each cell describes the narrative
+ * outcome when each player cooperates (advances the thread toward resolution)
+ * or defects (blocks, exploits, or diverts the thread).
+ *
+ * Payoffs are 0-4: 0 = no payoff / worst, 4 = maximum payoff / best.
+ * This scale allows for zero-value outcomes (complete loss) which 1-4 cannot.
+ */
+export type PayoffMatrix = {
+  playerA: string;
+  playerB: string;
+  cc: { outcome: string; payoffA: number; payoffB: number };
+  cd: { outcome: string; payoffA: number; payoffB: number };
+  dc: { outcome: string; payoffA: number; payoffB: number };
+  dd: { outcome: string; payoffA: number; payoffB: number };
 };
 
 // ── Thread Log ──────────────────────────────────────────────────────────────
@@ -70,10 +91,39 @@ export const THREAD_LOG_NODE_TYPES: ThreadLogNodeType[] = [
   "stall",
 ];
 
+/**
+ * Strategic stance — from the ACTOR's perspective, is this move advancing
+ * their interests (cooperative with their own goals), opposing another
+ * player's interests (competitive), or maintaining position (neutral)?
+ *
+ * This is perspective-dependent. The same event can be cooperative for
+ * the actor and competitive for the target. An escalation by Ruo Lan
+ * investigating Fang Yuan is cooperative for Ruo Lan (advancing her
+ * goal) and competitive against Fang Yuan (threatening his concealment).
+ */
+export type StrategicStance = "cooperative" | "competitive" | "neutral";
+
 export type ThreadLogNode = {
   id: string;
   type: ThreadLogNodeType;
   content: string;
+  /** Who performed this action — a single entity id.
+   *  Maps to one player in the 2×2 game atom. When a group acts together
+   *  (e.g. "the elders"), use the group's representative participant. */
+  actorId?: string;
+  /** Who was affected — a single entity id.
+   *  The other player in the 2×2 interaction. Omit for self-directed
+   *  actions or environmental events (no strategic opponent). */
+  targetId?: string;
+  /** Strategic stance from the actor's perspective — does this move advance
+   *  their interests (cooperative), oppose the target's (competitive),
+   *  or maintain position (neutral)? */
+  stance?: StrategicStance;
+  /** Which cell of the 2×2 payoff matrix this move falls into.
+   *  cc = both cooperate, cd = actor cooperates target defects,
+   *  dc = actor defects target cooperates, dd = both defect.
+   *  Declared by the LLM, not inferred. */
+  matrixCell?: "cc" | "cd" | "dc" | "dd";
 };
 
 export type ThreadLogEdge = {
@@ -97,6 +147,10 @@ export type Thread = {
   status: ThreadStatus;
   openedAt: string;
   dependents: string[];
+  /** Pairwise 2×2 payoff matrices — one per participant pair.
+   *  Captures the strategic structure: what happens under each combination
+   *  of cooperate/defect. Generated at thread creation by the LLM. */
+  payoffMatrices?: PayoffMatrix[];
   /** Accumulated lifecycle graph — nodes added per scene, edges link sequential events */
   threadLog: ThreadLog;
 };
@@ -1463,6 +1517,17 @@ export type AnalysisChunkResult = {
   threads: {
     description: string;
     participantNames: string[];
+    /** What each participant wants from resolution — parallel array to participantNames. */
+    participantStakes?: string[];
+    /** 2×2 payoff matrices — one per participant pair. Payoffs 0-4. */
+    payoffMatrices?: {
+      playerAName: string;
+      playerBName: string;
+      cc: { outcome: string; payoffA: number; payoffB: number };
+      cd: { outcome: string; payoffA: number; payoffB: number };
+      dc: { outcome: string; payoffA: number; payoffB: number };
+      dd: { outcome: string; payoffA: number; payoffB: number };
+    }[];
     statusAtStart: string;
     statusAtEnd: string;
     development: string;
@@ -1480,7 +1545,14 @@ export type AnalysisChunkResult = {
       threadDescription: string;
       from: string;
       to: string;
-      addedNodes: { content: string; type: string }[];
+      addedNodes: {
+        content: string;
+        type: string;
+        actorName?: string;
+        targetName?: string;
+        stance?: string;
+        matrixCell?: string;
+      }[];
     }[];
     worldDeltas: {
       entityName: string;
@@ -1631,7 +1703,8 @@ export type GraphViewMode =
   | "pulse"
   | "threads"
   | "search"
-  | "reasoning";
+  | "reasoning"
+  | "game";
 
 // ── Chat Threads ──────────────────────────────────────────────────────────────
 export type ChatMessage = {

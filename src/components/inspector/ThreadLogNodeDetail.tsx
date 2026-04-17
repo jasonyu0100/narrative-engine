@@ -121,6 +121,38 @@ export default function ThreadLogNodeDetail({ threadId, nodeId }: Props) {
         </p>
       )}
 
+      {/* Actor / Target / Stance */}
+      {(node.actorId || node.targetId || node.stance) && (
+        <div className="flex flex-col gap-0.5">
+          {node.actorId && (
+            <span className="text-[10px] text-text-secondary">
+              <span className="text-text-dim mr-1">actor</span>
+              {narrative.characters[node.actorId]?.name ??
+                narrative.locations[node.actorId]?.name ??
+                narrative.artifacts[node.actorId]?.name ??
+                node.actorId}
+            </span>
+          )}
+          {node.targetId && (
+            <span className="text-[10px] text-text-secondary">
+              <span className="text-text-dim mr-1">target</span>
+              {narrative.characters[node.targetId]?.name ??
+                narrative.locations[node.targetId]?.name ??
+                narrative.artifacts[node.targetId]?.name ??
+                node.targetId}
+            </span>
+          )}
+          {node.stance && (
+            <span className={`text-[10px] ${
+              node.stance === 'cooperative' ? 'text-emerald-400' :
+              node.stance === 'competitive' ? 'text-red-400' : 'text-text-dim'
+            }`}>
+              {node.stance}
+            </span>
+          )}
+        </div>
+      )}
+
       {/* Parent thread */}
       <button
         onClick={() =>
