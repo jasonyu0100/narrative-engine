@@ -7,7 +7,7 @@
 
 // ── Generation Schemas (ID-based) ───────────────────────────────────────────
 
-export const SCHEMA_THREAD_DELTAS = `"threadDeltas": [{"threadId": "T-XX", "from": "latent|seeded|active|escalating|critical|resolved|subverted|abandoned", "to": "latent|seeded|active|escalating|critical|resolved|subverted|abandoned", "addedNodes": [{"id": "TK-XX", "content": "15-25 words, PRESENT tense: what just changed for this thread", "type": "pulse|transition|setup|escalation|payoff|twist|callback|resistance|stall", "actorId": "C-XX — who acted", "targetId": "C-YY or null — who was affected", "stance": "cooperative|competitive|neutral", "matrixCell": "cc|cd|dc|dd — first letter = actor's action, second = target's action (c=cooperate d=defect)"}]}]`;
+export const SCHEMA_THREAD_DELTAS = `"threadDeltas": [{"threadId": "T-XX", "from": "latent|seeded|active|escalating|critical|resolved|subverted|abandoned", "to": "latent|seeded|active|escalating|critical|resolved|subverted|abandoned", "addedNodes": [{"id": "TK-XX", "content": "15-25 words, PRESENT tense: what just changed for this thread", "type": "pulse|transition|setup|escalation|payoff|twist|callback|resistance|stall", "matrixCell": "cc|cd|dc|dd", "actorId": "C-XX", "targetId": "C-YY or null", "stance": "cooperative|competitive|neutral"}]}]`;
 
 export const SCHEMA_WORLD_DELTAS = `"worldDeltas": [{"entityId": "C-XX", "addedNodes": [{"id": "K-XX", "content": "15-25 words, PRESENT tense: a stable fact about the entity — their unique perspective on reality, identity, or condition", "type": "trait|state|history|capability|belief|relation|secret|goal|weakness"}]}]`;
 
@@ -27,7 +27,7 @@ export const SCHEMA_EVENTS = `"events": ["descriptive_2-4_word_tags"]`;
 
 // ── Analysis Schemas (name-based, pre-ID resolution) ────────────────────────
 
-export const SCHEMA_ANALYSIS_THREAD_DELTAS = `"threadDeltas": [{"threadDescription": "exact thread description", "from": "latent|seeded|active|escalating|critical|resolved|subverted|abandoned", "to": "latent|seeded|active|escalating|critical|resolved|subverted|abandoned", "addedNodes": [{"content": "15-25 words, PRESENT tense: what just changed for this thread", "type": "pulse|transition|setup|escalation|payoff|twist|callback|resistance|stall", "actorName": "who acted", "targetName": "who was affected or null", "stance": "cooperative|competitive|neutral", "matrixCell": "cc|cd|dc|dd — which payoff matrix cell this move represents"}]}]`;
+export const SCHEMA_ANALYSIS_THREAD_DELTAS = `"threadDeltas": [{"threadDescription": "exact thread description", "from": "latent|seeded|active|escalating|critical|resolved|subverted|abandoned", "to": "latent|seeded|active|escalating|critical|resolved|subverted|abandoned", "addedNodes": [{"content": "15-25 words, PRESENT tense: what just changed for this thread", "type": "pulse|transition|setup|escalation|payoff|twist|callback|resistance|stall", "matrixCell": "cc|cd|dc|dd", "actorName": "who acted", "targetName": "who was affected or null", "stance": "cooperative|competitive|neutral"}]}]`;
 
 export const SCHEMA_ANALYSIS_WORLD_DELTAS = `"worldDeltas": [{"entityName": "Character, Location, or Artifact name", "addedNodes": [{"content": "15-25 words, PRESENT tense: a stable fact about the entity — their unique perspective on reality, identity, or condition", "type": "trait|state|history|capability|belief|relation|secret|goal|weakness"}]}]`;
 
