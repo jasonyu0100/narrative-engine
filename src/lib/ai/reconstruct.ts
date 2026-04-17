@@ -595,7 +595,7 @@ You MUST:
 - Use only existing character, location, and thread IDs from the context
 - Maintain continuity with surrounding scenes
 - Address the evaluation reason directly
-- Every threadDelta MUST include 1-2 addedNodes log entries describing what happened to THAT thread in THIS scene (pulse/transition/setup/escalation/payoff/twist/callback/resistance/stall). If you omit them the thread log goes blank.
+- Every threadDelta MUST include 1 addedNode log entry capturing the decisive game move for THAT thread in THIS scene (pulse/transition/setup/escalation/payoff/twist/callback/resistance/stall). A second node only for genuine multi-step sequences. If you omit them the thread log goes blank.
 - Every worldDelta should list its nodes in causal/temporal order — adjacent nodes auto-chain (no explicit edges).
 
 Return JSON:
@@ -695,7 +695,7 @@ ${sourceBlock}
 MERGE RULES:
 - The output is ONE scene, not multiple. It replaces the target scene.
 - You may change POV, location, and participants if the absorbed content demands it.
-- Combine thread deltas from all scenes — if the target advances T-01 and a source advances T-03, the merged scene should advance both. Each threadDelta MUST include 1-2 addedNodes log entries describing what happened to THAT thread in the merged scene.
+- Combine thread deltas from all scenes — if the target advances T-01 and a source advances T-03, the merged scene should advance both. Each threadDelta MUST include 1 addedNode log entry capturing the decisive game move for THAT thread in the merged scene.
 - Combine world and relationship deltas — deduplicate but preserve unique knowledge. List world nodes in causal/temporal order (adjacent nodes auto-chain).
 - The summary must use character NAMES and location NAMES (never raw IDs) and weave the best elements from all inputs into a cohesive narrative beat.
 - Do NOT simply concatenate summaries. Synthesize them into a single dramatic moment.
@@ -761,7 +761,7 @@ ${evaluation.repetitions.length > 0 ? `PATTERNS TO AVOID: ${evaluation.repetitio
 Generate a complete scene that addresses the generation brief. The scene must:
 - Use only existing character, location, and thread IDs from the context
 - Advance at least one thread with a status transition
-- Every threadDelta MUST include 1-2 addedNodes log entries (pulse/transition/setup/escalation/payoff/twist/callback/resistance/stall) describing what happened to THAT thread in THIS scene. Missing log entries leave the thread log blank.
+- Every threadDelta MUST include 1 addedNode log entry (pulse/transition/setup/escalation/payoff/twist/callback/resistance/stall) capturing the decisive game move for THAT thread in THIS scene. Missing log entries leave the thread log blank.
 - List each worldDelta's nodes in causal/temporal order — adjacent nodes auto-chain into the entity's world graph.
 
 Return JSON:

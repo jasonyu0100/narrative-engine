@@ -45,6 +45,7 @@ threadDeltas — Threads are CONTESTED GAMES between participants who want diffe
   STATUS (from/to): latent | seeded | active | escalating | critical | resolved | subverted | abandoned
     "pulse" is NOT a status. Transitions move ONE step. 0-1 transitions per scene.
   LOG TYPE: pulse | transition | setup | escalation | payoff | twist | callback | resistance | stall
+  DENSITY: 1 node per thread touch — the decisive game move. A second node only when the scene contains a genuine multi-step sequence (e.g., twist → counter-move). 3 is the hard cap for pivotal resolutions. Most scenes: 1 node per thread.
   ATTRIBUTION — every log entry records ONE actor, ONE target, and the MATRIX CELL played:
   - actorId: the single entity whose action drives this event.
   - targetId: the single entity primarily affected. Omit for self-directed or environmental events.

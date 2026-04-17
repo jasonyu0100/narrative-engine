@@ -119,13 +119,10 @@ threadDeltas — lifecycle: latent→seeded→active→escalating→critical→r
     - Only record a transition when the prose shows a clear, irreversible shift in tension.
     - Touching 2-3 threads per scene (mostly pulses) with at most one transition is typical.
 
-  THREAD LOG: each threadDelta MUST include 1-3 log entries (15-25 words each) recording how the question was advanced or answered.
-  Log types: pulse (question maintained), transition (question urgency advanced), setup (groundwork laid for answer), escalation (stakes raised), payoff (question answered), twist (expectations subverted), callback (reference to earlier thread event), resistance (opposition to answer), stall (question stagnated).
-  DENSITY STANDARDS (per thread touch):
-    Pulse: 1 log node — what aspect of the thread was maintained or reinforced.
-    Transition: 2-3 log nodes — what caused the shift, what changed, and what it means going forward.
-    Critical/resolution scenes: 2-3 nodes — the payoff, its consequences, and any callbacks to earlier setup.
-  Each log node describes a SPECIFIC observation about thread progression, not a restatement of the scene summary.
+  THREAD LOG: each threadDelta includes 1 log entry (15-25 words) capturing the single most significant game state change.
+  Log types: pulse (position held), transition (board shifted), setup (future payoff invested), escalation (retreat made costlier), payoff (investment returned), twist (information asymmetry exploited), callback (past move constraining present), resistance (strategy blocked), stall (deadlock).
+  DEFAULT: 1 node per thread touch — the decisive move. A second node is permitted ONLY when the scene contains a genuine multi-step strategic sequence (e.g., a twist that triggers an immediate counter-move). 3 nodes is the hard cap, reserved for pivotal resolution scenes.
+  Each log node captures a game state, not a narrative summary.
 
 worldDeltas — what we LEARN about an entity that wasn't known before. Applies to characters, locations, and artifacts.
 - Characters: new behaviour, belief, capability, or inner state revealed. Not restating what's already known.
