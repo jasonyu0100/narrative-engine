@@ -154,7 +154,7 @@ export default function KnowledgeGraphView({ narrative, resolvedKeys, currentInd
       .force('center', d3.forceCenter(0, 0))
       .force('x', d3.forceX(0).strength(0.05))
       .force('y', d3.forceY(0).strength(0.05))
-      .force('collide', d3.forceCollide<WKNode>().radius(40));
+      .force('collide', d3.forceCollide<WKNode>().radius(60));
     simRef.current = sim;
 
     return () => { sim.stop(); simRef.current = null; gRef.current = null; };
@@ -173,7 +173,7 @@ export default function KnowledgeGraphView({ narrative, resolvedKeys, currentInd
       degreeMap.set(e.to, (degreeMap.get(e.to) ?? 0) + 1);
     }
     const maxDegree = Math.max(...nodeList.map((n) => degreeMap.get(n.id) ?? 0), 1);
-    const nodeRadius = (d: WKNode) => 5 + (d.degree / maxDegree) * 20;
+    const nodeRadius = (d: WKNode) => 8 + (d.degree / maxDegree) * 32;
 
     // Preserve positions of existing nodes
     const prevPos = new Map(nodesRef.current.map((n) => [n.id, { x: n.x, y: n.y }]));

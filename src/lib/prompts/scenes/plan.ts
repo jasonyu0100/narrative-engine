@@ -83,6 +83,13 @@ PROPOSITIONS:
 
 Propositions are KEY FACTS established by this beat.
 
+STRATEGIC WEIGHT — not all propositions are equal. Some propositions change the game:
+- A proposition that creates INFORMATION ASYMMETRY (one participant learns something others don't) is strategically pivotal — it shifts who has leverage. In fiction: a secret overheard. In argument: evidence only one side has seen. In inquiry: a source only one investigator has access to.
+- A proposition that reveals a HIDDEN MOTIVATION or UNSTATED ASSUMPTION reframes prior interactions — the payoff matrix retroactively changes. In fiction: a character's true goal exposed. In argument: an implicit premise made explicit. In inquiry: a stakeholder's undisclosed interest surfacing.
+- A proposition that establishes a RULE or CONSTRAINT limits future strategic options for all participants — it narrows the game. In fiction: a magical law, a social obligation. In argument: a logical constraint, a definitional boundary. In inquiry: a methodological limitation.
+- A proposition that creates a COMMITMENT (a promise, a public declaration, a published claim, a methodological choice) is an irreversible move — it changes the player's future strategy space.
+When deciding what propositions a beat carries, think about which facts change the strategic landscape between participants, not just what facts exist.
+
 DENSITY GUIDELINES (per beat, ~100 words) — tune to the declared register:
 - Light fiction (atmospheric, whimsical, children's lit): 1-2 propositions
 - Standard fiction (dialogue, action): 2-4 propositions

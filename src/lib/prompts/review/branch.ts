@@ -39,6 +39,7 @@ Evaluate this branch on these dimensions:
 4. **CHARACTER** — Who changes? Who is stuck in a loop? Who appears but does nothing?
 5. **THREADS** — Which threads are advancing well? Which are stagnating or being ignored?
 6. **THEME** — What is this story about underneath the plot? Is it interrogating anything?
+7. **STRATEGIC DYNAMICS** — Are the participants playing games with each other? Where are the power shifts, alliance breaks, coalitions forming and dissolving? In fiction: are characters cooperating or defecting with clear strategic motivation? In argument: are competing claims genuinely contesting each other, or coexisting without interaction? In inquiry: are evidence streams converging or diverging, and does the work acknowledge the tension? The most interesting works have moments where the payoff matrix changes — where what seemed like the winning strategy suddenly isn't. Identify where these inflection points occur (or should occur but don't).
 
 For EACH scene, assign a verdict. These map to concrete operations:
 - "ok" — scene works. No changes needed.

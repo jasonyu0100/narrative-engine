@@ -37,6 +37,7 @@ For each scene, check:
 3. **INTERNAL BEAT LOGIC** — Do beats within the plan follow causally? Does beat 5 depend on something beat 3 established?
 4. **CHARACTER KNOWLEDGE** — Does any beat have a character act on information they haven't learned yet in prior scenes or earlier beats?
 5. **SPATIAL/TEMPORAL** — Are characters where they should be? Can all beats plausibly occur in one scene?
+6. **STRATEGIC COHERENCE** — Do participants' actions make sense given what they know and what they want? In fiction: a character who cooperates with someone whose interests are opposed needs a reason (ignorance, deception, forced alliance); a character who defects against an ally needs a trigger. In argument: a claim that contradicts the author's own earlier evidence needs justification (scope limitation, new framework, acknowledged tension). In inquiry: a conclusion that ignores available counter-evidence needs explanation. Flag beats where strategic behaviour doesn't follow from known information and established motivations.
 
 Verdicts:
 - "ok" — beats are consistent, deltas are earned by specific beats

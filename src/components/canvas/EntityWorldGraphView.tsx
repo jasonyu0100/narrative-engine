@@ -79,7 +79,7 @@ export default function EntityWorldGraphView({ entityId, entityName, world, scen
       .force('center', d3.forceCenter(0, 0))
       .force('x', d3.forceX(0).strength(0.05))
       .force('y', d3.forceY(0).strength(0.05))
-      .force('collide', d3.forceCollide<CNode>().radius(40));
+      .force('collide', d3.forceCollide<CNode>().radius(60));
     simRef.current = sim;
 
     return () => { sim.stop(); simRef.current = null; gRef.current = null; };
@@ -98,7 +98,7 @@ export default function EntityWorldGraphView({ entityId, entityName, world, scen
       degreeMap.set(e.to, (degreeMap.get(e.to) ?? 0) + 1);
     }
     const maxDegree = Math.max(...rawNodes.map((n) => degreeMap.get(n.id) ?? 0), 1);
-    const nodeRadius = (d: CNode) => 5 + (d.degree / maxDegree) * 20;
+    const nodeRadius = (d: CNode) => 8 + (d.degree / maxDegree) * 32;
 
     const prevPos = new Map(nodesRef.current.map((n) => [n.id, { x: n.x, y: n.y }]));
     const simNodes: CNode[] = rawNodes.map((n) => {

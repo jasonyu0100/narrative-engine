@@ -43,7 +43,7 @@ export function MarkovGraph({
   height?: number;
 }) {
   const positions = useMemo(() => circlePositions(width / 2, height / 2, Math.min(width, height) * 0.36), [width, height]);
-  const nodeR = 20;
+  const nodeR = 32;
 
   // Animation state
   const [activeStep, setActiveStep] = useState(-1); // -1 = not started, 0..n = walking
@@ -156,14 +156,14 @@ export function MarkovGraph({
                 strokeWidth={2}
                 opacity={0.6}
               >
-                <animate attributeName="r" values={`${nodeR + 2};${nodeR + 7};${nodeR + 2}`} dur="1.5s" repeatCount="indefinite" />
+                <animate attributeName="r" values={`${nodeR + 3};${nodeR + 10};${nodeR + 3}`} dur="1.5s" repeatCount="indefinite" />
                 <animate attributeName="opacity" values="0.6;0.2;0.6" dur="1.5s" repeatCount="indefinite" />
               </circle>
             )}
             <text
               x={pos.x} y={pos.y + 1}
               fill="#fff"
-              fontSize="8"
+              fontSize="10"
               fontWeight="600"
               textAnchor="middle"
               dominantBaseline="middle"
@@ -181,12 +181,12 @@ export function MarkovGraph({
         <circle
           cx={ballPos.x}
           cy={ballPos.y}
-          r={6}
+          r={8}
           fill="#ffffff"
           opacity={0.9}
           className="transition-all duration-200"
         >
-          <animate attributeName="r" values="5;7;5" dur="0.8s" repeatCount="indefinite" />
+          <animate attributeName="r" values="7;10;7" dur="0.8s" repeatCount="indefinite" />
         </circle>
       )}
     </svg>

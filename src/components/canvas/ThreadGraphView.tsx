@@ -202,7 +202,7 @@ export default function ThreadGraphView({
       .force('center', d3.forceCenter(0, 0))
       .force('x', d3.forceX(0).strength(0.05))
       .force('y', d3.forceY(0).strength(0.05))
-      .force('collide', d3.forceCollide<TNode>().radius(50));
+      .force('collide', d3.forceCollide<TNode>().radius(75));
     simRef.current = sim;
 
     return () => { sim.stop(); simRef.current = null; gRef.current = null; };
@@ -215,7 +215,7 @@ export default function ThreadGraphView({
     if (!sim || !g) return;
 
     const maxActivity = Math.max(...graphData.nodes.map(n => n.activity), 1);
-    const nodeRadius = (d: TNode) => 8 + (d.activity / maxActivity) * 18;
+    const nodeRadius = (d: TNode) => 13 + (d.activity / maxActivity) * 29;
 
     // Preserve positions
     const prevPos = new Map(nodesRef.current.map(n => [n.id, { x: n.x, y: n.y }]));

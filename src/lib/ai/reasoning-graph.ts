@@ -859,6 +859,20 @@ Different patterns mean different things. Read the direction, then read what it'
 
 Cross-direction edges are how subversions and adaptations work. Don't ban them; be deliberate — every cross-direction edge asserts one of these patterns.
 
+### GAME-THEORETIC REASONING
+
+The reasoning graph is an iterated game. Each node is a player; each edge is a move. The graph isn't just causal structure — it's strategic structure. When you build nodes and edges, think about WHO BENEFITS and WHO LOSES. This applies across registers: in fiction the players are characters and forces; in argument the players are claims, methods, and evidence; in inquiry the players are hypotheses and stakeholders.
+
+**Cooperation and defection aren't fixed to edge types.** An \`enables\` edge can be a betrayal (enabling self-destruction; enabling a flawed method that will produce misleading results). A \`constrains\` edge can be protection (constraining a fatal mistake; a methodological guard-rail that prevents overreach). A \`risks\` edge can be the most cooperative move in the graph (a calculated risk for mutual benefit; a bold hypothesis that, if validated, strengthens the entire framework). The DIRECTION and CONTEXT determine the strategic meaning, not the edge label alone.
+
+**Information asymmetry is the engine.** When one node holds knowledge another doesn't, the graph should encode that as strategic advantage. A \`reveals\` edge isn't just "information appears" — it's "the information landscape changes, and every player's optimal strategy shifts." In fiction: a secret exposed reshapes alliances. In argument: a decisive piece of evidence forces all competing claims to recalibrate. In inquiry: a newly discovered source reframes the entire investigation. The most powerful reasoning chains include moments where WHAT IS KNOWN changes WHO HAS LEVERAGE.
+
+**Equilibrium and instability.** A subgraph where all nodes mutually reinforce each other is a stable equilibrium — a resolved state (a conclusion, a proven thesis, a settled question). A subgraph where nodes undermine each other through \`constrains\` and \`risks\` is unstable — it will change (an unresolved conflict, a contested claim, an open question). Good graphs have BOTH: stable structures the work is building toward, and unstable structures that threaten to break them. The tension between stability and instability IS the engine — in fiction as dramatic tension, in argument as intellectual tension, in inquiry as unresolved evidence.
+
+**Coalition reasoning.** Nodes that share \`enables\`/\`develops\` edges form implicit coalitions (allied characters; converging evidence; complementary methods). When a coalition member connects to an outside node via \`risks\`/\`constrains\`, the coalition is under threat. When an inside node has \`enables\` edges to both coalition members AND their adversary, that node is a potential DEFECTOR — the most interesting structural position in any graph (a double agent; a piece of evidence that supports both sides; a method that validates one claim while undermining another).
+
+**Payoff asymmetry across threads.** When two thread-fate nodes share participants, think about the CROSS-THREAD PAYOFF. Advancing one thread may cost another's participants. In fiction: a character who benefits from one thread resolving may lose from another resolving. In argument: evidence that strengthens one claim may weaken a claim the same author needs elsewhere. In inquiry: pursuing one line of investigation may foreclose another. The coordination (or conflict) between threads is where the deepest strategic reasoning lives. Don't reason about threads in isolation — reason about the game BETWEEN threads.
+
 ### WHAT DIFFERS BY MODE
 
 A fate-dominant graph leans into the agenda; a chaos-dominant graph leans into adversarial reasoning; a world- or system-dominant graph leans into expanding those layers. **Every mode can create** — new characters, locations, artifacts, threads — but the flavor of creation serves the mode's master:
