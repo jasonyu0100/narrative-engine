@@ -2,6 +2,8 @@
  * Delta Guidelines Prompt
  *
  * Direct inputs to force formulas. Every delta must be EARNED by prose.
+ * Thread deltas are GAME MOVES — each delta is a player's strategic action
+ * within the thread's contested game.
  */
 
 export const PROMPT_DELTAS = `
@@ -22,20 +24,44 @@ INITIALIZATION FLOOR — zero-node entities and zero-log threads are invalid:
   - Every new character / location / artifact must have ≥1 node in its world.nodes at creation. Role/prominence/significance minimums (see below) are the target; 1 is the absolute floor.
   - Every new thread must be opened by a scene threadDelta carrying ≥1 addedNode (type "setup") that records the seed moment. A thread whose opening scene has no log entry is broken — the question has been posed with no record of it being posed.
 
-threadDeltas — Threads are COMPELLING QUESTIONS. In fiction they shape fate; in non-fiction they shape the argument's or inquiry's trajectory. Either way: STAKES, UNCERTAINTY, INVESTMENT — in registers that call for them.
-  BAD as a default: "Will Bob succeed?" / "Does the method work?" (too plain to carry a full arc)
-  ACCEPTABLE when intentional: picaresque, satirical, ironic, or open-inquiry work may use a deliberately simple recurring question as its spine. The simplicity must be a choice, not a failure — the register must earn the flatness.
+threadDeltas — Threads are CONTESTED GAMES between participants who want different outcomes.
+  A strong thread has STAKES, UNCERTAINTY, INVESTMENT, and ASYMMETRY (participants have different optimal resolutions).
+  Thread logs track MOVES — each addedNode is a strategic action by or affecting a participant.
+  BAD as a default: "Will Bob succeed?" / "Does the method work?" (too plain, no asymmetry)
+  ACCEPTABLE when intentional: picaresque, satirical, ironic, or open-inquiry work.
   GOOD (dramatic fiction): "Can Ayesha clear her grandfather's name before the tribunal ends?"
   GOOD (literary fiction, lyric register): "What does the river remember of the flood, and does the narrator want to know?"
   GOOD (argument): "Does the proposed mechanism explain the anomalies the prior model cannot, and at what cost?"
   GOOD (inquiry): "What role did diaspora networks play in the movement before digital coordination?"
-  GOOD (memoir): "Can the narrator name the thing their mother refused to name?"
-  GOOD (essayistic criticism): "Can poststructuralist close reading account for silence as resistance in this corpus?"
-  Thread logs track incremental ANSWERS over time.
+  Thread logs track incremental ANSWERS — the moves in the game — over time.
+
+  GAME THINKING FOR DELTAS — when writing thread deltas, consider:
+  - WHO BENEFITS from this delta? A setup is an investment — by a character in fiction, by an argument in non-fiction, by a hypothesis in inquiry. What payoff is being hoped for?
+  - WHO LOSES? An escalation that commits one participant constrains all others. In argument: a strong claim narrows the space for alternative explanations.
+  - IS THIS COOPERATIVE OR DEFECTIVE? Two participants can both advance a thread (cooperation) even while wanting different outcomes. A resistance move is defection — blocking another's strategy. In non-fiction: counterevidence is defection against the emerging thesis; corroboration is cooperation.
+  - WHAT INFORMATION CHANGED? A twist or reveal reshapes the game — everyone recalculates. In fiction: a secret exposed. In argument: a decisive finding published. In inquiry: a key source surfacing.
+  - CROSS-THREAD EFFECTS: Advancing Thread A may cost Thread B. When scenes touch 2-4 threads, think about how moves in one thread affect the games in others. In argument: evidence supporting one claim may undermine a different claim the author also needs.
+
   STATUS (from/to): latent | seeded | active | escalating | critical | resolved | subverted | abandoned
     "pulse" is NOT a status. Transitions move ONE step. 0-1 transitions per scene.
   LOG TYPE: pulse | transition | setup | escalation | payoff | twist | callback | resistance | stall
-  COMMITMENT: escalating = point of no return (must resolve / subvert / formally abandon).
+  ATTRIBUTION — every log entry records ONE actor, ONE target, and the MATRIX CELL played:
+  - actorId: the single entity whose action drives this event.
+  - targetId: the single entity primarily affected. Omit for self-directed or environmental events.
+  - stance: cooperative (advancing actor's interests), competitive (opposing target's), or neutral.
+  - matrixCell: REQUIRED. The first letter is the ACTOR's action, the second letter is the TARGET's action:
+      cc = actor cooperates, target cooperates (both advance the thread)
+      cd = actor cooperates, target defects (actor advances, target blocks/exploits)
+      dc = actor defects, target cooperates (actor blocks/exploits, target advances)
+      dd = actor defects, target defects (both block)
+    Cooperate = advance the thread toward resolution. Defect = block, exploit, or divert.
+    Every log entry MUST declare matrixCell. Always write from the ACTOR's perspective: first letter = what the actor did, second letter = what the target did (or would do given the actor's move).
+  Examples:
+    "Chi Lian challenges Bo's leadership" → actorId: Chi Lian, targetId: Bo, matrixCell: dc (Chi Lian defects by challenging, Bo cooperates by maintaining order)
+    "Fang Yuan cedes the wolf carcass to Mo Bei" → actorId: Fang Yuan, targetId: Mo Bei, matrixCell: cd (Fang Yuan cooperates by ceding, Mo Bei defects by taking)
+    "Both clans agree to shared patrol routes" → matrixCell: cc (both cooperate)
+    "Ruo Lan investigates Fang Yuan's concealment" → actorId: Ruo Lan, targetId: Fang Yuan, matrixCell: dc (Ruo Lan defects against the status quo, Fang Yuan cooperates by maintaining his cover)
+  COMMITMENT: escalating = an irreversible strategic investment (must resolve / subvert / formally abandon).
   Prune stale threads (5+ scenes without transition). Keep thread count lean — 10+ threads = noise.
 
 worldDeltas — Entity's PRESENT TENSE facts. For characters: traits, beliefs, capabilities, wounds. For ideas / methods / institutions: properties demonstrated, qualifications earned, capabilities shown, known failure modes.

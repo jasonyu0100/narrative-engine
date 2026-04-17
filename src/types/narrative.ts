@@ -48,6 +48,14 @@ export type ThreadParticipant = {
 export type PayoffMatrix = {
   playerA: string;
   playerB: string;
+  /** What "cooperate" means for player A — a concrete action (e.g. "pursues integration"). */
+  actionA?: string;
+  /** What "defect" means for player A — a concrete action (e.g. "abandons integration"). */
+  defectA?: string;
+  /** What "cooperate" means for player B (e.g. "submits to refinement"). */
+  actionB?: string;
+  /** What "defect" means for player B (e.g. "resists and consumes"). */
+  defectB?: string;
   cc: { outcome: string; payoffA: number; payoffB: number };
   cd: { outcome: string; payoffA: number; payoffB: number };
   dc: { outcome: string; payoffA: number; payoffB: number };

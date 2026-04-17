@@ -592,11 +592,19 @@ Return JSON with this exact structure:
   "threads": [
     {
       "id": "${nextThreadId}",
-      "participants": [{"id": "character or location ID", "type": "character|location"}],
+      "participants": [{"id": "character or location ID", "type": "character|location", "stake": "3-8 words: what this participant wants from resolution"}],
       "description": "Frame as a QUESTION: 'Will X succeed?' 'Can Y be trusted?' 'What is the truth behind Z?' — 15-30 words, specific conflict",
       "status": "latent",
       "openedAt": "new",
-      "dependents": ["T-XX (existing thread IDs this thread connects to, accelerates, or converges with — see THREAD CONVERGENCE below)"]
+      "dependents": ["T-XX (existing thread IDs this thread connects to, accelerates, or converges with)"],
+      "payoffMatrices": [{"playerA": "C-XX", "playerB": "C-YY",
+        "actionA": "2-5 words: A's cooperative action", "defectA": "2-5 words: A's defect action",
+        "actionB": "2-5 words: B's cooperative action", "defectB": "2-5 words: B's defect action",
+        "cc": {"outcome": "5-15 words", "payoffA": 3, "payoffB": 3},
+        "cd": {"outcome": "5-15 words", "payoffA": 1, "payoffB": 4},
+        "dc": {"outcome": "5-15 words", "payoffA": 4, "payoffB": 1},
+        "dd": {"outcome": "5-15 words", "payoffA": 2, "payoffB": 2}
+      }]
     }
   ],
   "artifacts": [
@@ -646,6 +654,7 @@ CONTENT RULES:
 - Location knowledge should establish what makes each place narratively distinct (2-3 nodes per location — its defining atmosphere, a constraint or danger, and a resource or opportunity it offers)
 - Threads should introduce DIFFERENT types of open questions than existing ones — if current threads are about conflict, add threads about mystery, loyalty, or forbidden knowledge.
 - ALL new threads MUST have status "latent" — they are seeds for future arcs, not active storylines yet
+- ALL new threads with 2+ participants MUST have payoffMatrices — one 2×2 matrix per participant pair. Cooperate = advance the thread; Defect = block/exploit. Payoffs are 1-4 (4=best). Think about what each participant wants and how outcomes differ when they cooperate vs defect against each other.
 - Generate the exact counts specified above (${EXPANSION_SIZE_CONFIG[size].characters} characters, ${EXPANSION_SIZE_CONFIG[size].locations} locations, ${EXPANSION_SIZE_CONFIG[size].threads} threads)
 
 THREAD CONVERGENCE (critical for long-form narrative):
@@ -833,7 +842,7 @@ Return JSON with this exact structure:
     {"id": "L-01", "name": "Location name from geography, founders, or corrupted older words — concrete and specific", "prominence": "domain|place|margin", "parentId": null, "threadIds": [], "imagePrompt": "1-2 sentence LITERAL visual description — concrete architecture, landscape, lighting. No metaphors or figurative language; image generators interpret literally.", "world": {"nodes": [{"id": "LK-01", "type": "trait|state|history|capability|belief|relation|secret|goal|weakness", "content": "15-25 words, PRESENT tense: a stable fact about this location — history, rules, dangers, atmosphere, or properties"}]}}
   ],
   "threads": [
-    {"id": "T-01", "participants": [{"id": "C-01", "type": "character|location|artifact"}], "description": "Frame as a QUESTION: 'Will X succeed?' 'Can Y be trusted?' 'What is the truth behind Z?' — 15-30 words, specific", "status": "latent", "openedAt": "S-001", "dependents": []}
+    {"id": "T-01", "participants": [{"id": "C-01", "type": "character|location|artifact", "stake": "3-8 words: what they want"}], "description": "Frame as a QUESTION — 15-30 words, specific", "status": "latent", "openedAt": "S-001", "dependents": [], "payoffMatrices": [{"playerA": "C-01", "playerB": "C-02", "actionA": "A's cooperative action", "defectA": "A's defect action", "actionB": "B's cooperative action", "defectB": "B's defect action", "cc": {"outcome": "both cooperate", "payoffA": 3, "payoffB": 3}, "cd": {"outcome": "A cooperates B defects", "payoffA": 1, "payoffB": 4}, "dc": {"outcome": "A defects B cooperates", "payoffA": 4, "payoffB": 1}, "dd": {"outcome": "both defect", "payoffA": 2, "payoffB": 2}}]}
   ],
   "relationshipDeltas": [
     {"from": "C-01", "to": "C-02", "type": "description", "valenceDelta": 0.5}
@@ -896,6 +905,7 @@ SEEDING FATE — a great world is pregnant with story. Every entity you create s
 - Plant surprises: at least 2 characters should have secrets even the reader doesn't know yet (these go in world nodes of type "secret")
 - Create asymmetries: what Character A believes about Character B should differ from reality in ways that will explode later
 - Build pressure: threads should share participants so collision is INEVITABLE, not coincidental
+- PAYOFF MATRICES: every thread with 2+ participants MUST include a payoffMatrices array — one 2×2 game per participant pair. Think: what does each player want? If both cooperate (advance the thread), what happens? If one defects (blocks/exploits), what happens? If both defect, what happens? Rank the four outcomes 1-4 for each player (4=best). This is how we capture the strategic structure of fate.
 
 ENTITY DEFINITIONS:
 - Characters are conscious beings with agency — people, named animals, sentient AI (AGI). Non-sentient AI systems are artifacts.

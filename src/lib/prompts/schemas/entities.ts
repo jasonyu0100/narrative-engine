@@ -62,11 +62,21 @@ export const SCHEMA_ARTIFACT_CREATION = `{
 
 export const SCHEMA_THREAD_CREATION = `{
   "id": "T-XX",
-  "participants": [{"id": "C-XX or L-XX or A-XX", "type": "character|location|artifact"}],
-  "description": "A persistent narrative preoccupation. In dramatic registers it is usually a question with stakes, uncertainty, and investment; in lyric or meditative registers it may be a recurring attention; in argument or inquiry it is an open claim or question. Weak (any register): 'Will [Name] succeed?' — too plain to carry a full arc unless the form is picaresque, ironic, or deliberately flat. Strong (narrative): 'Can Ayesha clear her grandfather's name before the tribunal ends?' Strong (argument): 'Does the proposed mechanism explain anomalies the prior model cannot?' Strong (inquiry): 'What role did diaspora networks play in the movement before digital coordination?' — 15-30 words",
+  "participants": [{"id": "C-XX or L-XX or A-XX", "type": "character|location|artifact", "stake": "3-8 words: what this participant wants from this thread's resolution"}],
+  "description": "A persistent narrative preoccupation — 15-30 words",
   "status": "latent|seeded|active|escalating|critical",
   "openedAt": "S-001 or 'new'",
-  "dependents": ["T-YY — existing thread IDs this thread connects to, accelerates, or converges with"]
+  "dependents": ["T-YY"],
+  "payoffMatrices": [{"playerA": "C-XX", "playerB": "C-YY",
+    "actionA": "2-5 words: what A does when cooperating (e.g. 'pursues integration')",
+    "defectA": "2-5 words: what A does when defecting (e.g. 'abandons integration')",
+    "actionB": "2-5 words: what B does when cooperating (e.g. 'submits to refinement')",
+    "defectB": "2-5 words: what B does when defecting (e.g. 'resists and consumes')",
+    "cc": {"outcome": "5-15 words: both cooperate", "payoffA": "0-4", "payoffB": "0-4"},
+    "cd": {"outcome": "5-15 words: A cooperates B defects", "payoffA": "0-4", "payoffB": "0-4"},
+    "dc": {"outcome": "5-15 words: A defects B cooperates", "payoffA": "0-4", "payoffB": "0-4"},
+    "dd": {"outcome": "5-15 words: both defect", "payoffA": "0-4", "payoffB": "0-4"}
+  }]
 }`;
 
 // ── Relationship Schema ─────────────────────────────────────────────────────
@@ -81,6 +91,6 @@ export const SCHEMA_ANALYSIS_LOCATION = `{"name": "Location Name", "prominence":
 
 export const SCHEMA_ANALYSIS_ARTIFACT = `{"name": "Artifact Name", "significance": "key|notable|minor", "imagePrompt": "1-2 sentence LITERAL visual description", "ownerName": "owner or null"}`;
 
-export const SCHEMA_ANALYSIS_THREAD = `{"description": "A COMPELLING QUESTION with stakes, uncertainty, investment — 15-30 words", "participantNames": ["names"], "statusAtStart": "latent|seeded|active|escalating|critical|resolved|subverted|abandoned", "statusAtEnd": "latent|seeded|active|escalating|critical|resolved|subverted|abandoned", "development": "15-25 words: how this question was advanced or answered in this scene"}`;
+export const SCHEMA_ANALYSIS_THREAD = `{"description": "A COMPELLING QUESTION with stakes, uncertainty, investment — 15-30 words", "participantNames": ["names"], "participantStakes": ["3-8 words: what each participant wants — same order as names"], "statusAtStart": "latent|seeded|active|escalating|critical|resolved|subverted|abandoned", "statusAtEnd": "latent|seeded|active|escalating|critical|resolved|subverted|abandoned", "development": "15-25 words: how this question was advanced or answered in this scene"}`;
 
 export const SCHEMA_ANALYSIS_RELATIONSHIP = `{"from": "Name", "to": "Name", "type": "15-25 words describing the relationship", "valence": -1.0 to 1.0}`;

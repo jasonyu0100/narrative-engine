@@ -198,9 +198,17 @@ export default function GameView({ narrative }: Props) {
             {activePw.matrix && activePw.properties && (() => {
               const idx = Math.min(activeMoveIdx, displayMoves.length - 1);
               const activeMove = displayMoves[idx];
-              // Only use LLM-declared matrixCell — no guessing
-              const playedCell = (activeMove?.matrixCell === 'cc' || activeMove?.matrixCell === 'cd' || activeMove?.matrixCell === 'dc' || activeMove?.matrixCell === 'dd')
-                ? activeMove.matrixCell : null;
+              // Use LLM-declared matrixCell, but normalise to the matrix's A/B ordering.
+              // The LLM may write the cell from the actor's perspective (actor's action first),
+              // but the matrix is always playerA × playerB. If the actor is playerB, flip cd↔dc.
+              let playedCell: 'cc' | 'cd' | 'dc' | 'dd' | null = null;
+              const raw = activeMove?.matrixCell;
+              if (raw === 'cc' || raw === 'cd' || raw === 'dc' || raw === 'dd') {
+                const actorIsB = activeMove?.actorId === activePw.playerB;
+                if (actorIsB && raw === 'dc') playedCell = 'cd';
+                else if (actorIsB && raw === 'cd') playedCell = 'dc';
+                else playedCell = raw;
+              }
               return (
                 <Board
                   matrix={activePw.matrix!}
@@ -209,6 +217,8 @@ export default function GameView({ narrative }: Props) {
                   bName={nameOf(activePw.playerB)}
                   perspectiveA={activePw.playerA}
                   playedCell={playedCell}
+                  stakeA={activePw.stakeA}
+                  stakeB={activePw.stakeB}
                 />
               );
             })(
@@ -266,14 +276,21 @@ export default function GameView({ narrative }: Props) {
 
 // ── Board ────────────────────────────────────────────────────────────────────
 
-function Board({ matrix, props, aName, bName, perspectiveA, playedCell }: {
+function Board({ matrix, props, aName, bName, perspectiveA, playedCell, stakeA, stakeB }: {
   matrix: PayoffMatrix; props: GameProperties; aName: string; bName: string; perspectiveA: string;
   playedCell: 'cc' | 'cd' | 'dc' | 'dd' | null;
+  stakeA: string | null; stakeB: string | null;
 }) {
   const flipped = matrix.playerA !== perspectiveA;
   const pA = (c: { payoffA: number; payoffB: number }) => flipped ? c.payoffB : c.payoffA;
   const pB = (c: { payoffA: number; payoffB: number }) => flipped ? c.payoffA : c.payoffB;
   const nashSet = new Set(props.nashEquilibria);
+
+  // Axis labels: action descriptions > stakes > generic
+  const coopA = (flipped ? matrix.actionB : matrix.actionA) ?? (stakeA ? `advances ${stakeA}` : 'cooperates');
+  const defA = (flipped ? matrix.defectB : matrix.defectA) ?? (stakeA ? `blocks ${stakeA}` : 'defects');
+  const coopB = (flipped ? matrix.actionA : matrix.actionB) ?? (stakeB ? `advances ${stakeB}` : 'cooperates');
+  const defB = (flipped ? matrix.defectA : matrix.defectB) ?? (stakeB ? `blocks ${stakeB}` : 'defects');
 
   const Cell = ({ cell, cellKey, row, col }: { cell: PayoffMatrix['cc']; cellKey: 'cc' | 'cd' | 'dc' | 'dd'; row: number; col: number }) => {
     const isNash = nashSet.has(cellKey);
@@ -315,42 +332,42 @@ function Board({ matrix, props, aName, bName, perspectiveA, playedCell }: {
       <table className="border-collapse border border-white/8 rounded-lg overflow-hidden w-full">
         <thead>
           <tr>
-            <th className="bg-white/3 p-2 w-24" />
+            <th className="bg-white/3 p-2 w-28" />
             <th className="bg-white/3 p-2 border-l border-white/5 text-center">
-              <span className="flex items-center justify-center gap-1">
+              <span className="flex items-center justify-center gap-1 mb-0.5">
                 <span className="w-2.5 h-2.5 rounded bg-neutral-900 border border-white/25" />
                 <span className="text-[9px] font-semibold text-white/45 uppercase tracking-wider">{bName}</span>
               </span>
-              <span className="text-[8px] text-emerald-400/40">cooperates</span>
+              <span className="text-[8px] text-emerald-400/40">{coopB}</span>
             </th>
             <th className="bg-white/3 p-2 border-l border-white/5 text-center">
-              <span className="flex items-center justify-center gap-1">
+              <span className="flex items-center justify-center gap-1 mb-0.5">
                 <span className="w-2.5 h-2.5 rounded bg-neutral-900 border border-white/25" />
                 <span className="text-[9px] font-semibold text-white/45 uppercase tracking-wider">{bName}</span>
               </span>
-              <span className="text-[8px] text-red-400/40">defects</span>
+              <span className="text-[8px] text-red-400/40">{defB}</span>
             </th>
           </tr>
         </thead>
         <tbody>
           <tr className="border-t border-white/5">
             <th className="bg-white/3 p-2 text-right border-r border-white/5">
-              <span className="flex items-center justify-end gap-1">
+              <span className="flex items-center justify-end gap-1 mb-0.5">
                 <span className="w-2.5 h-2.5 rounded bg-white shadow-sm" />
                 <span className="text-[9px] font-semibold text-white/45 uppercase tracking-wider">{aName}</span>
               </span>
-              <span className="text-[8px] text-emerald-400/40">cooperates</span>
+              <span className="text-[8px] text-emerald-400/40">{coopA}</span>
             </th>
             <Cell cell={matrix.cc} cellKey="cc" row={0} col={0} />
             <Cell cell={matrix.cd} cellKey="cd" row={0} col={1} />
           </tr>
           <tr className="border-t border-white/5">
             <th className="bg-white/3 p-2 text-right border-r border-white/5">
-              <span className="flex items-center justify-end gap-1">
+              <span className="flex items-center justify-end gap-1 mb-0.5">
                 <span className="w-2.5 h-2.5 rounded bg-white shadow-sm" />
                 <span className="text-[9px] font-semibold text-white/45 uppercase tracking-wider">{aName}</span>
               </span>
-              <span className="text-[8px] text-red-400/40">defects</span>
+              <span className="text-[8px] text-red-400/40">{defA}</span>
             </th>
             <Cell cell={matrix.dc} cellKey="dc" row={1} col={0} />
             <Cell cell={matrix.dd} cellKey="dd" row={1} col={1} />

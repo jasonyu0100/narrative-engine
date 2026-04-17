@@ -42,9 +42,9 @@ Return JSON:
   "characters": [{"name": "Full Name", "role": "anchor|recurring|transient", "firstAppearance": false, "imagePrompt": "1-2 sentence LITERAL physical description: concrete traits like hair colour, build, clothing style. No metaphors or figurative language."}],
   "locations": [{"name": "Location Name", "prominence": "domain|place|margin", "parentName": "Parent or null", "description": "Brief description", "imagePrompt": "1-2 sentence LITERAL visual description: architecture, landscape, lighting, weather. Concrete physical details only, no metaphors.", "tiedCharacterNames": ["characters tied here"]}],
   "artifacts": [{"name": "Artifact Name", "significance": "key|notable|minor", "imagePrompt": "1-2 sentence LITERAL visual description — concrete physical details only, no metaphors or figurative language", "ownerName": "owner or null"}],
-  "threads": [{"description": "A COMPELLING QUESTION with stakes, uncertainty, investment — 15-30 words. BAD: 'Will X succeed?' GOOD: 'Can Marcus protect his daughter from the cult that killed his wife?'", "participantNames": ["names"], "statusAtStart": "latent|seeded|active|escalating|critical|resolved|subverted|abandoned", "statusAtEnd": "latent|seeded|active|escalating|critical|resolved|subverted|abandoned", "development": "15-25 words: how this question was advanced or answered in this scene"}],
+  "threads": [{"description": "A COMPELLING QUESTION with stakes, uncertainty, investment — 15-30 words. BAD: 'Will X succeed?' GOOD: 'Can Marcus protect his daughter from the cult that killed his wife?'", "participantNames": ["names"], "participantStakes": ["3-8 words: what each participant wants from resolution — one per participant, same order"], "payoffMatrices": [{"playerAName": "Name", "playerBName": "Name", "actionA": "2-5 words: A's cooperative action", "defectA": "2-5 words: A's defect action", "actionB": "2-5 words: B's cooperative action", "defectB": "2-5 words: B's defect action", "cc": {"outcome": "5-15 words", "payoffA": 3, "payoffB": 3}, "cd": {"outcome": "5-15 words", "payoffA": 1, "payoffB": 4}, "dc": {"outcome": "5-15 words", "payoffA": 4, "payoffB": 1}, "dd": {"outcome": "5-15 words", "payoffA": 2, "payoffB": 2}}], "statusAtStart": "latent|seeded|active|escalating|critical|resolved|subverted|abandoned", "statusAtEnd": "latent|seeded|active|escalating|critical|resolved|subverted|abandoned", "development": "15-25 words: how this question was advanced or answered in this scene"}],
   "relationships": [{"from": "Name", "to": "Name", "type": "description", "valence": 0.0}],
-  "threadDeltas": [{"threadDescription": "exact thread description", "from": "latent|seeded|active|escalating|critical|resolved|subverted|abandoned", "to": "latent|seeded|active|escalating|critical|resolved|subverted|abandoned", "addedNodes": [{"content": "15-25 words: how this question was advanced or answered in this scene", "type": "pulse|transition|setup|escalation|payoff|twist|callback|resistance|stall"}]}],
+  "threadDeltas": [{"threadDescription": "exact thread description", "from": "latent|seeded|active|escalating|critical|resolved|subverted|abandoned", "to": "latent|seeded|active|escalating|critical|resolved|subverted|abandoned", "addedNodes": [{"content": "15-25 words: how this question was advanced or answered in this scene", "type": "pulse|transition|setup|escalation|payoff|twist|callback|resistance|stall", "actorName": "who acted", "targetName": "who was affected or null", "stance": "cooperative|competitive|neutral", "matrixCell": "cc|cd|dc|dd — first letter = actor's action, second = target's action (c=cooperate d=defect)"}]}],
   "worldDeltas": [{"entityName": "Name", "addedNodes": [{"content": "15-25 words, PRESENT tense: a stable fact about the entity — their unique perspective on reality, identity, or condition", "type": "trait|state|history|capability|belief|relation|secret|goal|weakness"}]}],
   "relationshipDeltas": [{"from": "Name", "to": "Name", "type": "description", "valenceDelta": 0.1}],
   "artifactUsages": [{"artifactName": "Name", "characterName": "who or null", "usage": "what the artifact did"}],
@@ -66,14 +66,43 @@ DETECTING FATE — Threads are COMPELLING QUESTIONS that shape fate.
 - Thread logs track incremental ANSWERS to these questions over time.
 - Fate is what pulls world and system toward meaning. Without it, nothing resolves.
 
+PAYOFF MATRICES — REQUIRED for every thread with 2+ participants.
+- Each pair of participants creates a 2×2 game: what happens if both cooperate, if one defects, if both defect.
+- Payoffs are 0-4 (4 = maximum payoff, 0 = no payoff / total loss). Each player scores each cell independently — different players can score the same cell differently.
+- Think: what does EACH player want? What are the concrete choices they face? What happens under each combination?
+- Each player has TWO actions — not abstract "cooperate/defect" but real choices in the world:
+    actionA / defectA: "submits to refinement" vs "resists and consumes" (an artifact)
+    actionA / defectA: "reveals his cultivation" vs "maintains concealment" (a character)
+    actionA / defectA: "allocates resources fairly" vs "hoards for loyalists" (a leader)
+  Make the actions feel like decisions in a lived world, not game theory jargon.
+- Example: "Can Ruo Lan uncover Fang Yuan's secret?" — Fang Yuan cooperates (reveals) vs defects (conceals); Ruo Lan cooperates (trusts) vs defects (investigates).
+  CC: both open = Fang Yuan reveals voluntarily, Ruo Lan trusts (FY:1, RL:3)
+  CD: FY reveals, RL investigates anyway = redundant effort (FY:0, RL:2)
+  DC: FY conceals, RL trusts = deception succeeds (FY:4, RL:0)
+  DD: FY conceals, RL investigates = cat-and-mouse (FY:2, RL:4)
+- One matrix per participant PAIR. A thread with 3 participants has 3 matrices (A×B, A×C, B×C).
+- DO NOT SKIP THIS. Every thread with 2+ participants MUST have payoffMatrices. A thread without matrices is incomplete.
+
 threadDeltas — lifecycle: latent→seeded→active→escalating→critical→resolved/subverted.
-- Escalating = POINT OF NO RETURN. Once detected, the story has promised resolution.
-- Abandoned = cleanup. Threads below escalating that go nowhere should be abandoned, not left hanging.
-- ONE step at a time. NEVER skip phases.
-- Most scenes: 1-2 PULSES (same→same). Real transitions are RARE: 0-1 per scene.
-- Only record a transition when the prose shows a clear, irreversible shift in tension.
-- Touching 2-3 threads per scene (mostly pulses) with at most one transition is typical.
-- THREAD LOG: each threadDelta MUST include 1-3 log entries (15-25 words each) recording how the question was advanced or answered.
+
+  STAGE DEFINITIONS — these are NOT interchangeable. Each has a specific structural meaning:
+    latent: the question EXISTS in the world but NO CHARACTER has voiced it or acted on it yet. The reader might not even notice it. Test: could you delete this thread and the scene reads the same? If yes, it's latent.
+    seeded: the question has been PLANTED — a character has done or said something that raises the issue. The reader now holds the question. But no one is actively pursuing an answer. Test: has someone taken a deliberate action toward answering this question? If no, it's still seeded.
+    active: someone is ACTIVELY WORKING the question. Resources, attention, or effort are being spent on it. The thread is consuming narrative bandwidth. Test: are characters making choices specifically because of this thread? If yes, it's active.
+    escalating: the thread has reached a POINT OF NO RETURN. The question can no longer be dropped — too much has been invested, too many consequences depend on the answer. Abandoning it would feel like a broken promise. Test: would the reader feel cheated if this thread just disappeared? If yes, it's escalating.
+    critical: resolution is IMMINENT. The answer is about to be determined — within 1-3 scenes. The thread dominates the narrative moment. Test: is this the most urgent question in the current scene? If yes, it might be critical. If three other threads feel equally urgent, it's probably still escalating.
+    resolved: the question has been ANSWERED. The thread is done.
+    subverted: the question was answered in a way that REVERSES expectations. The thread is done but its resolution defied the trajectory.
+
+  TRANSITION DISCIPLINE — be extremely conservative:
+    - ONE step at a time. latent→seeded→active→escalating→critical. NEVER skip.
+    - NEVER go backward (critical→escalating is INVALID). If a thread loses urgency, it's still at the higher level — the investment was already made.
+    - Most threads should spend MANY scenes at each stage. A healthy narrative has: ~20% latent/seeded (emerging), ~40% active (working), ~30% escalating (committed), ~10% critical (climactic). If most threads are escalating, you're advancing too aggressively.
+    - Most scenes: 1-2 PULSES (same→same). Real transitions are RARE: 0-1 per scene.
+    - Only record a transition when the prose shows a clear, irreversible shift in tension.
+    - Touching 2-3 threads per scene (mostly pulses) with at most one transition is typical.
+
+  THREAD LOG: each threadDelta MUST include 1-3 log entries (15-25 words each) recording how the question was advanced or answered.
   Log types: pulse (question maintained), transition (question urgency advanced), setup (groundwork laid for answer), escalation (stakes raised), payoff (question answered), twist (expectations subverted), callback (reference to earlier thread event), resistance (opposition to answer), stall (question stagnated).
   DENSITY STANDARDS (per thread touch):
     Pulse: 1 log node — what aspect of the thread was maintained or reinforced.

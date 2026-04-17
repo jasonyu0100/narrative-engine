@@ -1243,8 +1243,13 @@ export async function assembleNarrative(
           payoffB: clamp(c?.payoffB),
         });
         if (pm.cc && pm.cd && pm.dc && pm.dd) {
+          const str = (v: unknown) => typeof v === "string" && v.trim() ? v.trim() : undefined;
           resolvedMatrices.push({
             playerA: aId, playerB: bId,
+            actionA: str((pm as Record<string, unknown>).actionA),
+            defectA: str((pm as Record<string, unknown>).defectA),
+            actionB: str((pm as Record<string, unknown>).actionB),
+            defectB: str((pm as Record<string, unknown>).defectB),
             cc: cell(pm.cc), cd: cell(pm.cd), dc: cell(pm.dc), dd: cell(pm.dd),
           });
         }
