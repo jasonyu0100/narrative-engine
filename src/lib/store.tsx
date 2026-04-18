@@ -3250,7 +3250,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         const bundled = bundledNarratives.get(id!);
         if (bundled) narrative = bundled;
       }
-      const savedBranchId = await loadActiveBranchId();
+      const savedBranchId = await loadActiveBranchId(id!);
       if (narrative && !cancelled) {
         dispatch({ type: "LOADED_NARRATIVE", narrative, savedBranchId });
       }
@@ -3295,17 +3295,26 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     });
   }, [state.activeNarrativeId]);
 
-  // Persist active branch ID whenever it changes (skip null to avoid race with SET_ACTIVE_NARRATIVE)
+  // Persist active branch ID per-narrative whenever it changes (skip null to
+  // avoid race with SET_ACTIVE_NARRATIVE, which resets both the narrative ID
+  // and the view state in the same reducer call).
   useEffect(() => {
     if (state.viewState.activeBranchId === null) return;
-    saveActiveBranchId(state.viewState.activeBranchId).catch((err) => {
+    if (state.activeNarrativeId === null) return;
+    saveActiveBranchId(
+      state.activeNarrativeId,
+      state.viewState.activeBranchId,
+    ).catch((err) => {
       logError("Failed to persist active branch ID to storage", err, {
         source: "other",
         operation: "persist-active-branch-id",
-        details: { branchId: state.viewState.activeBranchId },
+        details: {
+          narrativeId: state.activeNarrativeId,
+          branchId: state.viewState.activeBranchId,
+        },
       });
     });
-  }, [state.viewState.activeBranchId]);
+  }, [state.viewState.activeBranchId, state.activeNarrativeId]);
 
   // Hydrate analysis jobs from IndexedDB on mount
   useEffect(() => {

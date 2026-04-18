@@ -175,28 +175,44 @@ describe('loadActiveNarrativeId', () => {
     expect(id).toBeNull();
   });
 });
-// ── Active Branch ID ─────────────────────────────────────────────────────────
+// ── Active Branch ID (per-narrative) ────────────────────────────────────────
 describe('saveActiveBranchId', () => {
-  it('saves active branch ID', async () => {
-    await saveActiveBranchId('branch-01');
-    expect(mockIdbPut).toHaveBeenCalledWith('meta', 'activeBranchId', 'branch-01');
+  it('saves active branch ID scoped to the narrative', async () => {
+    await saveActiveBranchId('N-01', 'branch-01');
+    expect(mockIdbPut).toHaveBeenCalledWith('meta', 'activeBranch:N-01', 'branch-01');
   });
-  it('deletes active ID when null is passed', async () => {
-    await saveActiveBranchId(null);
-    expect(mockIdbDelete).toHaveBeenCalledWith('meta', 'activeBranchId');
+  it('uses a distinct key per narrative so switching does not clobber', async () => {
+    await saveActiveBranchId('N-01', 'branch-01');
+    await saveActiveBranchId('N-02', 'branch-02');
+    expect(mockIdbPut).toHaveBeenCalledWith('meta', 'activeBranch:N-01', 'branch-01');
+    expect(mockIdbPut).toHaveBeenCalledWith('meta', 'activeBranch:N-02', 'branch-02');
+  });
+  it('deletes the key when branchId is null', async () => {
+    await saveActiveBranchId('N-01', null);
+    expect(mockIdbDelete).toHaveBeenCalledWith('meta', 'activeBranch:N-01');
+  });
+  it('is a no-op when narrativeId is null', async () => {
+    await saveActiveBranchId(null, 'branch-01');
+    expect(mockIdbPut).not.toHaveBeenCalled();
+    expect(mockIdbDelete).not.toHaveBeenCalled();
   });
 });
 describe('loadActiveBranchId', () => {
-  it('returns active branch ID when set', async () => {
+  it('returns the branch saved for the specific narrative', async () => {
     mockIdbGet.mockResolvedValue('branch-01');
-    const id = await loadActiveBranchId();
+    const id = await loadActiveBranchId('N-01');
     expect(id).toBe('branch-01');
-    expect(mockIdbGet).toHaveBeenCalledWith('meta', 'activeBranchId');
+    expect(mockIdbGet).toHaveBeenCalledWith('meta', 'activeBranch:N-01');
   });
-  it('returns null when no active ID set', async () => {
+  it('returns null when no branch is saved for this narrative', async () => {
     mockIdbGet.mockResolvedValue(undefined);
-    const id = await loadActiveBranchId();
+    const id = await loadActiveBranchId('N-01');
     expect(id).toBeNull();
+  });
+  it('returns null when narrativeId is null', async () => {
+    const id = await loadActiveBranchId(null);
+    expect(id).toBeNull();
+    expect(mockIdbGet).not.toHaveBeenCalled();
   });
 });
 // ── Analysis Jobs ────────────────────────────────────────────────────────────

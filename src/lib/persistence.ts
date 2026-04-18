@@ -3,8 +3,14 @@ import { idbGet, idbPut, idbDelete, idbGetAll, NARRATIVES_STORE, META_STORE, API
 import { logInfo, logError, logWarning } from '@/lib/system-logger';
 
 const ACTIVE_KEY = 'activeNarrativeId';
-const ACTIVE_BRANCH_KEY = 'activeBranchId';
+const BRANCH_KEY_PREFIX = 'activeBranch:';
 const LS_STORAGE_KEY = 'narrative-engine:narratives';
+
+/** Per-narrative active-branch key. Scoping to the narrative lets each
+ *  narrative remember its own current branch across switches. */
+function branchKeyFor(narrativeId: string): string {
+  return `${BRANCH_KEY_PREFIX}${narrativeId}`;
+}
 
 // ── Schema Migration ────────────────────────────────────────────────────────
 // Persisted narratives may use old field names from before the terminology
@@ -156,25 +162,33 @@ export async function loadActiveNarrativeId(): Promise<string | null> {
   }
 }
 
-// ── Active branch ID ─────────────────────────────────────────────────────────
+// ── Active branch ID (per-narrative) ────────────────────────────────────────
+// Each narrative remembers its own active branch so that switching between
+// narratives doesn't clobber the current-branch selection.
 
-export async function saveActiveBranchId(id: string | null): Promise<void> {
-  if (typeof window === 'undefined') return;
+export async function saveActiveBranchId(
+  narrativeId: string | null,
+  branchId: string | null,
+): Promise<void> {
+  if (typeof window === 'undefined' || !narrativeId) return;
   try {
-    if (id) {
-      await idbPut(META_STORE, ACTIVE_BRANCH_KEY, id);
+    const key = branchKeyFor(narrativeId);
+    if (branchId) {
+      await idbPut(META_STORE, key, branchId);
     } else {
-      await idbDelete(META_STORE, ACTIVE_BRANCH_KEY);
+      await idbDelete(META_STORE, key);
     }
   } catch (err) {
     // Errors logged at caller level
   }
 }
 
-export async function loadActiveBranchId(): Promise<string | null> {
-  if (typeof window === 'undefined') return null;
+export async function loadActiveBranchId(
+  narrativeId: string | null,
+): Promise<string | null> {
+  if (typeof window === 'undefined' || !narrativeId) return null;
   try {
-    const id = await idbGet<string>(META_STORE, ACTIVE_BRANCH_KEY);
+    const id = await idbGet<string>(META_STORE, branchKeyFor(narrativeId));
     return id ?? null;
   } catch (err) {
     return null;
