@@ -24,7 +24,7 @@ ${text}
 
 Return JSON: {"rules": ["rule 1", ...]}
 
-Extract 3-10 rules. Only extract clearly stated or implied — don't invent.`;
+Extract as many rules as the source genuinely carries — no cap. Extract only clearly stated or implied rules; don't invent.`;
 }
 
 /**
@@ -72,14 +72,14 @@ Fields (use snake_case):
 - sentenceRhythm: terse|flowing|staccato|varied|periodic|cumulative
 - interiority: surface|moderate|deep|stream_of_consciousness|analytical|evidentiary
 - dialogueWeight: heavy|moderate|sparse|minimal|none
-- devices: 2-6. Pick from a wide range — do not default to the 20th-century Anglo-European novel's toolkit.
+- devices: extract every device the source genuinely uses — no cap. Pick from a wide range; do not default to the 20th-century Anglo-European novel's toolkit.
     Fiction — dramatic-realist: free_indirect_discourse, dramatic_irony, unreliable_narrator, extended_metaphor, epistolary_fragments, stream_of_consciousness.
     Fiction — lyric / fabulist / mythic / oral: refrain, litany, invocation, catalogue, direct_address, mythic_cadence, liturgical, oracular, call_and_response, frame_tale, magical_realist_baseline, lyric_digression, image_as_argument.
     Fiction — polyphonic / experimental: polyvocality, code_switching, document_collage, metafiction, framing_commentary, silence_as_beat, typographic_constraint (Oulipo), translation_as_form, hybrid_essay_fiction.
     Non-fiction: signposting, rhetorical_question, parallel_structure, case_study, counterargument_staging, citation_weaving, worked_example, braided_essay, auto_theory, archival_fragment, testimony, reportage_cadence.
     Drawing from the 20th-century Anglo-European novel is one tradition among many — prefer devices that genuinely match the source, including those native to West African epic, South Asian rasa-organised narrative, Caribbean polyvocality, Arabic/Persian frame-tale, Latin American magical realism, Japanese kishōtenketsu, Chinese wuxia/xianxia, Indigenous circular/ceremonial forms.
-- rules: 3-6 SPECIFIC imperatives for sentence-level craft
-- antiPatterns: 3-5 SPECIFIC failures to avoid
+- rules: SPECIFIC imperatives for sentence-level craft — as many as the source's voice genuinely demands, no cap.
+- antiPatterns: SPECIFIC failures to avoid — as many as the source's voice genuinely defines against, no cap.
 
 Rules/antiPatterns must be concrete and actionable.
 BAD: "Write well" | GOOD (fiction): "Show emotion through physical reaction, never name it" | GOOD (non-fiction): "State the claim before the evidence, never bury the thesis in a narrative opener"
@@ -127,5 +127,5 @@ QUALITY BAR for rules and anti-patterns — derive from the declared voice, not 
 Return JSON:
 {"register": "...", "stance": "...", "tense": "...", "sentenceRhythm": "...", "interiority": "...", "dialogueWeight": "...", "devices": [...], "rules": [...], "antiPatterns": [...]}
 
-Extract 2-6 devices, 3-6 rules, and 3-5 anti-patterns. Use snake_case for multi-word values.`;
+Extract as many devices, rules, and anti-patterns as the source genuinely carries — no cap on any. Use snake_case for multi-word values.`;
 }
