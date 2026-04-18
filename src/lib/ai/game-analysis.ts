@@ -12,38 +12,75 @@ import { buildGameTheorySystemPrompt } from "@/lib/prompts/scenes/game-theory";
 import { ANALYSIS_MODEL } from "@/lib/constants";
 import { logError, logInfo } from "@/lib/system-logger";
 import { resolvePlanForBranch, resolveProseForBranch } from "@/lib/narrative-utils";
-import { REASONING_BUDGETS } from "@/types/narrative";
+import {
+  ACTION_AXIS_LABELS,
+  GAME_TYPE_LABELS,
+  REASONING_BUDGETS,
+} from "@/types/narrative";
 import type {
+  ActionAxis,
   BeatGame,
   GameOutcome,
+  GameType,
   NarrativeState,
-  PlayerMove,
+  PlayerAction,
   Scene,
   SceneGameAnalysis,
 } from "@/types/narrative";
 
 type RawGame = Record<string, unknown>;
 
-function coerceMove(v: unknown): PlayerMove | null {
-  if (typeof v !== "string") return null;
-  const s = v.trim().toLowerCase();
-  // Accept only the canonical vocabulary — no legacy aliases.
-  if (s === "advance") return "advance";
-  if (s === "block") return "block";
-  return null;
+// Sourced from the canonical label maps so the sanitiser tracks type-level
+// changes automatically.
+const VALID_AXES: ReadonlySet<ActionAxis> = new Set(
+  Object.keys(ACTION_AXIS_LABELS) as ActionAxis[],
+);
+
+const VALID_GAME_TYPES: ReadonlySet<GameType> = new Set(
+  Object.keys(GAME_TYPE_LABELS) as GameType[],
+);
+
+function coerceAxis(v: unknown): ActionAxis {
+  if (typeof v !== "string") return "pressure";
+  const s = v.trim().toLowerCase() as ActionAxis;
+  return VALID_AXES.has(s) ? s : "pressure";
 }
 
-function coercePayoff(v: unknown): number {
-  const n = typeof v === "number" ? Math.round(v) : 2;
-  return Math.max(0, Math.min(4, isFinite(n) ? n : 2));
+function coerceGameType(v: unknown): GameType {
+  if (typeof v !== "string") return "pure-opposition";
+  const s = v.trim().toLowerCase() as GameType;
+  return VALID_GAME_TYPES.has(s) ? s : "pure-opposition";
 }
 
-function coerceOutcome(v: unknown): GameOutcome {
+/** Clamp stake delta to integer in [-4, +4]. */
+function coerceStake(v: unknown): number {
+  const n = typeof v === "number" ? Math.round(v) : 0;
+  return Math.max(-4, Math.min(4, isFinite(n) ? n : 0));
+}
+
+/** Parse a PlayerAction entry; rejects empty names. */
+function coerceAction(v: unknown): PlayerAction | null {
   const c = (v ?? {}) as Record<string, unknown>;
+  const name = typeof c.name === "string" ? c.name.trim() : "";
+  if (!name) return null;
+  return { name };
+}
+
+/**
+ * Parse a single outcome cell. Returns null only if the action names are
+ * missing entirely; otherwise coerces description + stake deltas defensively.
+ */
+function coerceOutcome(v: unknown): GameOutcome | null {
+  const c = (v ?? {}) as Record<string, unknown>;
+  const aActionName = typeof c.aActionName === "string" ? c.aActionName.trim() : "";
+  const bActionName = typeof c.bActionName === "string" ? c.bActionName.trim() : "";
+  if (!aActionName || !bActionName) return null;
   return {
+    aActionName,
+    bActionName,
     description: typeof c.description === "string" ? c.description : "",
-    payoffA: coercePayoff(c.payoffA),
-    payoffB: coercePayoff(c.payoffB),
+    stakeDeltaA: coerceStake(c.stakeDeltaA),
+    stakeDeltaB: coerceStake(c.stakeDeltaB),
   };
 }
 
@@ -166,89 +203,143 @@ function resolvePlayerId(
   return tryDirect(id) ?? tryName(name) ?? tryName(id) ?? null;
 }
 
+function warn(
+  message: string,
+  detail: string,
+  details: Record<string, string | number>,
+): void {
+  logError(message, new Error(detail), {
+    source: "analysis",
+    operation: "sanitise",
+    details,
+  }, "warning");
+}
+
 function sanitiseGame(raw: RawGame, narrative: NarrativeState): BeatGame | null {
   const beatIndex = typeof raw.beatIndex === "number" ? raw.beatIndex : -1;
   if (beatIndex < 0) {
-    logError(
+    warn(
       "game-analysis: dropped game with invalid beatIndex",
-      new Error(`invalid beatIndex: ${String(raw.beatIndex)}`),
-      {
-        source: "analysis",
-        operation: "sanitise",
-        details: { beatIndex: String(raw.beatIndex ?? "(missing)"), narrativeId: narrative.id },
-      },
-      "warning",
+      `invalid beatIndex: ${String(raw.beatIndex)}`,
+      { beatIndex: String(raw.beatIndex ?? "(missing)"), narrativeId: narrative.id },
     );
     return null;
   }
 
+  // ── Players ──
   const a = resolvePlayerId(raw.playerAId, raw.playerAName, narrative);
   const b = resolvePlayerId(raw.playerBId, raw.playerBName, narrative);
   if (!a || !b || a.id === b.id) {
-    logError(
+    warn(
       "game-analysis: dropped game with invalid or duplicate players",
-      new Error(
-        `unresolved players: A=${String(raw.playerAId ?? raw.playerAName)} B=${String(raw.playerBId ?? raw.playerBName)}`,
-      ),
+      `unresolved players: A=${String(raw.playerAId ?? raw.playerAName)} B=${String(raw.playerBId ?? raw.playerBName)}`,
       {
-        source: "analysis",
-        operation: "sanitise",
-        details: {
-          beatIndex,
-          playerAId: String(raw.playerAId ?? "(missing)"),
-          playerAName: String(raw.playerAName ?? "(missing)"),
-          playerBId: String(raw.playerBId ?? "(missing)"),
-          playerBName: String(raw.playerBName ?? "(missing)"),
-          resolvedA: a ? a.id : "(unresolved)",
-          resolvedB: b ? b.id : "(unresolved)",
-        },
+        beatIndex,
+        playerAId: String(raw.playerAId ?? "(missing)"),
+        playerAName: String(raw.playerAName ?? "(missing)"),
+        playerBId: String(raw.playerBId ?? "(missing)"),
+        playerBName: String(raw.playerBName ?? "(missing)"),
       },
-      "warning",
     );
     return null;
   }
 
-  const movedA = coerceMove(raw.playerAPlayed);
-  const movedB = coerceMove(raw.playerBPlayed);
-  if (!movedA || !movedB) {
-    logError(
-      "game-analysis: dropped game with missing/invalid moves",
-      new Error(
-        `missing/invalid moves: A=${String(raw.playerAPlayed)}, B=${String(raw.playerBPlayed)}`,
-      ),
-      {
-        source: "analysis",
-        operation: "sanitise",
-        details: {
-          beatIndex,
-          playerAPlayed: String(raw.playerAPlayed ?? "(missing)"),
-          playerBPlayed: String(raw.playerBPlayed ?? "(missing)"),
-        },
-      },
-      "warning",
+  // ── Action menus (1-4 per player) ──
+  const rawAActions = Array.isArray(raw.playerAActions) ? raw.playerAActions : [];
+  const rawBActions = Array.isArray(raw.playerBActions) ? raw.playerBActions : [];
+  const playerAActions = rawAActions
+    .map(coerceAction)
+    .filter((x): x is PlayerAction => x !== null)
+    .slice(0, 4);
+  const playerBActions = rawBActions
+    .map(coerceAction)
+    .filter((x): x is PlayerAction => x !== null)
+    .slice(0, 4);
+  if (playerAActions.length < 1 || playerBActions.length < 1) {
+    warn(
+      "game-analysis: dropped game with empty action menu",
+      `A=${playerAActions.length}, B=${playerBActions.length} actions`,
+      { beatIndex, aCount: playerAActions.length, bCount: playerBActions.length },
     );
     return null;
   }
+  // Dedupe action names within each menu (case-sensitive exact match)
+  const aNames = new Set<string>();
+  const dedupedA = playerAActions.filter((act) => {
+    if (aNames.has(act.name)) return false;
+    aNames.add(act.name);
+    return true;
+  });
+  const bNames = new Set<string>();
+  const dedupedB = playerBActions.filter((act) => {
+    if (bNames.has(act.name)) return false;
+    bNames.add(act.name);
+    return true;
+  });
+
+  // ── Outcomes (complete NxM grid) ──
+  const rawOutcomes = Array.isArray(raw.outcomes) ? raw.outcomes : [];
+  const parsedOutcomes = rawOutcomes
+    .map(coerceOutcome)
+    .filter((o): o is GameOutcome => o !== null)
+    // Only keep outcomes whose action names exist in the respective menus
+    .filter((o) => aNames.has(o.aActionName) && bNames.has(o.bActionName));
+
+  // Dedupe by (aActionName, bActionName) — last write wins
+  const outcomeMap = new Map<string, GameOutcome>();
+  for (const o of parsedOutcomes) {
+    outcomeMap.set(`${o.aActionName}::${o.bActionName}`, o);
+  }
+  const outcomes = Array.from(outcomeMap.values());
+
+  const expected = dedupedA.length * dedupedB.length;
+  if (outcomes.length !== expected) {
+    warn(
+      "game-analysis: dropped game with incomplete outcome grid",
+      `expected ${expected} cells (${dedupedA.length}×${dedupedB.length}), got ${outcomes.length}`,
+      {
+        beatIndex,
+        expectedCells: expected,
+        actualCells: outcomes.length,
+        aMenu: dedupedA.length,
+        bMenu: dedupedB.length,
+      },
+    );
+    return null;
+  }
+
+  // ── Realized cell ──
   const asStr = (v: unknown, fallback = ""): string =>
     typeof v === "string" && v.trim() ? v.trim() : fallback;
+  const realizedAAction = asStr(raw.realizedAAction);
+  const realizedBAction = asStr(raw.realizedBAction);
+  if (!aNames.has(realizedAAction) || !bNames.has(realizedBAction)) {
+    warn(
+      "game-analysis: dropped game with invalid realized action",
+      `realizedA='${realizedAAction}' realizedB='${realizedBAction}' — not in menus`,
+      {
+        beatIndex,
+        realizedAAction: realizedAAction || "(missing)",
+        realizedBAction: realizedBAction || "(missing)",
+      },
+    );
+    return null;
+  }
 
   return {
     beatIndex,
     beatExcerpt: asStr(raw.beatExcerpt),
+    gameType: coerceGameType(raw.gameType),
+    actionAxis: coerceAxis(raw.actionAxis),
     playerAId: a.id,
     playerAName: a.name,
-    playerAAdvance: asStr(raw.playerAAdvance, "advances"),
-    playerABlock: asStr(raw.playerABlock, "blocks"),
-    playerAPlayed: movedA,
+    playerAActions: dedupedA,
     playerBId: b.id,
     playerBName: b.name,
-    playerBAdvance: asStr(raw.playerBAdvance, "advances"),
-    playerBBlock: asStr(raw.playerBBlock, "blocks"),
-    playerBPlayed: movedB,
-    bothAdvance: coerceOutcome(raw.bothAdvance),
-    advanceBlock: coerceOutcome(raw.advanceBlock),
-    blockAdvance: coerceOutcome(raw.blockAdvance),
-    bothBlock: coerceOutcome(raw.bothBlock),
+    playerBActions: dedupedB,
+    outcomes,
+    realizedAAction,
+    realizedBAction,
     rationale: asStr(raw.rationale),
   };
 }

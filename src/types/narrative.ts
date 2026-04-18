@@ -1105,69 +1105,173 @@ export type NarrativeState = {
 };
 
 // ── Game Theory Analysis (opt-in, post-hoc) ───────────────────────────────────
-// A scene's beats are decomposed into a sequence of 2×2 strategic games.
-// This is layered analysis — additive to the scene, not part of its core deltas.
-//
-// VOCABULARY — one coherent language throughout:
-//   A player makes one MOVE per beat: "advance" (pursue their interest) or
-//   "block" (resist, withdraw, exploit). The four OUTCOMES are named by the
-//   two moves explicitly — bothAdvance / advanceBlock / blockAdvance /
-//   bothBlock — so every reference is self-documenting.
+// Each beat that bears a strategic decision is modelled as an N×M game between
+// two players. This is an EVALUATOR: the outcome grid is the decision space,
+// not a predictor. The realized cell (what the author actually did) can be
+// Nash, Nash-adjacent, or strictly dominated — that's information, not error.
+// Characters who trade local optimality for arc-level payoff are exactly what
+// we want to learn about.
 
-/** A single move a player can make. */
-export type PlayerMove = "advance" | "block";
+/** Dimension along which both players' actions are organised.
+ *
+ *  SCOPE: This taxonomy models **interpersonal strategic beats** — decisions
+ *  between two (or more) agentic parties. Internal beats (self vs self, pure
+ *  introspection) are out of scope and should be skipped or flagged trivial;
+ *  a separate lightweight system covers those.
+ */
+export type ActionAxis =
+  // — Information & self-presentation —
+  | "disclosure"       // reveal ↔ conceal
+  | "identity"         // claim ↔ disown
 
-/** One of the four strategic outcomes, keyed by both players' moves. */
-export type OutcomeKey =
-  | "bothAdvance"    // A advances, B advances
-  | "advanceBlock"   // A advances, B blocks
-  | "blockAdvance"   // A blocks,   B advances
-  | "bothBlock";     // A blocks,   B blocks
+  // — Stance toward other party —
+  | "trust"            // extend ↔ guard
+  | "alliance"         // ally ↔ separate
+  | "confrontation"    // engage ↔ evade
+  | "status"           // assert ↔ defer
 
-/** One outcome cell: the world-state if both players make the keyed moves. */
-export type GameOutcome = {
-  /** 5-15 words describing what happens under these two moves. */
-  description: string;
-  /** Player A's payoff in this outcome (0-4, higher = better for A). */
-  payoffA: number;
-  /** Player B's payoff in this outcome (0-4, higher = better for B). */
-  payoffB: number;
+  // — Force & magnitude within interaction —
+  | "pressure"         // press ↔ yield
+  | "stakes"           // escalate ↔ deescalate
+  | "control"          // bind ↔ release
+
+  // — Resource & obligation flow —
+  | "acquisition"      // take ↔ give
+  | "obligation"       // incur ↔ discharge
+
+  // — Moral / normative —
+  | "moral"            // transgress ↔ uphold (acts against a principle or person)
+
+  // — Self-binding & tempo —
+  | "commitment"       // commit ↔ withdraw / hedge
+  | "timing";          // act ↔ wait
+
+/** Classical strategic structure of the beat. Consolidated taxonomy —
+ *  war-of-attrition folds into chicken; screening folds into principal-agent;
+ *  ultimatum folds into bargaining. */
+export type GameType =
+  // — Symmetric payoff structures —
+  | "coordination"       // both want the same outcome; alignment problem
+  | "anti-coordination"  // players want opposite outcomes on a shared axis
+  | "battle-of-sexes"    // both want to coordinate but prefer different equilibria
+  | "dilemma"            // mutual cooperation pareto-optimal but each tempted to defect
+  | "stag-hunt"          // coordination with payoff-dominant vs risk-dominant trade-off
+  | "chicken"            // mutual yielding vs mutual collision (incl. time-extended war-of-attrition)
+  | "zero-sum"           // one gains exactly what the other loses
+  | "pure-opposition"    // conflict over incommensurable values (honor vs survival)
+
+  // — Asymmetric / structural —
+  | "contest"            // n-player competition for rank-ordered prize
+  | "collective-action"  // n-player threshold contribution; free-rider dynamics
+  | "principal-agent"    // delegation with hidden action or sorting among types
+  | "signaling"          // informed party reveals type through costly action
+  | "stackelberg"        // sequential; leader commits visibly, follower best-responds
+
+  // — Communication / mechanism layers —
+  | "cheap-talk"         // non-binding communication shapes the beat
+  | "commitment-game"    // binding vs non-binding promise is the crux
+  | "bargaining"         // propose / counter / accept dynamics (incl. one-shot ultimatum)
+
+  // — Degenerate —
+  | "trivial";           // no real strategic content — use sparingly
+
+/** Intuitive explanation for each action axis — "dichotomy — question the axis
+ *  asks of the beat". Phrased as the question a reader can apply to the scene. */
+export const ACTION_AXIS_LABELS: Record<ActionAxis, string> = {
+  disclosure:    "reveal ↔ conceal — what information does each side expose or hide?",
+  identity:      "claim ↔ disown — do I assert who I am, or distance myself from it?",
+  trust:         "extend ↔ guard — do I lower my defenses, or keep them up?",
+  alliance:      "ally ↔ separate — are we on the same side going forward, or not?",
+  confrontation: "engage ↔ evade — do I meet this head-on or find a way around it?",
+  status:        "assert ↔ defer — do I push for the higher position, or yield rank?",
+  pressure:      "press ↔ yield — how much force am I applying, or absorbing?",
+  stakes:        "escalate ↔ deescalate — am I raising or lowering what's on the line?",
+  control:       "bind ↔ release — am I imposing constraint, or lifting it?",
+  acquisition:   "take ↔ give — who ends up holding the resources / lives / knowledge?",
+  obligation:    "incur ↔ discharge — am I taking on a debt/favor, or paying it off?",
+  moral:         "transgress ↔ uphold — does this act violate a principle, or honor it?",
+  commitment:    "commit ↔ withdraw / hedge — am I binding myself, or keeping options open?",
+  timing:        "act ↔ wait — do I move now, or hold and watch?",
 };
 
-/** A single 2×2 game extracted from a beat. */
+/** Intuitive explanation for each game type — the strategic shape as it would
+ *  feel to a reader, not a game theorist. One concrete hint per line. */
+export const GAME_TYPE_LABELS: Record<GameType, string> = {
+  "coordination":      "Both want to end up in the same place. The question is just: which place?",
+  "anti-coordination": "Both need to diverge (you go left, I go right). Collision if both pick the same lane.",
+  "battle-of-sexes":   "Both want to meet, but each prefers their own venue. Coordination with a tug-of-war underneath.",
+  "dilemma":           "Cooperation would be best for both, but each has a private incentive to betray — prisoner's-dilemma shape.",
+  "stag-hunt":         "Team up for a big shared prize, or play it safe alone. Trust and risk-appetite decide.",
+  "chicken":           "Both want the other to yield. If neither does, both crash — escalation contest.",
+  "zero-sum":          "Pie is fixed. Anything I gain, you lose — and vice versa.",
+  "pure-opposition":   "Values clash with no shared currency (honor vs survival, love vs duty). Stakes aren't commensurable.",
+  "contest":           "Multiple players compete for a ranked prize — tournament, auction, scramble for status.",
+  "collective-action": "A group needs enough contributors to pull something off. Each is tempted to free-ride on others' effort.",
+  "principal-agent":   "One party delegates or hires another whose effort or type can't be directly seen. Incentives must be designed.",
+  "signaling":         "One side knows something the other doesn't, and proves it through a costly, hard-to-fake action.",
+  "stackelberg":       "One moves first and commits visibly; the other watches, then responds. First-mover advantage or trap.",
+  "cheap-talk":        "Words exchanged but nothing binds. Persuasion, posturing, bluffing — the talk itself is the move.",
+  "commitment-game":   "Can one party bind themselves to act (vow, burned bridge, hostage)? Credibility of the promise is the whole game.",
+  "bargaining":        "Offers and counteroffers across rounds — each side strategising over when to concede. Ultimatum is the one-round version.",
+  "trivial":           "No real strategic content — a beat where the choice is in name only.",
+};
+
+/** A single labelled action in a player's menu. */
+export type PlayerAction = {
+  /** 2-5 words naming the concrete action, e.g. "feigns C-grade aperture". */
+  name: string;
+};
+
+/** One outcome cell: the world-state if A takes aAction and B takes bAction. */
+export type GameOutcome = {
+  /** Name of A's action — must match an entry in playerAActions[].name. */
+  aActionName: string;
+  /** Name of B's action — must match an entry in playerBActions[].name. */
+  bActionName: string;
+  /** 5-15 words narrating what happens at this cell. */
+  description: string;
+  /** A's stake delta: -4 (catastrophic for A) to +4 (ideal for A). */
+  stakeDeltaA: number;
+  /** B's stake delta: -4 to +4. */
+  stakeDeltaB: number;
+};
+
+/** A strategic beat: the outcome space around a single decision. */
 export type BeatGame = {
   /** Which beat in the scene's BeatPlan.beats this game corresponds to. */
   beatIndex: number;
   /** Short excerpt of the beat for context. */
   beatExcerpt: string;
 
+  /** Classical strategic frame of the beat. */
+  gameType: GameType;
+  /** Dimension both players' actions are organised along. */
+  actionAxis: ActionAxis;
+
   // ── Player A ─────────────────────────────────────────────────────────
-  /** Player A's entity ID (character / location / artifact). */
   playerAId: string;
-  /** Display name — resolved from registry at save time. */
   playerAName: string;
-  /** A's advancing action — 2-5 words describing what A does to pursue their interest. */
-  playerAAdvance: string;
-  /** A's blocking action — 2-5 words describing what A does to resist / exploit / withdraw. */
-  playerABlock: string;
-  /** What A actually did in the beat. */
-  playerAPlayed: PlayerMove;
+  /** A's action menu, 1-4 entries. */
+  playerAActions: PlayerAction[];
 
   // ── Player B ─────────────────────────────────────────────────────────
-  /** Player B's entity ID. */
   playerBId: string;
   playerBName: string;
-  playerBAdvance: string;
-  playerBBlock: string;
-  playerBPlayed: PlayerMove;
+  playerBActions: PlayerAction[];
 
-  // ── The four outcomes (all combinations of the two moves) ───────────
-  bothAdvance: GameOutcome;
-  advanceBlock: GameOutcome;
-  blockAdvance: GameOutcome;
-  bothBlock: GameOutcome;
+  /**
+   * Every (A, B) action pairing — exactly playerAActions.length *
+   * playerBActions.length entries. Order is not significant; cells are looked
+   * up by their action-name pair.
+   */
+  outcomes: GameOutcome[];
 
-  /** One sentence explaining why A and B each made the move they did. */
+  /** A's action name in the realized outcome (must match an A menu entry). */
+  realizedAAction: string;
+  /** B's action name in the realized outcome. */
+  realizedBAction: string;
+
+  /** One sentence explaining why the authored beat landed on the realized cell. */
   rationale: string;
 };
 

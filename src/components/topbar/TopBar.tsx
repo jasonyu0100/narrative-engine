@@ -54,12 +54,16 @@ import {
   resolveProseForBranch,
 } from "@/lib/narrative-utils";
 import {
-  dominantStrategy,
   nashEquilibria,
-  OUTCOME_KEYS,
-  outcomeKeyFor,
+  outcomeAt,
+  realizedIsNash,
+  realizedOutcome,
+  stakeRank,
 } from "@/lib/game-theory";
-import type { OutcomeKey } from "@/types/narrative";
+import {
+  ACTION_AXIS_LABELS,
+  GAME_TYPE_LABELS,
+} from "@/types/narrative";
 import { useLogs } from "@/lib/logs-context";
 import {
   ANALYSIS_NARRATIVE_IDS,
@@ -484,8 +488,8 @@ export default function TopBar() {
             parts.push(`Scene: ${scene.summary}\n${beats}`);
           }
         } else if (mode === "games") {
-          // Full-detail game-theoretic decomposition: every matrix cell, all
-          // payoffs, played outcome, Nash equilibria, dominant strategies.
+          // Full-detail NxM game-theoretic decomposition: every outcome cell,
+          // stake deltas, realized cell, Nash equilibria, per-player rank.
           const analysis = scene.gameAnalysis;
           if (!analysis || analysis.games.length === 0) continue;
           const lines: string[] = [];
@@ -494,73 +498,103 @@ export default function TopBar() {
           }
           lines.push(`Games: ${analysis.games.length}`);
 
+          const fmtDelta = (n: number) =>
+            n > 0 ? `+${n}` : n === 0 ? " 0" : `${n}`;
+
           for (const g of analysis.games) {
-            const playedKey: OutcomeKey = outcomeKeyFor(g.playerAPlayed, g.playerBPlayed);
-            const played = g[playedKey];
+            const realized = realizedOutcome(g);
             const ne = nashEquilibria(g);
-            const dom = dominantStrategy(g);
+            const nashSet = new Set(
+              ne.map((p) => `${p.aActionName}::${p.bActionName}`),
+            );
+            const rankA = stakeRank(g, "A");
+            const rankB = stakeRank(g, "B");
 
             lines.push("");
             lines.push(`──────────────────────────────────────────────────────`);
             lines.push(`Beat ${g.beatIndex + 1}: ${g.beatExcerpt}`);
-            lines.push(`Players: ${g.playerAName} (${g.playerAId}) × ${g.playerBName} (${g.playerBId})`);
+            lines.push(
+              `Players: ${g.playerAName} (${g.playerAId}) × ${g.playerBName} (${g.playerBId})`,
+            );
+            lines.push(
+              `Game type: ${g.gameType} — ${GAME_TYPE_LABELS[g.gameType] ?? ""}`,
+            );
+            lines.push(
+              `Action axis: ${g.actionAxis} — ${ACTION_AXIS_LABELS[g.actionAxis] ?? ""}`,
+            );
             lines.push("");
 
-            // Actions
+            // Action menus
             lines.push(`Actions:`);
             lines.push(`  ${g.playerAName}:`);
-            lines.push(`    advance → ${g.playerAAdvance}`);
-            lines.push(`    block   → ${g.playerABlock}`);
+            for (const a of g.playerAActions) lines.push(`    • ${a.name}`);
             lines.push(`  ${g.playerBName}:`);
-            lines.push(`    advance → ${g.playerBAdvance}`);
-            lines.push(`    block   → ${g.playerBBlock}`);
+            for (const a of g.playerBActions) lines.push(`    • ${a.name}`);
             lines.push("");
 
-            // Full payoff matrix — every outcome with its payoffs + description
-            lines.push(`Payoff matrix (${g.playerAName} / ${g.playerBName}):`);
-            for (const key of OUTCOME_KEYS) {
-              const o = g[key];
-              const marker = key === playedKey ? " ← played" : "";
-              const nashMark = ne.has(key) ? " [Nash]" : "";
-              const label = key.padEnd(13);
-              lines.push(
-                `  ${label} ${o.payoffA}/${o.payoffB}${nashMark}${marker}`,
-              );
-              lines.push(`      ${o.description}`);
+            // Full NxM outcome grid — stake deltas + description + markers
+            lines.push(
+              `Outcome grid (stakeDeltaA / stakeDeltaB), ${g.playerAActions.length}×${g.playerBActions.length}:`,
+            );
+            for (const aAction of g.playerAActions) {
+              for (const bAction of g.playerBActions) {
+                const o = outcomeAt(g, aAction.name, bAction.name);
+                if (!o) {
+                  lines.push(
+                    `  ${aAction.name} × ${bAction.name} — (missing)`,
+                  );
+                  continue;
+                }
+                const key = `${aAction.name}::${bAction.name}`;
+                const isRealized =
+                  aAction.name === g.realizedAAction &&
+                  bAction.name === g.realizedBAction;
+                const marker = isRealized ? " ← realized" : "";
+                const nashMark = nashSet.has(key) ? " [Nash]" : "";
+                lines.push(
+                  `  ${aAction.name} × ${bAction.name}  ${fmtDelta(o.stakeDeltaA)}/${fmtDelta(o.stakeDeltaB)}${nashMark}${marker}`,
+                );
+                lines.push(`      ${o.description}`);
+              }
             }
             lines.push("");
 
             // Strategic analysis
-            if (ne.size > 0) {
-              lines.push(`Nash equilibria: ${Array.from(ne).join(", ")}`);
+            if (ne.length > 0) {
+              const nashList = ne
+                .map((p) => `${p.aActionName} × ${p.bActionName}`)
+                .join("; ");
+              lines.push(`Nash equilibria (${ne.length}): ${nashList}`);
+              lines.push(
+                `Realized ${realizedIsNash(g) ? "is" : "is NOT"} a Nash cell.`,
+              );
             } else {
               lines.push(`Nash equilibria: none (mixed strategy only)`);
             }
-            if (dom.player === "both") {
+            if (rankA) {
               lines.push(
-                `Dominant strategies: both players — ${g.playerAName} ${dom.aMove ?? "?"}, ${g.playerBName} ${dom.bMove ?? "?"}`,
+                `${g.playerAName} realized rank: ${rankA.rank}/${rankA.total} by stake`,
               );
-            } else if (dom.player === "A") {
+            }
+            if (rankB) {
               lines.push(
-                `Dominant strategy: ${g.playerAName} (${dom.aMove ?? "?"})`,
-              );
-            } else if (dom.player === "B") {
-              lines.push(
-                `Dominant strategy: ${g.playerBName} (${dom.bMove ?? "?"})`,
+                `${g.playerBName} realized rank: ${rankB.rank}/${rankB.total} by stake`,
               );
             }
             lines.push("");
 
-            // Played outcome
+            // Realized cell
             lines.push(
-              `Played: ${g.playerAName} ${g.playerAPlayed}, ${g.playerBName} ${g.playerBPlayed} → ${playedKey}`,
+              `Realized: ${g.playerAName} "${g.realizedAAction}", ${g.playerBName} "${g.realizedBAction}"`,
             );
-            lines.push(
-              `Played payoffs: ${g.playerAName}=${played.payoffA}, ${g.playerBName}=${played.payoffB}`,
-            );
-            lines.push(`Played outcome: ${played.description}`);
+            if (realized) {
+              lines.push(
+                `Realized stakes: ${g.playerAName}=${fmtDelta(realized.stakeDeltaA)}, ${g.playerBName}=${fmtDelta(realized.stakeDeltaB)}`,
+              );
+              lines.push(`Realized outcome: ${realized.description}`);
+            }
             if (g.rationale) {
-              lines.push(`Rationale: ${g.rationale}`);
+              lines.push(`Why this cell: ${g.rationale}`);
             }
           }
           parts.push(lines.join("\n"));

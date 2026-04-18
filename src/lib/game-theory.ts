@@ -1,233 +1,136 @@
 /**
- * Game-theoretic helpers — derive Nash equilibria, best responses, dominant
- * strategies, and ELO ratings from BeatGame payoff matrices.
+ * Game-theoretic helpers — NxM evaluator model.
  *
- * VOCABULARY: a single coherent language runs through this file. Moves are
- * "advance" or "block". Outcomes are named by both moves explicitly:
- * bothAdvance / advanceBlock / blockAdvance / bothBlock. No cc/cd/dc/dd
- * encoding — the semantic names tell you what each cell represents.
+ * The outcome grid is the DECISION SPACE, not a predictor. Nash equilibria,
+ * best responses, and stake rankings are descriptive lenses on that space;
+ * the realized cell is whatever the author actually wrote, whether or not it
+ * aligns with any of them. Dominance violations are features, not bugs —
+ * characters who trade local optimality for arc payoff are exactly the
+ * patterns the ELO system learns.
+ *
+ * Nash is computed on stake delta only. Continuity (identity-based scoring)
+ * is deferred to a later phase.
  */
 
 import type {
   BeatGame,
   GameOutcome,
   NarrativeState,
-  OutcomeKey,
-  PlayerMove,
+  PlayerAction,
 } from "@/types/narrative";
 
-export const OUTCOME_KEYS: OutcomeKey[] = [
-  "bothAdvance",
-  "advanceBlock",
-  "blockAdvance",
-  "bothBlock",
-];
+// ── Outcome lookup ─────────────────────────────────────────────────────────
 
-// ── Move / outcome translation ─────────────────────────────────────────────
-
-/** Map a pair of moves to the outcome key they produce. */
-export function outcomeKeyFor(a: PlayerMove, b: PlayerMove): OutcomeKey {
-  if (a === "advance" && b === "advance") return "bothAdvance";
-  if (a === "advance" && b === "block") return "advanceBlock";
-  if (a === "block" && b === "advance") return "blockAdvance";
-  return "bothBlock";
+/** Find the outcome cell for a specific (A, B) action pair. */
+export function outcomeAt(
+  game: BeatGame,
+  aActionName: string,
+  bActionName: string,
+): GameOutcome | null {
+  return (
+    game.outcomes.find(
+      (o) => o.aActionName === aActionName && o.bActionName === bActionName,
+    ) ?? null
+  );
 }
 
-/** Moves implied by an outcome key. */
-export function movesOf(key: OutcomeKey): { a: PlayerMove; b: PlayerMove } {
-  switch (key) {
-    case "bothAdvance":   return { a: "advance", b: "advance" };
-    case "advanceBlock":  return { a: "advance", b: "block" };
-    case "blockAdvance":  return { a: "block",   b: "advance" };
-    case "bothBlock":     return { a: "block",   b: "block" };
-  }
+/** The realized outcome — what the author actually wrote. */
+export function realizedOutcome(game: BeatGame): GameOutcome | null {
+  return outcomeAt(game, game.realizedAAction, game.realizedBAction);
 }
 
-/** The outcome for a specific pair of moves. */
-export function outcomeAt(game: BeatGame, a: PlayerMove, b: PlayerMove): GameOutcome {
-  return game[outcomeKeyFor(a, b)];
-}
-
-/** The outcome that actually happened in this beat. */
-export function playedOutcome(game: BeatGame): GameOutcome {
-  return outcomeAt(game, game.playerAPlayed, game.playerBPlayed);
-}
-
-/** The outcome key for what actually happened. */
-export function playedKey(game: BeatGame): OutcomeKey {
-  return outcomeKeyFor(game.playerAPlayed, game.playerBPlayed);
-}
-
-// ── Nash equilibria ────────────────────────────────────────────────────────
+// ── Nash equilibria (stake delta only) ─────────────────────────────────────
 
 /**
- * An outcome is a Nash equilibrium if neither player would benefit by
- * unilaterally switching to their alternative move.
+ * NxM Nash: cell (a, b) is a pure-strategy equilibrium if
+ *   - A's stake delta at (a, b) ≥ A's delta at (a', b) for every other a'
+ *   - B's stake delta at (a, b) ≥ B's delta at (a, b') for every other b'
+ *
+ * Ties qualify (weak Nash). Returns the set of (aActionName, bActionName)
+ * pairs that satisfy the condition.
  */
-export function nashEquilibria(game: BeatGame): Set<OutcomeKey> {
-  const result = new Set<OutcomeKey>();
-
-  // bothAdvance: A could switch to block → blockAdvance. B could switch to block → advanceBlock.
-  if (
-    game.bothAdvance.payoffA >= game.blockAdvance.payoffA &&
-    game.bothAdvance.payoffB >= game.advanceBlock.payoffB
-  ) {
-    result.add("bothAdvance");
+export function nashEquilibria(
+  game: BeatGame,
+): Array<{ aActionName: string; bActionName: string }> {
+  const result: Array<{ aActionName: string; bActionName: string }> = [];
+  for (const cell of game.outcomes) {
+    // A wouldn't switch rows given B plays bActionName
+    let aStable = true;
+    for (const alt of game.playerAActions) {
+      if (alt.name === cell.aActionName) continue;
+      const altCell = outcomeAt(game, alt.name, cell.bActionName);
+      if (altCell && altCell.stakeDeltaA > cell.stakeDeltaA) {
+        aStable = false;
+        break;
+      }
+    }
+    if (!aStable) continue;
+    // B wouldn't switch columns given A plays aActionName
+    let bStable = true;
+    for (const alt of game.playerBActions) {
+      if (alt.name === cell.bActionName) continue;
+      const altCell = outcomeAt(game, cell.aActionName, alt.name);
+      if (altCell && altCell.stakeDeltaB > cell.stakeDeltaB) {
+        bStable = false;
+        break;
+      }
+    }
+    if (!bStable) continue;
+    result.push({ aActionName: cell.aActionName, bActionName: cell.bActionName });
   }
-
-  // advanceBlock: A could switch to block → bothBlock. B could switch to advance → bothAdvance.
-  if (
-    game.advanceBlock.payoffA >= game.bothBlock.payoffA &&
-    game.advanceBlock.payoffB >= game.bothAdvance.payoffB
-  ) {
-    result.add("advanceBlock");
-  }
-
-  // blockAdvance: A could switch to advance → bothAdvance. B could switch to block → bothBlock.
-  if (
-    game.blockAdvance.payoffA >= game.bothAdvance.payoffA &&
-    game.blockAdvance.payoffB >= game.bothBlock.payoffB
-  ) {
-    result.add("blockAdvance");
-  }
-
-  // bothBlock: A could switch to advance → advanceBlock. B could switch to advance → blockAdvance.
-  if (
-    game.bothBlock.payoffA >= game.advanceBlock.payoffA &&
-    game.bothBlock.payoffB >= game.blockAdvance.payoffB
-  ) {
-    result.add("bothBlock");
-  }
-
   return result;
 }
 
-// ── Best responses ─────────────────────────────────────────────────────────
-
-/** A's best response when B plays a given move. */
-export function aBestResponseTo(game: BeatGame, b: PlayerMove): PlayerMove {
-  const ifAdvance = b === "advance" ? game.bothAdvance.payoffA : game.advanceBlock.payoffA;
-  const ifBlock   = b === "advance" ? game.blockAdvance.payoffA : game.bothBlock.payoffA;
-  return ifAdvance >= ifBlock ? "advance" : "block";
-}
-
-/** B's best response when A plays a given move. */
-export function bBestResponseTo(game: BeatGame, a: PlayerMove): PlayerMove {
-  const ifAdvance = a === "advance" ? game.bothAdvance.payoffB : game.blockAdvance.payoffB;
-  const ifBlock   = a === "advance" ? game.advanceBlock.payoffB : game.bothBlock.payoffB;
-  return ifAdvance >= ifBlock ? "advance" : "block";
-}
-
-/** Outcome keys that represent A's best responses (for cell highlighting). */
-export function aBestResponseKeys(game: BeatGame): Set<OutcomeKey> {
-  const out = new Set<OutcomeKey>();
-  // When B plays advance → A's options are bothAdvance vs blockAdvance
-  if (game.bothAdvance.payoffA >= game.blockAdvance.payoffA) out.add("bothAdvance");
-  if (game.blockAdvance.payoffA >= game.bothAdvance.payoffA) out.add("blockAdvance");
-  // When B plays block → A's options are advanceBlock vs bothBlock
-  if (game.advanceBlock.payoffA >= game.bothBlock.payoffA) out.add("advanceBlock");
-  if (game.bothBlock.payoffA >= game.advanceBlock.payoffA) out.add("bothBlock");
-  return out;
-}
-
-/** Outcome keys that represent B's best responses. */
-export function bBestResponseKeys(game: BeatGame): Set<OutcomeKey> {
-  const out = new Set<OutcomeKey>();
-  // When A plays advance → B's options are bothAdvance vs advanceBlock
-  if (game.bothAdvance.payoffB >= game.advanceBlock.payoffB) out.add("bothAdvance");
-  if (game.advanceBlock.payoffB >= game.bothAdvance.payoffB) out.add("advanceBlock");
-  // When A plays block → B's options are blockAdvance vs bothBlock
-  if (game.blockAdvance.payoffB >= game.bothBlock.payoffB) out.add("blockAdvance");
-  if (game.bothBlock.payoffB >= game.blockAdvance.payoffB) out.add("bothBlock");
-  return out;
-}
-
-// ── Dominant strategy ──────────────────────────────────────────────────────
-
-export type DominantSide = "A" | "B" | "both" | null;
-
-export type DominantResult = {
-  player: DominantSide;
-  /** A's dominant move if they have one. */
-  aMove?: PlayerMove;
-  /** B's dominant move if they have one. */
-  bMove?: PlayerMove;
-};
-
-/** Which players have a move that's best regardless of the opponent. */
-export function dominantStrategy(game: BeatGame): DominantResult {
-  const aAgainstAdvance = aBestResponseTo(game, "advance");
-  const aAgainstBlock   = aBestResponseTo(game, "block");
-  const bAgainstAdvance = bBestResponseTo(game, "advance");
-  const bAgainstBlock   = bBestResponseTo(game, "block");
-
-  const aHas = aAgainstAdvance === aAgainstBlock;
-  const bHas = bAgainstAdvance === bAgainstBlock;
-
-  return {
-    player: aHas && bHas ? "both" : aHas ? "A" : bHas ? "B" : null,
-    aMove: aHas ? aAgainstAdvance : undefined,
-    bMove: bHas ? bAgainstAdvance : undefined,
-  };
-}
-
-// ── Game classification ────────────────────────────────────────────────────
-
-/** Tag a game with the structural shapes it exhibits. */
-export function classifyGame(game: BeatGame): string[] {
-  const tags: string[] = [];
-
-  const sums = [
-    game.bothAdvance.payoffA + game.bothAdvance.payoffB,
-    game.advanceBlock.payoffA + game.advanceBlock.payoffB,
-    game.blockAdvance.payoffA + game.blockAdvance.payoffB,
-    game.bothBlock.payoffA + game.bothBlock.payoffB,
-  ];
-  if (sums.every((s) => s === sums[0])) tags.push("zero-sum");
-
-  const ccBestA = game.bothAdvance.payoffA >= Math.max(
-    game.advanceBlock.payoffA,
-    game.blockAdvance.payoffA,
-    game.bothBlock.payoffA,
-  );
-  const ccBestB = game.bothAdvance.payoffB >= Math.max(
-    game.advanceBlock.payoffB,
-    game.blockAdvance.payoffB,
-    game.bothBlock.payoffB,
-  );
-  if (ccBestA && ccBestB) tags.push("coordination");
-
+/** Is the realized cell a Nash equilibrium? Descriptive, not normative. */
+export function realizedIsNash(game: BeatGame): boolean {
   const ne = nashEquilibria(game);
-  const ddOnlyNash = ne.has("bothBlock") && !ne.has("bothAdvance");
-  if (ccBestA && ccBestB && ddOnlyNash) tags.push("social dilemma");
-
-  if (tags.length === 0) tags.push("mixed");
-  return tags;
+  return ne.some(
+    (p) =>
+      p.aActionName === game.realizedAAction &&
+      p.bActionName === game.realizedBAction,
+  );
 }
 
-// ── Optimality judgements ──────────────────────────────────────────────────
-
-/** Did the actual played outcome match a Nash equilibrium? */
-export function isOptimalPlay(game: BeatGame): boolean {
-  return nashEquilibria(game).has(playedKey(game));
-}
+// ── Stake-based win/loss/draw scoring ──────────────────────────────────────
 
 /**
- * Given a player, which move would align with Nash equilibrium? Returns null
- * when the equilibrium move is ambiguous (multiple NEs with conflicting moves).
+ * Score from Player A's perspective on the realized outcome:
+ *   1   = A's stake delta strictly exceeds B's (A "wins" the beat)
+ *   0   = B's strictly exceeds A's
+ *   0.5 = tie
+ *
+ * This is what ELO reads.
  */
-export function equilibriumMove(
+export function gameScoreA(game: BeatGame): number {
+  const cell = realizedOutcome(game);
+  if (!cell) return 0.5;
+  if (cell.stakeDeltaA > cell.stakeDeltaB) return 1;
+  if (cell.stakeDeltaA < cell.stakeDeltaB) return 0;
+  return 0.5;
+}
+
+// ── Stake rank — descriptive only ──────────────────────────────────────────
+
+/**
+ * Rank of the realized cell among all outcomes by stake delta for the given
+ * player. Rank 1 = best possible for them, rank = outcomes.length = worst.
+ * Useful for "the author picked the 3rd-best-for-Harry outcome out of 9".
+ */
+export function stakeRank(
   game: BeatGame,
   player: "A" | "B",
-): PlayerMove | null {
-  const ne = nashEquilibria(game);
-  if (ne.size === 0) return null;
-  const moves = new Set<PlayerMove>();
-  for (const key of ne) {
-    const { a, b } = movesOf(key);
-    moves.add(player === "A" ? a : b);
-  }
-  return moves.size === 1 ? [...moves][0] : null;
+): { rank: number; total: number } | null {
+  const cell = realizedOutcome(game);
+  if (!cell) return null;
+  const key = player === "A" ? "stakeDeltaA" : "stakeDeltaB";
+  const realizedValue = cell[key];
+  const sorted = game.outcomes.slice().sort((x, y) => y[key] - x[key]);
+  const rank = sorted.findIndex(
+    (o) => o.aActionName === cell.aActionName && o.bActionName === cell.bActionName,
+  );
+  return rank >= 0 ? { rank: rank + 1, total: sorted.length } : null;
+  // realizedValue intentionally computed for potential future use
+  void realizedValue;
 }
 
 // ── ELO rating ─────────────────────────────────────────────────────────────
@@ -235,16 +138,29 @@ export function equilibriumMove(
 export const ELO_INITIAL = 1500;
 export const ELO_K = 32;
 
-/** A's score from a game's played outcome: 1 win / 0.5 draw / 0 loss. */
-export function gameScoreA(game: BeatGame): number {
-  const outcome = playedOutcome(game);
-  if (outcome.payoffA > outcome.payoffB) return 1;
-  if (outcome.payoffA < outcome.payoffB) return 0;
-  return 0.5;
-}
-
 export function expectedScore(ra: number, rb: number): number {
   return 1 / (1 + Math.pow(10, (rb - ra) / 400));
+}
+
+/**
+ * Continuous margin score for ELO updates, in [0, 1] from A's perspective.
+ *
+ *   scoreA = clamp(0.5 + (ΔA − ΔB) / 16, 0, 1)
+ *
+ * Stake deltas live in [-4, 4], so the differential spans [-8, 8] and the
+ * score spans [0, 1] linearly. This folds margin-of-victory into the ELO
+ * expected-vs-actual math — a +4/−4 crush yields 1.0 (max move), a +1/0
+ * marginal edge yields ~0.56 (barely moves), a tie or dead-even cell yields
+ * 0.5 (no move), a crushing loss yields 0.
+ *
+ * W/L/D display counting stays binary via gameScoreA — it's a separate
+ * narrative-readable metric, not what ELO consumes.
+ */
+export function gameMarginScore(game: BeatGame): number {
+  const cell = realizedOutcome(game);
+  if (!cell) return 0.5;
+  const raw = 0.5 + (cell.stakeDeltaA - cell.stakeDeltaB) / 16;
+  return Math.max(0, Math.min(1, raw));
 }
 
 export function eloUpdate(
@@ -259,7 +175,10 @@ export function eloUpdate(
   return [newRa, newRb];
 }
 
-/** Per-player ELO history across a sequence of games in narrative order. */
+/** Per-player ELO history across a sequence of games in narrative order.
+ *  Uses the continuous margin score so margin-of-victory flows through the
+ *  expected-vs-actual math naturally. K is constant (no external
+ *  magnitude multiplier — the margin already lives in scoreA). */
 export function computeEloHistories(
   games: BeatGame[],
 ): Map<string, { ratings: number[]; games: number[] }> {
@@ -278,20 +197,47 @@ export function computeEloHistories(
     ensure(g.playerBId);
     const ra = current.get(g.playerAId)!;
     const rb = current.get(g.playerBId)!;
-    const [newRa, newRb] = eloUpdate(ra, rb, gameScoreA(g));
+    const [newRa, newRb] = eloUpdate(ra, rb, gameMarginScore(g));
     current.set(g.playerAId, newRa);
     current.set(g.playerBId, newRb);
 
-    const ha = histories.get(g.playerAId)!;
-    ha.ratings.push(newRa);
-    ha.games.push(idx);
-
-    const hb = histories.get(g.playerBId)!;
-    hb.ratings.push(newRb);
-    hb.games.push(idx);
+    histories.get(g.playerAId)!.ratings.push(newRa);
+    histories.get(g.playerAId)!.games.push(idx);
+    histories.get(g.playerBId)!.ratings.push(newRb);
+    histories.get(g.playerBId)!.games.push(idx);
   });
 
   return histories;
+}
+
+// ── Action menu utilities ──────────────────────────────────────────────────
+
+/** All outcomes in the row A=aActionName (used for best-response columns). */
+export function rowOutcomes(game: BeatGame, aActionName: string): GameOutcome[] {
+  return game.outcomes.filter((o) => o.aActionName === aActionName);
+}
+
+/** All outcomes in the column B=bActionName. */
+export function columnOutcomes(game: BeatGame, bActionName: string): GameOutcome[] {
+  return game.outcomes.filter((o) => o.bActionName === bActionName);
+}
+
+/** Does the game have a well-formed NxM grid? */
+export function isGridComplete(game: BeatGame): boolean {
+  const expected = game.playerAActions.length * game.playerBActions.length;
+  if (game.outcomes.length !== expected) return false;
+  const seen = new Set<string>();
+  for (const o of game.outcomes) {
+    const key = `${o.aActionName}::${o.bActionName}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+  }
+  return true;
+}
+
+/** Quick helper for UI — list action names in menu order. */
+export function actionNames(actions: PlayerAction[]): string[] {
+  return actions.map((a) => a.name);
 }
 
 // ── Player name resolution (display layer) ────────────────────────────────
