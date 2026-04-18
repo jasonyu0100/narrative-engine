@@ -21,18 +21,18 @@ export function buildGameTheorySystemPrompt(): string {
 CORE FRAMING — READ THIS CAREFULLY:
 You are writing an EVALUATOR, not a predictor. Characters often act against their local strategic interest — they trade stake for identity, short-term for long-term, cooperation for arc. That is a feature of narrative, not an error. NEVER warp stake deltas to "justify" what happened. Score each cell as if it had been the realized outcome — honestly, against that player's interests. Let the author's choice land where it lands, even if the stakes number says it was dominated.
 
-SCOPE — EVERY SCENE PRODUCES GAMES:
-Every scene contains strategic content. A character alone on the page is still gaming against the absent opposition they are preparing for, the audience they anticipate, or the rival they have modelled in their head. Read the counterparty generously — the scene's participant table will surface who the beat is actually contesting, even when only one body is on stage.
-
-In particular, include:
+SCOPE — INTERPERSONAL BEATS, GENEROUSLY READ:
+This analysis covers beats where two or more agentic parties are making choices that meaningfully affect each other. Only EXCLUDE beats that are CLEARLY out of scope:
+- Pure internal monologue with no interpersonal consequence
+- Pure atmosphere / exposition with no choice being made
+- Solo action against a passive world (no counterparty at all)
+Everything else is fair game. In particular, include:
 - Beats where the "opponent" is an absent party reacting later (anticipated reaction still counts)
 - Beats where one side has most of the power but the weaker side still has choices (still a game)
 - Quiet negotiations, loaded silences, glances across a room — subtle beats have grids too
 - Moral decisions that land on another person (use the moral axis)
-- Internal monologue where the POV character is deciding how to move against a future or absent party
-- Solo action where the "world" is represented by the offstage agent who set the obstacle (trap-setter, rule-maker, rival schemer)
 
-When strategic content is weak but present, use gameType: trivial with small-magnitude stake deltas. NEVER emit an empty games array — if a scene feels like it has no games, you haven't found the right counterparty yet.
+When in doubt, INCLUDE. A mis-coded game is easier to read than a missing one, and the stake deltas can honestly say "this was a near-trivial beat" via small magnitudes rather than via omission. BUT — if a beat genuinely can't be resolved into a plausible payoff grid (no counterparty you can name, no actions you can score), skip it rather than fabricating one. An empty games array is valid output when the scene truly has no resolvable games.
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 PLAYER IDENTITY
@@ -43,7 +43,7 @@ RULES:
 - playerAId and playerBId MUST match IDs from PARTICIPANTS.
 - Never invent IDs. Never put a name in the ID field.
 - Locations and artifacts are valid players ONLY if they carry agency in the beat (e.g., a cursed object actively resisting use). Most of the time locations are SETTING, not players.
-- If a beat has only one agentic participant on stage, treat the most salient offstage counterparty (the absent rival, the rule-maker, the anticipated reactor) as player B. Scene-level analysis still produces ≥1 game.
+- If a beat has only one agentic participant from the table, skip it.
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 GAME OBJECT — WHAT YOU ARE WRITING
@@ -89,15 +89,13 @@ vines, locked doors, chessboards, physical obstacles are NOT strategic
 agents — they have no preferences.
 
   • Non-agent counterparty only (obstacle, trap, puzzle, environment) →
-    re-code against the strategic party BEHIND the obstacle (the villain
-    who set the trap; the designer of the test; the system that imposed
-    the rule). Stake deltas for "the vine" are meaningless — stake deltas
-    against the offstage designer are not.
+    EITHER re-code against the strategic party BEHIND the obstacle
+    (the villain who set the trap; the designer of the test), OR SKIP
+    the beat. Stake deltas for "the vine" are meaningless.
   • Heroes cooperating against an obstacle with no real disagreement
-    between them → code the cooperation itself as the game: the shared
-    counterparty is whoever set the obstacle. If two heroes ARE
-    disagreeing mid-cooperation (retreat vs press on; volunteer vs
-    protest), code THAT inter-hero decision instead.
+    between them → SKIP. Do NOT force a dyad across cooperating heroes.
+    If two heroes ARE disagreeing mid-cooperation (retreat vs press on;
+    volunteer vs protest), code THAT inter-hero decision instead.
   • ≥3 agents in rank-ordered competition for a prize →
     gameType: contest, exit.
   • ≥3 agents contributing to a shared threshold with free-rider
@@ -463,7 +461,8 @@ HARD CONSTRAINTS
 - Stake deltas are integers in the range -4 to 4.
 - JSON NUMBER FORMAT: Write positive integers as plain digits (0, 1, 2, 3, 4). Write negatives with a minus sign (-1, -2, -3, -4). NEVER prefix a positive number with a "+" sign — that is invalid JSON. Correct: "stakeDeltaA": 3. Incorrect: "stakeDeltaA": +3.
 - playerAId ≠ playerBId.
-- The games array MUST contain at least one entry. Every scene has strategic content — use gameType: trivial with small stake deltas when it's weak. Never return an empty games array; never return prose instead of JSON.
+- Include beats whose payoff grid can plausibly be resolved. If a beat genuinely has no counterparty you can name and no actions you can score, skip it — do not fabricate a game just to fill the array.
+- OUTPUT FORMAT IS JSON ONLY. No prose preamble, no explanation of why you skipped beats, no markdown. If the whole scene resolves to zero games, emit {"summary": "...", "games": []} — never prose + a bare {}.
 - Score stake deltas HONESTLY — do not tilt to make the realized cell look dominant. The analyser wants to know when the author chose a suboptimal cell.
 `;
 }
