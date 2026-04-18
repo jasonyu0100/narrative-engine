@@ -549,8 +549,11 @@ export function SceneProseView({
                     )}
                   </div>
 
-                  {/* Right: Prose */}
-                  <div className="flex-[1.3] basis-0 p-3">
+                  {/* Right: Prose — self-center so it aligns to the plan's
+                      mid-line when the plan column is taller (many
+                      propositions). When prose is taller, self-center is a
+                      no-op and prose fills the row as before. */}
+                  <div className="flex-[1.3] basis-0 p-3 self-center">
                     <div className="prose-content">
                       {chunk.prose.split("\n\n").map((para, paraIdx) => (
                         <p
