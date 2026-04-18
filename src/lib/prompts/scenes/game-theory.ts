@@ -6,6 +6,13 @@
  * the author has already decided. We are scoring the alternatives so
  * downstream ELO + analysis can compare the realized choice against what
  * else was on the table.
+ *
+ * Structure: a classifying framework (scope → mechanism → information ×
+ * preference) replaces flat type enumerations and negative-example lists.
+ * The model walks a three-step decision procedure that routes each beat
+ * to exactly one gameType by construction; the three historically-
+ * attractor cells (PA, pure-opposition, anti-coordination) keep
+ * procedural fill-in-the-blank gates.
  */
 
 export function buildGameTheorySystemPrompt(): string {
@@ -38,87 +45,303 @@ RULES:
 - If a beat has only one agentic participant from the table, skip it.
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-GAME STRUCTURE — NxM GRID
+GAME OBJECT — WHAT YOU ARE WRITING
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-Each strategic beat becomes a GAME with:
+Each strategic beat becomes a GAME with these fields:
 
-- gameType: one of
-    # Symmetric payoff structures
-    coordination       — both want the same outcome; alignment problem
-    anti-coordination  — BOTH players actively want to diverge. Mutual desire to differ. NOT for one-sided cases where only one party wants divergence (sneak vs. guard, actor vs. observer) — those are stealth. NOT a sink for "players have opposed interests"
-    battle-of-sexes    — both want to coordinate but prefer different equilibria
-    dilemma            — mutual cooperation best, each tempted to defect
-    stag-hunt          — payoff-dominant vs risk-dominant coordination
-    chicken            — mutual yielding vs mutual collision (includes time-extended war-of-attrition)
-    zero-sum           — the payoff grid LITERALLY sums to zero across every cell. If any cell leaves both players positive (or both negative), the beat is not zero-sum — don't use this as a synonym for "adversarial"
-    pure-opposition    — conflict over INCOMMENSURABLE values (honor vs survival, love vs duty, faith vs reason). Rare. Clan politics, authority contests, reputation fights, power struggles all have SHARED currency (rank, authority, reputation) and are zero-sum on the status axis, NOT pure-opposition. If you can name the single thing both parties want more of, it is not this label
+  beatIndex          — index of the beat within the scene's beat plan
+  beatExcerpt        — short excerpt of the beat for context
+  gameType           — classified via the DECISION PROCEDURE below
+  actionAxis         — classified via the ACTION AXIS section below
+  playerAId/Name     — the prime mover; must match PARTICIPANTS
+  playerBId/Name     — the counterparty; must match PARTICIPANTS
+  playerAActions     — 1-4 concrete actions A could have taken (each has a \`name\`, 2-5 words)
+  playerBActions     — 1-4 concrete actions B could have taken
+  outcomes           — EVERY pairing: playerAActions.length × playerBActions.length cells
+                       { aActionName, bActionName, description, stakeDeltaA, stakeDeltaB }
+  realizedAAction    — the A-action that actually happened (must match a menu entry)
+  realizedBAction    — the B-action that actually happened (must match a menu entry)
+  rationale          — ONE sentence: why did the author pick the realized cell over the alternatives?
 
-    # Asymmetric / structural
-    contest            — n-player competition for rank-ordered prize (tournament, auction, scramble)
-    collective-action  — n-player threshold contribution; free-rider dynamics
-    principal-agent    — requires BOTH (a) explicit delegation — one party hands a task to another — AND (b) hidden action — the principal cannot directly observe what the agent does and must rely on outcomes or incentive design. If either gate fails, pick a different label
-    screening          — uninformed party STRUCTURES CHOICES to sort agent types — evaluations, tests, auctions, interview questions designed to reveal who is who. This is the right label for examinations, trials, entrance tests — NOT principal-agent
-    signaling          — informed party reveals their type through a costly, hard-to-fake action
-    stealth            — actor attempts something whose success depends on the other NOT NOTICING. The "observer" player's move is passive attention allocation (scrutinise ↔ overlook), not an active counter-action. Covert operations, concealed maneuvers, information theft, surveillance evasion — use this instead of anti-coordination when only one side wants to diverge
-    stackelberg        — sequential; leader commits visibly, follower best-responds
+Both players' actions live on the SAME axis (both on disclosure, both on trust, etc.). Actions should be specific to the scene, not generic ("reveals the letter", not "reveals information").
 
-    # Communication / mechanism layers (use when the mechanism is the primary driver)
-    cheap-talk         — non-binding communication shapes the beat
-    commitment-game    — binding vs non-binding promise is the crux
-    bargaining         — propose / counter / accept dynamics (includes one-shot ultimatum — use bargaining and let the grid size indicate whether it's one round or several)
+*** JSON NUMBER FORMAT — READ BEFORE WRITING ANY STAKE DELTA ***
+Write positive values as plain digits with NO sign: 0, 1, 2, 3, 4.
+Write negatives with a minus: -1, -2, -3, -4.
+DO NOT write +1, +2, +3, +4. A leading plus sign is INVALID JSON and the whole response will fail to parse.
+  ✓ CORRECT:   "stakeDeltaA": 3,  "stakeDeltaB": 0,  "stakeDeltaA": -2
+  ✗ WRONG:     "stakeDeltaA": +3, "stakeDeltaB": +0, "stakeDeltaA": +2
 
-    # Degenerate
-    trivial            — no meaningful strategic content; flag and skip on a second pass
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+CLASSIFYING A GAME — DECISION PROCEDURE
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-- actionAxis: one of
-    # Information & self-presentation
-    disclosure         — reveal ↔ conceal (what information is shown or hidden)
-    identity           — claim ↔ disown (declaring or distancing from WHO ONE IS, as an individual)
+Walk three steps in order. Each step routes the beat to exactly one label
+by construction. You should not be pattern-matching against a list of
+type definitions — you should be answering three questions.
 
-    # Stance toward other party
-    trust              — extend ↔ guard (individual vulnerability)
-    alliance           — ally ↔ separate — FACTIONAL / GROUP membership. Use this over identity when the beat is about side-taking, coalition building, or signalling where one stands within a group. Silent observation during a public dispute, crossing the floor in an argument, standing beside one faction over another — alliance
-    confrontation      — engage ↔ evade (whether to interact at all)
-    status             — assert ↔ defer — relative RANK and positioning. Use this over pressure when the beat is specifically about who outranks whom, probing social position, challenging or accepting deference. Not about force intensity — about social order
+─── STEP 1 — SCOPE ─────────────────────────────────────────
+Count the strategic agents in the beat. A strategic agent has
+PREFERENCES over outcomes and CHOICES over actions. Trolls, traps,
+vines, locked doors, chessboards, physical obstacles are NOT strategic
+agents — they have no preferences.
 
-    # Force & magnitude within interaction
-    pressure           — press ↔ yield (intensity of push and give — force applied or absorbed)
-    stakes             — escalate ↔ deescalate (magnitude of consequence on the table)
-    control            — bind ↔ release (constraint imposed or lifted)
+  • Non-agent counterparty only (obstacle, trap, puzzle, environment) →
+    EITHER re-code against the strategic party BEHIND the obstacle
+    (the villain who set the trap; the designer of the test), OR SKIP
+    the beat. Stake deltas for "the vine" are meaningless.
+  • Heroes cooperating against an obstacle with no real disagreement
+    between them → SKIP. Do NOT force a dyad across cooperating heroes.
+    If two heroes ARE disagreeing mid-cooperation (retreat vs press on;
+    volunteer vs protest), code THAT inter-hero decision instead.
+  • ≥3 agents in rank-ordered competition for a prize →
+    gameType: contest, exit.
+  • ≥3 agents contributing to a shared threshold with free-rider
+    dynamics → gameType: collective-action, exit.
+  • Exactly 2 strategic agents → proceed to STEP 2.
 
-    # Resource & obligation flow
-    acquisition        — take ↔ give (resources, lives, knowledge FLOW)
-    obligation         — incur ↔ discharge — DEBT / FAVOR economy. When a character saves another specifically to create a debt, or repays an old favor, or calls in a debt, or refuses to incur one — obligation. This is distinct from acquisition: acquisition is about the physical transfer; obligation is about the owed-ness that survives the transfer
+─── STEP 2 — MECHANISM OVERRIDE ────────────────────────────
+Before classifying on information / preference, ask: is the beat's
+TIMING or BINDING STRUCTURE the whole strategic content? If yes, apply
+the mechanism label and exit; these override the matrix below.
 
-    # Moral / normative
-    moral              — transgress ↔ uphold (acts against a principle or against another person — use when the normative weight of the choice is the primary trade)
+  • One party commits visibly FIRST; the other best-responds with full
+    knowledge of the commitment → gameType: stackelberg.
+  • Offer → counteroffer → accept/reject rounds (includes one-shot
+    ultimatum — the grid size signals round count) → gameType: bargaining.
+  • The beat IS whether a promise can be made credibly — a vow, a
+    burned bridge, a hostage, a tattoo, any self-binding gesture
+    whose credibility is the question → gameType: commitment-game.
+  • Non-binding words are the move, and the talk itself shapes what
+    happens (persuasion, posturing, bluffing) → gameType: cheap-talk.
 
-    # Self-binding & tempo
-    commitment         — commit ↔ withdraw / hedge (self-binding vs keeping options open)
-    timing             — act ↔ wait
+If none of these capture what the beat is primarily ABOUT, proceed to
+STEP 3 — the mechanism label should feel inevitable, not plausible.
 
-  Both players' actions are organised on the SAME axis. Pick the axis that best captures what's being traded in this beat. When multiple axes seem to apply, ask: what is the thing the players are specifically NEGOTIATING OVER? That's your axis.
+─── STEP 3 — INFORMATION × PREFERENCE ──────────────────────
+Answer two questions. Both answers together uniquely determine the
+label.
 
-- playerAActions and playerBActions: each an array of 1-4 concrete actions the player could have taken, all drawn from the chosen axis. Each action has a "name" (2-5 words, specific to the scene). Example on disclosure axis: ["volunteers the letter", "shows only the envelope", "conceals the letter"].
+  Q-INFO: Is the strategic landscape SYMMETRIC or ASYMMETRIC?
+    SYMMETRIC  — both players see the same strategic possibilities.
+                 Neither hides type, intent, or action from the other
+                 in a way that matters to the choice.
+    ASYMMETRIC — one party has TYPE, INTENT, or ACTION the other
+                 cannot directly see. The information gap drives the
+                 strategic choice.
 
-- outcomes: exactly playerAActions.length * playerBActions.length entries — ONE for every pairing. Each outcome has:
-    { aActionName, bActionName, description, stakeDeltaA, stakeDeltaB }
-    - aActionName and bActionName MUST match entries in the players' action menus
-    - description: 5-15 words narrating the resulting world-state
-    - stakeDeltaA: A's stake delta, integer in the range -4 to 4. -4 = catastrophic for A, 0 = neutral, 4 = ideal for A. SCORE HONESTLY — this is not about canon.
-    - stakeDeltaB: B's stake delta, same scale.
+  Q-PREF: What is the preference structure across the grid?
+    ALIGNED         — both can win together; cooperation is possible
+                      and would leave both better off than non-coop.
+    MIXED           — cooperation is best on average, but each player
+                      has a unilateral incentive to defect.
+    ZERO-SUM        — gain-for-one is loss-for-other on a SHARED axis
+                      (same currency, opposite directions).
+    DIVERGENT       — each player INDEPENDENTLY prefers outcomes where
+                      their action DIFFERS from the counterpart's
+                      (mutual desire to differ).
+    INCOMMENSURABLE — the values at stake cannot be reduced to a
+                      common currency — different KINDS of thing,
+                      not different amounts of the same thing.
 
-    *** JSON NUMBER FORMAT — READ BEFORE WRITING ANY DELTA ***
-    Write positive values as plain digits with NO sign: 0, 1, 2, 3, 4.
-    Write negatives with a minus: -1, -2, -3, -4.
-    DO NOT write +1, +2, +3, +4. A leading plus sign is INVALID JSON and the whole response will fail to parse. This is the single most common failure mode — stay vigilant every time you write a stakeDeltaA or stakeDeltaB.
-      ✓ CORRECT:   "stakeDeltaA": 3,  "stakeDeltaB": 0,  "stakeDeltaA": -2
-      ✗ WRONG:     "stakeDeltaA": +3, "stakeDeltaB": +0, "stakeDeltaA": +2
+LABEL MATRIX (walk by Q-INFO first, then Q-PREF):
 
-- realizedAAction, realizedBAction: the action-name pair that actually happened in the prose. Must match entries in the menus.
+  SYMMETRIC + ALIGNED         → coordination family — pick the sub-shape:
+                                  • payoff-dominant vs risk-dominant
+                                    trust-limited choice  → stag-hunt
+                                  • both want to meet but prefer
+                                    different focal points → battle-of-sexes
+                                  • otherwise              → coordination
+  SYMMETRIC + MIXED           → pick the sub-shape:
+                                  • unilateral defection pays regardless
+                                    of what the other does → dilemma
+                                  • mutual yield vs mutual collision;
+                                    each wants the OTHER to blink → chicken
+  SYMMETRIC + ZERO-SUM        → zero-sum
+  SYMMETRIC + DIVERGENT       → anti-coordination
+  SYMMETRIC + INCOMMENSURABLE → pure-opposition
 
-- rationale: one sentence explaining WHY the author chose this outcome over the others. This is the interesting question — because the realized cell is often not stake-optimal. What did the author trade for?
+  ASYMMETRIC + informed party REVEALS type through costly action      → signaling
+  ASYMMETRIC + uninformed party DESIGNS mechanism to sort by type    → screening
+  ASYMMETRIC + one party ACTS COVERTLY, other's move is passive
+               attention allocation (scrutinise vs overlook)          → stealth
+  ASYMMETRIC + explicit delegation + hidden action by agent           → principal-agent
+
+SCREENING IS PERSISTENTLY UNDERUSED — RECOGNISE THESE PATTERNS.
+A party saying "convince me", "prove yourself to me", "choose which
+of you stays", "audition for this role", "earn this", or any variant
+of presenting a STRUCTURED CHALLENGE whose outcome depends on how the
+other party responds — that is screening. The challenger is designing
+a mechanism that sorts by type; the responding party's choice reveals
+who they are. This is NOT signaling (where the informed party
+VOLUNTEERS disclosure on their own terms), and NOT principal-agent
+(which requires delegation with hidden execution). Trials, tests,
+auditions, loyalty tests, ultimatum-framed evaluations, entrance rites,
+"prove you belong here" moments — all screening.
+
+DEGENERATE:
+  If after walking the tree the strategic content is genuinely absent —
+  the choice is in name only, or one side has no real alternative —
+  gameType: trivial.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+PROCEDURAL GATES — THE FIVE ATTRACTOR CELLS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Five gameTypes attract wrong labels under prose intensity. A
+descriptive rule ("zero-sum requires every cell sum to 0") is
+consistently ignored. A PROCEDURAL gate — one that forces you to
+produce a FALSIFIABLE ARTIFACT from the grid — isn't. Before writing
+any of these five labels, silently complete the fill-in with
+CONCRETE specifics from the beat and its grid. If you can't, the
+tree routed you wrong — re-walk STEP 3.
+
+1. zero-sum (SYMMETRIC + ZERO-SUM on shared axis):
+   ENUMERATE each cell's sum. Stake deltas are integers, so this is
+   arithmetic, not judgement:
+     "cell (a₁, b₁): stakeDeltaA + stakeDeltaB = ___"
+     "cell (a₁, b₂): stakeDeltaA + stakeDeltaB = ___"
+     ... every cell in the grid.
+   EVERY sum must equal exactly 0. Zero-sum means +X/−X per cell:
+   (+1, +1) sums to +2 and FAILS; (+4, −3) sums to +1 and FAILS;
+   (+2, −2) sums to 0 and passes; (0, 0) sums to 0 and passes.
+   If the arithmetic check fails on ANY cell, the label is WRONG.
+   Route to a mixed-motive label based on what the grid actually
+   shows:
+     • Cells where BOTH gain (+1/+1, +2/+1) → preference structure is
+       ALIGNED or MIXED, not zero-sum. Coordination (if Nash is
+       both-positive), dilemma (if pareto-improvable coop exists),
+       or stag-hunt / battle-of-sexes.
+     • Cells where BOTH lose → chicken (mutual escalation
+       catastrophic, yielding acceptable) or dilemma.
+   "Adversarial in tone" ≠ zero-sum. Grid arithmetic is the gate.
+
+2. dilemma (SYMMETRIC + MIXED with pareto-dominated Nash):
+   Dilemma asserts THREE structural facts about the grid. Name each
+   with concrete cell coordinates and stakes:
+     "The mutual-cooperation cell is (____, ____) with stakes (A=____, B=____)."
+     "The Nash equilibrium cell is (____, ____) with stakes (A=____, B=____)."
+     "Cooperation strictly pareto-dominates Nash: coop-A > nash-A AND coop-B > nash-B."
+   All three lines must be fillable. Common failure modes:
+     ✗ No mutual-cooperation cell in the grid at all → not dilemma.
+       Likely chicken (if both-negative cells dominate) or signaling.
+     ✗ "Cooperation" cell stakes are (0, 0) and Nash cell stakes
+       are higher → cooperation does NOT dominate Nash → not dilemma.
+     ✗ No pure-strategy Nash (grid has a matching-pennies shape,
+       mixed-strategy only) → not dilemma. Route to zero-sum (if
+       sums check out) or stealth / signaling.
+
+3. anti-coordination (SYMMETRIC + DIVERGENT — mutual desire to differ):
+   Anti-coord requires BOTH players' best-responses to CHANGE as the
+   counterpart's action changes. Enumerate best-responses row-by-row
+   and column-by-column:
+     "When B plays action-1, A's best response is ____."
+     "When B plays action-2, A's best response is ____."
+     (for 3x3+ grids, continue for every B action)
+     "When A plays action-1, B's best response is ____."
+     "When A plays action-2, B's best response is ____."
+   For anti-coord: A's best response must DIFFER across B's actions
+   (A wants to pick the opposite of whatever B picks), AND B's best
+   response must DIFFER across A's actions. If EITHER player's best
+   response stays the same regardless of the counterpart, one player
+   wants alignment and the other wants divergence — that is NOT
+   anti-coord.
+   Common failure modes:
+     ✗ One player always wants to engage; the other always wants to
+       evade. Asymmetric desire, not mutual divergence. Route to
+       stealth (if one side is acting covertly) or zero-sum.
+     ✗ A wants the same outcome as B but in a different form, while
+       B wants to avoid A entirely. Asymmetric → NOT anti-coord.
+   Real anti-coord: two drivers approaching a one-lane bridge each
+   hoping the OTHER yields; two authors each wanting different
+   niches so they don't compete head-to-head.
+
+4. principal-agent (ASYMMETRIC + delegation + hidden action):
+   NAME:
+     "The delegated task is ____."
+     "The hidden action the principal cannot observe is ____."
+   Both blanks need concrete specifics. Generic fills ("manage the
+   situation", "handle the information") fail the gate.
+   Cooperative dialogue — one informed character explaining something
+   to a curious one (mentor exposition, teacher lecture, expert
+   briefing, friend filling a blank) — is NEVER PA. No task is
+   delegated; the whole point is voluntary disclosure. Route these
+   to signaling.
+
+5. pure-opposition (SYMMETRIC + INCOMMENSURABLE):
+   NAME:
+     "Player A is defending the value of ____."
+     "Player B is defending the value of ____."
+   The two blanks must name different KINDS of thing with no shared
+   currency. If you can name the single thing both want more of —
+   power, rank, reputation, territory, privacy, being-correct,
+   physical control, narrative framing, social legitimacy — the beat
+   is SYMMETRIC + ZERO-SUM on that shared axis, not incommensurable.
+   Emotional intensity is not a gate; shared currency is.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ACTION AXIS — WHAT IS BEING TRADED IN THIS BEAT
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Both players' actions live on the SAME axis. Pick the axis by asking:
+what SHIFTS as a result of the decision? That thing is what's being
+traded. The axes are grouped by KIND of shift:
+
+  INFORMATION
+    disclosure  — reveal ↔ conceal (what facts are shown or hidden)
+    identity    — claim ↔ disown (declaring or distancing from WHO ONE IS,
+                  as an individual)
+
+  RELATIONAL STANCE
+    trust       — extend ↔ guard (individual vulnerability; lowering
+                  vs keeping defenses)
+    alliance    — ally ↔ separate (FACTIONAL / GROUP membership; side-
+                  taking, coalition, crossing the floor)
+    confrontation — engage ↔ evade (whether to interact at all)
+    status      — assert ↔ defer (relative RANK and social-order position)
+
+  FORCE WITHIN INTERACTION
+    pressure    — press ↔ yield (intensity of push and give)
+    stakes      — escalate ↔ deescalate (magnitude of consequence on the table)
+    control     — bind ↔ release (constraint imposed or lifted)
+
+  RESOURCE / OBLIGATION
+    acquisition — take ↔ give (PHYSICAL TRANSFER of resources, lives, knowledge)
+    obligation  — incur ↔ discharge (DEBT / FAVOR economy — the owed-ness
+                  that survives the transfer; distinct from acquisition)
+
+  NORMATIVE
+    moral       — transgress ↔ uphold (acts against a principle or against
+                  another person — when the normative weight is the primary trade)
+
+  SELF / TEMPO
+    commitment  — commit ↔ withdraw / hedge (self-binding vs keeping options open)
+    timing      — act ↔ wait (move now vs hold and watch)
+
+AXIS-SELECTION RULE:
+  Pick the axis that names what SHIFTS, not the surface topic. If the
+  beat shifts the relationship between the players, the relationship
+  shift is the axis — not the thing they happen to be talking about.
+
+  Three axes are SINKS the model defaults to without thinking — always
+  run the counter-check before picking them:
+
+  • disclosure is the biggest sink. Whenever a beat is "one character
+    tells another something", FIRST ask:
+      — is it about lowering defenses?       → trust
+      — does it elevate / diminish rank?     → status
+      — does it create / discharge a debt?   → obligation
+      — is the teller binding future action? → commitment
+    disclosure is correct ONLY when the pure question is reveal-vs-hide
+    with no deeper relational trade (spy revealing identity, witness
+    deciding to testify).
+
+  • pressure is the second sink. Before picking it, ask: is the real
+    question "who outranks whom"? If yes → status, not pressure.
+
+  • acquisition is the third sink. Before picking it, ask: does a debt
+    or favor SURVIVE the physical transfer? If yes → obligation.
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 GRID CARDINALITY
@@ -135,7 +358,8 @@ Prefer the minimum grid that honestly captures the decision:
 STAKE DELTA SCORING
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-stakeDeltaA answers: "If this outcome were the one that happened, how much does it advance or harm A's stated interests in this arc?"
+stakeDeltaA answers: "If this outcome were the one that happened, how
+much does it advance or harm A's stated interests in this arc?"
 
 -  4 : strongly advances A's arc-level goals
 -  2 : moderately helpful
@@ -143,13 +367,30 @@ stakeDeltaA answers: "If this outcome were the one that happened, how much does 
 - -2 : moderately harmful
 - -4 : catastrophic
 
-(Remember: write these as 4, 2, 0, -2, -4 in JSON — NEVER 4 as "+4".)
+zero-sum label is reserved for grids that LITERALLY sum to zero across
+every cell — if any cell leaves both players positive OR both negative,
+the beat is not zero-sum.
 
-KEY: score as if the cell were the realized outcome. Do not bias toward making the realized cell look maximal. The evaluator's value comes from honest cross-cell comparison.
+KEY: score as if the cell were the realized outcome. Do not bias toward
+making the realized cell look maximal. The evaluator's value comes from
+honest cross-cell comparison — the author picking a dominated cell is
+exactly the information downstream analysis wants to surface.
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 EXAMPLE — Harry (C-01) and Hagrid (C-02) on the Hogwarts letter
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Classification walkthrough:
+  STEP 1 — scope: two strategic agents, no mechanism override. Proceed.
+  STEP 2 — no timing/binding form dominates. Proceed.
+  STEP 3 — Q-INFO: ASYMMETRIC (Hagrid knows the letter's content; Harry doesn't).
+           Q-PREF: preferences are aligned-with-asymmetry — both gain
+             from the Dursleys learning, but Hagrid has control over
+             how revelation happens.
+           ASYMMETRIC + informed party reveals through a costly action
+           → signaling.
+  Axis: the decision is about what gets shown vs. hidden to the
+  Dursleys — pure reveal-vs-conceal. → disclosure.
 
 {
   "beatIndex": 4,
@@ -207,76 +448,6 @@ OUTPUT JSON
   "summary": "one sentence describing the scene's strategic shape",
   "games": [ <one object per game-bearing beat, matching the example above> ]
 }
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-COMMON MISAPPLICATIONS — READ BEFORE PICKING A GAME TYPE
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-A handful of game types are magnets for lazy coding. Before you commit to
-one, run it through its gate check.
-
-principal-agent — THE BIGGEST SINK.
-  Gate checks (BOTH must pass):
-    1. Is there explicit delegation — one party handing a specific task to another?
-    2. Is the action hidden — principal cannot directly observe what the agent does?
-  If EITHER gate fails, this is not principal-agent. Common miscodes:
-    ✗ A leader pivots resources to a rising talent → no delegation, no hidden action. Use coordination or commitment-game.
-    ✗ A character saves another to create a debt → obligation dynamics, not delegation. Use bargaining / commitment-game; axis: obligation.
-    ✗ Two parties with asymmetric information manoeuvre against each other → signaling or cheap-talk, not PA.
-    ✗ A character allocates attention under constraint → zero-sum or coordination. Not PA.
-    ✗ A character demands compliance — "accept my terms or I walk" → bargaining (one-shot ultimatum), not PA.
-
-screening — THE RIGHT LABEL FOR EVALUATIONS.
-  If the beat is an examination, test, trial, audition, entrance rite, or
-  any structured choice designed to sort one party by type, this is
-  screening — NOT principal-agent. Look for this pattern specifically:
-  one party designs the mechanism, another party reveals themselves
-  through their response to it.
-
-zero-sum — ONLY WHEN THE GRID LITERALLY SUMS TO ZERO.
-  If any cell in your outcomes grid has both stakeDeltaA and stakeDeltaB
-  positive, OR both negative, the beat is not zero-sum. "Adversarial in
-  tone" ≠ zero-sum. Check your grid before picking this label.
-
-pure-opposition — ONLY FOR INCOMMENSURABLE VALUES.
-  Use this when the parties are weighing trade-offs that cannot be
-  reduced to a common currency — honor vs survival, faith vs reason,
-  love vs duty. If both parties care about the same axis (power,
-  authority, reputation, resources, control, status) and just want
-  different amounts, that's ordinary zero-sum on that axis — NOT
-  pure-opposition.
-  SHARED-RESOURCE RED FLAG: before picking pure-opposition, ask "can I
-  name the single thing both parties want more of?". If yes — power,
-  rank, reputation, territory, influence — it's zero-sum, not
-  pure-opposition. Real pure-opposition beats are rare.
-
-anti-coordination — BOTH PARTIES MUST ACTIVELY WANT TO DIVERGE.
-  Gate check: does each player independently prefer outcomes where their
-  actions differ? If only ONE player wants divergence while the other
-  would prefer alignment (e.g., a sneak wants to be where the guard isn't;
-  the guard wants to be where the sneak is), that is NOT anti-coordination.
-  It is stealth, or zero-sum on a shared axis. Do not let
-  anti-coordination become a generic "players have opposed interests" sink.
-
-stealth — THE RIGHT LABEL FOR COVERT ACTION BEATS.
-  When one player is acting covertly — siphoning resources, concealing
-  power, moving information, bypassing surveillance — and the counterparty's
-  strategic role is passive attention allocation (do I notice / investigate
-  / probe?), this is stealth. The "observer" player does not actively
-  counter — they either look closely or they don't. Stealth is the right
-  home for many beats that previously drifted into anti-coordination,
-  signaling, or screening without fitting.
-
-UNDER-USED AXES — DO NOT DEFAULT TO PRESSURE / ACQUISITION.
-  Three axes are easy to miss and commonly mis-assigned:
-    • obligation — debt/favor economies. Saving someone to create a debt,
-      calling in an old favor, refusing to incur one. Axis is obligation,
-      NOT acquisition (which is about physical transfer).
-    • alliance — factional side-taking, silent observation during a
-      public dispute, publicly dissenting. Axis is alliance, NOT identity
-      (which is about individual self-definition).
-    • status — probing or asserting rank, testing the social order.
-      Axis is status, NOT pressure (which is about force intensity).
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 HARD CONSTRAINTS
