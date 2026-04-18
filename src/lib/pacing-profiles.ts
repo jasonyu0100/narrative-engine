@@ -56,12 +56,12 @@ export function computeMatrixFromNarrative(narrative: NarrativeState): Transitio
   if (scenes.length < 3) return emptyMatrix();
 
   const raw = computeRawForceTotals(scenes);
-  const np = zScoreNormalize(raw.payoff);
-  const nc = zScoreNormalize(raw.change);
-  const nk = zScoreNormalize(raw.knowledge);
+  const nf = zScoreNormalize(raw.fate);
+  const nw = zScoreNormalize(raw.world);
+  const ns = zScoreNormalize(raw.system);
 
   const sequence: CubeCornerKey[] = scenes.map((_, i) =>
-    detectCubeCorner({ payoff: np[i], change: nc[i], knowledge: nk[i] }).key
+    detectCubeCorner({ fate: nf[i], world: nw[i], system: ns[i] }).key
   );
 
   const counts = emptyMatrix();
