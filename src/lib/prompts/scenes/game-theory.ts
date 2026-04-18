@@ -46,13 +46,13 @@ Each strategic beat becomes a GAME with:
 - gameType: one of
     # Symmetric payoff structures
     coordination       — both want the same outcome; alignment problem
-    anti-coordination  — players want opposite outcomes on a shared axis
+    anti-coordination  — BOTH players actively want to diverge. Mutual desire to differ. NOT for one-sided cases where only one party wants divergence (sneak vs. guard, actor vs. observer) — those are stealth. NOT a sink for "players have opposed interests"
     battle-of-sexes    — both want to coordinate but prefer different equilibria
     dilemma            — mutual cooperation best, each tempted to defect
     stag-hunt          — payoff-dominant vs risk-dominant coordination
     chicken            — mutual yielding vs mutual collision (includes time-extended war-of-attrition)
     zero-sum           — the payoff grid LITERALLY sums to zero across every cell. If any cell leaves both players positive (or both negative), the beat is not zero-sum — don't use this as a synonym for "adversarial"
-    pure-opposition    — conflict over INCOMMENSURABLE values (honor vs survival, love vs duty, faith vs reason). Not for cases where both parties care about the same resource and just want different shares — that's zero-sum or anti-coordination
+    pure-opposition    — conflict over INCOMMENSURABLE values (honor vs survival, love vs duty, faith vs reason). Rare. Clan politics, authority contests, reputation fights, power struggles all have SHARED currency (rank, authority, reputation) and are zero-sum on the status axis, NOT pure-opposition. If you can name the single thing both parties want more of, it is not this label
 
     # Asymmetric / structural
     contest            — n-player competition for rank-ordered prize (tournament, auction, scramble)
@@ -60,6 +60,7 @@ Each strategic beat becomes a GAME with:
     principal-agent    — requires BOTH (a) explicit delegation — one party hands a task to another — AND (b) hidden action — the principal cannot directly observe what the agent does and must rely on outcomes or incentive design. If either gate fails, pick a different label
     screening          — uninformed party STRUCTURES CHOICES to sort agent types — evaluations, tests, auctions, interview questions designed to reveal who is who. This is the right label for examinations, trials, entrance tests — NOT principal-agent
     signaling          — informed party reveals their type through a costly, hard-to-fake action
+    stealth            — actor attempts something whose success depends on the other NOT NOTICING. The "observer" player's move is passive attention allocation (scrutinise ↔ overlook), not an active counter-action. Covert operations, concealed maneuvers, information theft, surveillance evasion — use this instead of anti-coordination when only one side wants to diverge
     stackelberg        — sequential; leader commits visibly, follower best-responds
 
     # Communication / mechanism layers (use when the mechanism is the primary driver)
@@ -240,9 +241,31 @@ zero-sum — ONLY WHEN THE GRID LITERALLY SUMS TO ZERO.
 pure-opposition — ONLY FOR INCOMMENSURABLE VALUES.
   Use this when the parties are weighing trade-offs that cannot be
   reduced to a common currency — honor vs survival, faith vs reason,
-  love vs duty. When both parties care about the SAME resource (clan
-  authority, reputation, control) and just want different shares, it's
-  ordinary zero-sum or anti-coordination.
+  love vs duty. If both parties care about the same axis (power,
+  authority, reputation, resources, control, status) and just want
+  different amounts, that's ordinary zero-sum on that axis — NOT
+  pure-opposition.
+  SHARED-RESOURCE RED FLAG: before picking pure-opposition, ask "can I
+  name the single thing both parties want more of?". If yes — power,
+  rank, reputation, territory, influence — it's zero-sum, not
+  pure-opposition. Real pure-opposition beats are rare.
+
+anti-coordination — BOTH PARTIES MUST ACTIVELY WANT TO DIVERGE.
+  Gate check: does each player independently prefer outcomes where their
+  actions differ? If only ONE player wants divergence while the other
+  would prefer alignment (e.g., a sneak wants to be where the guard isn't;
+  the guard wants to be where the sneak is), that is NOT anti-coordination.
+  It is stealth, or zero-sum on a shared axis. Do not let
+  anti-coordination become a generic "players have opposed interests" sink.
+
+stealth — THE RIGHT LABEL FOR COVERT ACTION BEATS.
+  When one player is acting covertly — siphoning resources, concealing
+  power, moving information, bypassing surveillance — and the counterparty's
+  strategic role is passive attention allocation (do I notice / investigate
+  / probe?), this is stealth. The "observer" player does not actively
+  counter — they either look closely or they don't. Stealth is the right
+  home for many beats that previously drifted into anti-coordination,
+  signaling, or screening without fitting.
 
 UNDER-USED AXES — DO NOT DEFAULT TO PRESSURE / ACQUISITION.
   Three axes are easy to miss and commonly mis-assigned:

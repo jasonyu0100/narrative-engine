@@ -347,7 +347,7 @@ function classifyPlayer(p: PlayerProfile): PlayerArchetype[] {
 
   // Game-type participation shares used by multiple tag groups.
   const gtCounts = p.gameTypeCounts;
-  const infoShare = ((gtCounts.get("signaling") ?? 0) + (gtCounts.get("principal-agent") ?? 0) + (gtCounts.get("screening") ?? 0) + (gtCounts.get("cheap-talk") ?? 0)) / p.games;
+  const infoShare = ((gtCounts.get("signaling") ?? 0) + (gtCounts.get("principal-agent") ?? 0) + (gtCounts.get("screening") ?? 0) + (gtCounts.get("stealth") ?? 0) + (gtCounts.get("cheap-talk") ?? 0)) / p.games;
   const powerShare = ((gtCounts.get("stackelberg") ?? 0) + (gtCounts.get("commitment-game") ?? 0) + (gtCounts.get("bargaining") ?? 0)) / p.games;
   const conflictShare = ((gtCounts.get("zero-sum") ?? 0) + (gtCounts.get("pure-opposition") ?? 0) + (gtCounts.get("chicken") ?? 0) + (gtCounts.get("anti-coordination") ?? 0)) / p.games;
   const coopShare = ((gtCounts.get("coordination") ?? 0) + (gtCounts.get("stag-hunt") ?? 0) + (gtCounts.get("collective-action") ?? 0) + (gtCounts.get("battle-of-sexes") ?? 0)) / p.games;

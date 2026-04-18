@@ -1167,6 +1167,7 @@ export type GameType =
   | "principal-agent"    // delegation with HIDDEN action — principal can't directly observe what agent did
   | "screening"          // uninformed party structures choices to sort agent types (evaluations, tests, auctions)
   | "signaling"          // informed party reveals type through costly, hard-to-fake action
+  | "stealth"            // actor acts covertly; observer's move is attention allocation, not active counter-action
   | "stackelberg"        // sequential; leader commits visibly, follower best-responds
 
   // — Communication / mechanism layers —
@@ -1200,18 +1201,19 @@ export const ACTION_AXIS_LABELS: Record<ActionAxis, string> = {
  *  feel to a reader, not a game theorist. One concrete hint per line. */
 export const GAME_TYPE_LABELS: Record<GameType, string> = {
   "coordination":      "Both want to end up in the same place. The question is just: which place?",
-  "anti-coordination": "Both need to diverge (you go left, I go right). Collision if both pick the same lane.",
+  "anti-coordination": "BOTH players actively want to diverge — mutual desire to differ. If only one party wants to diverge and the other would prefer to align (e.g., a sneak vs. a guard — the guard would like to be where the sneak is), this is stealth or zero-sum, not anti-coordination.",
   "battle-of-sexes":   "Both want to meet, but each prefers their own venue. Coordination with a tug-of-war underneath.",
   "dilemma":           "Cooperation would be best for both, but each has a private incentive to betray — prisoner's-dilemma shape.",
   "stag-hunt":         "Team up for a big shared prize, or play it safe alone. Trust and risk-appetite decide.",
   "chicken":           "Both want the other to yield. If neither does, both crash — escalation contest.",
   "zero-sum":          "The payoff grid literally sums to zero — anything I gain, you lose, same magnitude. If any cell leaves both positive (or both negative), this is NOT zero-sum.",
-  "pure-opposition":   "Values clash with NO SHARED CURRENCY — honor vs survival, love vs duty, faith vs reason. If both parties care about the same axis (power, reputation, resources) and just want different amounts, that's zero-sum or anti-coordination, not this.",
+  "pure-opposition":   "Values clash with NO SHARED CURRENCY — honor vs survival, love vs duty, faith vs reason. Rare and specific. If both parties care about the same axis (power, reputation, control, resources) and simply want different amounts, that's zero-sum or anti-coordination, not pure-opposition. Ask: can I name the single thing both want more of? If yes, it's not this.",
   "contest":           "Multiple players compete for a ranked prize — tournament, auction, scramble for status.",
   "collective-action": "A group needs enough contributors to pull something off. Each is tempted to free-ride on others' effort.",
   "principal-agent":   "Requires BOTH (a) explicit delegation — one party hands a task to another — AND (b) hidden action — the principal can't directly observe what the agent does and must rely on outcomes or design incentives. If either is missing, it's something else. Not a sink for asymmetric-info beats.",
   "screening":         "Uninformed party structures choices to sort agents by type — evaluations, tests, auctions, interview questions designed to reveal who is who. Choose this over principal-agent when the beat is about sorting candidates, not monitoring a delegated task.",
   "signaling":         "Informed party reveals their type through a costly, hard-to-fake action. The signal is only credible if weaker types couldn't afford to send it.",
+  "stealth":           "One player attempts something whose success depends on the other NOT NOTICING. The observer's 'move' is passive attention allocation (scrutinise vs. overlook), not an active counter-action. Covert actions, surveillance, concealed maneuvers, information theft — a player vs. an unaware or distracted counterpart.",
   "stackelberg":       "One moves first and commits visibly; the other watches, then responds. First-mover advantage or trap.",
   "cheap-talk":        "Words exchanged but nothing binds. Persuasion, posturing, bluffing — the talk itself is the move.",
   "commitment-game":   "Can one party bind themselves to act (vow, burned bridge, hostage)? Credibility of the promise is the whole game.",
