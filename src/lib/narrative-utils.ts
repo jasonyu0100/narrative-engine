@@ -1326,9 +1326,10 @@ export const ARCHETYPES = {
 /**
  * Classify a narrative's archetype based on its force grade profile.
  *
- * - OPUS is strict: all three forces must be genuinely exceptional (≥ 23/25).
- *   This prevents character-driven works with incidental fate/system activity
- *   from landing in the rarest archetype.
+ * - OPUS: all three forces must be genuinely strong (≥ 22/25). Set one
+ *   above the dominance floor (21) rather than at the absolute ceiling;
+ *   the strict-23 version rejected clearly-balanced profiles like
+ *   22/23/24 which every intuition reads as Opus.
  * - Below the Opus bar, a force must score ≥ 21 AND be within 5 of the max to
  *   be "dominant". The combination of dominant forces picks the archetype.
  * - If three forces nominally co-dominate but don't clear the Opus bar, we
@@ -1341,7 +1342,7 @@ export function classifyArchetype(grades: ForceGrades): NarrativeArchetype {
   const max = Math.max(f, w, s);
   const gap = 5;
   const floor = 21;
-  const opusFloor = 23;
+  const opusFloor = 22;
 
   // Opus — rare, requires all three forces at exceptional level
   if (f >= opusFloor && w >= opusFloor && s >= opusFloor) {

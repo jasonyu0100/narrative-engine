@@ -549,24 +549,24 @@ describe("classifyNarrativeShape", () => {
 });
 // ── Archetype Classification ─────────────────────────────────────────────────
 describe("classifyArchetype", () => {
-  it("returns opus only when all three forces clear the strict floor (≥23)", () => {
-    // All three at 23 or higher → opus
+  it("returns opus when every force clears the Opus floor (≥22)", () => {
+    // All three at 22 or higher → opus. The floor sits one notch above the
+    // dominance floor (21), so clearly-balanced profiles like 22/23/24 land
+    // here instead of being demoted to a two-force pair.
     expect(
-      classifyArchetype({ fate: 23, world: 23, system: 23, swing: 20, overall: 89 }).key,
+      classifyArchetype({ fate: 22, world: 22, system: 22, swing: 20, overall: 86 }).key,
+    ).toBe("opus");
+    expect(
+      classifyArchetype({ fate: 22, world: 23, system: 24, swing: 20, overall: 89 }).key,
     ).toBe("opus");
     expect(
       classifyArchetype({ fate: 24, world: 25, system: 23, swing: 20, overall: 92 }).key,
     ).toBe("opus");
   });
-  it("demotes three-way nominal dominance that misses the opus floor", () => {
-    // fate 24 + world 23 + system 22 — nominally all dominant (all ≥21, all
-    // within 5 of max), but system 22 < opus floor 23. Weakest force (system)
-    // is dropped, leaving fate+world → series. This guards against
-    // character-driven works landing in opus on incidental fate/system.
-    expect(
-      classifyArchetype({ fate: 24, world: 23, system: 22, swing: 20, overall: 89 }).key,
-    ).toBe("series");
-    // world weakest of the three-way → atlas (fate + system)
+  it("demotes three-way nominal dominance when any force sits below the Opus floor", () => {
+    // fate 24 + world 21 + system 24 — all three nominally dominant (≥21,
+    // within 5 of max), but world=21 is below Opus floor 22. Weakest force
+    // (world) is dropped, leaving fate + system → atlas.
     expect(
       classifyArchetype({ fate: 24, world: 21, system: 24, swing: 20, overall: 89 }).key,
     ).toBe("atlas");
@@ -574,6 +574,10 @@ describe("classifyArchetype", () => {
     expect(
       classifyArchetype({ fate: 21, world: 24, system: 24, swing: 20, overall: 89 }).key,
     ).toBe("chronicle");
+    // system weakest of the three-way → series (fate + world)
+    expect(
+      classifyArchetype({ fate: 24, world: 24, system: 21, swing: 20, overall: 89 }).key,
+    ).toBe("series");
   });
   it("returns series for co-dominant fate + world", () => {
     const grades = { fate: 24, world: 23, system: 15, swing: 18, overall: 80 };

@@ -36,7 +36,7 @@ import {
 } from "@/lib/pacing-profile";
 import { useStore } from "@/lib/store";
 import { logError } from "@/lib/system-logger";
-import type { CubeCornerKey } from "@/types/narrative";
+import type { CubeCornerKey, NarrativeState } from "@/types/narrative";
 import {
   DEFAULT_STORY_SETTINGS,
   NARRATIVE_CUBE,
@@ -330,23 +330,23 @@ export function GeneratePanel({ onClose }: { onClose: () => void }) {
     setStreamText("");
     setError("");
     try {
+      // Guidance direction/constraints are PER-GENERATION overrides — they
+      // must NOT be persisted to story settings. Construct a transient
+      // narrative clone whose storySettings carry the guidance for this one
+      // call; buildStorySettingsBlock downstream picks them up from the
+      // clone while the real narrative stays clean.
       const currentSettings = {
         ...DEFAULT_STORY_SETTINGS,
         ...narrative.storySettings,
       };
-      if (
-        guidanceDirection !== currentSettings.storyDirection ||
-        guidanceConstraints !== currentSettings.storyConstraints
-      ) {
-        dispatch({
-          type: "SET_STORY_SETTINGS",
-          settings: {
-            ...currentSettings,
-            storyDirection: guidanceDirection,
-            storyConstraints: guidanceConstraints,
-          },
-        });
-      }
+      const narrativeForRun: NarrativeState = {
+        ...narrative,
+        storySettings: {
+          ...currentSettings,
+          storyDirection: guidanceDirection,
+          storyConstraints: guidanceConstraints,
+        },
+      };
 
       const existingArc = !newArc ? (currentArc ?? undefined) : undefined;
       const worldBuildFocus = worldBuildFocusId
@@ -354,7 +354,7 @@ export function GeneratePanel({ onClose }: { onClose: () => void }) {
         : undefined;
 
       const { scenes, arc } = await generateScenes(
-        narrative,
+        narrativeForRun,
         state.resolvedEntryKeys,
         headIndex,
         reasoningGraph.sceneCount,
@@ -410,24 +410,21 @@ export function GeneratePanel({ onClose }: { onClose: () => void }) {
     setStreamText("");
     setError("");
     try {
-      // Apply direction/constraints to story settings so branchContext picks them up
+      // Guidance direction/constraints are PER-GENERATION overrides — they
+      // must NOT be persisted to story settings. Use a transient narrative
+      // clone (same pattern as handleConfirmReasoningGraph).
       const currentSettings = {
         ...DEFAULT_STORY_SETTINGS,
         ...narrative.storySettings,
       };
-      if (
-        guidanceDirection !== currentSettings.storyDirection ||
-        guidanceConstraints !== currentSettings.storyConstraints
-      ) {
-        dispatch({
-          type: "SET_STORY_SETTINGS",
-          settings: {
-            ...currentSettings,
-            storyDirection: guidanceDirection,
-            storyConstraints: guidanceConstraints,
-          },
-        });
-      }
+      const narrativeForRun: NarrativeState = {
+        ...narrative,
+        storySettings: {
+          ...currentSettings,
+          storyDirection: guidanceDirection,
+          storyConstraints: guidanceConstraints,
+        },
+      };
 
       const existingArc = !newArc ? (currentArc ?? undefined) : undefined;
       const worldBuildFocus = worldBuildFocusId
@@ -435,7 +432,7 @@ export function GeneratePanel({ onClose }: { onClose: () => void }) {
         : undefined;
 
       const { scenes, arc } = await generateScenes(
-        narrative,
+        narrativeForRun,
         state.resolvedEntryKeys,
         headIndex,
         directionCount, // Use directionCount for legacy path
