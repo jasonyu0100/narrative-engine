@@ -1107,35 +1107,67 @@ export type NarrativeState = {
 // ── Game Theory Analysis (opt-in, post-hoc) ───────────────────────────────────
 // A scene's beats are decomposed into a sequence of 2×2 strategic games.
 // This is layered analysis — additive to the scene, not part of its core deltas.
+//
+// VOCABULARY — one coherent language throughout:
+//   A player makes one MOVE per beat: "advance" (pursue their interest) or
+//   "block" (resist, withdraw, exploit). The four OUTCOMES are named by the
+//   two moves explicitly — bothAdvance / advanceBlock / blockAdvance /
+//   bothBlock — so every reference is self-documenting.
 
-/** A single 2×2 game extracted from a beat: two players, four outcomes, one chosen. */
+/** A single move a player can make. */
+export type PlayerMove = "advance" | "block";
+
+/** One of the four strategic outcomes, keyed by both players' moves. */
+export type OutcomeKey =
+  | "bothAdvance"    // A advances, B advances
+  | "advanceBlock"   // A advances, B blocks
+  | "blockAdvance"   // A blocks,   B advances
+  | "bothBlock";     // A blocks,   B blocks
+
+/** One outcome cell: the world-state if both players make the keyed moves. */
+export type GameOutcome = {
+  /** 5-15 words describing what happens under these two moves. */
+  description: string;
+  /** Player A's payoff in this outcome (0-4, higher = better for A). */
+  payoffA: number;
+  /** Player B's payoff in this outcome (0-4, higher = better for B). */
+  payoffB: number;
+};
+
+/** A single 2×2 game extracted from a beat. */
 export type BeatGame = {
   /** Which beat in the scene's BeatPlan.beats this game corresponds to. */
   beatIndex: number;
-  /** Short excerpt of the beat for context (what the beat says). */
+  /** Short excerpt of the beat for context. */
   beatExcerpt: string;
-  /** Participant A — character, location, or artifact ID (or a label if unresolved). */
+
+  // ── Player A ─────────────────────────────────────────────────────────
+  /** Player A's entity ID (character / location / artifact). */
   playerAId: string;
+  /** Display name — resolved from registry at save time. */
   playerAName: string;
-  /** Participant B. */
+  /** A's advancing action — 2-5 words describing what A does to pursue their interest. */
+  playerAAdvance: string;
+  /** A's blocking action — 2-5 words describing what A does to resist / exploit / withdraw. */
+  playerABlock: string;
+  /** What A actually did in the beat. */
+  playerAPlayed: PlayerMove;
+
+  // ── Player B ─────────────────────────────────────────────────────────
+  /** Player B's entity ID. */
   playerBId: string;
   playerBName: string;
-  /** A's advancing/cooperative action (2-5 words). */
-  actionA: string;
-  /** A's blocking/defect action (2-5 words). */
-  defectA: string;
-  /** B's advancing/cooperative action. */
-  actionB: string;
-  /** B's blocking/defect action. */
-  defectB: string;
-  /** Four outcomes, payoffs 0-4 per player. */
-  cc: { outcome: string; payoffA: number; payoffB: number };
-  cd: { outcome: string; payoffA: number; payoffB: number };
-  dc: { outcome: string; payoffA: number; payoffB: number };
-  dd: { outcome: string; payoffA: number; payoffB: number };
-  /** The cell the beat actually landed on. */
-  chosenCell: "cc" | "cd" | "dc" | "dd";
-  /** One sentence explaining why this cell was chosen from the beat prose. */
+  playerBAdvance: string;
+  playerBBlock: string;
+  playerBPlayed: PlayerMove;
+
+  // ── The four outcomes (all combinations of the two moves) ───────────
+  bothAdvance: GameOutcome;
+  advanceBlock: GameOutcome;
+  blockAdvance: GameOutcome;
+  bothBlock: GameOutcome;
+
+  /** One sentence explaining why A and B each made the move they did. */
   rationale: string;
 };
 

@@ -1,9 +1,12 @@
 /**
  * Game-Theory Analysis System Prompt — the "strategic analyst" role.
  *
- * The goal: extract EVERY key decision in the scene as a 2×2 game between
- * two real participants. IDs are load-bearing — names are display-only and
- * must match the scene's PARTICIPANTS table.
+ * Single coherent vocabulary everywhere:
+ *   - A player makes one MOVE per beat: "advance" or "block"
+ *   - Every field name is self-documenting (playerAAdvance, playerBBlock, etc.)
+ *   - Four OUTCOMES named by the two moves: bothAdvance, advanceBlock,
+ *     blockAdvance, bothBlock
+ *   - No encoded cell labels (cc/cd/dc/dd), no mental decoding required
  */
 
 export function buildGameTheorySystemPrompt(): string {
@@ -13,6 +16,22 @@ CORE IDEA:
 Narrative is a chain of decisions. A scene usually contains many decisions, not one. Missing decisions is the biggest failure mode of this task. Be exhaustive.
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+THE VOCABULARY — USE THIS EXACTLY
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Each player makes ONE MOVE per beat — one of exactly two:
+  - "advance": pursue their interest (cooperate, reveal, trust, commit, attack forward, claim, share)
+  - "block":   resist, exploit, or withdraw (defect, conceal, distrust, hedge, retreat, refuse, hoard)
+
+The four possible combinations of moves are the OUTCOMES:
+  - bothAdvance   = A plays advance AND B plays advance
+  - advanceBlock  = A plays advance AND B plays block
+  - blockAdvance  = A plays block   AND B plays advance
+  - bothBlock     = A plays block   AND B plays block
+
+The outcome name tells you what happens in that cell. Read the name literally.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 PLAYER IDENTITY — IDs ARE THE SOURCE OF TRUTH
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
@@ -20,86 +39,85 @@ The scene context includes a PARTICIPANTS table listing every valid player ID (c
 
 RULES:
 - playerAId and playerBId MUST match an ID column from the PARTICIPANTS table. Copy them verbatim (e.g. "C-01", "L-03", "A-07").
-- playerAName and playerBName MUST be the NAME column paired with that ID. The engine re-resolves names from the registry, but copy them accurately for traceability.
-- Never invent IDs like "I-attention", "F-scarcity", or "P-bystander". Those are not entities and the game will be dropped.
-- Never use a display name in the ID field. IDs look like C-01 / L-03 / A-07, not "Fang Yuan".
-- If a beat's conflict is with an abstract force (greed, destiny, "the clan") and no entity in the table represents that force, skip the beat. Don't fabricate a stand-in.
+- playerAName and playerBName MUST be the NAME column paired with that ID.
+- Never invent IDs. Never use a display name in the ID field.
+- If a beat's conflict is with an abstract force (greed, destiny, "the clan") and no entity in the table represents that force, skip the beat.
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 DECISION DISCOVERY — SCAN EVERY BEAT
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-For EACH beat in the plan, ask:
-  1. Does anyone make a choice here? (explicit decision, or revealed through action/silence)
+For EACH beat, ask:
+  1. Does anyone make a choice? (explicit, or revealed through action / silence)
   2. Does that choice affect at least one other listed participant?
   3. Could a reasonable reader name the alternative the actor rejected?
 
-If yes to all three, it bears a game. If any is no, skip the beat.
+If yes to all three, it bears a game. Otherwise skip.
 
-DECISION CATEGORIES — cast a wide net, not all conflicts are swordfights:
-- DISCLOSURE: reveal / conceal / lie-by-omission / deflect
-- TRUST: extend / withhold / test / revoke trust in someone
+DECISION CATEGORIES — cast a wide net:
+- DISCLOSURE: reveal / conceal / deflect
+- TRUST: extend / withhold / test / revoke
 - COMMITMENT: enter / escalate / withdraw from an agreement, bond, or plan
-- BOUNDARY: enforce / yield / transgress a limit (physical, social, moral)
-- RESOURCE: share / hoard / spend / deny access to a material thing (gold, time, information, territory)
-- ALIGNMENT: support / oppose / hedge between two parties
+- BOUNDARY: enforce / yield / transgress a limit
+- RESOURCE: share / hoard / spend / deny access
+- ALIGNMENT: support / oppose / hedge between parties
 - INITIATIVE: act now / wait / delegate / preempt
-- SACRIFICE: give up A to protect / gain B
-- JUDGEMENT: accept / challenge / reject another's claim or story
-- MEMORY: honour / suppress / re-open a past event with a counterparty
+- SACRIFICE: give up A to protect or gain B
+- JUDGEMENT: accept / challenge / reject another's claim
+- MEMORY: honour / suppress / re-open a past event
 
-Games can be ASYMMETRIC — one player's "advance" and the other's "advance" need not look the same. What matters is that both have a distinct choice mapped to c/d.
-
-SELF-DIRECTED BEATS:
-If a character makes a significant choice that primarily affects themselves AND a counterparty is implied offstage (an ancestor's expectations, an absent mentor's teaching, a sworn oath's binding force), only include it if that counterparty is a real entity in the table (e.g. a historical character still in the registry, a location as "the shrine"). Otherwise skip.
-
-PURE ATMOSPHERE — no decision:
-- Establishing shots, sensory grounding, weather, setting colour
-- Pure reaction with no choice window (being ambushed, receiving a blow)
-- Monologue that does not commit the character to an action
-
-Most scenes yield 3-8 games from 8-12 beats. If you only find 0-1 games, re-read the beats: you are almost certainly missing several. A scene with 10 beats and 1 game is under-analysed.
+Most scenes yield 3-8 games from 8-12 beats. A 10-beat scene with 1 game is under-analysed.
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 GAME STRUCTURE
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-Each game is a 2×2 payoff matrix:
-- playerAId: ID of the beat's primary actor (from PARTICIPANTS)
-- playerAName: display name matching that ID
-- playerBId: ID of the beat's counterparty (from PARTICIPANTS)
-- playerBName: display name matching that ID
-- actionA / defectA: A's advancing vs blocking actions (2-5 words each)
-- actionB / defectB: B's advancing vs blocking actions (2-5 words each)
-- cc / cd / dc / dd: the four outcomes, each with a 5-15-word outcome description and payoffs 0-4 per player (4 = best for them)
-  - cc = both advance. cd = A advances, B blocks. dc = A blocks, B advances. dd = both block.
-- playerAPlayed: what A actually did — "advance" or "block"
-- playerBPlayed: what B actually did — "advance" or "block"
-- rationale: one sentence naming BOTH moves explicitly
+For each game, emit:
 
-CELL OUTCOME ALIGNMENT — CRITICAL:
-The text you write inside each cell's outcome MUST describe the world where A played the action implied by the first letter AND B played the action implied by the second letter. The outcome is not an arbitrary narrative snippet — it is the STATE that results when both players made those specific choices.
+{
+  "beatIndex": N,
+  "beatExcerpt": "…",
 
-Concretely, for each cell your outcome text must faithfully describe:
-  - cc: A did actionA  AND  B did actionB
-  - cd: A did actionA  AND  B did defectB
-  - dc: A did defectA  AND  B did actionB
-  - dd: A did defectA  AND  B did defectB
+  "playerAId":       "<ID from PARTICIPANTS>",
+  "playerAName":     "<paired name>",
+  "playerAAdvance":  "2-5 words: what A does if they advance their interest",
+  "playerABlock":    "2-5 words: what A does if they block, resist, or withdraw",
+  "playerAPlayed":   "advance" | "block",
 
-Before writing cell text, mentally substitute: "In dd, A does <defectA> and B does <defectB>." Then write the outcome matching that substitution. If your text contradicts either action, you wrote the wrong cell.
+  "playerBId":       "<ID from PARTICIPANTS>",
+  "playerBName":     "<paired name>",
+  "playerBAdvance":  "2-5 words",
+  "playerBBlock":    "2-5 words",
+  "playerBPlayed":   "advance" | "block",
 
-Examples of errors to avoid:
-  - actionB="demand answers", defectB="maintain ignorance". The dd cell says "B presses him for information" — WRONG, pressing is actionB, dd requires defectB. The outcome should describe B remaining unaware / not asking.
-  - actionA="reveals truth", defectA="conceals". The cc cell says "A hides the letter" — WRONG, cc requires actionA, so A is revealing.
+  "bothAdvance":     { "description": "what happens when A advances AND B advances", "payoffA": 0-4, "payoffB": 0-4 },
+  "advanceBlock":    { "description": "what happens when A advances AND B blocks",   "payoffA": 0-4, "payoffB": 0-4 },
+  "blockAdvance":    { "description": "what happens when A blocks AND B advances",   "payoffA": 0-4, "payoffB": 0-4 },
+  "bothBlock":       { "description": "what happens when A blocks AND B blocks",     "payoffA": 0-4, "payoffB": 0-4 },
 
-Before finalising each cell, cross-check the outcome sentence against the row (A's action) and column (B's action). Misalignment is the highest-severity quality failure in this task.
+  "rationale": "one sentence naming BOTH moves explicitly"
+}
 
-CRITICAL — the two moves are INDEPENDENT. Reason about each player separately. Ask "did A advance or block?" then "did B advance or block?" — don't leap to a cell. If the rationale says "A conceals while B harbors resentment", that is A=block + B=block → dd.
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+WRITING OUTCOME DESCRIPTIONS — CRITICAL
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-PAYOFFS (ordinal 0-4):
-- Dilemma: mutual coop (cc) good for both but each tempted to defect (dc > cc for A, cd > cc for B)
-- Zero-sum: payoffs oppose across cells
-- Coordination: cc strictly best for both
+Each outcome's description MUST faithfully narrate the world where both players make the moves named in the outcome's key.
+
+Before writing, mentally substitute the labels:
+  - For bothAdvance:  "A <playerAAdvance> AND B <playerBAdvance>. Result: …"
+  - For advanceBlock: "A <playerAAdvance> AND B <playerBBlock>. Result: …"
+  - For blockAdvance: "A <playerABlock>   AND B <playerBAdvance>. Result: …"
+  - For bothBlock:    "A <playerABlock>   AND B <playerBBlock>. Result: …"
+
+If your description contradicts either move named by the outcome's key, you wrote the wrong cell. Cross-check each outcome against its key before moving on.
+
+MOVES ARE INDEPENDENT. Reason about each player separately. "Did A advance or block? Did B advance or block?" The outcome follows from the two moves — you never choose an outcome directly.
+
+PAYOFFS (ordinal 0-4, integers only):
+- Dilemma: bothAdvance good for both but each tempted to block (blockAdvance > bothAdvance for A, advanceBlock > bothAdvance for B)
+- Zero-sum: payoff sums are constant across outcomes
+- Coordination: bothAdvance is strictly best for both
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 EXAMPLE — Fang Yuan (C-01) hides a secret from Mo Bei (C-02)
@@ -108,42 +126,46 @@ EXAMPLE — Fang Yuan (C-01) hides a secret from Mo Bei (C-02)
 {
   "beatIndex": 3,
   "beatExcerpt": "Fang Yuan conceals the Spring Autumn Cicada as Mo Bei inspects the gifts",
+
   "playerAId": "C-01",
   "playerAName": "Fang Yuan",
+  "playerAAdvance": "reveals the cicada",
+  "playerABlock": "conceals the cicada",
+  "playerAPlayed": "block",
+
   "playerBId": "C-02",
   "playerBName": "Mo Bei",
-  "actionA": "reveals possession",
-  "defectA": "conceals the cicada",
-  "actionB": "inspects casually",
-  "defectB": "scrutinises intently",
-  "cc": { "outcome": "Fang Yuan volunteers the cicada; Mo Bei notes it without suspicion", "payoffA": 2, "payoffB": 3 },
-  "cd": { "outcome": "Fang Yuan reveals but Mo Bei scrutinises — awkward but harmless", "payoffA": 1, "payoffB": 2 },
-  "dc": { "outcome": "Fang Yuan hides successfully; Mo Bei misses it", "payoffA": 4, "payoffB": 1 },
-  "dd": { "outcome": "Fang Yuan hides but Mo Bei investigates — risk of discovery", "payoffA": 2, "payoffB": 3 },
-  "playerAPlayed": "block",
+  "playerBAdvance": "inspects casually",
+  "playerBBlock": "scrutinises intently",
   "playerBPlayed": "advance",
-  "rationale": "Fang Yuan deliberately conceals (block), while Mo Bei's inspection stays surface-level (advance) — yielding dc."
+
+  "bothAdvance":  { "description": "Fang Yuan volunteers the cicada; Mo Bei notes it without suspicion",              "payoffA": 2, "payoffB": 3 },
+  "advanceBlock": { "description": "Fang Yuan reveals the cicada; Mo Bei scrutinises — awkward but harmless",        "payoffA": 1, "payoffB": 2 },
+  "blockAdvance": { "description": "Fang Yuan hides the cicada; Mo Bei's casual glance misses it",                    "payoffA": 4, "payoffB": 1 },
+  "bothBlock":    { "description": "Fang Yuan hides the cicada but Mo Bei scrutinises — high risk of discovery",      "payoffA": 2, "payoffB": 3 },
+
+  "rationale": "Fang Yuan deliberately conceals (block), while Mo Bei's inspection stays surface-level (advance) — yielding blockAdvance."
 }
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-OUTPUT
+OUTPUT JSON
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 {
-  "summary": "one sentence: the strategic shape of this scene (e.g. 'A dilemma resolved by mutual withdrawal, then reignited by an outside reveal')",
-  "games": [
-    { "beatIndex": N, "beatExcerpt": "...", "playerAId": "<ID from PARTICIPANTS>", "playerAName": "...", "playerBId": "<ID from PARTICIPANTS>", "playerBName": "...", "actionA": "...", "defectA": "...", "actionB": "...", "defectB": "...", "cc": {...}, "cd": {...}, "dc": {...}, "dd": {...}, "playerAPlayed": "advance|block", "playerBPlayed": "advance|block", "rationale": "..." }
-  ]
+  "summary": "one sentence: the strategic shape of this scene",
+  "games": [ <one object per game-bearing beat> ]
 }
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 HARD CONSTRAINTS
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-- playerAId and playerBId are IDs from the PARTICIPANTS table. Games with invented or unrecognised IDs are dropped — no exceptions.
-- playerAId ≠ playerBId (no self-games).
-- Cover every beat that contains a decision matching any DECISION CATEGORY above. Under-analysis is a failure; skip nothing that qualifies.
-- playerAPlayed and playerBPlayed MUST match what each player does in the prose, independently. The rationale must name both moves.
-- payoffs are 0-4 integers. No floats or negatives.
+- playerAId / playerBId are IDs from the PARTICIPANTS table. Games with invented IDs are dropped.
+- playerAId ≠ playerBId.
+- playerAPlayed and playerBPlayed are "advance" or "block" — match what each player does in the prose, independently.
+- Each outcome's description MUST describe the state implied by its key (bothAdvance / advanceBlock / blockAdvance / bothBlock).
+- Payoffs are 0-4 integers.
+- Rationale names both moves explicitly (e.g. "A blocks … B advances … yielding blockAdvance").
+- Skip beats that don't bear a game. Under-analysis is a failure.
 `;
 }

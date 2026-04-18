@@ -15,27 +15,22 @@ import { resolvePlanForBranch, resolveProseForBranch } from "@/lib/narrative-uti
 import { REASONING_BUDGETS } from "@/types/narrative";
 import type {
   BeatGame,
+  GameOutcome,
   NarrativeState,
+  PlayerMove,
   Scene,
   SceneGameAnalysis,
 } from "@/types/narrative";
 
-type RawGame = Partial<BeatGame> & Record<string, unknown>;
+type RawGame = Record<string, unknown>;
 
-type Move = "advance" | "block";
-
-function coerceMove(v: unknown): Move | null {
+function coerceMove(v: unknown): PlayerMove | null {
   if (typeof v !== "string") return null;
   const s = v.trim().toLowerCase();
-  if (s === "advance" || s === "cooperate" || s === "c") return "advance";
-  if (s === "block" || s === "defect" || s === "d") return "block";
+  // Accept only the canonical vocabulary — no legacy aliases.
+  if (s === "advance") return "advance";
+  if (s === "block") return "block";
   return null;
-}
-
-function cellFromMoves(a: Move, b: Move): "cc" | "cd" | "dc" | "dd" {
-  const x = a === "advance" ? "c" : "d";
-  const y = b === "advance" ? "c" : "d";
-  return `${x}${y}` as "cc" | "cd" | "dc" | "dd";
 }
 
 function coercePayoff(v: unknown): number {
@@ -43,14 +38,10 @@ function coercePayoff(v: unknown): number {
   return Math.max(0, Math.min(4, isFinite(n) ? n : 2));
 }
 
-function coerceOutcome(v: unknown): {
-  outcome: string;
-  payoffA: number;
-  payoffB: number;
-} {
+function coerceOutcome(v: unknown): GameOutcome {
   const c = (v ?? {}) as Record<string, unknown>;
   return {
-    outcome: typeof c.outcome === "string" ? c.outcome : "",
+    description: typeof c.description === "string" ? c.description : "",
     payoffA: coercePayoff(c.payoffA),
     payoffB: coercePayoff(c.payoffB),
   };
@@ -108,18 +99,18 @@ function buildSceneContext(
   }
   parts.push("");
 
-  // Beats
+  // Beats — include every proposition so the analyser sees the full
+  // propositional content of each beat, not a preview.
   if (plan?.beats?.length) {
     parts.push(`BEAT PLAN (${plan.beats.length} beats):`);
     plan.beats.forEach((b, i) => {
       parts.push(`[${i}] (${b.fn}/${b.mechanism}) ${b.what}`);
-      const propCount = b.propositions?.length ?? 0;
-      if (propCount > 0) {
-        const propPreview = b.propositions
-          .slice(0, 3)
-          .map((p) => p.content)
-          .join(" · ");
-        parts.push(`    props (${propCount}): ${propPreview}${propCount > 3 ? " …" : ""}`);
+      const props = b.propositions ?? [];
+      if (props.length > 0) {
+        parts.push(`    propositions (${props.length}):`);
+        for (const p of props) {
+          parts.push(`      - ${p.content}`);
+        }
       }
     });
     parts.push("");
@@ -232,16 +223,12 @@ function sanitiseGame(raw: RawGame, narrative: NarrativeState): BeatGame | null 
           beatIndex,
           playerAPlayed: String(raw.playerAPlayed ?? "(missing)"),
           playerBPlayed: String(raw.playerBPlayed ?? "(missing)"),
-          // Include legacy chosenCell if present — helps spot old-format responses
-          chosenCell: String(raw.chosenCell ?? "(absent)"),
         },
       },
       "warning",
     );
     return null;
   }
-  const chosen = cellFromMoves(movedA, movedB);
-
   const asStr = (v: unknown, fallback = ""): string =>
     typeof v === "string" && v.trim() ? v.trim() : fallback;
 
@@ -250,17 +237,18 @@ function sanitiseGame(raw: RawGame, narrative: NarrativeState): BeatGame | null 
     beatExcerpt: asStr(raw.beatExcerpt),
     playerAId: a.id,
     playerAName: a.name,
+    playerAAdvance: asStr(raw.playerAAdvance, "advances"),
+    playerABlock: asStr(raw.playerABlock, "blocks"),
+    playerAPlayed: movedA,
     playerBId: b.id,
     playerBName: b.name,
-    actionA: asStr(raw.actionA, "advances"),
-    defectA: asStr(raw.defectA, "blocks"),
-    actionB: asStr(raw.actionB, "advances"),
-    defectB: asStr(raw.defectB, "blocks"),
-    cc: coerceOutcome(raw.cc),
-    cd: coerceOutcome(raw.cd),
-    dc: coerceOutcome(raw.dc),
-    dd: coerceOutcome(raw.dd),
-    chosenCell: chosen,
+    playerBAdvance: asStr(raw.playerBAdvance, "advances"),
+    playerBBlock: asStr(raw.playerBBlock, "blocks"),
+    playerBPlayed: movedB,
+    bothAdvance: coerceOutcome(raw.bothAdvance),
+    advanceBlock: coerceOutcome(raw.advanceBlock),
+    blockAdvance: coerceOutcome(raw.blockAdvance),
+    bothBlock: coerceOutcome(raw.bothBlock),
     rationale: asStr(raw.rationale),
   };
 }

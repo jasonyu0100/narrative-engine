@@ -53,6 +53,13 @@ import {
   resolvePlanForBranch,
   resolveProseForBranch,
 } from "@/lib/narrative-utils";
+import {
+  dominantStrategy,
+  nashEquilibria,
+  OUTCOME_KEYS,
+  outcomeKeyFor,
+} from "@/lib/game-theory";
+import type { OutcomeKey } from "@/types/narrative";
 import { useLogs } from "@/lib/logs-context";
 import {
   ANALYSIS_NARRATIVE_IDS,
@@ -451,7 +458,7 @@ export default function TopBar() {
 
   // Copy/export helpers
   const copyAllText = useCallback(
-    (mode: "prose" | "plan" | "summary") => {
+    (mode: "prose" | "plan" | "summary" | "games") => {
       if (!narrative || !state.viewState.activeBranchId) return;
       const scenes = state.resolvedEntryKeys
         .map((k) => resolveEntry(narrative, k))
@@ -476,6 +483,87 @@ export default function TopBar() {
               .join("\n");
             parts.push(`Scene: ${scene.summary}\n${beats}`);
           }
+        } else if (mode === "games") {
+          // Full-detail game-theoretic decomposition: every matrix cell, all
+          // payoffs, played outcome, Nash equilibria, dominant strategies.
+          const analysis = scene.gameAnalysis;
+          if (!analysis || analysis.games.length === 0) continue;
+          const lines: string[] = [];
+          if (analysis.summary) {
+            lines.push(`Strategic shape: ${analysis.summary}`);
+          }
+          lines.push(`Games: ${analysis.games.length}`);
+
+          for (const g of analysis.games) {
+            const playedKey: OutcomeKey = outcomeKeyFor(g.playerAPlayed, g.playerBPlayed);
+            const played = g[playedKey];
+            const ne = nashEquilibria(g);
+            const dom = dominantStrategy(g);
+
+            lines.push("");
+            lines.push(`──────────────────────────────────────────────────────`);
+            lines.push(`Beat ${g.beatIndex + 1}: ${g.beatExcerpt}`);
+            lines.push(`Players: ${g.playerAName} (${g.playerAId}) × ${g.playerBName} (${g.playerBId})`);
+            lines.push("");
+
+            // Actions
+            lines.push(`Actions:`);
+            lines.push(`  ${g.playerAName}:`);
+            lines.push(`    advance → ${g.playerAAdvance}`);
+            lines.push(`    block   → ${g.playerABlock}`);
+            lines.push(`  ${g.playerBName}:`);
+            lines.push(`    advance → ${g.playerBAdvance}`);
+            lines.push(`    block   → ${g.playerBBlock}`);
+            lines.push("");
+
+            // Full payoff matrix — every outcome with its payoffs + description
+            lines.push(`Payoff matrix (${g.playerAName} / ${g.playerBName}):`);
+            for (const key of OUTCOME_KEYS) {
+              const o = g[key];
+              const marker = key === playedKey ? " ← played" : "";
+              const nashMark = ne.has(key) ? " [Nash]" : "";
+              const label = key.padEnd(13);
+              lines.push(
+                `  ${label} ${o.payoffA}/${o.payoffB}${nashMark}${marker}`,
+              );
+              lines.push(`      ${o.description}`);
+            }
+            lines.push("");
+
+            // Strategic analysis
+            if (ne.size > 0) {
+              lines.push(`Nash equilibria: ${Array.from(ne).join(", ")}`);
+            } else {
+              lines.push(`Nash equilibria: none (mixed strategy only)`);
+            }
+            if (dom.player === "both") {
+              lines.push(
+                `Dominant strategies: both players — ${g.playerAName} ${dom.aMove ?? "?"}, ${g.playerBName} ${dom.bMove ?? "?"}`,
+              );
+            } else if (dom.player === "A") {
+              lines.push(
+                `Dominant strategy: ${g.playerAName} (${dom.aMove ?? "?"})`,
+              );
+            } else if (dom.player === "B") {
+              lines.push(
+                `Dominant strategy: ${g.playerBName} (${dom.bMove ?? "?"})`,
+              );
+            }
+            lines.push("");
+
+            // Played outcome
+            lines.push(
+              `Played: ${g.playerAName} ${g.playerAPlayed}, ${g.playerBName} ${g.playerBPlayed} → ${playedKey}`,
+            );
+            lines.push(
+              `Played payoffs: ${g.playerAName}=${played.payoffA}, ${g.playerBName}=${played.payoffB}`,
+            );
+            lines.push(`Played outcome: ${played.description}`);
+            if (g.rationale) {
+              lines.push(`Rationale: ${g.rationale}`);
+            }
+          }
+          parts.push(lines.join("\n"));
         } else {
           parts.push(scene.summary);
         }
@@ -483,9 +571,12 @@ export default function TopBar() {
 
       const text = parts.join("\n\n---\n\n");
       navigator.clipboard.writeText(text).then(() => {
-        setCopyToast(
-          `Copied ${parts.length} ${mode === "prose" ? "scenes" : mode === "plan" ? "plans" : "summaries"}`,
-        );
+        const noun =
+          mode === "prose" ? "scenes" :
+          mode === "plan" ? "plans" :
+          mode === "games" ? "game analyses" :
+          "summaries";
+        setCopyToast(`Copied ${parts.length} ${noun}`);
       });
       setExportOpen(false);
     },
@@ -791,6 +882,7 @@ export default function TopBar() {
         hasPlans: false,
         hasSummaries: false,
         hasAudio: false,
+        hasGames: false,
       };
     }
     const branches = narrative.branches;
@@ -804,6 +896,7 @@ export default function TopBar() {
       ),
       hasSummaries: allScenes.some((s) => s.summary),
       hasAudio: allScenes.some((s) => s.audioUrl),
+      hasGames: allScenes.some((s) => (s.gameAnalysis?.games?.length ?? 0) > 0),
     };
   }, [allScenes, narrative, state.viewState.activeBranchId]);
 
@@ -2011,6 +2104,26 @@ export default function TopBar() {
                       <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
                     </svg>
                     Summaries
+                  </button>
+                  <button
+                    onClick={() => copyAllText("games")}
+                    disabled={!exportAvailability.hasGames}
+                    className={`w-full flex items-center gap-2.5 px-3 py-1.5 text-[12px] transition-colors ${exportAvailability.hasGames ? "text-text-secondary hover:text-text-primary hover:bg-white/5" : "text-text-dim/50 cursor-not-allowed"}`}
+                    title={exportAvailability.hasGames ? "Copy all game-theory decisions as human-readable text" : "No game analyses available — run game analysis first"}
+                  >
+                    <svg
+                      className="w-3.5 h-3.5 text-text-dim shrink-0"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    >
+                      <rect x="9" y="9" width="13" height="13" rx="2" />
+                      <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+                    </svg>
+                    Game Decisions
                   </button>
                   <button
                     onClick={handleCopyCurrentEntryJson}

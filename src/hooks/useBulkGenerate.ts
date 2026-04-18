@@ -165,7 +165,7 @@ export function useBulkGenerate() {
           source:
             mode === 'plan' ? 'plan-generation' :
             mode === 'prose' ? 'prose-generation' :
-            'game-analysis',
+            'analysis',
           operation: 'bulk-generate',
           details: { sceneId, mode, sceneNumber: completed + 1, totalScenes: total }
         });

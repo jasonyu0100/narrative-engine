@@ -13,10 +13,13 @@ import {
   computeEloHistories,
   dominantStrategy,
   ELO_INITIAL,
-  equilibriumAction,
+  equilibriumMove,
   gameScoreA,
   isOptimalPlay,
   nashEquilibria,
+  outcomeKeyFor,
+  playedKey,
+  playedOutcome,
   resolvePlayerName,
 } from "@/lib/game-theory";
 import { resolveEntry, isScene } from "@/types/narrative";
@@ -71,14 +74,39 @@ type PlayerProfile = {
   biggestUpset: { opponentName: string; ratingGain: number; sceneIndex: number } | null;
 };
 
-type Rivalry = {
+/** Pairwise play data — the raw building block for rivalries and coalitions. */
+type PairData = {
   aId: string;
   bId: string;
   aName: string;
   bName: string;
   games: number;
+  // Win/loss/draw from A's perspective
   aWins: number;
   bWins: number;
+  draws: number;
+  // Outcome counts between this specific pair
+  bothAdvance: number;     // both cooperated
+  bothBlock: number;       // mutual conflict
+  mixed: number;           // one advanced, one blocked (asymmetric clash)
+  // Derived rates (0-1)
+  cooperationRate: number; // bothAdvance / games
+  conflictRate: number;    // (mixed + bothBlock) / games
+  // Composite "rivalry intensity" — for sorting meaningful rivalries
+  intensityScore: number;
+};
+
+type Coalition = {
+  memberIds: string[];
+  memberNames: string[];
+  /** Number of games played between members of this coalition. */
+  internalGames: number;
+  /** Average cooperation rate across all member pairs. */
+  cooperationRate: number;
+  /** Minimum cooperation rate among member pairs — the "weakest link". */
+  cohesion: number;
+  /** Number of scene-spanning bonds — how many pairs are in this coalition. */
+  bondCount: number;
 };
 
 type Aggregate = {
@@ -87,7 +115,9 @@ type Aggregate = {
   scenesAnalysed: number;
   nashCompliance: number;
   profiles: PlayerProfile[];
-  rivalries: Rivalry[];
+  pairs: PairData[];
+  rivalries: PairData[];
+  coalitions: Coalition[];
   offEquilibriumGames: GameWithContext[];
   biggestSingleUpset: {
     gameCtx: GameWithContext;
@@ -162,7 +192,7 @@ function aggregate(
   let totalPayoffB = 0;
   let optimalPlays = 0;
   const offEq: GameWithContext[] = [];
-  const rivalryMap = new Map<string, Rivalry>();
+  const pairMap = new Map<string, PairData>();
   const pairKey = (a: string, b: string): string => (a < b ? `${a}|${b}` : `${b}|${a}`);
 
   // Track biggest single ELO swing
@@ -178,31 +208,31 @@ function aggregate(
     pA.asRoleA++;
     pB.asRoleB++;
 
-    const cell = g[g.chosenCell];
-    pA.avgPayoff += cell.payoffA;
-    pB.avgPayoff += cell.payoffB;
-    totalPayoffA += cell.payoffA;
-    totalPayoffB += cell.payoffB;
+    const outcome = playedOutcome(g);
+    pA.avgPayoff += outcome.payoffA;
+    pB.avgPayoff += outcome.payoffB;
+    totalPayoffA += outcome.payoffA;
+    totalPayoffB += outcome.payoffB;
 
     const scoreA = gameScoreA(g);
     if (scoreA === 1) { pA.wins++; pB.losses++; }
     else if (scoreA === 0) { pA.losses++; pB.wins++; }
     else { pA.draws++; pB.draws++; }
 
-    // Actions played: chosenCell[0] = A's action, chosenCell[1] = B's action
-    if (g.chosenCell[0] === "c") pA.advances++; else pA.blocks++;
-    if (g.chosenCell[1] === "c") pB.advances++; else pB.blocks++;
+    // Moves played
+    if (g.playerAPlayed === "advance") pA.advances++; else pA.blocks++;
+    if (g.playerBPlayed === "advance") pB.advances++; else pB.blocks++;
 
-    // Equilibrium-action compliance (per-player, independent of opponent)
-    const aEq = equilibriumAction(g, "A");
+    // Equilibrium-move compliance (per-player, independent of opponent)
+    const aEq = equilibriumMove(g, "A");
     if (aEq) {
       pA.nashAvailable++;
-      if (aEq === g.chosenCell[0]) pA.nashMoves++;
+      if (aEq === g.playerAPlayed) pA.nashMoves++;
     }
-    const bEq = equilibriumAction(g, "B");
+    const bEq = equilibriumMove(g, "B");
     if (bEq) {
       pB.nashAvailable++;
-      if (bEq === g.chosenCell[1]) pB.nashMoves++;
+      if (bEq === g.playerBPlayed) pB.nashMoves++;
     }
 
     // Nash-cell optimality (legacy definition for top-level compliance)
@@ -218,24 +248,47 @@ function aggregate(
     pA.opponentCounts.set(g.playerBId, (pA.opponentCounts.get(g.playerBId) ?? 0) + 1);
     pB.opponentCounts.set(g.playerAId, (pB.opponentCounts.get(g.playerAId) ?? 0) + 1);
 
-    // Rivalry
+    // Pairwise tracking — feeds both rivalries and coalitions
     const rk = pairKey(g.playerAId, g.playerBId);
-    let rv = rivalryMap.get(rk);
-    if (!rv) {
-      rv = {
-        aId: g.playerAId,
-        bId: g.playerBId,
-        aName: resolvePlayerName(narrative, g.playerAId, g.playerAName),
-        bName: resolvePlayerName(narrative, g.playerBId, g.playerBName),
+    // Orient the pair canonically (aId < bId) so we consistently count from
+    // the same perspective regardless of which side was Player A in the game.
+    const [canonAId, canonBId] = g.playerAId < g.playerBId
+      ? [g.playerAId, g.playerBId]
+      : [g.playerBId, g.playerAId];
+    const swapped = canonAId !== g.playerAId;
+
+    let pd = pairMap.get(rk);
+    if (!pd) {
+      pd = {
+        aId: canonAId,
+        bId: canonBId,
+        aName: resolvePlayerName(narrative, canonAId, swapped ? g.playerBName : g.playerAName),
+        bName: resolvePlayerName(narrative, canonBId, swapped ? g.playerAName : g.playerBName),
         games: 0,
         aWins: 0,
         bWins: 0,
+        draws: 0,
+        bothAdvance: 0,
+        bothBlock: 0,
+        mixed: 0,
+        cooperationRate: 0,
+        conflictRate: 0,
+        intensityScore: 0,
       };
-      rivalryMap.set(rk, rv);
+      pairMap.set(rk, pd);
     }
-    rv.games++;
-    if (scoreA === 1) rv.aWins++;
-    else if (scoreA === 0) rv.bWins++;
+    pd.games++;
+
+    // Outcome bucket (swap-aware so both orientations agree)
+    const outcomeKey = outcomeKeyFor(g.playerAPlayed, g.playerBPlayed);
+    if (outcomeKey === "bothAdvance") pd.bothAdvance++;
+    else if (outcomeKey === "bothBlock") pd.bothBlock++;
+    else pd.mixed++;
+
+    // Win/loss/draw tracked from the canonical aId's perspective
+    if (scoreA === 0.5) pd.draws++;
+    else if ((scoreA === 1 && !swapped) || (scoreA === 0 && swapped)) pd.aWins++;
+    else pd.bWins++;
 
     // Single-game ELO swing tracking
     const prevA = runningElo.get(g.playerAId) ?? ELO_INITIAL;
@@ -280,9 +333,28 @@ function aggregate(
   }
 
   const profileList = Array.from(profiles.values()).sort((a, b) => b.currentElo - a.currentElo);
-  const rivalries = Array.from(rivalryMap.values())
-    .filter((r) => r.games >= 2)
-    .sort((a, b) => b.games - a.games);
+
+  // Finalise pair rates + intensity score
+  const pairs = Array.from(pairMap.values());
+  for (const p of pairs) {
+    p.cooperationRate = p.games > 0 ? p.bothAdvance / p.games : 0;
+    p.conflictRate = p.games > 0 ? (p.bothBlock + p.mixed) / p.games : 0;
+    // Intensity score: games * conflict * (1 + |wins asymmetry|)
+    //   — rewards sustained conflict AND win/loss asymmetry
+    const totalDecisive = p.aWins + p.bWins;
+    const asymmetry = totalDecisive > 0
+      ? Math.abs(p.aWins - p.bWins) / totalDecisive
+      : 0;
+    p.intensityScore = p.games * p.conflictRate * (1 + asymmetry);
+  }
+
+  // Meaningful rivalries: ≥2 games, non-trivial conflict rate, sorted by intensity
+  const rivalries = pairs
+    .filter((p) => p.games >= 2 && p.conflictRate >= 0.33)
+    .sort((a, b) => b.intensityScore - a.intensityScore);
+
+  // Coalition detection via union-find on strongly-cooperating pairs
+  const coalitions = detectCoalitions(pairs, narrative);
 
   // Count scenes (not games) that have analyses
   const sceneSet = new Set(ordered.map((o) => o.scene.id));
@@ -293,10 +365,129 @@ function aggregate(
     scenesAnalysed: sceneSet.size,
     nashCompliance: ordered.length > 0 ? optimalPlays / ordered.length : 0,
     profiles: profileList,
+    pairs,
     rivalries,
+    coalitions,
     offEquilibriumGames: offEq,
     biggestSingleUpset: biggestSwing,
   };
+}
+
+// ── Coalition detection ────────────────────────────────────────────────────
+// Find TIGHT groups where every pair has sustained cooperation — not just
+// chains of "A cooperates with B, B cooperates with C". We use the classic
+// Bron-Kerbosch algorithm to enumerate maximal cliques in a graph whose
+// edges are strong cooperative bonds. Each clique is a coalition where
+// EVERY member cooperates strongly with EVERY other member.
+//
+// The cohesion metric (weakest-link pair) is now non-trivially bounded from
+// below by the threshold, so "0% cohesion" coalitions are impossible.
+
+const COOPERATION_THRESHOLD = 0.6;   // ≥60% bothAdvance rate
+const MIN_BOND_GAMES = 2;            // per-pair minimum
+const MAX_COALITIONS_SHOWN = 10;
+
+function pairLookupKey(a: string, b: string): string {
+  return a < b ? `${a}|${b}` : `${b}|${a}`;
+}
+
+function detectCoalitions(
+  pairs: PairData[],
+  narrative: NarrativeState,
+): Coalition[] {
+  // Build the cooperation graph: vertex = player, edge = strong bond
+  const neighbors = new Map<string, Set<string>>();
+  const pairByKey = new Map<string, PairData>();
+  for (const p of pairs) {
+    pairByKey.set(pairLookupKey(p.aId, p.bId), p);
+    if (p.games < MIN_BOND_GAMES || p.cooperationRate < COOPERATION_THRESHOLD) continue;
+    if (!neighbors.has(p.aId)) neighbors.set(p.aId, new Set());
+    if (!neighbors.has(p.bId)) neighbors.set(p.bId, new Set());
+    neighbors.get(p.aId)!.add(p.bId);
+    neighbors.get(p.bId)!.add(p.aId);
+  }
+
+  if (neighbors.size === 0) return [];
+
+  // Bron-Kerbosch maximal clique enumeration (with pivoting).
+  // Finds every set where all pairs are mutually connected — no loose chains.
+  const cliques: string[][] = [];
+
+  function bronKerbosch(r: Set<string>, p: Set<string>, x: Set<string>): void {
+    if (p.size === 0 && x.size === 0) {
+      if (r.size >= 2) cliques.push(Array.from(r));
+      return;
+    }
+    // Pick a pivot from P ∪ X with maximum neighbours in P — standard
+    // heuristic that dramatically prunes the search tree.
+    const pUnionX = new Set([...p, ...x]);
+    let pivot: string | null = null;
+    let pivotScore = -1;
+    for (const u of pUnionX) {
+      const nu = neighbors.get(u) ?? new Set();
+      let count = 0;
+      for (const v of p) if (nu.has(v)) count++;
+      if (count > pivotScore) {
+        pivotScore = count;
+        pivot = u;
+      }
+    }
+    const pivotNeighbors = pivot ? neighbors.get(pivot) ?? new Set() : new Set<string>();
+    const candidates = Array.from(p).filter((v) => !pivotNeighbors.has(v));
+    for (const v of candidates) {
+      const nv = neighbors.get(v) ?? new Set();
+      const newR = new Set(r);
+      newR.add(v);
+      const newP = new Set<string>();
+      const newX = new Set<string>();
+      for (const u of p) if (nv.has(u)) newP.add(u);
+      for (const u of x) if (nv.has(u)) newX.add(u);
+      bronKerbosch(newR, newP, newX);
+      p.delete(v);
+      x.add(v);
+    }
+  }
+
+  bronKerbosch(new Set(), new Set(neighbors.keys()), new Set());
+
+  // Convert each clique to a Coalition with real stats, drop any clique where
+  // we can't recover pair data (defensive), then rank.
+  const coalitions: Coalition[] = [];
+  for (const members of cliques) {
+    let totalGames = 0;
+    let totalCoop = 0;
+    let minCoop = 1;
+    let pairCount = 0;
+    for (let i = 0; i < members.length; i++) {
+      for (let j = i + 1; j < members.length; j++) {
+        const pd = pairByKey.get(pairLookupKey(members[i], members[j]));
+        if (!pd) continue;
+        totalGames += pd.games;
+        totalCoop += pd.cooperationRate;
+        minCoop = Math.min(minCoop, pd.cooperationRate);
+        pairCount++;
+      }
+    }
+    if (pairCount === 0) continue;
+    coalitions.push({
+      memberIds: members,
+      memberNames: members.map((id) => resolvePlayerName(narrative, id)),
+      internalGames: totalGames,
+      cooperationRate: totalCoop / pairCount,
+      cohesion: minCoop,
+      bondCount: pairCount,
+    });
+  }
+
+  // Ranking: reward size, cohesion, and sustained play. log(games+1) keeps
+  // a 40-game coalition from dominating over a 4-game one by 10×.
+  coalitions.sort((a, b) => {
+    const scoreA = a.memberIds.length * a.cohesion * Math.log(a.internalGames + 1);
+    const scoreB = b.memberIds.length * b.cohesion * Math.log(b.internalGames + 1);
+    return scoreB - scoreA;
+  });
+
+  return coalitions.slice(0, MAX_COALITIONS_SHOWN);
 }
 
 // ── Main component ──────────────────────────────────────────────────────────
@@ -327,6 +518,10 @@ export function GameTheoryDashboard({ narrative, resolvedKeys, onClose, onSelect
               onClose={onClose}
               onSelectScene={onSelectScene}
             />
+            <div className="grid grid-cols-2 gap-6">
+              <CoalitionsSection agg={agg} />
+              <RivalriesSection agg={agg} />
+            </div>
             <NarrativeInsights agg={agg} narrative={narrative} onClose={onClose} onSelectScene={onSelectScene} />
           </div>
         )}
@@ -763,6 +958,286 @@ function NarrativeInsights({
   );
 }
 
+// ── Coalitions section ────────────────────────────────────────────────────
+
+function CoalitionsSection({ agg }: { agg: Aggregate }) {
+  const coalitions = agg.coalitions;
+  return (
+    <div>
+      <div className="flex items-baseline justify-between mb-2">
+        <h3 className="text-[10px] uppercase tracking-[0.15em] text-text-dim/70 font-semibold">
+          Coalitions
+        </h3>
+        <span className="text-[9px] text-text-dim/50">
+          tight cliques · every pair cooperates {">"}60%
+        </span>
+      </div>
+      <div className="rounded-lg border border-white/8 overflow-hidden">
+        {coalitions.length === 0 ? (
+          <div className="px-4 py-8 text-center">
+            <p className="text-[11px] text-text-dim/70">No meaningful coalitions detected.</p>
+          </div>
+        ) : (
+          coalitions.slice(0, 6).map((c, i) => (
+            <CoalitionRow key={i} coalition={c} rank={i + 1} pairs={agg.pairs} isFirst={i === 0} />
+          ))
+        )}
+      </div>
+    </div>
+  );
+}
+
+// Natural-language cohesion label
+function cohesionTier(cohesion: number): { label: string; color: string } {
+  if (cohesion >= 0.85) return { label: "ironclad", color: "text-emerald-400" };
+  if (cohesion >= 0.75) return { label: "tight", color: "text-emerald-400" };
+  if (cohesion >= 0.65) return { label: "strong", color: "text-emerald-400/80" };
+  return { label: "loose", color: "text-amber-400" };
+}
+
+function CoalitionRow({
+  coalition,
+  rank,
+  pairs,
+  isFirst,
+}: {
+  coalition: Coalition;
+  rank: number;
+  pairs: PairData[];
+  isFirst: boolean;
+}) {
+  const cohesionPct = Math.round(coalition.cohesion * 100);
+  const coopPct = Math.round(coalition.cooperationRate * 100);
+  const tier = cohesionTier(coalition.cohesion);
+
+  // Strongest pair within the coalition
+  const members = new Set(coalition.memberIds);
+  const flagship = pairs
+    .filter((p) => members.has(p.aId) && members.has(p.bId) && p.games > 0)
+    .slice()
+    .sort((a, b) => b.cooperationRate * b.games - a.cooperationRate * a.games)[0];
+
+  return (
+    <div
+      className={`px-3 py-3 hover:bg-white/3 transition-colors ${
+        isFirst ? "" : "border-t border-white/5"
+      }`}
+    >
+      {/* Top row: rank · tier · meta · cohesion */}
+      <div className="flex items-center gap-3 mb-2">
+        <span className="text-[11px] text-text-dim/50 tabular-nums w-4 shrink-0 text-right">
+          {rank}
+        </span>
+        <span className={`text-[10px] uppercase tracking-wider font-semibold ${tier.color}`}>
+          {tier.label}
+        </span>
+        <span className="text-[10px] text-text-dim/60 tabular-nums">
+          {coalition.memberIds.length} members · {coalition.bondCount} bonds · {coalition.internalGames} games
+        </span>
+        {/* Cohesion bar + value — primary metric */}
+        <div className="flex items-center gap-2 ml-auto min-w-0">
+          <div className="h-1.5 rounded-full bg-white/5 overflow-hidden w-24 shrink-0">
+            <div
+              className="h-full rounded-full bg-emerald-400/80"
+              style={{ width: `${cohesionPct}%` }}
+              title="Weakest-link cooperation rate"
+            />
+          </div>
+          <span
+            className={`text-[11px] font-medium tabular-nums w-10 text-right ${
+              cohesionPct >= 75 ? "text-emerald-400" :
+              cohesionPct >= 65 ? "text-emerald-400/80" :
+              "text-amber-400"
+            }`}
+          >
+            {cohesionPct}%
+          </span>
+        </div>
+      </div>
+
+      {/* Members — monochrome, aligned with left padding matching rank column */}
+      <div className="flex items-center gap-1.5 flex-wrap pl-7 mb-1.5">
+        {coalition.memberNames.map((name, i) => (
+          <span
+            key={i}
+            className="text-[11px] text-text-primary bg-white/5 border border-white/8 px-1.5 py-px rounded"
+          >
+            {name}
+          </span>
+        ))}
+      </div>
+
+      {/* Flagship pair — subtle bottom line */}
+      {flagship && (
+        <div className="flex items-baseline gap-2 pl-7 text-[9px] text-text-dim/55 tabular-nums">
+          <span className="uppercase tracking-wider">strongest</span>
+          <span className="text-text-secondary">{flagship.aName}</span>
+          <span className="text-text-dim/40">×</span>
+          <span className="text-text-secondary">{flagship.bName}</span>
+          <span>— {Math.round(flagship.cooperationRate * 100)}% over {flagship.games} games</span>
+          <span className="ml-auto">avg coop {coopPct}%</span>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Rivalries section ─────────────────────────────────────────────────────
+
+function RivalriesSection({ agg }: { agg: Aggregate }) {
+  const rivalries = agg.rivalries;
+  return (
+    <div>
+      <div className="flex items-baseline justify-between mb-2">
+        <h3 className="text-[10px] uppercase tracking-[0.15em] text-text-dim/70 font-semibold">
+          Rivalries
+        </h3>
+        <span className="text-[9px] text-text-dim/50">
+          pairs with sustained conflict ≥33%
+        </span>
+      </div>
+      <div className="rounded-lg border border-white/8 overflow-hidden">
+        {rivalries.length === 0 ? (
+          <div className="px-4 py-8 text-center">
+            <p className="text-[11px] text-text-dim/70">No meaningful rivalries detected.</p>
+          </div>
+        ) : (
+          rivalries.slice(0, 6).map((r, i) => (
+            <RivalryRow key={i} rivalry={r} rank={i + 1} isFirst={i === 0} />
+          ))
+        )}
+      </div>
+    </div>
+  );
+}
+
+// Classify the strategic shape of the rivalry from its outcome mix
+function rivalryTag(rivalry: PairData): { label: string; color: string } {
+  const totalDecisive = rivalry.aWins + rivalry.bWins;
+  const asymmetry = totalDecisive > 0 ? Math.abs(rivalry.aWins - rivalry.bWins) / totalDecisive : 0;
+  if (asymmetry >= 0.7 && rivalry.games >= 4) return { label: "one-sided", color: "text-red-400" };
+  if (rivalry.bothBlock / Math.max(rivalry.games, 1) >= 0.4) return { label: "mutual hostility", color: "text-red-400" };
+  if (rivalry.mixed / Math.max(rivalry.games, 1) >= 0.5) return { label: "asymmetric clash", color: "text-amber-400" };
+  if (asymmetry <= 0.2 && rivalry.games >= 4) return { label: "even match", color: "text-amber-400" };
+  return { label: "contested", color: "text-red-400/80" };
+}
+
+function RivalryRow({
+  rivalry,
+  rank,
+  isFirst,
+}: {
+  rivalry: PairData;
+  rank: number;
+  isFirst: boolean;
+}) {
+  const conflictPct = Math.round(rivalry.conflictRate * 100);
+  const totalDecisive = rivalry.aWins + rivalry.bWins;
+  const tag = rivalryTag(rivalry);
+
+  // Leader + margin
+  const leaderName = rivalry.aWins >= rivalry.bWins ? rivalry.aName : rivalry.bName;
+  const margin = Math.abs(rivalry.aWins - rivalry.bWins);
+
+  // Dominant outcome mode
+  const dominantOutcome =
+    rivalry.bothBlock > rivalry.mixed
+      ? { label: "both block", count: rivalry.bothBlock }
+      : { label: "asymmetric clash", count: rivalry.mixed };
+
+  return (
+    <div
+      className={`px-3 py-3 hover:bg-white/3 transition-colors ${
+        isFirst ? "" : "border-t border-white/5"
+      }`}
+    >
+      {/* Top row: rank · tag · games · conflict% */}
+      <div className="flex items-center gap-3 mb-2">
+        <span className="text-[11px] text-text-dim/50 tabular-nums w-4 shrink-0 text-right">
+          {rank}
+        </span>
+        <span className={`text-[10px] uppercase tracking-wider font-semibold ${tag.color}`}>
+          {tag.label}
+        </span>
+        <span className="text-[10px] text-text-dim/60 tabular-nums">
+          {rivalry.games} games
+          {rivalry.draws > 0 && ` · ${rivalry.draws}d`}
+        </span>
+        {/* Conflict bar — primary metric */}
+        <div className="flex items-center gap-2 ml-auto min-w-0">
+          <div className="h-1.5 rounded-full bg-white/5 overflow-hidden w-24 shrink-0">
+            <div
+              className="h-full rounded-full bg-red-400/80"
+              style={{ width: `${conflictPct}%` }}
+              title="Conflict rate (bothBlock + mixed outcomes)"
+            />
+          </div>
+          <span
+            className={`text-[11px] font-medium tabular-nums w-10 text-right ${
+              conflictPct >= 70 ? "text-red-400" :
+              conflictPct >= 50 ? "text-red-400/80" :
+              "text-amber-400"
+            }`}
+          >
+            {conflictPct}%
+          </span>
+        </div>
+      </div>
+
+      {/* Matchup + head-to-head record */}
+      <div className="flex items-center gap-3 pl-7 mb-1.5 text-[12px]">
+        <span className="text-text-primary font-medium truncate">{rivalry.aName}</span>
+        <span className="text-[10px] tabular-nums font-mono shrink-0">
+          <span className={rivalry.aWins > rivalry.bWins ? "text-emerald-400" : rivalry.aWins < rivalry.bWins ? "text-red-400/80" : "text-text-secondary"}>
+            {rivalry.aWins}
+          </span>
+          <span className="text-text-dim/40 mx-1">–</span>
+          <span className={rivalry.bWins > rivalry.aWins ? "text-emerald-400" : rivalry.bWins < rivalry.aWins ? "text-red-400/80" : "text-text-secondary"}>
+            {rivalry.bWins}
+          </span>
+        </span>
+        <span className="text-text-primary font-medium truncate">{rivalry.bName}</span>
+        {/* Mini record bar */}
+        <div className="h-1.5 rounded-full bg-white/5 overflow-hidden flex ml-auto w-20 shrink-0">
+          {rivalry.aWins > 0 && (
+            <div
+              className="h-full bg-white/70"
+              style={{ width: `${totalDecisive > 0 ? (rivalry.aWins / totalDecisive) * 100 : 0}%` }}
+            />
+          )}
+          {rivalry.bWins > 0 && (
+            <div
+              className="h-full bg-red-400/70"
+              style={{ width: `${totalDecisive > 0 ? (rivalry.bWins / totalDecisive) * 100 : 0}%` }}
+            />
+          )}
+        </div>
+      </div>
+
+      {/* Context line: who leads + signature mode + intensity */}
+      <div className="flex items-baseline gap-2 pl-7 text-[9px] text-text-dim/55 tabular-nums">
+        {margin === 0 ? (
+          <span>tied — neither leads</span>
+        ) : (
+          <span>
+            <span className="text-text-secondary">{leaderName}</span> leads by {margin}
+          </span>
+        )}
+        <span className="text-text-dim/30">·</span>
+        <span>
+          signature <span className="text-text-secondary">{dominantOutcome.label}</span> ({dominantOutcome.count}/{rivalry.games})
+        </span>
+        <span
+          className="ml-auto font-mono text-amber-400/80"
+          title="Composite intensity: games × conflict × win asymmetry"
+        >
+          intensity {rivalry.intensityScore.toFixed(1)}
+        </span>
+      </div>
+    </div>
+  );
+}
+
 function BiggestUpset({
   upset,
   onClose,
@@ -845,8 +1320,8 @@ function OffEquilibrium({
               <span className="text-[9px] font-mono tabular-nums text-text-dim/50 w-10 shrink-0">
                 S{sceneIndex + 1}
               </span>
-              <span className="text-[9px] font-mono font-semibold text-amber-300 uppercase w-8 shrink-0">
-                {game.chosenCell}
+              <span className="text-[9px] font-mono font-semibold text-amber-300 w-20 shrink-0 truncate" title={playedKey(game)}>
+                {playedKey(game)}
               </span>
               <span className="text-[9px] text-text-dim/40 w-12 shrink-0">
                 → {ideal}

@@ -15,17 +15,23 @@ import { useEffect, useMemo, useState } from "react";
 import { useStore } from "@/lib/store";
 import { generateSceneGameAnalysis } from "@/lib/ai";
 import {
-  aBestResponses,
-  bBestResponses,
+  aBestResponseKeys,
+  aBestResponseTo,
+  bBestResponseKeys,
+  bBestResponseTo,
   nashEquilibria,
   dominantStrategy,
   classifyGame,
+  outcomeKeyFor,
+  playedKey,
+  playedOutcome,
   resolvePlayerName,
-  type CellKey,
 } from "@/lib/game-theory";
 import type {
   BeatGame,
   NarrativeState,
+  OutcomeKey,
+  PlayerMove,
   Scene,
   SceneGameAnalysis,
 } from "@/types/narrative";
@@ -318,13 +324,13 @@ function TimelineEntry({
           {/* Primary: player matchup + score, chess-style */}
           <PlayersHeader game={game} />
 
-          {/* Subtitle: beat index + played cell */}
+          {/* Subtitle: beat index + played outcome */}
           <div className="flex items-center gap-2 -mt-1">
             <span className="text-[12px] uppercase tracking-wider text-text-dim/75">
               beat {game.beatIndex + 1}
             </span>
             <span className="text-text-dim/20">·</span>
-            <CellChip cell={game.chosenCell} />
+            <OutcomeChip outcomeKey={playedKey(game)} />
           </div>
 
           {/* Beat excerpt */}
@@ -334,11 +340,11 @@ function TimelineEntry({
             </p>
           )}
 
-          {/* Rationale — the AI's reading of why this cell */}
+          {/* Rationale — the AI's reading of why this outcome */}
           {game.rationale && (
             <div>
               <div className="text-[12px] uppercase tracking-wider text-text-dim/80 font-semibold mb-1">
-                why <span className="font-mono text-text-dim/80">{game.chosenCell}</span>
+                why <span className="font-mono text-text-dim/80">{playedKey(game)}</span>
               </div>
               <p className="text-[12px] text-text-secondary leading-relaxed">
                 {game.rationale}
@@ -358,7 +364,7 @@ function TimelineEntry({
 }
 
 function PlayersHeader({ game }: { game: BeatGame }) {
-  const chosen = game[game.chosenCell];
+  const chosen = playedOutcome(game);
   const aWins = chosen.payoffA > chosen.payoffB;
   const bWins = chosen.payoffB > chosen.payoffA;
 
@@ -429,49 +435,38 @@ function PlayerLink({
   );
 }
 
-// ── Optimal moves — what the LLM's payoff matrix says each player should do ──
-// Computed by inspecting which action (c or d) shows up in each player's
-// best-response set. An unconditional best response = dominant strategy;
-// otherwise the answer depends on the opponent, in which case we show both.
+// ── Optimal moves — each player's best response, in plain English ──────────
+// Uses the semantic vocabulary throughout: a player's move is "advance" or
+// "block", the matrix fields playerAAdvance / playerABlock name the actual
+// action strings.
 
 function OptimalMoves({ game }: { game: BeatGame }) {
-  const aBest = aBestResponses(game);
-  const bBest = bBestResponses(game);
+  const aAgainstAdvance = aBestResponseTo(game, "advance");
+  const aAgainstBlock = aBestResponseTo(game, "block");
+  const bAgainstAdvance = bBestResponseTo(game, "advance");
+  const bAgainstBlock = bBestResponseTo(game, "block");
 
-  // A's optimal action given B plays c (column c): which of cc, dc is best?
-  const aAgainstC = aBest.has("cc") ? "c" : "d";
-  const aAgainstD = aBest.has("cd") ? "c" : "d";
-  const bAgainstC = bBest.has("cc") ? "c" : "d";
-  const bAgainstD = bBest.has("dc") ? "c" : "d";
+  const aDominant: PlayerMove | null =
+    aAgainstAdvance === aAgainstBlock ? aAgainstAdvance : null;
+  const bDominant: PlayerMove | null =
+    bAgainstAdvance === bAgainstBlock ? bAgainstAdvance : null;
 
-  // Dominant action: same answer regardless of opponent
-  const aDominant = aAgainstC === aAgainstD ? aAgainstC : null;
-  const bDominant = bAgainstC === bAgainstD ? bAgainstC : null;
-
-  const label = (action: string, player: "A" | "B"): string => {
-    if (player === "A") {
-      return action === "c" ? game.actionA : game.defectA;
-    }
-    return action === "c" ? game.actionB : game.defectB;
-  };
+  const labelA = (move: PlayerMove): string =>
+    move === "advance" ? game.playerAAdvance : game.playerABlock;
+  const labelB = (move: PlayerMove): string =>
+    move === "advance" ? game.playerBAdvance : game.playerBBlock;
 
   // Did the player play optimally?
-  //   - If they have a dominant strategy: played === dominant
-  //   - Else: played === their best response to the OPPONENT'S actual move
-  //     (since the opponent's choice is observed from the prose, "optimal
-  //      given what they faced" is still a meaningful judgement)
-  const playerChoseOptimal = (player: "A" | "B"): boolean => {
-    const aPlayed = game.chosenCell[0];
-    const bPlayed = game.chosenCell[1];
-    if (player === "A") {
-      if (aDominant) return aPlayed === aDominant;
-      const best = bPlayed === "c" ? aAgainstC : aAgainstD;
-      return aPlayed === best;
-    }
-    if (bDominant) return bPlayed === bDominant;
-    const best = aPlayed === "c" ? bAgainstC : bAgainstD;
-    return bPlayed === best;
-  };
+  //   - Dominant strategy: played === dominant (unconditional)
+  //   - Else: played === best response to the OPPONENT'S actual move
+  const choseOptimalA = aDominant
+    ? game.playerAPlayed === aDominant
+    : game.playerAPlayed ===
+      (game.playerBPlayed === "advance" ? aAgainstAdvance : aAgainstBlock);
+  const choseOptimalB = bDominant
+    ? game.playerBPlayed === bDominant
+    : game.playerBPlayed ===
+      (game.playerAPlayed === "advance" ? bAgainstAdvance : bAgainstBlock);
 
   return (
     <div>
@@ -483,24 +478,24 @@ function OptimalMoves({ game }: { game: BeatGame }) {
           playerId={game.playerAId}
           playerName={game.playerAName}
           dominant={aDominant}
-          againstC={aAgainstC}
-          againstD={aAgainstD}
-          playerBName={game.playerBName}
-          actionLabel={(a) => label(a, "A")}
-          played={game.chosenCell[0] as "c" | "d"}
-          choseOptimal={playerChoseOptimal("A")}
+          againstAdvance={aAgainstAdvance}
+          againstBlock={aAgainstBlock}
+          opponentName={game.playerBName}
+          actionLabel={labelA}
+          played={game.playerAPlayed}
+          choseOptimal={choseOptimalA}
           side="A"
         />
         <OptimalRow
           playerId={game.playerBId}
           playerName={game.playerBName}
           dominant={bDominant}
-          againstC={bAgainstC}
-          againstD={bAgainstD}
-          playerBName={game.playerAName}
-          actionLabel={(a) => label(a, "B")}
-          played={game.chosenCell[1] as "c" | "d"}
-          choseOptimal={playerChoseOptimal("B")}
+          againstAdvance={bAgainstAdvance}
+          againstBlock={bAgainstBlock}
+          opponentName={game.playerAName}
+          actionLabel={labelB}
+          played={game.playerBPlayed}
+          choseOptimal={choseOptimalB}
           side="B"
         />
       </div>
@@ -512,9 +507,9 @@ function OptimalRow({
   playerId,
   playerName,
   dominant,
-  againstC,
-  againstD,
-  playerBName,
+  againstAdvance,
+  againstBlock,
+  opponentName,
   actionLabel,
   played,
   choseOptimal,
@@ -522,12 +517,12 @@ function OptimalRow({
 }: {
   playerId: string;
   playerName: string;
-  dominant: string | null;
-  againstC: string;
-  againstD: string;
-  playerBName: string;
-  actionLabel: (a: string) => string;
-  played: "c" | "d";
+  dominant: PlayerMove | null;
+  againstAdvance: PlayerMove;
+  againstBlock: PlayerMove;
+  opponentName: string;
+  actionLabel: (m: PlayerMove) => string;
+  played: PlayerMove;
   choseOptimal: boolean;
   side: "A" | "B";
 }) {
@@ -548,13 +543,13 @@ function OptimalRow({
         ) : (
           <>
             <span className="font-semibold text-emerald-300">
-              {actionLabel(againstC)}
+              {actionLabel(againstAdvance)}
             </span>
-            <span className="text-text-dim/75"> if {playerBName} advances, </span>
+            <span className="text-text-dim/75"> if {opponentName} advances, </span>
             <span className="font-semibold text-emerald-300">
-              {actionLabel(againstD)}
+              {actionLabel(againstBlock)}
             </span>
-            <span className="text-text-dim/75"> if {playerBName} blocks</span>
+            <span className="text-text-dim/75"> if {opponentName} blocks</span>
           </>
         )}
         <div className="text-[10px] mt-0.5">
@@ -562,14 +557,14 @@ function OptimalRow({
             <span className="text-emerald-400/80">
               ✓ played optimally ({actionLabel(played)})
               {!dominant && (
-                <span className="text-text-dim/75"> — best response given {playerBName}&apos;s move</span>
+                <span className="text-text-dim/75"> — best response given {opponentName}&apos;s move</span>
               )}
             </span>
           ) : (
             <span className="text-amber-400/80">
               ✗ played {actionLabel(played)} — off-equilibrium
               {!dominant && (
-                <span className="text-text-dim/75"> against {playerBName}&apos;s move</span>
+                <span className="text-text-dim/75"> against {opponentName}&apos;s move</span>
               )}
             </span>
           )}
@@ -585,7 +580,7 @@ function PayoffReading({ game }: { game: BeatGame }) {
   const tags = classifyGame(game);
   const dom = dominantStrategy(game);
   const ne = nashEquilibria(game);
-  const chosenIsNash = ne.has(game.chosenCell);
+  const chosenIsNash = ne.has(playedKey(game));
 
   return (
     <div>
@@ -638,17 +633,14 @@ function PayoffReading({ game }: { game: BeatGame }) {
 function MatrixBoard({ game }: { game: BeatGame }) {
   const nash = useMemo(() => nashEquilibria(game), [game]);
   const { aDominant, bDominant } = useMemo(() => {
-    const aBest = aBestResponses(game);
-    const bBest = bBestResponses(game);
-    const aAgainstC = aBest.has("cc") ? "c" : "d";
-    const aAgainstD = aBest.has("cd") ? "c" : "d";
-    const bAgainstC = bBest.has("cc") ? "c" : "d";
-    const bAgainstD = bBest.has("dc") ? "c" : "d";
+    const dom = dominantStrategy(game);
     return {
-      aDominant: aAgainstC === aAgainstD ? aAgainstC : null,
-      bDominant: bAgainstC === bAgainstD ? bAgainstC : null,
+      aDominant: dom.aMove ?? null,
+      bDominant: dom.bMove ?? null,
     };
   }, [game]);
+  void aBestResponseKeys; // available for visualisation, unused here
+  void bBestResponseKeys;
 
   return (
     <table
@@ -683,16 +675,16 @@ function MatrixBoard({ game }: { game: BeatGame }) {
           </th>
           <th className="px-3 py-2 text-center">
             <AxisLabel
-              text={game.actionB}
+              text={game.playerBAdvance}
               tone="advance"
-              optimal={bDominant === "c"}
+              optimal={bDominant === "advance"}
             />
           </th>
           <th className="px-3 py-2 text-center">
             <AxisLabel
-              text={game.defectB}
+              text={game.playerBBlock}
               tone="block"
-              optimal={bDominant === "d"}
+              optimal={bDominant === "block"}
             />
           </th>
         </tr>
@@ -701,26 +693,26 @@ function MatrixBoard({ game }: { game: BeatGame }) {
         <tr>
           <th className="px-2 py-2 text-right align-middle">
             <AxisLabel
-              text={game.actionA}
+              text={game.playerAAdvance}
               tone="advance"
-              optimal={aDominant === "c"}
+              optimal={aDominant === "advance"}
               align="right"
             />
           </th>
-          <Cell game={game} cellKey="cc" isNash={nash.has("cc")} />
-          <Cell game={game} cellKey="cd" isNash={nash.has("cd")} />
+          <Cell game={game} outcomeKey="bothAdvance" isNash={nash.has("bothAdvance")} />
+          <Cell game={game} outcomeKey="advanceBlock" isNash={nash.has("advanceBlock")} />
         </tr>
         <tr>
           <th className="px-2 py-2 text-right align-middle">
             <AxisLabel
-              text={game.defectA}
+              text={game.playerABlock}
               tone="block"
-              optimal={aDominant === "d"}
+              optimal={aDominant === "block"}
               align="right"
             />
           </th>
-          <Cell game={game} cellKey="dc" isNash={nash.has("dc")} />
-          <Cell game={game} cellKey="dd" isNash={nash.has("dd")} />
+          <Cell game={game} outcomeKey="blockAdvance" isNash={nash.has("blockAdvance")} />
+          <Cell game={game} outcomeKey="bothBlock" isNash={nash.has("bothBlock")} />
         </tr>
       </tbody>
     </table>
@@ -752,15 +744,15 @@ function AxisLabel({
 
 function Cell({
   game,
-  cellKey,
+  outcomeKey,
   isNash,
 }: {
   game: BeatGame;
-  cellKey: CellKey;
+  outcomeKey: OutcomeKey;
   isNash: boolean;
 }) {
-  const cell = game[cellKey];
-  const isChosen = game.chosenCell === cellKey;
+  const outcome = game[outcomeKey];
+  const isChosen = outcomeKeyFor(game.playerAPlayed, game.playerBPlayed) === outcomeKey;
 
   const cellBg = isChosen
     ? "bg-amber-400/10 ring-1 ring-inset ring-amber-400/40"
@@ -780,7 +772,7 @@ function Cell({
         {isChosen && (
           <span
             className="text-[12px] font-semibold px-1 py-px rounded bg-amber-400/25 text-amber-200 uppercase tracking-wider"
-            title="The cell this beat actually played"
+            title="The outcome this beat actually landed on"
           >
             played
           </span>
@@ -790,32 +782,39 @@ function Cell({
       {/* Payoffs — A in full white, B in dimmed white; separator glyph between */}
       <div className="flex items-baseline gap-1.5 mb-1.5">
         <span className="text-[18px] font-mono font-bold leading-none text-white tabular-nums">
-          {cell.payoffA}
+          {outcome.payoffA}
         </span>
         <span className="text-[13px] font-mono text-text-dim/65 leading-none">/</span>
         <span className="text-[18px] font-mono font-bold leading-none text-white/55 tabular-nums">
-          {cell.payoffB}
+          {outcome.payoffB}
         </span>
       </div>
-      <p className="text-[12px] text-text-dim/85 leading-snug">{cell.outcome}</p>
+      <p className="text-[12px] text-text-dim/85 leading-snug">{outcome.description}</p>
     </td>
   );
 }
 
-// ── Cell chip — small colored badge showing which cell the beat landed on ──
+// ── Outcome chip — small badge showing which outcome the beat landed on ──
+// Uses arrow glyphs: ↑ = advance, ↓ = block. First arrow = A, second = B.
 
-function CellChip({ cell }: { cell: CellKey }) {
+const OUTCOME_GLYPHS: Record<OutcomeKey, string> = {
+  bothAdvance: "↑↑",
+  advanceBlock: "↑↓",
+  blockAdvance: "↓↑",
+  bothBlock: "↓↓",
+};
+
+function OutcomeChip({ outcomeKey }: { outcomeKey: OutcomeKey }) {
   const color =
-    cell === "cc"
-      ? "bg-emerald-400/20 text-emerald-300"
-      : cell === "dd"
-        ? "bg-red-400/20 text-red-300"
-        : "bg-amber-400/20 text-amber-300";
+    outcomeKey === "bothAdvance" ? "bg-emerald-400/20 text-emerald-300" :
+    outcomeKey === "bothBlock" ? "bg-red-400/20 text-red-300" :
+    "bg-amber-400/20 text-amber-300";
   return (
     <span
-      className={`text-[10px] font-mono font-semibold px-1 py-px rounded uppercase ${color}`}
+      className={`text-[11px] font-mono font-semibold px-1.5 py-px rounded ${color}`}
+      title={outcomeKey}
     >
-      {cell}
+      {OUTCOME_GLYPHS[outcomeKey]}
     </span>
   );
 }
