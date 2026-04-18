@@ -15,6 +15,22 @@ import { useStore } from "@/lib/store";
 import { resolveEntry } from "@/types/narrative";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
+/** Render chat text with **bold** spans. Scoped to bold only — asterisks are
+ *  common in prose ("10 * 5"), so we intentionally skip italic support.
+ *  Bold runs don't cross newlines, so multi-line messages won't accidentally
+ *  bold-wrap unrelated text. */
+function FormattedMessage({ text }: { text: string }) {
+  const parts = text.split(/(\*\*[^*\n]+?\*\*)/g);
+  return (
+    <>
+      {parts.map((part, i) => {
+        const match = /^\*\*([^*\n]+?)\*\*$/.exec(part);
+        return match ? <strong key={i}>{match[1]}</strong> : part;
+      })}
+    </>
+  );
+}
+
 export default function ChatPanel() {
   const { state, dispatch } = useStore();
   const access = useFeatureAccess();
@@ -527,7 +543,7 @@ ${ctx}`;
                   : "bg-white/5 text-text-secondary"
               }`}
             >
-              {msg.content}
+              <FormattedMessage text={msg.content} />
             </div>
           </div>
         ))}
