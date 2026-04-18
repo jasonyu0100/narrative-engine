@@ -2452,7 +2452,7 @@ Return ONLY the JSON object.`;
       )
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       .map(({ n, order }: { n: any; order: number }) => ({
-        id: n.id.slice(0, 20),
+        id: n.id,
         index: n.index, // Will be reindexed below
         order,
         type: VALID_COORDINATION_NODE_TYPES.has(n.type) ? n.type : "reasoning",
@@ -2505,7 +2505,7 @@ Return ONLY the JSON object.`;
       )
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       .map((e: any) => ({
-        id: e.id.slice(0, 20),
+        id: e.id,
         from: e.from,
         to: e.to,
         type: e.type as ReasoningEdgeType,
